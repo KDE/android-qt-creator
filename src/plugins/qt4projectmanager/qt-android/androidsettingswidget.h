@@ -51,7 +51,12 @@ QT_END_NAMESPACE
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class NameValidator;
+class AndroidDevicesModel: public QAbstractItemModel
+{
+public:
+    AndroidDevicesModel(QObject * parent);
+protected:
+};
 
 class AndroidSettingsWidget : public QWidget
 {
@@ -66,10 +71,16 @@ public:
 private slots:
     void SDKLocationEditingFinished();
     void NDKLocationEditingFinished();
+    void browseSDKLocation();
+    void browseNDKLocation();
+    void addAVD();
+    void removeAVD();
+    void startAVD();
 
 private:
     void initGui();
-//    AndroidConfig &currentConfig();
+    bool checkSDK(const QString & location);
+    bool checkNDK(const QString & location);
 
     Ui_AndroidSettingsWidget *m_ui;
     AndroidConfig m_androidConfig;

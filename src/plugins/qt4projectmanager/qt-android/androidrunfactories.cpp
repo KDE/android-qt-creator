@@ -163,7 +163,7 @@ bool AndroidRunControlFactory::canRun(RunConfiguration *runConfiguration,
 {
     const AndroidRunConfiguration * const androidRunConfig
         = qobject_cast<AndroidRunConfiguration *>(runConfiguration);
-    if (!androidRunConfig || !androidRunConfig->deviceConfig().isValid()
+    if (!androidRunConfig
         || !androidRunConfig->toolchain()
         || androidRunConfig->remoteExecutableFilePath().isEmpty())
         return false;

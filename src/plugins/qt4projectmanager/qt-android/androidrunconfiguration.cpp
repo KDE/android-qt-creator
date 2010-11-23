@@ -317,15 +317,16 @@ QString AndroidRunConfiguration::remoteExecutableFilePath() const
 
 AndroidPortList AndroidRunConfiguration::freePorts() const
 {
-    const AndroidConfig &devConfig = deviceConfig();
-    const Qt4BuildConfiguration * const qt4bc = activeQt4BuildConfiguration();
-    if (devConfig.type == AndroidConfig::Simulator && qt4bc) {
-        Runtime rt;
-        const int id = qt4bc->qtVersion()->uniqueId();
-        if (AndroidQemuManager::instance().runtimeForQtVersion(id, &rt))
-            return rt.m_freePorts;
-    }
-    return devConfig.freePorts();
+#warning FIXME Android
+//    const AndroidConfig &devConfig = deviceConfig();
+//    const Qt4BuildConfiguration * const qt4bc = activeQt4BuildConfiguration();
+//    if (devConfig.type == AndroidConfig::Simulator && qt4bc) {
+//        Runtime rt;
+//        const int id = qt4bc->qtVersion()->uniqueId();
+//        if (AndroidQemuManager::instance().runtimeForQtVersion(id, &rt))
+//            return rt.m_freePorts;
+//    }
+//    return devConfig.freePorts();
 }
 
 bool AndroidRunConfiguration::useRemoteGdb() const

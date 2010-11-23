@@ -33,7 +33,8 @@ HEADERS += \
     $$PWD/androidprofilesupdatedialog.h \
     $$PWD/androidusedportsgatherer.h \
     $$PWD/androidremoteprocesslist.h \
-    $$PWD/androidremoteprocessesdialog.h
+    $$PWD/androidremoteprocessesdialog.h \
+    $$PWD/androiddevicesmodel.h
 
 SOURCES += \
     $$PWD/androidconfigtestdialog.cpp \
@@ -68,7 +69,8 @@ SOURCES += \
     $$PWD/androidprofilesupdatedialog.cpp \
     $$PWD/androidusedportsgatherer.cpp \
     $$PWD/androidremoteprocesslist.cpp \
-    $$PWD/androidremoteprocessesdialog.cpp
+    $$PWD/androidremoteprocessesdialog.cpp \
+    $$PWD/androiddevicesmodel.cpp
 
 FORMS += \
     $$PWD/androidconfigtestdialog.ui \

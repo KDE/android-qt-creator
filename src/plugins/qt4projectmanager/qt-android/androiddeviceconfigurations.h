@@ -93,44 +93,13 @@ private:
 class AndroidConfig
 {
 public:
-    enum DeviceType { Physical, Simulator };
     AndroidConfig();
-    AndroidConfig(const QString &name, DeviceType type);
-    AndroidConfig(const QSettings &settings, quint64 &nextId);
+    AndroidConfig(const QSettings &settings);
     void save(QSettings &settings) const;
-    bool isValid() const;
-    AndroidPortList freePorts() const;
-    static QString portsRegExpr();
-
-    static const quint64 InvalidId = 0;
 
     QString SDKLocation;
     QString NDKLocation;
-
-    QString name;
-    DeviceType type;
-    QString portsSpec;
-    quint64 internalId;
-
-private:
-    int defaultSshPort(DeviceType type) const;
-    QString defaultPortsSpec(DeviceType type) const;
-    QString defaultHost(DeviceType type) const;
-
 };
-
-class AndroidDevConfNameMatcher
-{
-public:
-    AndroidDevConfNameMatcher(const QString &name) : m_name(name) {}
-    bool operator()(const AndroidConfig &devConfig)
-    {
-        return devConfig.name == m_name;
-    }
-private:
-    const QString m_name;
-};
-
 
 class AndroidConfigurations : public QObject
 {
@@ -152,7 +121,6 @@ private:
 
     static AndroidConfigurations *m_instance;
     AndroidConfig m_config;
-    quint64 m_nextId;
     friend class AndroidConfig;
 };
 

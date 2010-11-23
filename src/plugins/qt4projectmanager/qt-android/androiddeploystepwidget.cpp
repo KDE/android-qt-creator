@@ -81,7 +81,8 @@ void AndroidDeployStepWidget::handleDeviceUpdate()
 
 QString AndroidDeployStepWidget::summaryText() const
 {
-    return tr("<b>Deploy to device</b>: %1").arg(m_step->deviceConfig().name);
+#warning FIXME Android
+    return "";//tr("<b>Deploy to device</b>: %1").arg(m_step->deviceConfig().name);
 }
 
 QString AndroidDeployStepWidget::displayName() const

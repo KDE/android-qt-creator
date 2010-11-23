@@ -349,7 +349,8 @@ void AndroidRunConfigurationWidget::showSettingsDialog(const QString &link)
 
 void AndroidRunConfigurationWidget::handleCurrentDeviceConfigChanged()
 {
-    m_devConfLabel->setText(m_runConfiguration->deviceConfig().name);
+#warning FIXME Android
+//    m_devConfLabel->setText(m_runConfiguration->deviceConfig().name);
     updateMountWarning();
 }
 

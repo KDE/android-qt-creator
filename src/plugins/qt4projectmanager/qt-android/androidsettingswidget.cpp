@@ -62,6 +62,7 @@ namespace Internal {
 AndroidSettingsWidget::AndroidSettingsWidget(QWidget *parent)
     : QWidget(parent),
       m_ui(new Ui_AndroidSettingsWidget),
+      m_androidConfig(AndroidConfigurations::instance().devConfigs()),
       m_saveSettingsRequested(false)
 {
     initGui();
@@ -88,8 +89,13 @@ QString AndroidSettingsWidget::searchKeywords() const
 void AndroidSettingsWidget::initGui()
 {
     m_ui->setupUi(this);
-}
+    if (checkSDK(m_androidConfig.SDKLocation))
+        m_ui->SDKLocationLineEdit->setText(m_androidConfig.SDKLocation);
+    else
+        m_androidConfig.SDKLocation="";
+    m_ui->NDKLocationLineEdit->setText(m_androidConfig.NDKLocation);
 
+}
 
 void AndroidSettingsWidget::saveSettings()
 {
@@ -97,22 +103,81 @@ void AndroidSettingsWidget::saveSettings()
     m_saveSettingsRequested = true;
 }
 
-//AndroidConfig &AndroidSettingsWidget::currentConfig()
-//{
-//    return m_androidConfig;
-//}
+bool AndroidSettingsWidget::checkSDK(const QString & location)
+{
+    m_ui->devicesFrame->setEnabled(false);
+    if (!location.length())
+        return false;
+    if (!QFile::exists(location+QLatin1String("/tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")))
+    {
+        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be Android's SDK top folder'").arg(location));
+        return false;
+    }
+    m_ui->devicesFrame->setEnabled(true);
+    return true;
+}
 
+bool AndroidSettingsWidget::checkNDK(const QString & location)
+{
+    if (!location.length())
+        return false;
+    return true;
+    if (!QFile::exists(location+QLatin1String("/tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")))
+    {
+        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be Android's SDK top folder'").arg(location));
+        return false;
+    }
+    return true;
+
+}
 
 void AndroidSettingsWidget::SDKLocationEditingFinished()
 {
-    m_androidConfig.SDKLocation = m_ui->SDKLocationLineEdit->text();
+    QString location=m_ui->SDKLocationLineEdit->text();
+    if (!checkSDK(location))
+        return;
+    m_androidConfig.SDKLocation = location;
 }
 
 void AndroidSettingsWidget::NDKLocationEditingFinished()
 {
-    m_androidConfig.NDKLocation = m_ui->NDKLocationLineEdit->text();
+    QString location=m_ui->NDKLocationLineEdit->text();
+    if (!checkNDK(location))
+        return;
+    m_androidConfig.NDKLocation = location;
 }
 
+void AndroidSettingsWidget::browseSDKLocation()
+{
+    QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"));
+    if (!checkSDK(dir))
+        return;
+    m_ui->SDKLocationLineEdit->setText(dir);
+    SDKLocationEditingFinished();
+}
+
+void AndroidSettingsWidget::browseNDKLocation()
+{
+    QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android NDK folder"));
+    if (!checkNDK(dir))
+        return;
+    m_ui->NDKLocationLineEdit->setText(dir);
+    NDKLocationEditingFinished();
+}
+
+void AndroidSettingsWidget::addAVD()
+{
+}
+
+void AndroidSettingsWidget::removeAVD()
+{
+
+}
+
+void AndroidSettingsWidget::startAVD()
+{
+
+}
 
 } // namespace Internal
 } // namespace Qt4ProjectManager

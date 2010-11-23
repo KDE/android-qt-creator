@@ -298,11 +298,11 @@ void AndroidDeployStep::start()
         return;
     }
 
-    if (!deviceConfig().isValid()) {
-        raiseError(tr("Deployment failed: No valid device set."));
-        emit done();
-        return;
-    }
+//    if (!deviceConfig().isValid()) {
+//        raiseError(tr("Deployment failed: No valid device set."));
+//        emit done();
+//        return;
+//    }
 
     Q_ASSERT(!m_currentDeviceDeployAction);
     Q_ASSERT(!m_needsInstall);
@@ -454,10 +454,10 @@ void AndroidDeployStep::handleUnmounted()
         else
             prepareSftpConnection();
         break;
-    case UnmountingCurrentDirs:
-        setState(GatheringPorts);
-        m_portsGatherer->start(m_connection, deviceConfig().freePorts());
-        break;
+//    case UnmountingCurrentDirs:
+//        setState(GatheringPorts);
+//        m_portsGatherer->start(m_connection, deviceConfig().freePorts());
+//        break;
     case UnmountingCurrentMounts:
         writeOutput(tr("Deployment finished."));
         setState(Inactive);
@@ -859,13 +859,13 @@ void AndroidDeployStep::handlePortListReady()
 {
     ASSERT_STATE(QList<State>() << GatheringPorts << StopRequested);
 
-    if (m_state == GatheringPorts) {
-        setState(Mounting);
-        m_freePorts = deviceConfig().freePorts();
-        m_mounter->mount(&m_freePorts, m_portsGatherer);
-    } else {
-        setState(Inactive);
-    }
+//    if (m_state == GatheringPorts) {
+//        setState(Mounting);
+//        m_freePorts = deviceConfig().freePorts();
+//        m_mounter->mount(&m_freePorts, m_portsGatherer);
+//    } else {
+//        setState(Inactive);
+//    }
 }
 
 void AndroidDeployStep::setState(State newState)

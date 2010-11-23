@@ -52,194 +52,25 @@ namespace Internal {
 namespace {
     const QLatin1String SettingsGroup("AndroidDeviceConfigs");
     const QLatin1String SDKLocationKey("SDKLocation");
-    const QLatin1String NDKLocationKey("SDKLocation");
-    const QLatin1String NameKey("Name");
-    const QLatin1String TypeKey("Type");
-    const QLatin1String HostKey("Host");
-    const QLatin1String SshPortKey("SshPort");
-    const QLatin1String PortsSpecKey("FreePortsSpec");
-    const QLatin1String UserNameKey("Uname");
-    const QLatin1String AuthKey("Authentication");
-    const QLatin1String KeyFileKey("KeyFile");
-    const QLatin1String PasswordKey("Password");
-    const QLatin1String TimeoutKey("Timeout");
-    const QLatin1String InternalIdKey("InternalId");
+    const QLatin1String NDKLocationKey("NDKLocation");
 
-    const QString DefaultKeyFile =
-        QDesktopServices::storageLocation(QDesktopServices::HomeLocation)
-        + QLatin1String("/.ssh/id_rsa");
-    const int DefaultSshPortHW(22);
-    const int DefaultSshPortSim(6666);
-    const int DefaultGdbServerPortHW(10000);
-    const int DefaultGdbServerPortSim(13219);
-    const QString DefaultHostNameHW(QLatin1String("192.168.2.15"));
-    const QString DefaultHostNameSim(QLatin1String("localhost"));
-    const QString DefaultUserName(QLatin1String("developer"));
-    const AuthType DefaultAuthType(Core::SshConnectionParameters::AuthByKey);
-    const int DefaultTimeout(30);
-    const AndroidConfig::DeviceType DefaultDeviceType(AndroidConfig::Physical);
 };
 
-class DevConfIdMatcher
-{
-public:
-    DevConfIdMatcher(quint64 id) : m_id(id) {}
-    bool operator()(const AndroidConfig &devConfig)
-    {
-        return devConfig.internalId == m_id;
-    }
-private:
-    const quint64 m_id;
-};
 
-class PortsSpecParser
-{
-    struct ParseException {
-        ParseException(const char *error) : error(error) {}
-        const char * const error;
-    };
-
-public:
-    PortsSpecParser(const QString &portsSpec)
-        : m_pos(0), m_portsSpec(portsSpec) { }
-
-    /*
-     * Grammar: Spec -> [ ElemList ]
-     *          ElemList -> Elem [ ',' ElemList ]
-     *          Elem -> Port [ '-' Port ]
-     */
-    AndroidPortList parse()
-    {
-        try {
-            if (!atEnd())
-                parseElemList();
-        } catch (ParseException &e) {
-            qWarning("Malformed ports specification: %s", e.error);
-        }
-        return m_portList;
-    }
-
-private:
-    void parseElemList()
-    {
-        if (atEnd())
-            throw ParseException("Element list empty.");
-        parseElem();
-        if (atEnd())
-            return;
-        if (nextChar() != ',') {
-            throw ParseException("Element followed by something else "
-                "than a comma.");
-        }
-        ++m_pos;
-        parseElemList();
-    }
-
-    void parseElem()
-    {
-        const int startPort = parsePort();
-        if (atEnd() || nextChar() != '-') {
-            m_portList.addPort(startPort);            
-            return;
-        }
-        ++m_pos;
-        const int endPort = parsePort();
-        if (endPort < startPort)
-            throw ParseException("Invalid range (end < start).");
-        m_portList.addRange(startPort, endPort);
-    }
-
-    int parsePort()
-    {
-        if (atEnd())
-            throw ParseException("Empty port string.");
-        int port = 0;
-        do {
-            const char next = nextChar();
-            if (!std::isdigit(next))
-                break;
-            port = 10*port + next - '0';
-            ++m_pos;
-        } while (!atEnd());
-        if (port == 0 || port >= 2 << 16)
-            throw ParseException("Invalid port value.");
-        return port;
-    }
-
-    bool atEnd() const { return m_pos == m_portsSpec.length(); }
-    char nextChar() const { return m_portsSpec.at(m_pos).toAscii(); }
-
-    AndroidPortList m_portList;
-    int m_pos;
-    const QString &m_portsSpec;
-};
-
-AndroidConfig::AndroidConfig(const QString &name, AndroidConfig::DeviceType devType)
-    : name(name),
-      type(devType),
-      portsSpec(defaultPortsSpec(type)),
-      internalId(AndroidConfigurations::instance().m_nextId++)
-{
-}
-
-AndroidConfig::AndroidConfig(const QSettings &settings,
-                                     quint64 &nextId)
+AndroidConfig::AndroidConfig(const QSettings &settings)
     : SDKLocation(settings.value(SDKLocationKey).toString()),
-      NDKLocation(settings.value(NDKLocationKey).toString()),
-      name(settings.value(NameKey).toString()),
-      type(static_cast<DeviceType>(settings.value(TypeKey, DefaultDeviceType).toInt())),
-      portsSpec(settings.value(PortsSpecKey, defaultPortsSpec(type)).toString()),
-      internalId(settings.value(InternalIdKey, nextId).toULongLong())
+      NDKLocation(settings.value(NDKLocationKey).toString())
 {
-    if (internalId == nextId)
-        ++nextId;
 }
 
 AndroidConfig::AndroidConfig()
-    : name(QCoreApplication::translate("AndroidDeviceConfig", "(Invalid device)")),
-      internalId(InvalidId)
 {
-}
-
-QString AndroidConfig::portsRegExpr()
-{
-    const QLatin1String portExpr("(\\d)+");
-    const QString listElemExpr = QString::fromLatin1("%1(-%1)?").arg(portExpr);
-    return QString::fromLatin1("((%1)(,%1)*)?").arg(listElemExpr);
-}
-
-int AndroidConfig::defaultSshPort(DeviceType type) const
-{
-    return type == Physical ? DefaultSshPortHW : DefaultSshPortSim;
-}
-
-QString AndroidConfig::defaultPortsSpec(DeviceType type) const
-{
-    return QLatin1String(type == Physical ? "10000-10100" : "13219,14168");
-}
-
-QString AndroidConfig::defaultHost(DeviceType type) const
-{
-    return type == Physical ? DefaultHostNameHW : DefaultHostNameSim;
-}
-
-bool AndroidConfig::isValid() const
-{
-    return internalId != InvalidId;
-}
-
-AndroidPortList AndroidConfig::freePorts() const
-{
-    return PortsSpecParser(portsSpec).parse();
 }
 
 void AndroidConfig::save(QSettings &settings) const
 {
     settings.setValue(SDKLocationKey, SDKLocation);
     settings.setValue(NDKLocationKey, NDKLocation);
-    settings.setValue(NameKey, name);
-    settings.setValue(TypeKey, type);
-    settings.setValue(InternalIdKey, internalId);
 }
 
 void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
@@ -274,7 +105,7 @@ void AndroidConfigurations::load()
 {
     QSettings *settings = Core::ICore::instance()->settings();
     settings->beginGroup(SettingsGroup);
-    m_config=AndroidConfig(*settings, m_nextId);
+    m_config=AndroidConfig(*settings);
     settings->endGroup();
 }
 

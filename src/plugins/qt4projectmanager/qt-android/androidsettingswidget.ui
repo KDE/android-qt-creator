@@ -68,6 +68,9 @@
    </item>
    <item>
     <widget class="QFrame" name="devicesFrame">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>
      </property>
@@ -81,27 +84,21 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
-         <widget class="QPushButton" name="addConfigButton">
+         <widget class="QPushButton" name="addAVDButton">
           <property name="text">
            <string>Add</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="removeConfigButton">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
+         <widget class="QPushButton" name="removeAVDButton">
           <property name="text">
            <string>Remove</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="startConfigButton">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
+         <widget class="QPushButton" name="startAVDButton">
           <property name="text">
            <string>Start</string>
           </property>
@@ -145,9 +142,62 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>NDKLocationLineEdit</sender>
+   <signal>editingFinished()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>NDKLocationEditingFinished()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>387</x>
+     <y>56</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SDKLocationPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>browseSDKLocation()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>650</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>NDKLocationPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>browseNDKLocation()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>650</x>
+     <y>56</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>SDKLocationEditingFinished()</slot>
   <slot>NDKLocationEditingFinished()</slot>
+  <slot>addAVD()</slot>
+  <slot>removeAVD()</slot>
+  <slot>startAVD()</slot>
+  <slot>browseSDKLocation()</slot>
+  <slot>browseNDKLocation()</slot>
  </slots>
 </ui>
