@@ -51,13 +51,6 @@ QT_END_NAMESPACE
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class AndroidDevicesModel: public QAbstractItemModel
-{
-public:
-    AndroidDevicesModel(QObject * parent);
-protected:
-};
-
 class AndroidSettingsWidget : public QWidget
 {
     Q_OBJECT
