@@ -26,33 +26,46 @@
 ** contact the sales department at http://qt.nokia.com/contact.
 **
 **************************************************************************/
+#ifndef ANDROIDPROFILESUPDATEDIALOG_H
+#define ANDROIDPROFILESUPDATEDIALOG_H
 
-#ifndef TOOLCHAINTYPE_H
-#define TOOLCHAINTYPE_H
+#include <QtCore/QList>
+#include <QtCore/QPair>
+#include <QtCore/QString>
+#include <QtGui/QDialog>
 
-namespace ProjectExplorer {
+QT_BEGIN_NAMESPACE
+namespace Ui {
+    class AndroidProFilesUpdateDialog;
+}
+QT_END_NAMESPACE
 
-enum ToolChainType
+namespace Qt4ProjectManager {
+namespace Internal {
+class AndroidDeployableListModel;
+
+class AndroidProFilesUpdateDialog : public QDialog
 {
-    ToolChain_GCC = 0,
-    ToolChain_LINUX_ICC = 1,
-    ToolChain_MinGW = 2,
-    ToolChain_MSVC = 3,
-    ToolChain_WINCE = 4,
-    ToolChain_WINSCW = 5,
-    ToolChain_GCCE = 6,
-    ToolChain_RVCT_ARMV5 = 7,
-    ToolChain_RVCT_ARMV6 = 8,
-    ToolChain_GCC_MAEMO = 9,
-    ToolChain_GCCE_GNUPOC = 10,
-    ToolChain_RVCT_ARMV5_GNUPOC = 11,
-    ToolChain_GCC_ANDROID = 12,
-    ToolChain_LAST_VALID = 12,
-    ToolChain_OTHER = 200,
-    ToolChain_UNKNOWN = 201,
-    ToolChain_INVALID = 202
+    Q_OBJECT
+
+public:
+    typedef QPair<AndroidDeployableListModel *, bool> UpdateSetting;
+
+    explicit AndroidProFilesUpdateDialog(const QList<AndroidDeployableListModel *> &models,
+        QWidget *parent = 0);
+    ~AndroidProFilesUpdateDialog();
+    QList<UpdateSetting> getUpdateSettings() const;
+
+private:
+    Q_SLOT void checkAll();
+    Q_SLOT void uncheckAll();
+    void setCheckStateForAll(Qt::CheckState checkState);
+
+    const QList<AndroidDeployableListModel *> m_models;
+    Ui::AndroidProFilesUpdateDialog *ui;
 };
 
-} // namespace ProjectExplorer
+} // namespace Qt4ProjectManager
+} // namespace Internal
 
-#endif // TOOLCHAINTYPE_H
+#endif // ANDROIDPROFILESUPDATEDIALOG_H

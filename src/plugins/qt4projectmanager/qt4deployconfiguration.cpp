@@ -36,6 +36,8 @@
 #include "qt-s60/s60createpackagestep.h"
 #include "qt-s60/s60deploystep.h"
 #include "qt-s60/s60deployconfiguration.h"
+#include "qt-android/androiddeploystep.h"
+#include "qt-android/androidpackagecreationstep.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/target.h>
@@ -67,6 +69,10 @@ ProjectExplorer::DeployConfiguration *Qt4DeployConfigurationFactory::create(Proj
         dc->setDefaultDisplayName(tr("Deploy to Maemo device"));
         dc->stepList()->insertStep(0, new MaemoPackageCreationStep(dc->stepList()));
         dc->stepList()->insertStep(1, new MaemoDeployStep(dc->stepList()));
+    } else if (parent->id() == Constants::ANDROID_DEVICE_TARGET_ID) {
+        dc->setDefaultDisplayName(tr("Deploy to Android device"));
+        dc->stepList()->insertStep(0, new AndroidPackageCreationStep(dc->stepList()));
+        dc->stepList()->insertStep(1, new AndroidDeployStep(dc->stepList()));
     }
 
     return dc;

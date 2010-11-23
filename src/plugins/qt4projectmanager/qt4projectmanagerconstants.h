@@ -113,6 +113,7 @@ const char * const S60_EMULATOR_TARGET_ID("Qt4ProjectManager.Target.S60EmulatorT
 const char * const S60_DEVICE_TARGET_ID("Qt4ProjectManager.Target.S60DeviceTarget");
 const char * const MAEMO_DEVICE_TARGET_ID("Qt4ProjectManager.Target.MaemoDeviceTarget");
 const char * const QT_SIMULATOR_TARGET_ID("Qt4ProjectManager.Target.QtSimulatorTarget");
+const char * const ANDROID_DEVICE_TARGET_ID("Qt4ProjectManager.Target.AndroidDeviceTarget");
 
 // ICONS
 const char * const ICON_QT_PROJECT = ":/qt4projectmanager/images/qt_project.png";

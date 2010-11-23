@@ -36,6 +36,7 @@
 #include "qt-maemo/maemomanager.h"
 #include "qt-s60/s60manager.h"
 #include "qt-s60/s60projectchecker.h"
+#include "qt-android/androidmanager.h"
 
 #include "qmlobservertool.h"
 #include "qmldumptool.h"
@@ -1446,6 +1447,10 @@ void QtVersion::updateToolChainAndMkspec() const
                && MaemoManager::instance().isValidMaemoQtVersion(this)) {
         m_toolChains << ToolChainPtr(MaemoManager::instance().maemoToolChain(this));
         m_targetIds.insert(QLatin1String(Constants::MAEMO_DEVICE_TARGET_ID));
+    } else if (qt_arch.startsWith(QLatin1String("arm"))
+               && AndroidManager::instance().isValidAndroidQtVersion(this)) {
+        m_toolChains << ToolChainPtr(AndroidManager::instance().androidToolChain(this));
+        m_targetIds.insert(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
     } else if (qmakeCXX == "cl" || qmakeCXX == "icl") {
         // TODO proper support for intel cl. Detect matching VC version unless set.
         if (m_msvcVersion.isEmpty())
@@ -1695,6 +1700,7 @@ bool QtVersion::supportsBinaryDebuggingHelper() const
         case ProjectExplorer::ToolChain_MSVC:
         case ProjectExplorer::ToolChain_WINCE:
         case ProjectExplorer::ToolChain_GCC_MAEMO:
+        case ProjectExplorer::ToolChain_GCC_ANDROID:
         case ProjectExplorer::ToolChain_OTHER:
         case ProjectExplorer::ToolChain_UNKNOWN:
             return true;

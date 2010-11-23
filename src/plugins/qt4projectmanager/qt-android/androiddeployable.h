@@ -27,32 +27,36 @@
 **
 **************************************************************************/
 
-#ifndef TOOLCHAINTYPE_H
-#define TOOLCHAINTYPE_H
+#ifndef ANDROIDDEPLOYABLE_H
+#define ANDROIDDEPLOYABLE_H
 
-namespace ProjectExplorer {
+#include <QtCore/QHash>
+#include <QtCore/QString>
 
-enum ToolChainType
+namespace Qt4ProjectManager {
+namespace Internal {
+
+struct AndroidDeployable
 {
-    ToolChain_GCC = 0,
-    ToolChain_LINUX_ICC = 1,
-    ToolChain_MinGW = 2,
-    ToolChain_MSVC = 3,
-    ToolChain_WINCE = 4,
-    ToolChain_WINSCW = 5,
-    ToolChain_GCCE = 6,
-    ToolChain_RVCT_ARMV5 = 7,
-    ToolChain_RVCT_ARMV6 = 8,
-    ToolChain_GCC_MAEMO = 9,
-    ToolChain_GCCE_GNUPOC = 10,
-    ToolChain_RVCT_ARMV5_GNUPOC = 11,
-    ToolChain_GCC_ANDROID = 12,
-    ToolChain_LAST_VALID = 12,
-    ToolChain_OTHER = 200,
-    ToolChain_UNKNOWN = 201,
-    ToolChain_INVALID = 202
+    AndroidDeployable(const QString &localFilePath, const QString &remoteDir)
+        : localFilePath(localFilePath), remoteDir(remoteDir) {}
+
+    bool operator==(const AndroidDeployable &other) const
+    {
+        return localFilePath == other.localFilePath
+            && remoteDir == other.remoteDir;
+    }
+
+    QString localFilePath;
+    QString remoteDir;
 };
 
-} // namespace ProjectExplorer
+inline uint qHash(const AndroidDeployable &d)
+{
+    return qHash(qMakePair(d.localFilePath, d.remoteDir));
+}
 
-#endif // TOOLCHAINTYPE_H
+} // namespace Qt4ProjectManager
+} // namespace Internal
+
+#endif // ANDROIDDEPLOYABLE_H

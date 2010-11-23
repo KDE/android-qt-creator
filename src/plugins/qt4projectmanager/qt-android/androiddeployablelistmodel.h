@@ -1,0 +1,107 @@
+/**************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (qt-info@nokia.com)
+**
+** Commercial Usage
+**
+** Licensees holding valid Qt Commercial licenses may use this file in
+** accordance with the Qt Commercial License Agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Nokia.
+**
+** GNU Lesser General Public License Usage
+**
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** If you are unsure which license is appropriate for your use, please
+** contact the sales department at http://qt.nokia.com/contact.
+**
+**************************************************************************/
+
+#ifndef ANDROIDPACKAGECONTENTS_H
+#define ANDROIDPACKAGECONTENTS_H
+
+#include "androiddeployable.h"
+
+#include <qt4projectmanager/qt4nodes.h>
+
+#include <QtCore/QAbstractTableModel>
+#include <QtCore/QHash>
+#include <QtCore/QList>
+#include <QtCore/QScopedPointer>
+#include <QtCore/QString>
+
+namespace Qt4ProjectManager {
+namespace Internal {
+class AndroidToolChain;
+
+class AndroidDeployableListModel : public QAbstractTableModel
+{
+    Q_OBJECT
+public:
+    enum ProFileUpdateSetting {
+        UpdateProFile, DontUpdateProFile, AskToUpdateProFile
+    };
+
+    AndroidDeployableListModel(const Qt4ProFileNode *proFileNode,
+        ProFileUpdateSetting updateSetting, QObject *parent);
+    ~AndroidDeployableListModel();
+
+    virtual int rowCount(const QModelIndex &parent = QModelIndex()) const;
+
+    AndroidDeployable deployableAt(int row) const;
+    bool isModified() const { return m_modified; }
+    void setUnModified() { m_modified = false; }
+    QString localExecutableFilePath() const;
+    QString remoteExecutableFilePath() const;
+    QString projectName() const { return m_projectName; }
+    QString projectDir() const;
+    QString proFilePath() const { return m_proFilePath; }
+    bool hasTargetPath() const { return m_hasTargetPath; }
+    bool canAddDesktopFile() const;
+    bool addDesktopFile(QString &error);
+    ProFileUpdateSetting proFileUpdateSetting() const {
+        return m_proFileUpdateSetting;
+    }
+    void setProFileUpdateSetting(ProFileUpdateSetting updateSetting);
+
+private:
+    virtual int columnCount(const QModelIndex &parent = QModelIndex()) const;
+    virtual QVariant data(const QModelIndex &index,
+                          int role = Qt::DisplayRole) const;
+    virtual QVariant headerData(int section, Qt::Orientation orientation,
+                                int role = Qt::DisplayRole) const;
+    virtual Qt::ItemFlags flags(const QModelIndex &index) const;
+    virtual bool setData(const QModelIndex &index, const QVariant &value,
+                         int role = Qt::EditRole);
+
+    bool isEditable(const QModelIndex &index) const;
+    bool buildModel();
+    bool addLinesToProFile(const QStringList &lines);
+    const AndroidToolChain *androidToolchain() const;
+
+    const Qt4ProjectType m_projectType;
+    const QString m_proFilePath;
+    const QString m_projectName;
+    const TargetInformation m_targetInfo;
+    const InstallsList m_installsList;
+    const QStringList m_config;
+    QList<AndroidDeployable> m_deployables;
+    mutable bool m_modified;
+    ProFileUpdateSetting m_proFileUpdateSetting;
+    bool m_hasTargetPath;
+};
+
+} // namespace Qt4ProjectManager
+} // namespace Internal
+
+#endif // ANDROIDPACKAGECONTENTS_H

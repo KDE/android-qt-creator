@@ -44,6 +44,9 @@
 #include "qt-s60/s60emulatorrunconfiguration.h"
 #include "qt-s60/s60createpackagestep.h"
 #include "qt-s60/s60deploystep.h"
+#include "qt-android/androiddeploystep.h"
+#include "qt-android/androidpackagecreationstep.h"
+#include "qt-android/androidrunconfiguration.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
@@ -340,6 +343,8 @@ void Qt4Target::addRunConfigurationForPath(const QString &proFilePath)
         addRunConfiguration(new S60DeviceRunConfiguration(this, proFilePath));
     else if (id() == QLatin1String(Constants::MAEMO_DEVICE_TARGET_ID))
         addRunConfiguration(new MaemoRunConfiguration(this, proFilePath));
+    else if (id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
+        addRunConfiguration(new AndroidRunConfiguration(this, proFilePath));
 }
 
 QList<ProjectExplorer::ToolChainType> Qt4Target::filterToolChainTypes(const QList<ProjectExplorer::ToolChainType> &candidates) const

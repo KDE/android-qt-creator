@@ -54,6 +54,7 @@
 
 #include "qt-maemo/maemomanager.h"
 #include "qt-s60/s60manager.h"
+#include "qt-android/androidmanager.h"
 
 #include <coreplugin/uniqueidmanager.h>
 #include <coreplugin/icore.h>
@@ -165,6 +166,7 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
 
     addAutoReleasedObject(new S60Manager);
     addAutoReleasedObject(new MaemoManager);
+    addAutoReleasedObject(new AndroidManager);
 
     ProFileCompletion *completion = new ProFileCompletion;
     addAutoReleasedObject(completion);

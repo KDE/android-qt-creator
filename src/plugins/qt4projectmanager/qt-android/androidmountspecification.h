@@ -27,32 +27,25 @@
 **
 **************************************************************************/
 
-#ifndef TOOLCHAINTYPE_H
-#define TOOLCHAINTYPE_H
+#ifndef ANDROIDMOUNTSPECIFICATION_H
+#define ANDROIDMOUNTSPECIFICATION_H
 
-namespace ProjectExplorer {
+#include <QtCore/QLatin1String>
 
-enum ToolChainType
-{
-    ToolChain_GCC = 0,
-    ToolChain_LINUX_ICC = 1,
-    ToolChain_MinGW = 2,
-    ToolChain_MSVC = 3,
-    ToolChain_WINCE = 4,
-    ToolChain_WINSCW = 5,
-    ToolChain_GCCE = 6,
-    ToolChain_RVCT_ARMV5 = 7,
-    ToolChain_RVCT_ARMV6 = 8,
-    ToolChain_GCC_MAEMO = 9,
-    ToolChain_GCCE_GNUPOC = 10,
-    ToolChain_RVCT_ARMV5_GNUPOC = 11,
-    ToolChain_GCC_ANDROID = 12,
-    ToolChain_LAST_VALID = 12,
-    ToolChain_OTHER = 200,
-    ToolChain_UNKNOWN = 201,
-    ToolChain_INVALID = 202
+namespace Qt4ProjectManager {
+namespace Internal {
+
+struct AndroidMountSpecification {
+    AndroidMountSpecification(const QString &localDir, const QString &remoteDir);
+    bool isValid() const { return remoteMountPoint != InvalidMountPoint; }
+
+    static const QLatin1String InvalidMountPoint;
+
+    QString localDir;
+    QString remoteMountPoint;
 };
 
-} // namespace ProjectExplorer
+} // namespace Internal
+} // namespace Qt4ProjectManager
 
-#endif // TOOLCHAINTYPE_H
+#endif // ANDROIDMOUNTSPECIFICATION_H
