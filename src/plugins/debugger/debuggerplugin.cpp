@@ -467,6 +467,37 @@ void AttachRemoteParameters::clear()
     attachTarget.clear();
 }
 
+
+///////////////////////////////////////////////////////////////////////
+//
+// DummyEngine
+//
+///////////////////////////////////////////////////////////////////////
+
+class DummyEngine : public DebuggerEngine
+{
+    Q_OBJECT
+
+public:
+    DummyEngine() : DebuggerEngine(DebuggerStartParameters()) {}
+    virtual ~DummyEngine() {}
+
+    virtual void setupEngine() {}
+    virtual void setupInferior() {}
+    virtual void runEngine() {}
+    virtual void shutdownEngine() {}
+    virtual void shutdownInferior() {}
+    virtual void executeDebuggerCommand(const QString &) {}
+    virtual unsigned debuggerCapabilities() const { return 0; }
+};
+
+static DebuggerEngine *dummyEngine()
+{
+    static DummyEngine dummy;
+    return &dummy;
+}
+
+
 ///////////////////////////////////////////////////////////////////////
 //
 // DebugMode
@@ -1030,6 +1061,7 @@ public slots:
     DebuggerState state() const { return m_state; }
 
     void updateState(DebuggerEngine *engine);
+    void updateWatchersWindow();
     void onCurrentProjectChanged(ProjectExplorer::Project *project);
 
     void gotoLocation(const QString &file, int line, bool setMarker);
@@ -1046,15 +1078,35 @@ public slots:
 
 public slots:
     void updateDebugActions();
-    void handleExecDetach() { currentEngine()->detachDebugger(); }
-    void handleExecContinue() { currentEngine()->continueInferior(); }
-    void handleExecInterrupt() { currentEngine()->requestInterruptInferior(); }
-    void handleExecReset() { currentEngine()->notifyEngineIll(); } // FIXME: Check.
+
+    void handleExecDetach()
+    {
+        resetLocation();
+        currentEngine()->detachDebugger();
+    }
+
+    void handleExecContinue()
+    {
+        resetLocation();
+        currentEngine()->continueInferior();
+    }
+
+    void handleExecInterrupt()
+    {
+        resetLocation();
+        currentEngine()->requestInterruptInferior();
+    }
+
+    void handleExecReset()
+    {
+        resetLocation();
+        currentEngine()->notifyEngineIll(); // FIXME: Check.
+    }
 
     void handleExecStep()
     {
         resetLocation();
-        if (debuggerCore()->boolSetting(OperateByInstruction))
+        if (boolSetting(OperateByInstruction))
             currentEngine()->executeStepI();
         else
             currentEngine()->executeStep();
@@ -1063,7 +1115,7 @@ public slots:
     void handleExecNext()
     {
         resetLocation();
-        if (debuggerCore()->boolSetting(OperateByInstruction))
+        if (boolSetting(OperateByInstruction))
             currentEngine()->executeNextI();
         else
             currentEngine()->executeNext();
@@ -1218,6 +1270,7 @@ public slots:
 
     void resetLocation();
     void removeLocationMark();
+    void doRemoveLocationMark();
     QVariant sessionValue(const QString &name);
     void setSessionValue(const QString &name, const QVariant &value);
     QIcon locationMarkIcon() const { return m_locationMarkIcon; }
@@ -1297,6 +1350,7 @@ public:
 
     bool m_busy;
     QTimer m_statusTimer;
+    QTimer m_locationTimer;
     QString m_lastPermanentStatusMessage;
 
     mutable CPlusPlus::Snapshot m_codeModelSnapshot;
@@ -1310,13 +1364,14 @@ public:
     bool m_gdbBinariesChanged;
 };
 
-DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin) : m_startRemoteCdbAction(0)
+DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin)
 {
     QTC_ASSERT(!theDebuggerCore, /**/);
     theDebuggerCore = this;
 
     m_plugin = plugin;
 
+    m_startRemoteCdbAction = 0;
     m_shuttingDown = false;
     m_statusLabel = 0;
     m_threadBox = 0;
@@ -1551,12 +1606,12 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     act = m_actions.frameUpAction = new QAction(tr("Move to Calling Frame"), this);
     connect(act, SIGNAL(triggered()), SLOT(handleFrameUp()));
 
-    connect(debuggerCore()->action(OperateByInstruction), SIGNAL(triggered(bool)),
+    connect(action(OperateByInstruction), SIGNAL(triggered(bool)),
         SLOT(handleOperateByInstructionTriggered(bool)));
 
     connect(&m_statusTimer, SIGNAL(timeout()), SLOT(clearStatusMessage()));
 
-    connect(debuggerCore()->action(ExecuteCommand), SIGNAL(triggered()),
+    connect(action(ExecuteCommand), SIGNAL(triggered()),
         SLOT(executeDebuggerCommand()));
 
     // Cpp/Qml ui setup
@@ -1834,7 +1889,7 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
         Constants::FRAME_UP, cppDebuggercontext);
 
 
-    cmd = am->registerAction(debuggerCore()->action(OperateByInstruction),
+    cmd = am->registerAction(action(OperateByInstruction),
         Constants::OPERATE_BY_INSTRUCTION, cppDebuggercontext);
     cmd->setAttribute(Command::CA_Hide);
     m_uiSwitcher->addMenuAction(cmd, CppLanguage);
@@ -1919,8 +1974,8 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
         SLOT(aboutToSaveSession()));
     connect(sessionManager(), SIGNAL(aboutToUnloadSession()),
         SLOT(aboutToUnloadSession()));
-    connect(ProjectExplorer::ProjectExplorerPlugin::instance(), SIGNAL(updateRunActions()),
-            this, SLOT(updateDebugActions()));
+    connect(ProjectExplorerPlugin::instance(), SIGNAL(updateRunActions()),
+        SLOT(updateDebugActions()));
 
     // EditorManager
     QObject *editorManager = core->editorManager();
@@ -1930,7 +1985,7 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
         SLOT(editorOpened(Core::IEditor*)));
 
     // Application interaction
-    connect(debuggerCore()->action(SettingsDialog), SIGNAL(triggered()),
+    connect(action(SettingsDialog), SIGNAL(triggered()),
         SLOT(showSettingsDialog()));
 
     // Toolbar
@@ -1966,7 +2021,7 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
         SIGNAL(dockResetRequested(Debugger::DebuggerLanguages)),
         SLOT(setSimpleDockWidgetArrangement(Debugger::DebuggerLanguages)));
 
-    connect(debuggerCore()->action(EnableReverseDebugging),
+    connect(action(EnableReverseDebugging),
         SIGNAL(valueChanged(QVariant)),
         SLOT(enableReverseDebuggingTriggered(QVariant)));
 
@@ -1981,6 +2036,10 @@ bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     connect(sessionManager(),
         SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
         SLOT(onCurrentProjectChanged(ProjectExplorer::Project*)));
+
+    connect(&m_locationTimer,
+        SIGNAL(timeout()),
+        SLOT(doRemoveLocationMark()));
 
     return true;
 }
@@ -2039,12 +2098,10 @@ void DebuggerPluginPrivate::languagesChanged(const DebuggerLanguages &languages)
 
 void DebuggerPluginPrivate::debugProject()
 {
-    Project *pro = ProjectExplorer::ProjectExplorerPlugin::instance()->startupProject();
-    if (!pro)
-        return;
-
-    ProjectExplorer::ProjectExplorerPlugin::instance()->runProject(pro, Constants::DEBUGMODE);
- }
+    ProjectExplorerPlugin *pe = ProjectExplorerPlugin::instance();
+    if (Project *pro = pe->startupProject())
+        pe->runProject(pro, Constants::DEBUGMODE);
+}
 
 void DebuggerPluginPrivate::startExternalApplication()
 {
@@ -2073,7 +2130,7 @@ void DebuggerPluginPrivate::startExternalApplication()
         sp.processArgs = dlg.executableArguments();
     // Fixme: 1 of 3 testing hacks.
     if (sp.processArgs.startsWith(__("@tcf@ ")) || sp.processArgs.startsWith(__("@sym@ ")))
-        sp.toolChainType = ProjectExplorer::ToolChain_RVCT_ARMV5;
+        sp.toolChainType = ToolChain_RVCT_ARMV5;
 
 
     if (RunControl *rc = m_debuggerRunControlFactory->create(sp))
@@ -2145,7 +2202,7 @@ void DebuggerPluginPrivate::startRemoteCdbSession()
 {
     const QString connectionKey = _("CdbRemoteConnection");
     DebuggerStartParameters sp;
-    sp.toolChainType = ProjectExplorer::ToolChain_MSVC;
+    sp.toolChainType = ToolChain_MSVC;
     sp.startMode = AttachToRemote;
     StartRemoteCdbDialog dlg(mainWindow());
     QString previousConnection = configValue(connectionKey).toString();
@@ -2211,7 +2268,7 @@ void DebuggerPluginPrivate::startRemoteApplication()
     sp.displayName = dlg.localExecutable();
     sp.debuggerCommand = dlg.debugger(); // Override toolchain-detection.
     if (!sp.debuggerCommand.isEmpty())
-        sp.toolChainType = ProjectExplorer::ToolChain_INVALID;
+        sp.toolChainType = ToolChain_INVALID;
     sp.startMode = AttachToRemote;
     sp.useServerStartScript = dlg.useServerStartScript();
     sp.serverStartScript = dlg.serverStartScript();
@@ -2464,30 +2521,10 @@ void DebuggerPluginPrivate::startDebugger(RunControl *rc)
 }
 
 
-class DummyEngine : public DebuggerEngine
-{
-    Q_OBJECT
-
-public:
-    DummyEngine() : DebuggerEngine(DebuggerStartParameters()) {}
-    virtual ~DummyEngine() {}
-
-    virtual void setupEngine() {}
-    virtual void setupInferior() {}
-    virtual void runEngine() {}
-    virtual void shutdownEngine() {}
-    virtual void shutdownInferior() {}
-    virtual void executeDebuggerCommand(const QString &) {}
-    virtual unsigned debuggerCapabilities() const { return 0; }
-};
-
-
 void DebuggerPluginPrivate::connectEngine(DebuggerEngine *engine)
 {
-    static DummyEngine dummyEngine;
-
     if (!engine)
-        engine = &dummyEngine;
+        engine = dummyEngine();
 
     if (m_currentEngine == engine)
         return;
@@ -2656,7 +2693,7 @@ void DebuggerPluginPrivate::setInitialState()
     m_actions.watchAction2->setEnabled(true);
     m_actions.breakAction->setEnabled(true);
     //m_actions.snapshotAction->setEnabled(false);
-    debuggerCore()->action(OperateByInstruction)->setEnabled(false);
+    action(OperateByInstruction)->setEnabled(false);
 
     m_actions.exitAction->setEnabled(false);
     m_actions.resetAction->setEnabled(false);
@@ -2669,13 +2706,21 @@ void DebuggerPluginPrivate::setInitialState()
     m_actions.jumpToLineAction->setEnabled(false);
     m_actions.nextAction->setEnabled(false);
 
-    debuggerCore()->action(AutoDerefPointers)->setEnabled(true);
-    debuggerCore()->action(ExpandStack)->setEnabled(false);
-    debuggerCore()->action(ExecuteCommand)->setEnabled(m_state == InferiorStopOk);
+    action(AutoDerefPointers)->setEnabled(true);
+    action(ExpandStack)->setEnabled(false);
+    action(ExecuteCommand)->setEnabled(m_state == InferiorStopOk);
 
     m_scriptConsoleWindow->setEnabled(false);
 
     //emit m_plugin->stateChanged(m_state);
+}
+
+void DebuggerPluginPrivate::updateWatchersWindow()
+{
+    m_watchersWindow->setVisible(
+        m_watchersWindow->model()->rowCount(QModelIndex()) > 0);
+    m_returnWindow->setVisible(
+        m_returnWindow->model()->rowCount(QModelIndex()) > 0);
 }
 
 void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
@@ -2687,10 +2732,7 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
 
     m_threadBox->setCurrentIndex(engine->threadsHandler()->currentThread());
 
-    m_watchersWindow->setVisible(
-        m_watchersWindow->model()->rowCount(QModelIndex()) > 0);
-    m_returnWindow->setVisible(
-        m_returnWindow->model()->rowCount(QModelIndex()) > 0);
+    updateWatchersWindow();
 
     //m_plugin->showMessage(QString("PLUGIN SET STATE: ")
     //    + DebuggerEngine::stateName(engine->state()), LogStatus);
@@ -2778,7 +2820,7 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
 
     const uint caps = engine->debuggerCapabilities();
     const bool canReverse = (caps & ReverseSteppingCapability)
-                && debuggerCore()->boolSetting(EnableReverseDebugging);
+                && boolSetting(EnableReverseDebugging);
     m_actions.reverseDirectionAction->setEnabled(canReverse);
 
     m_actions.watchAction1->setEnabled(true);
@@ -2786,7 +2828,7 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
     m_actions.breakAction->setEnabled(true);
     //m_actions.snapshotAction->setEnabled(stopped && (caps & SnapshotCapability));
 
-    debuggerCore()->action(OperateByInstruction)->setEnabled(stopped);
+    action(OperateByInstruction)->setEnabled(stopped);
 
     m_actions.resetAction->setEnabled(m_state != DebuggerNotReady
                                       && m_state != DebuggerFinished);
@@ -2804,10 +2846,10 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
     m_actions.nextAction->setEnabled(stopped);
 
     const bool canDeref = actionsEnabled && (caps & AutoDerefPointersCapability);
-    debuggerCore()->action(AutoDerefPointers)->setEnabled(canDeref);
-    debuggerCore()->action(AutoDerefPointers)->setEnabled(true);
-    debuggerCore()->action(ExpandStack)->setEnabled(actionsEnabled);
-    debuggerCore()->action(ExecuteCommand)->setEnabled(m_state == InferiorStopOk);
+    action(AutoDerefPointers)->setEnabled(canDeref);
+    action(AutoDerefPointers)->setEnabled(true);
+    action(ExpandStack)->setEnabled(actionsEnabled);
+    action(ExecuteCommand)->setEnabled(m_state == InferiorStopOk);
 
     const bool notbusy = m_state == InferiorStopOk
         || m_state == DebuggerNotReady
@@ -2820,9 +2862,9 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
 
 void DebuggerPluginPrivate::updateDebugActions()
 {
-    ProjectExplorer::ProjectExplorerPlugin *peplugin = ProjectExplorer::ProjectExplorerPlugin::instance();
-    Project *project = peplugin->startupProject();
-    m_debugAction->setEnabled(peplugin->canRun(project, Constants::DEBUGMODE));
+    ProjectExplorerPlugin *pe = ProjectExplorerPlugin::instance();
+    Project *project = pe->startupProject();
+    m_debugAction->setEnabled(pe->canRun(project, Constants::DEBUGMODE));
 }
 
 void DebuggerPluginPrivate::gotoLocation(const QString &file, int line, bool setMarker)
@@ -2830,6 +2872,8 @@ void DebuggerPluginPrivate::gotoLocation(const QString &file, int line, bool set
     // CDB might hit on breakpoints while shutting down.
     if (m_shuttingDown)
         return;
+
+    doRemoveLocationMark();
 
     bool newEditor = false;
     ITextEditor *editor =
@@ -2910,7 +2954,7 @@ void DebuggerPluginPrivate::activateDebugMode()
 void DebuggerPluginPrivate::sessionLoaded()
 {
     m_breakHandler->loadSessionData();
-    WatchHandler::loadSessionData();
+    dummyEngine()->watchHandler()->loadSessionData();
     synchronizeWatchers();
 }
 
@@ -2927,7 +2971,7 @@ void DebuggerPluginPrivate::aboutToUnloadSession()
 
 void DebuggerPluginPrivate::aboutToSaveSession()
 {
-    WatchHandler::saveSessionData();
+    dummyEngine()->watchHandler()->loadSessionData();
     m_breakHandler->saveSessionData();
 }
 
@@ -2987,9 +3031,9 @@ void DebuggerPluginPrivate::readSettings()
 
 const CPlusPlus::Snapshot &DebuggerPluginPrivate::cppCodeModelSnapshot() const
 {
-    if (m_codeModelSnapshot.isEmpty()
-            && debuggerCore()->action(UseCodeModel)->isChecked())
-        m_codeModelSnapshot = CppTools::CppModelManagerInterface::instance()->snapshot();
+    using namespace CppTools;
+    if (m_codeModelSnapshot.isEmpty() && action(UseCodeModel)->isChecked())
+        m_codeModelSnapshot = CppModelManagerInterface::instance()->snapshot();
     return m_codeModelSnapshot;
 }
 
@@ -3000,6 +3044,13 @@ void DebuggerPluginPrivate::resetLocation()
 
 void DebuggerPluginPrivate::removeLocationMark()
 {
+    m_locationTimer.setSingleShot(true);
+    m_locationTimer.start(80);
+}
+
+void DebuggerPluginPrivate::doRemoveLocationMark()
+{
+    m_locationTimer.stop();
     m_locationMark.reset();
 }
 
@@ -3099,8 +3150,7 @@ void DebuggerPluginPrivate::showQtDumperLibraryWarning(const QString &details)
             _(Qt4ProjectManager::Constants::QT_SETTINGS_CATEGORY),
             _(Qt4ProjectManager::Constants::QTVERSION_SETTINGS_PAGE_ID));
     } else if (dialog.clickedButton() == helperOff) {
-        debuggerCore()->action(UseDebuggingHelpers)
-            ->setValue(qVariantFromValue(false), false);
+        action(UseDebuggingHelpers)->setValue(qVariantFromValue(false), false);
     }
 }
 
@@ -3138,9 +3188,8 @@ void DebuggerPluginPrivate::runControlFinished(DebuggerRunControl *runControl)
 {
     m_snapshotHandler->removeSnapshot(runControl);
     disconnectEngine();
-    if (debuggerCore()->boolSetting(SwitchModeOnExit))
-        if (m_snapshotHandler->size() == 0)
-            activatePreviousMode();
+    if (boolSetting(SwitchModeOnExit) && m_snapshotHandler->size() == 0)
+        activatePreviousMode();
 }
 
 void DebuggerPluginPrivate::remoteCommand(const QStringList &options,

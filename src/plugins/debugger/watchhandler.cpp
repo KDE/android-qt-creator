@@ -56,7 +56,7 @@
 #include <ctype.h>
 #include <utils/qtcassert.h>
 
-// creates debug output for accesses to the model
+// Creates debug output for accesses to the model.
 //#define DEBUG_MODEL 1
 
 #if DEBUG_MODEL
@@ -1261,7 +1261,8 @@ void WatchHandler::insertData(const WatchData &data)
         if (!m_engine->isSynchronous()) {
             m_engine->updateWatchData(data);
         } else {
-            qDebug() << "ENDLESS LOOP: SOMETHING NEEDED: " << data.toString();
+            m_engine->showMessage(QLatin1String("ENDLESS LOOP: SOMETHING NEEDED: ")
+                + data.toString());
             WatchData data1 = data;
             data1.setAllUnneeded();
             data1.setValue(QLatin1String("<unavailable synchronous data>"));
@@ -1332,7 +1333,6 @@ QByteArray WatchHandler::watcherName(const QByteArray &exp)
 void WatchHandler::watchExpression(const QString &exp)
 {
     QTC_ASSERT(m_engine, return);
-    QTC_ASSERT(m_engine->debuggerCapabilities() & AddWatcherCapability, return);
     // Do not insert multiple placeholders.
     if (exp.isEmpty() && m_watcherNames.contains(QByteArray()))
         return;
@@ -1345,10 +1345,16 @@ void WatchHandler::watchExpression(const QString &exp)
     if (exp.isEmpty())
         data.setAllUnneeded();
     data.iname = watcherName(data.exp);
-    if (m_engine->isSynchronous())
-        m_engine->updateWatchData(data);
-    else
+    if (m_engine->state() == DebuggerNotReady) {
+        data.setAllUnneeded();
+        data.setValue(" ");
+        data.setHasChildren(false);
         insertData(data);
+    } else if (m_engine->isSynchronous()) {
+        m_engine->updateWatchData(data);
+    } else {
+        insertData(data);
+    }
     updateWatchersWindow();
     saveWatchers();
     emitAllChanged();
@@ -1381,8 +1387,9 @@ void WatchHandler::showEditValue(const WatchData &data)
             delete w;
             l = new QLabel;
             const QString title = data.address ?
-                        tr("%1 Object at %2").arg(QLatin1String(data.type), QLatin1String(data.hexAddress())) :
-                        tr("%1 Object at Unknown Address").arg(QLatin1String(data.type));
+                tr("%1 Object at %2").arg(QLatin1String(data.type),
+                    QLatin1String(data.hexAddress())) :
+                tr("%1 Object at Unknown Address").arg(QLatin1String(data.type));
             l->setWindowTitle(title);
             m_editHandlers[key] = l;
         }
@@ -1409,7 +1416,7 @@ void WatchHandler::showEditValue(const WatchData &data)
         QImage im(bits, width, height, QImage::Format(format));
 
 #if 1
-        // enforcing copy of image data
+        // Qt bug. Enforce copy of image data.
         QImage im2(im);
         im.detach();
 #endif
@@ -1418,7 +1425,7 @@ void WatchHandler::showEditValue(const WatchData &data)
         l->resize(width, height);
         l->show();
     } else if (data.editformat == 2) {
-        // QString
+        // Display QString in a separate widget.
         QTextEdit *t = qobject_cast<QTextEdit *>(w);
         if (!t) {
             delete w;
@@ -1467,13 +1474,12 @@ void WatchHandler::removeWatchExpression(const QString &exp0)
 void WatchHandler::updateWatchersWindow()
 {
     // Force show/hide of watchers and return view.
-    debuggerCore()->updateState(m_engine);
+    debuggerCore()->updateWatchersWindow();
 }
 
 void WatchHandler::updateWatchers()
 {
-    //qDebug() << "UPDATE WATCHERS";
-    // copy over all watchers and mark all watchers as incomplete
+    // Copy over all watchers and mark all watchers as incomplete.
     foreach (const QByteArray &exp, m_watcherNames.keys()) {
         WatchData data;
         data.iname = watcherName(exp);
@@ -1486,11 +1492,10 @@ void WatchHandler::updateWatchers()
 
 void WatchHandler::loadWatchers()
 {
+    m_watcherNames.clear();
     QVariant value = debuggerCore()->sessionValue("Watchers");
     foreach (const QString &exp, value.toStringList())
-        m_watcherNames[exp.toLatin1()] = watcherCounter++;
-
-    //qDebug() << "LOAD WATCHERS: " << m_watchers;
+        watchExpression(exp);
 }
 
 QStringList WatchHandler::watchedExpressions()
@@ -1509,7 +1514,6 @@ QStringList WatchHandler::watchedExpressions()
 
 void WatchHandler::saveWatchers()
 {
-    //qDebug() << "SAVE WATCHERS: " << m_watchers;
     debuggerCore()->setSessionValue("Watchers", QVariant(watchedExpressions()));
 }
 
@@ -1720,5 +1724,6 @@ void WatchHandler::removeTooltip()
     m_tooltips->reinitialize();
     m_tooltips->emitAllChanged();
 }
+
 } // namespace Internal
 } // namespace Debugger

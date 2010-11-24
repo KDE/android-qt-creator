@@ -30,13 +30,13 @@
 #include "qdeclarativeviewobserver.h"
 #include "qdeclarativeviewobserver_p.h"
 #include "qdeclarativeobserverservice.h"
-#include "selectiontool.h"
-#include "zoomtool.h"
-#include "colorpickertool.h"
-#include "layeritem.h"
-#include "boundingrecthighlighter.h"
-#include "subcomponenteditortool.h"
-#include "qmltoolbar.h"
+#include "editor/selectiontool.h"
+#include "editor/zoomtool.h"
+#include "editor/colorpickertool.h"
+#include "editor/layeritem.h"
+#include "editor/boundingrecthighlighter.h"
+#include "editor/subcomponenteditortool.h"
+#include "editor/qmltoolbar.h"
 
 #include "qt_private/qdeclarativedebughelper_p.h"
 
@@ -57,6 +57,7 @@ const int SceneChangeUpdateInterval = 5000;
 QDeclarativeViewObserverPrivate::QDeclarativeViewObserverPrivate(QDeclarativeViewObserver *q) :
     q(q),
     designModeBehavior(false),
+    showAppOnTop(false),
     executionPaused(false),
     slowdownFactor(1.0f),
     toolbar(0)
@@ -85,14 +86,19 @@ QDeclarativeViewObserver::QDeclarativeViewObserver(QDeclarativeView *view, QObje
     data->setViewport(data->view->viewport());
 
     data->debugService = QDeclarativeObserverService::instance();
-    connect(data->debugService, SIGNAL(designModeBehaviorChanged(bool)), SLOT(setDesignModeBehavior(bool)));
+    connect(data->debugService, SIGNAL(designModeBehaviorChanged(bool)),
+            SLOT(setDesignModeBehavior(bool)));
+    connect(data->debugService, SIGNAL(showAppOnTopChanged(bool)),
+            SLOT(setShowAppOnTop(bool)));
     connect(data->debugService, SIGNAL(reloadRequested()), SLOT(_q_reloadView()));
-    connect(data->debugService,
-            SIGNAL(currentObjectsChanged(QList<QObject*>)),
+    connect(data->debugService, SIGNAL(currentObjectsChanged(QList<QObject*>)),
             SLOT(_q_onCurrentObjectsChanged(QList<QObject*>)));
-    connect(data->debugService, SIGNAL(animationSpeedChangeRequested(qreal)), SLOT(changeAnimationSpeed(qreal)));
-    connect(data->debugService, SIGNAL(colorPickerToolRequested()), SLOT(_q_changeToColorPickerTool()));
-    connect(data->debugService, SIGNAL(selectMarqueeToolRequested()), SLOT(_q_changeToMarqueeSelectTool()));
+    connect(data->debugService, SIGNAL(animationSpeedChangeRequested(qreal)),
+            SLOT(changeAnimationSpeed(qreal)));
+    connect(data->debugService, SIGNAL(colorPickerToolRequested()),
+            SLOT(_q_changeToColorPickerTool()));
+    connect(data->debugService, SIGNAL(selectMarqueeToolRequested()),
+            SLOT(_q_changeToMarqueeSelectTool()));
     connect(data->debugService, SIGNAL(selectToolRequested()), SLOT(_q_changeToSingleSelectTool()));
     connect(data->debugService, SIGNAL(zoomToolRequested()), SLOT(_q_changeToZoomTool()));
     connect(data->debugService,
@@ -101,18 +107,25 @@ QDeclarativeViewObserver::QDeclarativeViewObserver(QDeclarativeView *view, QObje
     connect(data->debugService,
             SIGNAL(objectReparentRequested(QObject *, QObject *)),
             SLOT(_q_reparentQmlObject(QObject *, QObject *)));
-    connect(data->debugService, SIGNAL(contextPathIndexChanged(int)), SLOT(_q_changeContextPathIndex(int)));
-    connect(data->debugService, SIGNAL(clearComponentCacheRequested()), SLOT(_q_clearComponentCache()));
-    connect(data->view, SIGNAL(statusChanged(QDeclarativeView::Status)), SLOT(_q_onStatusChanged(QDeclarativeView::Status)));
+    connect(data->debugService, SIGNAL(contextPathIndexChanged(int)),
+            SLOT(_q_changeContextPathIndex(int)));
+    connect(data->debugService, SIGNAL(clearComponentCacheRequested()),
+            SLOT(_q_clearComponentCache()));
+    connect(data->view, SIGNAL(statusChanged(QDeclarativeView::Status)),
+            SLOT(_q_onStatusChanged(QDeclarativeView::Status)));
 
-    connect(data->colorPickerTool, SIGNAL(selectedColorChanged(QColor)), SIGNAL(selectedColorChanged(QColor)));
+    connect(data->colorPickerTool, SIGNAL(selectedColorChanged(QColor)),
+            SIGNAL(selectedColorChanged(QColor)));
     connect(data->colorPickerTool, SIGNAL(selectedColorChanged(QColor)),
             data->debugService, SLOT(selectedColorChanged(QColor)));
 
     connect(data->subcomponentEditorTool, SIGNAL(cleared()), SIGNAL(inspectorContextCleared()));
-    connect(data->subcomponentEditorTool, SIGNAL(contextPushed(QString)), SIGNAL(inspectorContextPushed(QString)));
-    connect(data->subcomponentEditorTool, SIGNAL(contextPopped()), SIGNAL(inspectorContextPopped()));
-    connect(data->subcomponentEditorTool, SIGNAL(contextPathChanged(QStringList)), data->debugService, SLOT(contextPathUpdated(QStringList)));
+    connect(data->subcomponentEditorTool, SIGNAL(contextPushed(QString)),
+            SIGNAL(inspectorContextPushed(QString)));
+    connect(data->subcomponentEditorTool, SIGNAL(contextPopped()),
+            SIGNAL(inspectorContextPopped()));
+    connect(data->subcomponentEditorTool, SIGNAL(contextPathChanged(QStringList)),
+            data->debugService, SLOT(contextPathUpdated(QStringList)));
 
     data->createToolbar();
 
@@ -146,13 +159,13 @@ void QDeclarativeViewObserverPrivate::setViewport(QWidget *widget)
         return;
 
     if (viewport) {
-        viewport->removeEventFilter(q);
+        viewport.data()->removeEventFilter(q);
     }
     viewport = widget;
     if (viewport) {
         // make sure we get mouse move events
-        viewport->setMouseTracking(true);
-        viewport->installEventFilter(q);
+        viewport.data()->setMouseTracking(true);
+        viewport.data()->installEventFilter(q);
     }
 }
 
@@ -326,7 +339,9 @@ bool QDeclarativeViewObserver::keyReleaseEvent(QKeyEvent *event)
     return true;
 }
 
-void QDeclarativeViewObserverPrivate::_q_createQmlObject(const QString &qml, QObject *parent, const QStringList &importList, const QString &filename)
+void QDeclarativeViewObserverPrivate::_q_createQmlObject(const QString &qml, QObject *parent,
+                                                         const QStringList &importList,
+                                                         const QString &filename)
 {
     if (!parent)
         return;
@@ -463,7 +478,35 @@ bool QDeclarativeViewObserver::designModeBehavior()
     return data->designModeBehavior;
 }
 
-void QDeclarativeViewObserverPrivate::changeTool(Constants::DesignTool tool, Constants::ToolFlags /*flags*/)
+bool QDeclarativeViewObserver::showAppOnTop() const
+{
+    return data->showAppOnTop;
+}
+
+void QDeclarativeViewObserver::setShowAppOnTop(bool appOnTop)
+{
+    if (data->view) {
+        QWidget *rootWidget = data->view;
+        while (rootWidget->parentWidget())
+            rootWidget = rootWidget->parentWidget();
+        Qt::WindowFlags flags = rootWidget->windowFlags();
+        if (appOnTop) {
+            flags |= Qt::WindowStaysOnTopHint;
+        } else {
+            flags &= ~Qt::WindowStaysOnTopHint;
+        }
+        rootWidget->setWindowFlags(flags);
+        rootWidget->show();
+    }
+
+    data->showAppOnTop = appOnTop;
+    data->debugService->setShowAppOnTop(appOnTop);
+
+    emit showAppOnTopChanged(appOnTop);
+}
+
+void QDeclarativeViewObserverPrivate::changeTool(Constants::DesignTool tool,
+                                                 Constants::ToolFlags /*flags*/)
 {
     switch(tool) {
     case Constants::SelectionToolMode:
@@ -579,7 +622,8 @@ bool QDeclarativeViewObserverPrivate::mouseInsideContextItem() const
     return subcomponentEditorTool->containsCursor(cursorPos.toPoint());
 }
 
-QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::selectableItems(const QPointF &scenePos) const
+QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::selectableItems(
+    const QPointF &scenePos) const
 {
     QList<QGraphicsItem*> itemlist = view->scene()->items(scenePos);
     return filterForCurrentContext(itemlist);
@@ -591,7 +635,8 @@ QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::selectableItems(const QPo
     return filterForCurrentContext(itemlist);
 }
 
-QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::selectableItems(const QRectF &sceneRect, Qt::ItemSelectionMode selectionMode) const
+QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::selectableItems(
+    const QRectF &sceneRect, Qt::ItemSelectionMode selectionMode) const
 {
     QList<QGraphicsItem*> itemlist = view->scene()->items(sceneRect, selectionMode);
 
@@ -705,7 +750,8 @@ void QDeclarativeViewObserverPrivate::_q_applyChangesFromClient()
 }
 
 
-QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::filterForSelection(QList<QGraphicsItem*> &itemlist) const
+QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::filterForSelection(
+    QList<QGraphicsItem*> &itemlist) const
 {
     foreach(QGraphicsItem *item, itemlist) {
         if (isEditorItem(item) || !subcomponentEditorTool->isChildOfContext(item))
@@ -715,7 +761,8 @@ QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::filterForSelection(QList<
     return itemlist;
 }
 
-QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::filterForCurrentContext(QList<QGraphicsItem*> &itemlist) const
+QList<QGraphicsItem*> QDeclarativeViewObserverPrivate::filterForCurrentContext(
+    QList<QGraphicsItem*> &itemlist) const
 {
     foreach(QGraphicsItem *item, itemlist) {
 
@@ -818,18 +865,24 @@ QToolBar *QDeclarativeViewObserver::toolbar() const
 void QDeclarativeViewObserverPrivate::createToolbar()
 {
     toolbar = new QmlToolbar(q->declarativeView());
-    QObject::connect(q, SIGNAL(selectedColorChanged(QColor)), toolbar, SLOT(setColorBoxColor(QColor)));
+    QObject::connect(q, SIGNAL(selectedColorChanged(QColor)),
+                     toolbar, SLOT(setColorBoxColor(QColor)));
 
-    QObject::connect(q, SIGNAL(designModeBehaviorChanged(bool)), toolbar, SLOT(setDesignModeBehavior(bool)));
+    QObject::connect(q, SIGNAL(designModeBehaviorChanged(bool)),
+                     toolbar, SLOT(setDesignModeBehavior(bool)));
 
-    QObject::connect(toolbar, SIGNAL(designModeBehaviorChanged(bool)), q, SLOT(setDesignModeBehavior(bool)));
-    QObject::connect(toolbar, SIGNAL(animationSpeedChanged(qreal)), q, SLOT(changeAnimationSpeed(qreal)));
+    QObject::connect(toolbar, SIGNAL(designModeBehaviorChanged(bool)),
+                     q, SLOT(setDesignModeBehavior(bool)));
+    QObject::connect(toolbar, SIGNAL(animationSpeedChanged(qreal)),
+                     q, SLOT(changeAnimationSpeed(qreal)));
     QObject::connect(toolbar, SIGNAL(colorPickerSelected()), q, SLOT(_q_changeToColorPickerTool()));
     QObject::connect(toolbar, SIGNAL(zoomToolSelected()), q, SLOT(_q_changeToZoomTool()));
     QObject::connect(toolbar, SIGNAL(selectToolSelected()), q, SLOT(_q_changeToSingleSelectTool()));
-    QObject::connect(toolbar, SIGNAL(marqueeSelectToolSelected()), q, SLOT(_q_changeToMarqueeSelectTool()));
+    QObject::connect(toolbar, SIGNAL(marqueeSelectToolSelected()),
+                     q, SLOT(_q_changeToMarqueeSelectTool()));
 
-    QObject::connect(toolbar, SIGNAL(applyChangesFromQmlFileSelected()), q, SLOT(_q_applyChangesFromClient()));
+    QObject::connect(toolbar, SIGNAL(applyChangesFromQmlFileSelected()),
+                     q, SLOT(_q_applyChangesFromClient()));
 
     QObject::connect(q, SIGNAL(executionStarted(qreal)), toolbar, SLOT(setAnimationSpeed(qreal)));
     QObject::connect(q, SIGNAL(executionPaused()), toolbar, SLOT(setAnimationSpeed()));
@@ -843,7 +896,8 @@ void QDeclarativeViewObserverPrivate::createToolbar()
 
     QObject::connect(q, SIGNAL(colorPickerActivated()), toolbar, SLOT(activateColorPicker()));
     QObject::connect(q, SIGNAL(zoomToolActivated()), toolbar, SLOT(activateZoom()));
-    QObject::connect(q, SIGNAL(marqueeSelectToolActivated()), toolbar, SLOT(activateMarqueeSelectTool()));
+    QObject::connect(q, SIGNAL(marqueeSelectToolActivated()),
+                     toolbar, SLOT(activateMarqueeSelectTool()));
 }
 
 

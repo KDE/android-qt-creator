@@ -1166,8 +1166,13 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
     const int bkptno = data.findChild("bkptno").data().toInt();
     const GdbMi frame = data.findChild("frame");
 
+    const int lineNumber = frame.findChild("line").data().toInt();
+    QString fullName = QString::fromUtf8(frame.findChild("fullname").data());
+    if (fullName.isEmpty())
+        fullName = QString::fromUtf8(frame.findChild("file").data());
+
     if (bkptno && frame.isValid()) {
-        // Use opportunity to update the marker position.
+        // Use opportunity to update the breakpoint marker position.
         BreakHandler *handler = breakHandler();
         BreakpointId id = handler->findBreakpointByNumber(bkptno);
         const BreakpointResponse &response = handler->response(id);
@@ -1175,14 +1180,14 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
         if (fileName.isEmpty())
             fileName = handler->fileName(id);
         if (fileName.isEmpty())
-            fileName = QString::fromUtf8(frame.findChild("fullname").data());
-        if (fileName.isEmpty())
-            fileName = QString::fromUtf8(frame.findChild("file").data());
-        if (!fileName.isEmpty()) {
-            int lineNumber = frame.findChild("line").data().toInt();
+            fileName = fullName;
+        if (!fileName.isEmpty())
             handler->setMarkerFileAndLine(id, fileName, lineNumber);
-        }
     }
+
+    // Quickly set the location marker.
+    if (lineNumber && QFileInfo(fullName).exists())
+        debuggerCore()->gotoLocation(fullName, lineNumber, true);
 
     if (!m_commandsToRunOnTemporaryBreak.isEmpty()) {
         QTC_ASSERT(state() == InferiorStopRequested, qDebug() << state())
@@ -1215,6 +1220,34 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
         notifyInferiorStopOk();
     }
 
+    // FIXME: Replace the #ifdef by the "target" architecture.
+    // FIXME: Is this needed at all anymore?
+#ifdef Q_OS_LINUX
+    if (!m_entryPoint.isEmpty()) {
+        if (frame.findChild("addr").data() == m_entryPoint) {
+            // There are two expected reasons for getting here:
+            // 1) For some reason, attaching to a stopped process causes *two* SIGSTOPs
+            //    when trying to continue (kernel i386 2.6.24-23-ubuntu, gdb 6.8).
+            //    Interestingly enough, on MacOSX no signal is delivered at all.
+            // 2) The explicit tbreak at the entry point we set to query the PID.
+            //    Gdb <= 6.8 reports a frame but no reason, 6.8.50+ reports everything.
+            // The case of the user really setting a breakpoint at _start is simply
+            // unsupported.
+            if (!inferiorPid()) // For programs without -pthread under gdb <= 6.8.
+                postCommand("info proc", CB(handleInfoProc));
+            continueInferiorInternal();
+            return;
+        }
+        // We are past the initial stop(s). No need to waste time on further checks.
+        m_entryPoint.clear();
+    }
+#endif
+
+    handleStop0(data);
+}
+
+void GdbEngine::handleStop0(const GdbMi &data)
+{
 #if 0 // See http://vladimir_prus.blogspot.com/2007/12/debugger-stories-pending-breakpoints.html
     // Due to LD_PRELOADing the dumpers, these events can occur even before
     // reaching the entry point. So handle it before the entry point hacks below.
@@ -1244,27 +1277,8 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
     }
 #endif
 
-    // FIXME: Replace the #ifdef by the "target" architecture
-#ifdef Q_OS_LINUX
-    if (!m_entryPoint.isEmpty()) {
-        if (frame.findChild("addr").data() == m_entryPoint) {
-            // There are two expected reasons for getting here:
-            // 1) For some reason, attaching to a stopped process causes *two* SIGSTOPs
-            //    when trying to continue (kernel i386 2.6.24-23-ubuntu, gdb 6.8).
-            //    Interestingly enough, on MacOSX no signal is delivered at all.
-            // 2) The explicit tbreak at the entry point we set to query the PID.
-            //    Gdb <= 6.8 reports a frame but no reason, 6.8.50+ reports everything.
-            // The case of the user really setting a breakpoint at _start is simply
-            // unsupported.
-            if (!inferiorPid()) // For programs without -pthread under gdb <= 6.8.
-                postCommand("info proc", CB(handleInfoProc));
-            continueInferiorInternal();
-            return;
-        }
-        // We are past the initial stop(s). No need to waste time on further checks.
-        m_entryPoint.clear();
-    }
-#endif
+    const GdbMi frame = data.findChild("frame");
+    const QByteArray reason = data.findChild("reason").data();
 
     // This was seen on XP after removing a breakpoint while running
     //  >945*stopped,reason="signal-received",signal-name="SIGTRAP",
@@ -1287,7 +1301,6 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
     static int stepCounter = 0;
     if (debuggerCore()->boolSetting(SkipKnownFrames)) {
         if (reason == "end-stepping-range" || reason == "function-finished") {
-            GdbMi frame = data.findChild("frame");
             //showMessage(frame.toString());
             QString funcName = _(frame.findChild("func").data());
             QString fileName = QString::fromLocal8Bit(frame.findChild("file").data());
@@ -1396,7 +1409,7 @@ void GdbEngine::handleStop1(const GdbMi &data)
         const BreakpointId id = breakHandler()->findBreakpointByNumber(bpNumber);
         const quint64 bpAddress = wpt.findChild("exp").data().toULongLong(0, 0);
         showStatusMessage(msgWatchpointTriggered(id, bpNumber, bpAddress));
-    } else if (reason == "breakpoint-hit") {        
+    } else if (reason == "breakpoint-hit") {
         GdbMi gNumber = data.findChild("bkptno"); // 'number' or 'bkptno'?
         if (!gNumber.isValid())
             gNumber = data.findChild("number");
@@ -1784,7 +1797,6 @@ void GdbEngine::autoContinueInferior()
 void GdbEngine::continueInferior()
 {
     QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
-    resetLocation();
     setTokenBarrier();
     continueInferiorInternal();
 }
@@ -2864,8 +2876,9 @@ void GdbEngine::selectThread(int index)
     Threads threads = threadsHandler()->threads();
     QTC_ASSERT(index < threads.size(), return);
     const int id = threads.at(index).id;
-    showStatusMessage(tr("Retrieving data for stack view thread 0x%1...").arg(id, 0, 16), 10000);
-    postCommand("-thread-select " + QByteArray::number(id),
+    showStatusMessage(tr("Retrieving data for stack view thread 0x%1...")
+        .arg(id, 0, 16), 10000);
+    postCommand("-thread-select " + QByteArray::number(id), Discardable,
         CB(handleStackSelectThread));
 }
 
@@ -3000,7 +3013,6 @@ void GdbEngine::handleStackListFrames(const GdbResponse &response)
 
 void GdbEngine::activateFrame(int frameIndex)
 {
-    resetLocation();
     if (state() != InferiorStopOk && state() != InferiorUnrunnable)
         return;
 
@@ -3018,7 +3030,7 @@ void GdbEngine::activateFrame(int frameIndex)
     // after a response to this -stack-select-frame here.
     handler->setCurrentIndex(frameIndex);
     postCommand("-stack-select-frame " + QByteArray::number(frameIndex),
-        CB(handleStackSelectFrame));
+        Discardable, CB(handleStackSelectFrame));
     gotoLocation(stackHandler()->currentFrame(), true);
     updateLocals();
     reloadRegisters();
