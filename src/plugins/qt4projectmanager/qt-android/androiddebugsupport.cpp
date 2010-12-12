@@ -324,13 +324,15 @@ void AndroidDebugSupport::handleProgressReport(const QString &progressOutput)
 void AndroidDebugSupport::handleAdapterSetupFailed(const QString &error)
 {
     setState(Inactive);
-    m_runControl->handleRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
+#warning FIXME Android
+    //m_runControl->handleRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
 }
 
 void AndroidDebugSupport::handleAdapterSetupDone()
 {
     setState(Debugging);
-    m_runControl->handleRemoteSetupDone(m_gdbServerPort, m_qmlPort);
+#warning FIXME Android
+   // m_runControl->handleRemoteSetupDone(m_gdbServerPort, m_qmlPort);
 }
 
 void AndroidDebugSupport::setState(State newState)

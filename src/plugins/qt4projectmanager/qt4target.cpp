@@ -77,6 +77,8 @@ QString displayNameForId(const QString &id) {
         return QApplication::translate("Qt4ProjectManager::Internal::Qt4Target", "Maemo", "Qt4 Maemo target display name");
     if (id == QLatin1String(Qt4ProjectManager::Constants::QT_SIMULATOR_TARGET_ID))
         return QApplication::translate("Qt4ProjectManager::Internal::Qt4Target", "Qt Simulator", "Qt4 Simulator target display name");
+    if (id == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID))
+        return QApplication::translate("Qt4ProjectManager::Internal::Qt4Target", "Android", "Qt4 Android target display name");
     return QString();
 }
 
@@ -91,6 +93,8 @@ QIcon iconForId(const QString &id) {
         return QIcon(QLatin1String(":/projectexplorer/images/MaemoDevice.png"));
     if (id == QLatin1String(Qt4ProjectManager::Constants::QT_SIMULATOR_TARGET_ID))
         return QIcon(QLatin1String(":/projectexplorer/images/SymbianEmulator.png"));
+    if (id == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID))
+        return QIcon(QLatin1String(":/projectexplorer/images/AndroidDevice.png"));
     return QIcon();
 }
 

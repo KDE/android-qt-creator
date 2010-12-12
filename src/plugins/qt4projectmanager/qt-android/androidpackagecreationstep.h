@@ -51,12 +51,14 @@ class QProcess;
 QT_END_NAMESPACE
 
 namespace Qt4ProjectManager {
+
+class Qt4BuildConfiguration;
+
 namespace Internal {
 
 class AndroidDeployStep;
 class AndroidToolChain;
 class AndroidProFileWrapper;
-class Qt4BuildConfiguration;
 
 class AndroidPackageCreationStep : public ProjectExplorer::BuildStep
 {

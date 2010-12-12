@@ -1655,6 +1655,8 @@ QString QtVersion::description() const
         envs = QCoreApplication::translate("QtVersion", "Maemo", "Qt Version is meant for Maemo");
     else if (targets.contains(Constants::QT_SIMULATOR_TARGET_ID))
         envs = QCoreApplication::translate("QtVersion", "Qt Simulator", "Qt Version is meant for Qt Simulator");
+    else if (targets.contains(Constants::ANDROID_DEVICE_TARGET_ID))
+        envs = QCoreApplication::translate("QtVersion", "Android", "Qt Version is meant for Android");
     else
         envs = QCoreApplication::translate("QtVersion", "unkown", "No idea what this Qt Version is meant for!");
     return QCoreApplication::translate("QtVersion", "Qt version %1, using mkspec %2 (%3)")

@@ -211,7 +211,7 @@ const AndroidPackageCreationStep *AndroidDeployStep::packagingStep() const
 void AndroidDeployStep::raiseError(const QString &errorString)
 {
     emit addTask(Task(Task::Error, errorString, QString(), -1,
-        Constants::TASK_CATEGORY_BUILDSYSTEM));
+        ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     emit error();
 }
 

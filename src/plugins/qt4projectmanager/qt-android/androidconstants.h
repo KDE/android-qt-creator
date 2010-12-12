@@ -74,6 +74,12 @@ static const QLatin1String AndroidUserEnvironmentChangesKey(ANDROID_PREFIX ".Use
 static const QLatin1String AndroidUseRemoteGdbKey(ANDROID_PREFIX ".UseRemoteGdb");
 
 } // namespace Internal
+
+namespace Constants {
+const char * const ANDROID_SETTINGS_CATEGORY = "X.Android";
+const char * const ANDROID_SETTINGS_TR_CATEGORY = QT_TRANSLATE_NOOP("Android", "Android");
+const char * const ANDROID_SETTINGS_CATEGORY_ICON = ":/projectexplorer/images/AndroidDevice.png";
+}
 } // namespace Qt4ProjectManager
 
 #endif  // ANDROIDCONSTANTS_H

@@ -60,11 +60,13 @@ class EnvironmentWidget;
 namespace Utils { class DetailsWidget; }
 
 namespace Qt4ProjectManager {
+
+class Qt4BuildConfiguration;
+
 namespace Internal {
 
 class AndroidDeviceEnvReader;
 class AndroidRunConfiguration;
-class Qt4BuildConfiguration;
 
 class AndroidRunConfigurationWidget : public QWidget
 {

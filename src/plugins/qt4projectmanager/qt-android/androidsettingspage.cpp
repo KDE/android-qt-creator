@@ -43,7 +43,7 @@
 
 #include "androidsettingswidget.h"
 
-#include <projectexplorer/projectexplorerconstants.h>
+#include "androidconstants.h"
 
 #include <QtCore/QCoreApplication>
 
@@ -71,20 +71,18 @@ QString AndroidSettingsPage::displayName() const
 
 QString AndroidSettingsPage::category() const
 {
-    using namespace ProjectExplorer;
-    return QLatin1String(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
+    return QLatin1String(Qt4ProjectManager::Constants::ANDROID_SETTINGS_CATEGORY);
 }
 
 QString AndroidSettingsPage::displayCategory() const
 {
-    return QCoreApplication::translate("ProjectExplorer",
-        ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
+    return QCoreApplication::translate("Android",
+        Qt4ProjectManager::Constants::ANDROID_SETTINGS_TR_CATEGORY);
 }
 
 QIcon AndroidSettingsPage::categoryIcon() const
 {
-    using namespace ProjectExplorer;
-    return QIcon(QLatin1String(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON));
+    return QIcon(QLatin1String(Qt4ProjectManager::Constants::ANDROID_SETTINGS_CATEGORY_ICON));
 }
 
 bool AndroidSettingsPage::matches(const QString &searchKeyWord) const
