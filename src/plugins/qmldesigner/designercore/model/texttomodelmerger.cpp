@@ -45,9 +45,8 @@
 #include <qmljs/qmljslink.h>
 #include <qmljs/qmljsscopebuilder.h>
 #include <qmljs/parser/qmljsast_p.h>
+#include <qmljs/qmljscheck.h>
 
-#include <QtDeclarative/QDeclarativeComponent>
-#include <QtDeclarative/QDeclarativeEngine>
 #include <QtCore/QSet>
 #include <QtGui/QMessageBox>
 
@@ -227,6 +226,7 @@ public:
         : m_snapshot(snapshot)
         , m_doc(doc)
         , m_context(new Interpreter::Context)
+        , m_lookupContext(LookupContext::create(doc, snapshot, QList<AST::Node*>()))
         , m_link(m_context, doc, snapshot, importPaths)
         , m_scopeBuilder(m_context, doc, snapshot)
     {
@@ -399,7 +399,8 @@ public:
             return hasQuotes ? QVariant(cleanedValue) : cleverConvert(cleanedValue);
         }
 
-        containingObject->lookupMember(name, m_context, &containingObject);
+        if (containingObject)
+            containingObject->lookupMember(name, m_context, &containingObject);
 
         if (const Interpreter::QmlObjectValue * qmlObject = dynamic_cast<const Interpreter::QmlObjectValue *>(containingObject)) {
             const QString typeName = qmlObject->propertyType(name);
@@ -443,7 +444,8 @@ public:
             return QVariant();
         }
 
-        containingObject->lookupMember(name, m_context, &containingObject);
+        if (containingObject)
+            containingObject->lookupMember(name, m_context, &containingObject);
         const Interpreter::QmlObjectValue * lhsQmlObject = dynamic_cast<const Interpreter::QmlObjectValue *>(containingObject);
         if (!lhsQmlObject)
             return QVariant();
@@ -465,7 +467,8 @@ public:
                 rhsValueName = memberExp->name->asString();
         }
 
-        rhsValueObject->lookupMember(rhsValueName, m_context, &rhsValueObject);
+        if (rhsValueObject)
+            rhsValueObject->lookupMember(rhsValueName, m_context, &rhsValueObject);
 
         const Interpreter::QmlObjectValue *rhsQmlObjectValue = dynamic_cast<const Interpreter::QmlObjectValue *>(rhsValueObject);
         if (!rhsQmlObjectValue)
@@ -477,10 +480,15 @@ public:
             return QVariant();
     }
 
+
+    LookupContext::Ptr lookupContext() const
+    { return m_lookupContext; }
+
 private:
     Snapshot m_snapshot;
     Document::Ptr m_doc;
     Interpreter::Context *m_context;
+    LookupContext::Ptr m_lookupContext;
     Link m_link;
     ScopeBuilder m_scopeBuilder;
 };
@@ -536,13 +544,19 @@ void TextToModelMerger::setupImports(const Document::Ptr &doc,
         if (import->fileName) {
             const QString strippedFileName = stripQuotes(import->fileName->asString());
             const Import newImport = Import::createFileImport(strippedFileName,
-                                                              version, as);
+                                                              version, as, m_rewriterView->textModifier()->importPaths());
 
             if (!existingImports.removeOne(newImport))
                 differenceHandler.modelMissesImport(newImport);
         } else {
+            QString importUri = flatten(import->importUri);
+            if (importUri == QLatin1String("QtQuick") && version == QLatin1String("1.0")) {
+                importUri = QLatin1String("Qt");
+                version = QLatin1String("4.7");
+            }
+
             const Import newImport =
-                    Import::createLibraryImport(flatten(import->importUri), version, as);
+                    Import::createLibraryImport(importUri, version, as, m_rewriterView->textModifier()->importPaths());
 
             if (!existingImports.removeOne(newImport))
                 differenceHandler.modelMissesImport(newImport);
@@ -561,29 +575,6 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
     const QStringList importPaths = m_rewriterView->textModifier()->importPaths();
     setActive(true);
 
-    { // Have the QML engine check if the document is valid:
-        QDeclarativeEngine engine;
-        engine.setOutputWarningsToStandardError(false);
-        foreach (const QString &importPath, importPaths)
-            engine.addImportPath(importPath);
-        QDeclarativeComponent comp(&engine);
-        comp.setData(data.toUtf8(), url);
-        if (comp.status() == QDeclarativeComponent::Error) {
-            QList<RewriterView::Error> errors;
-            foreach (const QDeclarativeError &error, comp.errors())
-                errors.append(RewriterView::Error(error));
-            m_rewriterView->setErrors(errors);
-            setActive(false);
-            return false;
-        } else if (comp.status() == QDeclarativeComponent::Loading) {
-            // Probably loading remote components. Previous DOM behaviour was:
-            QList<RewriterView::Error> errors;
-            errors.append(RewriterView::Error());
-            m_rewriterView->setErrors(errors);
-            setActive(false);
-            return false;
-        }
-    }
 
     try {
         Snapshot snapshot = m_rewriterView->textModifier()->getSnapshot();
@@ -591,8 +582,32 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
         Document::Ptr doc = Document::create(fileName.isEmpty() ? QLatin1String("<internal>") : fileName);
         doc->setSource(data);
         doc->parseQml();
+
+        if (!doc->isParsedCorrectly()) {
+            QList<RewriterView::Error> errors;
+            foreach (const QmlJS::DiagnosticMessage &message, doc->diagnosticMessages())
+                errors.append(RewriterView::Error(message, QUrl::fromLocalFile(doc->fileName())));
+            m_rewriterView->setErrors(errors);
+            setActive(false);
+            return false;
+        }
         snapshot.insert(doc);
         ReadingContext ctxt(snapshot, doc, importPaths);
+        m_lookupContext = ctxt.lookupContext();
+        m_document = doc;
+
+        QList<RewriterView::Error> errors;
+        Check check(doc, snapshot, m_lookupContext->context());
+        check.setIgnoreTypeErrors(true);
+        foreach (const QmlJS::DiagnosticMessage &diagnosticMessage, check())
+            if (diagnosticMessage.isError())
+            errors.append(RewriterView::Error(diagnosticMessage, QUrl::fromLocalFile(doc->fileName())));
+
+        if (!errors.isEmpty()) {
+            m_rewriterView->setErrors(errors);
+            setActive(false);
+            return false;
+        }
 
         setupImports(doc, differenceHandler);
 
@@ -744,7 +759,7 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
                 const QVariant variantValue = convertDynamicPropertyValueToVariant(astValue, astType);
                 syncVariantProperty(modelProperty, variantValue, astType, differenceHandler);
             } else {
-                syncExpressionProperty(modelProperty, astValue, differenceHandler);
+                syncExpressionProperty(modelProperty, astValue, astType, differenceHandler);
             }
             modelPropertyNames.remove(astName);
         } else {
@@ -836,12 +851,12 @@ QString TextToModelMerger::syncScriptBinding(ModelNode &modelNode,
     const QVariant enumValue = context->convertToEnum(script->statement, prefix, script->qualifiedId);
     if (enumValue.isValid()) { // It is a qualified enum:
         AbstractProperty modelProperty = modelNode.property(astPropertyName);
-        syncVariantProperty(modelProperty, enumValue, QString(), differenceHandler);
+        syncVariantProperty(modelProperty, enumValue, QString(), differenceHandler); // TODO: parse type
         return astPropertyName;
     } else { // Not an enum, so:
         if (modelNode.type() == QLatin1String("Qt/PropertyChanges") || context->lookupProperty(prefix, script->qualifiedId)) {
             AbstractProperty modelProperty = modelNode.property(astPropertyName);
-            syncExpressionProperty(modelProperty, astValue, differenceHandler);
+            syncExpressionProperty(modelProperty, astValue, QString(), differenceHandler); // TODO: parse type
             return astPropertyName;
         } else {
             qWarning() << "Skipping invalid expression property" << astPropertyName
@@ -900,15 +915,18 @@ void TextToModelMerger::syncNodeProperty(AbstractProperty &modelProperty,
 
 void TextToModelMerger::syncExpressionProperty(AbstractProperty &modelProperty,
                                                const QString &javascript,
+                                               const QString &astType,
                                                DifferenceHandler &differenceHandler)
 {
     if (modelProperty.isBindingProperty()) {
         BindingProperty bindingProperty = modelProperty.toBindingProperty();
-        if (bindingProperty.expression() != javascript) {
-            differenceHandler.bindingExpressionsDiffer(bindingProperty, javascript);
+        if (bindingProperty.expression() != javascript
+                || !astType.isEmpty() != bindingProperty.isDynamic()
+                || astType != bindingProperty.dynamicTypeName()) {
+            differenceHandler.bindingExpressionsDiffer(bindingProperty, javascript, astType);
         }
     } else {
-        differenceHandler.shouldBeBindingProperty(modelProperty, javascript);
+        differenceHandler.shouldBeBindingProperty(modelProperty, javascript, astType);
     }
 }
 
@@ -1025,14 +1043,17 @@ void ModelValidator::importAbsentInQMl(const Import &import)
 }
 
 void ModelValidator::bindingExpressionsDiffer(BindingProperty &modelProperty,
-                                              const QString &javascript)
+                                              const QString &javascript,
+                                              const QString &astType)
 {
     Q_ASSERT(modelProperty.expression() == javascript);
+    Q_ASSERT(modelProperty.dynamicTypeName() == astType);
     Q_ASSERT(0);
 }
 
 void ModelValidator::shouldBeBindingProperty(AbstractProperty &modelProperty,
-                                             const QString &/*javascript*/)
+                                             const QString &/*javascript*/,
+                                             const QString &/*astType*/)
 {
     Q_ASSERT(modelProperty.isBindingProperty());
     Q_ASSERT(0);
@@ -1125,17 +1146,27 @@ void ModelAmender::importAbsentInQMl(const Import &import)
 }
 
 void ModelAmender::bindingExpressionsDiffer(BindingProperty &modelProperty,
-                                            const QString &javascript)
+                                            const QString &javascript,
+                                            const QString &astType)
 {
-    modelProperty.toBindingProperty().setExpression(javascript);
+    if (astType.isEmpty()) {
+        modelProperty.setExpression(javascript);
+    } else {
+        modelProperty.setDynamicTypeNameAndExpression(astType, javascript);
+    }
 }
 
 void ModelAmender::shouldBeBindingProperty(AbstractProperty &modelProperty,
-                                           const QString &javascript)
+                                           const QString &javascript,
+                                           const QString &astType)
 {
     ModelNode theNode = modelProperty.parentModelNode();
     BindingProperty newModelProperty = theNode.bindingProperty(modelProperty.name());
-    newModelProperty.setExpression(javascript);
+    if (astType.isEmpty()) {
+        newModelProperty.setExpression(javascript);
+    } else {
+        newModelProperty.setDynamicTypeNameAndExpression(astType, javascript);
+    }
 }
 
 void ModelAmender::shouldBeNodeListProperty(AbstractProperty &modelProperty,

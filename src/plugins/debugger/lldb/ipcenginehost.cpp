@@ -28,23 +28,29 @@
 **************************************************************************/
 
 #include "ipcenginehost.h"
+
 #include "ipcengineguest.h"
 #include "breakhandler.h"
 #include "breakpoint.h"
+#include "disassemblerlines.h"
 #include "moduleshandler.h"
 #include "registerhandler.h"
 #include "stackhandler.h"
 #include "watchhandler.h"
 #include "watchutils.h"
 #include "threadshandler.h"
-#include "debuggeragents.h"
+#include "disassembleragent.h"
+#include "memoryagent.h"
 #include "debuggerstreamops.h"
+#include "debuggercore.h"
+
+#include <utils/qtcassert.h>
 
 #include <QSysInfo>
 #include <QDebug>
 #include <QFileInfo>
 #include <QTimer>
-#include <utils/qtcassert.h>
+#include <QLocalSocket>
 
 #if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
 #define SET_NATIVE_BYTE_ORDER(x) x.setByteOrder(QDataStream::LittleEndian)
@@ -57,12 +63,12 @@ namespace Internal {
 
 IPCEngineHost::IPCEngineHost (const DebuggerStartParameters &startParameters)
     : DebuggerEngine(startParameters)
-    , m_local_guest(0)
+    , m_localGuest(0)
     , m_nextMessagePayloadSize(0)
     , m_cookie(1)
     , m_device(0)
 {
-    connect(this, SIGNAL(stateChanged(DebuggerState)), this, SLOT(m_stateChanged(DebuggerState)));
+    connect(this, SIGNAL(stateChanged(DebuggerState)), SLOT(m_stateChanged(DebuggerState)));
 }
 
 IPCEngineHost::~IPCEngineHost()
@@ -70,18 +76,18 @@ IPCEngineHost::~IPCEngineHost()
     delete m_device;
 }
 
-void IPCEngineHost::setLocalGuest(IPCEngineGuest *g)
+void IPCEngineHost::setLocalGuest(IPCEngineGuest *guest)
 {
-    m_local_guest = g;
+    m_localGuest = guest;
 }
 
-void IPCEngineHost::setGuestDevice(QIODevice *d)
+void IPCEngineHost::setGuestDevice(QIODevice *device)
 {
     if (m_device) {
         disconnect(m_device, SIGNAL(readyRead()), this, SLOT(readyRead()));
         delete m_device;
     }
-    m_device = d;
+    m_device = device;
     if (m_device)
         connect(m_device, SIGNAL(readyRead()), this, SLOT(readyRead()));
 }
@@ -292,6 +298,17 @@ void IPCEngineHost::updateWatchData(const WatchData &data,
     rpcCall(RequestUpdateWatchData, p);
 }
 
+void IPCEngineHost::fetchFrameSource(qint64 id)
+{
+    QByteArray p;
+    {
+        QDataStream s(&p, QIODevice::WriteOnly);
+        SET_NATIVE_BYTE_ORDER(s);
+        s << id;
+    }
+    rpcCall(FetchFrameSource, p);
+}
+
 void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
 {
     switch (f) {
@@ -299,7 +316,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
             showMessage(QLatin1String("IPC Error: unhandled id in guest to host call"));
             showMessage(tr("Fatal engine shutdown. Incompatible binary or ipc error."), LogError);
             showStatusMessage(tr("Fatal engine shutdown. Incompatible binary or ipc error."));
-            notifyEngineSpontaneousShutdown();
+            nuke();
             break;
         case IPCEngineGuest::NotifyEngineSetupOk:
             notifyEngineSetupOk();
@@ -408,7 +425,12 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 resetLocation();
                 StackHandler *sh = stackHandler();
                 sh->setCurrentIndex(token);
-                gotoLocation(sh->currentFrame(), true);
+                if (!sh->currentFrame().isUsable() || QFileInfo(sh->currentFrame().file).exists())
+                    gotoLocation(sh->currentFrame(), true);
+                else if (!m_sourceAgents.contains(sh->currentFrame().file))
+                    fetchFrameSource(token);
+                foreach(SourceAgent *agent, m_sourceAgents.values())
+                    agent->updateLocationMarker();
             }
             break;
         case IPCEngineGuest::CurrentThreadChanged:
@@ -443,12 +465,12 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 QDataStream s(payload);
                 SET_NATIVE_BYTE_ORDER(s);
                 quint64 pc;
-                QString da;
+                DisassemblerLines lines;
                 s >> pc;
-                s >> da;
+                s >> lines;
                 DisassemblerViewAgent *view = m_frameToDisassemblerAgent.take(pc);
                 if (view)
-                    view->setContents(da);
+                    view->setContents(lines);
             }
             break;
         case IPCEngineGuest::UpdateWatchData:
@@ -460,7 +482,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 QList<WatchData> wd;
                 s >> fullCycle;
                 s >> count;
-                for (qint64 i = 0; i < count; i++) {
+                for (qint64 i = 0; i < count; ++i) {
                     WatchData d;
                     s >> d;
                     wd.append(d);
@@ -475,12 +497,14 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
             break;
         case IPCEngineGuest::NotifyAddBreakpointOk:
             {
+                attemptBreakpointSynchronization();
                 QDataStream s(payload);
                 SET_NATIVE_BYTE_ORDER(s);
                 BreakpointId id;
                 s >> id;
                 breakHandler()->notifyBreakpointInsertOk(id);
             }
+            break;
         case IPCEngineGuest::NotifyAddBreakpointFailed:
             {
                 QDataStream s(payload);
@@ -489,6 +513,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 s >> id;
                 breakHandler()->notifyBreakpointInsertFailed(id);
             }
+            break;
         case IPCEngineGuest::NotifyRemoveBreakpointOk:
             {
                 QDataStream s(payload);
@@ -497,6 +522,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 s >> id;
                 breakHandler()->notifyBreakpointRemoveOk(id);
             }
+            break;
         case IPCEngineGuest::NotifyRemoveBreakpointFailed:
             {
                 QDataStream s(payload);
@@ -505,6 +531,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 s >> id;
                 breakHandler()->notifyBreakpointRemoveFailed(id);
             }
+            break;
         case IPCEngineGuest::NotifyChangeBreakpointOk:
             {
                 QDataStream s(payload);
@@ -513,6 +540,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 s >> id;
                 breakHandler()->notifyBreakpointChangeOk(id);
             }
+            break;
         case IPCEngineGuest::NotifyChangeBreakpointFailed:
             {
                 QDataStream s(payload);
@@ -521,6 +549,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 s >> id;
                 breakHandler()->notifyBreakpointChangeFailed(id);
             }
+            break;
         case IPCEngineGuest::NotifyBreakpointAdjusted:
             {
                 QDataStream s(payload);
@@ -530,6 +559,22 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 s >> id >> d;
                 breakHandler()->notifyBreakpointAdjusted(id, d);
             }
+            break;
+        case IPCEngineGuest::FrameSourceFetched:
+            {
+                QDataStream s(payload);
+                SET_NATIVE_BYTE_ORDER(s);
+                qint64 token;
+                QString path;
+                QString source;
+                s >> token >> path >> source;
+                SourceAgent *agent = new SourceAgent(this);
+                agent->setSourceProducerName(startParameters().connParams.host);
+                agent->setContent(path, source);
+                m_sourceAgents.insert(path, agent);
+                agent->updateLocationMarker();
+            }
+            break;
     }
 }
 
@@ -547,8 +592,8 @@ void IPCEngineHost::m_stateChanged(const DebuggerState &state)
 
 void IPCEngineHost::rpcCall(Function f, QByteArray payload)
 {
-    if (m_local_guest) {
-        QMetaObject::invokeMethod(m_local_guest,
+    if (m_localGuest) {
+        QMetaObject::invokeMethod(m_localGuest,
                 "rpcCallback",
                 Qt::QueuedConnection,
                 Q_ARG(quint64, f),
@@ -565,6 +610,9 @@ void IPCEngineHost::rpcCall(Function f, QByteArray payload)
         m_device->write(header);
         m_device->write(payload);
         m_device->putChar('T');
+        QLocalSocket *sock = qobject_cast<QLocalSocket *>(m_device);
+        if (sock)
+            sock->flush();
     }
 }
 
@@ -573,12 +621,12 @@ void IPCEngineHost::readyRead()
     QDataStream s(m_device);
     SET_NATIVE_BYTE_ORDER(s);
     if (!m_nextMessagePayloadSize) {
-        if (quint64(m_device->bytesAvailable ()) < (sizeof(quint64) * 3))
+        if (quint64(m_device->bytesAvailable ()) < 3 * sizeof(quint64))
             return;
         s >> m_nextMessageCookie;
         s >> m_nextMessageFunction;
         s >> m_nextMessagePayloadSize;
-        m_nextMessagePayloadSize += 1; // terminator and "got header" marker
+        m_nextMessagePayloadSize += 1; // Terminator and "got header" marker.
     }
 
     quint64 ba = m_device->bytesAvailable();
@@ -592,15 +640,14 @@ void IPCEngineHost::readyRead()
     if (terminator != 'T') {
         showStatusMessage(tr("Fatal engine shutdown. Incompatible binary or ipc error."));
         showMessage(QLatin1String("IPC Error: terminator missing"));
-        notifyEngineSpontaneousShutdown();
+        nuke();
         return;
     }
     rpcCallback(m_nextMessageFunction, payload);
     m_nextMessagePayloadSize = 0;
-    if (quint64(m_device->bytesAvailable()) >= (sizeof(quint64) * 3))
+    if (quint64(m_device->bytesAvailable()) >= 3 * sizeof(quint64))
         QTimer::singleShot(0, this, SLOT(readyRead()));
 }
-
 
 } // namespace Internal
 } // namespace Debugger

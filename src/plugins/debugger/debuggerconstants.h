@@ -47,7 +47,7 @@ const char * const STEPOUT              = "Debugger.StepOut";
 const char * const NEXT                 = "Debugger.NextLine";
 const char * const REVERSE              = "Debugger.ReverseDirection";
 
-const char * const M_DEBUG_VIEWS               = "Debugger.Menu.View.Debug";
+const char * const M_DEBUG_VIEWS        = "Debugger.Menu.View.Debug";
 
 const char * const C_DEBUGMODE          = "Debugger.DebugMode";
 const char * const C_CPPDEBUGGER        = "Gdb Debugger";
@@ -63,19 +63,20 @@ const char * const DEBUGGER_COMMON_SETTINGS_CATEGORY_ICON =
     ":/core/images/category_debug.png";
 
 // dock widget names
-const char * const DOCKWIDGET_BREAK = "Debugger.Docks.Break";
-const char * const DOCKWIDGET_CONSOLE = "Debugger.Docks.Console";
-const char * const DOCKWIDGET_MODULES = "Debugger.Docks.Modules";
-const char * const DOCKWIDGET_REGISTER = "Debugger.Docks.Register";
-const char * const DOCKWIDGET_OUTPUT = "Debugger.Docks.Output";
-const char * const DOCKWIDGET_SNAPSHOTS = "Debugger.Docks.Snapshots";
-const char * const DOCKWIDGET_STACK = "Debugger.Docks.Stack";
+const char * const DOCKWIDGET_BREAK      = "Debugger.Docks.Break";
+const char * const DOCKWIDGET_CONSOLE    = "Debugger.Docks.Console";
+const char * const DOCKWIDGET_MODULES    = "Debugger.Docks.Modules";
+const char * const DOCKWIDGET_REGISTER   = "Debugger.Docks.Register";
+const char * const DOCKWIDGET_OUTPUT     = "Debugger.Docks.Output";
+const char * const DOCKWIDGET_SNAPSHOTS  = "Debugger.Docks.Snapshots";
+const char * const DOCKWIDGET_STACK      = "Debugger.Docks.Stack";
 const char * const DOCKWIDGET_SOURCE_FILES = "Debugger.Docks.SourceFiles";
-const char * const DOCKWIDGET_THREADS = "Debugger.Docks.Threads";
-const char * const DOCKWIDGET_WATCHERS = "Debugger.Docks.LocalsAndWatchers";
+const char * const DOCKWIDGET_THREADS    = "Debugger.Docks.Threads";
+const char * const DOCKWIDGET_WATCHERS   = "Debugger.Docks.LocalsAndWatchers";
 
 const char * const DOCKWIDGET_QML_INSPECTOR = "Debugger.Docks.QmlInspector";
 const char * const DOCKWIDGET_QML_SCRIPTCONSOLE = "Debugger.Docks.ScriptConsole";
+const char * const DOCKWIDGET_DEFAULT_AREA = "Debugger.Docks.DefaultArea";
 
 namespace Internal {
     enum { debug = 0 };
@@ -83,6 +84,7 @@ namespace Internal {
 
 const char * const OPENED_BY_DEBUGGER         = "OpenedByDebugger";
 const char * const OPENED_WITH_DISASSEMBLY    = "DisassemblerView";
+const char * const OPENED_WITH_MEMORY         = "MemoryView";
 
 const char * const DEBUGMODE            = "Debugger.DebugMode";
 const char * const DEBUG                = "Debugger.Debug";
@@ -140,7 +142,8 @@ enum DebuggerStartMode
     AttachTcf,             // Attach to a running Target Communication Framework agent
     AttachCore,            // Attach to a core file
     AttachToRemote,        // Start and attach to a remote process
-    StartRemoteGdb         // Start gdb itself remotely
+    StartRemoteGdb,        // Start gdb itself remotely
+    StartRemoteEngine      // Start ipc guest engine on other machine
 };
 
 enum DebuggerCapabilities
@@ -158,7 +161,8 @@ enum DebuggerCapabilities
     ReturnFromFunctionCapability = 0x400,
     CreateFullBacktraceCapability = 0x800,
     AddWatcherCapability = 0x1000,
-    WatchpointCapability = 0x2000
+    WatchpointCapability = 0x2000,
+    ShowModuleSymbolsCapability = 0x4000,
 };
 
 enum LogChannel
@@ -218,7 +222,7 @@ enum DebuggerEngineType
     TcfEngineType     = 0x10,
     QmlEngineType     = 0x20,
     QmlCppEngineType  = 0x40,
-    LLDBEngineType  = 0x80,
+    LldbEngineType  = 0x80,
     AllEngineTypes = GdbEngineType
         | ScriptEngineType
         | CdbEngineType
@@ -226,7 +230,7 @@ enum DebuggerEngineType
         | TcfEngineType
         | QmlEngineType
         | QmlCppEngineType
-        | LLDBEngineType
+        | LldbEngineType
 };
 
 enum DebuggerLanguage

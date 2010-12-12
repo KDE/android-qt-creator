@@ -30,6 +30,7 @@
 #include "qmljscodecompletion.h"
 #include "qmlexpressionundercursor.h"
 #include "qmljseditor.h"
+#include "qmljseditorconstants.h"
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/parser/qmljsast_p.h>
@@ -487,7 +488,7 @@ CodeCompletion::CodeCompletion(ModelManagerInterface *modelManager, QObject *par
       m_editor(0),
       m_startPosition(0),
       m_restartCompletion(false),
-      m_snippetsParser(Core::ICore::instance()->resourcePath() + QLatin1String("/snippets/qml.xml"))
+      m_snippetProvider(Constants::QML_SNIPPETS_GROUP_ID, iconForColor(Qt::red), SnippetOrder)
 {
     Q_ASSERT(modelManager);
 }
@@ -537,6 +538,8 @@ bool CodeCompletion::triggersCompletion(TextEditor::ITextEditable *editor)
                     break;
                 }
             }
+            if (ch == QLatin1Char('/'))
+                return false;
         }
         return true;
     }
@@ -715,7 +718,7 @@ static const Interpreter::Value *getPropertyValue(
     const QStringList &propertyNames,
     const Interpreter::Context *context)
 {
-    if (propertyNames.isEmpty())
+    if (propertyNames.isEmpty() || !object)
         return 0;
 
     const Interpreter::Value *value = object;
@@ -950,7 +953,7 @@ int CodeCompletion::startCompletion(TextEditor::ITextEditable *editor)
     }
 
     if (isQmlFile && (completionOperator.isNull() || completionOperator.isSpace() || isDelimiter(completionOperator))) {
-        m_completions.append(m_snippetsParser.execute(this, iconForColor(Qt::red), SnippetOrder));
+        m_completions.append(m_snippetProvider.getSnippets(this));
     }
 
     if (! m_completions.isEmpty())

@@ -171,7 +171,7 @@ static bool idIsQmlKeyWord(const QString& id)
 
 static bool idContainsWrongLetter(const QString& id)
 {
-    static QRegExp idExpr(QLatin1String("[a-z][a-zA-Z0-9_]*"));
+    static QRegExp idExpr(QLatin1String("[a-z_][a-zA-Z0-9_]*"));
     return !idExpr.exactMatch(id);
 }
 
@@ -629,7 +629,7 @@ bool operator ==(const ModelNode &firstNode, const ModelNode &secondNode)
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
     }
 
-    return firstNode.m_internalNode.data() == secondNode.m_internalNode.data();
+    return firstNode.internalId() == secondNode.internalId();
 }
 
 /*!
@@ -642,7 +642,7 @@ bool operator !=(const ModelNode &firstNode, const ModelNode &secondNode)
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
     }
 
-    return firstNode.m_internalNode != secondNode.m_internalNode;
+    return firstNode.internalId() != secondNode.internalId();
 }
 
 bool operator <(const ModelNode &firstNode, const ModelNode &secondNode)
@@ -652,7 +652,7 @@ bool operator <(const ModelNode &firstNode, const ModelNode &secondNode)
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
     }
 
-    return firstNode.internalNode().data() < secondNode.internalNode().data();
+    return firstNode.internalId() < secondNode.internalId();
 }
 
 
@@ -672,7 +672,7 @@ uint qHash(const ModelNode &node)
 //        Q_ASSERT_X(node.isValid(), Q_FUNC_INFO, "model node is invalid");
 //        throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
 //    }
-    return ::qHash(node.m_internalNode.data());
+    return ::qHash(node.internalId());
 }
 
 /*!
@@ -730,16 +730,14 @@ bool ModelNode::hasAnySubModelNodes() const
     return !nodeAbstractProperties().isEmpty();
 }
 
-/*! \brief returns the meta info of the node
-\return meta info of the node
-*/
 const NodeMetaInfo ModelNode::metaInfo() const
 {
     if (!isValid()) {
         Q_ASSERT_X(isValid(), Q_FUNC_INFO, "model node is invalid");
         throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
     }
-    return model()->metaInfo().nodeMetaInfo(type(), majorVersion(), minorVersion());
+
+    return NodeMetaInfo(model(), type(), majorVersion(), minorVersion());
 }
 
 /*! \brief has a node the selection of the model
@@ -836,7 +834,7 @@ QDebug operator<<(QDebug debug, const ModelNode &modelNode)
 {
     if (modelNode.isValid()) {
         debug.nospace() << "ModelNode("
-                << modelNode.internalNode().data() << ", "
+                << modelNode.internalId() << ", "
                 << modelNode.type() << ", "
                 << modelNode.id() << ')';
     } else {
@@ -925,6 +923,14 @@ void  ModelNode::setScriptFunctions(const QStringList &scriptFunctionList)
 QStringList  ModelNode::scriptFunctions() const
 {
     return internalNode()->scriptFunctions();
+}
+
+qint32 ModelNode::internalId() const
+{
+    if (m_internalNode.isNull())
+        return -1;
+
+    return m_internalNode->internalId();
 }
 
 }

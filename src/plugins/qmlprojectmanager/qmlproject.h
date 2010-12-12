@@ -72,12 +72,10 @@ public:
     QString id() const;
     Core::IFile *file() const;
     Internal::Manager *projectManager() const;
-    Internal::QmlProjectTargetFactory *targetFactory() const;
     Internal::QmlProjectTarget *activeTarget() const;
 
     QList<ProjectExplorer::Project *> dependsOn();
 
-    ProjectExplorer::BuildConfigWidget *createConfigWidget();
     QList<ProjectExplorer::BuildConfigWidget*> subConfigWidgets();
 
     Internal::QmlProjectNode *rootProjectNode() const;
@@ -97,6 +95,7 @@ public:
 
     QDir projectDir() const;
     QStringList files() const;
+    QString mainFile() const;
     QStringList importPaths() const;
 
     bool addFiles(const QStringList &filePaths);
@@ -128,8 +127,6 @@ private:
     ProjectExplorer::FileWatcher *m_fileWatcher;
 
     Internal::QmlProjectNode *m_rootNode;
-    Internal::QmlProjectTargetFactory *m_targetFactory;
-
 };
 
 } // namespace QmlProjectManager

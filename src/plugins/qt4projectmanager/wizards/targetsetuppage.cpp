@@ -52,6 +52,7 @@
 #include <QtGui/QPushButton>
 #include <QtGui/QTreeWidget>
 
+using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
 
 namespace {
@@ -84,6 +85,8 @@ TargetSetupPage::TargetSetupPage(QWidget *parent) :
             this, SLOT(handleDoubleClicks(QTreeWidgetItem*,int)));
     connect(m_ui->versionTree, SIGNAL(customContextMenuRequested(QPoint)),
             this, SLOT(contextMenuRequested(QPoint)));
+
+    setTitle(tr("Qt Versions"));
 }
 
 void TargetSetupPage::initializePage()
@@ -240,6 +243,10 @@ bool TargetSetupPage::setupProject(Qt4ProjectManager::Qt4Project *project)
     Q_ASSERT(project->targets().isEmpty());
     QtVersionManager *vm = QtVersionManager::instance();
 
+    // TODO remove again
+    Qt4TargetFactory *factory =
+            ExtensionSystem::PluginManager::instance()->getObject<Qt4TargetFactory>();
+
     for (int i = 0; i < m_ui->versionTree->topLevelItemCount(); ++i) {
         QTreeWidgetItem *current = m_ui->versionTree->topLevelItem(i);
         QString targetId = current->data(NAME_COLUMN, Qt::UserRole).toString();
@@ -272,7 +279,7 @@ bool TargetSetupPage::setupProject(Qt4ProjectManager::Qt4Project *project)
         // create the target:
         Qt4Target *target = 0;
         if (!targetInfos.isEmpty())
-            target = project->targetFactory()->create(project, targetId, targetInfos);
+            target = factory->create(project, targetId, targetInfos);
 
         if (target) {
             project->addTarget(target);
@@ -283,7 +290,7 @@ bool TargetSetupPage::setupProject(Qt4ProjectManager::Qt4Project *project)
 
     // Create the default target if nothing else was set up:
     if (project->targets().isEmpty()) {
-        Qt4Target *target = project->targetFactory()->create(project, Constants::DESKTOP_TARGET_ID);
+        Qt4Target *target = factory->create(project, Constants::DESKTOP_TARGET_ID);
         if (target)
             project->addTarget(target);
     }

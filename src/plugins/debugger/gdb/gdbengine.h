@@ -59,6 +59,7 @@ class GdbMi;
 
 class WatchData;
 class DisassemblerAgentCookie;
+class DisassemblerLines;
 
 class AttachGdbAdapter;
 class CoreGdbAdapter;
@@ -126,6 +127,8 @@ private: ////////// Gdb Process Management //////////
                   const QString &settingsIdHint = QString());
     void handleInferiorShutdown(const GdbResponse &response);
     void handleGdbExit(const GdbResponse &response);
+    void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
+    void handleRemoteSetupFailed(const QString &message);
 
     void handleAdapterStarted();
     void defaultInferiorShutdown(const char *cmd);
@@ -301,7 +304,6 @@ private: ////////// Gdb Output, State & Capability Handling //////////
 private: ////////// Inferior Management //////////
 
     // This should be always the last call in a function.
-    //Q_SLOT virtual void attemptBreakpointSynchronization();
     bool stateAcceptsBreakpointChanges() const;
     bool acceptsBreakpoint(BreakpointId id) const;
     void insertBreakpoint(BreakpointId id);
@@ -331,7 +333,6 @@ private: ////////// Inferior Management //////////
     void handleExecuteReturn(const GdbResponse &response);
     void handleExecuteJumpToLine(const GdbResponse &response);
     void handleExecuteRunToLine(const GdbResponse &response);
-    //void handleExecuteRunToFunction(const GdbResponse &response);
 
     void maybeHandleInferiorPidChanged(const QString &pid);
     void handleInfoProc(const GdbResponse &response);
@@ -355,6 +356,7 @@ private: ////////// View & Data Stuff //////////
     void handleBreakInsert2(const GdbResponse &response);
     void handleBreakCondition(const GdbResponse &response);
     void handleBreakInfo(const GdbResponse &response);
+    void handleBreakThreadSpec(const GdbResponse &response);
     void handleWatchInsert(const GdbResponse &response);
     void handleInfoLine(const GdbResponse &response);
     void extractDataFromInfoBreak(const QString &output, BreakpointId);
@@ -374,6 +376,7 @@ private: ////////// View & Data Stuff //////////
     void examineModules();
     void reloadModulesInternal();
     void handleModulesList(const GdbResponse &response);
+    void handleShowModuleSymbols(const GdbResponse &response);
 
     bool m_modulesListOutdated;
 
@@ -404,7 +407,7 @@ private: ////////// View & Data Stuff //////////
     void handleFetchDisassemblerByLine(const GdbResponse &response);
     void handleFetchDisassemblerByAddress1(const GdbResponse &response);
     void handleFetchDisassemblerByAddress0(const GdbResponse &response);
-    QString parseDisassembler(const GdbMi &lines);
+    DisassemblerLines parseDisassembler(const GdbMi &lines);
 
     //
     // Source file specific stuff
@@ -515,7 +518,6 @@ private: ////////// View & Data Stuff //////////
     void setDebuggingHelperStateClassic(DebuggingHelperState);
     void tryLoadDebuggingHelpersClassic();
     void tryQueryDebuggingHelpersClassic();
-    Q_SLOT void setDebugDebuggingHelpersClassic(const QVariant &on);
     Q_SLOT void setUseDebuggingHelpers(const QVariant &on);
 
     DebuggingHelperState m_debuggingHelperState;

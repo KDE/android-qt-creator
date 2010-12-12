@@ -32,7 +32,6 @@
 #include "formeditorscene.h"
 #include "formeditorview.h"
 #include "formeditorwidget.h"
-#include "modelutilities.h"
 #include "itemutilfunctions.h"
 
 #include "resizehandleitem.h"
@@ -232,6 +231,10 @@ void MoveTool::selectedItemsChanged(const QList<FormEditorItem*> &itemList)
     m_selectionIndicator.setItems(movingItems(itemList));
     m_resizeIndicator.setItems(itemList);
     updateMoveManipulator();
+}
+
+void MoveTool::instancesCompleted(const QList<FormEditorItem*> &itemList)
+{
 }
 
 bool MoveTool::haveSameParent(const QList<FormEditorItem*> &itemList)

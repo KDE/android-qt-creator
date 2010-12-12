@@ -180,7 +180,6 @@ public:
     BaseTextEditor *q;
     bool m_contentsChanged;
     bool m_lastCursorChangeWasInteresting;
-    bool m_allowSkippingOfBlockEnd;
 
     QList<QTextEdit::ExtraSelection> m_syntaxHighlighterSelections;
     QTextEdit::ExtraSelection m_lineSelection;
@@ -191,7 +190,6 @@ public:
 
     QString m_displayName;
     bool m_parenthesesMatchingEnabled;
-    bool m_autoParenthesesEnabled;
     QTimer *m_updateTimer;
 
     Utils::ChangeSet m_changeSet;
@@ -217,7 +215,7 @@ public:
     TextEditorOverlay *m_overlay;
     TextEditorOverlay *m_snippetOverlay;
     TextEditorOverlay *m_searchResultOverlay;
-    void snippetCheckCursor(const QTextCursor &cursor);
+    bool snippetCheckCursor(const QTextCursor &cursor);
     void snippetTabOrBacktab(bool forward);
     QTextCharFormat m_occurrencesFormat;
     QTextCharFormat m_occurrenceRenameFormat;

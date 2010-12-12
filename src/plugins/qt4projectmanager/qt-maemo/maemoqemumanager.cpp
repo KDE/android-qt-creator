@@ -29,6 +29,10 @@
 
 #include "maemoqemumanager.h"
 
+#include "maemoglobal.h"
+#include "maemomanager.h"
+#include "maemoqemuruntimeparser.h"
+#include "maemosettingspages.h"
 #include "maemorunconfiguration.h"
 #include "maemotoolchain.h"
 #include "qtversionmanager.h"
@@ -51,13 +55,10 @@
 #include <QtCore/QList>
 #include <QtCore/QSet>
 #include <QtCore/QStringBuilder>
-#include <QtCore/QTextStream>
 
 #include <QtGui/QAction>
 #include <QtGui/QDesktopServices>
 #include <QtGui/QMessageBox>
-
-#include <QtXml/QXmlStreamReader>
 
 #include <limits.h>
 
@@ -68,7 +69,6 @@ using namespace Qt4ProjectManager::Internal;
 MaemoQemuManager *MaemoQemuManager::m_instance = 0;
 
 const QSize iconSize = QSize(24, 20);
-const QLatin1String binQmake("/bin/qmake" EXEC_SUFFIX);
 
 MaemoQemuManager::MaemoQemuManager(QObject *parent)
     : QObject(parent)
@@ -143,9 +143,9 @@ MaemoQemuManager &MaemoQemuManager::instance(QObject *parent)
     return *m_instance;
 }
 
-bool MaemoQemuManager::runtimeForQtVersion(int uniqueId, Runtime *rt) const
+bool MaemoQemuManager::runtimeForQtVersion(int uniqueId, MaemoQemuRuntime *rt) const
 {
-    *rt = m_runtimes.value(uniqueId, Runtime());
+    *rt = m_runtimes.value(uniqueId, MaemoQemuRuntime());
     return rt->isValid();
 }
 
@@ -156,14 +156,9 @@ void MaemoQemuManager::qtVersionsChanged(const QList<int> &uniqueIds)
         if (manager->isValidId(uniqueId)) {
             QtVersion *version = manager->version(uniqueId);
             if (version->supportsTargetId(Constants::MAEMO_DEVICE_TARGET_ID)) {
-                const QString &qmake = version->qmakeCommand();
-                const QString &runtimeRoot = runtimeForQtVersion(qmake);
-                if (!runtimeRoot.isEmpty()) {
-                    Runtime runtime(runtimeRoot);
-                    if (QFile::exists(runtimeRoot))
-                        fillRuntimeInformation(&runtime);
-                    runtime.m_watchPath =
-                        runtimeRoot.left(runtimeRoot.lastIndexOf(QLatin1Char('/')));
+                MaemoQemuRuntime runtime
+                    = MaemoQemuRuntimeParser::parseRuntime(version);
+                if (runtime.isValid()) {
                     m_runtimes.insert(uniqueId, runtime);
                     if (!m_runtimeRootWatcher->directories().contains(runtime.m_watchPath))
                         m_runtimeRootWatcher->addPath(runtime.m_watchPath);
@@ -224,7 +219,7 @@ void MaemoQemuManager::projectChanged(ProjectExplorer::Project *project)
 
 bool targetIsMaemo(const QString &id)
 {
-    return id == QLatin1String(Constants::MAEMO_DEVICE_TARGET_ID);
+    return id == QLatin1String(Qt4ProjectManager::Constants::MAEMO_DEVICE_TARGET_ID);
 }
 
 void MaemoQemuManager::targetAdded(ProjectExplorer::Target *target)
@@ -359,39 +354,10 @@ void MaemoQemuManager::startRuntime()
     }
 
     m_runningQtId = version->uniqueId();
-    const QString root
-        = QDir::toNativeSeparators(maddeRoot(version->qmakeCommand())
-            + QLatin1Char('/'));
-    const Runtime rt = m_runtimes.value(version->uniqueId());
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-#ifdef Q_OS_WIN
-    const QLatin1Char colon(';');
-    const QLatin1String key("PATH");
-    env.insert(key, root % QLatin1String("bin") % colon % env.value(key));
-    env.insert(key, root % QLatin1String("madlib") % colon % env.value(key));
-#endif
-    for (QHash<QString, QString>::ConstIterator it = rt.m_environment.constBegin();
-        it != rt.m_environment.constEnd(); ++it)
-        env.insert(it.key(), it.value());
-    m_qemuProcess->setProcessEnvironment(env);
+    const MaemoQemuRuntime rt = m_runtimes.value(version->uniqueId());
+    m_qemuProcess->setProcessEnvironment(rt.environment());
     m_qemuProcess->setWorkingDirectory(rt.m_root);
-
-    // This is complex because of extreme MADDE weirdness.
-    const bool pathIsRelative = QFileInfo(rt.m_bin).isRelative();
-    const QString app =
-#ifdef Q_OS_WIN
-        root % (pathIsRelative
-            ? QLatin1String("madlib/") % rt.m_bin // Fremantle.
-            : rt.m_bin)                           // Haramattan.
-            % QLatin1String(".exe");
-#else
-        pathIsRelative
-            ? root % QLatin1String("madlib/") % rt.m_bin // Fremantle.
-            : rt.m_bin;                                  // Haramattan.
-#endif
-
-    m_qemuProcess->start(app % QLatin1Char(' ') % rt.m_args,
-        QIODevice::ReadWrite);
+    m_qemuProcess->start(rt.m_bin % QLatin1Char(' ') % rt.m_args);
     if (!m_qemuProcess->waitForStarted())
         return;
 
@@ -441,31 +407,27 @@ void MaemoQemuManager::qemuProcessError(QProcess::ProcessError error)
 
 void MaemoQemuManager::qemuStatusChanged(QemuStatus status, const QString &error)
 {
-    QString message;
     bool running = false;
-
     switch (status) {
         case QemuStarting:
             running = true;
             break;
         case QemuFailedToStart:
-            message = tr("Qemu failed to start: %1").arg(error);
+            QMessageBox::warning(0, tr("Qemu error"),
+                tr("Qemu failed to start: %1"));
             break;
         case QemuCrashed:
-            message = tr("Qemu crashed");
+            MaemoManager::instance().qemuSettingsPage()->showQemuCrashDialog();
             break;
         case QemuFinished:
-            message = error;
-            break;
         case QemuUserReason:
-            message = error;
+            if (!error.isEmpty())
+                QMessageBox::warning(0, tr("Qemu error"), error);
             break;
         default:
             Q_ASSERT(!"Missing handling of Qemu status");
     }
 
-    if (!message.isEmpty())
-        QMessageBox::warning(0, tr("Qemu error"), message);
     updateStarterIcon(running);
 }
 
@@ -478,14 +440,14 @@ void MaemoQemuManager::qemuOutput()
 void MaemoQemuManager::runtimeRootChanged(const QString &directory)
 {
     QList<int> uniqueIds;
-    QMap<int, Runtime>::const_iterator it;
+    QMap<int, MaemoQemuRuntime>::const_iterator it;
     for (it = m_runtimes.constBegin(); it != m_runtimes.constEnd(); ++it) {
         if (QDir(it.value().m_watchPath) == QDir(directory))
             uniqueIds.append(it.key());
     }
 
     foreach (int uniqueId, uniqueIds) {
-        Runtime runtime = m_runtimes.value(uniqueId, Runtime());
+        MaemoQemuRuntime runtime = m_runtimes.value(uniqueId, MaemoQemuRuntime());
         if (runtime.isValid()) {
             if (QFile::exists(runtime.m_root)) {
                 // nothing changed, so we can remove it
@@ -508,7 +470,7 @@ void MaemoQemuManager::runtimeFolderChanged(const QString &directory)
 {
     if (QFile::exists(directory + QLatin1String("/information"))) {
         QList<int> uniqueIds;
-        QMap<int, Runtime>::const_iterator it;
+        QMap<int, MaemoQemuRuntime>::const_iterator it;
         for (it = m_runtimes.constBegin(); it != m_runtimes.constEnd(); ++it) {
             if (QDir(it.value().m_root) == QDir(directory))
                 uniqueIds.append(it.key());
@@ -556,7 +518,7 @@ void MaemoQemuManager::toggleStarterButton(Target *target)
     if (m_runningQtId == uniqueId)
         isRunning = false;
 
-    m_qemuAction->setEnabled(m_runtimes.value(uniqueId, Runtime()).isValid()
+    m_qemuAction->setEnabled(m_runtimes.value(uniqueId, MaemoQemuRuntime()).isValid()
         && targetUsesMatchingRuntimeConfig(target) && !isRunning);
     m_qemuAction->setVisible(!m_runtimes.isEmpty() && sessionHasMaemoTarget());
 }
@@ -586,161 +548,13 @@ bool MaemoQemuManager::targetUsesMatchingRuntimeConfig(Target *target,
     if (!bc)
         return false;
     QtVersion *version = bc->qtVersion();
-    if (!version || !m_runtimes.value(version->uniqueId(), Runtime()).isValid())
+    if (!version || !m_runtimes.value(version->uniqueId(), MaemoQemuRuntime()).isValid())
         return false;
 
     if (qtVersion)
         *qtVersion = version;
     const MaemoDeviceConfig &config = mrc->deviceConfig();
     return config.isValid() && config.type == MaemoDeviceConfig::Simulator;
-}
-
-QString MaemoQemuManager::maddeRoot(const QString &qmake) const
-{
-    QDir dir(QDir::cleanPath(qmake).remove(binQmake));
-    dir.cdUp(); dir.cdUp();
-    return dir.absolutePath();
-}
-
-QString MaemoQemuManager::targetRoot(const QString &qmake) const
-{
-    const QString target = QDir::cleanPath(qmake).remove(binQmake);
-    return target.mid(target.lastIndexOf(QLatin1Char('/')) + 1);
-}
-
-bool MaemoQemuManager::fillRuntimeInformation(Runtime *runtime) const
-{
-    const QStringList files = QDir(runtime->m_root).entryList(QDir::Files
-        | QDir::NoSymLinks | QDir::NoDotAndDotDot);
-
-    // we need at least the information file
-    const QLatin1String infoFile("information");
-    if (files.contains(infoFile)) {
-        QFile file(runtime->m_root + QLatin1Char('/') + infoFile);
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QMap<QString, QString> map;
-            QTextStream stream(&file);
-            while (!stream.atEnd()) {
-                const QString &line = stream.readLine().trimmed();
-                const int index = line.indexOf(QLatin1Char('='));
-                map.insert(line.mid(0, index).remove(QLatin1Char('\'')),
-                    line.mid(index + 1).remove(QLatin1Char('\'')));
-            }
-
-            runtime->m_bin = map.value(QLatin1String("qemu"));
-            runtime->m_args = map.value(QLatin1String("qemu_args"));
-            setEnvironment(runtime, map.value(QLatin1String("libpath")));
-            runtime->m_sshPort = map.value(QLatin1String("sshport"));
-            runtime->m_freePorts = MaemoPortList();
-            int i = 2;
-            while (true) {
-                const QString port = map.value(QLatin1String("redirport")
-                    + QString::number(i++));
-                if (port.isEmpty())
-                    break;
-                runtime->m_freePorts.addPort(port.toInt());
-            }
-            return true;
-        }
-    }
-    return false;
-}
-
-void MaemoQemuManager::setEnvironment(Runtime *runTime,
-    const QString &envSpec) const
-{
-    QString remainingEnvSpec = envSpec;
-    QString currentKey;
-    while (true) {
-        const int nextEqualsSignPos
-            = remainingEnvSpec.indexOf(QLatin1Char('='));
-        if (nextEqualsSignPos == -1) {
-            if (!currentKey.isEmpty())
-                runTime->m_environment.insert(currentKey, remainingEnvSpec);
-            break;
-        }
-        const int keyStartPos
-            = remainingEnvSpec.lastIndexOf(QRegExp(QLatin1String("\\s")),
-                nextEqualsSignPos) + 1;
-        if (!currentKey.isEmpty()) {
-            const int valueEndPos
-                = remainingEnvSpec.lastIndexOf(QRegExp(QLatin1String("\\S")),
-                    qMax(0, keyStartPos - 1)) + 1;
-            runTime->m_environment.insert(currentKey,
-                remainingEnvSpec.left(valueEndPos));
-        }
-        currentKey = remainingEnvSpec.mid(keyStartPos,
-            nextEqualsSignPos - keyStartPos);
-        remainingEnvSpec.remove(0, nextEqualsSignPos + 1);
-    }
-}
-
-QString MaemoQemuManager::runtimeForQtVersion(const QString &qmakeCommand) const
-{
-    const QString &target = targetRoot(qmakeCommand);
-    const QString &madRoot = maddeRoot(qmakeCommand);
-
-    QString madCommand = madRoot + QLatin1String("/bin/mad");
-    if (!QFileInfo(madCommand).exists())
-        return QString();
-
-    QProcess madProc;
-    QStringList arguments(QLatin1String("info"));
-
-#ifdef Q_OS_WIN
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("HOME",
-        QDesktopServices::storageLocation(QDesktopServices::HomeLocation));
-    env.insert(QLatin1String("PATH"),
-        QDir::toNativeSeparators(madRoot % QLatin1String("/bin"))
-        % QLatin1Char(';') % env.value(QLatin1String("PATH")));
-
-    madProc.setProcessEnvironment(env);
-
-    arguments.prepend(madCommand);
-    madCommand = madRoot + QLatin1String("/bin/sh.exe");
-#endif
-
-    madProc.start(madCommand, arguments);
-    if (!madProc.waitForStarted() || !madProc.waitForFinished())
-        return QString();
-
-    QStringList installedRuntimes;
-    QString targetRuntime;
-    QXmlStreamReader infoReader(madProc.readAllStandardOutput());
-    while (!infoReader.atEnd() && !installedRuntimes.contains(targetRuntime)) {
-        if (infoReader.readNext() == QXmlStreamReader::StartElement) {
-            if (targetRuntime.isEmpty()
-                && infoReader.name() == QLatin1String("target")) {
-                const QXmlStreamAttributes &attrs = infoReader.attributes();
-                if (attrs.value(QLatin1String("target_id")) == target)
-                    targetRuntime = attrs.value("runtime_id").toString();
-            } else if (infoReader.name() == QLatin1String("runtime")) {
-                const QXmlStreamAttributes attrs = infoReader.attributes();
-                while (!infoReader.atEnd()) {
-                    if (infoReader.readNext() == QXmlStreamReader::EndElement
-                         && infoReader.name() == QLatin1String("runtime"))
-                        break;
-                    if (infoReader.tokenType() == QXmlStreamReader::StartElement
-                        && infoReader.name() == QLatin1String("installed")) {
-                        if (infoReader.readNext() == QXmlStreamReader::Characters
-                            && infoReader.text() == QLatin1String("true")) {
-                            if (attrs.hasAttribute(QLatin1String("runtime_id")))
-                                installedRuntimes << attrs.value(QLatin1String("runtime_id")).toString();
-                            else if (attrs.hasAttribute(QLatin1String("id"))) {
-                                // older MADDE seems to use only id
-                                installedRuntimes << attrs.value(QLatin1String("id")).toString();
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    if (installedRuntimes.contains(targetRuntime))
-        return madRoot + QLatin1String("/runtimes/") + targetRuntime;
-    return QString();
 }
 
 void MaemoQemuManager::notify(const QList<int> uniqueIds)

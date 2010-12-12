@@ -62,6 +62,8 @@ namespace Internal {
 
 namespace {
 const QByteArray IconFieldName("XB-Maemo-Icon-26:");
+const QByteArray NameFieldName("XB-Maemo-Display-Name");
+const QByteArray ShortDescriptionFieldName("Description");
 const QLatin1String PackagingDirName("qtc_packaging");
 const QLatin1String DebianDirNameFremantle("debian_fremantle");
 } // anonymous namespace
@@ -171,7 +173,8 @@ bool MaemoTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExplor
 
     const QString dhMakeDebianDir = projectDir.path() + QLatin1Char('/')
         + PackagingDirName + QLatin1String("/debian");
-    MaemoPackageCreationStep::removeDirectory(dhMakeDebianDir);
+    QString removeError;
+    MaemoGlobal::removeRecursively(dhMakeDebianDir, removeError);
     const QString command = QLatin1String("dh_make -s -n -p ")
         + MaemoPackageCreationStep::packageName(project) + QLatin1Char('_')
         + MaemoPackageCreationStep::DefaultVersionNumber;
@@ -193,7 +196,7 @@ bool MaemoTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExplor
     if (!QFile::rename(dhMakeDebianDir, debianDirPath(project))) {
         raiseError(tr("Unable to move new debian directory to '%1'.")
             .arg(QDir::toNativeSeparators(debianDirPath(project))));
-        MaemoPackageCreationStep::removeDirectory(dhMakeDebianDir);
+        MaemoGlobal::removeRecursively(dhMakeDebianDir, removeError);
         return false;
     }
 
@@ -259,6 +262,8 @@ bool MaemoTemplatesManager::adaptControlFile(const Project *project)
 
     adaptControlFileField(controlContents, "Section", "user/hidden");
     adaptControlFileField(controlContents, "Priority", "optional");
+    adaptControlFileField(controlContents, NameFieldName,
+        project->displayName().toUtf8());
     const int buildDependsOffset = controlContents.indexOf("Build-Depends:");
     if (buildDependsOffset == -1) {
         qDebug("Unexpected: no Build-Depends field in debian control file.");
@@ -284,21 +289,29 @@ bool MaemoTemplatesManager::adaptControlFile(const Project *project)
     return true;
 }
 
-void MaemoTemplatesManager::adaptControlFileField(QByteArray &document,
+bool MaemoTemplatesManager::adaptControlFileField(QByteArray &document,
     const QByteArray &fieldName, const QByteArray &newFieldValue)
 {
     QByteArray adaptedLine = fieldName + ": " + newFieldValue;
     const int lineOffset = document.indexOf(fieldName + ":");
     if (lineOffset == -1) {
         document.append(adaptedLine).append('\n');
-    } else {
-        int newlineOffset = document.indexOf('\n', lineOffset);
-        if (newlineOffset == -1) {
-            newlineOffset = document.length();
-            adaptedLine += '\n';
-        }
-        document.replace(lineOffset, newlineOffset - lineOffset, adaptedLine);
+        return true;
     }
+
+    int newlineOffset = document.indexOf('\n', lineOffset);
+    bool updated = false;
+    if (newlineOffset == -1) {
+        newlineOffset = document.length();
+        adaptedLine += '\n';
+        updated = true;
+    }
+    const int replaceCount = newlineOffset - lineOffset;
+    if (!updated && document.mid(lineOffset, replaceCount) != adaptedLine)
+        updated = true;
+    if (updated)
+        document.replace(lineOffset, replaceCount, adaptedLine);
+    return updated;
 }
 
 bool MaemoTemplatesManager::updateDesktopFiles(const Qt4Target *target)
@@ -565,6 +578,42 @@ bool MaemoTemplatesManager::setPackageManagerIcon(const Project *project,
     return true;
 }
 
+QString MaemoTemplatesManager::name(const Project *project) const
+{
+    return controlFileFieldValue(project, NameFieldName);
+}
+
+bool MaemoTemplatesManager::setName(const Project *project, const QString &name)
+{
+    return setFieldValue(project, NameFieldName, name.toUtf8());
+}
+
+QString MaemoTemplatesManager::shortDescription(const Project *project) const
+{
+    return controlFileFieldValue(project, ShortDescriptionFieldName);
+}
+
+bool MaemoTemplatesManager::setShortDescription(const Project *project,
+    const QString &description)
+{
+    return setFieldValue(project, ShortDescriptionFieldName,
+        description.toUtf8());
+}
+
+bool MaemoTemplatesManager::setFieldValue(const Project *project,
+    const QByteArray &fieldName, const QByteArray &fieldValue)
+{
+    QFile controlFile(controlFilePath(project));
+    if (!controlFile.open(QIODevice::ReadWrite))
+        return false;
+    QByteArray contents = controlFile.readAll();
+    if (adaptControlFileField(contents, fieldName, fieldValue)) {
+        controlFile.resize(0);
+        controlFile.write(contents);
+    }
+    return true;
+}
+
 QStringList MaemoTemplatesManager::debianFiles(const Project *project) const
 {
     return QDir(debianDirPath(project))
@@ -585,6 +634,24 @@ QString MaemoTemplatesManager::changeLogFilePath(const Project *project) const
 QString MaemoTemplatesManager::controlFilePath(const Project *project) const
 {
     return debianDirPath(project) + QLatin1String("/control");
+}
+
+QString MaemoTemplatesManager::controlFileFieldValue(const Project *project,
+    const QString &key) const
+{
+    QFile controlFile(controlFilePath(project));
+    if (!controlFile.open(QIODevice::ReadOnly))
+        return QString();
+    const QByteArray &contents = controlFile.readAll();
+    const int keyPos = contents.indexOf(key.toUtf8() + ':');
+    if (keyPos == -1)
+        return QString();
+    const int valueStartPos = keyPos + key.length() + 1;
+    int valueEndPos = contents.indexOf('\n', keyPos);
+    if (valueEndPos == -1)
+        valueEndPos = contents.count();
+    return QString::fromUtf8(contents.mid(valueStartPos,
+        valueEndPos - valueStartPos)).trimmed();
 }
 
 void MaemoTemplatesManager::raiseError(const QString &reason)

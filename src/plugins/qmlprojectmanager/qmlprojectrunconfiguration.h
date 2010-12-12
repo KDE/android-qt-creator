@@ -42,25 +42,28 @@ namespace Core {
     class IEditor;
 }
 
+namespace Utils {
+    class Environment;
+    class EnvironmentItem;
+}
+
 namespace Qt4ProjectManager {
-class QtVersion;
+    class QtVersion;
 }
 
 namespace QmlProjectManager {
 
 namespace Internal {
-class QmlProjectTarget;
-class QmlProjectRunConfigurationFactory;
+    class QmlProjectTarget;
+    class QmlProjectRunConfigurationFactory;
+    class QmlProjectRunConfigurationWidget;
 }
-
-const char * const CURRENT_FILE  = QT_TRANSLATE_NOOP("QmlManager", "<Current File>");
-const char * const M_CURRENT_FILE  = "CurrentFile";
-
 
 class QMLPROJECTMANAGER_EXPORT QmlProjectRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
     friend class Internal::QmlProjectRunConfigurationFactory;
+    friend class Internal::QmlProjectRunConfigurationWidget;
 
     // used in qmldumptool.cpp
     Q_PROPERTY(int qtVersionId READ qtVersionId)
@@ -71,8 +74,6 @@ public:
 
     Internal::QmlProjectTarget *qmlTarget() const;
 
-    bool isEnabled(ProjectExplorer::BuildConfiguration *bc) const;
-
     QString viewerPath() const;
     QString observerPath() const;
     QString viewerArguments() const;
@@ -80,33 +81,34 @@ public:
     int qtVersionId() const;
     Qt4ProjectManager::QtVersion *qtVersion() const;
 
+    enum MainScriptSource {
+        FileInEditor,
+        FileInProjectFile,
+        FileInSettings
+    };
+    MainScriptSource mainScriptSource() const;
+    void setScriptSource(MainScriptSource source, const QString &settingsPath = QString());
+
+    QString mainScript() const;
+
+    Utils::Environment environment() const;
+
     // RunConfiguration
+    bool isEnabled(ProjectExplorer::BuildConfiguration *bc) const;
     virtual QWidget *createConfigurationWidget();
-
     ProjectExplorer::OutputFormatter *createOutputFormatter() const;
-
     QVariantMap toMap() const;
 
 public slots:
     void changeCurrentFile(Core::IEditor*);
 
 private slots:
-    QString mainScript() const;
-    void setMainScript(const QString &scriptFile);
-    void updateFileComboBox();
-
     void updateEnabled();
-
-    void onQtVersionSelectionChanged();
-    void onViewerArgsChanged();
-    void useCppDebuggerToggled(bool toggled);
-    void useQmlDebuggerToggled(bool toggled);
-    void qmlDebugServerPortChanged(uint port);
     void updateQtVersions();
-    void manageQtVersions();
 
 protected:
-    QmlProjectRunConfiguration(Internal::QmlProjectTarget *parent, QmlProjectRunConfiguration *source);
+    QmlProjectRunConfiguration(Internal::QmlProjectTarget *parent,
+                               QmlProjectRunConfiguration *source);
     virtual bool fromMap(const QVariantMap &map);
     void setEnabled(bool value);
 
@@ -114,6 +116,10 @@ private:
     void ctor();
     static bool isValidVersion(Qt4ProjectManager::QtVersion *version);
     void setQtVersionId(int id);
+
+    Utils::Environment baseEnvironment() const;
+    void setUserEnvironmentChanges(const QList<Utils::EnvironmentItem> &diff);
+    QList<Utils::EnvironmentItem> userEnvironmentChanges() const;
 
     // absolute path to current file (if being used)
     QString m_currentFileFilename;
@@ -124,16 +130,13 @@ private:
     QString m_scriptFile;
     QString m_qmlViewerArgs;
 
-    QStringListModel *m_fileListModel;
-    // weakpointer is used to make sure we don't try to manipulate
-    // widget which was deleted already, as can be the case here.
-    QWeakPointer<QComboBox> m_qtVersionComboBox;
-    QWeakPointer<QComboBox> m_fileListCombo;
-
     Internal::QmlProjectTarget *m_projectTarget;
+    QWeakPointer<Internal::QmlProjectRunConfigurationWidget> m_configurationWidget;
 
     bool m_usingCurrentFile;
     bool m_isEnabled;
+
+    QList<Utils::EnvironmentItem> m_userEnvironmentChanges;
 };
 
 } // namespace QmlProjectManager

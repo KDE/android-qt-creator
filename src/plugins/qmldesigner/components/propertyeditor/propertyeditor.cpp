@@ -32,13 +32,10 @@
 #include <nodemetainfo.h>
 #include <metainfo.h>
 
-#include <propertymetainfo.h>
-
 #include <invalididexception.h>
 #include <rewritingexception.h>
 #include <invalidnodestateexception.h>
 #include <variantproperty.h>
-#include <propertymetainfo.h>
 
 #include <bindingproperty.h>
 
@@ -63,6 +60,7 @@
 #include <QtCore/QFileSystemWatcher>
 #include <QtCore/QFileInfo>
 #include <QtCore/QDebug>
+#include <QtCore/QTimer>
 #include <QtDeclarative/QDeclarativeView>
 #include <QtDeclarative/QDeclarativeContext>
 #include <QtGui/QVBoxLayout>
@@ -175,7 +173,7 @@ void PropertyEditor::NodeType::setup(const QmlObjectNode &fxObjectNode, const QS
     QDeclarativeContext *ctxt = m_view->rootContext();
 
     if (fxObjectNode.isValid()) {
-        foreach (const QString &propertyName, fxObjectNode.modelNode().metaInfo().properties(true).keys())
+        foreach (const QString &propertyName, fxObjectNode.modelNode().metaInfo().propertyNames())
             createPropertyEditorValue(fxObjectNode, propertyName, fxObjectNode.instanceValue(propertyName), &m_backendValuesPropertyMap, propertyEditor);
 
         // className
@@ -225,10 +223,10 @@ void PropertyEditor::NodeType::initialSetup(const QString &typeName, const QUrl 
 {
     QDeclarativeContext *ctxt = m_view->rootContext();
 
-    NodeMetaInfo metaInfo = propertyEditor->model()->metaInfo().nodeMetaInfo(typeName, 4, 7);
+    NodeMetaInfo metaInfo = propertyEditor->model()->metaInfo(typeName, 4, 7);
 
-    foreach (const QString &propertyName, metaInfo.properties(true).keys())
-        setupPropertyEditorValue(propertyName, &m_backendValuesPropertyMap, propertyEditor, metaInfo.property(propertyName, true).type());
+    foreach (const QString &propertyName, metaInfo.propertyNames())
+        setupPropertyEditorValue(propertyName, &m_backendValuesPropertyMap, propertyEditor, metaInfo.propertyTypeName(propertyName));
 
     PropertyEditorValue *valueObject = qobject_cast<PropertyEditorValue*>(QDeclarativeMetaType::toQObject(m_backendValuesPropertyMap.value("className")));
     if (!valueObject)
@@ -269,7 +267,9 @@ PropertyEditor::PropertyEditor(QWidget *parent) :
         m_timerId(0),
         m_stackedWidget(new StackedWidget(parent)),
         m_currentType(0),
-        m_locked(false)
+        m_locked(false),
+        m_setupCompleted(false),
+        m_singleShotTimer(new QTimer(this))
 {
     m_updateShortcut = new QShortcut(QKeySequence("F5"), m_stackedWidget);
     connect(m_updateShortcut, SIGNAL(activated()), this, SLOT(reloadQml()));
@@ -334,7 +334,6 @@ void PropertyEditor::setupPane(const QString &typeName)
         type->initialSetup(typeName, qmlSpecificsFile, this);
         ctxt->setContextProperty("finishedNotify", QVariant(true) );
     }
-    m_stackedWidget->setCurrentWidget(type->m_view);
 }
 
 void PropertyEditor::changeValue(const QString &propertyName)
@@ -386,8 +385,8 @@ void PropertyEditor::changeValue(const QString &propertyName)
 
     QVariant castedValue;
 
-    if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().property(propertyName, true).isValid()) {
-        castedValue = fxObjectNode.modelNode().metaInfo().property(propertyName, true).castedValue(value->value());
+    if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().hasProperty(propertyName)) {
+        castedValue = fxObjectNode.modelNode().metaInfo().propertyCastedValue(propertyName, value->value());
     } else {
         qWarning() << "PropertyEditor:" <<propertyName << "cannot be casted (metainfo)";
         return ;
@@ -398,8 +397,8 @@ void PropertyEditor::changeValue(const QString &propertyName)
         return ;
     }
 
-    if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().property(propertyName).isValid())
-        if (fxObjectNode.modelNode().metaInfo().property(propertyName).type() == QLatin1String("QUrl")) { //turn absolute local file paths into relative paths
+    if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().hasProperty(propertyName))
+        if (fxObjectNode.modelNode().metaInfo().propertyTypeName(propertyName) == QLatin1String("QUrl")) { //turn absolute local file paths into relative paths
         QString filePath = castedValue.toUrl().toString();
         if (QFileInfo(filePath).exists() && QFileInfo(filePath).isAbsolute()) {
             QDir fileDir(QFileInfo(model()->fileUrl().toLocalFile()).absolutePath());
@@ -446,13 +445,13 @@ void PropertyEditor::changeExpression(const QString &name)
     QmlObjectNode fxObjectNode(m_selectedNode);
     PropertyEditorValue *value = qobject_cast<PropertyEditorValue*>(QDeclarativeMetaType::toQObject(m_currentType->m_backendValuesPropertyMap.value(underscoreName)));
 
-    if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().property(name).isValid()) {
-        if (fxObjectNode.modelNode().metaInfo().property(name).type() == QLatin1String("QColor")) {
+    if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().hasProperty(name)) {
+        if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("QColor")) {
             if (QColor(value->expression().remove('"')).isValid()) {
                 fxObjectNode.setVariantProperty(name, QColor(value->expression().remove('"')));
                 return;
             }
-        } else if (fxObjectNode.modelNode().metaInfo().property(name).type() == QLatin1String("bool")) {
+        } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("bool")) {
             if (value->expression().compare("false", Qt::CaseInsensitive) == 0 || value->expression().compare("true", Qt::CaseInsensitive) == 0) {
                 if (value->expression().compare("true", Qt::CaseInsensitive) == 0)
                     fxObjectNode.setVariantProperty(name, true);
@@ -460,14 +459,14 @@ void PropertyEditor::changeExpression(const QString &name)
                     fxObjectNode.setVariantProperty(name, false);
                 return;
             }
-        } else if (fxObjectNode.modelNode().metaInfo().property(name).type() == QLatin1String("int")) {
+        } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("int")) {
             bool ok;
             int intValue = value->expression().toInt(&ok);
             if (ok) {
                 fxObjectNode.setVariantProperty(name, intValue);
                 return;
             }
-        } else if (fxObjectNode.modelNode().metaInfo().property(name).type() == QLatin1String("qreal")) {
+        } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("qreal")) {
             bool ok;
             qreal realValue = value->expression().toFloat(&ok);
             if (ok) {
@@ -499,6 +498,16 @@ void PropertyEditor::updateSize()
     QWidget* frame = m_currentType->m_view->findChild<QWidget*>("propertyEditorFrame");
     if (frame)
         frame->resize(m_stackedWidget->size());
+}
+
+void PropertyEditor::setupPanes()
+{
+    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    setupPane("Qt/Rectangle");
+    setupPane("Qt/Text");  
+    resetView();
+    m_setupCompleted = true;
+    QApplication::restoreOverrideCursor();
 }
 
 void PropertyEditor::otherPropertyChanged(const QmlObjectNode &fxObjectNode, const QString &propertyName)
@@ -561,20 +570,19 @@ QString templateGeneration(NodeMetaInfo type, NodeMetaInfo superType, const QmlO
     qmlTemplate += QLatin1String("layout: VerticalLayout {\n");
 
     QList<QString> orderedList;
-    orderedList = type.properties(true).keys();
+    orderedList = type.propertyNames();
     qSort(orderedList);
 
     foreach (const QString &name, orderedList) {
-        const PropertyMetaInfo propertyMetaInfo(type.property(name, true));
         QString properName = name;
         properName.replace(".", "_");
 
-        QString typeName = propertyMetaInfo.type();
+        QString typeName = type.propertyTypeName(name);
         //alias resolution only possible with instance
             if (typeName == QLatin1String("alias") && objectNode.isValid())
                 typeName = objectNode.instanceType(name);
 
-        if (!superType.hasProperty(name, true)) {
+        if (!superType.hasProperty(name) && type.propertyIsWritable(name)) {
             if (typeName == "int") {
                 qmlTemplate +=  QString(QLatin1String(
                 "IntEditor { backendValue: backendValues.%2\n caption: \"%1\"\nbaseStateFlag: isBaseState\nslider: false\n}"
@@ -634,7 +642,7 @@ void PropertyEditor::resetView()
 
     if (m_selectedNode.isValid() && !QFileInfo(qmlSpecificsFile.toLocalFile()).exists() && m_selectedNode.metaInfo().isValid()) {
         //do magic !!
-        specificQmlData = templateGeneration(m_selectedNode.metaInfo(), model()->metaInfo().nodeMetaInfo(specificsClassName), m_selectedNode);
+        specificQmlData = templateGeneration(m_selectedNode.metaInfo(), model()->metaInfo(specificsClassName), m_selectedNode);
     }
 
     NodeType *type = m_typeHash.value(qmlFile.toString());
@@ -724,11 +732,13 @@ void PropertyEditor::modelAttached(Model *model)
 
     m_locked = true;
 
-    setupPane("Qt/Rectangle");
-    setupPane("Qt/Text");
-    setupPane("Qt/TextInput");
-    setupPane("Qt/TextEdit");
     resetView();
+    if (!m_setupCompleted) {
+        m_singleShotTimer->setSingleShot(true);
+        m_singleShotTimer->setInterval(1000);
+        connect(m_singleShotTimer, SIGNAL(timeout()), this, SLOT(setupPanes()));
+        m_singleShotTimer->start();
+    }
 
     m_locked = false;
 }
@@ -867,6 +877,8 @@ void PropertyEditor::reloadQml()
 
 QString PropertyEditor::qmlFileName(const NodeMetaInfo &nodeInfo) const
 {
+    if (nodeInfo.typeName().split('/').last() == "QDeclarativeItem")
+        return "Qt/ItemPane.qml";
     return nodeInfo.typeName() + QLatin1String("Pane.qml");
 }
 

@@ -57,6 +57,7 @@ const char * const DEPLOYPROJECTONLY    = "ProjectExplorer.DeployProjectOnly";
 const char * const DEPLOY               = "ProjectExplorer.Deploy";
 const char * const DEPLOYCM             = "ProjectExplorer.DeployCM";
 const char * const DEPLOYSESSION        = "ProjectExplorer.DeploySession";
+const char * const PUBLISH              = "ProjectExplorer.Publish";
 const char * const CLEANPROJECTONLY     = "ProjectExplorer.CleanProjectOnly";
 const char * const CLEAN                = "ProjectExplorer.Clean";
 const char * const CLEANCM              = "ProjectExplorer.CleanCM";
@@ -213,12 +214,6 @@ const char * const PROJECT_WIZARD_TR_CATEGORY = QT_TRANSLATE_NOOP("ProjectExplor
 const char * const BUILDSTEPS_CLEAN = "ProjectExplorer.BuildSteps.Clean";
 const char * const BUILDSTEPS_BUILD = "ProjectExplorer.BuildSteps.Build";
 const char * const BUILDSTEPS_DEPLOY = "ProjectExplorer.BuildSteps.Deploy";
-
-// .user file accessor keys:
-const char * const USERFILE_WAS_UPDATED_KEY = "ProjectExplorer.Project.Updater.DidUpdate";
-const char * const USERFILE_PREVIOUS_VERSION_KEY = "ProjectExplorer.Project.Updater.PreviousVersion";
-const char * const USERFILE_VERSION_KEY = "ProjectExplorer.Project.Updater.FileVersion";
-const char * const USERFILE_BACKUP_FILENAME_KEY = "ProjectExplorer.Project.Updater.PreviousVersion";
 
 // Deploy Configuration id:
 const char * const DEFAULT_DEPLOYCONFIGURATION_ID = "ProjectExplorer.DefaultDeployConfiguration";

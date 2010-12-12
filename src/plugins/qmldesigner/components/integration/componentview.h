@@ -59,6 +59,7 @@ public:
     void nodeCreated(const ModelNode &createdNode);
     void nodeAboutToBeRemoved(const ModelNode &removedNode);
     void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange);
+    void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId);
     void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList);
@@ -68,6 +69,7 @@ public:
     void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion);
     void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
+    void instancesCompleted(const QVector<ModelNode> &completedNodeList);
 
     void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
                                       const QList<ModelNode> &lastSelectedNodeList);
@@ -75,8 +77,6 @@ public:
     void fileUrlChanged(const QUrl &oldUrl, const QUrl &newUrl);
 
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex);
-
-    void importsChanged();
 
     void auxiliaryDataChanged(const ModelNode &node, const QString &name, const QVariant &data);
 

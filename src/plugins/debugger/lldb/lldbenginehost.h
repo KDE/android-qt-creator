@@ -31,25 +31,57 @@
 #define DEBUGGER_LLDBENGINE_HOST_H
 
 #include "ipcenginehost.h"
+#include <coreplugin/ssh/ssherrors.h>
+#include <coreplugin/ssh/sshconnection.h>
+#include <coreplugin/ssh/sshremoteprocess.h>
+#include <coreplugin/ssh/sshremoteprocessrunner.h>
 
 #include <QtCore/QProcess>
+#include <QtCore/QQueue>
 
 namespace Debugger {
 namespace Internal {
 
-class LLDBEngineHost : public IPCEngineHost
+class SshIODevice : public QIODevice
+{
+Q_OBJECT
+public:
+    SshIODevice(Core::SshRemoteProcessRunner::Ptr r);
+    virtual qint64 bytesAvailable () const;
+    virtual qint64 writeData (const char * data, qint64 maxSize);
+    virtual qint64 readData (char * data, qint64 maxSize);
+private slots:
+    void processStarted();
+    void outputAvailable(const QByteArray &output);
+    void errorOutputAvailable(const QByteArray &output);
+private:
+    Core::SshRemoteProcessRunner::Ptr runner;
+    Core::SshRemoteProcess::Ptr proc;
+    int buckethead;
+    QQueue<QByteArray> buckets;
+    QByteArray startupbuffer;
+};
+
+class LldbEngineHost : public IPCEngineHost
 {
     Q_OBJECT
+
 public:
-    explicit LLDBEngineHost(const DebuggerStartParameters &startParameters);
-    ~LLDBEngineHost();
+    explicit LldbEngineHost(const DebuggerStartParameters &startParameters);
+    ~LldbEngineHost();
+
 private:
-    QProcess *m_guestp;
+    QProcess *m_guestProcess;
+    Core::SshRemoteProcessRunner::Ptr m_ssh;
+protected:
+    void nuke();
 private slots:
-    void finished (int, QProcess::ExitStatus);
+    void sshConnectionError(Core::SshError);
+    void finished(int, QProcess::ExitStatus);
+    void stderrReady();
 };
 
 } // namespace Internal
 } // namespace Debugger
 
-#endif // DEBUGGER_LLDBENGINE_H
+#endif // DEBUGGER_LLDBENGINE_HOST_H

@@ -43,6 +43,7 @@
 #include <QtCore/QWaitCondition>
 #include <QtCore/QFutureWatcher>
 #include <QtCore/QModelIndex>
+#include <QtCore/QVector>
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
@@ -184,6 +185,8 @@ public:
 
     static Link linkToSymbol(CPlusPlus::Symbol *symbol);
 
+    static QVector<QString> highlighterFormatCategories();
+
 Q_SIGNALS:
     void outlineModelIndexChanged(const QModelIndex &index);
 
@@ -237,7 +240,7 @@ private:
 
     void markSymbols(const QTextCursor &tc, const SemanticInfo &info);
     bool sortedOutline() const;
-    CPlusPlus::Symbol *findDefinition(CPlusPlus::Symbol *symbol, const CPlusPlus::Snapshot &snapshot);
+    CPlusPlus::Symbol *findDefinition(CPlusPlus::Symbol *symbol, const CPlusPlus::Snapshot &snapshot) const;
 
     TextEditor::ITextEditor *openCppEditorAt(const QString &fileName, int line,
                                              int column = 0);
@@ -254,7 +257,14 @@ private:
     void finishRename();
     void abortRename();
 
+    Link attemptFuncDeclDef(const QTextCursor &cursor,
+                            const CPlusPlus::Document::Ptr &doc,
+                            CPlusPlus::Snapshot snapshot) const;
     Link findLinkAt(const QTextCursor &, bool resolveTarget = true);
+    Link findMacroLink(const QByteArray &name) const;
+    Link findMacroLink(const QByteArray &name, CPlusPlus::Document::Ptr doc, const CPlusPlus::Snapshot &snapshot,
+                       QSet<QString> *processed) const;
+    QString identifierUnderCursor(QTextCursor *macroCursor) const;
     bool openCppEditorAt(const Link &);
 
     QModelIndex indexForPosition(int line, int column, const QModelIndex &rootIndex = QModelIndex()) const;

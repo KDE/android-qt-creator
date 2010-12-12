@@ -10,10 +10,9 @@ class IEditor;
 }
 
 namespace Debugger {
-
 namespace Internal {
+
 class QmlCppEnginePrivate;
-} // namespace Internal
 
 class DEBUGGER_EXPORT QmlCppEngine : public DebuggerEngine
 {
@@ -27,13 +26,13 @@ public:
 
     virtual void setToolTipExpression(const QPoint &mousePos,
         TextEditor::ITextEditor * editor, int cursorPos);
-    virtual void updateWatchData(const Internal::WatchData &data,
-        const Internal::WatchUpdateFlags &flags);
+    virtual void updateWatchData(const WatchData &data,
+        const WatchUpdateFlags &flags);
 
     virtual void watchPoint(const QPoint &);
-    virtual void fetchMemory(Internal::MemoryViewAgent *, QObject *,
+    virtual void fetchMemory(MemoryViewAgent *, QObject *,
             quint64 addr, quint64 length);
-    virtual void fetchDisassembler(Internal::DisassemblerViewAgent *);
+    virtual void fetchDisassembler(DisassemblerViewAgent *);
     virtual void activateFrame(int index);
 
     virtual void reloadModules();
@@ -56,10 +55,10 @@ public:
     virtual void updateAll();
 
     virtual void attemptBreakpointSynchronization();
-    virtual bool acceptsBreakpoint(BreakpointId id);
+    virtual bool acceptsBreakpoint(BreakpointId id) const;
     virtual void selectThread(int index);
 
-    virtual void assignValueInDebugger(const Internal::WatchData *w,
+    virtual void assignValueInDebugger(const WatchData *data,
         const QString &expr, const QVariant &value);
 
     QAbstractItemModel *modulesModel() const;
@@ -72,6 +71,8 @@ public:
     QAbstractItemModel *sourceFilesModel() const;
 
     DebuggerEngine *cppEngine() const;
+    virtual void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
+    virtual void handleRemoteSetupFailed(const QString &message);
 
 protected:
     virtual void detachDebugger();
@@ -114,9 +115,10 @@ private:
     void engineStateChanged(const DebuggerState &newState);
 
 private:
-    QScopedPointer<Internal::QmlCppEnginePrivate> d;
+    QScopedPointer<QmlCppEnginePrivate> d;
 };
 
+} // namespace Internal
 } // namespace Debugger
 
 #endif // QMLGDBENGINE_H

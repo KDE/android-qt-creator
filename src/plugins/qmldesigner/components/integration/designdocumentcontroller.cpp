@@ -35,9 +35,10 @@
 #include "model/viewlogger.h"
 
 #include <allpropertiesbox.h>
-#include <itemlibrary.h>
+#include <itemlibraryview.h>
+#include <itemlibrarywidget.h>
 #include <navigatorview.h>
-#include <stateseditorwidget.h>
+#include <stateseditorview.h>
 #include <formeditorview.h>
 #include <formeditorwidget.h>
 #include <basetexteditmodifier.h>
@@ -84,10 +85,10 @@ class DesignDocumentControllerPrivate {
 public:
     QWeakPointer<FormEditorView> formEditorView;
 
-    QWeakPointer<ItemLibrary> itemLibrary;
+    QWeakPointer<ItemLibraryView> itemLibraryView;
     QWeakPointer<NavigatorView> navigator;
     QWeakPointer<AllPropertiesBox> allPropertiesBox;
-    QWeakPointer<StatesEditorWidget> statesEditorWidget;
+    QWeakPointer<StatesEditorView> statesEditorView;
     QWeakPointer<QStackedWidget> stackedWidget;
     QWeakPointer<NodeInstanceView> nodeInstanceView;
 
@@ -190,9 +191,9 @@ QList<RewriterView::Error> DesignDocumentController::qmlErrors() const
     return m_d->rewriterView->errors();
 }
 
-void DesignDocumentController::setItemLibrary(ItemLibrary* itemLibrary)
+void DesignDocumentController::setItemLibraryView(ItemLibraryView* itemLibraryView)
 {
-    m_d->itemLibrary = itemLibrary;
+    m_d->itemLibraryView = itemLibraryView;
 }
 
 void DesignDocumentController::setNavigator(NavigatorView* navigatorView)
@@ -205,9 +206,9 @@ void DesignDocumentController::setAllPropertiesBox(AllPropertiesBox* allProperti
     m_d->allPropertiesBox = allPropertiesBox;
 }
 
-void DesignDocumentController::setStatesEditorWidget(StatesEditorWidget* statesEditorWidget)
+void DesignDocumentController::setStatesEditorView(StatesEditorView* statesEditorView)
 {
-    m_d->statesEditorWidget = statesEditorWidget;
+    m_d->statesEditorView = statesEditorView;
 }
 
 void DesignDocumentController::setFormEditorView(FormEditorView *formEditorView)
@@ -246,8 +247,8 @@ void DesignDocumentController::setFileName(const QString &fileName)
     if (m_d->model)
         m_d->model->setFileUrl(m_d->searchPath);
 
-    if (m_d->itemLibrary)
-        m_d->itemLibrary->setResourcePath(QFileInfo(fileName).absolutePath());
+    if (m_d->itemLibraryView)
+        m_d->itemLibraryView->widget()->setResourcePath(QFileInfo(fileName).absolutePath());
     emit displayNameChanged(displayName());
 }
 
@@ -354,8 +355,7 @@ void DesignDocumentController::loadCurrentModel()
 
     m_d->model->attachView(m_d->nodeInstanceView.data());
     m_d->model->attachView(m_d->navigator.data());
-    m_d->itemLibrary->setItemLibraryInfo(m_d->model->metaInfo().itemLibraryInfo());
-    m_d->itemLibrary->setResourcePath(QFileInfo(m_d->fileName).absolutePath());
+    m_d->itemLibraryView->widget()->setResourcePath(QFileInfo(m_d->fileName).absolutePath());
 
     if (!m_d->componentAction) {
         m_d->componentAction = new ComponentAction(m_d->formEditorView->widget());
@@ -366,16 +366,17 @@ void DesignDocumentController::loadCurrentModel()
     // Disable switching between in file components for the time being
     m_d->componentAction->setVisible(false);
 
-    connect(m_d->itemLibrary.data(), SIGNAL(itemActivated(const QString&)), m_d->formEditorView.data(), SLOT(activateItemCreator(const QString&)));
+    connect(m_d->itemLibraryView->widget(), SIGNAL(itemActivated(const QString&)), m_d->formEditorView.data(), SLOT(activateItemCreator(const QString&)));
 
     m_d->model->attachView(m_d->formEditorView.data());
+    m_d->model->attachView(m_d->itemLibraryView.data());
 
 
     if (!m_d->textEdit->parent()) // hack to prevent changing owner of external text edit
         m_d->stackedWidget->addWidget(m_d->textEdit.data());
 
     // Will call setCurrentState (formEditorView etc has to be constructed first)
-    m_d->statesEditorWidget->setup(m_d->model.data());
+    m_d->model->attachView(m_d->statesEditorView.data());
 
     m_d->allPropertiesBox->setModel(m_d->model.data());
 
@@ -625,7 +626,7 @@ void DesignDocumentController::paste()
             int offset = double(qrand()) / RAND_MAX * 20 - 10;
 
             foreach (const ModelNode &node, selectedNodes) {
-                QString defaultProperty(targetNode.metaInfo().defaultProperty());
+                QString defaultProperty(targetNode.metaInfo().defaultPropertyName());
                 ModelNode pastedNode(view.insertModel(node));
                 pastedNodeList.append(pastedNode);
                 scatterItem(pastedNode, targetNode, offset);
@@ -658,7 +659,7 @@ void DesignDocumentController::paste()
 
                 targetNode = targetNode.parentProperty().parentModelNode();
 
-            QString defaultProperty(targetNode.metaInfo().defaultProperty());
+            QString defaultProperty(targetNode.metaInfo().defaultPropertyName());
 
             scatterItem(pastedNode, targetNode);
             if (targetNode.nodeListProperty(defaultProperty).isValid()) {

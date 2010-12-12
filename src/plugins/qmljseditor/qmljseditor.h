@@ -60,11 +60,11 @@ namespace QmlJS {
     The top-level namespace of the QmlJSEditor plug-in.
  */
 namespace QmlJSEditor {
+class QmlJSEditorEditable;
 class FindReferences;
 
 namespace Internal {
 class QmlOutlineModel;
-class QmlJSEditorEditable;
 class SemanticHighlighter;
 struct SemanticHighlighterSource;
 } // namespace Internal
@@ -155,6 +155,8 @@ public:
 
     void renameId(const QString &oldId, const QString &newId);
 
+    static QVector<QString> highlighterFormatCategories();
+
 public slots:
     void followSymbolUnderCursor();
     void findUsages();
@@ -199,7 +201,7 @@ protected:
     void resizeEvent(QResizeEvent *event);
     void scrollContentsBy(int dx, int dy);
     TextEditor::BaseTextEditorEditable *createEditableInterface();
-    void createToolBar(Internal::QmlJSEditorEditable *editable);
+    void createToolBar(QmlJSEditorEditable *editable);
     TextEditor::BaseTextEditor::Link findLinkAt(const QTextCursor &cursor, bool resolveTarget = true);
 
 private:

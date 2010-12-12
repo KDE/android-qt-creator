@@ -66,6 +66,11 @@ GenericTarget::~GenericTarget()
 {
 }
 
+ProjectExplorer::BuildConfigWidget *GenericTarget::createConfigWidget()
+{
+    return new GenericBuildSettingsWidget(this);
+}
+
 GenericProject *GenericTarget::genericProject() const
 {
     return static_cast<GenericProject *>(project());
@@ -105,6 +110,11 @@ GenericTargetFactory::GenericTargetFactory(QObject *parent) :
 
 GenericTargetFactory::~GenericTargetFactory()
 {
+}
+
+bool GenericTargetFactory::supportsTargetId(const QString &id) const
+{
+    return id == QLatin1String(GENERIC_DESKTOP_TARGET_ID);
 }
 
 QStringList GenericTargetFactory::availableCreationIds(ProjectExplorer::Project *parent) const

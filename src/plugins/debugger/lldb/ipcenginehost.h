@@ -34,6 +34,7 @@
 #include "threadshandler.h"
 #include "stackhandler.h"
 #include "breakhandler.h"
+#include "sourceagent.h"
 
 #include <QtCore/QQueue>
 #include <QtCore/QVariant>
@@ -81,7 +82,8 @@ public:
         AddBreakpoint          = 22,
         RemoveBreakpoint       = 23,
         ChangeBreakpoint       = 24,
-        RequestUpdateWatchData = 25
+        RequestUpdateWatchData = 25,
+        FetchFrameSource       = 26
     };
     Q_ENUMS(Function);
 
@@ -104,26 +106,31 @@ public:
     void activateFrame(int index);
     void selectThread(int index);
     void fetchDisassembler(DisassemblerViewAgent *);
+    bool acceptsBreakpoint(BreakpointId) const { return true; } // FIXME
     void insertBreakpoint(BreakpointId id);
     void removeBreakpoint(BreakpointId id);
     void changeBreakpoint(BreakpointId id);
     void updateWatchData(const WatchData &data,
             const WatchUpdateFlags &flags = WatchUpdateFlags());
+    void fetchFrameSource(qint64 id);
 
     void rpcCall(Function f, QByteArray payload = QByteArray());
+protected:
+    virtual void nuke() = 0;
 public slots:
     void rpcCallback(quint64 f, QByteArray payload = QByteArray());
 private slots:
     void m_stateChanged(const DebuggerState &state);
     void readyRead();
 private:
-    IPCEngineGuest *m_local_guest;
+    IPCEngineGuest *m_localGuest;
     quint64 m_nextMessageCookie;
     quint64 m_nextMessageFunction;
     quint64 m_nextMessagePayloadSize;
     quint64 m_cookie;
     QIODevice *m_device;
-    QHash <quint64, DisassemblerViewAgent *> m_frameToDisassemblerAgent;
+    QHash<quint64, DisassemblerViewAgent *> m_frameToDisassemblerAgent;
+    QHash<QString, SourceAgent *> m_sourceAgents;
 };
 
 } // namespace Internal

@@ -57,7 +57,6 @@ namespace Internal {
 class GenericBuildConfiguration;
 class GenericProject;
 class GenericTarget;
-class GenericTargetFactory;
 class GenericMakeStep;
 class GenericProjectFile;
 
@@ -76,13 +75,11 @@ public:
     QString displayName() const;
     QString id() const;
     Core::IFile *file() const;
-    GenericTargetFactory *targetFactory() const;
     ProjectExplorer::IProjectManager *projectManager() const;
     GenericTarget *activeTarget() const;
 
     QList<ProjectExplorer::Project *> dependsOn();
 
-    ProjectExplorer::BuildConfigWidget *createConfigWidget();
     QList<ProjectExplorer::BuildConfigWidget*> subConfigWidgets();
 
     GenericProjectNode *rootProjectNode() const;
@@ -131,7 +128,6 @@ private:
     QString m_configFileName;
     GenericProjectFile *m_file;
     QString m_projectName;
-    GenericTargetFactory *m_targetFactory;
 
     QStringList m_rawFileList;
     QStringList m_files;
@@ -180,7 +176,7 @@ class GenericBuildSettingsWidget : public ProjectExplorer::BuildConfigWidget
     Q_OBJECT
 
 public:
-    GenericBuildSettingsWidget(GenericProject *project);
+    GenericBuildSettingsWidget(GenericTarget *target);
     virtual ~GenericBuildSettingsWidget();
 
     virtual QString displayName() const;
@@ -192,7 +188,7 @@ private Q_SLOTS:
     void toolChainSelected(int index);
 
 private:
-    GenericProject *m_project;
+    GenericTarget *m_target;
     Utils::PathChooser *m_pathChooser;
     GenericBuildConfiguration *m_buildConfiguration;
 };

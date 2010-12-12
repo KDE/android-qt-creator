@@ -34,26 +34,18 @@
 
 namespace QmlDesigner {
 
-namespace Internal {
 
 class StatesEditorModel;
+class StatesEditorWidget;
 
 class StatesEditorView : public QmlModelView {
     Q_OBJECT
 
 public:
-    explicit StatesEditorView(StatesEditorModel *model, QObject *parent = 0);
+    explicit StatesEditorView(QObject *parent = 0);
 
-    void setCurrentState(int index);
-    void setCurrentStateSilent(int index);
-    void createState(const QString &name);
-    void removeState(int index);
-    void renameState(int index,const QString &newName);
-    void duplicateCurrentState(int index);
-
-    QPixmap renderState(int i);
-    QmlItemNode stateRootNode() { return m_stateRootNode; }
-    bool isAttachedToModel() const { return m_attachedToModel; }
+    void renameState(int nodeId,const QString &newName);
+    bool validStateName(const QString &name) const;
 
     void nodeInstancePropertyChanged(const ModelNode &node, const QString &propertyName);
 
@@ -61,12 +53,14 @@ public:
     void modelAttached(Model *model);
     void modelAboutToBeDetached(Model *model);
     void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList);
-    void propertiesRemoved(const QList<AbstractProperty>& propertyList);
     void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange);
 
     void nodeAboutToBeRemoved(const ModelNode &removedNode);
+    void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange);
+    void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex);
+
 
     // QmlModelView
     void stateChanged(const QmlModelState &newQmlModelState, const QmlModelState &oldQmlModelState);
@@ -80,34 +74,24 @@ public:
     void bindingPropertiesChanged(const QList<BindingProperty> &propertyList, PropertyChangeFlags propertyChange);
     void selectedNodesChanged(const QList<ModelNode> &selectedNodeList, const QList<ModelNode> &lastSelectedNodeList);
 
+    StatesEditorWidget *widget();
 
-protected:
-    void timerEvent(QTimerEvent*);
-
-private slots:
-    void sceneChanged();
+public slots:
+    void synchonizeCurrentStateFromWidget();
+    void createNewState();
+    void removeState(int nodeId);
 
 private:
-    void insertModelState(int i, const QmlModelState &state);
-    void removeModelState(const QmlModelState &state);
-    void clearModelStates();
-    int modelStateIndex(const QmlModelState &state);
+    void resetModel();
+    void addState();
+    void duplicateCurrentState();
 
-    void startUpdateTimer(int i, int offset);
-
-    QList<QmlModelState> m_modelStates;
-    StatesEditorModel *m_editorModel;
-    QmlItemNode m_stateRootNode;
-
-    QList<int> m_updateTimerIdList;
-    QmlModelState m_oldRewriterAmendState;
-    bool m_attachedToModel;
-    bool m_settingSilentState;
-
-    QList<bool> m_thumbnailsToUpdate;
+private:
+    QWeakPointer<StatesEditorModel> m_statesEditorModel;
+    QWeakPointer<StatesEditorWidget> m_statesEditorWidget;
+    int m_lastIndex;
 };
 
-} // namespace Internal
 } // namespace QmlDesigner
 
 #endif // STATESEDITORVIEW_H

@@ -80,7 +80,6 @@ CMakeProject::CMakeProject(CMakeManager *manager, const QString &fileName)
       m_fileName(fileName),
       m_rootNode(new CMakeProjectNode(m_fileName)),
       m_insideFileChanged(false),
-      m_targetFactory(new CMakeTargetFactory(this)),
       m_lastEditor(0)
 {
     m_file = new CMakeFile(this, fileName);
@@ -454,11 +453,6 @@ Core::IFile *CMakeProject::file() const
     return m_file;
 }
 
-CMakeTargetFactory *CMakeProject::targetFactory() const
-{
-    return m_targetFactory;
-}
-
 CMakeManager *CMakeProject::projectManager() const
 {
     return m_manager;
@@ -472,11 +466,6 @@ CMakeTarget *CMakeProject::activeTarget() const
 QList<ProjectExplorer::Project *> CMakeProject::dependsOn()
 {
     return QList<Project *>();
-}
-
-ProjectExplorer::BuildConfigWidget *CMakeProject::createConfigWidget()
-{
-    return new CMakeBuildSettingsWidget(this);
 }
 
 QList<ProjectExplorer::BuildConfigWidget*> CMakeProject::subConfigWidgets()
@@ -505,7 +494,10 @@ bool CMakeProject::fromMap(const QVariantMap &map)
 
     bool hasUserFile = activeTarget();
     if (!hasUserFile) {
-        CMakeTarget *t = targetFactory()->create(this, QLatin1String(DEFAULT_CMAKE_TARGET_ID));
+        CMakeTargetFactory *factory =
+                ExtensionSystem::PluginManager::instance()->getObject<CMakeTargetFactory>();
+        CMakeTarget *t = factory->create(this, QLatin1String(DEFAULT_CMAKE_TARGET_ID));
+
         Q_ASSERT(t);
         Q_ASSERT(t->activeBuildConfiguration());
 
@@ -795,8 +787,8 @@ void CMakeFile::reload(ReloadFlag flag, ChangeType type)
     Q_UNUSED(type)
 }
 
-CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeProject *project)
-    : m_project(project), m_buildConfiguration(0)
+CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeTarget *target)
+    : m_target(target), m_buildConfiguration(0)
 {
     QFormLayout *fl = new QFormLayout(this);
     fl->setContentsMargins(20, -1, 0, -1);
@@ -832,7 +824,7 @@ void CMakeBuildSettingsWidget::init(BuildConfiguration *bc)
 {
     m_buildConfiguration = static_cast<CMakeBuildConfiguration *>(bc);
     m_pathLineEdit->setText(m_buildConfiguration->buildDirectory());
-    if (m_buildConfiguration->buildDirectory() == m_project->projectDirectory())
+    if (m_buildConfiguration->buildDirectory() == m_target->cmakeProject()->projectDirectory())
         m_changeButton->setEnabled(false);
     else
         m_changeButton->setEnabled(true);
@@ -840,12 +832,13 @@ void CMakeBuildSettingsWidget::init(BuildConfiguration *bc)
 
 void CMakeBuildSettingsWidget::openChangeBuildDirectoryDialog()
 {
-    CMakeOpenProjectWizard copw(m_project->projectManager(),
-                                m_project->projectDirectory(),
+    CMakeProject *project = m_target->cmakeProject();
+    CMakeOpenProjectWizard copw(project->projectManager(),
+                                project->projectDirectory(),
                                 m_buildConfiguration->buildDirectory(),
                                 m_buildConfiguration->environment());
     if (copw.exec() == QDialog::Accepted) {
-        m_project->changeBuildDirectory(m_buildConfiguration, copw.buildDirectory());
+        project->changeBuildDirectory(m_buildConfiguration, copw.buildDirectory());
         m_pathLineEdit->setText(m_buildConfiguration->buildDirectory());
     }
 }
@@ -853,13 +846,14 @@ void CMakeBuildSettingsWidget::openChangeBuildDirectoryDialog()
 void CMakeBuildSettingsWidget::runCMake()
 {
     // TODO skip build directory
-    CMakeOpenProjectWizard copw(m_project->projectManager(),
-                                m_project->projectDirectory(),
+    CMakeProject *project = m_target->cmakeProject();
+    CMakeOpenProjectWizard copw(project->projectManager(),
+                                project->projectDirectory(),
                                 m_buildConfiguration->buildDirectory(),
                                 CMakeOpenProjectWizard::WantToUpdate,
                                 m_buildConfiguration->environment());
     if (copw.exec() == QDialog::Accepted) {
-        m_project->parseCMakeLists();
+        project->parseCMakeLists();
     }
 }
 

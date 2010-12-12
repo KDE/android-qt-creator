@@ -30,7 +30,6 @@
 #include "watchwindow.h"
 
 #include "breakhandler.h"
-#include "debuggeragents.h"
 #include "debuggeractions.h"
 #include "debuggerconstants.h"
 #include "debuggercore.h"
@@ -228,6 +227,30 @@ void WatchWindow::mouseDoubleClickEvent(QMouseEvent *ev)
     QTreeView::mouseDoubleClickEvent(ev);
 }
 
+// Text for add watch action with truncated expression
+static inline QString addWatchActionText(QString exp)
+{
+    if (exp.isEmpty())
+        return WatchWindow::tr("Watch Expression");
+    if (exp.size() > 30) {
+        exp.truncate(30);
+        exp.append(QLatin1String("..."));
+    }
+    return WatchWindow::tr("Watch Expression \"%1\"").arg(exp);
+}
+
+// Text for add watch action with truncated expression
+static inline QString removeWatchActionText(QString exp)
+{
+    if (exp.isEmpty())
+        return WatchWindow::tr("Remove Watch Expression");
+    if (exp.size() > 30) {
+        exp.truncate(30);
+        exp.append(QLatin1String("..."));
+    }
+    return WatchWindow::tr("Remove Watch Expression \"%1\"").arg(exp);
+}
+
 void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
 {
     DebuggerEngine *engine = currentEngine();
@@ -310,12 +333,11 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
         individualFormatMenu.setEnabled(false);
     }
 
-    const bool actionsEnabled = modelData(EngineActionsEnabledRole).toBool();
-    const unsigned engineCapabilities = modelData(EngineCapabilitiesRole).toUInt();
+    const bool actionsEnabled = engine->debuggerActionsEnabled();
+    const unsigned engineCapabilities = engine->debuggerCapabilities();
     const bool canHandleWatches =
         actionsEnabled && (engineCapabilities & AddWatcherCapability);
-    const DebuggerState state =
-        static_cast<DebuggerState>(modelData(EngineStateRole).toInt());
+    const DebuggerState state = engine->state();
 
     QMenu menu;
     QAction *actInsertNewWatchItem = menu.addAction(tr("Insert New Watch Item"));
@@ -362,22 +384,18 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
         }
     } else {
         actSetWatchpointAtVariableAddress =
-            new QAction(tr("At Watchpoint"), &menu);
+            new QAction(tr("Add Watchpoint"), &menu);
         actSetWatchpointAtVariableAddress->setEnabled(false);
     }
     actSetWatchpointAtVariableAddress->setToolTip(
         tr("Setting a watchpoint on an address will cause the program "
            "to stop when the data at the address it modified."));
 
-    QString actionName = exp.isEmpty() ? tr("Watch Expression")
-        : tr("Watch Expression \"%1\"").arg(exp);
-    QAction *actWatchExpression = new QAction(actionName, &menu);
+    QAction *actWatchExpression = new QAction(addWatchActionText(exp), &menu);
     actWatchExpression->setEnabled(canHandleWatches && !exp.isEmpty());
 
     // Can remove watch if engine can handle it or session engine.
-    actionName = exp.isEmpty() ? tr("Remove Watch Expression")
-        : tr("Remove Watch Expression \"%1\"").arg(exp);
-    QAction *actRemoveWatchExpression = new QAction(actionName, &menu);
+    QAction *actRemoveWatchExpression = new QAction(removeWatchActionText(exp), &menu);
     actRemoveWatchExpression->setEnabled(
         (canHandleWatches || state == DebuggerNotReady) && !exp.isEmpty());
 
@@ -437,13 +455,13 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     } else if (act == actInsertNewWatchItem) {
         watchExpression(QString());
     } else if (act == actOpenMemoryEditAtVariableAddress) {
-        (void) new MemoryViewAgent(currentEngine(), address);
+        currentEngine()->openMemoryView(address);
     } else if (act == actOpenMemoryEditAtPointerValue) {
-        (void) new MemoryViewAgent(currentEngine(), pointerValue);
+        currentEngine()->openMemoryView(pointerValue);
     } else if (act == actOpenMemoryEditor) {
         AddressDialog dialog;
         if (dialog.exec() == QDialog::Accepted)
-            (void) new MemoryViewAgent(currentEngine(), dialog.address());
+            currentEngine()->openMemoryView(dialog.address());
     } else if (act == actSetWatchpointAtVariableAddress) {
         setWatchpoint(address);
     } else if (act == actSetWatchpointAtPointerValue) {
@@ -531,21 +549,27 @@ void WatchWindow::setUpdatesEnabled(bool enable)
 
 void WatchWindow::resetHelper()
 {
+    bool old = updatesEnabled();
+    setUpdatesEnabled(false);
     resetHelper(model()->index(0, 0));
+    setUpdatesEnabled(old);
 }
 
 void WatchWindow::resetHelper(const QModelIndex &idx)
 {
     if (idx.data(LocalsExpandedRole).toBool()) {
         //qDebug() << "EXPANDING " << model()->data(idx, INameRole);
-        expand(idx);
-        for (int i = 0, n = model()->rowCount(idx); i != n; ++i) {
-            QModelIndex idx1 = model()->index(i, 0, idx);
-            resetHelper(idx1);
+        if (!isExpanded(idx)) {
+            expand(idx);
+            for (int i = 0, n = model()->rowCount(idx); i != n; ++i) {
+                QModelIndex idx1 = model()->index(i, 0, idx);
+                resetHelper(idx1);
+            }
         }
     } else {
         //qDebug() << "COLLAPSING " << model()->data(idx, INameRole);
-        collapse(idx);
+        if (isExpanded(idx))
+            collapse(idx);
     }
 }
 
@@ -564,12 +588,6 @@ void WatchWindow::setModelData
 {
     QTC_ASSERT(model(), return);
     model()->setData(index, value, role);
-}
-
-QVariant WatchWindow::modelData(int role, const QModelIndex &index)
-{
-    QTC_ASSERT(model(), return QVariant());
-    return model()->data(index, role);
 }
 
 void WatchWindow::setWatchpoint(quint64 address)

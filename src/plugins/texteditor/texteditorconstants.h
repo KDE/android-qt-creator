@@ -140,6 +140,10 @@ const char * const TEXT_EDITOR_FONT_SETTINGS = "A.FontSettings";
 const char * const TEXT_EDITOR_BEHAVIOR_SETTINGS = "B.BehaviourSettings";
 const char * const TEXT_EDITOR_DISPLAY_SETTINGS = "D.DisplaySettings";
 const char * const TEXT_EDITOR_HIGHLIGHTER_SETTINGS = "E.HighlighterSettings";
+const char * const TEXT_EDITOR_SNIPPETS_SETTINGS = "F.SnippetsSettings";
+
+const char * const SNIPPET_EDITOR_ID     = "TextEditor.SnippetEditor";
+const char * const TEXT_SNIPPET_GROUP_ID = "Text";
 
 } // namespace Constants
 } // namespace TextEditor

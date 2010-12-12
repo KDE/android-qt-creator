@@ -26,6 +26,7 @@
 ** contact the sales department at http://qt.nokia.com/contact.
 **
 **************************************************************************/
+
 #include "qmljsinspectorconstants.h"
 #include "qmljsinspector.h"
 #include "qmlinspectortoolbar.h"
@@ -41,22 +42,14 @@
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljseditor/qmljseditorconstants.h>
 #include <qmljseditor/qmljseditor.h>
-#include <debugger/debuggerrunner.h>
 #include <debugger/debuggerconstants.h>
-#include <debugger/debuggerengine.h>
 #include <debugger/debuggermainwindow.h>
 #include <debugger/debuggerplugin.h>
-#include <debugger/debuggerrunner.h>
-#include <debugger/debuggeruiswitcher.h>
-#include <debugger/debuggerconstants.h>
-#include <debugger/qml/qmlengine.h>
 
 #include <utils/qtcassert.h>
 #include <utils/styledbar.h>
-#include <utils/fancymainwindow.h>
 
 #include <coreplugin/icontext.h>
-#include <coreplugin/basemode.h>
 #include <coreplugin/findplaceholder.h>
 #include <coreplugin/minisplitter.h>
 #include <coreplugin/outputpane.h>
@@ -108,7 +101,6 @@
 using namespace QmlJS;
 using namespace QmlJS::AST;
 using namespace QmlJSInspector::Internal;
-using namespace Debugger::Internal;
 
 enum {
     MaxConnectionAttempts = 50,
@@ -131,7 +123,6 @@ InspectorUi::InspectorUi(QObject *parent)
     , m_toolbar(0)
     , m_crumblePath(0)
     , m_objectTreeWidget(0)
-    , m_inspectorDockWidget(0)
     , m_settings(new InspectorSettings(this))
     , m_clientProxy(0)
     , m_qmlEngine(0)
@@ -163,21 +154,23 @@ void InspectorUi::restoreSettings()
     m_settings->restoreSettings(Core::ICore::instance()->settings());
 }
 
-void InspectorUi::setDebuggerEngine(Debugger::QmlEngine *qmlEngine)
+void InspectorUi::setDebuggerEngine(QObject *qmlEngine)
 {
     if (m_qmlEngine && !qmlEngine) {
-        disconnect(m_qmlEngine, SIGNAL(tooltipRequested(QPoint,TextEditor::ITextEditor*,int)),
-                   this, SLOT(showDebuggerTooltip(QPoint,TextEditor::ITextEditor*,int)));
+        disconnect(m_qmlEngine,
+            SIGNAL(tooltipRequested(QPoint,TextEditor::ITextEditor*,int)),
+            this, SLOT(showDebuggerTooltip(QPoint,TextEditor::ITextEditor*,int)));
     }
 
     m_qmlEngine = qmlEngine;
     if (m_qmlEngine) {
-        connect(m_qmlEngine, SIGNAL(tooltipRequested(QPoint,TextEditor::ITextEditor*,int)),
-                this, SLOT(showDebuggerTooltip(QPoint,TextEditor::ITextEditor*,int)));
+        connect(m_qmlEngine,
+            SIGNAL(tooltipRequested(QPoint,TextEditor::ITextEditor*,int)),
+            this, SLOT(showDebuggerTooltip(QPoint,TextEditor::ITextEditor*,int)));
     }
 }
 
-Debugger::QmlEngine *InspectorUi::debuggerEngine() const
+QObject *InspectorUi::debuggerEngine() const
 {
     return m_qmlEngine;
 }
@@ -302,6 +295,7 @@ void InspectorUi::connected(ClientProxy *clientProxy)
     }
 
     connect(m_debugProject, SIGNAL(destroyed()), SLOT(currentDebugProjectRemoved()));
+    m_projectFinder.setProjectDirectory(m_debugProject->projectDirectory());
 
     setupToolbar(true);
     resetViews();
@@ -485,52 +479,6 @@ void InspectorUi::reloadQmlViewer()
         m_clientProxy->reloadQmlViewer();
 }
 
-void InspectorUi::setSimpleDockWidgetArrangement(const Debugger::DebuggerLanguages &activeLanguages)
-{
-    Debugger::DebuggerUISwitcher *uiSwitcher = Debugger::DebuggerPlugin::uiSwitcher();
-    Utils::FancyMainWindow *mw = uiSwitcher->mainWindow();
-
-    mw->setTrackingEnabled(false);
-
-    if (activeLanguages.testFlag(Debugger::CppLanguage)
-            && activeLanguages.testFlag(Debugger::QmlLanguage)) {
-        // cpp + qml
-        QList<QDockWidget *> dockWidgets = mw->dockWidgets();
-        foreach (QDockWidget *dockWidget, dockWidgets) {
-            dockWidget->setFloating(false);
-            mw->removeDockWidget(dockWidget);
-        }
-        foreach (QDockWidget *dockWidget, dockWidgets) {
-            if (dockWidget == uiSwitcher->outputWindow()) {
-                mw->addDockWidget(Qt::TopDockWidgetArea, dockWidget);
-            } else {
-                mw->addDockWidget(Qt::BottomDockWidgetArea, dockWidget);
-            }
-
-            if (dockWidget == m_inspectorDockWidget) {
-                dockWidget->show();
-            } else {
-                dockWidget->hide();
-            }
-        }
-
-        uiSwitcher->stackWindow()->show();
-        uiSwitcher->watchWindow()->show();
-        uiSwitcher->breakWindow()->show();
-        uiSwitcher->threadsWindow()->show();
-        uiSwitcher->snapshotsWindow()->show();
-        m_inspectorDockWidget->show();
-
-        mw->splitDockWidget(mw->toolBarDockWidget(), uiSwitcher->stackWindow(), Qt::Vertical);
-        mw->splitDockWidget(uiSwitcher->stackWindow(), uiSwitcher->watchWindow(), Qt::Horizontal);
-        mw->tabifyDockWidget(uiSwitcher->watchWindow(), uiSwitcher->breakWindow());
-        mw->tabifyDockWidget(uiSwitcher->watchWindow(), m_inspectorDockWidget);
-
-    }
-
-    mw->setTrackingEnabled(true);
-}
-
 void InspectorUi::gotoObjectReferenceDefinition(QList<QDeclarativeDebugObjectReference>
                                                 objectReferences)
 {
@@ -562,12 +510,7 @@ void InspectorUi::gotoObjectReferenceDefinition(const QDeclarativeDebugObjectRef
     if (source.lineNumber() < 0 || !QFile::exists(fileName))
         return;
 
-
-    // do some extra checking for filenames with shadow builds - we don't want to
-    // open the shadow build file, but the real one by default.
-    if (isShadowBuildProject()) {
-        fileName = filenameForShadowBuildFile(fileName);
-    }
+    fileName = m_projectFinder.findFile(fileName);
 
     Core::EditorManager *editorManager = Core::EditorManager::instance();
     Core::IEditor *editor = editorManager->openEditor(fileName);
@@ -580,37 +523,6 @@ void InspectorUi::gotoObjectReferenceDefinition(const QDeclarativeDebugObjectRef
         textEditor->gotoLine(source.lineNumber());
         textEditor->widget()->setFocus();
     }
-}
-
-QString InspectorUi::filenameForShadowBuildFile(const QString &filename) const
-{
-    if (!debugProject() || !isShadowBuildProject())
-        return filename;
-
-    QDir projectDir(debugProject()->projectDirectory());
-    QDir buildDir(debugProjectBuildDirectory());
-    QFileInfo fileInfo(filename);
-
-    if (projectDir.exists() && buildDir.exists() && fileInfo.exists()) {
-        if (fileInfo.absoluteFilePath().startsWith(buildDir.canonicalPath())) {
-            QString fileRelativePath
-                    = fileInfo.canonicalFilePath().mid(debugProjectBuildDirectory().length());
-
-#ifdef Q_OS_MACX
-            // Qt Quick Applications by default copy the qml directory to
-            // buildDir()/X.app/Contents/Resources
-            static QRegExp resourceBundlePattern(QLatin1String("^.*\\.app/Contents/Resources/"));
-            fileRelativePath.remove(resourceBundlePattern);
-#endif
-
-            QFileInfo projectFile(projectDir.canonicalPath() + QLatin1Char('/') + fileRelativePath);
-
-            if (projectFile.exists())
-                return projectFile.canonicalFilePath();
-        }
-
-    }
-    return filename;
 }
 
 bool InspectorUi::addQuotesForData(const QVariant &value) const
@@ -629,8 +541,6 @@ bool InspectorUi::addQuotesForData(const QVariant &value) const
 
 void InspectorUi::setupDockWidgets()
 {
-    Debugger::DebuggerUISwitcher *uiSwitcher = Debugger::DebuggerPlugin::uiSwitcher();
-
     m_toolbar->createActions(Core::Context(Debugger::Constants::C_QMLDEBUGGER));
     m_toolbar->setObjectName("QmlInspectorToolbar");
 
@@ -643,7 +553,7 @@ void InspectorUi::setupDockWidgets()
 
     QWidget *observerWidget = new QWidget;
     observerWidget->setWindowTitle(tr("QML Observer"));
-    observerWidget->setObjectName(QLatin1String("QMLObserver"));
+    observerWidget->setObjectName(Debugger::Constants::DOCKWIDGET_QML_INSPECTOR);
 
     QVBoxLayout *wlay = new QVBoxLayout(observerWidget);
     wlay->setMargin(0);
@@ -653,12 +563,10 @@ void InspectorUi::setupDockWidgets()
     wlay->addWidget(m_objectTreeWidget);
     wlay->addWidget(m_crumblePath);
 
-
-    m_inspectorDockWidget = uiSwitcher->createDockWidget(Debugger::QmlLanguage,
-                                                         observerWidget, Qt::BottomDockWidgetArea);
-    m_inspectorDockWidget->setObjectName(Debugger::Constants::DOCKWIDGET_QML_INSPECTOR);
-    m_inspectorDockWidget->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
-    m_inspectorDockWidget->setTitleBarWidget(new QWidget(m_inspectorDockWidget));
+    Debugger::DebuggerMainWindow *mw = Debugger::DebuggerPlugin::mainWindow();
+    QDockWidget *dock = mw->createDockWidget(Debugger::QmlLanguage, observerWidget);
+    dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
+    dock->setTitleBarWidget(new QWidget(dock));
 }
 
 void InspectorUi::crumblePathElementClicked(int pathIndex)

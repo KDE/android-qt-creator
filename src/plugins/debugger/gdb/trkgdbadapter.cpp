@@ -558,10 +558,7 @@ void TrkGdbAdapter::handleGdbServerCommand(const QByteArray &cmd)
     }
 
     else if (cmd == "k" || cmd.startsWith("vKill")) {
-        // Kill inferior process
-        logMessage(msgGdbPacket(QLatin1String("kill")));
-        sendTrkMessage(0x41, TrkCB(handleDeleteProcess),
-            trkDeleteProcessMessage(), "Delete process");
+        trkKill();
     }
 
     else if (cmd.startsWith('m')) {
@@ -864,6 +861,14 @@ void TrkGdbAdapter::gdbSetCurrentThread(const QByteArray &cmd, const char *why)
     sendGdbServerMessage("OK", message);
 }
 
+void TrkGdbAdapter::trkKill()
+{
+    // Kill inferior process
+    logMessage(msgGdbPacket(QLatin1String("kill")));
+    sendTrkMessage(0x41, TrkCB(handleDeleteProcess),
+        trkDeleteProcessMessage(), "Delete process");
+}
+
 void TrkGdbAdapter::trkContinueAll(const char *why)
 {
     if (why)
@@ -1041,6 +1046,15 @@ void TrkGdbAdapter::handleTrkResult(const TrkResult &result)
             if (tid && tid != unsigned(-1) && m_snapshot.indexOfThread(tid) == -1)
                 m_snapshot.addThread(tid);
             logMessage(logMsg);
+            // Load local symbol file into gdb provided there is one
+            if (lib.codeseg) {
+                const QString localSymFileName = Symbian::localSymFileForLibrary(lib.name, m_symbolFileFolder);
+                if (!localSymFileName.isEmpty()) {
+                    showMessage(Symbian::msgLoadLocalSymFile(localSymFileName, lib.name, lib.codeseg), LogMisc);
+                    m_engine->postCommand(Symbian::symFileLoadCommand(localSymFileName, lib.codeseg, lib.dataseg));
+                } // has local sym
+            } // code seg
+
             // This lets gdb trigger a register update etc.
             // With CS gdb 6.4 we get a non-standard $qfDllInfo#7f+ request
             // afterwards, so don't use it for now.
@@ -1139,9 +1153,19 @@ void TrkGdbAdapter::handleDeleteProcess(const TrkResult &result)
 void TrkGdbAdapter::handleDeleteProcess2(const TrkResult &result)
 {
     Q_UNUSED(result);
-    logMessage("App TRK disconnected");
-    sendGdbServerAck();
-    sendGdbServerMessage("", "process killed");
+    QString msg = QString::fromLatin1("App TRK disconnected");
+
+    const bool emergencyShutdown = m_gdbProc.state() != QProcess::Running;
+    if (emergencyShutdown)
+        msg += QString::fromLatin1(" (emergency shutdown");
+    logMessage(msg);
+    if (emergencyShutdown) {
+        cleanup();
+        m_engine->notifyAdapterShutdownOk();
+    } else {
+        sendGdbServerAck();
+        sendGdbServerMessage("", "process killed");
+    }
 }
 
 void TrkGdbAdapter::handleReadRegisters(const TrkResult &result)
@@ -1550,6 +1574,8 @@ void TrkGdbAdapter::startAdapter()
     m_remoteExecutable = parameters.executable;
     m_remoteArguments = parameters.processArgs;
     m_symbolFile = parameters.symbolFileName;
+    if (!m_symbolFile.isEmpty())
+        m_symbolFileFolder = QFileInfo(m_symbolFile).absolutePath();
     QString remoteChannel = parameters.remoteChannel;
     // FIXME: testing hack, remove!
     if (m_remoteArguments.startsWith(__("@sym@ "))) {
@@ -1649,9 +1675,11 @@ void TrkGdbAdapter::handleCreateProcess(const TrkResult &result)
         logMessage(warnMessage, LogError);
     }
 
+    m_engine->postCommand("set gnutarget arm-none-symbianelf");
+
     const QByteArray symbolFile = m_symbolFile.toLocal8Bit();
     if (symbolFile.isEmpty()) {
-        logMessage(_("WARNING: No symbol file available."), LogWarning);
+        logMessage(_("WARNING: No symbol file available."), LogError);
     } else {
         // Does not seem to be necessary anymore.
         // FIXME: Startup sequence can be streamlined now as we do not
@@ -1932,8 +1960,16 @@ void TrkGdbAdapter::shutdownInferior()
 
 void TrkGdbAdapter::shutdownAdapter()
 {
-    cleanup();
-    m_engine->notifyAdapterShutdownOk();
+    if (m_gdbProc.state() == QProcess::Running) {
+        cleanup();
+        m_engine->notifyAdapterShutdownOk();
+    } else {
+        // Something is wrong, gdb crashed. Kill debuggee (see handleDeleteProcess2)
+        if (m_trkDevice->isOpen()) {
+            logMessage("Emergency shutdown of TRK", LogError);
+            trkKill();
+        }
+    }
 }
 
 void TrkGdbAdapter::trkReloadRegisters()

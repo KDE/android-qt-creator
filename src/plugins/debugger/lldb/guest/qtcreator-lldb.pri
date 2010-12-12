@@ -1,1 +1,2 @@
-macx: exists($$PWD/lldb) : SUBDIRS += $$PWD/qtcreator-lldb.pro
+WITH_LLDB = $$(WITH_LLDB)
+macx: !isEmpty(WITH_LLDB) : SUBDIRS += $$PWD/qtcreator-lldb.pro

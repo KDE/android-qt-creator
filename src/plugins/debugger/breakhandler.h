@@ -61,6 +61,7 @@ public:
 
     void loadSessionData();
     void saveSessionData();
+    void removeSessionData();
 
     QAbstractItemModel *model() { return this; }
 
@@ -85,10 +86,10 @@ public:
 
     static QIcon breakpointIcon();
     static QIcon disabledBreakpointIcon();
-    static QIcon pendingBreakPointIcon();
+    static QIcon pendingBreakpointIcon();
     static QIcon emptyIcon();
+    static QIcon watchpointIcon();
 
-    void toggleBreakpoint(const QString &fileName, int lineNumber, quint64 address = 0);
     BreakpointId findBreakpointByFileAndLine(const QString &fileName,
         int lineNumber, bool useMarkerPosition = true);
     BreakpointId findBreakpointByAddress(quint64 address) const;
@@ -106,8 +107,8 @@ public:
     void setCondition(BreakpointId, const QByteArray &condition);
     int ignoreCount(BreakpointId id) const;
     void setIgnoreCount(BreakpointId, const int &count);
-    QByteArray threadSpec(BreakpointId id) const;
-    void setThreadSpec(BreakpointId, const QByteArray &spec);
+    int threadSpec(BreakpointId id) const;
+    void setThreadSpec(BreakpointId, const int&spec);
     QString fileName(BreakpointId id) const;
     void setFileName(BreakpointId, const QString &fileName);
     QString functionName(BreakpointId id) const;
@@ -129,8 +130,10 @@ public:
     void setEngine(BreakpointId id, DebuggerEngine *engine);
     const BreakpointResponse &response(BreakpointId id) const;
     void setResponse(BreakpointId id, const BreakpointResponse &data);
+    bool needsChange(BreakpointId id) const;
 
     // State transitions.
+    void notifyBreakpointChangeAfterInsertNeeded(BreakpointId id);
     void notifyBreakpointInsertProceeding(BreakpointId id);
     void notifyBreakpointInsertOk(BreakpointId id);
     void notifyBreakpointInsertFailed(BreakpointId id);
@@ -142,6 +145,7 @@ public:
     void notifyBreakpointRemoveOk(BreakpointId id);
     void notifyBreakpointRemoveFailed(BreakpointId id);
     void notifyBreakpointReleased(BreakpointId id);
+    void notifyBreakpointNeedsReinsertion(BreakpointId id);
     void notifyBreakpointAdjusted(BreakpointId id,
             const BreakpointParameters &data);
 
@@ -164,7 +168,6 @@ private:
         BreakpointItem();
 
         void destroyMarker();
-        bool isPending() const { return response.pending; }
         bool needsChange() const;
         bool isLocatedAt(const QString &fileName, int lineNumber,
             bool useMarkerPosition) const;

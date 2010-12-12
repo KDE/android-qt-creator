@@ -16,8 +16,11 @@ glsleditoreditable.h \
 glsleditorfactory.h \
 glsleditorplugin.h \
 glslfilewizard.h \
-    glslhighlighter.h \
-    glslcodecompletion.h
+glslhighlighter.h \
+glslcodecompletion.h \
+glslautocompleter.h \
+glslindenter.h \
+glslhoverhandler.h
 
 SOURCES += \
 glsleditor.cpp \
@@ -26,8 +29,11 @@ glsleditoreditable.cpp \
 glsleditorfactory.cpp \
 glsleditorplugin.cpp \
 glslfilewizard.cpp \
-    glslhighlighter.cpp \
-    glslcodecompletion.cpp
+glslhighlighter.cpp \
+glslcodecompletion.cpp \
+glslautocompleter.cpp \
+glslindenter.cpp \
+glslhoverhandler.cpp
 
 OTHER_FILES += GLSLEditor.mimetypes.xml
 RESOURCES += glsleditor.qrc

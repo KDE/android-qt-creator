@@ -53,6 +53,11 @@ QmlProjectTarget::~QmlProjectTarget()
 {
 }
 
+ProjectExplorer::BuildConfigWidget *QmlProjectTarget::createConfigWidget()
+{
+    return 0;
+}
+
 QmlProject *QmlProjectTarget::qmlProject() const
 {
     return static_cast<QmlProject *>(project());
@@ -94,6 +99,11 @@ QmlProjectTargetFactory::~QmlProjectTargetFactory()
 {
 }
 
+bool QmlProjectTargetFactory::supportsTargetId(const QString &id) const
+{
+    return id == QLatin1String(Constants::QML_VIEWER_TARGET_ID);
+}
+
 QStringList QmlProjectTargetFactory::availableCreationIds(ProjectExplorer::Project *parent) const
 {
     if (!qobject_cast<QmlProject *>(parent))
@@ -122,13 +132,13 @@ QmlProjectTarget *QmlProjectTargetFactory::create(ProjectExplorer::Project *pare
     if (!canCreate(parent, id))
         return 0;
     QmlProject *qmlproject(static_cast<QmlProject *>(parent));
-    QmlProjectTarget *t(new QmlProjectTarget(qmlproject));
+    QmlProjectTarget *target = new QmlProjectTarget(qmlproject);
 
     // Add RunConfiguration (QML does not have BuildConfigurations)
-    QmlProjectRunConfiguration *runConf(new QmlProjectRunConfiguration(t));
-    t->addRunConfiguration(runConf);
+    QmlProjectRunConfiguration *runConf = new QmlProjectRunConfiguration(target);
+    target->addRunConfiguration(runConf);
 
-    return t;
+    return target;
 }
 
 bool QmlProjectTargetFactory::canRestore(ProjectExplorer::Project *parent, const QVariantMap &map) const

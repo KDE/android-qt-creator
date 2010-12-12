@@ -23,7 +23,6 @@ HEADERS += breakhandler.h \
     consolewindow.h \
     debugger_global.h \
     debuggeractions.h \
-    debuggeragents.h \
     debuggercore.h \
     debuggerconstants.h \
     debuggerdialogs.h \
@@ -34,8 +33,10 @@ HEADERS += breakhandler.h \
     debuggerstreamops.h \
     debuggerstringutils.h \
     debuggertooltip.h \
-    debuggeruiswitcher.h \
+    disassembleragent.h \
+    disassemblerlines.h \
     logwindow.h \
+    memoryagent.h \
     moduleshandler.h \
     moduleswindow.h \
     name_demangler.h \
@@ -45,6 +46,7 @@ HEADERS += breakhandler.h \
     registerwindow.h \
     snapshothandler.h \
     snapshotwindow.h \
+    sourceagent.h \
     sourcefileshandler.h \
     sourcefileswindow.h \
     stackframe.h \
@@ -64,7 +66,6 @@ SOURCES += breakhandler.cpp \
     breakwindow.cpp \
     consolewindow.cpp \
     debuggeractions.cpp \
-    debuggeragents.cpp \
     debuggerdialogs.cpp \
     debuggerengine.cpp \
     debuggermainwindow.cpp \
@@ -72,8 +73,10 @@ SOURCES += breakhandler.cpp \
     debuggerrunner.cpp \
     debuggerstreamops.cpp \
     debuggertooltip.cpp \
-    debuggeruiswitcher.cpp \
+    disassembleragent.cpp \
+    disassemblerlines.cpp \
     logwindow.cpp \
+    memoryagent.cpp \
     moduleshandler.cpp \
     moduleswindow.cpp \
     name_demangler.cpp \
@@ -83,6 +86,7 @@ SOURCES += breakhandler.cpp \
     registerwindow.cpp \
     snapshothandler.cpp \
     snapshotwindow.cpp \
+    sourceagent.cpp \
     sourcefileshandler.cpp \
     sourcefileswindow.cpp \
     stackhandler.cpp \
@@ -104,7 +108,8 @@ FORMS += attachexternaldialog.ui \
     dumperoptionpage.ui \
     commonoptionspage.ui \
     startexternaldialog.ui \
-    startremotedialog.ui
+    startremotedialog.ui \
+    startremoteenginedialog.ui
 
 RESOURCES += debugger.qrc
 

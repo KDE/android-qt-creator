@@ -40,10 +40,10 @@
 #include "cdboptions.h"
 #include "cdbexceptionutils.h"
 #include "cdbsymbolpathlisteditor.h"
-#include "debuggeragents.h"
-#include "debuggeruiswitcher.h"
-#include "debuggercore.h"
 #include "dbgwinutils.h"
+#include "debuggercore.h"
+#include "disassembleragent.h"
+#include "memoryagent.h"
 
 #include "debuggeractions.h"
 #include "breakhandler.h"
@@ -1197,6 +1197,23 @@ void CdbEngine::selectThread(int index)
     }
 }
 
+bool CdbEngine::stateAcceptsBreakpointChanges() const
+{
+    switch (state()) {
+    case InferiorRunOk:
+    case InferiorStopOk:
+    return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+bool CdbEngine::acceptsBreakpoint(BreakpointId id) const
+{
+    return DebuggerEngine::isCppBreakpoint(breakHandler()->breakpointData(id));
+}
+
 void CdbEngine::attemptBreakpointSynchronization()
 {
     if (!m_d->m_hDebuggeeProcess) // Sometimes called from the breakpoint Window
@@ -1346,8 +1363,9 @@ void CdbEngine::fetchDisassembler(DisassemblerViewAgent *agent)
     if (debugCDB)
         qDebug() << "fetchDisassembler" << address << " Agent: " << agent->address();
 
+    DisassemblerLines lines;
     if (address == 0) { // Clear window
-        agent->setContents(QString());
+        agent->setContents(lines);
         return;
     }
     QString disassembly;
@@ -1355,11 +1373,12 @@ void CdbEngine::fetchDisassembler(DisassemblerViewAgent *agent)
     const bool ok = disassemble(m_d, address, ContextLines, ContextLines, QTextStream(&disassembly), &errorMessage);
     QApplication::restoreOverrideCursor();
     if (ok) {
-        agent->setContents(disassembly);
+        foreach(const QString &line, disassembly.remove(QLatin1Char('\r')).split(QLatin1Char('\n')))
+            lines.appendLine(DisassemblerLine(line));
     } else {
-        agent->setContents(QString());
         warning(errorMessage);
     }
+    agent->setContents(lines);
 }
 
 void CdbEngine::fetchMemory(MemoryViewAgent *agent, QObject *token, quint64 addr, quint64 length)
@@ -1397,7 +1416,7 @@ void CdbEngine::loadAllSymbols()
 
 void CdbEngine::requestModuleSymbols(const QString &moduleName)
 {
-    QList<Symbol> rc;
+    Symbols rc;
     QString errorMessage;
     bool success = false;
     do {
@@ -1411,7 +1430,7 @@ void CdbEngine::requestModuleSymbols(const QString &moduleName)
     } while (false);
     if (!success)
         warning(errorMessage);
-    showModuleSymbols(moduleName, rc);
+    debuggerCore()->showModuleSymbols(moduleName, rc);
 }
 
 void CdbEngine::reloadRegisters()
@@ -1749,7 +1768,7 @@ void CdbEnginePrivate::updateStackTrace()
 
 void CdbEnginePrivate::updateModules()
 {
-    QList<Module> modules;
+    Modules modules;
     QString errorMessage;
     if (!getModuleList(interfaces().debugSymbols, &modules, &errorMessage))
         m_engine->warning(msgFunctionFailed(Q_FUNC_INFO, errorMessage));

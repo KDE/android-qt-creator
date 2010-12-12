@@ -2,7 +2,7 @@ include($$PWD/filemanager/filemanager.pri)
 include (../config.pri)
 
 QT += script \
-    declarative
+    network
 
 DEFINES += TEST_EXPORTS
 INCLUDEPATH += $$PWD \
@@ -11,10 +11,8 @@ DEPENDPATH += $$PWD $$PWD/include
 SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/instances/nodeinstanceview.cpp \
     $$PWD/model/rewriterview.cpp \
-    $$PWD/metainfo/enumeratormetainfo.cpp \
     $$PWD/metainfo/metainfo.cpp \
     $$PWD/metainfo/metainfoparser.cpp \
-    $$PWD/metainfo/propertymetainfo.cpp \
     $$PWD/metainfo/nodemetainfo.cpp \
     $$PWD/metainfo/itemlibraryinfo.cpp \
     $$PWD/metainfo/subcomponentmanager.cpp \
@@ -27,15 +25,9 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/model/propertycontainer.cpp \
     $$PWD/pluginmanager/widgetpluginmanager.cpp \
     $$PWD/pluginmanager/widgetpluginpath.cpp \
-    $$PWD/instances/nodeinstance.cpp \
+    $$PWD/instances/servernodeinstance.cpp \
     $$PWD/instances/objectnodeinstance.cpp \
-    $$PWD/instances/widgetnodeinstance.cpp \
-    $$PWD/instances/graphicswidgetnodeinstance.cpp \
     $$PWD/instances/qmlgraphicsitemnodeinstance.cpp \
-    $$PWD/instances/graphicsscenenodeinstance.cpp \
-    $$PWD/instances/graphicsviewnodeinstance.cpp \
-    $$PWD/instances/proxywidgetnodeinstance.cpp \
-    $$PWD/instances/qmlviewnodeinstance.cpp \
     $$PWD/instances/dummynodeinstance.cpp \
     $$PWD/instances/qmlpropertychangesnodeinstance.cpp \
     $$PWD/instances/qmlstatenodeinstance.cpp \
@@ -95,23 +87,53 @@ SOURCES += $$PWD/model/abstractview.cpp \
     $$PWD/instances/nodeinstancemetaobject.cpp \
     $$PWD/instances/behaviornodeinstance.cpp \
     $$PWD/instances/nodeinstancesignalspy.cpp \
-    $$PWD/instances/positionernodeinstance.cpp
-
+    $$PWD/instances/positionernodeinstance.cpp \
+    $$PWD/instances/nodeinstanceserver.cpp \
+    $$PWD/instances/declarativedesignercommunicationinterface.cpp \
+    $$PWD/instances/createinstancescommand.cpp \
+    $$PWD/instances/nodeinstanceserverinterface.cpp \
+    $$PWD/instances/nodeinstance.cpp \
+    $$PWD/instances/propertyvaluecontainer.cpp \
+    $$PWD/instances/childrenchangeeventfilter.cpp \
+    $$PWD/instances/propertybindingcontainer.cpp \
+    $$PWD/instances/propertyabstractcontainer.cpp \
+    $$PWD/instances/createscenecommand.cpp \
+    $$PWD/instances/instancecontainer.cpp \
+    $$PWD/instances/changefileurlcommand.cpp \
+    $$PWD/instances/clearscenecommand.cpp \
+    $$PWD/instances/reparentcontainer.cpp \
+    $$PWD/instances/reparentinstancescommand.cpp \
+    $$PWD/instances/changevaluescommand.cpp \
+    $$PWD/instances/changebindingscommand.cpp \
+    $$PWD/instances/changeidscommand.cpp \
+    $$PWD/instances/idcontainer.cpp \
+    $$PWD/instances/removeinstancescommand.cpp \
+    $$PWD/instances/removepropertiescommand.cpp \
+    $$PWD/instances/valueschangedcommand.cpp \
+    $$PWD/instances/pixmapchangedcommand.cpp \
+    $$PWD/instances/informationchangedcommand.cpp \
+    $$PWD/instances/informationcontainer.cpp \
+    $$PWD/instances/changestatecommand.cpp \
+    $$PWD/instances/nodeinstanceserverproxy.cpp \
+    $$PWD/instances/nodeinstanceclientproxy.cpp \
+    $$PWD/instances/addimportcommand.cpp \
+    $$PWD/instances/childrenchangedcommand.cpp \
+    $$PWD/instances/statepreviewimagechangedcommand.cpp \
+    $$PWD/instances/imagecontainer.cpp \
+    $$PWD/instances/completecomponentcommand.cpp \
+    $$PWD/instances/componentcompletedcommand.cpp
 HEADERS += $$PWD/include/corelib_global.h \
     $$PWD/include/abstractview.h \
     $$PWD/include/nodeinstanceview.h \
     $$PWD/include/rewriterview.h \
-    $$PWD/include/enumeratormetainfo.h \
     $$PWD/include/metainfo.h \
     $$PWD/include/metainfoparser.h \
     $$PWD/include/nodemetainfo.h \
-    $$PWD/include/propertymetainfo.h \
     $$PWD/include/itemlibraryinfo.h \
     $$PWD/model/internalproperty.h \
     $$PWD/include/modelnode.h \
     $$PWD/include/model.h \
     $$PWD/include/nodeproperty.h \
-    $$PWD/include/widgetqueryview.h \
     $$PWD/include/subcomponentmanager.h \
     $$PWD/include/propertycontainer.h \
     $$PWD/model/internalnode_p.h \
@@ -120,15 +142,9 @@ HEADERS += $$PWD/include/corelib_global.h \
     $$PWD/model/propertyparser.h \
     $$PWD/pluginmanager/widgetpluginmanager.h \
     $$PWD/pluginmanager/widgetpluginpath.h \
-    $$PWD/include/nodeinstance.h \
+    $$PWD/instances/servernodeinstance.h \
     $$PWD/instances/objectnodeinstance.h \
-    $$PWD/instances/widgetnodeinstance.h \
-    $$PWD/instances/graphicswidgetnodeinstance.h \
     $$PWD/instances/qmlgraphicsitemnodeinstance.h \
-    $$PWD/instances/graphicsscenenodeinstance.h \
-    $$PWD/instances/graphicsviewnodeinstance.h \
-    $$PWD/instances/proxywidgetnodeinstance.h \
-    $$PWD/instances/qmlviewnodeinstance.h \
     $$PWD/instances/dummynodeinstance.h \
     $$PWD/instances/qmlpropertychangesnodeinstance.h \
     $$PWD/instances/qmlstatenodeinstance.h \
@@ -189,14 +205,45 @@ HEADERS += $$PWD/include/corelib_global.h \
     $$PWD/instances/nodeinstancemetaobject.h \
     $$PWD/instances/behaviornodeinstance.h \
     $$PWD/instances/nodeinstancesignalspy.h \
-    $$PWD/instances/positionernodeinstance.h
-
+    $$PWD/instances/positionernodeinstance.h \
+    $$PWD/instances/nodeinstanceserver.h \
+    $$PWD/instances/declarativedesignercommunicationinterface.h \
+    $$PWD/instances/createinstancescommand.h \
+    $$PWD/include/nodeinstanceserverinterface.h \
+    $$PWD/include/nodeinstance.h \
+    $$PWD/include/propertyvaluecontainer.h \
+    $$PWD/instances/childrenchangeeventfilter.h \
+    $$PWD/include/propertybindingcontainer.h \
+    $$PWD/include/propertyabstractcontainer.h \
+    $$PWD/instances/createscenecommand.h \
+    $$PWD/instances/instancecontainer.h \
+    $$PWD/instances/changefileurlcommand.h \
+    $$PWD/instances/clearscenecommand.h \
+    $$PWD/instances/reparentcontainer.h \
+    $$PWD/instances/reparentinstancescommand.h \
+    $$PWD/instances/changevaluescommand.h \
+    $$PWD/instances/changebindingscommand.h \
+    $$PWD/instances/changeidscommand.h \
+    $$PWD/instances/idcontainer.h \
+    $$PWD/instances/removeinstancescommand.h \
+    $$PWD/instances/removepropertiescommand.h \
+    $$PWD/include/nodeinstanceclientinterface.h \
+    $$PWD/instances/valueschangedcommand.h \
+    $$PWD/instances/pixmapchangedcommand.h \
+    $$PWD/instances/informationchangedcommand.h \
+    $$PWD/instances/informationcontainer.h \
+    $$PWD/include/commondefines.h \
+    $$PWD/instances/changestatecommand.h \
+    $$PWD/instances/nodeinstanceserverproxy.h \
+    $$PWD/instances/nodeinstanceclientproxy.h \
+    $$PWD/instances/addimportcommand.h \
+    $$PWD/instances/childrenchangedcommand.h \
+    $$PWD/instances/statepreviewimagechangedcommand.h \
+    $$PWD/instances/imagecontainer.h \
+    $$PWD/instances/completecomponentcommand.h \
+    $$PWD/instances/componentcompletedcommand.h
 contains(CONFIG, plugin) {
   # If core.pri has been included in the qmldesigner plugin
   SOURCES += $$PWD/model/basetexteditmodifier.cpp
   HEADERS += $$PWD/include/basetexteditmodifier.h
 }
-
-DISTFILES += $$PWD/metafile/widget.metafile
-RESOURCES += $$PWD/designercore.qrc
-OTHER_FILES += $$PWD/metainfo/gui.metainfo

@@ -35,6 +35,7 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QMultiMap>
+#include <QtCore/QVector>
 
 QT_BEGIN_NAMESPACE
 class QIcon;
@@ -53,13 +54,13 @@ class SavedAction;
 namespace Debugger {
 
 class DebuggerEngine;
-class DebuggerRunControl;
 class DebuggerStartParameters;
 
 namespace Internal {
 
 class BreakHandler;
 class SnapshotHandler;
+class Symbol;
 
 // This is the "internal" interface of the debugger plugin that's
 // used by debugger views and debugger engines. The interface is
@@ -81,7 +82,6 @@ public:
     virtual void showQtDumperLibraryWarning(const QString &details) = 0;
     virtual QIcon locationMarkIcon() const = 0;
     virtual const CPlusPlus::Snapshot &cppCodeModelSnapshot() const = 0;
-    virtual bool isRegisterViewVisible() const = 0;
     virtual bool hasSnapshots() const = 0;
     virtual void openTextEditor(const QString &titlePattern, const QString &contents) = 0;
     virtual BreakHandler *breakHandler() const = 0;
@@ -90,7 +90,6 @@ public:
     virtual bool isActiveDebugLanguage(int language) const = 0;
 
     virtual void clearCppCodeModelSnapshot() = 0;
-    virtual void ensureLogVisible() = 0;
 
     // void runTest(const QString &fileName);
     virtual void showMessage(const QString &msg, int channel, int timeout = -1) = 0;
@@ -100,20 +99,22 @@ public:
     virtual void resetLocation() = 0;
     virtual void removeLocationMark() = 0;
 
-    virtual void readSettings() = 0;
-    virtual void writeSettings() const = 0;
-
     virtual bool isReverseDebugging() const = 0;
-    virtual void createNewDock(QWidget *widget) = 0;
-    virtual void runControlStarted(DebuggerRunControl *runControl) = 0;
-    virtual void runControlFinished(DebuggerRunControl *runControl) = 0;
+    virtual void runControlStarted(DebuggerEngine *engine) = 0;
+    virtual void runControlFinished(DebuggerEngine *engine) = 0;
     virtual void displayDebugger(DebuggerEngine *engine, bool updateEngine) = 0;
     virtual DebuggerLanguages activeLanguages() const = 0;
     virtual void synchronizeBreakpoints() = 0;
 
     virtual bool initialize(const QStringList &arguments, QString *errorMessage) = 0;
     virtual QWidget *mainWindow() const = 0;
+    virtual bool isDockVisible(const QString &objectName) const = 0;
     virtual QString gdbBinaryForToolChain(int toolChain) const = 0;
+    virtual void showModuleSymbols(const QString &moduleName,
+        const QVector<Symbol> &symbols) = 0;
+    virtual void openMemoryEditor() = 0;
+    virtual void updateMemoryEditors() = 0;
+    virtual void languagesChanged() = 0;
 
     virtual Utils::SavedAction *action(int code) const = 0;
     virtual bool boolSetting(int code) const = 0;

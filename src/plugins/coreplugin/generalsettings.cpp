@@ -53,7 +53,7 @@ using namespace Core::Internal;
 
 
 GeneralSettings::GeneralSettings():
-    m_dialog(0)
+    m_page(0), m_dialog(0)
 {
 }
 
@@ -167,9 +167,15 @@ QWidget *GeneralSettings::createPage(QWidget *parent)
 #endif
 
     if (m_searchKeywords.isEmpty()) {
-        QTextStream(&m_searchKeywords) << m_page->colorLabel->text() << ' '
-                << m_page->terminalLabel->text() << ' ' << m_page->editorLabel->text()
-                << ' '<< m_page->modifiedLabel->text();
+        QLatin1Char sep(' ');
+        QTextStream(&m_searchKeywords)
+                << m_page->interfaceBox->title() << sep
+                << m_page->colorLabel->text() << sep
+                << m_page->languageLabel->text() << sep
+                << m_page->systemBox->title() << sep
+                << m_page->terminalLabel->text() << sep
+                << m_page->editorLabel->text() << sep
+                << m_page->modifiedLabel->text();
         m_searchKeywords.remove(QLatin1Char('&'));
     }
     return w;
@@ -182,6 +188,8 @@ bool GeneralSettings::matches(const QString &s) const
 
 void GeneralSettings::apply()
 {
+    if (!m_page) // wasn't shown, can't be changed
+        return;
     int currentIndex = m_page->languageBox->currentIndex();
     setLanguage(m_page->languageBox->itemData(currentIndex, Qt::UserRole).toString());
     // Apply the new base color if accepted
@@ -199,7 +207,10 @@ void GeneralSettings::apply()
 
 void GeneralSettings::finish()
 {
+    if (!m_page) // page was never shown
+        return;
     delete m_page;
+    m_page = 0;
 }
 
 void GeneralSettings::resetInterfaceColor()

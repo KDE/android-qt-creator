@@ -27,33 +27,58 @@
 **
 **************************************************************************/
 
-#ifndef DEBUGGERMAINWINDOW_H
-#define DEBUGGERMAINWINDOW_H
+#ifndef DEBUGGERUISWITCHER_H
+#define DEBUGGERUISWITCHER_H
+
+#include "debugger_global.h"
+#include "debuggerconstants.h"
 
 #include <utils/fancymainwindow.h>
 
-QT_FORWARD_DECLARE_CLASS(QMenu);
+namespace Core {
+class Context;
+class IMode;
+}
 
 namespace Debugger {
-class DebuggerUISwitcher;
 
 namespace Internal {
+class DebuggerMainWindowPrivate;
+}
 
-class DebuggerMainWindow : public Utils::FancyMainWindow
+class DEBUGGER_EXPORT DebuggerMainWindow : public Utils::FancyMainWindow
 {
-    Q_OBJECT
 public:
-    explicit DebuggerMainWindow(DebuggerUISwitcher *uiSwitcher, QWidget *parent = 0);
-    virtual ~DebuggerMainWindow();
+    DebuggerMainWindow();
+    ~DebuggerMainWindow();
 
-protected:
-    virtual QMenu *createPopupMenu();
+    // Debugger toolbars are registered with this function.
+    void setToolbar(const DebuggerLanguage &language, QWidget *widget);
+
+    // Active languages to be debugged.
+    DebuggerLanguages activeDebugLanguages() const;
+
+    // Called when all dependent plugins have loaded.
+    void initialize();
+
+    void onModeChanged(Core::IMode *mode);
+    QDockWidget *dockWidget(const QString &objectName) const;
+    bool isDockVisible(const QString &objectName) const;
+
+    // Dockwidgets are registered to the main window.
+    QDockWidget *createDockWidget(const DebuggerLanguage &language, QWidget *widget);
+
+    QWidget *createContents(Core::IMode *mode);
+    QMenu *createPopupMenu();
+
+    void readSettings();
+    void writeSettings() const;
 
 private:
-    DebuggerUISwitcher *m_uiSwitcher;
+    friend class Internal::DebuggerMainWindowPrivate;
+    Internal::DebuggerMainWindowPrivate *d;
 };
 
-} // namespace Internal
 } // namespace Debugger
 
-#endif // DEBUGGERMAINWINDOW_H
+#endif // DEBUGGERUISWITCHER_H

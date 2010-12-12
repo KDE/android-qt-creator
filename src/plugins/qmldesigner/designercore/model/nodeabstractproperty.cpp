@@ -63,7 +63,7 @@ void NodeAbstractProperty::reparentHere(const ModelNode &modelNode)
     if (internalNode()->hasProperty(name()) && !internalNode()->property(name())->isNodeAbstractProperty())
         reparentHere(modelNode, isNodeListProperty());
     else
-        reparentHere(modelNode, metaInfo().isListProperty()); //we could use the metasystem instead?
+        reparentHere(modelNode, parentModelNode().metaInfo().propertyIsListProperty(name())); //we could use the metasystem instead?
 }
 
 void NodeAbstractProperty::reparentHere(const ModelNode &modelNode,  bool isNodeList)
@@ -104,6 +104,24 @@ bool NodeAbstractProperty::isEmpty() const
         return true;
     else
         return property->isEmpty();
+}
+
+int NodeAbstractProperty::indexOf(const ModelNode &node) const
+{
+    Internal::InternalNodeAbstractProperty::Pointer property = internalNode()->nodeAbstractProperty(name());
+    if (property.isNull())
+        return 0;
+
+    return property->indexOf(node.internalNode());
+}
+
+int NodeAbstractProperty::count() const
+{
+    Internal::InternalNodeAbstractProperty::Pointer property = internalNode()->nodeAbstractProperty(name());
+    if (property.isNull())
+        return 0;
+    else
+        return property->count();
 }
 
 QList<ModelNode> NodeAbstractProperty::allSubNodes()

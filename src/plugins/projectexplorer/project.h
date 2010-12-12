@@ -94,12 +94,9 @@ public:
     void setActiveTarget(Target *target);
     Target *target(const QString &id) const;
 
-    virtual ITargetFactory *targetFactory() const = 0;
-
     void saveSettings();
     bool restoreSettings();
 
-    virtual BuildConfigWidget *createConfigWidget() = 0;
     virtual QList<BuildConfigWidget*> subConfigWidgets();
 
     virtual ProjectNode *rootProjectNode() const = 0;

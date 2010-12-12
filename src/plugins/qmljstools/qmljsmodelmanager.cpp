@@ -74,7 +74,7 @@ ModelManager::ModelManager(QObject *parent):
     loadQmlTypeDescriptions();
 
     m_defaultImportPaths << environmentImportPaths();
-    m_defaultImportPaths << QLibraryInfo::location(QLibraryInfo::ImportsPath);
+    updateImportPaths();
 }
 
 void ModelManager::loadQmlTypeDescriptions()
@@ -215,6 +215,9 @@ void ModelManager::updateProjectInfo(const ProjectInfo &pinfo)
         oldInfo = m_projects.value(pinfo.project);
         m_projects.insert(pinfo.project, pinfo);
         snapshot = _snapshot;
+
+        if (oldInfo.qmlDumpPath != pinfo.qmlDumpPath)
+            m_pluginDumper->scheduleCompleteRedump();
     }
 
     updateImportPaths();
@@ -367,6 +370,15 @@ static void findNewLibraryImports(const Document::Ptr &doc, const Snapshot &snap
     }
 }
 
+static bool suffixMatches(const QString &fileName, const Core::MimeType &mimeType)
+{
+    foreach (const QString &suffix, mimeType.suffixes()) {
+        if (fileName.endsWith(suffix, Qt::CaseInsensitive))
+            return true;
+    }
+    return false;
+}
+
 void ModelManager::parse(QFutureInterface<void> &future,
                             WorkingCopy workingCopy,
                             QStringList files,
@@ -395,19 +407,13 @@ void ModelManager::parse(QFutureInterface<void> &future,
 
         const QString fileName = files.at(i);
 
-        const QFileInfo fileInfo(fileName);
-        Core::MimeType fileMimeTy;
-
         bool isQmlFile = true;
-
         if (db) {
-            fileMimeTy = db->findByFile(fileInfo);
-
-            if (matchesMimeType(fileMimeTy, jsSourceTy))
+            if (suffixMatches(fileName, jsSourceTy)) {
                 isQmlFile = false;
-
-            else if (! matchesMimeType(fileMimeTy, qmlSourceTy))
+            } else if (! suffixMatches(fileName, qmlSourceTy)) {
                 continue; // skip it. it's not a QML or a JS file.
+            }
         } else {
             if (fileName.contains(QLatin1String(".js"), Qt::CaseInsensitive))
                 isQmlFile = false;

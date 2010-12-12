@@ -125,10 +125,7 @@ bool MaemoRunConfiguration::isEnabled(ProjectExplorer::BuildConfiguration *confi
 {
     if (!m_validParse)
         return false;
-    Qt4BuildConfiguration *qt4bc = qobject_cast<Qt4BuildConfiguration*>(config);
-    QTC_ASSERT(qt4bc, return false);
-    const ProjectExplorer::ToolChainType type = qt4bc->toolChainType();
-    return type == ProjectExplorer::ToolChain_GCC_MAEMO;
+    return true;
 }
 
 QWidget *MaemoRunConfiguration::createConfigurationWidget()
@@ -146,7 +143,6 @@ void MaemoRunConfiguration::handleParseState(bool success)
     bool enabled = isEnabled();
     m_validParse = success;
     if (enabled != isEnabled()) {
-        qDebug()<<"Emitting isEnabledChanged()"<<!enabled;
         emit isEnabledChanged(!enabled);
     }
 }
@@ -155,7 +151,6 @@ void MaemoRunConfiguration::proFileInvalidated(Qt4ProjectManager::Internal::Qt4P
 {
     if (m_proFilePath != pro->path())
         return;
-    qDebug()<<"proFileInvalidated";
     handleParseState(false);
 }
 
@@ -322,7 +317,7 @@ MaemoPortList MaemoRunConfiguration::freePorts() const
     const MaemoDeviceConfig &devConfig = deviceConfig();
     const Qt4BuildConfiguration * const qt4bc = activeQt4BuildConfiguration();
     if (devConfig.type == MaemoDeviceConfig::Simulator && qt4bc) {
-        Runtime rt;
+        MaemoQemuRuntime rt;
         const int id = qt4bc->qtVersion()->uniqueId();
         if (MaemoQemuManager::instance().runtimeForQtVersion(id, &rt))
             return rt.m_freePorts;

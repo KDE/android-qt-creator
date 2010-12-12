@@ -32,6 +32,8 @@
 #include <texteditor/syntaxhighlighter.h>
 
 namespace GLSLEditor {
+class GLSLTextEditor;
+
 namespace Internal {
 
 class Highlighter : public TextEditor::SyntaxHighlighter
@@ -55,16 +57,19 @@ public:
         NumGLSLFormats
     };
 
-    explicit Highlighter(QTextDocument *parent);
+    explicit Highlighter(GLSLTextEditor *editor, QTextDocument *parent);
     virtual ~Highlighter();
 
     void setFormats(const QVector<QTextCharFormat> &formats);
 
 protected:
     void highlightBlock(const QString &text);
+    void highlightLine(const QString &text, int position, int length, const QTextCharFormat &format);
+    bool isPPKeyword(const QStringRef &text) const;
 
 private:
     QTextCharFormat m_formats[NumGLSLFormats];
+    GLSLTextEditor *m_editor;
 };
 
 } // namespace Internal

@@ -318,7 +318,7 @@ def qdump__QFixed(d, item):
 def qdump__QFlags(d, item):
     i = item.value["i"]
     try:
-        enumType = item.value.type.unqualified().template_argument(0)
+        enumType = templateArgument(item.value.type.unqualified(), 0)
         d.putValue("%s (%s)" % (i.cast(enumType), i))
     except:
         d.putValue("%s" % i)
@@ -354,8 +354,8 @@ def qdump__QHash(d, item):
             bucket += 1
         return node
 
-    keyType = item.value.type.template_argument(0)
-    valueType = item.value.type.template_argument(1)
+    keyType = templateArgument(item.value.type, 0)
+    valueType = templateArgument(item.value.type, 1)
 
     d_ptr = item.value["d"]
     e_ptr = item.value["e"]
@@ -392,8 +392,8 @@ def qdump__QHash(d, item):
 
 
 def qdump__QHashNode(d, item):
-    keyType = item.value.type.template_argument(0)
-    valueType = item.value.type.template_argument(1)
+    keyType = templateArgument(item.value.type, 0)
+    valueType = templateArgument(item.value.type, 1)
     key = item.value["key"]
     value = item.value["value"]
 
@@ -436,7 +436,7 @@ def qdump__QList(d, item):
     checkRef(d_ptr["ref"])
 
     # Additional checks on pointer arrays.
-    innerType = item.value.type.template_argument(0)
+    innerType = templateArgument(item.value.type, 0)
     innerTypeIsPointer = innerType.code == gdb.TYPE_CODE_PTR \
         and str(innerType.target().unqualified()) != "char"
     if innerTypeIsPointer:
@@ -535,7 +535,8 @@ def qdump__QLinkedList(d, item):
     d.putItemCount(n)
     d.putNumChild(n)
     if d.isExpanded(item):
-        with Children(d, [n, 1000], item.value.type.template_argument(0)):
+        innerType = templateArgument(item.value.type, 0)
+        with Children(d, [n, 1000], innerType):
             p = e_ptr["n"]
             for i in d.childRange():
                 d.putSubItem(Item(p["t"], item.iname, i))
@@ -578,7 +579,7 @@ def qdump__QMapNode(d, item):
                 d.putItem(Item(item.value["value"], item.iname, "value"))
 
 
-def qdump__QMap(d, item):
+def qdumpHelper__QMap(d, item, forceLong):
     d_ptr = item.value["d"].dereference()
     e_ptr = item.value["e"].dereference()
     n = d_ptr["size"]
@@ -591,8 +592,8 @@ def qdump__QMap(d, item):
         if n > 1000:
             n = 1000
 
-        keyType = item.value.type.template_argument(0)
-        valueType = item.value.type.template_argument(1)
+        keyType = templateArgument(item.value.type, 0)
+        valueType = templateArgument(item.value.type, 1)
 
         isSimpleKey = isSimpleType(keyType)
         isSimpleValue = isSimpleType(valueType)
@@ -619,15 +620,21 @@ def qdump__QMap(d, item):
                     #if isSimpleType(item.value.type): # or isStringType(d, item.value.type):
                     if isSimpleKey and isSimpleValue:
                         #d.putType(valueType)
-                        d.putName(key)
+                        if forceLong:
+                            d.putName("[%s] %s" % (i, key))
+                        else:
+                            d.putName(key)
                         d.putItem(Item(value, item.iname, i))
                     else:
                         d.putItem(Item(node, item.iname, i))
                 it = it.dereference()["forward"].dereference()
 
 
-def qdump__MultiMap(d, item):
-    qdump__Map(d, item)
+def qdump__QMap(d, item):
+    qdumpHelper__QMap(d, item, False)
+
+def qdump__QMultiMap(d, item):
+    qdumpHelper__QMap(d, item, True)
 
 
 def extractCString(table, offset):
@@ -644,7 +651,11 @@ def extractCString(table, offset):
 def qdump__QObject(d, item):
     #warn("OBJECT: %s " % item.value)
     try:
+        privateType = lookupType(d.ns + "QObjectPrivate")
         staticMetaObject = item.value["staticMetaObject"]
+        d_ptr = item.value["d_ptr"]["d"].cast(privateType.pointer()).dereference()
+        #warn("D_PTR: %s " % d_ptr)
+        objectName = d_ptr["objectName"]
     except:
         d.putPlainChildren(item)
         return
@@ -656,7 +667,6 @@ def qdump__QObject(d, item):
     #    superData = superData.dereference()["d"]["superdata"]
     #    warn("SUPERDATA: %s" % superData)
 
-    privateType = lookupType(d.ns + "QObjectPrivate")
     if privateType is None:
         d.putNumChild(4)
         #d.putValue(cleanAddress(item.value.address))
@@ -664,9 +674,6 @@ def qdump__QObject(d, item):
             with Children(d):
                 d.putFields(item)
         return
-    d_ptr = item.value["d_ptr"]["d"].cast(privateType.pointer()).dereference()
-    #warn("D_PTR: %s " % d_ptr)
-    objectName = d_ptr["objectName"]
     #warn("OBJECTNAME: %s " % objectName)
     #warn("D_PTR: %s " % d_ptr)
     mo = d_ptr["metaObject"]
@@ -825,7 +832,7 @@ def qdump__QObject(d, item):
             if d.isExpandedIName(item.iname + ".connections"):
                 with Children(d):
                     vectorType = connections.type.target().fields()[0].type
-                    innerType = vectorType.template_argument(0)
+                    innerType = templateArgument(vectorType, 0)
                     # Should check:  innerType == ns::QObjectPrivate::ConnectionList
                     p = gdb.Value(connections["p"]["array"]).cast(innerType.pointer())
                     pp = 0
@@ -1540,7 +1547,7 @@ def qdump__QSet(d, item):
             bucket += 1
         return node
 
-    keyType = item.value.type.template_argument(0)
+    keyType = templateArgument(item.value.type, 0)
 
     d_ptr = item.value["q_hash"]["d"]
     e_ptr = item.value["q_hash"]["e"]
@@ -1585,7 +1592,7 @@ def qdump__QSharedDataPointer(d, item):
         # This replaces the pointer by the pointee, making the
         # pointer transparent.
         try:
-            innerType = item.value.type.template_argument(0)
+            innerType = templateArgument(item.value.type, 0)
         except:
             d.putValue(d_ptr)
             d.putPlainChildren(item)
@@ -1877,6 +1884,7 @@ def qdump__QVariant(d, item):
                 .cast(innerType.pointer()).dereference()
         else:
             v = item.value["d"]["data"].cast(innerType)
+        d.putValue(" ", None, -99)
         d.putItem(Item(v, item.iname))
         d.putType("%sQVariant (%s)" % (d.ns, innert), d.currentTypePriority + 1)
         return innert
@@ -1912,7 +1920,7 @@ def qdump__QVector(d, item):
     check(0 <= size and size <= alloc and alloc <= 1000 * 1000 * 1000)
     checkRef(d_ptr["ref"])
 
-    innerType = item.value.type.template_argument(0)
+    innerType = templateArgument(item.value.type, 0)
     d.putItemCount(size)
     d.putNumChild(size)
     if d.isExpanded(item):
@@ -1944,7 +1952,7 @@ def qdump__QWeakPointer(d, item):
     check(int(strongref) <= int(weakref))
     check(int(weakref) <= 10*1000*1000)
 
-    innerType = item.value.type.template_argument(0)
+    innerType = templateArgument(item.value.type, 0)
     if isSimpleType(value.dereference().type):
         d.putItem(Item(value.dereference(), item.iname, None))
     else:
@@ -1973,7 +1981,7 @@ def qdump__std__deque(d, item):
     d.putItemCount(size)
     d.putNumChild(size)
     if d.isExpanded(item):
-        innerType = item.value.type.template_argument(0)
+        innerType = templateArgument(item.value.type, 0)
         innerSize = innerType.sizeof
         bufsize = select(innerSize < 512, 512 / innerSize, 1)
         with Children(d, [size, 2000], innerType):
@@ -2007,7 +2015,7 @@ def qdump__std__list(d, item):
 
     if d.isExpanded(item):
         p = node["_M_next"]
-        innerType = item.value.type.template_argument(0)
+        innerType = templateArgument(item.value.type, 0)
         with Children(d, [size, 1000], innerType):
             for i in d.childRange():
                 innerPointer = innerType.pointer()
@@ -2024,9 +2032,9 @@ def qdump__std__map(d, item):
     d.putNumChild(size)
 
     if d.isExpanded(item):
-        keyType = item.value.type.template_argument(0)
-        valueType = item.value.type.template_argument(1)
-        pairType = item.value.type.template_argument(3).template_argument(0)
+        keyType = templateArgument(item.value.type, 0)
+        valueType = templateArgument(item.value.type, 1)
+        pairType = templateArgument(templateArgument(item.value.type, 3), 0)
         isSimpleKey = isSimpleType(keyType)
         isSimpleValue = isSimpleType(valueType)
         innerType = select(isSimpleKey and isSimpleValue, valueType, pairType)
@@ -2071,7 +2079,7 @@ def qdump__std__set(d, item):
     d.putItemCount(size)
     d.putNumChild(size)
     if d.isExpanded(item):
-        valueType = item.value.type.template_argument(0)
+        valueType = templateArgument(item.value.type, 0)
         node = impl["_M_header"]["_M_left"]
         with Children(d, [size, 1000], valueType):
             for i in d.childRange():
@@ -2108,7 +2116,7 @@ def qdump__std__string(d, item):
     elif str(baseType) == 'std::wstring':
         charType = lookupType("wchar_t")
     else:
-        charType = baseType.template_argument(0)
+        charType = templateArgument(baseType, 0)
     repType = lookupType("%s::_Rep" % baseType).pointer()
     rep = (data.cast(repType) - 1).dereference()
     size = rep['_M_length']
@@ -2154,7 +2162,7 @@ def qdump__std__string(d, item):
 
 def qdump__std__vector(d, item):
     impl = item.value["_M_impl"]
-    type = item.value.type.template_argument(0)
+    type = templateArgument(item.value.type, 0)
     alloc = impl["_M_end_of_storage"]
     isBool = str(type) == 'bool'
     if isBool:
@@ -2212,7 +2220,7 @@ def qdump____gnu_cxx__hash_set(d, item):
     check(0 <= size and size <= 1000 * 1000 * 1000)
     d.putItemCount(size)
     d.putNumChild(size)
-    type = item.value.type.template_argument(0)
+    type = templateArgument(item.value.type, 0)
     d.putType("__gnu__cxx::hash_set<%s>" % type)
     if d.isExpanded(item):
         with Children(d, [size, 1000], type):
@@ -2244,7 +2252,7 @@ def qdump__boost__optional(d, item):
         d.putNumChild(0)
     else:
         d.putType(item.value.type, d.currentTypePriority + 1)
-        type = item.value.type.template_argument(0)
+        type = templateArgument(item.value.type, 0)
         storage = item.value["m_storage"]
         if type.code == gdb.TYPE_CODE_REF:
             value = storage.cast(type.target().pointer()).dereference()

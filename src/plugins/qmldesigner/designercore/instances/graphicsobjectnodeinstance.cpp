@@ -34,13 +34,14 @@
 #include "private/qgraphicsitem_p.h"
 #include <QStyleOptionGraphicsItem>
 #include "nodemetainfo.h"
+#include <QPixmap>
+#include <QSizeF>
 
 namespace QmlDesigner {
 namespace Internal {
 
-GraphicsObjectNodeInstance::GraphicsObjectNodeInstance(QGraphicsObject *graphicsObject, bool hasContent)
+GraphicsObjectNodeInstance::GraphicsObjectNodeInstance(QGraphicsObject *graphicsObject)
    : ObjectNodeInstance(graphicsObject),
-   m_hasContent(hasContent),
    m_isMovable(true)
 {
 }
@@ -59,6 +60,25 @@ bool GraphicsObjectNodeInstance::hasContent() const
     return m_hasContent;
 }
 
+QList<ServerNodeInstance> GraphicsObjectNodeInstance::childItems() const
+{
+    QList<ServerNodeInstance> instanceList;
+    foreach(QGraphicsItem *item, graphicsObject()->childItems())
+    {
+        QGraphicsObject *childObject = item->toGraphicsObject();
+        if (childObject && nodeInstanceServer()->hasInstanceForObject(childObject)) {
+            instanceList.append(nodeInstanceServer()->instanceForObject(childObject));
+        }
+    }
+
+    return instanceList;
+}
+
+void GraphicsObjectNodeInstance::setHasContent(bool hasContent)
+{
+    m_hasContent = hasContent;
+}
+
 QPointF GraphicsObjectNodeInstance::position() const
 {
     return graphicsObject()->pos();
@@ -71,10 +91,10 @@ QSizeF GraphicsObjectNodeInstance::size() const
 
 QTransform GraphicsObjectNodeInstance::transform() const
 {
-    if (!nodeInstanceView()->hasInstanceForNode(modelNode()))
+    if (!nodeInstanceServer()->hasInstanceForObject(object()))
         return sceneTransform();
 
-    NodeInstance nodeInstanceParent = nodeInstanceView()->instanceForNode(modelNode()).parent();
+    ServerNodeInstance nodeInstanceParent = nodeInstanceServer()->instanceForObject(object()).parent();
 
     if (!nodeInstanceParent.isValid())
         return sceneTransform();
@@ -139,12 +159,6 @@ QRectF GraphicsObjectNodeInstance::boundingRect() const
     return graphicsObject()->boundingRect();
 }
 
-bool GraphicsObjectNodeInstance::isTopLevel() const
-{
-    Q_ASSERT(graphicsObject());
-    return !graphicsObject()->parentItem();
-}
-
 bool GraphicsObjectNodeInstance::isGraphicsObject() const
 {
     return true;
@@ -153,6 +167,11 @@ bool GraphicsObjectNodeInstance::isGraphicsObject() const
 void GraphicsObjectNodeInstance::setPropertyVariant(const QString &name, const QVariant &value)
 {
     ObjectNodeInstance::setPropertyVariant(name, value);
+}
+
+void GraphicsObjectNodeInstance::setPropertyBinding(const QString &name, const QString &expression)
+{
+    ObjectNodeInstance::setPropertyBinding(name, expression);
 }
 
 QVariant GraphicsObjectNodeInstance::property(const QString &name) const
@@ -171,11 +190,39 @@ void initOption(QGraphicsItem *item, QStyleOptionGraphicsItem *option, const QTr
     privateItem->initStyleOption(option, transform, QRegion());
 }
 
+QImage GraphicsObjectNodeInstance::renderImage() const
+{
+    QRectF boundingRect = graphicsObject()->boundingRect();
+    QSize boundingSize = boundingRect.size().toSize();
+
+    QImage image(boundingSize, QImage::Format_ARGB32);
+
+    if (image.isNull())
+        return image;
+
+    image.fill(Qt::transparent);
+
+    QPainter painter(&image);
+    painter.translate(-boundingRect.topLeft());
+
+    if (hasContent()) {
+        QStyleOptionGraphicsItem option;
+        initOption(graphicsObject(), &option, painter.transform());
+        graphicsObject()->paint(&painter, &option);
+
+    }
+
+    foreach(QGraphicsItem *graphicsItem, graphicsObject()->childItems())
+        paintRecursively(graphicsItem, &painter);
+
+    return image;
+}
+
 void GraphicsObjectNodeInstance::paintRecursively(QGraphicsItem *graphicsItem, QPainter *painter) const
 {
     QGraphicsObject *graphicsObject = graphicsItem->toGraphicsObject();
     if (graphicsObject) {
-        if (nodeInstanceView()->hasInstanceForObject(graphicsObject))
+        if (nodeInstanceServer()->hasInstanceForObject(graphicsObject))
             return; //we already keep track of this object elsewhere
     }
 
@@ -191,39 +238,6 @@ void GraphicsObjectNodeInstance::paintRecursively(QGraphicsItem *graphicsItem, Q
         }
         painter->restore();
     }
-}
-
-void GraphicsObjectNodeInstance::paint(QPainter *painter) const
-{
-    if (graphicsObject()) {
-        painter->save();
-        if (hasContent()) {
-            QStyleOptionGraphicsItem option;
-            initOption(graphicsObject(), &option, painter->transform());
-            graphicsObject()->paint(painter, &option);
-
-        }
-
-        foreach(QGraphicsItem *graphicsItem, graphicsObject()->childItems())
-            paintRecursively(graphicsItem, painter);
-
-        painter->restore();
-    }
-}
-
-QPair<QGraphicsObject*, bool> GraphicsObjectNodeInstance::createGraphicsObject(const NodeMetaInfo &metaInfo, QDeclarativeContext *context)
-{
-    QObject *object = ObjectNodeInstance::createObject(metaInfo, context);
-    QGraphicsObject *graphicsObject = qobject_cast<QGraphicsObject*>(object);
-
-    if (graphicsObject == 0)
-        throw InvalidNodeInstanceException(__LINE__, __FUNCTION__, __FILE__);
-
-//    graphicsObject->setCacheMode(QGraphicsItem::ItemCoordinateCache);
-    bool hasContent = !graphicsObject->flags().testFlag(QGraphicsItem::ItemHasNoContents) || metaInfo.isComponent();
-    graphicsObject->setFlag(QGraphicsItem::ItemHasNoContents, false);
-
-    return qMakePair(graphicsObject, hasContent);
 }
 
 void GraphicsObjectNodeInstance::paintUpdate()

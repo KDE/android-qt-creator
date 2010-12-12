@@ -36,11 +36,14 @@
 #include "qt-maemo/maemomanager.h"
 #include "qt-s60/s60manager.h"
 #include "qt-s60/s60projectchecker.h"
+#include "qt-s60/abldparser.h"
+#include "qt-s60/sbsv2parser.h"
 #include "qt-android/androidmanager.h"
 
 #include "qmlobservertool.h"
 #include "qmldumptool.h"
 #include <projectexplorer/debugginghelper.h>
+#include <projectexplorer/gnumakeparser.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/cesdkhandler.h>
@@ -668,6 +671,21 @@ bool QtVersion::supportsShadowBuilds() const
         return false;
     }
     return true;
+}
+
+ProjectExplorer::IOutputParser *QtVersion::createOutputParser() const
+{
+    if (supportsTargetId(Qt4ProjectManager::Constants::S60_DEVICE_TARGET_ID) ||
+        supportsTargetId(Qt4ProjectManager::Constants::S60_EMULATOR_TARGET_ID)) {
+        if (isBuildWithSymbianSbsV2()) {
+            return new SbsV2Parser;
+        } else {
+            ProjectExplorer::IOutputParser *parser = new AbldParser;
+            parser->appendOutputParser(new ProjectExplorer::GnuMakeParser);
+            return parser;
+        }
+    }
+    return new ProjectExplorer::GnuMakeParser;
 }
 
 QList<ProjectExplorer::Task>
@@ -1429,15 +1447,18 @@ void QtVersion::updateToolChainAndMkspec() const
 #    ifdef Q_OS_WIN
             m_targetIds.insert(QLatin1String(Constants::S60_DEVICE_TARGET_ID));
             m_toolChains << ToolChainPtr(s60mgr->createGCCEToolChain(this));
-            if (S60Manager::hasRvctCompiler())
-                m_toolChains << ToolChainPtr(s60mgr->createRVCTToolChain(this, ProjectExplorer::ToolChain_RVCT_ARMV5))
-                             << ToolChainPtr(s60mgr->createRVCTToolChain(this, ProjectExplorer::ToolChain_RVCT_ARMV6));
+            if (S60Manager::hasRvct2Compiler())
+                m_toolChains << ToolChainPtr(s60mgr->createRVCTToolChain(this, ProjectExplorer::ToolChain_RVCT2_ARMV5))
+                             << ToolChainPtr(s60mgr->createRVCTToolChain(this, ProjectExplorer::ToolChain_RVCT2_ARMV6));
+            if (S60Manager::hasRvct4Compiler())
+                m_toolChains << ToolChainPtr(s60mgr->createRVCTToolChain(this, ProjectExplorer::ToolChain_RVCT4_ARMV5))
+                             << ToolChainPtr(s60mgr->createRVCTToolChain(this, ProjectExplorer::ToolChain_RVCT4_ARMV6));
             if (!mwcDirectory().isEmpty()) {
                 m_toolChains << ToolChainPtr(s60mgr->createWINSCWToolChain(this));
                 m_targetIds.insert(QLatin1String(Constants::S60_EMULATOR_TARGET_ID));
             }
 #    else
-            if (S60Manager::hasRvctCompiler())
+            if (S60Manager::hasRvct2Compiler())
                 m_toolChains << ToolChainPtr(s60mgr->createRVCTToolChain(this, ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC));
             m_toolChains << ToolChainPtr(s60mgr->createGCCE_GnuPocToolChain(this));
             m_targetIds.insert(QLatin1String(Constants::S60_DEVICE_TARGET_ID));
@@ -1617,6 +1638,29 @@ QString QtVersion::invalidReason() const
     return QString();
 }
 
+QString QtVersion::description() const
+{
+    if (!isValid())
+        return invalidReason();
+    if (possibleToolChainTypes().isEmpty())
+        return QCoreApplication::translate("QtVersion", "This Qt Version has a unknown toolchain.");
+    QSet<QString> targets = supportedTargetIds();
+    QString envs;
+    if (targets.contains(Constants::DESKTOP_TARGET_ID))
+        envs = QCoreApplication::translate("QtVersion", "Desktop", "Qt Version is meant for the desktop");
+    else if (targets.contains(Constants::S60_DEVICE_TARGET_ID) ||
+             targets.contains(Constants::S60_EMULATOR_TARGET_ID))
+        envs = QCoreApplication::translate("QtVersion", "Symbian", "Qt Version is meant for Symbian");
+    else if (targets.contains(Constants::MAEMO_DEVICE_TARGET_ID))
+        envs = QCoreApplication::translate("QtVersion", "Maemo", "Qt Version is meant for Maemo");
+    else if (targets.contains(Constants::QT_SIMULATOR_TARGET_ID))
+        envs = QCoreApplication::translate("QtVersion", "Qt Simulator", "Qt Version is meant for Qt Simulator");
+    else
+        envs = QCoreApplication::translate("QtVersion", "unkown", "No idea what this Qt Version is meant for!");
+    return QCoreApplication::translate("QtVersion", "Qt version %1, using mkspec %2 (%3)")
+           .arg(qtVersionString(), mkspec(), envs);
+}
+
 QtVersion::QmakeBuildConfigs QtVersion::defaultBuildConfig() const
 {
     updateToolChainAndMkspec();
@@ -1708,8 +1752,10 @@ bool QtVersion::supportsBinaryDebuggingHelper() const
             return true;
         case ProjectExplorer::ToolChain_WINSCW:
         case ProjectExplorer::ToolChain_GCCE :
-        case ProjectExplorer::ToolChain_RVCT_ARMV5:
-        case ProjectExplorer::ToolChain_RVCT_ARMV6:
+        case ProjectExplorer::ToolChain_RVCT2_ARMV5:
+        case ProjectExplorer::ToolChain_RVCT2_ARMV6:
+        case ProjectExplorer::ToolChain_RVCT4_ARMV5:
+        case ProjectExplorer::ToolChain_RVCT4_ARMV6:
         case ProjectExplorer::ToolChain_GCCE_GNUPOC:
         case ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC:
         case ProjectExplorer::ToolChain_INVALID:

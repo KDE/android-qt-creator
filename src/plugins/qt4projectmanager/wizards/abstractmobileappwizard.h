@@ -37,16 +37,41 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 class AbstractMobileApp;
+class MobileAppWizardGenericOptionsPage;
+class MobileAppWizardSymbianOptionsPage;
+class MobileAppWizardMaemoOptionsPage;
 
-class AbstractMobileAppWizardDialog  : public ProjectExplorer::BaseProjectWizardDialog
+class AbstractMobileAppWizardDialog : public ProjectExplorer::BaseProjectWizardDialog
 {
     Q_OBJECT
 protected:
     explicit AbstractMobileAppWizardDialog(QWidget *parent = 0);
 
 public:
-    class MobileAppWizardOptionsPage *m_optionsPage;
+    MobileAppWizardGenericOptionsPage *m_genericOptionsPage;
+    MobileAppWizardSymbianOptionsPage *m_symbianOptionsPage;
+    MobileAppWizardMaemoOptionsPage *m_maemoOptionsPage;
     class TargetSetupPage *m_targetsPage;
+
+protected:
+    int addPageWithTitle(QWizardPage *page, const QString &title);
+    virtual void initializePage(int id);
+    virtual void cleanupPage(int id);
+
+private:
+    virtual int nextId() const;
+
+    int idOfNextGenericPage() const;
+    Utils::WizardProgressItem *itemOfNextGenericPage() const;
+
+    int m_genericOptionsPageId;
+    int m_symbianOptionsPageId;
+    int m_maemoOptionsPageId;
+    int m_targetsPageId;
+    Utils::WizardProgressItem *m_targetItem;
+    Utils::WizardProgressItem *m_genericItem;
+    Utils::WizardProgressItem *m_symbianItem;
+    Utils::WizardProgressItem *m_maemoItem;
 };
 
 class AbstractMobileAppWizard : public Core::BaseFileWizard

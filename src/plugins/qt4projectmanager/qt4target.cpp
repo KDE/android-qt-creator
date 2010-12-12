@@ -44,6 +44,7 @@
 #include "qt-s60/s60emulatorrunconfiguration.h"
 #include "qt-s60/s60createpackagestep.h"
 #include "qt-s60/s60deploystep.h"
+#include "qt4projectconfigwidget.h"
 #include "qt-android/androiddeploystep.h"
 #include "qt-android/androidpackagecreationstep.h"
 #include "qt-android/androidrunconfiguration.h"
@@ -110,12 +111,31 @@ Qt4TargetFactory::~Qt4TargetFactory()
 {
 }
 
+bool Qt4TargetFactory::supportsTargetId(const QString &id) const
+{
+    QSet<QString> ids;
+    ids << QLatin1String("Qt4ProjectManager.Target.DesktopTarget")
+        << QLatin1String("Qt4ProjectManager.Target.S60EmulatorTarget")
+        << QLatin1String("Qt4ProjectManager.Target.S60DeviceTarget")
+        << QLatin1String("Qt4ProjectManager.Target.MaemoDeviceTarget")
+        << QLatin1String("Qt4ProjectManager.Target.QtSimulatorTarget");
+    return ids.contains(id);
+}
+
 QStringList Qt4TargetFactory::availableCreationIds(ProjectExplorer::Project *parent) const
 {
     if (!qobject_cast<Qt4Project *>(parent))
         return QStringList();
 
-    return parent->possibleTargetIds().toList();
+    QSet<QString> ids;
+    ids << QLatin1String("Qt4ProjectManager.Target.DesktopTarget")
+        << QLatin1String("Qt4ProjectManager.Target.S60EmulatorTarget")
+        << QLatin1String("Qt4ProjectManager.Target.S60DeviceTarget")
+        << QLatin1String("Qt4ProjectManager.Target.MaemoDeviceTarget")
+        << QLatin1String("Qt4ProjectManager.Target.QtSimulatorTarget");
+
+
+    return parent->possibleTargetIds().intersect(ids).toList();
 }
 
 QString Qt4TargetFactory::displayNameForId(const QString &id) const
@@ -263,6 +283,11 @@ Qt4Target::Qt4Target(Qt4Project *parent, const QString &id) :
 
 Qt4Target::~Qt4Target()
 {
+}
+
+ProjectExplorer::BuildConfigWidget *Qt4Target::createConfigWidget()
+{
+    return new Qt4ProjectConfigWidget(this);
 }
 
 Qt4BuildConfiguration *Qt4Target::activeBuildConfiguration() const
@@ -427,8 +452,8 @@ void Qt4Target::onAddedBuildConfiguration(ProjectExplorer::BuildConfiguration *b
     Q_ASSERT(qt4bc);
     connect(qt4bc, SIGNAL(buildDirectoryInitialized()),
             this, SIGNAL(buildDirectoryInitialized()));
-    connect(qt4bc, SIGNAL(proFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4BuildConfiguration *)),
-            this, SLOT(onProFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4BuildConfiguration *)));
+    connect(qt4bc, SIGNAL(proFileEvaluateNeeded(Qt4ProjectManager::Qt4BuildConfiguration *)),
+            this, SLOT(onProFileEvaluateNeeded(Qt4ProjectManager::Qt4BuildConfiguration *)));
 }
 
 void Qt4Target::onAddedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc)
@@ -449,7 +474,7 @@ void Qt4Target::slotUpdateDeviceInformation()
     }
 }
 
-void Qt4Target::onProFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4BuildConfiguration *bc)
+void Qt4Target::onProFileEvaluateNeeded(Qt4ProjectManager::Qt4BuildConfiguration *bc)
 {
     if (bc && bc == activeBuildConfiguration())
         emit proFileEvaluateNeeded(this);

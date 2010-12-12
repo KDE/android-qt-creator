@@ -32,9 +32,9 @@
 
 #include "qmljsprivateapi.h"
 
-#include <coreplugin/basemode.h>
 #include <debugger/debuggerconstants.h>
 #include <qmlprojectmanager/qmlprojectrunconfiguration.h>
+#include <utils/fileinprojectfinder.h>
 
 #include <qmljs/qmljsdocument.h>
 #include <qmljs/parser/qmljsastfwd_p.h>
@@ -58,12 +58,6 @@ namespace Core {
 namespace QmlJS {
     class ModelManagerInterface;
 }
-
-namespace Debugger {
-    class QmlEngine;
-}
-
-QT_FORWARD_DECLARE_CLASS(QDockWidget)
 
 namespace QmlJSInspector {
 namespace Internal {
@@ -106,15 +100,14 @@ public:
     bool isConnected() const;
     void connected(ClientProxy *clientProxy);
     void disconnected();
-    void setDebuggerEngine(Debugger::QmlEngine *qmlEngine);
-    Debugger::QmlEngine *debuggerEngine() const;
+    void setDebuggerEngine(QObject *qmlEngine);
+    QObject *debuggerEngine() const;
 
 signals:
     void statusMessage(const QString &text);
     void livePreviewActivated(bool isActivated);
 
 public slots:
-    void setSimpleDockWidgetArrangement(const Debugger::DebuggerLanguages &activeLanguages);
     void reloadQmlViewer();
     void serverReloaded();
     void setApplyChangesToQmlObserver(bool applyChanges);
@@ -156,11 +149,10 @@ private:
     QmlInspectorToolbar *m_toolbar;
     ContextCrumblePath *m_crumblePath;
     QmlJSObjectTree *m_objectTreeWidget;
-    QDockWidget *m_inspectorDockWidget;
 
     InspectorSettings *m_settings;
     ClientProxy *m_clientProxy;
-    Debugger::QmlEngine *m_qmlEngine;
+    QObject *m_qmlEngine;
     QDeclarativeDebugExpressionQuery *m_debugQuery;
     int m_lastSelectedDebugId;
 
@@ -173,6 +165,7 @@ private:
     QString m_debugProjectBuildDir;
 
     QStringList m_pendingPreviewDocumentNames;
+    Utils::FileInProjectFinder m_projectFinder;
 
     static InspectorUi *m_instance;
 };

@@ -66,9 +66,16 @@ public:
     QString projectName() const { return m_projectName; }
     QString projectDir() const;
     QString proFilePath() const { return m_proFilePath; }
+    bool isApplicationProject() const { return m_projectType == ApplicationTemplate; }
+    QString applicationName() const { return m_targetInfo.target; }
     bool hasTargetPath() const { return m_hasTargetPath; }
-    bool canAddDesktopFile() const;
+    bool canAddDesktopFile() const { return isApplicationProject() && !hasDesktopFile(); }
+    QString localDesktopFilePath() const;
+    bool hasDesktopFile() const { return !localDesktopFilePath().isEmpty(); }
     bool addDesktopFile(QString &error);
+    bool canAddIcon() const { return isApplicationProject() && remoteIconFilePath().isEmpty(); }
+    bool addIcon(const QString &fileName, QString &error);
+    QString remoteIconFilePath() const;
     ProFileUpdateSetting proFileUpdateSetting() const {
         return m_proFileUpdateSetting;
     }
@@ -88,6 +95,8 @@ private:
     bool buildModel();
     bool addLinesToProFile(const QStringList &lines);
     const MaemoToolChain *maemoToolchain() const;
+    QString proFileScope() const;
+    QString installPrefix() const;
 
     const Qt4ProjectType m_projectType;
     const QString m_proFilePath;

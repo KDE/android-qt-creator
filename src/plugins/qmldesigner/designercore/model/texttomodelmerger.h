@@ -35,7 +35,9 @@
 #include "nodelistproperty.h"
 #include "modelnode.h"
 
+#include <qmljs/qmljslookupcontext.h>
 #include <qmljs/qmljsdocument.h>
+#include <qmljs/qmljslookupcontext.h>
 
 #include <QtCore/QStringList>
 
@@ -63,6 +65,12 @@ public:
     RewriterView *view() const
     { return m_rewriterView; }
 
+    QmlJS::LookupContext *lookupContext() const
+    { return m_lookupContext.data(); }
+
+    QmlJS::Document *document() const
+    { return m_document.data(); }
+
 protected:
     void setActive(bool active);
 
@@ -84,6 +92,7 @@ public:
                           DifferenceHandler &differenceHandler);
     void syncExpressionProperty(AbstractProperty &modelProperty,
                                 const QString &javascript,
+                                const QString &astType,
                                 DifferenceHandler &differenceHandler);
     void syncArrayProperty(AbstractProperty &modelProperty,
                            const QList<QmlJS::AST::UiObjectMember *> &arrayMembers,
@@ -121,6 +130,8 @@ private:
 private:
     RewriterView *m_rewriterView;
     bool m_isActive;
+    QmlJS::LookupContext::Ptr m_lookupContext;
+    QmlJS::Document::Ptr m_document;
 };
 
 class DifferenceHandler
@@ -135,9 +146,11 @@ public:
     virtual void modelMissesImport(const Import &import) = 0;
     virtual void importAbsentInQMl(const Import &import) = 0;
     virtual void bindingExpressionsDiffer(BindingProperty &modelProperty,
-                                          const QString &javascript) = 0;
+                                          const QString &javascript,
+                                          const QString &astType) = 0;
     virtual void shouldBeBindingProperty(AbstractProperty &modelProperty,
-                                         const QString &javascript) = 0;
+                                         const QString &javascript,
+                                         const QString &astType) = 0;
     virtual void shouldBeNodeListProperty(AbstractProperty &modelProperty,
                                           const QList<QmlJS::AST::UiObjectMember *> arrayMembers,
                                           ReadingContext *context) = 0;
@@ -179,9 +192,11 @@ public:
     virtual void modelMissesImport(const Import &import);
     virtual void importAbsentInQMl(const Import &import);
     virtual void bindingExpressionsDiffer(BindingProperty &modelProperty,
-                                          const QString &javascript);
+                                          const QString &javascript,
+                                          const QString &astType);
     virtual void shouldBeBindingProperty(AbstractProperty &modelProperty,
-                                         const QString &javascript);
+                                         const QString &javascript,
+                                         const QString &astType);
     virtual void shouldBeNodeListProperty(AbstractProperty &modelProperty,
                                           const QList<QmlJS::AST::UiObjectMember *> arrayMembers,
                                           ReadingContext *context);
@@ -220,9 +235,11 @@ public:
     virtual void modelMissesImport(const Import &import);
     virtual void importAbsentInQMl(const Import &import);
     virtual void bindingExpressionsDiffer(BindingProperty &modelProperty,
-                                          const QString &javascript);
+                                          const QString &javascript,
+                                          const QString &astType);
     virtual void shouldBeBindingProperty(AbstractProperty &modelProperty,
-                                         const QString &javascript);
+                                         const QString &javascript,
+                                         const QString &astType);
     virtual void shouldBeNodeListProperty(AbstractProperty &modelProperty,
                                           const QList<QmlJS::AST::UiObjectMember *> arrayMembers,
                                           ReadingContext *context);

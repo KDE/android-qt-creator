@@ -60,11 +60,11 @@ class EnvironmentWidget;
 namespace Utils { class DetailsWidget; }
 
 namespace Qt4ProjectManager {
-namespace Internal {
+class Qt4BuildConfiguration;
 
+namespace Internal {
 class MaemoDeviceEnvReader;
 class MaemoRunConfiguration;
-class Qt4BuildConfiguration;
 
 class MaemoRunConfigurationWidget : public QWidget
 {
@@ -76,7 +76,7 @@ public:
 private slots:
     void runConfigurationEnabledChange(bool enabled);
     void argumentsEdited(const QString &args);
-    void showSettingsDialog(const QString &link);
+    void showDeviceConfigurationsDialog(const QString &link);
     void updateTargetInformation();
     void handleCurrentDeviceConfigChanged();
     void addMount();

@@ -43,13 +43,13 @@ class RunControl;
 
 namespace Debugger {
 
+class DebuggerMainWindow;
 class DebuggerRunControl;
 class DebuggerStartParameters;
-class DebuggerUISwitcher;
 
-// This is the "external" interface of the debugger plugin that's
-// visible from Creator core. The internal interfact to global
-// functionality to be used by debugger views and debugger engines
+// This is the "external" interface of the debugger plugin that's visible
+// from Qt Creator core. The internal interface to global debugger
+// functionality that is used by debugger views and debugger engines
 // is DebuggerCore, implemented in DebuggerPluginPrivate.
 
 class DEBUGGER_EXPORT DebuggerPlugin : public ExtensionSystem::IPlugin
@@ -60,12 +60,14 @@ public:
     DebuggerPlugin();
     ~DebuggerPlugin();
 
+    // Used by Maemo debugging support.
     static DebuggerRunControl *createDebugger(const DebuggerStartParameters &sp,
         ProjectExplorer::RunConfiguration *rc = 0);
     static void startDebugger(ProjectExplorer::RunControl *runControl);
-    static void displayDebugger(ProjectExplorer::RunControl *runControl);
+
+    // Used by QmlJSInspector.
     static bool isActiveDebugLanguage(int language);
-    static DebuggerUISwitcher *uiSwitcher();
+    static DebuggerMainWindow *mainWindow();
 
 private:
     // IPlugin implementation.
@@ -73,10 +75,6 @@ private:
     void remoteCommand(const QStringList &options, const QStringList &arguments);
     ShutdownFlag aboutToShutdown();
     void extensionsInitialized();
-    void readSettings();
-    void writeSettings() const;
-    void runControlStarted(DebuggerRunControl *runControl);
-    void runControlFinished(DebuggerRunControl *runControl);
 };
 
 } // namespace Debugger

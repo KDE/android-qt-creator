@@ -52,6 +52,8 @@ public:
     explicit QmlProjectTarget(QmlProject *parent);
     ~QmlProjectTarget();
 
+    ProjectExplorer::BuildConfigWidget *createConfigWidget();
+
     QmlProject *qmlProject() const;
 
     ProjectExplorer::IBuildConfigurationFactory *buildConfigurationFactory() const;
@@ -69,6 +71,7 @@ public:
     explicit QmlProjectTargetFactory(QObject *parent = 0);
     ~QmlProjectTargetFactory();
 
+    bool supportsTargetId(const QString &id) const;
     QStringList availableCreationIds(ProjectExplorer::Project *parent) const;
     QString displayNameForId(const QString &id) const;
 

@@ -51,10 +51,10 @@ class ModelNode;
 class TextModifier;
 class QmlObjectNode;
 class RewriterView;
-class ItemLibrary;
+class ItemLibraryView;
 class NavigatorView;
 class AllPropertiesBox;
-class StatesEditorWidget;
+class StatesEditorView;
 class FormEditorView;
 
 class DesignDocumentController: public QObject
@@ -89,10 +89,10 @@ public:
     QString contextHelpId() const;
     QList<RewriterView::Error> qmlErrors() const;
 
-    void setItemLibrary(ItemLibrary* itemLibrary);
+    void setItemLibraryView(ItemLibraryView* itemLibraryView);
     void setNavigator(NavigatorView* navigatorView);
     void setAllPropertiesBox(AllPropertiesBox* allPropertiesBox);
-    void setStatesEditorWidget(StatesEditorWidget* statesEditorWidget);
+    void setStatesEditorView(StatesEditorView* statesEditorView);
     void setFormEditorView(FormEditorView *formEditorView);
     void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
 

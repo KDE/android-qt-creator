@@ -87,7 +87,7 @@ bool AbstractGdbAdapter::prepareWinCommand()
     if (perr != Utils::QtcProcess::SplitOk) {
         // perr == BadQuoting is never returned on Windows
         // FIXME? QTCREATORBUG-2809
-        m_engine->handleAdapterStartFailed(QApplication::translate("DebuggerEngine", // Same message in CdbEngine
+        m_engine->handleAdapterStartFailed(QCoreApplication::translate("DebuggerEngine", // Same message in CdbEngine
             "Debugging complex command lines is currently not supported under Windows"), QString());
         return false;
     }
@@ -143,6 +143,17 @@ DebuggerStartParameters &AbstractGdbAdapter::startParameters()
 void AbstractGdbAdapter::showMessage(const QString &msg, int channel, int timeout)
 {
     m_engine->showMessage(msg, channel, timeout);
+}
+
+void AbstractGdbAdapter::handleRemoteSetupDone(int gdbServerPort, int qmlPort)
+{
+    Q_UNUSED(gdbServerPort);
+    Q_UNUSED(qmlPort);
+}
+
+void AbstractGdbAdapter::handleRemoteSetupFailed(const QString &reason)
+{
+    Q_UNUSED(reason);
 }
 
 } // namespace Internal

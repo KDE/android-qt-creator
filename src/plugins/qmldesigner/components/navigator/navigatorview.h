@@ -69,9 +69,9 @@ public:
     void bindingPropertiesChanged(const QList<BindingProperty> &propertyList, PropertyChangeFlags propertyChange);
 
     void nodeAboutToBeRemoved(const ModelNode &removedNode);
-    void nodeReparented(const ModelNode &node, const ModelNode &oldParent, const ModelNode &newParent);
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex);
 
+    void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void rootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion);
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId);
@@ -82,6 +82,7 @@ public:
     void auxiliaryDataChanged(const ModelNode &node, const QString &name, const QVariant &data);
     void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
+    void instancesCompleted(const QVector<ModelNode> &completedNodeList);
 
 private slots:
 //    void handleChangedItem(QStandardItem * item);

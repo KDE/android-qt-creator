@@ -151,9 +151,7 @@ public:
     ProjectExplorer::IProjectManager *projectManager() const;
     Qt4Manager *qt4ProjectManager() const;
 
-    Internal::Qt4TargetFactory *targetFactory() const;
-
-    Internal::Qt4Target *activeTarget() const;
+    Qt4Target *activeTarget() const;
 
     QList<Core::IFile *> dependencies();     //NBS remove
     QList<ProjectExplorer::Project *>dependsOn();
@@ -164,7 +162,6 @@ public:
     virtual QStringList files(FilesMode fileMode) const;
     virtual QString generatedUiHeader(const QString &formFile) const;
 
-    ProjectExplorer::BuildConfigWidget *createConfigWidget();
     QList<ProjectExplorer::BuildConfigWidget*> subConfigWidgets();
 
     QList<Internal::Qt4ProFileNode *> leafProFiles() const;
@@ -209,7 +206,7 @@ protected:
     virtual bool fromMap(const QVariantMap &map);
 
 private slots:
-    void proFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4Target *target);
+    void proFileEvaluateNeeded(Qt4ProjectManager::Qt4Target *target);
 
     void asyncUpdate();
 
@@ -240,7 +237,6 @@ private:
     Qt4Manager *m_manager;
     Internal::Qt4ProFileNode *m_rootProjectNode;
     Internal::Qt4NodesWatcher *m_nodesWatcher;
-    Internal::Qt4TargetFactory *m_targetFactory;
 
     Qt4ProjectFile *m_fileInfo;
 

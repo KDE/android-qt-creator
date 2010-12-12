@@ -43,6 +43,13 @@
 #include <modelnode.h>
 #include <QScopedPointer>
 
+namespace QmlJS {
+
+class DiagnosticMessage;
+class LookupContext;
+class Document;
+}
+
 
 namespace QmlDesigner {
 
@@ -55,7 +62,6 @@ class ModelToTextMerger;
 class ModelNodePositionStorage;
 
 } //Internal
-
 
 class CORESHARED_EXPORT RewriterView : public AbstractView
 {
@@ -77,7 +83,7 @@ public:
 
     public:
         Error();
-        Error(const QDeclarativeError &qmlError);
+        Error(const QmlJS::DiagnosticMessage &qmlError, const QUrl &document);
         Error(const QString &shortDescription);
         Error(Exception *exception);
 
@@ -120,6 +126,7 @@ public:
     void propertiesRemoved(const QList<AbstractProperty>& propertyList);
     void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange);
     void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange);
+    void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId);
     void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex);
@@ -128,6 +135,7 @@ public:
     void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
 
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
+    void instancesCompleted(const QVector<ModelNode> &completedNodeList);
 
     void importAdded(const Import &import);
     void importRemoved(const Import &import);
@@ -161,6 +169,9 @@ public:
     bool modificationGroupActive();
 
     bool renameId(const QString& oldId, const QString& newId);
+
+    QmlJS::LookupContext *lookupContext() const;
+    QmlJS::Document *document() const;
 
 signals:
     void errorsChanged(const QList<RewriterView::Error> &errors);

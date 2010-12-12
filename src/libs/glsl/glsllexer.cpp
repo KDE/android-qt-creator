@@ -207,9 +207,12 @@ int Lexer::yylex_helper(const char **position, int *line)
         // float constant
     case '.':
         if (std::isdigit(_yychar)) {
+            const char *word = _it - 2;
             while (std::isalnum(_yychar)) {
                 yyinp();
             }
+            if (_engine)
+                _yyval.string = _engine->number(word, _it - word - 1);
             return Parser::T_NUMBER;
         }
         return Parser::T_DOT;
@@ -328,8 +331,11 @@ int Lexer::yylex_helper(const char **position, int *line)
         if (_yychar == '=') {
             yyinp();
             return Parser::T_XOR_ASSIGN;
+        } else if (_yychar == '^') {
+            yyinp();
+            return Parser::T_XOR_OP;
         }
-        return Parser::T_XOR_OP;
+        return Parser::T_CARET;
 
         // {
     case '{':
@@ -378,7 +384,7 @@ int Lexer::yylex_helper(const char **position, int *line)
                 yyinp();
             }
             if (_engine)
-                _yyval.string = _engine->identifier(word, _it - word - 1);
+                _yyval.string = _engine->number(word, _it - word - 1);
             return Parser::T_NUMBER;
         }
 
@@ -404,18 +410,10 @@ int Lexer::findKeyword(const char *word, int length) const
 
 void Lexer::warning(int line, const QString &message)
 {
-    DiagnosticMessage m;
-    m.setKind(DiagnosticMessage::Warning);
-    m.setLine(line);
-    m.setMessage(message);
-    _engine->addDiagnosticMessage(m);
+    _engine->warning(line, message);
 }
 
 void Lexer::error(int line, const QString &message)
 {
-    DiagnosticMessage m;
-    m.setKind(DiagnosticMessage::Error);
-    m.setLine(line);
-    m.setMessage(message);
-    _engine->addDiagnosticMessage(m);
+    _engine->error(line, message);
 }

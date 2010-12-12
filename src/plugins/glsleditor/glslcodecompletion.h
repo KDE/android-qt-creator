@@ -30,8 +30,12 @@
 #define GLSLCODECOMPLETION_H
 
 #include <texteditor/icompletioncollector.h>
+#include <QtCore/QPointer>
 
 namespace GLSLEditor {
+namespace Internal {
+
+class FunctionArgumentWidget;
 
 class CodeCompletion: public TextEditor::ICompletionCollector
 {
@@ -86,6 +90,9 @@ public:
      */
     virtual bool partiallyComplete(const QList<TextEditor::CompletionItem> &completionItems);
 
+    virtual QList<TextEditor::CompletionItem> getCompletions();
+    virtual bool shouldRestartCompletion();
+
     /* Called when it's safe to clean up the completion items.
      */
     virtual void cleanup();
@@ -96,8 +103,24 @@ private:
     TextEditor::ITextEditable *m_editor;
     int m_startPosition;
     bool m_restartCompletion;
+    QPointer<FunctionArgumentWidget> m_functionArgumentWidget;
+
+    static bool glslCompletionItemLessThan(const TextEditor::CompletionItem &l, const TextEditor::CompletionItem &r);
+
+    int m_keywordVariant;
+
+    QIcon m_keywordIcon;
+    QIcon m_varIcon;
+    QIcon m_functionIcon;
+    QIcon m_typeIcon;
+    QIcon m_constIcon;
+    QIcon m_attributeIcon;
+    QIcon m_uniformIcon;
+    QIcon m_varyingIcon;
+    QIcon m_otherIcon;
 };
 
+} // namespace Internal
 } // namespace GLSLEditor
 
 #endif // GLSLCODECOMPLETION_H

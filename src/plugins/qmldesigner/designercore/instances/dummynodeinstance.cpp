@@ -32,7 +32,6 @@
 #include <nodemetainfo.h>
 
 #include <invalidnodeinstanceexception.h>
-#include <propertymetainfo.h>
 
 namespace QmlDesigner {
 namespace Internal {
@@ -49,11 +48,6 @@ DummyNodeInstance::Pointer DummyNodeInstance::create()
 
 void DummyNodeInstance::paint(QPainter * /*painter*/) const
 {
-}
-
-bool DummyNodeInstance::isTopLevel() const
-{
-    return false;
 }
 
 QRectF DummyNodeInstance::boundingRect() const

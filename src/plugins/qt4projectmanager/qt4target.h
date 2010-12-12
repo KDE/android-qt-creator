@@ -55,20 +55,23 @@ struct BuildConfigurationInfo {
     QString additionalArguments;
     QString directory;
 };
+}
 
 class Qt4Target : public ProjectExplorer::Target
 {
     Q_OBJECT
-    friend class Qt4TargetFactory;
+    friend class Internal::Qt4TargetFactory;
 
 public:
     explicit Qt4Target(Qt4Project *parent, const QString &id);
     virtual ~Qt4Target();
 
+    ProjectExplorer::BuildConfigWidget *createConfigWidget();
+
     Qt4BuildConfiguration *activeBuildConfiguration() const;
     Qt4ProjectManager::Qt4Project *qt4Project() const;
 
-    Internal::Qt4BuildConfiguration *addQt4BuildConfiguration(QString displayName,
+    Qt4BuildConfiguration *addQt4BuildConfiguration(QString displayName,
                                                               QtVersion *qtversion,
                                                               QtVersion::QmakeBuildConfigs qmakeBuildConfiguration,
                                                               QString additionalArguments,
@@ -84,21 +87,20 @@ public:
     QString defaultBuildDirectory() const;
     static QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id);
 
+    bool fromMap(const QVariantMap &map);
+
 signals:
     void buildDirectoryInitialized();
     /// emitted if the build configuration changed in a way that
     /// should trigger a reevaluation of all .pro files
-    void proFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4Target *);
-
-protected:
-    bool fromMap(const QVariantMap &map);
+    void proFileEvaluateNeeded(Qt4ProjectManager::Qt4Target *);
 
 private slots:
     void updateQtVersion();
     void onAddedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc);
     void onAddedDeployConfiguration(ProjectExplorer::DeployConfiguration *dc);
     void slotUpdateDeviceInformation();
-    void onProFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4BuildConfiguration *bc);
+    void onProFileEvaluateNeeded(Qt4ProjectManager::Qt4BuildConfiguration *bc);
     void emitProFileEvaluateNeeded();
     void updateToolTipAndIcon();
 
@@ -110,6 +112,7 @@ private:
     Internal::Qt4DeployConfigurationFactory *m_deployConfigurationFactory;
 };
 
+namespace Internal {
 class Qt4TargetFactory : public ProjectExplorer::ITargetFactory
 {
     Q_OBJECT
@@ -118,18 +121,19 @@ public:
     Qt4TargetFactory(QObject *parent = 0);
     ~Qt4TargetFactory();
 
+    virtual bool supportsTargetId(const QString &id) const;
+
     QStringList availableCreationIds(ProjectExplorer::Project *parent) const;
     QString displayNameForId(const QString &id) const;
 
     bool canCreate(ProjectExplorer::Project *parent, const QString &id) const;
-    Internal::Qt4Target *create(ProjectExplorer::Project *parent, const QString &id);
-    Internal::Qt4Target *create(ProjectExplorer::Project *parent, const QString &id, QList<QtVersion *> versions);
-    Internal::Qt4Target *create(ProjectExplorer::Project *parent, const QString &id, QList<BuildConfigurationInfo> infos);
+    Qt4ProjectManager::Qt4Target *create(ProjectExplorer::Project *parent, const QString &id);
+    Qt4ProjectManager::Qt4Target *create(ProjectExplorer::Project *parent, const QString &id, QList<QtVersion *> versions);
+    Qt4ProjectManager::Qt4Target *create(ProjectExplorer::Project *parent, const QString &id, QList<Internal::BuildConfigurationInfo> infos);
     bool canRestore(ProjectExplorer::Project *parent, const QVariantMap &map) const;
-    Internal::Qt4Target *restore(ProjectExplorer::Project *parent, const QVariantMap &map);
+    Qt4ProjectManager::Qt4Target *restore(ProjectExplorer::Project *parent, const QVariantMap &map);
 };
-
-} // namespace Internal
+}
 
 } // namespace Qt4ProjectManager
 

@@ -1,6 +1,6 @@
 #include "qmlcppengine.h"
 #include "qmlengine.h"
-#include "debuggeruiswitcher.h"
+#include "debuggermainwindow.h"
 #include "debuggercore.h"
 
 #include <qmljseditor/qmljseditorconstants.h>
@@ -33,9 +33,9 @@ public:
     QmlCppEnginePrivate();
     ~QmlCppEnginePrivate() {}
 
-    friend class Debugger::QmlCppEngine;
+    friend class QmlCppEngine;
 private:
-    QmlEngine *m_qmlEngine;
+    DebuggerEngine *m_qmlEngine;
     DebuggerEngine *m_cppEngine;
     DebuggerEngine *m_activeEngine;
     DebuggerState m_errorState;
@@ -48,20 +48,17 @@ QmlCppEnginePrivate::QmlCppEnginePrivate()
     m_errorState(InferiorRunOk)
 {}
 
-} // namespace Internal
-
-using namespace Internal;
 
 QmlCppEngine::QmlCppEngine(const DebuggerStartParameters &sp)
     : DebuggerEngine(sp), d(new QmlCppEnginePrivate)
 {
-    d->m_qmlEngine = qobject_cast<QmlEngine*>(Internal::createQmlEngine(sp));
+    d->m_qmlEngine = createQmlEngine(sp);
 
     if (startParameters().cppEngineType == GdbEngineType) {
-        d->m_cppEngine = Internal::createGdbEngine(sp);
+        d->m_cppEngine = createGdbEngine(sp);
     } else {
         QString errorMessage;
-        d->m_cppEngine = Internal::createCdbEngine(sp, &errorMessage);
+        d->m_cppEngine = createCdbEngine(sp, &errorMessage);
         if (!d->m_cppEngine) {
             qWarning("%s", qPrintable(errorMessage));
             return;
@@ -119,7 +116,7 @@ void QmlCppEngine::setActiveEngine(DebuggerLanguage language)
     }
     if (previousEngine != d->m_activeEngine) {
         showStatusMessage(tr("%1 debugger activated").arg(engineName));
-        Internal::debuggerCore()->displayDebugger(d->m_activeEngine, updateEngine);
+        debuggerCore()->displayDebugger(d->m_activeEngine, updateEngine);
     }
 }
 
@@ -138,8 +135,8 @@ void QmlCppEngine::setToolTipExpression(const QPoint & mousePos,
     d->m_activeEngine->setToolTipExpression(mousePos, editor, cursorPos);
 }
 
-void QmlCppEngine::updateWatchData(const Internal::WatchData &data,
-    const Internal::WatchUpdateFlags &flags)
+void QmlCppEngine::updateWatchData(const WatchData &data,
+    const WatchUpdateFlags &flags)
 {
     d->m_activeEngine->updateWatchData(data, flags);
 }
@@ -149,13 +146,13 @@ void QmlCppEngine::watchPoint(const QPoint &point)
     d->m_cppEngine->watchPoint(point);
 }
 
-void QmlCppEngine::fetchMemory(Internal::MemoryViewAgent *mva, QObject *obj,
+void QmlCppEngine::fetchMemory(MemoryViewAgent *mva, QObject *obj,
         quint64 addr, quint64 length)
 {
     d->m_cppEngine->fetchMemory(mva, obj, addr, length);
 }
 
-void QmlCppEngine::fetchDisassembler(Internal::DisassemblerViewAgent *dva)
+void QmlCppEngine::fetchDisassembler(DisassemblerViewAgent *dva)
 {
     d->m_cppEngine->fetchDisassembler(dva);
 }
@@ -239,10 +236,10 @@ void QmlCppEngine::updateAll()
 void QmlCppEngine::attemptBreakpointSynchronization()
 {
     d->m_cppEngine->attemptBreakpointSynchronization();
-    static_cast<DebuggerEngine*>(d->m_qmlEngine)->attemptBreakpointSynchronization();
+    d->m_qmlEngine->attemptBreakpointSynchronization();
 }
 
-bool QmlCppEngine::acceptsBreakpoint(BreakpointId id)
+bool QmlCppEngine::acceptsBreakpoint(BreakpointId id) const
 {
     return d->m_cppEngine->acceptsBreakpoint(id)
         || d->m_qmlEngine->acceptsBreakpoint(id);
@@ -253,9 +250,10 @@ void QmlCppEngine::selectThread(int index)
     d->m_cppEngine->selectThread(index);
 }
 
-void QmlCppEngine::assignValueInDebugger(const Internal::WatchData *w, const QString &expr, const QVariant &value)
+void QmlCppEngine::assignValueInDebugger(const WatchData *data,
+    const QString &expr, const QVariant &value)
 {
-    d->m_activeEngine->assignValueInDebugger(w, expr, value);
+    d->m_activeEngine->assignValueInDebugger(data, expr, value);
 }
 
 QAbstractItemModel *QmlCppEngine::modulesModel() const
@@ -636,10 +634,22 @@ void QmlCppEngine::engineStateChanged(const DebuggerState &newState)
     }
 }
 
+void QmlCppEngine::handleRemoteSetupDone(int gdbServerPort, int qmlPort)
+{
+    d->m_qmlEngine->handleRemoteSetupDone(gdbServerPort, qmlPort);
+    d->m_cppEngine->handleRemoteSetupDone(gdbServerPort, qmlPort);
+}
+
+void QmlCppEngine::handleRemoteSetupFailed(const QString &message)
+{
+    d->m_qmlEngine->handleRemoteSetupFailed(message);
+    d->m_cppEngine->handleRemoteSetupFailed(message);
+}
+
 DebuggerEngine *QmlCppEngine::cppEngine() const
 {
     return d->m_cppEngine;
 }
 
-
+} // namespace Internal
 } // namespace Debugger

@@ -39,14 +39,6 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 
-enum QemuStatus {
-    QemuStarting,
-    QemuFailedToStart,
-    QemuFinished,
-    QemuCrashed,
-    QemuUserReason
-};
-
 #define PREFIX "Qt4ProjectManager.MaemoRunConfiguration"
 
 #ifdef Q_OS_WIN32
@@ -74,6 +66,13 @@ static const QLatin1String UserEnvironmentChangesKey(PREFIX ".UserEnvironmentCha
 static const QLatin1String UseRemoteGdbKey(PREFIX ".UseRemoteGdb");
 
 } // namespace Internal
+
+namespace Constants {
+const char * const MAEMO_SETTINGS_CATEGORY = "X.Maemo";
+const char * const MAEMO_SETTINGS_TR_CATEGORY = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Maemo");
+const char * const MAEMO_SETTINGS_CATEGORY_ICON = ":/projectexplorer/images/MaemoDevice.png";
+}
+
 } // namespace Qt4ProjectManager
 
 #endif  // MAEMOCONSTANTS_H

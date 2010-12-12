@@ -18,10 +18,13 @@ SOURCES += $$PWD/s60devices.cpp \
     $$PWD/winscwparser.cpp \
     $$PWD/s60createpackagestep.cpp \
     $$PWD/s60deploystep.cpp \
-    $$PWD/signsisparser.cpp \
+    $$PWD/s60createpackageparser.cpp \
     $$PWD/passphraseforkeydialog.cpp \
     $$PWD/s60deployconfiguration.cpp \
-    $$PWD/s60deployconfigurationwidget.cpp
+    $$PWD/s60deployconfigurationwidget.cpp \
+    $$PWD/s60certificateinfo.cpp \
+    $$PWD/certificatepathchooser.cpp \
+    $$PWD/s60symbiancertificate.cpp
 HEADERS += $$PWD/s60devices.h \
     $$PWD/s60devicespreferencepane.h \
     $$PWD/s60manager.h \
@@ -39,9 +42,12 @@ HEADERS += $$PWD/s60devices.h \
     $$PWD/winscwparser.h \
     $$PWD/s60createpackagestep.h \
     $$PWD/s60deploystep.h \
-    $$PWD/signsisparser.h \
+    $$PWD/s60createpackageparser.h \
     $$PWD/passphraseforkeydialog.h \
     $$PWD/s60deployconfiguration.h \
-    $$PWD/s60deployconfigurationwidget.h
+    $$PWD/s60deployconfigurationwidget.h \
+    $$PWD/s60certificateinfo.h \
+    $$PWD/certificatepathchooser.h \
+    $$PWD/s60symbiancertificate.h
 FORMS += $$PWD/s60devicespreferencepane.ui \
     $$PWD/s60createpackagestep.ui

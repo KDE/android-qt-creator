@@ -64,7 +64,6 @@ const char * const TOOLCHAIN_KEY("GenericProjectManager.GenericProject.Toolchain
 GenericProject::GenericProject(Manager *manager, const QString &fileName)
     : m_manager(manager),
       m_fileName(fileName),
-      m_targetFactory(new GenericTargetFactory(this)),
       m_toolChain(0)
 {
     QFileInfo fileInfo(m_fileName);
@@ -88,11 +87,6 @@ GenericProject::~GenericProject()
 
     delete m_rootNode;
     delete m_toolChain;
-}
-
-GenericTargetFactory *GenericProject::targetFactory() const
-{
-    return m_targetFactory;
 }
 
 GenericTarget *GenericProject::activeTarget() const
@@ -393,11 +387,6 @@ QList<ProjectExplorer::Project *> GenericProject::dependsOn()
     return QList<Project *>();
 }
 
-ProjectExplorer::BuildConfigWidget *GenericProject::createConfigWidget()
-{
-    return new GenericBuildSettingsWidget(this);
-}
-
 QList<ProjectExplorer::BuildConfigWidget*> GenericProject::subConfigWidgets()
 {
     QList<ProjectExplorer::BuildConfigWidget*> list;
@@ -449,8 +438,11 @@ bool GenericProject::fromMap(const QVariantMap &map)
     }
 
     // Add default setup:
-    if (targets().isEmpty())
-        addTarget(targetFactory()->create(this, QLatin1String(GENERIC_DESKTOP_TARGET_ID)));
+    if (targets().isEmpty()) {
+        GenericTargetFactory *factory =
+                ExtensionSystem::PluginManager::instance()->getObject<GenericTargetFactory>();
+        addTarget(factory->create(this, QLatin1String(GENERIC_DESKTOP_TARGET_ID)));
+    }
 
     ToolChainType type =
             static_cast<ProjectExplorer::ToolChainType>
@@ -468,8 +460,8 @@ bool GenericProject::fromMap(const QVariantMap &map)
 // GenericBuildSettingsWidget
 ////////////////////////////////////////////////////////////////////////////////////
 
-GenericBuildSettingsWidget::GenericBuildSettingsWidget(GenericProject *project)
-    : m_project(project), m_buildConfiguration(0)
+GenericBuildSettingsWidget::GenericBuildSettingsWidget(GenericTarget *target)
+    : m_target(target), m_buildConfiguration(0)
 {
     QFormLayout *fl = new QFormLayout(this);
     fl->setContentsMargins(0, -1, 0, -1);
@@ -478,7 +470,7 @@ GenericBuildSettingsWidget::GenericBuildSettingsWidget(GenericProject *project)
     // build directory
     m_pathChooser = new Utils::PathChooser(this);
     m_pathChooser->setEnabled(true);
-    m_pathChooser->setBaseDirectory(project->projectDirectory());
+    m_pathChooser->setBaseDirectory(m_target->genericProject()->projectDirectory());
     fl->addRow(tr("Build directory:"), m_pathChooser);
     connect(m_pathChooser, SIGNAL(changed(QString)), this, SLOT(buildDirectoryChanged()));
 
@@ -490,7 +482,7 @@ GenericBuildSettingsWidget::GenericBuildSettingsWidget(GenericProject *project)
     int selectedIndex = -1;
     foreach (ToolChainType tc, ToolChain::supportedToolChains()) {
         toolChainChooser->addItem(ToolChain::toolChainName(tc), QVariant::fromValue<ToolChainType>(tc));
-        if (m_project->toolChainType() == tc)
+        if (m_target->genericProject()->toolChainType() == tc)
             selectedIndex = index;
         ++index;
     }
@@ -523,7 +515,7 @@ void GenericBuildSettingsWidget::toolChainSelected(int index)
 
     QComboBox *toolChainChooser = qobject_cast<QComboBox*>(sender());
     ToolChainType type = toolChainChooser->itemData(index).value<ToolChainType>();
-    m_project->setToolChainType(type);
+    m_target->genericProject()->setToolChainType(type);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

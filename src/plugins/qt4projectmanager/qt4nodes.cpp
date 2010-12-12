@@ -722,6 +722,24 @@ void Qt4PriFileNode::folderChanged(const QString &folder)
 
     contents.updateSubFolders(this, this);
     m_project->updateFileList();
+
+    // The files to be packaged are listed inside the symbian build system.
+    // We need to regenerate that list by running qmake
+    // Other platforms do not have a explicit list of files to package, but package
+    // directories
+    foreach (ProjectExplorer::Target *target, m_project->targets()) {
+        if (target->id() == Constants::S60_DEVICE_TARGET_ID) {
+            foreach (ProjectExplorer::BuildConfiguration *bc, target->buildConfigurations()) {
+                Qt4BuildConfiguration *qt4bc = qobject_cast<Qt4BuildConfiguration *>(bc);
+                if (qt4bc) {
+                    QMakeStep *qmakeStep = qt4bc->qmakeStep();
+                    if (qmakeStep)
+                        qmakeStep->setForced(true);
+                }
+            }
+        }
+    }
+
 }
 
 bool Qt4PriFileNode::deploysFolder(const QString &folder) const
@@ -937,14 +955,14 @@ bool Qt4PriFileNode::priFileWritable(const QString &path)
     const QString dir = QFileInfo(path).dir().path();
     Core::ICore *core = Core::ICore::instance();
     Core::IVersionControl *versionControl = core->vcsManager()->findVersionControlForDirectory(dir);
-    switch (Core::EditorManager::promptReadOnlyFile(path, versionControl, core->mainWindow(), false)) {
-    case Core::EditorManager::RO_OpenVCS:
+    switch (Core::FileManager::promptReadOnlyFile(path, versionControl, core->mainWindow(), false)) {
+    case Core::FileManager::RO_OpenVCS:
         if (!versionControl->vcsOpen(path)) {
             QMessageBox::warning(core->mainWindow(), tr("Failed!"), tr("Could not open the file for edit with VCS."));
             return false;
         }
         break;
-    case Core::EditorManager::RO_MakeWriteable: {
+    case Core::FileManager::RO_MakeWriteable: {
         const bool permsOk = QFile::setPermissions(path, QFile::permissions(path) | QFile::WriteUser);
         if (!permsOk) {
             QMessageBox::warning(core->mainWindow(), tr("Failed!"),  tr("Could not set permissions to writable."));
@@ -952,8 +970,8 @@ bool Qt4PriFileNode::priFileWritable(const QString &path)
         }
         break;
     }
-    case Core::EditorManager::RO_SaveAs:
-    case Core::EditorManager::RO_Cancel:
+    case Core::FileManager::RO_SaveAs:
+    case Core::FileManager::RO_Cancel:
         return false;
     }
     return true;
@@ -1036,7 +1054,7 @@ void Qt4PriFileNode::changeFiles(const FileType fileType,
     QFileInfo fi(m_projectFilePath);
     if (!fi.isWritable()) {
         // Try via vcs manager
-        Core::VCSManager *vcsManager = Core::ICore::instance()->vcsManager();
+        Core::VcsManager *vcsManager = Core::ICore::instance()->vcsManager();
         Core::IVersionControl *versionControl = vcsManager->findVersionControlForDirectory(fi.absolutePath());
         if (!versionControl || versionControl->vcsOpen(m_projectFilePath)) {
             bool makeWritable = QFile::setPermissions(m_projectFilePath, fi.permissions() | QFile::WriteUser);
@@ -2015,8 +2033,8 @@ void Qt4ProFileNode::setupInstallsList(const ProFileReader *reader)
             qDebug("Invalid RHS: Variable '%s' has %d values.",
                 qPrintable(pathVar), itemPaths.count());
             if (itemPaths.isEmpty()) {
-                qDebug("Ignoring INSTALLS item '%s', because it has no path.",
-                    qPrintable(item));
+                qDebug("%s: Ignoring INSTALLS item '%s', because it has no path.",
+                    qPrintable(m_projectFilePath), qPrintable(item));
                 continue;
             }
         }
@@ -2027,14 +2045,15 @@ void Qt4ProFileNode::setupInstallsList(const ProFileReader *reader)
                   m_projectDir, QStringList() << m_projectDir, 0);
         if (item == QLatin1String("target")) {
             if (!m_installsList.targetPath.isEmpty())
-                qDebug("Overwriting existing target.path in INSTALLS list.");
+                qDebug("%s: Overwriting existing target.path in INSTALLS list.",
+                    qPrintable(m_projectFilePath));
             m_installsList.targetPath = itemPath;
         } else {
             if (itemFiles.isEmpty()) {
                 if (!reader->values(item + QLatin1String(".CONFIG"))
                     .contains(QLatin1String("no_check_exist"))) {
-                    qDebug("Ignoring INSTALLS item '%s', because it has no files.",
-                        qPrintable(item));
+                    qDebug("%s: Ignoring INSTALLS item '%s', because it has no files.",
+                        qPrintable(m_projectFilePath), qPrintable(item));
                 }
                 continue;
             }

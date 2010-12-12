@@ -33,6 +33,7 @@
 #include <extensionsystem/iplugin.h>
 #include <coreplugin/icontext.h>
 #include <QtCore/QPointer>
+#include <glsl/glsl.h>
 
 QT_FORWARD_DECLARE_CLASS(QAction)
 QT_FORWARD_DECLARE_CLASS(QTimer)
@@ -83,7 +84,24 @@ public:
 
     void initializeEditor(GLSLEditor::GLSLTextEditor *editor);
 
+    struct InitFile {
+        GLSL::Engine *engine;
+        GLSL::TranslationUnitAST *ast;
+
+        InitFile(GLSL::Engine *engine = 0, GLSL::TranslationUnitAST *ast = 0)
+            : engine(engine), ast(ast) {}
+
+        ~InitFile();
+    };
+
+    const InitFile *fragmentShaderInit(int variant) const;
+    const InitFile *vertexShaderInit(int variant) const;
+    const InitFile *shaderInit(int variant) const;
+
 private:
+    QByteArray glslFile(const QString &fileName);
+    void parseGlslFile(const QString &fileName, InitFile *initFile);
+
     Core::Command *addToolAction(QAction *a, Core::ActionManager *am, Core::Context &context, const QString &name,
                                  Core::ActionContainer *c1, const QString &keySequence);
 
@@ -93,6 +111,13 @@ private:
     TextEditor::TextEditorActionHandler *m_actionHandler;
 
     QPointer<TextEditor::ITextEditable> m_currentTextEditable;
+
+    InitFile m_glsl_120_frag;
+    InitFile m_glsl_120_vert;
+    InitFile m_glsl_120_common;
+    InitFile m_glsl_es_100_frag;
+    InitFile m_glsl_es_100_vert;
+    InitFile m_glsl_es_100_common;
 };
 
 } // namespace Internal

@@ -56,6 +56,7 @@ namespace {
 const char * const QMAKE_BS_ID("QtProjectManager.QMakeBuildStep");
 
 const char * const QMAKE_ARGUMENTS_KEY("QtProjectManager.QMakeBuildStep.QMakeArguments");
+const char * const QMAKE_FORCED_KEY("QtProjectManager.QMakeBuildStep.QMakeForced");
 }
 
 QMakeStep::QMakeStep(BuildStepList *bsl) :
@@ -74,7 +75,7 @@ QMakeStep::QMakeStep(BuildStepList *bsl, const QString &id) :
 
 QMakeStep::QMakeStep(BuildStepList *bsl, QMakeStep *bs) :
     AbstractProcessStep(bsl, bs),
-    m_forced(false),
+    m_forced(bs->m_forced),
     m_userArgs(bs->m_userArgs)
 {
     ctor();
@@ -146,8 +147,7 @@ QStringList QMakeStep::moreArguments()
     if (type == ProjectExplorer::ToolChain_GCC_MAEMO)
         arguments << QLatin1String("-unix");
 #endif
-    if (bc->target()->id() == Constants::S60_DEVICE_TARGET_ID
-        || bc->target()->id() == Constants::S60_EMULATOR_TARGET_ID) {
+    if (!bc->qtVersion()->supportsShadowBuilds()) {
         // We have a target which does not allow shadow building.
         // But we really don't want to have the build artefacts in the source dir
         // so we try to hack around it, to make the common cases work.
@@ -316,7 +316,8 @@ QStringList QMakeStep::parserArguments()
             result << arg;
         } else {
             for (int i = 0; i < ProFileOption::modeMapSize; ++i) {
-                if (QLatin1String(ProFileOption::modeMap[i].qmakeOption) == arg) {
+                // Workaround: Apple GCC does not like ProFileOption::modeMap[i], because the array's bounds are not known
+                if (QLatin1String((&ProFileOption::modeMap[0] + i)->qmakeOption) == arg) {
                     result << arg;
                     break;
                 }
@@ -335,13 +336,14 @@ QVariantMap QMakeStep::toMap() const
 {
     QVariantMap map(AbstractProcessStep::toMap());
     map.insert(QLatin1String(QMAKE_ARGUMENTS_KEY), m_userArgs);
+    map.insert(QLatin1String(QMAKE_FORCED_KEY), m_forced);
     return map;
 }
 
 bool QMakeStep::fromMap(const QVariantMap &map)
 {
     m_userArgs = map.value(QLatin1String(QMAKE_ARGUMENTS_KEY)).toString();
-
+    m_forced = map.value(QLatin1String(QMAKE_FORCED_KEY), false).toBool();
     return BuildStep::fromMap(map);
 }
 

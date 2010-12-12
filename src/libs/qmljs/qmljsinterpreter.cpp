@@ -1584,14 +1584,14 @@ const TypeEnvironment *Context::typeEnvironment(const QmlJS::Document *doc) cons
 {
     if (!doc)
         return 0;
-    return _typeEnvironments.value(doc->fileName(), 0);
+    return _typeEnvironments.value(doc, 0);
 }
 
 void Context::setTypeEnvironment(const QmlJS::Document *doc, const TypeEnvironment *typeEnvironment)
 {
     if (!doc)
         return;
-    _typeEnvironments[doc->fileName()] = typeEnvironment;
+    _typeEnvironments[doc] = typeEnvironment;
 }
 
 const Value *Context::lookup(const QString &name, const ObjectValue **foundInScope) const
@@ -3163,10 +3163,10 @@ void Engine::initializePrototypes()
     _qmlFontObject->setProperty("underline", booleanValue());
     _qmlFontObject->setProperty("overline", booleanValue());
     _qmlFontObject->setProperty("strikeout", booleanValue());
-    _qmlFontObject->setProperty("pointSize", numberValue());
-    _qmlFontObject->setProperty("pixelSize", numberValue());
-    _qmlFontObject->setProperty("letterSpacing", numberValue());
-    _qmlFontObject->setProperty("wordSpacing", numberValue());
+    _qmlFontObject->setProperty("pointSize", intValue());
+    _qmlFontObject->setProperty("pixelSize", intValue());
+    _qmlFontObject->setProperty("letterSpacing", realValue());
+    _qmlFontObject->setProperty("wordSpacing", realValue());
 
     _qmlPointObject = newObject(/*prototype =*/ 0);
     _qmlPointObject->setClassName(QLatin1String("Point"));
@@ -3187,9 +3187,9 @@ void Engine::initializePrototypes()
 
     _qmlVector3DObject = newObject(/*prototype =*/ 0);
     _qmlVector3DObject->setClassName(QLatin1String("Vector3D"));
-    _qmlVector3DObject->setProperty("x", numberValue());
-    _qmlVector3DObject->setProperty("y", numberValue());
-    _qmlVector3DObject->setProperty("z", numberValue());
+    _qmlVector3DObject->setProperty("x", realValue());
+    _qmlVector3DObject->setProperty("y", realValue());
+    _qmlVector3DObject->setProperty("z", realValue());
 }
 
 const ObjectValue *Engine::qmlKeysObject()
@@ -3301,6 +3301,21 @@ QString ASTObjectValue::defaultPropertyName() const
             return prop->name->asString();
     }
     return QString();
+}
+
+UiObjectInitializer *ASTObjectValue::initializer() const
+{
+    return _initializer;
+}
+
+UiQualifiedId *ASTObjectValue::typeName() const
+{
+    return _typeName;
+}
+
+const QmlJS::Document *ASTObjectValue::document() const
+{
+    return _doc;
 }
 
 ASTVariableReference::ASTVariableReference(VariableDeclaration *ast, Engine *engine)

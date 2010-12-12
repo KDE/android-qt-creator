@@ -33,7 +33,6 @@
 #include <nodelistproperty.h>
 #include <nodeproperty.h>
 #include <metainfo.h>
-#include <propertymetainfo.h>
 #include <qgraphicswidget.h>
 #include <abstractview.h>
 #include <rewriterview.h>
@@ -137,7 +136,7 @@ bool NavigatorTreeModel::dropMimeData(const QMimeData *data,
         if (!parentNode.metaInfo().hasDefaultProperty())
             return false;
         targetIndex -= visibleProperties(parentNode).count();
-        parentPropertyName = parentNode.metaInfo().defaultProperty();
+        parentPropertyName = parentNode.metaInfo().defaultPropertyName();
     }
     else {
         parentItemIndex = parentIndex.parent();
@@ -190,6 +189,10 @@ NavigatorTreeModel::ItemRow NavigatorTreeModel::createItemRow(const ModelNode &n
     idItem->setDropEnabled(dropEnabled);
     idItem->setEditable(true);
     idItem->setData(hash, NavigatorRole);
+    if (node.metaInfo().isValid())
+        idItem->setToolTip(node.type());
+    else
+        idItem->setToolTip(tr("unkown item: ") + node.type());
 
 #    ifdef _LOCK_ITEMS_
     QStandardItem *lockItem = new QStandardItem;
@@ -234,6 +237,10 @@ void NavigatorTreeModel::updateItemRow(const ModelNode &node, ItemRow items)
 
     items.idItem->setText(node.id());
     items.visibilityItem->setCheckState(node.auxiliaryData("invisible").toBool() ? Qt::Unchecked : Qt::Checked);
+    if (node.metaInfo().isValid())
+        items.idItem->setToolTip(node.type());
+    else
+        items.idItem->setToolTip(tr("unkown item: ") + node.type());
 
     blockItemChangedSignal(blockSignal);
 }
@@ -386,7 +393,6 @@ ModelNode NavigatorTreeModel::nodeForIndex(const QModelIndex &index) const
 {
     Q_ASSERT(index.isValid());
     uint hash = index.data(NavigatorRole).toUInt();
-    Q_ASSERT(hash);
     Q_ASSERT(containsNodeHash(hash));
     return nodeForHash(hash);
 }
@@ -482,7 +488,7 @@ void NavigatorTreeModel::removeSubTree(const ModelNode &node)
 void NavigatorTreeModel::moveNodesInteractive(NodeAbstractProperty parentProperty, const QList<ModelNode> &modelNodes, int targetIndex)
 {
     try {
-        QString propertyQmlType = qmlTypeInQtContainer(parentProperty.metaInfo().type());
+        QString propertyQmlType = qmlTypeInQtContainer(parentProperty.parentModelNode().metaInfo().propertyTypeName(parentProperty.name()));
 
         RewriterTransaction transaction = m_view->beginRewriterTransaction();
         foreach (const ModelNode &node, modelNodes) {
@@ -539,7 +545,7 @@ QList<ModelNode> NavigatorTreeModel::modelNodeChildren(const ModelNode &parentNo
     QStringList properties;
 
     if (parentNode.metaInfo().hasDefaultProperty())
-        properties << parentNode.metaInfo().defaultProperty();
+        properties << parentNode.metaInfo().defaultPropertyName();
 
     properties << visibleProperties(parentNode);
 
@@ -565,7 +571,7 @@ QString NavigatorTreeModel::qmlTypeInQtContainer(const QString &qtContainerType)
     if (typeName.endsWith('*'))
         typeName.chop(1);
 
-    return m_view->model()->metaInfo().fromQtTypes(typeName);
+    return typeName;
 }
 
 
@@ -573,16 +579,16 @@ QStringList NavigatorTreeModel::visibleProperties(const ModelNode &node) const
 {
     QStringList propertyList;
 
-    foreach (PropertyMetaInfo propertyMetaInfo, node.metaInfo().properties().values()) {
-        if (!m_hiddenProperties.contains(propertyMetaInfo.name()) &&
-            propertyMetaInfo.name() != node.metaInfo().defaultProperty() &&
-            propertyMetaInfo.isReadable() &&
-            propertyMetaInfo.isWriteable()) {
+    foreach (const QString &propertyName, node.metaInfo().propertyNames()) {
+        if (!propertyName.contains('.') && //do not show any dot properties, since they are tricky and unlikely to make sense
+            node.metaInfo().propertyIsWritable(propertyName) && !m_hiddenProperties.contains(propertyName) &&
+            !node.metaInfo().propertyIsEnumType(propertyName) && //Some enums have the same name as Qml types (e. g. Flow)
+            propertyName != node.metaInfo().defaultPropertyName()) { // TODO: ask the node instances
 
-            QString qmlType = qmlTypeInQtContainer(propertyMetaInfo.type());
-            if (node.metaInfo().metaInfo().hasNodeMetaInfo(qmlType) &&
-                node.metaInfo().metaInfo().nodeMetaInfo(qmlType).isSubclassOf("QGraphicsObject", -1, -1)) {
-                propertyList << propertyMetaInfo.name();
+            QString qmlType = qmlTypeInQtContainer(node.metaInfo().propertyTypeName(propertyName));
+            if (node.model()->metaInfo(qmlType).isValid() &&
+                node.model()->metaInfo(qmlType).isSubclassOf("QGraphicsObject", -1, -1)) {
+                propertyList.append(propertyName);
             }
         }
     }    

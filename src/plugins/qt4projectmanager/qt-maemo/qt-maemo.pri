@@ -7,8 +7,8 @@ HEADERS += \
     $$PWD/maemorunconfigurationwidget.h \
     $$PWD/maemoruncontrol.h \
     $$PWD/maemorunfactories.h \
-    $$PWD/maemosettingspage.h \
-    $$PWD/maemosettingswidget.h \
+    $$PWD/maemosettingspages.h \
+    $$PWD/maemodeviceconfigurationssettingswidget.h \
     $$PWD/maemosshconfigdialog.h \
     $$PWD/maemotoolchain.h \
     $$PWD/maemopackagecreationstep.h \
@@ -33,7 +33,19 @@ HEADERS += \
     $$PWD/maemoprofilesupdatedialog.h \
     $$PWD/maemousedportsgatherer.h \
     $$PWD/maemoremoteprocesslist.h \
-    $$PWD/maemoremoteprocessesdialog.h
+    $$PWD/maemoremoteprocessesdialog.h \
+    $$PWD/maemopublishingwizardfactories.h \
+    $$PWD/maemopublishingbuildsettingspagefremantlefree.h \
+    $$PWD/maemopublishingfileselectiondialog.h \
+    $$PWD/maemopublishedprojectmodel.h \
+    $$PWD/maemopublishinguploadsettingspagefremantlefree.h \
+    $$PWD/maemopublishingwizardfremantlefree.h \
+    $$PWD/maemopublishingresultpagefremantlefree.h \
+    $$PWD/maemopublisherfremantlefree.h \
+    $$PWD/maemoqemuruntime.h \
+    $$PWD/maemoqemuruntimeparser.h \
+    $$PWD/maemoqemusettingswidget.h \
+    $$PWD/maemoqemusettings.h
 
 SOURCES += \
     $$PWD/maemoconfigtestdialog.cpp \
@@ -43,8 +55,8 @@ SOURCES += \
     $$PWD/maemorunconfigurationwidget.cpp \
     $$PWD/maemoruncontrol.cpp \
     $$PWD/maemorunfactories.cpp \
-    $$PWD/maemosettingspage.cpp \
-    $$PWD/maemosettingswidget.cpp \
+    $$PWD/maemosettingspages.cpp \
+    $$PWD/maemodeviceconfigurationssettingswidget.cpp \
     $$PWD/maemosshconfigdialog.cpp \
     $$PWD/maemotoolchain.cpp \
     $$PWD/maemopackagecreationstep.cpp \
@@ -68,15 +80,31 @@ SOURCES += \
     $$PWD/maemoprofilesupdatedialog.cpp \
     $$PWD/maemousedportsgatherer.cpp \
     $$PWD/maemoremoteprocesslist.cpp \
-    $$PWD/maemoremoteprocessesdialog.cpp
+    $$PWD/maemoremoteprocessesdialog.cpp \
+    $$PWD/maemopublishingwizardfactories.cpp \
+    $$PWD/maemopublishingbuildsettingspagefremantlefree.cpp \
+    $$PWD/maemopublishingfileselectiondialog.cpp \
+    $$PWD/maemopublishedprojectmodel.cpp \
+    $$PWD/maemopublishinguploadsettingspagefremantlefree.cpp \
+    $$PWD/maemopublishingwizardfremantlefree.cpp \
+    $$PWD/maemopublishingresultpagefremantlefree.cpp \
+    $$PWD/maemopublisherfremantlefree.cpp \
+    $$PWD/maemoqemuruntimeparser.cpp \
+    $$PWD/maemoqemusettingswidget.cpp \
+    $$PWD/maemoqemusettings.cpp
 
 FORMS += \
     $$PWD/maemoconfigtestdialog.ui \
-    $$PWD/maemosettingswidget.ui \
+    $$PWD/maemodeviceconfigurationssettingswidget.ui \
     $$PWD/maemosshconfigdialog.ui \
     $$PWD/maemopackagecreationwidget.ui \
     $$PWD/maemodeploystepwidget.ui \
     $$PWD/maemoprofilesupdatedialog.ui \
-    $$PWD/maemoremoteprocessesdialog.ui
+    $$PWD/maemoremoteprocessesdialog.ui \
+    $$PWD/maemopublishingbuildsettingspagefremantlefree.ui \
+    $$PWD/maemopublishingfileselectiondialog.ui \
+    $$PWD/maemopublishinguploadsettingspagefremantlefree.ui \
+    $$PWD/maemopublishingresultpagefremantlefree.ui \
+    $$PWD/maemoqemusettingswidget.ui
 
 RESOURCES += $$PWD/qt-maemo.qrc

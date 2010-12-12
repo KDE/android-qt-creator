@@ -61,8 +61,8 @@ void ScopeBuilder::push(AST::Node *node)
     if (qmlObject)
         setQmlScopeObject(qmlObject);
 
-    // JS scopes
-    if (FunctionDeclaration *fun = cast<FunctionDeclaration *>(node)) {
+    // JS scopes (catch both, FunctionExpression and FunctionDeclaration)
+    if (FunctionExpression *fun = dynamic_cast<FunctionExpression *>(node)) {
         ObjectValue *functionScope = _doc->bind()->findFunctionScope(fun);
         if (functionScope)
             _context->scopeChain().jsScopes += functionScope;
@@ -83,8 +83,10 @@ void ScopeBuilder::pop()
     _nodes.removeLast();
 
     // JS scopes
-    if (cast<FunctionDeclaration *>(toRemove))
-        _context->scopeChain().jsScopes.removeLast();
+    if (FunctionExpression *fun = dynamic_cast<FunctionExpression *>(toRemove)) {
+        if (_doc->bind()->findFunctionScope(fun))
+            _context->scopeChain().jsScopes.removeLast();
+    }
 
     // QML scope object
     if (! _nodes.isEmpty()
@@ -97,6 +99,11 @@ void ScopeBuilder::pop()
 void ScopeBuilder::initializeScopeChain()
 {
     ScopeChain &scopeChain = _context->scopeChain();
+    if (scopeChain.qmlComponentScope
+            && scopeChain.qmlComponentScope->document == _doc) {
+        return;
+    }
+
     scopeChain = ScopeChain(); // reset
 
     Interpreter::Engine *engine = _context->engine();
@@ -233,16 +240,13 @@ void ScopeBuilder::setQmlScopeObject(Node *node)
                     if (scriptBinding->qualifiedId && scriptBinding->qualifiedId->name
                             && scriptBinding->qualifiedId->name->asString() == QLatin1String("target")
                             && ! scriptBinding->qualifiedId->next) {
-                        // ### make Evaluate understand statements.
-                        if (ExpressionStatement *expStmt = cast<ExpressionStatement *>(scriptBinding->statement)) {
-                            Evaluate evaluator(_context);
-                            const Value *targetValue = evaluator(expStmt->expression);
+                        Evaluate evaluator(_context);
+                        const Value *targetValue = evaluator(scriptBinding->statement);
 
-                            if (const ObjectValue *target = value_cast<const ObjectValue *>(targetValue)) {
-                                scopeChain.qmlScopeObjects.prepend(target);
-                            } else {
-                                scopeChain.qmlScopeObjects.clear();
-                            }
+                        if (const ObjectValue *target = value_cast<const ObjectValue *>(targetValue)) {
+                            scopeChain.qmlScopeObjects.prepend(target);
+                        } else {
+                            scopeChain.qmlScopeObjects.clear();
                         }
                     }
                 }

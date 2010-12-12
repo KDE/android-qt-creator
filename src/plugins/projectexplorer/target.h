@@ -47,6 +47,7 @@ class IBuildConfigurationFactory;
 class DeployConfigurationFactory;
 class IRunConfigurationFactory;
 class Project;
+class BuildConfigWidget;
 
 class TargetPrivate;
 
@@ -56,6 +57,8 @@ class PROJECTEXPLORER_EXPORT Target : public ProjectConfiguration
 
 public:
     virtual ~Target();
+
+    virtual BuildConfigWidget *createConfigWidget() = 0;
 
     virtual Project *project() const;
 
@@ -151,6 +154,8 @@ class PROJECTEXPLORER_EXPORT ITargetFactory :
 public:
     explicit ITargetFactory(QObject *parent = 0);
     virtual ~ITargetFactory();
+
+    virtual bool supportsTargetId(const QString &id) const = 0;
 
     // used to show the list of possible additons to a target, returns a list of types
     virtual QStringList availableCreationIds(Project *parent) const = 0;

@@ -108,6 +108,8 @@ private:
     void interruptInferior();
     void shutdownInferior();
     void shutdownAdapter();
+    void sendRunControlTerminateCommand();
+    void handleRunControlTerminate(const tcftrk::TcfTrkCommandResult &);
     void sendRegistersGetMCommand();
     void handleWriteRegister(const tcftrk::TcfTrkCommandResult &result);
     void reportRegisters();
@@ -178,6 +180,7 @@ private:
     unsigned m_uid;
     QStringList m_remoteArguments;
     QString m_symbolFile;
+    QString m_symbolFileFolder;
     int m_verbose;
     bool m_bufferedMemoryRead;
     bool m_firstResumableExeLoadedEvent;

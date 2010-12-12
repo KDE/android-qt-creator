@@ -106,8 +106,8 @@ QString QuickToolBarSettingsPageWidget::searchKeywords() const
 {
     QString rc;
     QTextStream(&rc)
-            << ' ' << m_ui.textEditHelperCheckBox
-            << ' ' << m_ui.textEditHelperCheckBoxPin;
+            << ' ' << m_ui.textEditHelperCheckBox->text()
+            << ' ' << m_ui.textEditHelperCheckBoxPin->text();
     rc.remove(QLatin1Char('&'));
     return rc;
 }
@@ -161,6 +161,8 @@ QWidget *QuickToolBarSettingsPage::createPage(QWidget *parent)
 
 void QuickToolBarSettingsPage::apply()
 {
+    if (!m_widget) // page was never shown
+        return;
     m_widget->settings().set();
 }
 

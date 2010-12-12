@@ -34,7 +34,8 @@
 
 #include <modelnode.h>
 #include <nodemetainfo.h>
-#include <widgetqueryview.h>
+#include <qmlanchors.h>
+
 
 #include <QGraphicsSceneMouseEvent>
 #include <QDebug>
@@ -72,10 +73,7 @@ void FormEditorItem::setup()
 {
     if (qmlItemNode().hasInstanceParent()) {
         setParentItem(scene()->itemForQmlItemNode(qmlItemNode().instanceParent().toQmlItemNode()));
-        setVisible(true);
         setOpacity(qmlItemNode().instanceValue("opacity").toDouble());
-    } else if (!qmlItemNode().isRootNode()){
-        setVisible(false);
     }
 
     setFlag(QGraphicsItem::ItemClipsChildrenToShape, qmlItemNode().instanceValue("clip").toBool());
@@ -270,12 +268,9 @@ void FormEditorItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, 
         return;
 
     painter->save();
-    painter->setRenderHint(QPainter::Antialiasing, true);
 
     if (isContentVisible())
         qmlItemNode().paintInstance(painter);
-
-    painter->setRenderHint(QPainter::Antialiasing, false);
 
     if (!qmlItemNode().isRootModelNode())
         paintBoundingRect(painter);
@@ -361,7 +356,7 @@ QList<FormEditorItem*> FormEditorItem::childFormEditorItems() const
 
 bool FormEditorItem::isContainer() const
 {
-    return qmlItemNode().modelNode().metaInfo().isContainer();
+    return true;
 }
 
 QmlItemNode FormEditorItem::qmlItemNode() const

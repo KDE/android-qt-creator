@@ -51,12 +51,13 @@ class QProcess;
 QT_END_NAMESPACE
 
 namespace Qt4ProjectManager {
-namespace Internal {
+class Qt4BuildConfiguration;
 
+namespace Internal {
 class MaemoDeployStep;
+class MaemoDeployableListModel;
 class MaemoToolChain;
 class MaemoProFileWrapper;
-class Qt4BuildConfiguration;
 
 class MaemoPackageCreationStep : public ProjectExplorer::BuildStep
 {
@@ -83,7 +84,6 @@ public:
     static QString packageName(const ProjectExplorer::Project *project);
     static QString packageFileName(const ProjectExplorer::Project *project,
         const QString &version);
-    static bool removeDirectory(const QString &dirPath);
 
     QString projectName() const;
 
@@ -111,7 +111,6 @@ private:
 
     bool createPackage(QProcess *buildProc);
     bool copyDebianFiles(bool inSourceBuild);
-    bool runCommand(QProcess *buildProc, const QString &command);
     QString maddeRoot() const;
     QString targetRoot() const;
     static QString nativePath(const QFile &file);
@@ -124,7 +123,13 @@ private:
     const Qt4BuildConfiguration *qt4BuildConfiguration() const;
     MaemoDeployStep * deployStep() const;
     void checkProjectName();
-    void addWorkaroundForHarmattanBug(const QString &rulesFilePath);
+    void updateDesktopFiles(const QString &rulesFilePath);
+    void addWorkaroundForHarmattanBug(QByteArray &rulesFileContent,
+        int &insertPos, const MaemoDeployableListModel *model,
+        const QString &desktopFileDir);
+    void addSedCmdToRulesFile(QByteArray &rulesFileContent, int &insertPos,
+        const QString &desktopFilePath, const QByteArray &oldString,
+        const QByteArray &newString);
 
     static const QLatin1String CreatePackageId;
 

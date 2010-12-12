@@ -131,7 +131,7 @@ MainWindow::MainWindow() :
     m_progressManager(new ProgressManagerPrivate()),
     m_scriptManager(new ScriptManagerPrivate(this)),
     m_variableManager(new VariableManager),
-    m_vcsManager(new VCSManager),
+    m_vcsManager(new VcsManager),
     m_statusBarManager(0),
     m_modeManager(0),
     m_mimeDatabase(new MimeDatabase),
@@ -401,7 +401,7 @@ static bool isDesktopFileManagerDrop(const QMimeData *d, QStringList *files = 0)
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
 {
-    if (isDesktopFileManagerDrop(event->mimeData())) {
+    if (isDesktopFileManagerDrop(event->mimeData()) && m_filesToOpenDelayed.isEmpty()) {
         event->accept();
     } else {
         event->ignore();
@@ -413,10 +413,21 @@ void MainWindow::dropEvent(QDropEvent *event)
     QStringList files;
     if (isDesktopFileManagerDrop(event->mimeData(), &files)) {
         event->accept();
-        openFiles(files, ICore::SwitchMode);
+        m_filesToOpenDelayed.append(files);
+        QTimer::singleShot(50, this, SLOT(openDelayedFiles()));
     } else {
         event->ignore();
     }
+}
+
+void MainWindow::openDelayedFiles()
+{
+    if (m_filesToOpenDelayed.isEmpty())
+        return;
+    activateWindow();
+    raise();
+    openFiles(m_filesToOpenDelayed, ICore::SwitchMode);
+    m_filesToOpenDelayed.clear();
 }
 
 IContext *MainWindow::currentContextObject() const
@@ -1000,7 +1011,7 @@ MessageManager *MainWindow::messageManager() const
     return m_messageManager;
 }
 
-VCSManager *MainWindow::vcsManager() const
+VcsManager *MainWindow::vcsManager() const
 {
     return m_vcsManager;
 }
@@ -1278,11 +1289,11 @@ void MainWindow::aboutToShowRecentFiles()
     aci->menu()->clear();
 
     bool hasRecentFiles = false;
-    foreach (const QString &fileName, m_fileManager->recentFiles()) {
+    foreach (const FileManager::RecentFile &file, m_fileManager->recentFiles()) {
         hasRecentFiles = true;
         QAction *action = aci->menu()->addAction(
-                    QDir::toNativeSeparators(Utils::withTildeHomePath(fileName)));
-        action->setData(fileName);
+                    QDir::toNativeSeparators(Utils::withTildeHomePath(file.first)));
+        action->setData(qVariantFromValue(file));
         connect(action, SIGNAL(triggered()), this, SLOT(openRecentFile()));
     }
     aci->menu()->setEnabled(hasRecentFiles);
@@ -1291,9 +1302,8 @@ void MainWindow::aboutToShowRecentFiles()
 void MainWindow::openRecentFile()
 {
     if (const QAction *action = qobject_cast<const QAction*>(sender())) {
-        const QString fileName = action->data().toString();
-        if (!fileName.isEmpty())
-            editorManager()->openEditor(fileName, QString(), Core::EditorManager::ModeSwitch);
+        const FileManager::RecentFile file = action->data().value<FileManager::RecentFile>();
+        editorManager()->openEditor(file.first, file.second, Core::EditorManager::ModeSwitch);
     }
 }
 

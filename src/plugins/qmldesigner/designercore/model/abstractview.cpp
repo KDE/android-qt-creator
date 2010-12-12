@@ -334,6 +334,16 @@ bool AbstractView::hasId(const QString &id) const
     return model()->m_d->hasId(id);
 }
 
+ModelNode AbstractView::modelNodeForInternalId(qint32 internalId)
+{
+     return ModelNode(model()->m_d->nodeForInternalId(internalId), model(), this);
+}
+
+bool AbstractView::hasModelNodeForInternalId(qint32 internalId) const
+{
+    return model()->m_d->hasNodeForInternalId(internalId);
+}
+
 QmlModelView *AbstractView::toQmlModelView()
 {
     return qobject_cast<QmlModelView*>(this);
@@ -381,6 +391,12 @@ void AbstractView::emitInstancePropertyChange(const QList<QPair<ModelNode, QStri
 {
     if (model() && nodeInstanceView() == this)
         model()->m_d->notifyInstancePropertyChange(propertyList);
+}
+
+void AbstractView::emitInstancesCompleted(const QVector<ModelNode> &nodeVector)
+{
+    if (model() && nodeInstanceView() == this)
+        model()->m_d->notifyInstancesCompleted(nodeVector);
 }
 
 void AbstractView::changeRootNodeType(const QString &type, int majorVersion, int minorVersion)

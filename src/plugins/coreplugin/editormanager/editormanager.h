@@ -133,18 +133,18 @@ public:
     QList<IEditor *> editorsForFile(IFile *file) const;
 
     IEditor *currentEditor() const;
+    QList<IEditor *> visibleEditors() const;
+    QList<IEditor*> openedEditors() const;
+
     IEditor *activateEditor(IEditor *editor, OpenEditorFlags flags = 0);
     IEditor *activateEditor(const QModelIndex &index, Internal::EditorView *view = 0, OpenEditorFlags = 0);
     IEditor *activateEditor(Core::Internal::EditorView *view, Core::IFile*file, OpenEditorFlags flags = 0);
-
-    QList<IEditor*> openedEditors() const;
 
     OpenEditorsModel *openedEditorsModel() const;
     void closeEditor(const QModelIndex &index);
     void closeOtherEditors(IEditor *editor);
 
     QList<IEditor*> editorsForFiles(QList<IFile*> files) const;
-    //QList<EditorGroup *> editorGroups() const;
     void addCurrentPositionToNavigationHistory(IEditor *editor = 0, const QByteArray &saveState = QByteArray());
     void cutForwardNavigationHistory();
 
@@ -152,7 +152,7 @@ public:
 
     bool closeEditors(const QList<IEditor *> &editorsToClose, bool askAboutModifiedEditors = true);
 
-    MakeWritableResult makeEditorWritable(IEditor *editor);
+    MakeWritableResult makeFileWritable(IFile *file);
 
     QByteArray saveState() const;
     bool restoreState(const QByteArray &state);
@@ -197,19 +197,14 @@ public:
 
     QTextCodec *defaultTextEncoding() const;
 
-    // Helper to display a message dialog when encountering a read-only
-    // file, prompting the user about how to make it writeable.
-    enum ReadOnlyAction { RO_Cancel, RO_OpenVCS, RO_MakeWriteable, RO_SaveAs };
-
-    static ReadOnlyAction promptReadOnlyFile(const QString &fileName,
-                                             const IVersionControl *versionControl,
-                                             QWidget *parent,
-                                             bool displaySaveAsButton = false);
-
     static qint64 maxTextFileSize();
+
+    void setWindowTitleAddition(const QString &addition);
+    QString windowTitleAddition() const;
 
 signals:
     void currentEditorChanged(Core::IEditor *editor);
+    void currentEditorStateChanged(Core::IEditor *editor);
     void editorCreated(Core::IEditor *editor, const QString &fileName);
     void editorOpened(Core::IEditor *editor);
     void editorAboutToClose(Core::IEditor *editor);
@@ -219,8 +214,8 @@ public slots:
     bool closeAllEditors(bool askAboutModifiedEditors = true);
     void openInExternalEditor();
 
-    bool saveFile(Core::IEditor *editor = 0);
-    bool saveFileAs(Core::IEditor *editor = 0);
+    bool saveFile(Core::IFile *file = 0);
+    bool saveFileAs(Core::IFile *file = 0);
     void revertToSaved();
     void closeEditor();
     void closeOtherEditors();
@@ -231,6 +226,8 @@ private slots:
     void handleContextChange(Core::IContext *context);
     void updateActions();
     void makeCurrentEditorWritable();
+    void updateWindowTitle();
+    void handleEditorStateChange();
 
 public slots:
     void goBackInNavigationHistory();
@@ -268,7 +265,7 @@ private:
     void emptyView(Core::Internal::EditorView *view);
     Core::Internal::EditorView *currentEditorView() const;
     IEditor *pickUnusedEditor() const;
-
+    void addFileToRecentFiles(IFile *file);
 
     static EditorManager *m_instance;
     EditorManagerPrivate *m_d;

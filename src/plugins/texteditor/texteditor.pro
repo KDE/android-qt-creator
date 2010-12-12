@@ -5,9 +5,11 @@ QT += xml network
 include(../../qtcreatorplugin.pri)
 include(texteditor_dependencies.pri)
 INCLUDEPATH += generichighlighter \
-    tooltip
+    tooltip \
+    snippets
 DEPENDPATH += generichighlighter \
-    tooltip
+    tooltip \
+    snippets
 SOURCES += texteditorplugin.cpp \
     textfilewizard.cpp \
     plaintexteditor.cpp \
@@ -70,8 +72,15 @@ SOURCES += texteditorplugin.cpp \
     tooltip/tipfactory.cpp \
     basehoverhandler.cpp \
     helpitem.cpp \
-    snippetsparser.cpp \
-    autocompleter.cpp
+    autocompleter.cpp \
+    snippets/snippetssettingspage.cpp \
+    snippets/snippet.cpp \
+    snippets/snippeteditor.cpp \
+    snippets/snippetscollection.cpp \
+    snippets/snippetssettings.cpp \
+    snippets/isnippetprovider.cpp \
+    snippets/snippetcollector.cpp \
+    snippets/plaintextsnippetprovider.cpp
 
 HEADERS += texteditorplugin.h \
     textfilewizard.h \
@@ -145,14 +154,23 @@ HEADERS += texteditorplugin.h \
     tooltip/tipfactory.h \
     basehoverhandler.h \
     helpitem.h \
-    snippetsparser.h \
-    autocompleter.h
+    autocompleter.h \
+    snippets/snippetssettingspage.h \
+    snippets/snippet.h \
+    snippets/snippeteditor.h \
+    snippets/snippetscollection.h \
+    snippets/reuse.h \
+    snippets/snippetssettings.h \
+    snippets/isnippetprovider.h \
+    snippets/snippetcollector.h \
+    snippets/plaintextsnippetprovider.h
 
 FORMS += behaviorsettingspage.ui \
     displaysettingspage.ui \
     fontsettingspage.ui \
     colorschemeedit.ui \
     generichighlighter/highlightersettingspage.ui \
-    generichighlighter/managedefinitionsdialog.ui
+    generichighlighter/managedefinitionsdialog.ui \
+    snippets/snippetssettingspage.ui
 RESOURCES += texteditor.qrc
 OTHER_FILES += TextEditor.mimetypes.xml

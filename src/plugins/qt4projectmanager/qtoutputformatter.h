@@ -33,6 +33,7 @@
 #include "qt4projectmanager_global.h"
 
 #include <projectexplorer/outputformatter.h>
+#include <utils/fileinprojectfinder.h>
 
 #include <QtCore/QRegExp>
 #include <QtCore/QWeakPointer>
@@ -65,7 +66,6 @@ public:
 private:
     LinkResult matchLine(const QString &line) const;
     void appendLine(QTextCursor & cursor, LinkResult lr, const QString &line, bool onStdError);
-    QString pathInSourceDirectory(const QString &originalFilePath);
 
     QRegExp m_qmlError;
     QRegExp m_qtError;
@@ -74,6 +74,7 @@ private:
     QWeakPointer<ProjectExplorer::Project> m_project;
     QString m_lastLine;
     QString m_deferedText;
+    Utils::FileInProjectFinder m_projectFinder;
 };
 
 

@@ -44,20 +44,15 @@ class Environment;
 namespace Debugger {
 class DebuggerEngine;
 class DebuggerRunControl;
-class QmlEngine;
 class DebuggerStartParameters;
-struct DebuggerRunnerPrivate;
 
 namespace Internal {
-class GdbEngine;
-class AbstractGdbAdapter;
-}
 
-class DEBUGGER_EXPORT DebuggerRunControlFactory
+class DebuggerRunControlPrivate;
+
+class DebuggerRunControlFactory
     : public ProjectExplorer::IRunControlFactory
 {
-    Q_OBJECT
-
 public:
     DebuggerRunControlFactory(QObject *parent, unsigned enabledEngines);
 
@@ -72,12 +67,15 @@ public:
     // FIXME: Used by qmljsinspector.cpp:469
     RunControl *create(RunConfiguration *runConfiguration, const QString &mode);
     bool canRun(RunConfiguration *runConfiguration, const QString &mode) const;
+
 private:
     QString displayName() const;
     QWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
 
     unsigned m_enabledEngines;
 };
+
+} // namespace Internal
 
 
 // This is a job description containing all data "local" to the jobs, including
@@ -89,45 +87,31 @@ class DEBUGGER_EXPORT DebuggerRunControl
 
 public:
     typedef ProjectExplorer::RunConfiguration RunConfiguration;
-    explicit DebuggerRunControl(RunConfiguration *runConfiguration,
+    DebuggerRunControl(RunConfiguration *runConfiguration,
         unsigned enabledEngines, const DebuggerStartParameters &sp);
     ~DebuggerRunControl();
 
     // ProjectExplorer::RunControl
-    virtual void start();
-    virtual bool aboutToStop() const;
-    virtual StopResult stop();
-    virtual bool isRunning() const;
+    void start();
+    bool aboutToStop() const;
+    StopResult stop(); // Called from SnapshotWindow.
+    bool isRunning() const;
     QString displayName() const;
 
-    void createEngine(const DebuggerStartParameters &startParameters);
-
     void setCustomEnvironment(Utils::Environment env);
-
     void startFailed();
     void debuggingFinished();
     RunConfiguration *runConfiguration() const;
-
-    DebuggerState state() const;
     DebuggerEngine *engine();
 
     void showMessage(const QString &msg, int channel);
-
-    void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
-    void handleRemoteSetupFailed(const QString &message);
 
     static bool checkDebugConfiguration(int toolChain,
                                  QString *errorMessage,
                                  QString *settingsCategory = 0,
                                  QString *settingsPage = 0);
-    QString idString() const;
-
 signals:
     void engineRequestSetup();
-
-public slots:
-    void emitAddToOutputWindow(const QString &line, bool onStdErr);
-    void emitAppendMessage(const QString &, bool isError);
 
 private slots:
     void handleFinished();
@@ -136,13 +120,7 @@ protected:
     const DebuggerStartParameters &startParameters() const;
 
 private:
-    DebuggerEngineType engineForExecutable(unsigned enabledEngineTypes, const QString &executable);
-    DebuggerEngineType engineForMode(unsigned enabledEngineTypes, DebuggerStartMode mode);
-    void initGdbEngine(Internal::GdbEngine *engine);
-    Internal::GdbEngine *gdbEngine() const;
-    Internal::AbstractGdbAdapter *gdbAdapter() const;
-
-    QScopedPointer<DebuggerRunnerPrivate> d;
+    QScopedPointer<Internal::DebuggerRunControlPrivate> d;
 };
 
 } // namespace Debugger

@@ -59,12 +59,12 @@ RemoteGdbServerAdapter::RemoteGdbServerAdapter(GdbEngine *engine, int toolChainT
     m_toolChainType(toolChainType)
 {
     connect(&m_uploadProc, SIGNAL(error(QProcess::ProcessError)),
-        this, SLOT(uploadProcError(QProcess::ProcessError)));
+        SLOT(uploadProcError(QProcess::ProcessError)));
     connect(&m_uploadProc, SIGNAL(readyReadStandardOutput()),
-        this, SLOT(readUploadStandardOutput()));
+        SLOT(readUploadStandardOutput()));
     connect(&m_uploadProc, SIGNAL(readyReadStandardError()),
-        this, SLOT(readUploadStandardError()));
-    connect(&m_uploadProc, SIGNAL(finished(int)), this,
+        SLOT(readUploadStandardError()));
+    connect(&m_uploadProc, SIGNAL(finished(int)),
         SLOT(uploadProcFinished()));
 }
 
@@ -76,8 +76,8 @@ AbstractGdbAdapter::DumperHandling RemoteGdbServerAdapter::dumperHandling() cons
     case ProjectExplorer::ToolChain_WINCE:
     case ProjectExplorer::ToolChain_WINSCW:
     case ProjectExplorer::ToolChain_GCCE:
-    case ProjectExplorer::ToolChain_RVCT_ARMV5:
-    case ProjectExplorer::ToolChain_RVCT_ARMV6:
+    case ProjectExplorer::ToolChain_RVCT2_ARMV5:
+    case ProjectExplorer::ToolChain_RVCT2_ARMV6:
     case ProjectExplorer::ToolChain_GCC_MAEMO:
         return DumperLoadedByGdb;
     default:
@@ -96,7 +96,7 @@ void RemoteGdbServerAdapter::startAdapter()
     }
     if (startParameters().serverStartScript.isEmpty()) {
         showMessage(_("No server start script given. "), StatusBar);
-        emit requestSetup();
+        m_engine->requestRemoteSetup();
     } else {
         m_uploadProc.start(_("/bin/sh ") + startParameters().serverStartScript);
         m_uploadProc.waitForStarted();
@@ -273,9 +273,21 @@ void RemoteGdbServerAdapter::runEngine()
 
 void RemoteGdbServerAdapter::interruptInferior()
 {
-    // FIXME: On some gdb versions like git 170ffa5d7dd this produces
-    // >810^error,msg="mi_cmd_exec_interrupt: Inferior not executing."
-    m_engine->postCommand("-exec-interrupt", GdbEngine::Immediate);
+    QTC_ASSERT(state() == InferiorStopRequested, qDebug() << state());
+    m_engine->postCommand("-exec-interrupt", GdbEngine::Immediate,
+        CB(handleInterruptInferior));
+}
+
+void RemoteGdbServerAdapter::handleInterruptInferior(const GdbResponse &response)
+{
+    if (response.resultClass == GdbResultDone) {
+        // The gdb server will trigger extra output that we will pick up
+        // to do a proper state transition.
+    } else {
+        // FIXME: On some gdb versions like git 170ffa5d7dd this produces
+        // >810^error,msg="mi_cmd_exec_interrupt: Inferior not executing."
+        m_engine->notifyInferiorStopOk();
+    }
 }
 
 void RemoteGdbServerAdapter::shutdownInferior()

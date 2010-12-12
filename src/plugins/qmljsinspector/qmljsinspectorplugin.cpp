@@ -33,10 +33,8 @@
 #include "qmljsclientproxy.h"
 #include "qmlinspectortoolbar.h"
 
-#include <debugger/debuggeruiswitcher.h>
 #include <debugger/debuggerconstants.h>
 #include <debugger/qml/qmladapter.h>
-#include <debugger/qml/qmlengine.h>
 
 #include <qmlprojectmanager/qmlproject.h>
 #include <qmljseditor/qmljseditorconstants.h>
@@ -45,7 +43,11 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
+#include <coreplugin/imode.h>
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/modemanager.h>
+
+#include <utils/qtcassert.h>
 
 #include <QtCore/QStringList>
 #include <QtCore/QtPlugin>
@@ -59,19 +61,10 @@
 using namespace QmlJSInspector::Internal;
 using namespace QmlJSInspector::Constants;
 
-namespace {
-
-InspectorPlugin *g_instance = 0; // the global QML/JS inspector instance
-
-} // end of anonymous namespace
-
 InspectorPlugin::InspectorPlugin()
     : IPlugin()
     , m_clientProxy(0)
 {
-    Q_ASSERT(! g_instance);
-    g_instance = this;
-
     m_inspectorUi = new InspectorUi(this);
 }
 
@@ -82,11 +75,6 @@ InspectorPlugin::~InspectorPlugin()
 QmlJS::ModelManagerInterface *InspectorPlugin::modelManager() const
 {
     return ExtensionSystem::PluginManager::instance()->getObject<QmlJS::ModelManagerInterface>();
-}
-
-InspectorPlugin *InspectorPlugin::instance()
-{
-    return g_instance;
 }
 
 InspectorUi *InspectorPlugin::inspector() const
@@ -115,7 +103,9 @@ void InspectorPlugin::extensionsInitialized()
     connect(pluginManager, SIGNAL(objectAdded(QObject*)), SLOT(objectAdded(QObject*)));
     connect(pluginManager, SIGNAL(aboutToRemoveObject(QObject*)), SLOT(aboutToRemoveObject(QObject*)));
 
-    m_inspectorUi->setupUi();
+    Core::ICore *core = Core::ICore::instance();
+    connect(core->modeManager(), SIGNAL(currentModeAboutToChange(Core::IMode*)),
+            this, SLOT(modeAboutToChange(Core::IMode*)));
 }
 
 void InspectorPlugin::objectAdded(QObject *object)
@@ -131,10 +121,8 @@ void InspectorPlugin::objectAdded(QObject *object)
         return;
     }
 
-    Debugger::QmlEngine *engine = qobject_cast<Debugger::QmlEngine*>(object);
-    if (engine) {
-        m_inspectorUi->setDebuggerEngine(engine);
-    }
+    if (object->objectName() == QLatin1String("QmlEngine"))
+        m_inspectorUi->setDebuggerEngine(object);
 }
 
 void InspectorPlugin::aboutToRemoveObject(QObject *obj)
@@ -154,6 +142,20 @@ void InspectorPlugin::aboutToRemoveObject(QObject *obj)
 void InspectorPlugin::clientProxyConnected()
 {
     m_inspectorUi->connected(m_clientProxy);
+}
+
+void InspectorPlugin::modeAboutToChange(Core::IMode *newMode)
+{
+    QTC_ASSERT(newMode, return);
+
+    if (newMode->id() == Debugger::Constants::MODE_DEBUG) {
+        m_inspectorUi->setupUi();
+
+        // make sure we're not called again
+        Core::ICore *core = Core::ICore::instance();
+        disconnect(core->modeManager(), SIGNAL(currentModeAboutToChange(Core::IMode*)),
+                   this, SLOT(modeAboutToChange(Core::IMode*)));
+    }
 }
 
 Q_EXPORT_PLUGIN(InspectorPlugin)

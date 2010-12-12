@@ -35,7 +35,6 @@
 #include <QtCore/QQueue>
 #include <QtCore/QVariant>
 #include <QtCore/QThread>
-#include <QtCore/QMutex>
 #include <QtCore/QStringList>
 
 #include <lldb/API/LLDB.h>
@@ -50,7 +49,7 @@ Q_DECLARE_METATYPE (lldb::SBEvent *)
 namespace Debugger {
 namespace Internal {
 
-class LLDBEventListener : public QObject
+class LldbEventListener : public QObject
 {
 Q_OBJECT
 public slots:
@@ -63,14 +62,15 @@ signals:
 };
 
 
-class LLDBEngineGuest : public IPCEngineGuest
+class LldbEngineGuest : public IPCEngineGuest
 {
     Q_OBJECT
 
 public:
-    explicit LLDBEngineGuest();
-    ~LLDBEngineGuest();
+    explicit LldbEngineGuest();
+    ~LldbEngineGuest();
 
+    void nuke();
     void setupEngine();
     void setupInferior(const QString &executable, const QStringList &arguments,
             const QStringList &environment);
@@ -94,19 +94,17 @@ public:
     void addBreakpoint(BreakpointId id, const BreakpointParameters &bp);
     void removeBreakpoint(BreakpointId id);
     void changeBreakpoint(BreakpointId id, const BreakpointParameters &bp);
-
-    void requestUpdateWatchData(const Internal::WatchData &data,
-            const Internal::WatchUpdateFlags & flags = Internal::WatchUpdateFlags());
-
+    void requestUpdateWatchData(const WatchData &data,
+            const WatchUpdateFlags &flags);
+    void fetchFrameSource(qint64 frame);
 
 private:
-    QMutex m_runLock;
     bool m_running;
 
     QList<QByteArray> m_arguments;
     QList<QByteArray> m_environment;
     QThread m_wThread;
-    LLDBEventListener *m_worker;
+    LldbEventListener *m_worker;
     lldb::SBDebugger *m_lldb;
     lldb::SBTarget   *m_target;
     lldb::SBProcess  *m_process;
@@ -117,6 +115,7 @@ private:
     bool m_relistFrames;
     QHash<QString, lldb::SBValue> m_localesCache;
     QHash<BreakpointId, lldb::SBBreakpoint> m_breakpoints;
+    QHash<qint64, QString> m_frame_to_file;
 
     void updateThreads();
     void getWatchDataR(lldb::SBValue v, int level,
@@ -130,9 +129,8 @@ private slots:
     void lldbEvent(lldb::SBEvent *ev);
 };
 
-
-
 } // namespace Internal
 } // namespace Debugger
 
 #endif // DEBUGGER_LLDBENGINE_H
+#define SYNC_INFERIOR

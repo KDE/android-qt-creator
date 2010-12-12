@@ -40,23 +40,8 @@ namespace QmlDesigner {
 namespace Internal {
 namespace PropertyParser {
 
-static QVariant fromEnum(const QString &string, const QString &type, const MetaInfo &metaInfo)
+QVariant read(const QString &typeStr, const QString &str, const MetaInfo &)
 {
-    if (string.isEmpty())
-        return QVariant();
-
-    // TODO Use model metainfo
-    EnumeratorMetaInfo enumerator = metaInfo.enumerator(type);
-    int value = enumerator.elementValue(string);
-    return QVariant(value);
-}
-
-QVariant read(const QString &typeStr, const QString &str, const MetaInfo &metaInfo)
-{
-    if (metaInfo.hasEnumerator(typeStr)) {
-        return fromEnum(str, typeStr, metaInfo);
-    }
-
     return read(typeStr, str);
 }
 

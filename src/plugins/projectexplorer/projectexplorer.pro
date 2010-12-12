@@ -85,7 +85,6 @@ HEADERS += projectexplorer.h \
     targetsettingswidget.h \
     doubletabwidget.h \
     buildenvironmentwidget.h \
-    buildconfigdialog.h \
     ldparser.h \
     linuxiccparser.h \
     outputformatter.h \
@@ -96,7 +95,10 @@ HEADERS += projectexplorer.h \
     taskhub.h \
     localapplicationruncontrol.h \
     customexecutableconfigurationwidget.h \
-    sessionnodeimpl.h
+    sessionnodeimpl.h \
+    publishing/publishingwizardselectiondialog.h \
+    publishing/ipublishingwizardfactory.h
+
 SOURCES += projectexplorer.cpp \
     projectwindow.cpp \
     buildmanager.cpp \
@@ -167,7 +169,6 @@ SOURCES += projectexplorer.cpp \
     targetsettingswidget.cpp \
     doubletabwidget.cpp \
     buildenvironmentwidget.cpp \
-    buildconfigdialog.cpp \
     ldparser.cpp \
     linuxiccparser.cpp \
     outputformatter.cpp \
@@ -177,7 +178,9 @@ SOURCES += projectexplorer.cpp \
     processparameters.cpp \
     localapplicationruncontrol.cpp \
     customexecutableconfigurationwidget.cpp \
-    sessionnodeimpl.cpp
+    sessionnodeimpl.cpp \
+    publishing/publishingwizardselectiondialog.cpp
+
 FORMS += processstep.ui \
     editorsettingspropertiespage.ui \
     runsettingspropertiespage.ui \
@@ -187,7 +190,8 @@ FORMS += processstep.ui \
     projectexplorersettingspage.ui \
     projectwelcomepagewidget.ui \
     targetsettingswidget.ui \
-    doubletabwidget.ui
+    doubletabwidget.ui \
+    publishing/publishingwizardselectiondialog.ui
 
 equals(TEST, 1) {
     SOURCES += \

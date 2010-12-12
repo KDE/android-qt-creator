@@ -32,6 +32,7 @@
 
 #include "breakhandler.h"
 #include "debuggerengine.h"
+#include "disassemblerlines.h"
 #include "stackhandler.h"
 #include "threadshandler.h"
 
@@ -54,6 +55,7 @@ public:
     void setLocalHost(IPCEngineHost *);
     void setHostDevice(QIODevice *);
 
+    virtual void nuke() = 0;
     virtual void setupEngine() = 0;
     virtual void setupInferior(const QString &executeable,
             const QStringList &arguments, const QStringList &environment) = 0;
@@ -79,6 +81,7 @@ public:
     virtual void changeBreakpoint(BreakpointId id, const BreakpointParameters &bp) = 0;
     virtual void requestUpdateWatchData(const WatchData &data,
             const WatchUpdateFlags & flags = WatchUpdateFlags()) = 0;
+    virtual void fetchFrameSource(qint64 frame) = 0;
 
     enum Function
     {
@@ -118,7 +121,8 @@ public:
         NotifyChangeBreakpointOk         = 34,
         NotifyChangeBreakpointFailed     = 35,
         NotifyBreakpointAdjusted         = 36,
-        UpdateWatchData                  = 47
+        UpdateWatchData                  = 47,
+        FrameSourceFetched               = 48
     };
     Q_ENUMS(Function);
 
@@ -152,7 +156,7 @@ public:
     void currentThreadChanged(qint64 token);
     void listFrames(const StackFrames &);
     void listThreads(const Threads &);
-    void disassembled(quint64 pc, const QString &da);
+    void disassembled(quint64 pc, const DisassemblerLines &da);
 
     void notifyAddBreakpointOk(BreakpointId id);
     void notifyAddBreakpointFailed(BreakpointId id);
@@ -163,6 +167,8 @@ public:
     void notifyBreakpointAdjusted(BreakpointId id, const BreakpointParameters &bp);
 
     void updateWatchData(bool fullCycle, const QList<WatchData> &);
+
+    void frameSourceFetched(qint64 frame, const QString &name, const QString &sourceCode);
 
     void rpcCall(Function f, QByteArray payload = QByteArray());
 public slots:

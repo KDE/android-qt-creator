@@ -211,6 +211,16 @@ void TcfTrkGdbAdapter::handleTcfTrkRunControlModuleLoadContextSuspendedEvent(con
             library.dataseg = minfo.dataAddress;
             library.pid = RunControlContext::processIdFromTcdfId(se.id());
             m_session.libraries.push_back(library);
+            // Load local symbol file into gdb provided there is one
+            if (library.codeseg) {
+                const QString localSymFileName = Symbian::localSymFileForLibrary(library.name,
+                                                                                 m_symbolFileFolder);
+                if (!localSymFileName.isEmpty()) {
+                    showMessage(Symbian::msgLoadLocalSymFile(localSymFileName, library.name, library.codeseg), LogMisc);
+                    m_engine->postCommand(Symbian::symFileLoadCommand(localSymFileName, library.codeseg, library.dataseg));
+                } // has local sym
+            } // code seg
+
         } else {
             const int index = m_session.modules.indexOf(moduleName);
             if (index != -1) {
@@ -244,7 +254,7 @@ void TcfTrkGdbAdapter::handleTcfTrkRunControlModuleLoadContextSuspendedEvent(con
 
 	    const QByteArray symbolFile = m_symbolFile.toLocal8Bit();
             if (symbolFile.isEmpty()) {
-                logMessage(_("WARNING: No symbol file available."), LogWarning);
+                logMessage(_("WARNING: No symbol file available."), LogError);
             } else {
                 // Does not seem to be necessary anymore.
                 // FIXME: Startup sequence can be streamlined now as we do not
@@ -629,11 +639,7 @@ void TcfTrkGdbAdapter::handleGdbServerCommand(const QByteArray &cmd)
     else if (cmd == "k" || cmd.startsWith("vKill")) {
         // Kill inferior process
         logMessage(msgGdbPacket(QLatin1String("kill")));
-        // Requires id of main thread to terminate.
-        // Note that calling 'Settings|set|removeExecutable' crashes TCF TRK,
-        // so, it is apparently not required.
-        m_trkDevice->sendRunControlTerminateCommand(TcfTrkCallback(),
-                                                    mainThreadContextId());
+        sendRunControlTerminateCommand();
     }
 
     else if (cmd.startsWith('m')) {
@@ -942,6 +948,28 @@ void TcfTrkGdbAdapter::handleGdbServerCommand(const QByteArray &cmd)
     }
 }
 
+void TcfTrkGdbAdapter::sendRunControlTerminateCommand()
+{
+    // Requires id of main thread to terminate.
+    // Note that calling 'Settings|set|removeExecutable' crashes TCF TRK,
+    // so, it is apparently not required.
+    m_trkDevice->sendRunControlTerminateCommand(TcfTrkCallback(this, &TcfTrkGdbAdapter::handleRunControlTerminate),
+                                                mainThreadContextId());
+}
+
+void TcfTrkGdbAdapter::handleRunControlTerminate(const tcftrk::TcfTrkCommandResult &)
+{
+    QString msg = QString::fromLatin1("CODA disconnected");
+    const bool emergencyShutdown = m_gdbProc.state() != QProcess::Running;
+    if (emergencyShutdown)
+        msg += QString::fromLatin1(" (emergency shutdown");
+    logMessage(msg);
+    if (emergencyShutdown) {
+        cleanup();
+        m_engine->notifyAdapterShutdownOk();
+    }
+}
+
 void TcfTrkGdbAdapter::gdbSetCurrentThread(const QByteArray &cmd, const char *why)
 {
     // Thread ID from Hg/Hc commands: '-1': All, '0': arbitrary, else hex thread id.
@@ -974,6 +1002,8 @@ void TcfTrkGdbAdapter::startAdapter()
     m_remoteExecutable = parameters.executable;
     m_remoteArguments = Utils::QtcProcess::splitArgs(parameters.processArgs);
     m_symbolFile = parameters.symbolFileName;
+    if (!m_symbolFile.isEmpty())
+        m_symbolFileFolder = QFileInfo(m_symbolFile).absolutePath();
 
     QPair<QString, unsigned short> tcfTrkAddress;
 
@@ -1156,8 +1186,16 @@ void TcfTrkGdbAdapter::shutdownInferior()
 
 void TcfTrkGdbAdapter::shutdownAdapter()
 {
-    cleanup();
-    m_engine->notifyAdapterShutdownOk();
+    if (m_gdbProc.state() == QProcess::Running) {
+        cleanup();
+        m_engine->notifyAdapterShutdownOk();
+    } else {
+        // Something is wrong, gdb crashed. Kill debuggee (see handleDeleteProcess2)
+        if (m_trkDevice->device()->isOpen()) {
+            logMessage("Emergency shutdown of CODA", LogError);
+            sendRunControlTerminateCommand();
+        }
+    }
 }
 
 void TcfTrkGdbAdapter::trkReloadRegisters()

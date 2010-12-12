@@ -45,6 +45,7 @@ public:
     virtual void nodeCreated(const ModelNode &createdNode);
     virtual void nodeAboutToBeRemoved(const ModelNode &removedNode);
     virtual void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange);
+    virtual void nodeAboutToBeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     virtual void nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange);
     virtual void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId);
     virtual void propertiesAboutToBeRemoved(const QList<AbstractProperty>& propertyList);
@@ -59,7 +60,7 @@ public:
     virtual void nodeOrderChanged(const NodeListProperty &listProperty, const ModelNode &movedNode, int oldIndex);
     virtual void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
-
+    void instancesCompleted(const QVector<ModelNode> &completedNodeList);
 
     ModelNode insertModel(const ModelNode &modelNode)
     { return m_modelMerger.insertModel(modelNode); }

@@ -44,6 +44,7 @@
 #include "tipcontents.h"
 #include "indenter.h"
 #include "autocompleter.h"
+#include "snippet.h"
 
 #include <aggregation/aggregate.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -669,10 +670,7 @@ void BaseTextEditor::editorContentsChange(int position, int charsRemoved, int ch
     if (d->m_snippetOverlay->isVisible()) {
         QTextCursor cursor = textCursor();
         cursor.setPosition(position);
-        if (!d->m_snippetOverlay->hasCursorInSelection(cursor)) {
-            d->m_snippetOverlay->hide();
-            d->m_snippetOverlay->clear();
-        }
+        d->snippetCheckCursor(cursor);
     }
 
     if (doc->isRedoAvailable())
@@ -1552,8 +1550,9 @@ void BaseTextEditor::keyPressEvent(QKeyEvent *e)
         const TabSettings &ts = d->m_document->tabSettings();
         cursor.beginEditBlock();
 
-        int extraBlocks = paragraphSeparatorAboutToBeInserted(cursor); // virtual
+        int extraBlocks = d->m_autoCompleter->paragraphSeparatorAboutToBeInserted(cursor);
 
+        QString previousIndentationString;
         if (ts.m_autoIndent) {
             cursor.insertBlock();
             indent(document(), cursor, QChar::Null);
@@ -1561,8 +1560,10 @@ void BaseTextEditor::keyPressEvent(QKeyEvent *e)
             cursor.insertBlock();
 
             // After inserting the block, to avoid duplicating whitespace on the same line
-            const QString previousBlockText = cursor.block().previous().text();
-            cursor.insertText(ts.indentationString(previousBlockText));
+            const QString &previousBlockText = cursor.block().previous().text();
+            previousIndentationString = ts.indentationString(previousBlockText);
+            if (!previousIndentationString.isEmpty())
+                cursor.insertText(previousIndentationString);
         }
         cursor.endEditBlock();
         e->accept();
@@ -1572,6 +1573,10 @@ void BaseTextEditor::keyPressEvent(QKeyEvent *e)
             while (extraBlocks > 0) {
                 --extraBlocks;
                 ensureVisible.movePosition(QTextCursor::NextBlock);
+                if (ts.m_autoIndent)
+                    indent(document(), ensureVisible, QChar::Null);
+                else if (!previousIndentationString.isEmpty())
+                    ensureVisible.insertText(previousIndentationString);
             }
             setTextCursor(ensureVisible);
         }
@@ -1750,20 +1755,30 @@ void BaseTextEditor::keyPressEvent(QKeyEvent *e)
         return;
     }
 
-    if (d->m_snippetOverlay->isVisible()
-        && (e->key() == Qt::Key_Delete || e->key() == Qt::Key_Backspace)) {
-        d->snippetCheckCursor(textCursor());
-    }
-
     if (ro || e->text().isEmpty() || !e->text().at(0).isPrint()) {
         if (cursorMoveKeyEvent(e))
             ;
-        else
+        else {
+            QTextCursor cursor = textCursor();
+            bool cursorWithinSnippet = false;
+            if (d->m_snippetOverlay->isVisible()
+                && (e->key() == Qt::Key_Delete || e->key() == Qt::Key_Backspace)) {
+                cursorWithinSnippet = d->snippetCheckCursor(cursor);
+            }
+            if (cursorWithinSnippet)
+                cursor.beginEditBlock();
+
             QPlainTextEdit::keyPressEvent(e);
+
+            if (cursorWithinSnippet) {
+                cursor.endEditBlock();
+                d->m_snippetOverlay->updateEquivalentSelections(textCursor());
+            }
+        }
     } else if ((e->modifiers() & (Qt::ControlModifier|Qt::AltModifier)) != Qt::ControlModifier){
         QTextCursor cursor = textCursor();
         QString text = e->text();
-        QString autoText = autoComplete(cursor, text);
+        const QString &autoText = d->m_autoCompleter->autoComplete(cursor, text);
 
         QChar electricChar;
         if (d->m_document->tabSettings().m_autoIndent) {
@@ -1775,10 +1790,11 @@ void BaseTextEditor::keyPressEvent(QKeyEvent *e)
             }
         }
 
+        bool cursorWithinSnippet = false;
         if (d->m_snippetOverlay->isVisible())
-            d->snippetCheckCursor(cursor);
+            cursorWithinSnippet = d->snippetCheckCursor(cursor);
 
-        bool doEditBlock = !(electricChar.isNull() && autoText.isEmpty());
+        bool doEditBlock = !electricChar.isNull() || !autoText.isEmpty() || cursorWithinSnippet;
         if (doEditBlock)
             cursor.beginEditBlock();
 
@@ -1787,13 +1803,22 @@ void BaseTextEditor::keyPressEvent(QKeyEvent *e)
         if (!autoText.isEmpty()) {
             int pos = cursor.position();
             cursor.insertText(autoText);
-            cursor.setPosition(pos);
+            //Select the inserted text, to be able to re-indent the inserted text
+            cursor.setPosition(pos, QTextCursor::KeepAnchor);
         }
         if (!electricChar.isNull() && d->m_autoCompleter->contextAllowsElectricCharacters(cursor))
             indent(document(), cursor, electricChar);
+        if (!autoText.isEmpty()) {
+            if (d->m_document->tabSettings().m_autoIndent)
+                reindent(document(), cursor);
+            cursor.setPosition(autoText.length() == 1 ? cursor.position() : cursor.anchor());
+        }
 
-        if (doEditBlock)
+        if (doEditBlock) {
             cursor.endEditBlock();
+            if (cursorWithinSnippet)
+                d->m_snippetOverlay->updateEquivalentSelections(textCursor());
+        }
 
         setTextCursor(cursor);
     }
@@ -1835,7 +1860,7 @@ void BaseTextEditor::_q_requestAutoCompletion()
 
 void BaseTextEditor::insertCodeSnippet(const QTextCursor &cursor_arg, const QString &snippet)
 {
-    if ((snippet.count('$') % 2) != 0) {
+    if ((snippet.count(Snippet::kVariableDelimiter) % 2) != 0) {
         qWarning() << "invalid snippet";
         return;
     }
@@ -1851,21 +1876,21 @@ void BaseTextEditor::insertCodeSnippet(const QTextCursor &cursor_arg, const QStr
     QMap<int, int> positions;
 
     while (pos < snippet.size()) {
-        if (snippet.at(pos) != QChar::ObjectReplacementCharacter) {
+        if (snippet.at(pos) != Snippet::kVariableDelimiter) {
             const int start = pos;
             do { ++pos; }
-            while (pos < snippet.size() && snippet.at(pos) != QChar::ObjectReplacementCharacter);
+            while (pos < snippet.size() && snippet.at(pos) != Snippet::kVariableDelimiter);
             cursor.insertText(snippet.mid(start, pos - start));
         } else {
             // the start of a place holder.
             const int start = ++pos;
             for (; pos < snippet.size(); ++pos) {
-                if (snippet.at(pos) == QChar::ObjectReplacementCharacter)
+                if (snippet.at(pos) == Snippet::kVariableDelimiter)
                     break;
             }
 
             Q_ASSERT(pos < snippet.size());
-            Q_ASSERT(snippet.at(pos) == QChar::ObjectReplacementCharacter);
+            Q_ASSERT(snippet.at(pos) == Snippet::kVariableDelimiter);
 
             const QString textToInsert = snippet.mid(start, pos - start);
 
@@ -2044,6 +2069,7 @@ QString BaseTextEditor::displayName() const
 void BaseTextEditor::setDisplayName(const QString &title)
 {
     d->m_displayName = title;
+    emit changed();
 }
 
 BaseTextDocument *BaseTextEditor::baseTextDocument() const
@@ -2169,16 +2195,6 @@ void BaseTextEditor::setParenthesesMatchingEnabled(bool b)
 bool BaseTextEditor::isParenthesesMatchingEnabled() const
 {
     return d->m_parenthesesMatchingEnabled;
-}
-
-void BaseTextEditor::setAutoParenthesesEnabled(bool b)
-{
-    d->m_autoParenthesesEnabled = b;
-}
-
-bool BaseTextEditor::isAutoParenthesesEnabled() const
-{
-    return d->m_autoParenthesesEnabled;
 }
 
 void BaseTextEditor::setHighlightCurrentLine(bool b)
@@ -2342,10 +2358,8 @@ BaseTextEditorPrivate::BaseTextEditorPrivate()
     q(0),
     m_contentsChanged(false),
     m_lastCursorChangeWasInteresting(false),
-    m_allowSkippingOfBlockEnd(false),
     m_document(new BaseTextDocument),
     m_parenthesesMatchingEnabled(false),
-    m_autoParenthesesEnabled(true),
     m_updateTimer(0),
     m_formatRange(false),
     m_parenthesesMatchingTimer(0),
@@ -2428,20 +2442,23 @@ void BaseTextEditorPrivate::setupDocumentSignals(BaseTextDocument *document)
 }
 
 
-void BaseTextEditorPrivate::snippetCheckCursor(const QTextCursor &cursor)
+bool BaseTextEditorPrivate::snippetCheckCursor(const QTextCursor &cursor)
 {
     if (!m_snippetOverlay->isVisible() || m_snippetOverlay->isEmpty())
-        return;
+        return false;
 
     QTextCursor start = cursor;
     start.setPosition(cursor.selectionStart());
     QTextCursor end = cursor;
     end.setPosition(cursor.selectionEnd());
     if (!m_snippetOverlay->hasCursorInSelection(start)
-        || !m_snippetOverlay->hasCursorInSelection(end)) {
+        || !m_snippetOverlay->hasCursorInSelection(end)
+        || m_snippetOverlay->hasFirstSelectionBeginMoved()) {
         m_snippetOverlay->setVisible(false);
         m_snippetOverlay->clear();
+        return false;
     }
+    return true;
 }
 
 void BaseTextEditorPrivate::snippetTabOrBacktab(bool forward)
@@ -2451,8 +2468,8 @@ void BaseTextEditorPrivate::snippetTabOrBacktab(bool forward)
     QTextCursor cursor = q->textCursor();
     OverlaySelection final;
     if (forward) {
-        for (int i = 0; i < m_snippetOverlay->m_selections.count(); ++i){
-            const OverlaySelection &selection = m_snippetOverlay->m_selections.at(i);
+        for (int i = 0; i < m_snippetOverlay->selections().count(); ++i){
+            const OverlaySelection &selection = m_snippetOverlay->selections().at(i);
             if (selection.m_cursor_begin.position() >= cursor.position()
                 && selection.m_cursor_end.position() > cursor.position()) {
                 final = selection;
@@ -2460,8 +2477,8 @@ void BaseTextEditorPrivate::snippetTabOrBacktab(bool forward)
             }
         }
     } else {
-        for (int i = m_snippetOverlay->m_selections.count()-1; i >= 0; --i){
-            const OverlaySelection &selection = m_snippetOverlay->m_selections.at(i);
+        for (int i = m_snippetOverlay->selections().count()-1; i >= 0; --i){
+            const OverlaySelection &selection = m_snippetOverlay->selections().at(i);
             if (selection.m_cursor_end.position() < cursor.position()) {
                 final = selection;
                 break;
@@ -2470,7 +2487,7 @@ void BaseTextEditorPrivate::snippetTabOrBacktab(bool forward)
 
     }
     if (final.m_cursor_begin.isNull())
-        final = forward ? m_snippetOverlay->m_selections.first() : m_snippetOverlay->m_selections.last();
+        final = forward ? m_snippetOverlay->selections().first() : m_snippetOverlay->selections().last();
 
     if (final.m_cursor_begin.position() == final.m_cursor_end.position()) { // empty tab stop
         cursor.setPosition(final.m_cursor_end.position());
@@ -2480,7 +2497,6 @@ void BaseTextEditorPrivate::snippetTabOrBacktab(bool forward)
     }
     q->setTextCursor(cursor);
 }
-
 
 bool BaseTextEditor::viewportEvent(QEvent *event)
 {
@@ -4379,59 +4395,76 @@ void BaseTextEditor::handleHomeKey(bool anchor)
     setTextCursor(cursor);
 }
 
-
-#define SET_AND_RETURN(cursor) setTextCursor(cursor); return  // make cursor visible and reset vertical x movement
 void BaseTextEditor::handleBackspaceKey()
 {
     QTextCursor cursor = textCursor();
     int pos = cursor.position();
     QTC_ASSERT(!cursor.hasSelection(), return);
 
+    bool cursorWithinSnippet = false;
     if (d->m_snippetOverlay->isVisible()) {
         QTextCursor snippetCursor = cursor;
         snippetCursor.movePosition(QTextCursor::Left);
-        d->snippetCheckCursor(snippetCursor);
+        cursorWithinSnippet = d->snippetCheckCursor(snippetCursor);
     }
 
     const TextEditor::TabSettings &tabSettings = d->m_document->tabSettings();
 
-    if (tabSettings.m_autoIndent && autoBackspace(cursor))
+    if (tabSettings.m_autoIndent && d->m_autoCompleter->autoBackspace(cursor))
         return;
 
+    bool handled = false;
     if (!tabSettings.m_smartBackspace) {
-        cursor.deletePreviousChar();
-        SET_AND_RETURN(cursor);
-    }
-
-    QTextBlock currentBlock = cursor.block();
-    int positionInBlock = pos - currentBlock.position();
-    const QString blockText = currentBlock.text();
-    if (cursor.atBlockStart() || tabSettings.firstNonSpace(blockText) < positionInBlock) {
-        cursor.deletePreviousChar();
-        SET_AND_RETURN(cursor);
-    }
-
-    int previousIndent = 0;
-    const int indent = tabSettings.columnAt(blockText, positionInBlock);
-
-    for (QTextBlock previousNonEmptyBlock = currentBlock.previous();
-         previousNonEmptyBlock.isValid();
-         previousNonEmptyBlock = previousNonEmptyBlock.previous()) {
-        QString previousNonEmptyBlockText = previousNonEmptyBlock.text();
-        if (previousNonEmptyBlockText.trimmed().isEmpty())
-            continue;
-        previousIndent = tabSettings.columnAt(previousNonEmptyBlockText,
-                                              tabSettings.firstNonSpace(previousNonEmptyBlockText));
-        if (previousIndent < indent) {
+        if (cursorWithinSnippet)
             cursor.beginEditBlock();
-            cursor.setPosition(currentBlock.position(), QTextCursor::KeepAnchor);
-            cursor.insertText(tabSettings.indentationString(previousNonEmptyBlockText));
-            cursor.endEditBlock();
-            SET_AND_RETURN(cursor);
+        cursor.deletePreviousChar();
+        handled = true;
+    } else {
+        QTextBlock currentBlock = cursor.block();
+        int positionInBlock = pos - currentBlock.position();
+        const QString blockText = currentBlock.text();
+        if (cursor.atBlockStart() || tabSettings.firstNonSpace(blockText) < positionInBlock) {
+            if (cursorWithinSnippet)
+                cursor.beginEditBlock();
+            cursor.deletePreviousChar();
+            handled = true;
+        } else {
+            int previousIndent = 0;
+            const int indent = tabSettings.columnAt(blockText, positionInBlock);
+
+            for (QTextBlock previousNonEmptyBlock = currentBlock.previous();
+                 previousNonEmptyBlock.isValid();
+                 previousNonEmptyBlock = previousNonEmptyBlock.previous()) {
+                QString previousNonEmptyBlockText = previousNonEmptyBlock.text();
+                if (previousNonEmptyBlockText.trimmed().isEmpty())
+                    continue;
+                previousIndent =
+                    tabSettings.columnAt(previousNonEmptyBlockText,
+                                         tabSettings.firstNonSpace(previousNonEmptyBlockText));
+                if (previousIndent < indent) {
+                    cursor.beginEditBlock();
+                    cursor.setPosition(currentBlock.position(), QTextCursor::KeepAnchor);
+                    cursor.insertText(tabSettings.indentationString(previousNonEmptyBlockText));
+                    cursor.endEditBlock();
+                    handled = true;
+                    break;
+                }
+            }
         }
     }
-    cursor.deletePreviousChar();
-    SET_AND_RETURN(cursor);
+
+    if (!handled) {
+        if (cursorWithinSnippet)
+            cursor.beginEditBlock();
+        cursor.deletePreviousChar();
+    }
+
+    if (cursorWithinSnippet) {
+        cursor.endEditBlock();
+        d->m_snippetOverlay->updateEquivalentSelections(cursor);
+    }
+
+    setTextCursor(cursor);
 }
 
 void BaseTextEditor::wheelEvent(QWheelEvent *e)
@@ -4467,222 +4500,6 @@ void BaseTextEditor::zoomReset()
 void BaseTextEditor::indentInsertedText(const QTextCursor &tc)
 {
     indent(tc.document(), tc, QChar::Null);
-}
-
-void BaseTextEditor::countBracket(QChar open, QChar close, QChar c, int *errors, int *stillopen)
-{
-    if (c == open)
-        ++*stillopen;
-    else if (c == close)
-        --*stillopen;
-
-    if (*stillopen < 0) {
-        *errors += -1 * (*stillopen);
-        *stillopen = 0;
-    }
-}
-
-void BaseTextEditor::countBrackets(QTextCursor cursor, int from, int end, QChar open, QChar close, int *errors, int *stillopen)
-{
-    cursor.setPosition(from);
-    QTextBlock block = cursor.block();
-    while (block.isValid() && block.position() < end) {
-        TextEditor::Parentheses parenList = TextEditor::BaseTextDocumentLayout::parentheses(block);
-        if (!parenList.isEmpty() && !TextEditor::BaseTextDocumentLayout::ifdefedOut(block)) {
-            for (int i = 0; i < parenList.count(); ++i) {
-                TextEditor::Parenthesis paren = parenList.at(i);
-                int position = block.position() + paren.pos;
-                if (position < from || position >= end)
-                    continue;
-                countBracket(open, close, paren.chr, errors, stillopen);
-            }
-        }
-        block = block.next();
-    }
-}
-
-QString BaseTextEditor::autoComplete(QTextCursor &cursor, const QString &textToInsert) const
-{
-    const bool checkBlockEnd = d->m_allowSkippingOfBlockEnd;
-    d->m_allowSkippingOfBlockEnd = false; // consume blockEnd.
-
-    if (!d->m_autoParenthesesEnabled)
-        return QString();
-
-    if (!d->m_autoCompleter->contextAllowsAutoParentheses(cursor, textToInsert))
-        return QString();
-
-    const QString text = textToInsert;
-    const QChar lookAhead = characterAt(cursor.selectionEnd());
-
-    const QChar character = textToInsert.at(0);
-    const QString parentheses = QLatin1String("()");
-    const QString brackets = QLatin1String("[]");
-    if (parentheses.contains(character) || brackets.contains(character)) {
-        QTextCursor tmp= cursor;
-        bool foundBlockStart = TextEditor::TextBlockUserData::findPreviousBlockOpenParenthesis(&tmp);
-        int blockStart = foundBlockStart ? tmp.position() : 0;
-        tmp = cursor;
-        bool foundBlockEnd = TextEditor::TextBlockUserData::findNextBlockClosingParenthesis(&tmp);
-        int blockEnd = foundBlockEnd ? tmp.position() : (cursor.document()->characterCount() - 1);
-        const QChar openChar = parentheses.contains(character) ? QLatin1Char('(') : QLatin1Char('[');
-        const QChar closeChar = parentheses.contains(character) ? QLatin1Char(')') : QLatin1Char(']');
-
-        int errors = 0;
-        int stillopen = 0;
-        countBrackets(cursor, blockStart, blockEnd, openChar, closeChar, &errors, &stillopen);
-        int errorsBeforeInsertion = errors + stillopen;
-        errors = 0;
-        stillopen = 0;
-        countBrackets(cursor, blockStart, cursor.position(), openChar, closeChar, &errors, &stillopen);
-        countBracket(openChar, closeChar, character, &errors, &stillopen);
-        countBrackets(cursor, cursor.position(), blockEnd, openChar, closeChar, &errors, &stillopen);
-        int errorsAfterInsertion = errors + stillopen;
-        if (errorsAfterInsertion < errorsBeforeInsertion)
-            return QString(); // insertion fixes parentheses or bracket errors, do not auto complete
-    }
-
-    int skippedChars = 0;
-    const QString autoText = d->m_autoCompleter->insertMatchingBrace(cursor, text, lookAhead, &skippedChars);
-
-    if (checkBlockEnd && textToInsert.at(0) == QLatin1Char('}')) {
-        if (textToInsert.length() > 1)
-            qWarning() << "*** handle event compression";
-
-        int startPos = cursor.selectionEnd(), pos = startPos;
-        while (characterAt(pos).isSpace())
-            ++pos;
-
-        if (characterAt(pos) == QLatin1Char('}'))
-            skippedChars += (pos - startPos) + 1;
-    }
-
-    if (skippedChars) {
-        const int pos = cursor.position();
-        cursor.setPosition(pos + skippedChars);
-        cursor.setPosition(pos, QTextCursor::KeepAnchor);
-    }
-
-    return autoText;
-}
-
-bool BaseTextEditor::autoBackspace(QTextCursor &cursor)
-{
-    d->m_allowSkippingOfBlockEnd = false;
-
-    if (!d->m_autoParenthesesEnabled)
-        return false;
-
-    int pos = cursor.position();
-    if (pos == 0)
-        return false;
-    QTextCursor c = cursor;
-    c.setPosition(pos - 1);
-
-    const QChar lookAhead = characterAt(pos);
-    const QChar lookBehind = characterAt(pos - 1);
-    const QChar lookFurtherBehind = characterAt(pos - 2);
-
-    const QChar character = lookBehind;
-    if (character == QLatin1Char('(') || character == QLatin1Char('[')) {
-        QTextCursor tmp = cursor;
-        TextEditor::TextBlockUserData::findPreviousBlockOpenParenthesis(&tmp);
-        int blockStart = tmp.isNull() ? 0 : tmp.position();
-        tmp = cursor;
-        TextEditor::TextBlockUserData::findNextBlockClosingParenthesis(&tmp);
-        int blockEnd = tmp.isNull() ? (cursor.document()->characterCount()-1) : tmp.position();
-        QChar openChar = character;
-        QChar closeChar = (character == QLatin1Char('(')) ? QLatin1Char(')') : QLatin1Char(']');
-
-        int errors = 0;
-        int stillopen = 0;
-        countBrackets(cursor, blockStart, blockEnd, openChar, closeChar, &errors, &stillopen);
-        int errorsBeforeDeletion = errors + stillopen;
-        errors = 0;
-        stillopen = 0;
-        countBrackets(cursor, blockStart, pos - 1, openChar, closeChar, &errors, &stillopen);
-        countBrackets(cursor, pos, blockEnd, openChar, closeChar, &errors, &stillopen);
-        int errorsAfterDeletion = errors + stillopen;
-
-        if (errorsAfterDeletion < errorsBeforeDeletion)
-            return false; // insertion fixes parentheses or bracket errors, do not auto complete
-    }
-
-    // ### this code needs to be generalized
-    if    ((lookBehind == QLatin1Char('(') && lookAhead == QLatin1Char(')'))
-        || (lookBehind == QLatin1Char('[') && lookAhead == QLatin1Char(']'))
-        || (lookBehind == QLatin1Char('"') && lookAhead == QLatin1Char('"')
-            && lookFurtherBehind != QLatin1Char('\\'))
-        || (lookBehind == QLatin1Char('\'') && lookAhead == QLatin1Char('\'')
-            && lookFurtherBehind != QLatin1Char('\\'))) {
-        if (! d->m_autoCompleter->isInComment(c)) {
-            cursor.beginEditBlock();
-            cursor.deleteChar();
-            cursor.deletePreviousChar();
-            cursor.endEditBlock();
-            return true;
-        }
-    }
-    return false;
-}
-
-int BaseTextEditor::paragraphSeparatorAboutToBeInserted(QTextCursor &cursor)
-{
-    if (!d->m_autoParenthesesEnabled)
-        return 0;
-
-    if (characterAt(cursor.position() - 1) != QLatin1Char('{'))
-        return 0;
-
-    if (!d->m_autoCompleter->contextAllowsAutoParentheses(cursor))
-        return 0;
-
-    // verify that we indeed do have an extra opening brace in the document
-    int braceDepth = BaseTextDocumentLayout::braceDepth(document()->lastBlock());
-
-    if (braceDepth <= 0)
-        return 0; // braces are all balanced or worse, no need to do anything
-
-    // we have an extra brace , let's see if we should close it
-
-
-    /* verify that the next block is not further intended compared to the current block.
-       This covers the following case:
-
-            if (condition) {|
-                statement;
-    */
-    const TabSettings &ts = tabSettings();
-    QTextBlock block = cursor.block();
-    int indentation = ts.indentationColumn(block.text());
-
-    if (block.next().isValid()) { // not the last block
-        block = block.next();
-        //skip all empty blocks
-        while (block.isValid() && ts.onlySpace(block.text()))
-            block = block.next();
-        if (block.isValid()
-                && ts.indentationColumn(block.text()) > indentation)
-            return 0;
-    }
-
-    int pos = cursor.position();
-
-    const QString textToInsert = d->m_autoCompleter->insertParagraphSeparator(cursor);
-
-    cursor.insertText(textToInsert);
-    cursor.setPosition(pos);
-    if (ts.m_autoIndent) {
-        cursor.insertBlock();
-        indent(document(), cursor, QChar::Null);
-    } else {
-        QString previousBlockText = cursor.block().text();
-        cursor.insertBlock();
-        cursor.insertText(ts.indentationString(previousBlockText));
-    }
-    cursor.setPosition(pos);
-    d->m_allowSkippingOfBlockEnd = true;
-    return 1;
 }
 
 void BaseTextEditor::indent(QTextDocument *doc, const QTextCursor &cursor, QChar typedChar)
@@ -5210,6 +5027,7 @@ void BaseTextEditor::setExtraSelections(ExtraSelectionKind kind, const QList<QTe
                                               selection.format.background().color(),
                                               TextEditorOverlay::ExpandBegin);
         }
+        d->m_snippetOverlay->mapEquivalentSelections();
         d->m_snippetOverlay->setVisible(!d->m_snippetOverlay->isEmpty());
     } else {
         QList<QTextEdit::ExtraSelection> all;
@@ -5578,7 +5396,8 @@ void BaseTextEditor::setStorageSettings(const StorageSettings &storageSettings)
 
 void BaseTextEditor::setCompletionSettings(const TextEditor::CompletionSettings &completionSettings)
 {
-    setAutoParenthesesEnabled(completionSettings.m_autoInsertBrackets);
+    d->m_autoCompleter->setAutoParenthesesEnabled(completionSettings.m_autoInsertBrackets);
+    d->m_autoCompleter->setSurroundWithEnabled(completionSettings.m_autoInsertBrackets);
 }
 
 void BaseTextEditor::fold()

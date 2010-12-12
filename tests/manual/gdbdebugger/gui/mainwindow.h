@@ -69,6 +69,10 @@ private slots:
     void on_actionCrash_triggered();
     void on_actionSimpleBP_triggered();
 
+    void on_actionStdTypes_triggered();
+
+    void on_actionVariousQtTypes_triggered();
+
 private:
     void terminateThread();
     int m_w;

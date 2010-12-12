@@ -29,10 +29,25 @@
 
 #include "maemoglobal.h"
 
+#include "maemoconstants.h"
+#include "maemodeviceconfigurations.h"
+
+#include <coreplugin/ssh/sshconnection.h>
+#include <utils/environment.h>
+
+#include <QtCore/QCoreApplication>
+#include <QtGui/QDesktopServices>
+#include <QtCore/QDir>
+#include <QtCore/QProcess>
 #include <QtCore/QString>
+
+#define TR(text) QCoreApplication::translate("Qt4ProjectManager::Internal::MaemoGlobal", text)
 
 namespace Qt4ProjectManager {
 namespace Internal {
+namespace {
+static const QLatin1String binQmake("/bin/qmake" EXEC_SUFFIX);
+}
 
 QString MaemoGlobal::homeDirOnDevice(const QString &uname)
 {
@@ -69,6 +84,84 @@ QString MaemoGlobal::remoteEnvironment(const QList<Utils::EnvironmentItem> &list
     foreach (const Utils::EnvironmentItem &item, list)
         env.append(placeHolder.arg(item.name).arg(item.value));
     return env.mid(0, env.size() - 1);
+}
+
+QString MaemoGlobal::failedToConnectToServerMessage(const Core::SshConnection::Ptr &connection,
+    const MaemoDeviceConfig &deviceConfig)
+{
+    QString errorMsg = TR("Could not connect to host: %1")
+        .arg(connection->errorString());
+
+    if (deviceConfig.type == MaemoDeviceConfig::Simulator) {
+        if (connection->errorState() == Core::SshTimeoutError
+                || connection->errorState() == Core::SshSocketError) {
+            errorMsg += TR("\nDid you start Qemu?");
+        }
+    } else if (connection->errorState() == Core::SshTimeoutError) {
+        errorMsg += TR("\nIs the device connected and set up for network access?");
+    }
+    return errorMsg;
+}
+
+QString MaemoGlobal::maddeRoot(const QString &qmakePath)
+{
+    QDir dir(QDir::cleanPath(qmakePath).remove(binQmake));
+    dir.cdUp(); dir.cdUp();
+    return dir.absolutePath();
+}
+
+QString MaemoGlobal::targetName(const QString &qmakePath)
+{
+    const QString target = QDir::cleanPath(qmakePath).remove(binQmake);
+    return target.mid(target.lastIndexOf(QLatin1Char('/')) + 1);
+}
+
+bool MaemoGlobal::removeRecursively(const QString &filePath, QString &error)
+{
+    QFileInfo fileInfo(filePath);
+    if (!fileInfo.exists())
+        return true;
+    if (fileInfo.isDir()) {
+        QDir dir(filePath);
+        QStringList fileNames = dir.entryList(QDir::Files | QDir::Hidden
+            | QDir::System | QDir::Dirs | QDir::NoDotAndDotDot);
+        foreach (const QString &fileName, fileNames) {
+            if (!removeRecursively(filePath + QLatin1Char('/') + fileName, error))
+                return false;
+        }
+        dir.cdUp();
+        if (!dir.rmdir(fileInfo.fileName())) {
+            error = TR("Failed to remove directory '%1'.")
+                .arg(QDir::toNativeSeparators(filePath));
+            return false;
+        }
+    } else {
+        if (!QFile::remove(filePath)) {
+            error = TR("Failed to remove file '%1'.")
+                .arg(QDir::toNativeSeparators(filePath));
+            return false;
+        }
+    }
+    return true;
+}
+
+void MaemoGlobal::callMaddeShellScript(QProcess &proc, const QString &maddeRoot,
+    const QString &command, const QStringList &args)
+{
+    QString actualCommand = command;
+    QStringList actualArgs = args;
+#ifdef Q_OS_WIN
+    Utils::Environment env(proc.systemEnvironment());
+    env.prependOrSetPath(maddeRoot + QLatin1String("/bin"));
+    env.prependOrSet(QLatin1String("HOME"),
+        QDesktopServices::storageLocation(QDesktopServices::HomeLocation));
+    proc.setEnvironment(env.toStringList());
+    actualArgs.prepend(command);
+    actualCommand = maddeRoot + QLatin1String("/bin/sh.exe");
+#else
+    Q_UNUSED(maddeRoot);
+#endif
+    proc.start(actualCommand, actualArgs);
 }
 
 } // namespace Internal

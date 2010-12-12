@@ -38,10 +38,10 @@
 
 #include <allpropertiesbox.h>
 #include <designdocumentcontroller.h>
-#include <itemlibrary.h>
+#include <itemlibraryview.h>
 #include <navigatorwidget.h>
 #include <navigatorview.h>
-#include <stateseditorwidget.h>
+#include <stateseditorview.h>
 #include <modelnode.h>
 #include <formeditorview.h>
 
@@ -148,6 +148,8 @@ private slots:
     void updateAvailableSidebarItemsLeft();
     void updateAvailableSidebarItemsRight();
 
+    void deleteSidebarWidgets();
+
 protected:
     void resizeEvent(QResizeEvent *event);
 
@@ -172,10 +174,10 @@ private:
     QAction *m_toggleLeftSidebarAction;
     QAction *m_toggleRightSidebarAction;
 
-    QWeakPointer<ItemLibrary> m_itemLibrary;
+    QWeakPointer<ItemLibraryView> m_itemLibraryView;
     QWeakPointer<NavigatorView> m_navigator;
     QWeakPointer<AllPropertiesBox> m_allPropertiesBox;
-    QWeakPointer<StatesEditorWidget> m_statesEditorWidget;
+    QWeakPointer<StatesEditorView> m_statesEditorView;
     QWeakPointer<FormEditorView> m_formEditorView;
     QWeakPointer<NodeInstanceView> m_nodeInstanceView;
 

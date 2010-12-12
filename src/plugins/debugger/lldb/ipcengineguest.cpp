@@ -39,6 +39,7 @@
 #include <QFileInfo>
 #include <QTimer>
 #include <utils/qtcassert.h>
+#include <QLocalSocket>
 
 #if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
 #define SET_NATIVE_BYTE_ORDER(x) x.setByteOrder(QDataStream::LittleEndian)
@@ -62,23 +63,23 @@ IPCEngineGuest::~IPCEngineGuest()
 {
 }
 
-void IPCEngineGuest::setLocalHost(IPCEngineHost * h)
+void IPCEngineGuest::setLocalHost(IPCEngineHost *host)
 {
-    m_local_host = h;
+    m_local_host = host;
 }
 
-void IPCEngineGuest::setHostDevice(QIODevice * d)
+void IPCEngineGuest::setHostDevice(QIODevice *device)
 {
     if (m_device) {
         disconnect(m_device, SIGNAL(readyRead()), this, SLOT(readyRead()));
         delete m_device;
     }
-    m_device = d;
+    m_device = device;
     if (m_device)
-        connect(m_device, SIGNAL(readyRead()), this, SLOT(readyRead()));
+        connect(m_device, SIGNAL(readyRead()), SLOT(readyRead()));
 }
 
-void IPCEngineGuest::rpcCall(IPCEngineGuest::Function f, QByteArray payload )
+void IPCEngineGuest::rpcCall(Function f, QByteArray payload)
 {
 #if 0
     if (m_local_host) {
@@ -99,13 +100,16 @@ void IPCEngineGuest::rpcCall(IPCEngineGuest::Function f, QByteArray payload )
         }
         m_device->write(payload);
         m_device->putChar('T');
+        QLocalSocket *sock = qobject_cast<QLocalSocket *>(m_device);
+        if (sock)
+            sock->flush();
     }
 }
 
 void IPCEngineGuest::readyRead()
 {
     if (!m_nextMessagePayloadSize) {
-        if (quint64(m_device->bytesAvailable()) < (sizeof(quint64) * 3))
+        if (quint64(m_device->bytesAvailable()) < 3 * sizeof(quint64))
             return;
         QDataStream s(m_device);
         SET_NATIVE_BYTE_ORDER(s);
@@ -119,20 +123,19 @@ void IPCEngineGuest::readyRead()
     if (ba < m_nextMessagePayloadSize)
         return;
 
-    qint64 rrr = (m_nextMessagePayloadSize);
+    qint64 rrr = m_nextMessagePayloadSize;
     QByteArray payload = m_device->read(rrr);
     if (quint64(payload.size()) != m_nextMessagePayloadSize || !payload.endsWith('T')) {
-        showMessage(QLatin1String("IPC Error: corrupted frame"));
-        showMessage(tr("Fatal engine shutdown. Incompatible binary or ipc error."), LogError);
-        showStatusMessage(tr("Fatal engine shutdown. Incompatible binary or ipc error."));
-        notifyEngineIll();
+        qDebug("IPC Error: corrupted frame");
+        showMessage(QLatin1String("[guest] IPC Error: corrupted frame"), LogError);
+        nuke();
         return;
     }
     payload.chop(1);
     rpcCallback(m_nextMessageFunction, payload);
     m_nextMessagePayloadSize = 0;
 
-    if (quint64(m_device->bytesAvailable ()) >= (sizeof(quint64) * 3))
+    if (quint64(m_device->bytesAvailable ()) >= 3 * sizeof(quint64))
         QTimer::singleShot(0, this, SLOT(readyRead()));
 }
 
@@ -140,10 +143,9 @@ void IPCEngineGuest::rpcCallback(quint64 f, QByteArray payload)
 {
     switch (f) {
         default:
-            showMessage(QLatin1String("IPC Error: unhandled id in host to guest call"));
-            showMessage(tr("Fatal engine shutdown. Incompatible binary or ipc error."), LogError);
-            showStatusMessage(tr("Fatal engine shutdown. Incompatible binary or ipc error."));
-            notifyEngineIll();
+            qDebug("IPC Error: unhandled id in host to guest call");
+            showMessage(QLatin1String("IPC Error: unhandled id in host to guest call"), LogError);
+            nuke();
             break;
         case IPCEngineHost::SetupIPC:
             {
@@ -308,6 +310,15 @@ void IPCEngineGuest::rpcCallback(quint64 f, QByteArray payload)
                 WatchData data;
                 s >> data;
                 requestUpdateWatchData(data);
+            }
+            break;
+        case IPCEngineHost::FetchFrameSource:
+            {
+                QDataStream s(payload);
+                SET_NATIVE_BYTE_ORDER(s);
+                qint64 id;
+                s >> id;
+                fetchFrameSource(id);
             }
             break;
     };
@@ -503,7 +514,7 @@ void IPCEngineGuest::listThreads(const Threads &threads)
     rpcCall(ListThreads, p);
 }
 
-void IPCEngineGuest::disassembled(quint64 pc, const QString &da)
+void IPCEngineGuest::disassembled(quint64 pc, const DisassemblerLines &da)
 {
     QByteArray p;
     {
@@ -601,10 +612,23 @@ void IPCEngineGuest::updateWatchData(bool fullCycle, const QList<WatchData> &wd)
         SET_NATIVE_BYTE_ORDER(s);
         s << fullCycle;
         s << quint64(wd.count());
-        for (int i = 0; i < wd.count(); i++)
+        for (int i = 0; i < wd.count(); ++i)
             s << wd.at(i);
     }
     rpcCall(UpdateWatchData, p);
+}
+
+void IPCEngineGuest::frameSourceFetched(qint64 id, const QString &name, const QString &source)
+{
+    QByteArray p;
+    {
+        QDataStream s(&p, QIODevice::WriteOnly);
+        SET_NATIVE_BYTE_ORDER(s);
+        s << id;
+        s << name;
+        s << source;
+    }
+    rpcCall(FrameSourceFetched, p);
 }
 
 } // namespace Internal

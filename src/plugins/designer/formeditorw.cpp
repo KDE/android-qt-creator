@@ -186,7 +186,6 @@ FormEditorW::FormEditorW() :
 
     foreach (QDesignerOptionsPageInterface *designerPage, m_formeditor->optionsPages()) {
         SettingsPage *settingsPage = new SettingsPage(designerPage);
-        ExtensionSystem::PluginManager::instance()->addObject(settingsPage);
         m_settingsPages.append(settingsPage);
     }
 
@@ -213,10 +212,8 @@ FormEditorW::~FormEditorW()
     }
 
     delete m_formeditor;
-    foreach (SettingsPage *settingsPage, m_settingsPages) {
-        ExtensionSystem::PluginManager::instance()->removeObject(settingsPage);
-        delete settingsPage;
-    }
+    qDeleteAll(m_settingsPages);
+    m_settingsPages.clear();
     delete m_integration;
 
     m_self = 0;
@@ -337,7 +334,9 @@ void FormEditorW::fullInit()
     // 'Run' in 'Design' mode emits output.
     Core::MiniSplitter *splitter = new Core::MiniSplitter(Qt::Vertical);
     splitter->addWidget(m_editorWidget);
-    splitter->addWidget(new Core::OutputPanePlaceHolder(m_designMode, splitter));
+    QWidget *outputPane = new Core::OutputPanePlaceHolder(m_designMode, splitter);
+    outputPane->setObjectName(QLatin1String("DesignerOutputPanePlaceHolder"));
+    splitter->addWidget(outputPane);
     layout->addWidget(splitter);
     m_modeWidget->setLayout(layout);
 
@@ -385,6 +384,11 @@ void FormEditorW::initDesignerSubWindows()
     ae->setObjectName(QLatin1String("ActionEditor"));
     m_formeditor->setActionEditor(ae);
     m_designerSubWindows[ActionEditorSubWindow] = ae;
+}
+
+QList<Core::IOptionsPage *> FormEditorW::optionsPages() const
+{
+    return m_settingsPages;
 }
 
 void FormEditorW::ensureInitStage(InitializationStage s)

@@ -30,13 +30,14 @@
 #include "debuggerengine.h"
 
 #include "debuggeractions.h"
-#include "debuggeragents.h"
 #include "debuggercore.h"
 #include "debuggerplugin.h"
 #include "debuggerrunner.h"
 #include "debuggerstringutils.h"
 #include "debuggertooltip.h"
 
+#include "memoryagent.h"
+#include "disassembleragent.h"
 #include "breakhandler.h"
 #include "moduleshandler.h"
 #include "registerhandler.h"
@@ -51,6 +52,7 @@
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 
+#include <projectexplorer/toolchain.h>
 #include <projectexplorer/toolchaintype.h>
 
 #include <texteditor/itexteditor.h>
@@ -63,13 +65,9 @@
 #include <QtCore/QTimer>
 #include <QtCore/QFutureInterface>
 
-#include <QtGui/QStandardItemModel>
-#include <QtGui/QAction>
-#include <QtGui/QTreeWidget>
 #include <QtGui/QMessageBox>
 
 using namespace Core;
-using namespace Debugger;
 using namespace Debugger::Internal;
 using namespace ProjectExplorer;
 using namespace TextEditor;
@@ -105,9 +103,9 @@ DebuggerStartParameters::DebuggerStartParameters() :
     executableUid(0)
 {}
 
-void DebuggerStartParameters::clear()
+QString DebuggerStartParameters::toolChainName() const
 {
-    *this = DebuggerStartParameters();
+    return ToolChain::toolChainName(ProjectExplorer::ToolChainType(toolChainType));
 }
 
 QDebug operator<<(QDebug d, DebuggerState state)
@@ -301,26 +299,6 @@ void DebuggerEngine::removeTooltip()
     hideDebuggerToolTip();
 }
 
-void DebuggerEngine::showModuleSymbols
-    (const QString &moduleName, const Symbols &symbols)
-{
-    QTreeWidget *w = new QTreeWidget;
-    w->setColumnCount(3);
-    w->setRootIsDecorated(false);
-    w->setAlternatingRowColors(true);
-    w->setSortingEnabled(true);
-    w->setHeaderLabels(QStringList() << tr("Symbol") << tr("Address") << tr("Code"));
-    w->setWindowTitle(tr("Symbols in \"%1\"").arg(moduleName));
-    foreach (const Symbol &s, symbols) {
-        QTreeWidgetItem *it = new QTreeWidgetItem;
-        it->setData(0, Qt::DisplayRole, s.name);
-        it->setData(1, Qt::DisplayRole, s.address);
-        it->setData(2, Qt::DisplayRole, s.state);
-        w->addTopLevelItem(it);
-    }
-    debuggerCore()->createNewDock(w);
-}
-
 void DebuggerEngine::frameUp()
 {
     int currentIndex = stackHandler()->currentIndex();
@@ -487,6 +465,8 @@ void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
 
     QTC_ASSERT(state() == DebuggerNotReady || state() == DebuggerFinished,
          qDebug() << state());
+    d->m_lastGoodState = DebuggerNotReady;
+    d->m_targetState = DebuggerNotReady;
     setState(EngineSetupRequested);
 
     d->m_progress.setProgressValue(200);
@@ -516,21 +496,15 @@ void DebuggerEngine::resetLocation()
 
 void DebuggerEngine::gotoLocation(const QString &fileName, int lineNumber, bool setMarker)
 {
-    StackFrame frame;
-    frame.file = fileName;
-    frame.line = lineNumber;
-    gotoLocation(frame, setMarker);
+    debuggerCore()->gotoLocation(fileName, lineNumber, setMarker);
 }
 
 void DebuggerEngine::gotoLocation(const StackFrame &frame, bool setMarker)
 {
-    if (debuggerCore()->boolSetting(OperateByInstruction) || !frame.isUsable()) {
-        if (setMarker)
-            resetLocation();
-        d->m_disassemblerViewAgent.setFrame(frame);
-    } else {
+    if (debuggerCore()->boolSetting(OperateByInstruction) || !frame.isUsable())
+        d->m_disassemblerViewAgent.setFrame(frame, true, setMarker);
+    else
         debuggerCore()->gotoLocation(frame.file, frame.line, setMarker);
-    }
 }
 
 // Called from RunControl.
@@ -645,7 +619,7 @@ static bool isAllowedTransition(DebuggerState from, DebuggerState to)
             || to == InferiorUnrunnable || to == EngineRunFailed;
 
     case EngineRunFailed:
-        return to == InferiorShutdownRequested;
+        return to == EngineShutdownRequested;
 
     case InferiorRunRequested:
         return to == InferiorRunOk || to == InferiorRunFailed;
@@ -755,7 +729,7 @@ void DebuggerEngine::notifyEngineRunFailed()
     d->m_progress.reportCanceled();
     d->m_progress.reportFinished();
     setState(EngineRunFailed);
-    d->queueShutdownInferior();
+    d->queueShutdownEngine();
 }
 
 void DebuggerEngine::notifyEngineRunAndInferiorRunOk()
@@ -920,8 +894,10 @@ void DebuggerEnginePrivate::doFinishDebugger()
     m_engine->showMessage(_("NOTE: FINISH DEBUGGER"));
     QTC_ASSERT(state() == DebuggerFinished, qDebug() << state());
     m_engine->resetLocation();
-    QTC_ASSERT(m_runControl, return);
-    m_runControl->debuggingFinished();
+    if (!m_engine->isSlaveEngine()) {
+        QTC_ASSERT(m_runControl, return);
+        m_runControl->debuggingFinished();
+    }
 }
 
 void DebuggerEngine::notifyEngineIll()
@@ -1221,6 +1197,7 @@ void DebuggerEngine::attemptBreakpointSynchronization()
             handler->setEngine(id, this);
     }
 
+    bool done = true;
     foreach (BreakpointId id, handler->engineBreakpointIds(this)) {
         switch (handler->state(id)) {
         case BreakpointNew:
@@ -1228,17 +1205,21 @@ void DebuggerEngine::attemptBreakpointSynchronization()
             QTC_ASSERT(false, /**/);
             continue;
         case BreakpointInsertRequested:
+            done = false;
             insertBreakpoint(id);
             continue;
         case BreakpointChangeRequested:
+            done = false;
             changeBreakpoint(id);
             continue;
         case BreakpointRemoveRequested:
+            done = false;
             removeBreakpoint(id);
             continue;
         case BreakpointChangeProceeding:
         case BreakpointInsertProceeding:
         case BreakpointRemoveProceeding:
+            done = false;
             //qDebug() << "BREAKPOINT " << id << " STILL IN PROGRESS, STATE"
             //    << handler->state(id);
             continue;
@@ -1253,25 +1234,28 @@ void DebuggerEngine::attemptBreakpointSynchronization()
         QTC_ASSERT(false, qDebug() << "UNKNOWN STATE"  << id << state());
     }
 
+    if (done)
+        d->m_disassemblerViewAgent.updateBreakpointMarkers();
 }
 
-bool DebuggerEngine::acceptsBreakpoint(BreakpointId) const
+void DebuggerEngine::insertBreakpoint(BreakpointId id)
 {
-    return true;
-}
-
-void DebuggerEngine::insertBreakpoint(BreakpointId)
-{
+    BreakpointState state = breakHandler()->state(id);
+    QTC_ASSERT(state == BreakpointInsertRequested, qDebug() << state);
     QTC_ASSERT(false, /**/);
 }
 
-void DebuggerEngine::removeBreakpoint(BreakpointId)
+void DebuggerEngine::removeBreakpoint(BreakpointId id)
 {
+    BreakpointState state = breakHandler()->state(id);
+    QTC_ASSERT(state == BreakpointRemoveRequested, qDebug() << state);
     QTC_ASSERT(false, /**/);
 }
 
-void DebuggerEngine::changeBreakpoint(BreakpointId)
+void DebuggerEngine::changeBreakpoint(BreakpointId id)
 {
+    BreakpointState state = breakHandler()->state(id);
+    QTC_ASSERT(state == BreakpointChangeRequested, qDebug() << state);
     QTC_ASSERT(false, /**/);
 }
 
@@ -1355,7 +1339,7 @@ bool DebuggerEngine::isDying() const
 QString DebuggerEngine::msgWatchpointTriggered(BreakpointId id,
     const int number, quint64 address)
 {
-    return id != BreakpointId(-1)
+    return id
         ? tr("Watchpoint %1 (%2) at 0x%3 triggered.")
             .arg(id).arg(number).arg(address, 0, 16)
         : tr("Internal watchpoint %1 at 0x%2 triggered.")
@@ -1365,7 +1349,7 @@ QString DebuggerEngine::msgWatchpointTriggered(BreakpointId id,
 QString DebuggerEngine::msgWatchpointTriggered(BreakpointId id,
     const int number, quint64 address, const QString &threadId)
 {
-    return id != BreakpointId(-1)
+    return id
         ? tr("Watchpoint %1 (%2) at 0x%3 in thread %4 triggered.")
             .arg(id).arg(number).arg(address, 0, 16).arg(threadId)
         : tr("Internal watchpoint %1 at 0x%2 in thread %3 triggered.")
@@ -1375,7 +1359,7 @@ QString DebuggerEngine::msgWatchpointTriggered(BreakpointId id,
 QString DebuggerEngine::msgBreakpointTriggered(BreakpointId id,
         const int number, const QString &threadId)
 {
-    return id != BreakpointId(-1)
+    return id
         ? tr("Stopped at breakpoint %1 (%2) in thread %3.")
             .arg(id).arg(number).arg(threadId)
         : tr("Stopped at internal breakpoint %1 in thread %2.")
@@ -1424,6 +1408,37 @@ void DebuggerEngine::showStoppedByExceptionMessageBox(const QString &description
         tr("<p>The inferior stopped because it triggered an exception.<p>%1").
                          arg(description);
     showMessageBox(QMessageBox::Information, tr("Exception Triggered"), msg);
+}
+
+bool DebuggerEngine::isCppBreakpoint(const BreakpointParameters &p)
+{
+    // Qml is currently only file
+    if (p.type != BreakpointByFileAndLine)
+        return true;
+    return !p.fileName.endsWith(QLatin1String(".qml"), Qt::CaseInsensitive)
+            && !p.fileName.endsWith(QLatin1String(".js"), Qt::CaseInsensitive);
+}
+
+void DebuggerEngine::openMemoryView(quint64 address)
+{
+    (void) new MemoryViewAgent(this, address);
+}
+
+void DebuggerEngine::openDisassemblerView(const StackFrame &frame)
+{
+    DisassemblerViewAgent *agent = new DisassemblerViewAgent(this);
+    agent->setFrame(frame, true, false);
+}
+
+void DebuggerEngine::handleRemoteSetupDone(int gdbServerPort, int qmlPort)
+{
+    Q_UNUSED(gdbServerPort);
+    Q_UNUSED(qmlPort);
+}
+
+void DebuggerEngine::handleRemoteSetupFailed(const QString &message)
+{
+    Q_UNUSED(message);
 }
 
 } // namespace Debugger

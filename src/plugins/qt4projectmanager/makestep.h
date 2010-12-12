@@ -47,8 +47,9 @@ class Project;
 }
 
 namespace Qt4ProjectManager {
-namespace Internal {
 class Qt4BuildConfiguration;
+
+namespace Internal {
 
 class MakeStepFactory : public ProjectExplorer::IBuildStepFactory
 {
@@ -83,7 +84,7 @@ public:
     explicit MakeStep(ProjectExplorer::BuildStepList *bsl);
     virtual ~MakeStep();
 
-    Internal::Qt4BuildConfiguration *qt4BuildConfiguration() const;
+    Qt4BuildConfiguration *qt4BuildConfiguration() const;
 
     virtual bool init();
     virtual void run(QFutureInterface<bool> &);
@@ -110,7 +111,6 @@ private:
     bool m_clean;
     QString m_userArgs;
     QString m_makeCmd;
-    ProjectExplorer::GnuMakeParser * m_gnuMakeParser;
 };
 
 class MakeStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget

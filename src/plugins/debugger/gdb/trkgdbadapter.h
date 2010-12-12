@@ -135,6 +135,7 @@ private:
     Q_SLOT void handleTrkResult(const trk::TrkResult &data);
     Q_SLOT void handleTrkError(const QString &msg);
     void trkContinueAll(const char *why);
+    void trkKill();
     void handleTrkContinueNext(const TrkResult &result);
     void trkContinueNext(int threadIndex);
 
@@ -226,6 +227,7 @@ private:
     QString m_remoteExecutable;
     QString m_remoteArguments;
     QString m_symbolFile;
+    QString m_symbolFileFolder;
     int m_verbose;
     bool m_bufferedMemoryRead;
     LocalGdbProcess m_gdbProc;

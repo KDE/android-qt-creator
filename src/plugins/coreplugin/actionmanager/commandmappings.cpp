@@ -54,7 +54,7 @@ using namespace Core;
 using namespace Core::Internal;
 
 CommandMappings::CommandMappings(QObject *parent)
-    : IOptionsPage(parent)
+    : IOptionsPage(parent), m_page(0)
 {
 }
 
@@ -140,7 +140,10 @@ void CommandMappings::setTargetHeader(const QString &s)
 
 void CommandMappings::finish()
 {
+    if (!m_page) // page was never shown
+        return;
     delete m_page;
+    m_page = 0;
 }
 
 void CommandMappings::commandChanged(QTreeWidgetItem *current)
@@ -155,6 +158,8 @@ void CommandMappings::commandChanged(QTreeWidgetItem *current)
 
 void CommandMappings::filterChanged(const QString &f)
 {
+    if (!m_page)
+        return;
     for (int i=0; i<m_page->commandList->topLevelItemCount(); ++i) {
         QTreeWidgetItem *item = m_page->commandList->topLevelItem(i);
         item->setHidden(filter(f, item));
@@ -199,4 +204,11 @@ void CommandMappings::setModified(QTreeWidgetItem *item , bool modified)
     item->setFont(1, f);
     f.setBold(modified);
     item->setFont(2, f);
+}
+
+QString CommandMappings::filterText() const
+{
+    if (!m_page)
+        return QString();
+    return m_page->filterEdit->text();
 }

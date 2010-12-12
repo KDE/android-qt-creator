@@ -43,7 +43,7 @@ namespace Internal {
 
 BreakpointParameters::BreakpointParameters(BreakpointType t)
   : type(t), enabled(true), useFullPath(false),
-    ignoreCount(0), lineNumber(0), address(0)
+    ignoreCount(0), lineNumber(0), address(0), threadSpec(0)
 {}
 
 bool BreakpointParameters::equals(const BreakpointParameters &rhs) const
@@ -52,7 +52,7 @@ bool BreakpointParameters::equals(const BreakpointParameters &rhs) const
         && enabled == rhs.enabled
         && useFullPath == rhs.useFullPath
         && fileName == rhs.fileName
-        && condition == rhs.condition
+        && conditionsMatch(rhs.condition)
         && ignoreCount == rhs.ignoreCount
         && lineNumber == rhs.lineNumber
         && address == rhs.address
@@ -74,13 +74,13 @@ QString BreakpointParameters::toString() const
 {
     QString result;
     QTextStream ts(&result);
-    ts << fileName;
-    ts << condition;
-    ts << ignoreCount;
-    ts << lineNumber;
-    ts << address;
-    ts << functionName;
-    ts << useFullPath;
+    ts << " FileName: " << fileName;
+    ts << " Condition: " << condition;
+    ts << " IgnoreCount: " << ignoreCount;
+    ts << " LineNumber: " << lineNumber;
+    ts << " Address: " << address;
+    ts << " FunctionName: " << functionName;
+    ts << " UseFullPath: " << useFullPath;
     return result;
 }
 
@@ -99,12 +99,12 @@ QString BreakpointResponse::toString() const
 {
     QString result;
     QTextStream ts(&result);
-    ts << number;
-    ts << pending;
-    ts << fullName;
-    ts << multiple;
-    ts << extra;
-    ts << correctedLineNumber;
+    ts << " Number: " << number;
+    ts << " Pending: " << pending;
+    ts << " FullName: " << fullName;
+    ts << " Multiple: " << multiple;
+    ts << " Extra: " << extra;
+    ts << " CorrectedLineNumber: " << correctedLineNumber;
     return result + BreakpointParameters::toString();
 }
 

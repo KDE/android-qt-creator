@@ -31,9 +31,8 @@
 #define QEMURUNTIMEMANAGER_H
 
 #include "maemoconstants.h"
-#include "maemodeviceconfigurations.h"
+#include "maemoqemuruntime.h"
 
-#include <QtCore/QHash>
 #include <QtCore/QMap>
 #include <QtCore/QObject>
 #include <QtCore/QProcess>
@@ -56,23 +55,6 @@ namespace Qt4ProjectManager {
     namespace Internal {
     class MaemoRunConfiguration;
 
-struct Runtime
-{
-    Runtime() {}
-    Runtime(const QString &root)
-        : m_root(root) {}
-    bool isValid() const {
-        return !m_bin.isEmpty();
-    }
-
-    QString m_bin;
-    QString m_root;
-    QString m_args;
-    QString m_sshPort;
-    QString m_watchPath;
-    QHash<QString, QString> m_environment;
-    MaemoPortList m_freePorts;
-};
 
 class MaemoQemuManager : public QObject
 {
@@ -81,7 +63,7 @@ class MaemoQemuManager : public QObject
 public:
     static MaemoQemuManager& instance(QObject *parent = 0);
 
-    bool runtimeForQtVersion(int uniqueId, Runtime *rt) const;
+    bool runtimeForQtVersion(int uniqueId, MaemoQemuRuntime *rt) const;
 
 signals:
     void qemuProcessStatus(QemuStatus, const QString &error = QString());
@@ -130,13 +112,6 @@ private:
     bool targetUsesMatchingRuntimeConfig(ProjectExplorer::Target *target,
         QtVersion **qtVersion = 0);
 
-    QString maddeRoot(const QString &qmake) const;
-    QString targetRoot(const QString &qmake) const;
-
-    bool fillRuntimeInformation(Runtime *runtime) const;
-    void setEnvironment(Runtime *runTime, const QString &envSpec) const;
-    QString runtimeForQtVersion(const QString &qmakeCommand) const;
-
     void notify(const QList<int> uniqueIds);
     void toggleDeviceConnections(MaemoRunConfiguration *mrc, bool connect);
 
@@ -147,13 +122,13 @@ private:
     int m_runningQtId;
     bool m_userTerminated;
     QIcon m_qemuStarterIcon;
-    QMap<int, Runtime> m_runtimes;
+    QMap<int, MaemoQemuRuntime> m_runtimes;
     static MaemoQemuManager *m_instance;
     QFileSystemWatcher *m_runtimeRootWatcher;
     QFileSystemWatcher *m_runtimeFolderWatcher;
 };
 
-    }   // namespace Qt4ProjectManager
 }   // namespace Internal
+}   // namespace Qt4ProjectManager
 
 #endif  // QEMURUNTIMEMANAGER_H

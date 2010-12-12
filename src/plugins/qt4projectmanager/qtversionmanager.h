@@ -31,6 +31,8 @@
 #define QTVERSIONMANAGER_H
 
 #include "qt4projectmanager_global.h"
+
+#include <projectexplorer/ioutputparser.h>
 #include <projectexplorer/taskwindow.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/task.h>
@@ -71,6 +73,7 @@ public:
 
     bool isValid() const; //TOOD check that the dir exists and the name is non empty
     QString invalidReason() const;
+    QString description() const;
     bool isAutodetected() const { return m_isAutodetected; }
     QString autodetectionSource() const { return m_autodetectionSource; }
 
@@ -171,6 +174,8 @@ public:
     /// @return a list of tasks, ordered on severity (errors first, then
     ///         warnings and finally info items.
     QList<ProjectExplorer::Task> reportIssues(const QString &proFile, const QString &buildDir);
+
+    ProjectExplorer::IOutputParser *createOutputParser() const;
 
 private:
     QList<QSharedPointer<ProjectExplorer::ToolChain> > toolChains() const;

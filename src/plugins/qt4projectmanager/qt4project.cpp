@@ -249,7 +249,6 @@ Qt4Project::Qt4Project(Qt4Manager *manager, const QString& fileName) :
     m_manager(manager),
     m_rootProjectNode(0),
     m_nodesWatcher(new Internal::Qt4NodesWatcher(this)),
-    m_targetFactory(new Qt4TargetFactory(this)),
     m_fileInfo(new Qt4ProjectFile(this, fileName, this)),
     m_projectFiles(new Qt4ProjectFiles),
     m_proFileOption(0),
@@ -294,7 +293,7 @@ bool Qt4Project::fromMap(const QVariantMap &map)
 
     // Prune targets without buildconfigurations:
     // This can happen esp. when updating from a old version of Qt Creator
-    QList<Target *>ts(targets());
+    QList<Target *>ts = targets();
     foreach (Target *t, ts) {
         if (t->buildConfigurations().isEmpty()) {
             qWarning() << "Removing" << t->id() << "since it has no buildconfigurations!";
@@ -355,11 +354,6 @@ bool Qt4Project::fromMap(const QVariantMap &map)
     return true;
 }
 
-Qt4TargetFactory *Qt4Project::targetFactory() const
-{
-    return m_targetFactory;
-}
-
 Qt4Target *Qt4Project::activeTarget() const
 {
     return static_cast<Qt4Target *>(Project::activeTarget());
@@ -372,11 +366,11 @@ void Qt4Project::onAddedTarget(ProjectExplorer::Target *t)
     Q_ASSERT(qt4target);
     connect(qt4target, SIGNAL(buildDirectoryInitialized()),
             this, SIGNAL(buildDirectoryInitialized()));
-    connect(qt4target, SIGNAL(proFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4Target*)),
-            this, SLOT(proFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4Target*)));
+    connect(qt4target, SIGNAL(proFileEvaluateNeeded(Qt4ProjectManager::Qt4Target*)),
+            this, SLOT(proFileEvaluateNeeded(Qt4ProjectManager::Qt4Target*)));
 }
 
-void Qt4Project::proFileEvaluateNeeded(Qt4ProjectManager::Internal::Qt4Target *target)
+void Qt4Project::proFileEvaluateNeeded(Qt4ProjectManager::Qt4Target *target)
 {
     if (activeTarget() == target)
         scheduleAsyncUpdate();
@@ -965,11 +959,6 @@ bool Qt4Project::validParse(const QString &proFilePath) const
         return false;
     const Qt4ProFileNode *node = m_rootProjectNode->findProFileFor(proFilePath);
     return node && node->validParse();
-}
-
-BuildConfigWidget *Qt4Project::createConfigWidget()
-{
-    return new Qt4ProjectConfigWidget(this);
 }
 
 QList<BuildConfigWidget*> Qt4Project::subConfigWidgets()

@@ -63,6 +63,7 @@
 #include <QtCore/QDir>
 #include <QtCore/QSignalMapper>
 
+#include <QtGui/QComboBox>
 #include <QtGui/QMainWindow> // for msg box parent
 #include <QtGui/QMessageBox>
 #include <QtGui/QToolButton>
@@ -107,6 +108,7 @@ public:
         layout->setContentsMargins(3, 0, 3, 0);
 
         m_patience = new QToolButton;
+        m_patience->setToolTip(tr("Use the patience algorithmn for calculating the diff"));
         m_patience->setText(tr("Patience"));
         layout->addWidget(m_patience);
         m_patience->setCheckable(true);
@@ -114,24 +116,48 @@ public:
         connect(m_patience, SIGNAL(toggled(bool)), this, SLOT(testForArgumentsChanged()));
 
         m_ignoreSpaces = new QToolButton;
+        m_ignoreSpaces->setToolTip(tr("Ignore whitespaces only changes"));
         m_ignoreSpaces->setText(tr("Ignore Whitespace"));
         layout->addWidget(m_ignoreSpaces);
         m_ignoreSpaces->setCheckable(true);
         m_ignoreSpaces->setChecked(m_settings->ignoreSpaceChangesInDiff);
         connect(m_ignoreSpaces, SIGNAL(toggled(bool)), this, SLOT(testForArgumentsChanged()));
+
+        m_prettyFormat = new QComboBox;
+        m_prettyFormat->setToolTip(tr("Select the pretty printing format"));
+        m_prettyFormat->addItem(tr("oneline"), QLatin1String("oneline"));
+        m_prettyFormat->addItem(tr("short"), QLatin1String("short"));
+        m_prettyFormat->addItem(tr("medium"), QLatin1String("medium"));
+        m_prettyFormat->addItem(tr("full"), QLatin1String("full"));
+        m_prettyFormat->addItem(tr("fuller"), QLatin1String("fuller"));
+        m_prettyFormat->addItem(tr("email"), QLatin1String("email"));
+        m_prettyFormat->addItem(tr("raw"), QLatin1String("raw"));
+        layout->addWidget(m_prettyFormat);
+        m_prettyFormat->setCurrentIndex(m_settings->showPrettyFormat);
+        m_prettyFormat->setVisible(false);
+        connect(m_prettyFormat, SIGNAL(currentIndexChanged(int)), this, SLOT(testForArgumentsChanged()));
     }
 
     QStringList arguments() const
     {
-        QStringList args = m_diffArgs;
+        QStringList args;
+        foreach (const QString &arg, m_diffArgs) {
+            if (arg == QLatin1String("--patience")
+                    || arg == QLatin1String("--ignore-space-change")
+                    || arg.startsWith(QLatin1String("--pretty="))
+                    || arg.startsWith(QLatin1String("--format=")))
+                continue;
+            args.append(arg);
+        }
 
-        args.removeAll(QLatin1String("--patience"));
-        args.removeAll(QLatin1String("--ignore-space-change"));
-
-        if (m_patience->isChecked())
+        if (m_patience->isChecked() && m_patience->isVisible())
             args.prepend(QLatin1String("--patience"));
-        if (m_ignoreSpaces->isChecked())
+        if (m_ignoreSpaces->isChecked() && m_ignoreSpaces->isVisible())
             args.prepend(QLatin1String("--ignore-space-change"));
+        if (m_prettyFormat->isVisible()) {
+            args.prepend(QString::fromLatin1("--pretty=")
+                         + m_prettyFormat->itemData(m_prettyFormat->currentIndex()).toString());
+        }
 
         return args;
     }
@@ -139,6 +165,7 @@ public:
     void testForArgumentsChanged() {
         m_settings->diffPatience = m_patience->isChecked();
         m_settings->ignoreSpaceChangesInDiff = m_ignoreSpaces->isChecked();
+        m_settings->showPrettyFormat = m_prettyFormat->currentIndex();
 
         QStringList newArguments = arguments();
 
@@ -149,9 +176,10 @@ public:
         redoCommand();
     }
 
-private:
+protected:
     QToolButton *m_patience;
     QToolButton *m_ignoreSpaces;
+    QComboBox *m_prettyFormat;
 };
 
 class GitCommitDiffArgumentsWidget : public BaseGitDiffArgumentsWidget
@@ -214,6 +242,30 @@ private:
     const QString m_branchName;
 };
 
+class GitShowArgumentsWidget : public BaseGitDiffArgumentsWidget
+{
+public:
+    GitShowArgumentsWidget(Git::Internal::GitSettings *settings,
+                           Git::Internal::GitClient *client, const QString &directory,
+                           const QStringList &args, const QString &id) :
+        BaseGitDiffArgumentsWidget(settings, client, directory, args),
+        m_id(id)
+    {
+        m_patience->setVisible(false);
+        m_ignoreSpaces->setVisible(false);
+        m_prettyFormat->setVisible(true);
+    }
+
+    void redoCommand()
+    {
+        m_client->show(m_workingDirectory, m_id, m_diffArgs);
+    }
+
+private:
+    const QString m_id;
+};
+
+
 class GitBlameArgumentsWidget : public Git::Internal::BaseGitArgumentsWidget
 {
 public:
@@ -232,6 +284,7 @@ public:
         layout->setContentsMargins(3, 0, 3, 0);
 
         m_omitDate = new QToolButton;
+        m_omitDate->setToolTip(tr("Do not show the date a change was made in the output"));
         m_omitDate->setText(tr("Omit Date"));
         layout->addWidget(m_omitDate);
         m_omitDate->setCheckable(true);
@@ -241,6 +294,7 @@ public:
         connect(m_omitDate, SIGNAL(toggled(bool)), this, SLOT(testForArgumentsChanged()));
 
         m_ignoreSpaces = new QToolButton;
+        m_ignoreSpaces->setToolTip(tr("Ignore whitespace only changes"));
         m_ignoreSpaces->setText(tr("Ignore Whitespace"));
         layout->addWidget(m_ignoreSpaces);
         m_ignoreSpaces->setCheckable(true);
@@ -377,7 +431,8 @@ VCSBase::VCSBaseEditor *GitClient::findExistingVCSEditor(const char *registerDyn
     if (!outputEditor)
         return 0;
 
-     // Exists already
+    // Exists already
+    Core::EditorManager::instance()->activateEditor(outputEditor, Core::EditorManager::ModeSwitch);
     outputEditor->createNew(m_msgWait);
     rc = VCSBase::VCSBaseEditor::getVcsBaseEditor(outputEditor);
 
@@ -486,10 +541,6 @@ void GitClient::diff(const QString &workingDirectory,
                      const QStringList &diffArgs,
                      const QString &fileName)
 {
-    // if (Git::Constants::debug)
-        qDebug() << "diff" << workingDirectory << fileName << diffArgs;
-
-
     const QString editorId = QLatin1String(Git::Constants::GIT_DIFF_EDITOR_ID);
     const QString title = tr("Git Diff %1").arg(fileName);
     const QString sourceFile = VCSBase::VCSBaseEditor::getSource(workingDirectory, fileName);
@@ -627,7 +678,7 @@ static inline QString msgCannotShow(const QString &sha)
     return GitClient::tr("Cannot describe '%1'.").arg(sha);
 }
 
-void GitClient::show(const QString &source, const QString &id)
+void GitClient::show(const QString &source, const QString &id, const QStringList &args)
 {
     if (Git::Constants::debug)
         qDebug() << "show" << source << id;
@@ -636,14 +687,22 @@ void GitClient::show(const QString &source, const QString &id)
         return;
     }
 
-    QStringList arguments;
-    arguments << QLatin1String("show") << QLatin1String(noColorOption) << id;
-
+    QStringList userArgs = args;
     const QString title =  tr("Git Show %1").arg(id);
     const QString editorId = QLatin1String(Git::Constants::GIT_DIFF_EDITOR_ID);
     VCSBase::VCSBaseEditor *editor = findExistingVCSEditor("show", id);
-    if (!editor)
-        editor = createVCSEditor(editorId, title, source, true, "show", id, 0);
+    if (!editor) {
+        GitShowArgumentsWidget *argWidget =
+                new GitShowArgumentsWidget(&m_settings, this, source,
+                                           QStringList(), id);
+        userArgs = argWidget->arguments();
+        editor = createVCSEditor(editorId, title, source, true, "show", id, argWidget);
+    }
+
+    QStringList arguments;
+    arguments << QLatin1String("show") << QLatin1String(noColorOption);
+    arguments.append(userArgs);
+    arguments << id;
 
     const QFileInfo sourceFi(source);
     const QString workDir = sourceFi.isDir() ? sourceFi.absoluteFilePath() : sourceFi.absolutePath();

@@ -41,6 +41,8 @@ HEADERS += qt4deployconfiguration.h \
     wizards/abstractmobileapp.h \
     wizards/qmlstandaloneapp.h \
     wizards/abstractmobileappwizard.h \
+    wizards/subdirsprojectwizard.h \
+    wizards/subdirsprojectwizarddialog.h \
     qt4projectmanagerconstants.h \
     makestep.h \
     qmakestep.h \
@@ -103,6 +105,8 @@ SOURCES += qt4projectmanagerplugin.cpp \
     wizards/abstractmobileapp.cpp \
     wizards/qmlstandaloneapp.cpp \
     wizards/abstractmobileappwizard.cpp \
+    wizards/subdirsprojectwizard.cpp \
+    wizards/subdirsprojectwizarddialog.cpp \
     makestep.cpp \
     qmakestep.cpp \
     qt4runconfiguration.cpp \
@@ -135,8 +139,10 @@ FORMS += makestep.ui \
     wizards/testwizardpage.ui \
     wizards/targetsetuppage.ui \
     wizards/qmlstandaloneappwizardsourcespage.ui \
-    wizards/mobileappwizardoptionspage.ui \
     wizards/mobilelibrarywizardoptionpage.ui \
+    wizards/mobileappwizardgenericoptionspage.ui \
+    wizards/mobileappwizardsymbianoptionspage.ui \
+    wizards/mobileappwizardmaemooptionspage.ui \
     librarydetailswidget.ui
 RESOURCES += qt4projectmanager.qrc \
     wizards/wizards.qrc

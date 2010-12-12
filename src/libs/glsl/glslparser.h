@@ -1,5 +1,5 @@
 
-#line 214 "./glsl.g"
+#line 213 "./glsl.g"
 
 /**************************************************************************
 **
@@ -47,30 +47,30 @@ public:
         const QString *string;
         AST *ast;
         List<AST *> *ast_list;
-        Declaration *declaration;
-        List<Declaration *> *declaration_list;
-        Expression *expression;
-        List<Expression *> *expression_list;
-        Statement *statement;
-        List<Statement *> *statement_list;
-        Type *type;
-        StructType::Field *field;
-        List<StructType::Field *> *field_list;
-        TranslationUnit *translation_unit;
-        FunctionIdentifier *function_identifier;
+        DeclarationAST *declaration;
+        List<DeclarationAST *> *declaration_list;
+        ExpressionAST *expression;
+        List<ExpressionAST *> *expression_list;
+        StatementAST *statement;
+        List<StatementAST *> *statement_list;
+        TypeAST *type;
+        StructTypeAST::Field *field;
+        List<StructTypeAST::Field *> *field_list;
+        TranslationUnitAST *translation_unit;
+        FunctionIdentifierAST *function_identifier;
         AST::Kind kind;
-        Type::Precision precision;
+        TypeAST::Precision precision;
         struct {
-            Statement *thenClause;
-            Statement *elseClause;
+            StatementAST *thenClause;
+            StatementAST *elseClause;
         } ifstmt;
         struct {
-            Expression *condition;
-            Expression *increment;
+            ExpressionAST *condition;
+            ExpressionAST *increment;
         } forstmt;
         struct {
-            FunctionIdentifier *id;
-            List<Expression *> *arguments;
+            FunctionIdentifierAST *id;
+            List<ExpressionAST *> *arguments;
         } function;
         int qualifier;
         LayoutQualifier *layout;
@@ -80,49 +80,66 @@ public:
             List<LayoutQualifier *> *layout_list;
         } type_qualifier;
         struct {
-            Type *type;
+            TypeAST *type;
             const QString *name;
         } param_declarator;
-        ParameterDeclaration *param_declaration;
-        FunctionDeclaration *function_declaration;
+        ParameterDeclarationAST *param_declaration;
+        FunctionDeclarationAST *function_declaration;
     };
 
     Parser(Engine *engine, const char *source, unsigned size, int variant);
     ~Parser();
 
-    TranslationUnit *parse();
+    TranslationUnitAST *parse() {
+        if (AST *u = parse(T_FEED_GLSL))
+            return u->asTranslationUnit();
+        return 0;
+    }
+
+    ExpressionAST *parseExpression() {
+        if (AST *u = parse(T_FEED_EXPRESSION))
+            return u->asExpression();
+        return 0;
+    }
+
+    AST *parse(int startToken);
 
 private:
     // 1-based
+    int &location(int n) { return _locationStack[_tos + n - 1]; }
     Value &sym(int n) { return _symStack[_tos + n - 1]; }
     AST *&ast(int n) { return _symStack[_tos + n - 1].ast; }
     const QString *&string(int n) { return _symStack[_tos + n - 1].string; }
-    Expression *&expression(int n) { return _symStack[_tos + n - 1].expression; }
-    Statement *&statement(int n) { return _symStack[_tos + n - 1].statement; }
-    Type *&type(int n) { return _symStack[_tos + n - 1].type; }
-    FunctionDeclaration *&function(int n) { return _symStack[_tos + n - 1].function_declaration; }
+    ExpressionAST *&expression(int n) { return _symStack[_tos + n - 1].expression; }
+    StatementAST *&statement(int n) { return _symStack[_tos + n - 1].statement; }
+    TypeAST *&type(int n) { return _symStack[_tos + n - 1].type; }
+    FunctionDeclarationAST *&function(int n) { return _symStack[_tos + n - 1].function_declaration; }
 
-    inline int consumeToken() { return _index++; }
-    inline const Token &tokenAt(int index) const { return _tokens.at(index); }
-    inline int tokenKind(int index) const { return _tokens.at(index).kind; }
+    inline int consumeToken() {
+        if (_index < int(_tokens.size()))
+            return _index++;
+        return _tokens.size() - 1;
+    }
+    inline const Token &tokenAt(int index) const {
+        if (index == 0)
+            return _startToken;
+        return _tokens.at(index);
+    }
+    inline int tokenKind(int index) const {
+        if (index == 0)
+            return _startToken.kind;
+        return _tokens.at(index).kind;
+    }
     void reduce(int ruleno);
 
     void warning(int line, const QString &message)
     {
-        DiagnosticMessage m;
-        m.setKind(DiagnosticMessage::Warning);
-        m.setLine(line);
-        m.setMessage(message);
-        _engine->addDiagnosticMessage(m);
+        _engine->warning(line, message);
     }
 
     void error(int line, const QString &message)
     {
-        DiagnosticMessage m;
-        m.setKind(DiagnosticMessage::Error);
-        m.setLine(line);
-        m.setMessage(message);
-        _engine->addDiagnosticMessage(m);
+        _engine->error(line, message);
     }
 
     template <typename T>
@@ -165,9 +182,9 @@ private:
         return node;
     }
 
-    Type *makeBasicType(int token, BasicType::Category category)
+    TypeAST *makeBasicType(int token)
     {
-        Type *type = new (_engine->pool()) BasicType(token, spell[token], category);
+        TypeAST *type = new (_engine->pool()) BasicTypeAST(token, spell[token]);
         type->lineno = yyloc >= 0 ? (_tokens[yyloc].line + 1) : 0;
         return type;
     }
@@ -177,6 +194,10 @@ private:
     int _tos;
     int _index;
     int yyloc;
+    int yytoken;
+    int yyrecovering;
+    bool _recovered;
+    Token _startToken;
     std::vector<int> _stateStack;
     std::vector<int> _locationStack;
     std::vector<Value> _symStack;

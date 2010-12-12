@@ -34,10 +34,10 @@
 #include "debuggerconstants.h"
 #include "debuggercore.h"
 #include "debuggerdialogs.h"
+#include "debuggermainwindow.h"
 #include "debuggerrunner.h"
 #include "debuggerstringutils.h"
 #include "debuggertooltip.h"
-#include "debuggeruiswitcher.h"
 
 #include "breakhandler.h"
 #include "moduleshandler.h"
@@ -138,6 +138,7 @@ static QDataStream &operator>>(QDataStream &s, StackFrame &frame)
     s >> function >> file >> frame.line;
     frame.function = QString::fromUtf8(function);
     frame.file = QString::fromUtf8(file);
+    frame.usable = QFileInfo(frame.file).isReadable();
     return s;
 }
 
@@ -148,8 +149,8 @@ public:
     explicit QmlEnginePrivate(QmlEngine *q);
     ~QmlEnginePrivate() { delete m_adapter; }
 
-    friend class Debugger::QmlEngine;
 private:
+    friend class QmlEngine;
     int m_ping;
     QmlAdapter *m_adapter;
     ProjectExplorer::ApplicationLauncher m_applicationLauncher;
@@ -159,9 +160,6 @@ QmlEnginePrivate::QmlEnginePrivate(QmlEngine *q)
     : m_ping(0), m_adapter(new QmlAdapter(q))
 {}
 
-} // namespace Internal
-
-using namespace Internal;
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -176,8 +174,7 @@ QmlEngine::QmlEngine(const DebuggerStartParameters &startParameters)
 }
 
 QmlEngine::~QmlEngine()
-{
-}
+{}
 
 void QmlEngine::gotoLocation(const QString &fileName, int lineNumber, bool setMarker)
 {
@@ -203,14 +200,14 @@ void QmlEngine::setupInferior()
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
 
     if (startParameters().startMode == AttachToRemote) {
-        emit remoteStartupRequested();
+        requestRemoteSetup();
     } else {
         connect(&d->m_applicationLauncher, SIGNAL(processExited(int)),
-                this, SLOT(disconnected()));
+                SLOT(disconnected()));
         connect(&d->m_applicationLauncher, SIGNAL(appendMessage(QString,bool)),
-                runControl(), SLOT(emitAppendMessage(QString,bool)));
-        connect(&d->m_applicationLauncher, SIGNAL(appendOutput(QString, bool)),
-                runControl(), SLOT(emitAddToOutputWindow(QString, bool)));
+                SLOT(appendMessage(QString,bool)));
+        connect(&d->m_applicationLauncher, SIGNAL(appendOutput(QString,bool)),
+                SLOT(appendOutput(QString,bool)));
         connect(&d->m_applicationLauncher, SIGNAL(bringToForegroundRequested(qint64)),
                 runControl(), SLOT(bringApplicationToForeground(qint64)));
 
@@ -219,6 +216,16 @@ void QmlEngine::setupInferior()
 
         notifyInferiorSetupOk();
     }
+}
+
+void QmlEngine::appendMessage(const QString &msg, bool)
+{
+    showMessage(msg, AppStuff);
+}
+
+void QmlEngine::appendOutput(const QString &msg, bool)
+{
+    showMessage(msg, AppOutput);
 }
 
 void QmlEngine::connectionEstablished()
@@ -467,17 +474,33 @@ void QmlEngine::attemptBreakpointSynchronization()
             handler->setEngine(id, this);
     }
 
-    //bool updateNeeded = false;
     JSAgentBreakpoints breakpoints;
     foreach (BreakpointId id, handler->engineBreakpointIds(this)) {
-        QString processedFilename = handler->fileName(id);
-        if (isShadowBuildProject())
-            processedFilename = toShadowBuildFilename(handler->fileName(id));
-        JSAgentBreakpointData bp;
-        bp.fileName = processedFilename.toUtf8();
-        bp.lineNumber = handler->lineNumber(id);
-        bp.functionName = handler->functionName(id).toUtf8();
-        breakpoints.insert(bp);
+        if (handler->state(id) == BreakpointRemoveRequested) {
+            handler->notifyBreakpointRemoveProceeding(id);
+            handler->notifyBreakpointRemoveOk(id);
+        } else {
+            if (handler->state(id) == BreakpointInsertRequested) {
+                handler->notifyBreakpointInsertProceeding(id);
+            }
+            QString processedFilename = handler->fileName(id);
+#ifdef Q_OS_MACX
+            // Qt Quick Applications by default copy the qml directory to buildDir()/X.app/Contents/Resources
+            const QString applicationBundleDir
+                    = QFileInfo(startParameters().executable).absolutePath() + "/../..";
+            processedFilename = mangleFilenamePaths(handler->fileName(id), startParameters().projectDir, applicationBundleDir + "/Contents/Resources");
+#endif
+            if (isShadowBuildProject())
+                processedFilename = toShadowBuildFilename(processedFilename);
+            JSAgentBreakpointData bp;
+            bp.fileName = processedFilename.toUtf8();
+            bp.lineNumber = handler->lineNumber(id);
+            bp.functionName = handler->functionName(id).toUtf8();
+            breakpoints.insert(bp);
+            if (handler->state(id) == BreakpointInsertProceeding) {
+                handler->notifyBreakpointInsertOk(id);
+            }
+        }
     }
 
     QByteArray reply;
@@ -488,11 +511,9 @@ void QmlEngine::attemptBreakpointSynchronization()
     sendMessage(reply);
 }
 
-bool QmlEngine::acceptsBreakpoint(BreakpointId id)
+bool QmlEngine::acceptsBreakpoint(BreakpointId id) const
 {
-    const QString fileName = breakHandler()->fileName(id);
-    return fileName.endsWith(QLatin1String(".qml"))
-        || fileName.endsWith(QLatin1String(".js"));
+    return !DebuggerEngine::isCppBreakpoint(breakHandler()->breakpointData(id));
 }
 
 void QmlEngine::loadSymbols(const QString &moduleName)
@@ -601,12 +622,10 @@ void QmlEngine::sendPing()
     sendMessage(reply);
 }
 
-namespace Internal {
 DebuggerEngine *createQmlEngine(const DebuggerStartParameters &sp)
 {
     return new QmlEngine(sp);
 }
-} // namespace Internal
 
 unsigned QmlEngine::debuggerCapabilities() const
 {
@@ -708,7 +727,7 @@ void QmlEngine::messageReceived(const QByteArray &message)
             foreach (BreakpointId id, handler->engineBreakpointIds(this)) {
                 QString processedFilename = handler->fileName(id);
                 if (processedFilename == file && handler->lineNumber(id) == line) {
-                    handler->notifyBreakpointInsertOk(id);
+                    QTC_ASSERT(handler->state(id) == BreakpointInserted,/**/);
                     BreakpointResponse br = handler->response(id);
                     br.fileName = file;
                     br.lineNumber = line;
@@ -822,7 +841,7 @@ QString QmlEngine::mangleFilenamePaths(const QString &filename,
 
     if (oldBaseDir.exists() && newBaseDir.exists() && fileInfo.exists()) {
         if (fileInfo.absoluteFilePath().startsWith(oldBaseDir.canonicalPath())) {
-            QString fileRelativePath = fileInfo.canonicalFilePath().mid(oldBasePath.length());
+            QString fileRelativePath = fileInfo.canonicalFilePath().mid(oldBaseDir.canonicalPath().length());
             QFileInfo projectFile(newBaseDir.canonicalPath() + QLatin1Char('/') + fileRelativePath);
 
             if (projectFile.exists())
@@ -837,7 +856,14 @@ QString QmlEngine::fromShadowBuildFilename(const QString &filename) const
     QString newFilename = filename;
     QString importPath = qmlImportPath();
 
-    newFilename = mangleFilenamePaths(filename, startParameters().projectBuildDir, startParameters().projectDir);
+#ifdef Q_OS_MACX
+    // Qt Quick Applications by default copy the qml directory to buildDir()/X.app/Contents/Resources
+    const QString applicationBundleDir
+                = QFileInfo(startParameters().executable).absolutePath() + "/../..";
+    newFilename = mangleFilenamePaths(newFilename, applicationBundleDir + "/Contents/Resources", startParameters().projectDir);
+#endif
+    newFilename = mangleFilenamePaths(newFilename, startParameters().projectBuildDir, startParameters().projectDir);
+
     if (newFilename == filename && !importPath.isEmpty()) {
         newFilename = mangleFilenamePaths(filename, startParameters().projectBuildDir, importPath);
     }
@@ -845,5 +871,6 @@ QString QmlEngine::fromShadowBuildFilename(const QString &filename) const
     return newFilename;
 }
 
+} // namespace Internal
 } // namespace Debugger
 

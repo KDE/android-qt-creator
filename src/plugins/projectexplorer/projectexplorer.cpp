@@ -73,14 +73,15 @@
 #include "projectwelcomepagewidget.h"
 #include "corelistenercheckingforrunningbuild.h"
 #include "buildconfiguration.h"
-#include "buildconfigdialog.h"
 #include "miniprojecttargetselector.h"
 #include "taskhub.h"
+#include "publishing/ipublishingwizardfactory.h"
+#include "publishing/publishingwizardselectiondialog.h"
 
-#include <coreplugin/basemode.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/filemanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/imode.h>
 #include <coreplugin/mimedatabase.h>
 #include <coreplugin/modemanager.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -114,6 +115,7 @@
 #include <QtGui/QMenu>
 #include <QtGui/QMessageBox>
 #include <QtGui/QMainWindow>
+#include <QtGui/QWizard>
 
 Q_DECLARE_METATYPE(Core::IEditorFactory*);
 Q_DECLARE_METATYPE(Core::IExternalEditor*);
@@ -154,6 +156,7 @@ struct ProjectExplorerPluginPrivate {
     Utils::ParameterAction *m_deployAction;
     Utils::ParameterAction *m_deployActionContextMenu;
     QAction *m_deploySessionAction;
+    Utils::ParameterAction *m_publishAction;
     Utils::ParameterAction *m_cleanAction;
     Utils::ParameterAction *m_cleanActionContextMenu;
     QAction *m_cleanSessionAction;
@@ -198,7 +201,7 @@ struct ProjectExplorerPluginPrivate {
     Internal::ProjectExplorerSettings m_projectExplorerSettings;
     Internal::ProjectWelcomePage *m_welcomePage;
 
-    Core::BaseMode * m_projectsMode;
+    Core::IMode *m_projectsMode;
 };
 
 ProjectExplorerPluginPrivate::ProjectExplorerPluginPrivate() :
@@ -208,6 +211,25 @@ ProjectExplorerPluginPrivate::ProjectExplorerPluginPrivate() :
     m_projectsMode(0)
 {
 }
+
+class ProjectsMode : public Core::IMode
+{
+public:
+    ProjectsMode(QWidget *proWindow) : m_widget(proWindow) {}
+
+    QString displayName() const { return tr("Projects"); }
+    QIcon icon() const { return QIcon(QLatin1String(":/fancyactionbar/images/mode_Project.png")); }
+    int priority() const { return Constants::P_MODE_SESSION; }
+    QWidget *widget() { return m_widget; }
+    QString id() const { return QLatin1String(Constants::MODE_SESSION); }
+    QString type() const { return QString(); }
+    Core::Context context() const { return Core::Context(Constants::C_PROJECTEXPLORER); }
+    QString contextHelpId() const { return QLatin1String("Managing Projects"); }
+
+private:
+    QWidget *m_widget;
+    QIcon m_icon;
+};
 
 }  // namespace ProjectExplorer
 
@@ -277,18 +299,10 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     d->m_proWindow = new ProjectWindow;
 
     Core::Context globalcontext(Core::Constants::C_GLOBAL);
-    Core::Context pecontext(Constants::C_PROJECTEXPLORER);
     Core::Context projecTreeContext(Constants::C_PROJECT_TREE);
 
-    d->m_projectsMode = new Core::BaseMode;
-    d->m_projectsMode->setDisplayName(tr("Projects"));
-    d->m_projectsMode->setId(QLatin1String(Constants::MODE_SESSION));
-    d->m_projectsMode->setIcon(QIcon(QLatin1String(":/fancyactionbar/images/mode_Project.png")));
-    d->m_projectsMode->setPriority(Constants::P_MODE_SESSION);
-    d->m_projectsMode->setWidget(d->m_proWindow);
-    d->m_projectsMode->setContext(pecontext);
+    d->m_projectsMode = new ProjectsMode(d->m_proWindow);
     d->m_projectsMode->setEnabled(session()->startupProject());
-    d->m_projectsMode->setContextHelpId(QLatin1String("Managing Projects"));
     addAutoReleasedObject(d->m_projectsMode);
     d->m_proWindow->layout()->addWidget(new Core::FindToolBarPlaceHolder(d->m_proWindow));
 
@@ -613,6 +627,14 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     cmd->setDefaultText(d->m_deployAction->text());
     mbuild->addAction(cmd, Constants::G_BUILD_PROJECT);
 
+    // Publish action
+    d->m_publishAction = new Utils::ParameterAction(tr("Publish Project..."), tr("Publish Project \"%1\"..."),
+                                                    Utils::ParameterAction::AlwaysEnabled, this);
+    cmd = am->registerAction(d->m_publishAction, Constants::PUBLISH, globalcontext);
+    cmd->setAttribute(Core::Command::CA_UpdateText);
+    cmd->setDefaultText(d->m_publishAction->text());
+    mbuild->addAction(cmd, Constants::G_BUILD_PROJECT);
+
     // clean action
     d->m_cleanAction = new Utils::ParameterAction(tr("Clean Project"), tr("Clean Project \"%1\""),
                                                      Utils::ParameterAction::AlwaysEnabled, this);
@@ -823,6 +845,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     connect(d->m_deployAction, SIGNAL(triggered()), this, SLOT(deployProject()));
     connect(d->m_deployActionContextMenu, SIGNAL(triggered()), this, SLOT(deployProjectContextMenu()));
     connect(d->m_deploySessionAction, SIGNAL(triggered()), this, SLOT(deploySession()));
+    connect(d->m_publishAction, SIGNAL(triggered()), this, SLOT(publishProject()));
     connect(d->m_cleanProjectOnlyAction, SIGNAL(triggered()), this, SLOT(cleanProjectOnly()));
     connect(d->m_cleanAction, SIGNAL(triggered()), this, SLOT(cleanProject()));
     connect(d->m_cleanActionContextMenu, SIGNAL(triggered()), this, SLOT(cleanProjectContextMenu()));
@@ -1021,6 +1044,19 @@ void ProjectExplorerPlugin::setStartupProject(Project *project)
         return;
     d->m_session->setStartupProject(project);
     updateActions();
+}
+
+void ProjectExplorerPlugin::publishProject()
+{
+    const Project * const project = d->m_session->startupProject();
+    QTC_ASSERT(project, return);
+    PublishingWizardSelectionDialog selectionDialog(project);
+    if (selectionDialog.exec() == QDialog::Accepted) {
+        QWizard * const publishingWizard
+            = selectionDialog.createSelectedWizard();
+        publishingWizard->exec();
+        delete publishingWizard;
+    }
 }
 
 void ProjectExplorerPlugin::savePersistentSettings()
@@ -1479,6 +1515,8 @@ void ProjectExplorerPlugin::updateActions()
     d->m_cleanSessionAction->setEnabled(hasProjects && !building);
     d->m_cancelBuildAction->setEnabled(building);
 
+    d->m_publishAction->setEnabled(hasProjects);
+
     d->m_projectSelectorAction->setEnabled(!session()->projects().isEmpty());
     d->m_projectSelectorActionMenu->setEnabled(!session()->projects().isEmpty());
 
@@ -1721,10 +1759,8 @@ void ProjectExplorerPlugin::runProject(Project *pro, QString mode)
     if (!pro)
         return;
 
-    if (!pro->activeTarget()->activeRunConfiguration()->isEnabled()) {
-        if (!showBuildConfigDialog())
-            return;
-    }
+    if (!pro->activeTarget()->activeRunConfiguration()->isEnabled())
+        return;
 
     QStringList stepIds;
     if (d->m_projectExplorerSettings.deployBeforeRun) {
@@ -1746,31 +1782,6 @@ void ProjectExplorerPlugin::runProject(Project *pro, QString mode)
         executeRunConfiguration(pro->activeTarget()->activeRunConfiguration(), mode);
     }
     emit updateRunActions();
-}
-
-bool ProjectExplorerPlugin::showBuildConfigDialog()
-{
-    Project *pro = startupProject();
-    BuildConfigDialog *dialog = new BuildConfigDialog(pro,
-                                                      Core::ICore::instance()->mainWindow());
-    dialog->exec();
-    BuildConfiguration *otherConfig = dialog->selectedBuildConfiguration();
-    int result = dialog->result();
-    dialog->deleteLater();
-    switch (result) {
-    case BuildConfigDialog::ChangeBuild:
-        if (otherConfig) {
-            pro->activeTarget()->setActiveBuildConfiguration(otherConfig);
-            return true;
-        }
-        return false;
-    case BuildConfigDialog::Cancel:
-        return false;
-    case BuildConfigDialog::Continue:
-        return true;
-    default:
-        return false;
-    }
 }
 
 void ProjectExplorerPlugin::runControlFinished()
@@ -2078,7 +2089,7 @@ void ProjectExplorerPlugin::addNewSubproject()
     if (d->m_currentNode->nodeType() == ProjectNodeType
             && d->m_currentNode->projectNode()->supportedActions(
                 d->m_currentNode->projectNode()).contains(ProjectNode::AddSubProject)) {
-        Core::ICore::instance()->showNewItemDialog(tr("New Project", "Title of dialog"),
+        Core::ICore::instance()->showNewItemDialog(tr("New Subproject", "Title of dialog"),
                               Core::IWizard::wizardsOfKind(Core::IWizard::ProjectWizard),
                               location);
     }
@@ -2262,7 +2273,7 @@ void ProjectExplorerPlugin::renameFile(Node *node, const QString &to)
     FileNode *fileNode = qobject_cast<FileNode *>(node);
     if (!fileNode)
         return;
-    QString orgFilePath = node->path();
+    QString orgFilePath = QFileInfo(node->path()).absoluteFilePath();
     QString dir = QFileInfo(orgFilePath).absolutePath();
     QString newFilePath = dir + "/" + to;
     Core::ICore *core = Core::ICore::instance();

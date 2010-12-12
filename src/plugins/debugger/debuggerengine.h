@@ -35,7 +35,7 @@
 #include "moduleshandler.h" // For 'Symbols'
 #include "breakpoint.h" // For 'BreakpointId'
 
-#include <coreplugin/ssh/sshconnection.h> 
+#include <coreplugin/ssh/sshconnection.h>
 
 #include <utils/environment.h>
 
@@ -60,13 +60,12 @@ namespace Debugger {
 
 class DebuggerEnginePrivate;
 class DebuggerRunControl;
-class QmlCppEngine;
 
 class DEBUGGER_EXPORT DebuggerStartParameters
 {
 public:
     DebuggerStartParameters();
-    void clear();
+    QString toolChainName() const;
 
     QString executable;
     QString displayName;
@@ -78,17 +77,20 @@ public:
     qint64 attachPID;
     bool useTerminal;
     bool breakAtMain;
-    QString crashParameter; // for AttachCrashedExternal
 
-    // for qml debugging
+    // Used by AttachCrashedExternal.
+    QString crashParameter;
+
+    // Used by Qml debugging.
     QString qmlServerAddress;
     quint16 qmlServerPort;
     QString projectBuildDir;
     QString projectDir;
-    // for cpp+qml debugging
+
+    // Used by combined cpp+qml debugging.
     DebuggerEngineType cppEngineType;
 
-    // for remote debugging
+    // Used by remote debugging.
     QString remoteChannel;
     QString remoteArchitecture;
     QString gnuTarget;
@@ -132,6 +134,7 @@ class SourceFilesHandler;
 class ThreadsHandler;
 class WatchHandler;
 class BreakpointParameters;
+class QmlCppEngine;
 
 struct WatchUpdateFlags
 {
@@ -160,8 +163,10 @@ public:
     void startDebugger(DebuggerRunControl *runControl);
 
     virtual void watchPoint(const QPoint &);
+    virtual void openMemoryView(quint64 addr);
     virtual void fetchMemory(Internal::MemoryViewAgent *, QObject *,
                              quint64 addr, quint64 length);
+    virtual void openDisassemblerView(const Internal::StackFrame &frame);
     virtual void fetchDisassembler(Internal::DisassemblerViewAgent *);
     virtual void activateFrame(int index);
 
@@ -188,7 +193,7 @@ public:
 
     virtual bool stateAcceptsBreakpointChanges() const { return true; }
     virtual void attemptBreakpointSynchronization();
-    virtual bool acceptsBreakpoint(BreakpointId id) const;  // FIXME: make pure
+    virtual bool acceptsBreakpoint(BreakpointId id) const = 0;
     virtual void insertBreakpoint(BreakpointId id);  // FIXME: make pure
     virtual void removeBreakpoint(BreakpointId id);  // FIXME: make pure
     virtual void changeBreakpoint(BreakpointId id);  // FIXME: make pure
@@ -197,6 +202,9 @@ public:
         const QString &expr, const QVariant &value);
     virtual void removeTooltip();
     virtual void selectThread(int index);
+
+    virtual void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
+    virtual void handleRemoteSetupFailed(const QString &message);
 
 protected:
     friend class Internal::DebuggerPluginPrivate;
@@ -247,11 +255,10 @@ public:
     void handleStartFailed();
     bool debuggerActionsEnabled() const;
     static bool debuggerActionsEnabled(DebuggerState state);
-    void showModuleSymbols(const QString &moduleName, const Internal::Symbols &symbols);
 
     void breakByFunction(const QString &functionName);
     void breakByFunctionMain();
-    
+
     DebuggerState state() const;
     DebuggerState lastGoodState() const;
     DebuggerState targetState() const;
@@ -285,6 +292,15 @@ public:
 signals:
     void stateChanged(const DebuggerState &state);
     void updateViewsRequested();
+    /*
+     * For "external" clients of a debugger run control that need to do
+     * further setup before the debugger is started (e.g. Maemo).
+     * Afterwards, handleSetupDone() or handleSetupFailed() must be called
+     * to continue or abort debugging, respectively.
+     * This signal is only emitted if the start parameters indicate that
+     * a server start script should be used, but none is given.
+     */
+    void requestRemoteSetup();
 
 protected:
     // The base notify*() function implementation should be sufficient
@@ -329,26 +345,30 @@ protected:
     virtual void shutdownInferior() = 0;
     virtual void shutdownEngine() = 0;
 
-protected:
-    DebuggerRunControl *runControl() const;
+    DebuggerRunControl *runControl() const; // FIXME: Protect.
 
-    static QString msgWatchpointTriggered(BreakpointId id, int number, quint64 address);
-    static QString msgWatchpointTriggered(BreakpointId id, int number, quint64 address,
-                                          const QString &threadId);
-    static QString msgBreakpointTriggered(BreakpointId id, int number, const QString &threadId);
+protected:
+    static QString msgWatchpointTriggered(BreakpointId id,
+        int number, quint64 address);
+    static QString msgWatchpointTriggered(BreakpointId id,
+        int number, quint64 address, const QString &threadId);
+    static QString msgBreakpointTriggered(BreakpointId id,
+        int number, const QString &threadId);
     static QString msgStopped(const QString &reason = QString());
     static QString msgStoppedBySignal(const QString &meaning, const QString &name);
-    static QString msgStoppedByException(const QString &description, const QString &threadId);
+    static QString msgStoppedByException(const QString &description,
+        const QString &threadId);
     static QString msgInterrupted();
-    void showStoppedBySignalMessageBox(QString meaning, QString name);
+    void showStoppedBySignalMessageBox(const QString meaning, QString name);
     void showStoppedByExceptionMessageBox(const QString &description);
+
+    static bool isCppBreakpoint(const Internal::BreakpointParameters &p);
 
 private:
     // Wrapper engine needs access to state of its subengines.
-    friend class QmlCppEngine;
+    friend class Internal::QmlCppEngine;
     void setState(DebuggerState state, bool forced = false);
     void setSlaveEngine(bool value);
-
 
     friend class DebuggerEnginePrivate;
     DebuggerEnginePrivate *d;

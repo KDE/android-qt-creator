@@ -63,12 +63,35 @@ std::string toString(const Streamable s)
     return str.str();
 }
 
+// Format numbers, etc, as a wstring.
+template <class Streamable>
+std::wstring toWString(const Streamable s)
+{
+    std::wostringstream str;
+    str << s;
+    return str.str();
+}
+
+bool endsWith(const std::string &haystack, const char *needle);
+
 // Read an integer from a string as '10' or '0xA'
 template <class Integer>
 bool integerFromString(const std::string &s, Integer *v)
 {
     const bool isHex = s.compare(0, 2, "0x") == 0;
     std::istringstream str(isHex ? s.substr(2, s.size() - 2) : s);
+    if (isHex)
+        str >> std::hex;
+    str >> *v;
+    return !str.fail();
+}
+
+// Read an integer from a wstring as '10' or '0xA'
+template <class Integer>
+bool integerFromWString(const std::wstring &s, Integer *v)
+{
+    const bool isHex = s.compare(0, 2, L"0x") == 0;
+    std::wistringstream str(isHex ? s.substr(2, s.size() - 2) : s);
     if (isHex)
         str >> std::hex;
     str >> *v;
@@ -115,6 +138,13 @@ inline std::ostream &operator<<(std::ostream &str, const gdbmiWStringFormat &wsf
 
 std::string wStringToGdbmiString(const std::wstring &w);
 std::string wStringToString(const std::wstring &w);
+std::wstring stringToWString(const std::string &w);
+
+// String from hex "414A" -> "AJ".
+std::string stringFromHex(const char *begin, const char *end);
+std::wstring dataToHexW(const unsigned char *begin, const unsigned char *end);
+// Create readable hex: '0xAA 0xBB'..
+std::wstring dataToReadableHexW(const unsigned char *begin, const unsigned char *end);
 
 // Format a map as a GDBMI hash {key="value",..}
 void formatGdbmiHash(std::ostream &os, const std::map<std::string, std::string> &);

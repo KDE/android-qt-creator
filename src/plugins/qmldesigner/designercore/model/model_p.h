@@ -101,7 +101,8 @@ public:
     InternalNodePointer createNode(const QString &typeString,
                                      int majorVersion,
                                      int minorVersion,
-                                     const QList<QPair<QString, QVariant> > &propertyList);
+                                     const QList<QPair<QString, QVariant> > &propertyList,
+                                     bool isRootNode = false);
 
 
     /*factory methods for internal use in model and rewriter*/
@@ -124,6 +125,7 @@ public:
     void setModel(Model *q) { m_q = q; }
 
     void notifyNodeCreated(const InternalNodePointer &newInternalNodePointer);
+    void notifyNodeAboutToBeReparent(const InternalNodePointer &internalNodePointer, const InternalNodeAbstractPropertyPointer &newPropertyParent, const InternalNodePointer &oldParent, const QString &oldPropertyName, AbstractView::PropertyChangeFlags propertyChange);
     void notifyNodeReparent(const InternalNodePointer &internalNodePointer, const InternalNodeAbstractPropertyPointer &newPropertyParent, const InternalNodePointer &oldParent, const QString &oldPropertyName, AbstractView::PropertyChangeFlags propertyChange);
     void notifyNodeAboutToBeRemoved(const InternalNodePointer &nodePointer);
     void notifyNodeRemoved(const InternalNodePointer &nodePointer, const InternalNodePointer &parentNodePointer, const QString &parentPropertyName, AbstractView::PropertyChangeFlags propertyChange);
@@ -142,7 +144,7 @@ public:
 
     void notifyCustomNotification(const AbstractView *senderView, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data);
     void notifyInstancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
-
+    void notifyInstancesCompleted(const QVector<ModelNode> &nodeList);
 
 
     void setSelectedNodes(const QList<InternalNodePointer> &selectedNodeList);
@@ -153,7 +155,6 @@ public:
     void changeSelectedNodes(const QList<InternalNodePointer> &newSelectedsNodeList,
                              const QList<InternalNodePointer> &oldSelectedsNodeList);
 
-    void setRootNode(const InternalNodePointer& newRootNode);
     void setAuxiliaryData(const InternalNodePointer& node, const QString &name, const QVariant &data);
     void resetModelByRewriter(const QString &description);
 
@@ -186,6 +187,9 @@ public:
     InternalNodePointer nodeForId(const QString &id) const;
     bool hasId(const QString &id) const;
 
+    InternalNodePointer nodeForInternalId(qint32 internalId) const;
+    bool hasNodeForInternalId(qint32 internalId) const;
+
     QList<InternalNodePointer> allNodes() const;
 
     bool isWriteLocked() const;
@@ -203,6 +207,8 @@ private: //functions
     void removeNodeFromModel(const InternalNodePointer &node);
     QList<InternalNodePointer> toInternalNodeList(const QList<ModelNode> &nodeList) const;
     QList<ModelNode> toModelNodeList(const QList<InternalNodePointer> &nodeList, AbstractView *view) const;
+    QVector<ModelNode> toModelNodeVector(const QVector<InternalNodePointer> &nodeVector, AbstractView *view) const;
+    QVector<InternalNodePointer> toInternalNodeVector(const QVector<ModelNode> &nodeVector) const;
 
 private:
     Model *m_q;
@@ -212,6 +218,7 @@ private:
     QList<QWeakPointer<AbstractView> > m_viewList;
     QList<InternalNodePointer> m_selectedNodeList;
     QHash<QString,InternalNodePointer> m_idNodeHash;
+    QHash<qint32, InternalNodePointer> m_internalIdNodeHash;
     QSet<InternalNodePointer> m_nodeSet;
 
     InternalNodePointer m_rootInternalNode;
@@ -221,7 +228,8 @@ private:
     QWeakPointer<Model> m_masterModel;
     QWeakPointer<RewriterView> m_rewriterView;
     QWeakPointer<NodeInstanceView> m_nodeInstanceView;
-    bool m_writeLock;  
+    bool m_writeLock;
+    qint32 m_internalIdCounter;
 };
 
 }

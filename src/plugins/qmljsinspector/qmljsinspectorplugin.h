@@ -31,21 +31,14 @@
 
 #include <extensionsystem/iplugin.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
-#include <debugger/debuggerconstants.h>
 
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
 #include <QtCore/QTimer>
 
-QT_FORWARD_DECLARE_CLASS(QStringList)
-
 namespace Core {
-    class IMode;
-}
-
-namespace ProjectExplorer {
-    class Project;
-}
+class IMode;
+} // namespace Core
 
 namespace QmlJSInspector {
 namespace Internal {
@@ -61,7 +54,7 @@ public:
     InspectorPlugin();
     virtual ~InspectorPlugin();
 
-    static InspectorPlugin *instance();
+    //static InspectorPlugin *instance();
 
     QmlJS::ModelManagerInterface *modelManager() const;
     InspectorUi *inspector() const;
@@ -75,6 +68,7 @@ private slots:
     void objectAdded(QObject *object);
     void aboutToRemoveObject(QObject *obj);
     void clientProxyConnected();
+    void modeAboutToChange(Core::IMode *mode);
 
 private:
     void createActions();
@@ -84,7 +78,7 @@ private:
     InspectorUi *m_inspectorUi;
 };
 
-} // end of namespace Internal
-} // end of QmlJSInspector
+} // namespace Internal
+} // namespace QmlJSInspector
 
 #endif // QMLINSPECTORPLUGIN_H

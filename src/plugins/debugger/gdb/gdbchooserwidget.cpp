@@ -48,7 +48,6 @@
 #include <QtGui/QIcon>
 #include <QtGui/QGroupBox>
 #include <QtGui/QCheckBox>
-
 #include <QtCore/QDebug>
 #include <QtCore/QSet>
 #include <QtCore/QDir>
@@ -74,8 +73,8 @@ static QList<int> allGdbToolChains()
        << ProjectExplorer::ToolChain_MinGW
        << ProjectExplorer::ToolChain_WINSCW
        << ProjectExplorer::ToolChain_GCCE
-       << ProjectExplorer::ToolChain_RVCT_ARMV5
-       << ProjectExplorer::ToolChain_RVCT_ARMV6
+       << ProjectExplorer::ToolChain_RVCT2_ARMV5
+       << ProjectExplorer::ToolChain_RVCT2_ARMV6
 #endif
        << ProjectExplorer::ToolChain_GCC_MAEMO
 #ifdef Q_OS_UNIX
@@ -274,7 +273,7 @@ void GdbBinaryModel::append(const QString &binary, const QList<int> &toolChains)
 GdbChooserWidget::GdbChooserWidget(QWidget *parent) :
     QWidget(parent),
     m_treeView(new QTreeView),
-    m_model(new GdbBinaryModel),
+    m_model(new GdbBinaryModel(m_treeView)),
     m_addButton(new QToolButton),
     m_deleteButton(new QToolButton),
     m_dirty(false)
@@ -373,7 +372,8 @@ void GdbChooserWidget::slotDoubleClicked(const QModelIndex &current)
 
     BinaryToolChainDialog dialog(this);
     dialog.setPath(oldBinary);
-    dialog.setToolChainChoices(toolChainChoices.toList());
+    const BinaryToolChainMap map = gdbBinaries();
+    dialog.setToolChainChoices(toolChainChoices.toList(), &map);
     dialog.setToolChains(oldToolChains);
     if (dialog.exec() != QDialog::Accepted)
         return;
@@ -451,8 +451,8 @@ ToolChainSelectorWidget::ToolChainSelectorWidget(QWidget *parent) :
             break;
         case ProjectExplorer::ToolChain_WINSCW:
         case ProjectExplorer::ToolChain_GCCE:
-        case ProjectExplorer::ToolChain_RVCT_ARMV5:
-        case ProjectExplorer::ToolChain_RVCT_ARMV6:
+        case ProjectExplorer::ToolChain_RVCT2_ARMV5:
+        case ProjectExplorer::ToolChain_RVCT2_ARMV6:
         case ProjectExplorer::ToolChain_GCCE_GNUPOC:
         case ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC:
             symbianLayout->addWidget(createToolChainCheckBox(tc));
@@ -477,11 +477,29 @@ QCheckBox *ToolChainSelectorWidget::createToolChainCheckBox(int tc)
     return cb;
 }
 
-void ToolChainSelectorWidget::setEnabledToolChains(const QList<int> &enabled)
+static inline QString msgDisabledToolChainToolTip(const QString &binary, int toolChain)
 {
-    foreach(QCheckBox *cb, m_checkBoxes)
-        if (!enabled.contains(toolChainOfCheckBox(cb)))
+    return ToolChainSelectorWidget::tr(
+    "<html><head/><body><p>Another gdb binary (<i>%1</i>) is currently configured "
+    "to handle the toolchain <i>%2</i>.</p></body></html>").
+    arg(QFileInfo(binary).fileName(), toolChainName(toolChain));
+}
+
+void ToolChainSelectorWidget::setEnabledToolChains(const QList<int> &enabled,
+                                                   const BinaryToolChainMap *binaryToolChainMap)
+{
+    foreach(QCheckBox *cb, m_checkBoxes) {
+        const int toolChain = toolChainOfCheckBox(cb);
+        if (enabled.contains(toolChain)) {
+            cb->setToolTip(QString());
+        } else {
+            // Toolchain is handled by a different binary, hint to user.
             cb->setEnabled(false);
+            const QString binary = binaryToolChainMap ?  binaryToolChainMap->key(toolChain) : QString();
+            if (!binary.isEmpty())
+                cb->setToolTip(msgDisabledToolChainToolTip(binary, toolChain));
+        }
+    }
 }
 
 void ToolChainSelectorWidget::setCheckedToolChains(const QList<int> &checked)
@@ -555,9 +573,10 @@ BinaryToolChainDialog::BinaryToolChainDialog(QWidget *parent) :
     m_pathChooser->setFocus();
 }
 
-void BinaryToolChainDialog::setToolChainChoices(const QList<int> &tcs)
+void BinaryToolChainDialog::setToolChainChoices(const QList<int> &tcs,
+                                                const BinaryToolChainMap *binaryToolChainMap)
 {
-    m_toolChainSelector->setEnabledToolChains(tcs);
+    m_toolChainSelector->setEnabledToolChains(tcs, binaryToolChainMap);
 }
 
 void BinaryToolChainDialog::setToolChains(const QList<int> &tcs)

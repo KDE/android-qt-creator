@@ -26,10 +26,10 @@ void NodeInstanceSignalSpy::setObjectNodeInstance(const ObjectNodeInstance::Poin
 
 void NodeInstanceSignalSpy::registerObject(QObject *spiedObject, const QString &prefix)
 {
-    if (registeredObjectList.contains(spiedObject)) // prevent cycles
+    if (m_registeredObjectList.contains(spiedObject)) // prevent cycles
         return;
 
-    registeredObjectList.append(spiedObject);
+    m_registeredObjectList.append(spiedObject);
     for (int index = QObject::staticMetaObject.propertyOffset();
          index < spiedObject->metaObject()->propertyCount();
          index++) {
@@ -79,8 +79,8 @@ int NodeInstanceSignalSpy::qt_metacall(QMetaObject::Call call, int methodId, voi
     if (call == QMetaObject::InvokeMetaMethod && methodId > QObject::staticMetaObject.methodCount()) {
         ObjectNodeInstance::Pointer nodeInstance = m_objectNodeInstance.toStrongRef();
 
-        if (nodeInstance && nodeInstance->nodeInstanceView() && nodeInstance->modelNode().isValid()) {
-            nodeInstance->nodeInstanceView()->notifyPropertyChange(nodeInstance->modelNode(), m_indexPropertyHash.value(methodId));
+        if (nodeInstance && nodeInstance->nodeInstanceServer() && nodeInstance->isValid()) {
+            nodeInstance->nodeInstanceServer()->notifyPropertyChange(nodeInstance->instanceId(), m_indexPropertyHash.value(methodId));
         }
 
     }

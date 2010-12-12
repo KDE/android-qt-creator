@@ -32,6 +32,7 @@
 
 #include "glsl.h"
 #include <QtCore/qstring.h>
+#include <QtCore/qstringlist.h>
 
 namespace GLSL {
 
@@ -55,6 +56,9 @@ public:
 
     bool is(int k) const { return k == kind; }
     bool isNot(int k) const { return k != kind; }
+
+    int begin() const { return position; }
+    int end() const { return position + length; }
 };
 
 class GLSL_EXPORT Lexer
@@ -71,11 +75,11 @@ public:
         Variant_GLSL_150            = 0x00020000,   // 1.50 and higher
         Variant_GLSL_400            = 0x00040000,   // 4.00 and higher
         Variant_GLSL_ES_100         = 0x00080000,   // ES 1.00 and higher
-        Variant_GLSL_Qt             = 0x00100000,
         Variant_VertexShader        = 0x00200000,
         Variant_FragmentShader      = 0x00400000,
         Variant_Reserved            = 0x80000000,
-        Variant_Mask                = 0xFFFF0000
+        Variant_Mask                = 0xFFFF0000,
+        Variant_All                 = 0xFFFF0000
     };
 
     union Value {
@@ -102,6 +106,8 @@ public:
     int findKeyword(const char *word, int length) const;
 
     void *yyval() const { return _yyval.ptr; }
+
+    static QStringList keywords(int variant);
 
 private:
     static int classify(const char *s, int len);

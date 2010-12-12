@@ -78,14 +78,12 @@ public:
     QString displayName() const;
     QString id() const;
     Core::IFile *file() const;
-    CMakeTargetFactory *targetFactory() const;
     CMakeManager *projectManager() const;
 
     CMakeTarget *activeTarget() const;
 
     QList<ProjectExplorer::Project *> dependsOn(); //NBS TODO implement dependsOn
 
-    ProjectExplorer::BuildConfigWidget *createConfigWidget();
     QList<ProjectExplorer::BuildConfigWidget*> subConfigWidgets();
 
     ProjectExplorer::ProjectNode *rootProjectNode() const;
@@ -143,7 +141,6 @@ private:
     ProjectExplorer::FileWatcher *m_watcher;
     bool m_insideFileChanged;
     QSet<QString> m_watchedFiles;
-    CMakeTargetFactory *m_targetFactory;
     QFuture<void> m_codeModelFuture;
 
     QMap<QString, CMakeUiCodeModelSupport *> m_uiCodeModelSupport;
@@ -222,7 +219,7 @@ class CMakeBuildSettingsWidget : public ProjectExplorer::BuildConfigWidget
 {
     Q_OBJECT
 public:
-    explicit CMakeBuildSettingsWidget(CMakeProject *project);
+    explicit CMakeBuildSettingsWidget(CMakeTarget *target);
     QString displayName() const;
 
     // This is called to set up the config widget before showing it
@@ -232,7 +229,7 @@ private slots:
     void openChangeBuildDirectoryDialog();
     void runCMake();
 private:
-    CMakeProject *m_project;
+    CMakeTarget *m_target;
     QLineEdit *m_pathLineEdit;
     QPushButton *m_changeButton;
     CMakeBuildConfiguration *m_buildConfiguration;

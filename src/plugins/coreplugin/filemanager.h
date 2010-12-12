@@ -34,6 +34,8 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QStringList>
+#include <QtCore/QPair>
+#include <QtCore/QVariant>
 
 QT_BEGIN_NAMESPACE
 class QMainWindow;
@@ -44,6 +46,7 @@ namespace Core {
 class ICore;
 class IContext;
 class IFile;
+class IVersionControl;
 
 namespace Internal {
 struct FileManagerPrivate;
@@ -53,17 +56,25 @@ class CORE_EXPORT FileManager : public QObject
 {
     Q_OBJECT
 public:
+    enum FixMode {
+        ResolveLinks,
+        KeepLinks
+    };
+
+    typedef QPair<QString, QString> RecentFile;
+
     explicit FileManager(QMainWindow *ew);
     virtual ~FileManager();
 
+    static FileManager *instance();
+
     // file pool to monitor
-    bool addFiles(const QList<IFile *> &files, bool addWatcher = true);
-    bool addFile(IFile *file, bool addWatcher = true);
-    bool removeFile(IFile *file);
-    bool isFileManaged(const QString &fileName) const;
+    void addFiles(const QList<IFile *> &files, bool addWatcher = true);
+    void addFile(IFile *file, bool addWatcher = true);
+    void removeFile(IFile *file);
     QList<IFile *> modifiedFiles() const;
 
-    void renamedFile(const QString &from, QString &to);
+    void renamedFile(const QString &from, const QString &to);
 
     void blockFileChange(IFile *file);
     void unblockFileChange(IFile *file);
@@ -72,8 +83,8 @@ public:
     void unexpectFileChange(const QString &fileName);
 
     // recent files
-    void addToRecentFiles(const QString &fileName);
-    QStringList recentFiles() const;
+    void addToRecentFiles(const QString &fileName, const QString &editorId = QString());
+    QList<RecentFile> recentFiles() const;
     void saveSettings();
 
     // current file
@@ -81,7 +92,7 @@ public:
     QString currentFile() const;
 
     // helper methods
-    static QString fixFileName(const QString &fileName);
+    static QString fixFileName(const QString &fileName, FixMode fixmode);
 
     QStringList getOpenFileNames(const QString &filters,
                                  const QString path = QString(),
@@ -100,6 +111,14 @@ public:
                                      const QString &alwaysSaveMessage = QString::null,
                                      bool *alwaysSave = 0);
 
+
+    // Helper to display a message dialog when encountering a read-only
+    // file, prompting the user about how to make it writeable.
+    enum ReadOnlyAction { RO_Cancel, RO_OpenVCS, RO_MakeWriteable, RO_SaveAs };
+    static ReadOnlyAction promptReadOnlyFile(const QString &fileName,
+                                             const IVersionControl *versionControl,
+                                             QWidget *parent,
+                                             bool displaySaveAsButton = false);
 
     QString fileDialogLastVisitedDirectory() const;
     void setFileDialogLastVisitedDirectory(const QString &);
@@ -135,11 +154,9 @@ private:
     void readSettings();
     void dump();
     void addFileInfo(IFile *file);
+    void addFileInfo(const QString &fileName, IFile *file, bool isLink);
     void removeFileInfo(IFile *file);
-    void removeFileInfo(const QString &fileName, IFile *file);
 
-    void addWatch(const QString &filename);
-    void removeWatch(const QString &filename);
     void updateFileInfo(IFile *file);
     void updateExpectedState(const QString &fileName);
 
@@ -169,5 +186,7 @@ private:
 };
 
 } // namespace Core
+
+Q_DECLARE_METATYPE(Core::FileManager::RecentFile)
 
 #endif // FILEMANAGER_H

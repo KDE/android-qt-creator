@@ -172,8 +172,34 @@ bool MaemoPackageCreationStep::createPackage(QProcess *buildProc)
     if (!copyDebianFiles(inSourceBuild))
         return false;
 
-    if (!runCommand(buildProc, QLatin1String("dpkg-buildpackage -nc -uc -us")))
+    const QString maddeRoot = maemoToolChain()->maddeRoot();
+    const QString madCommand = maddeRoot + QLatin1String("/bin/mad");
+    const QStringList args = QStringList() << QLatin1String("-t")
+        << maemoToolChain()->targetName() << QLatin1String("dpkg-buildpackage")
+        << QLatin1String("-nc") << QLatin1String("-uc") << QLatin1String("-us");
+    const QString cmdLine = madCommand + QLatin1Char(' ')
+        + args.join(QLatin1String(" "));
+    emit addOutput(tr("Package Creation: Running command '%1'.").arg(cmdLine),
+        BuildStep::MessageOutput);
+    MaemoGlobal::callMaddeShellScript(*buildProc, maddeRoot, madCommand, args);
+    if (!buildProc->waitForStarted()) {
+        raiseError(tr("Packaging failed."),
+            tr("Packaging error: Could not start command '%1'. Reason: %2")
+            .arg(cmdLine, buildProc->errorString()));
         return false;
+    }
+    buildProc->waitForFinished(-1);
+    if (buildProc->error() != QProcess::UnknownError
+            || buildProc->exitCode() != 0) {
+        QString mainMessage = tr("Packaging Error: Command '%1' failed.")
+            .arg(cmdLine);
+        if (buildProc->error() != QProcess::UnknownError)
+            mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
+        else
+            mainMessage += tr("Exit code: %1").arg(buildProc->exitCode());
+        raiseError(mainMessage);
+        return false;
+    }
 
     // Workaround for non-working dh_builddeb --destdir=.
     if (!QDir(buildDirectory()).isRoot()) {
@@ -230,9 +256,10 @@ bool MaemoPackageCreationStep::copyDebianFiles(bool inSourceBuild)
                    .arg(QDir::toNativeSeparators(debianDirPath)));
         return false;
     }
-    if (!removeDirectory(debianDirPath)) {
+    QString error;
+    if (!MaemoGlobal::removeRecursively(debianDirPath, error)) {
         raiseError(tr("Packaging failed."),
-            tr("Could not remove directory '%1'.").arg(debianDirPath));
+            tr("Could not remove directory '%1': %2").arg(debianDirPath, error));
         return false;
     }
     QDir buildDir(buildDirectory());
@@ -245,10 +272,6 @@ bool MaemoPackageCreationStep::copyDebianFiles(bool inSourceBuild)
         ->debianDirPath(buildConfiguration()->target()->project());
     QDir templatesDir(templatesDirPath);
     const QStringList &files = templatesDir.entryList(QDir::Files);
-    const bool harmattanWorkaroundNeeded
-        = maemoToolChain()->version() == MaemoToolChain::Maemo6
-            && !qt4BuildConfiguration()->qt4Target()->qt4Project()
-                   ->applicationProFiles().isEmpty();
     foreach (const QString &fileName, files) {
         const QString srcFile
                 = templatesDirPath + QLatin1Char('/') + fileName;
@@ -261,9 +284,8 @@ bool MaemoPackageCreationStep::copyDebianFiles(bool inSourceBuild)
             return false;
         }
 
-        // Workaround for Harmattan icon bug
-        if (harmattanWorkaroundNeeded && fileName == QLatin1String("rules"))
-            addWorkaroundForHarmattanBug(destFile);
+        if (fileName == QLatin1String("rules"))
+            updateDesktopFiles(destFile);
     }
 
     QFile magicFile(magicFilePath);
@@ -273,55 +295,6 @@ bool MaemoPackageCreationStep::copyDebianFiles(bool inSourceBuild)
         return false;
     }
 
-    return true;
-}
-
-bool MaemoPackageCreationStep::removeDirectory(const QString &dirPath)
-{
-    QDir dir(dirPath);
-    if (!dir.exists())
-        return true;
-
-    const QStringList &files
-        = dir.entryList(QDir::Files | QDir::Hidden | QDir::System);
-    foreach (const QString &fileName, files) {
-        if (!dir.remove(fileName))
-            return false;
-    }
-
-    const QStringList &subDirs
-        = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    foreach (const QString &subDirName, subDirs) {
-        if (!removeDirectory(dirPath + QLatin1Char('/') + subDirName))
-            return false;
-    }
-
-    return dir.rmdir(dirPath);
-}
-
-bool MaemoPackageCreationStep::runCommand(QProcess *buildProc,
-    const QString &command)
-{
-    emit addOutput(tr("Package Creation: Running command '%1'.").arg(command), BuildStep::MessageOutput);
-    buildProc->start(packagingCommand(maemoToolChain(), command));
-    if (!buildProc->waitForStarted()) {
-        raiseError(tr("Packaging failed."),
-            tr("Packaging error: Could not start command '%1'. Reason: %2")
-            .arg(command).arg(buildProc->errorString()));
-        return false;
-    }
-    buildProc->waitForFinished(-1);
-    if (buildProc->error() != QProcess::UnknownError
-        || buildProc->exitCode() != 0) {
-        QString mainMessage = tr("Packaging Error: Command '%1' failed.")
-            .arg(command);
-        if (buildProc->error() != QProcess::UnknownError)
-            mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
-        else
-            mainMessage += tr("Exit code: %1").arg(buildProc->exitCode());
-        raiseError(mainMessage);
-        return false;
-    }
     return true;
 }
 
@@ -580,9 +553,10 @@ QString MaemoPackageCreationStep::packageFileName(const ProjectExplorer::Project
         % QLatin1String("_armel.deb");
 }
 
-void MaemoPackageCreationStep::addWorkaroundForHarmattanBug(const QString &rulesFilePath)
+void MaemoPackageCreationStep::updateDesktopFiles(const QString &rulesFilePath)
 {
     QFile rulesFile(rulesFilePath);
+    rulesFile.setPermissions(rulesFile.permissions() | QFile::ExeUser);
     if (!rulesFile.open(QIODevice::ReadWrite)) {
         qWarning("Cannot open rules file for Maemo6 icon path adaptation.");
         return;
@@ -597,34 +571,68 @@ void MaemoPackageCreationStep::addWorkaroundForHarmattanBug(const QString &rules
     QString desktopFileDir = QFileInfo(rulesFile).dir().path()
         + QLatin1Char('/') + projectName()
         + QLatin1String("/usr/share/applications/");
+    if (maemoToolChain()->version() == MaemoToolChain::Maemo5)
+        desktopFileDir += QLatin1String("hildon/");
 #ifdef Q_OS_WIN
     desktopFileDir.remove(QLatin1Char(':'));
     desktopFileDir.prepend(QLatin1Char('/'));
 #endif
-    const QList<Qt4ProFileNode *> &proFiles = qt4BuildConfiguration()
-        ->qt4Target()->qt4Project()->applicationProFiles();
     int insertPos = makeInstallEol + 1;
-    foreach (const Qt4ProFileNode * const proFile, proFiles) {
-        const QString appName = proFile->targetInformation().target;
-        const QByteArray lineBefore("Icon=" + appName.toUtf8());
-        const QByteArray lineAfter("Icon=/usr/share/icons/hicolor/64x64/apps/"
-            + appName.toUtf8() + ".png");
-        const QString desktopFilePath
-            = desktopFileDir + appName + QLatin1String(".desktop");
-        const QString tmpFile
-            = desktopFileDir + appName + QLatin1String(".sed");
-        const QByteArray sedCmd = "\tsed 's:" + lineBefore + ':' + lineAfter
-            + ":' " + desktopFilePath.toLocal8Bit() + " > "
-            + tmpFile.toLocal8Bit() + " || echo -n\n";
-        const QByteArray mvCmd = "\tmv " + tmpFile.toLocal8Bit() + ' '
-            + desktopFilePath.toLocal8Bit() + " || echo -n\n";
-        content.insert(insertPos, sedCmd);
-        insertPos += sedCmd.length();
-        content.insert(insertPos, mvCmd);
-        insertPos += mvCmd.length();
+    for (int i = 0; i < deployStep()->deployables()->modelCount(); ++i) {
+        const MaemoDeployableListModel * const model
+            = deployStep()->deployables()->modelAt(i);
+        if (!model->hasDesktopFile())
+            continue;
+        if (maemoToolChain()->version() == MaemoToolChain::Maemo6) {
+            addWorkaroundForHarmattanBug(content, insertPos,
+                model, desktopFileDir);
+        }
+        const QString executableFilePath = model->remoteExecutableFilePath();
+        if (executableFilePath.isEmpty()) {
+            qDebug("%s: Skipping subproject %s with missing deployment information.",
+                Q_FUNC_INFO, qPrintable(model->proFilePath()));
+            continue;
+        }
+        const QByteArray lineBefore("Exec=.*");
+        const QByteArray lineAfter("Exec=" + executableFilePath.toUtf8());
+        const QString desktopFilePath = desktopFileDir
+            + model->applicationName() + QLatin1String(".desktop");
+        addSedCmdToRulesFile(content, insertPos, desktopFilePath, lineBefore,
+            lineAfter);
     }
     rulesFile.resize(0);
     rulesFile.write(content);
+}
+
+void MaemoPackageCreationStep::addWorkaroundForHarmattanBug(QByteArray &rulesFileContent,
+    int &insertPos, const MaemoDeployableListModel *model,
+    const QString &desktopFileDir)
+{
+    const QString iconFilePath = model->remoteIconFilePath();
+    if (iconFilePath.isEmpty())
+        return;
+    const QByteArray lineBefore("^Icon=.*");
+    const QByteArray lineAfter("Icon=" + iconFilePath.toUtf8());
+    const QString desktopFilePath
+        = desktopFileDir + model->applicationName() + QLatin1String(".desktop");
+    addSedCmdToRulesFile(rulesFileContent, insertPos, desktopFilePath,
+        lineBefore, lineAfter);
+}
+
+void MaemoPackageCreationStep::addSedCmdToRulesFile(QByteArray &rulesFileContent,
+    int &insertPos, const QString &desktopFilePath, const QByteArray &oldString,
+    const QByteArray &newString)
+{
+    const QString tmpFilePath = desktopFilePath + QLatin1String(".sed");
+    const QByteArray sedCmd = "\tsed 's:" + oldString + ':' + newString
+        + ":' " + desktopFilePath.toLocal8Bit() + " > "
+        + tmpFilePath.toLocal8Bit() + " || echo -n\n";
+    const QByteArray mvCmd = "\tmv " + tmpFilePath.toLocal8Bit() + ' '
+        + desktopFilePath.toLocal8Bit() + " || echo -n\n";
+    rulesFileContent.insert(insertPos, sedCmd);
+    insertPos += sedCmd.length();
+    rulesFileContent.insert(insertPos, mvCmd);
+    insertPos += mvCmd.length();
 }
 
 const QLatin1String MaemoPackageCreationStep::CreatePackageId("Qt4ProjectManager.MaemoPackageCreationStep");

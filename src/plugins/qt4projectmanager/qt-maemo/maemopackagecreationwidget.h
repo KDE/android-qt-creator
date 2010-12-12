@@ -57,6 +57,7 @@ class MaemoPackageCreationWidget : public ProjectExplorer::BuildStepConfigWidget
     Q_OBJECT
 public:
     MaemoPackageCreationWidget(MaemoPackageCreationStep *step);
+    ~MaemoPackageCreationWidget();
 
     virtual void init();
     virtual QString summaryText() const;
@@ -67,13 +68,20 @@ private slots:
     void editDebianFile();
     void versionInfoChanged();
     void initGui();
-    void updateDebianFileList(const ProjectExplorer::Project *project);
-    void updateVersionInfo(const ProjectExplorer::Project *project);
-    void updatePackageManagerIcon(const ProjectExplorer::Project *project);
+    void updateDebianFileList(const ProjectExplorer::Project *thisProject);
+    void updateVersionInfo(const ProjectExplorer::Project *thisProject);
+    void handleControlFileUpdate(const ProjectExplorer::Project *thisProject);
     void setPackageManagerIcon();
+    void setName();
+    void setShortDescription();
     void handleToolchainChanged();
 
 private:
+    void updatePackageManagerIcon(const ProjectExplorer::Project *thisProject);
+    void updateName(const ProjectExplorer::Project *thisProject);
+    void updateShortDescription(const ProjectExplorer::Project *thisProject);
+    ProjectExplorer::Project *thisProject() const;
+
     MaemoPackageCreationStep * const m_step;
     Ui::MaemoPackageCreationWidget * const m_ui;
 };

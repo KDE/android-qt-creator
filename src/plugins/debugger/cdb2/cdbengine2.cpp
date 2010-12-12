@@ -40,7 +40,8 @@
 #include "debuggeractions.h"
 #include "debuggercore.h"
 #include "registerhandler.h"
-#include "debuggeragents.h"
+#include "disassembleragent.h"
+#include "memoryagent.h"
 #include "debuggertooltip.h"
 #include "cdbparsehelpers.h"
 #include "watchutils.h"
@@ -652,13 +653,26 @@ void CdbEngine::updateWatchData(const Debugger::Internal::WatchData &dataIn,
     updateLocalVariable(dataIn.iname);
 }
 
+void CdbEngine::addLocalsOptions(ByteArrayInputStream &str) const
+{
+    if (debuggerCore()->boolSetting(UseDebuggingHelpers))
+        str << blankSeparator << "-c";
+    const QByteArray typeFormats = watchHandler()->typeFormatRequests();
+    if (!typeFormats.isEmpty())
+        str << blankSeparator << "-T " << typeFormats;
+    const QByteArray individualFormats = watchHandler()->individualFormatRequests();
+    if (!individualFormats.isEmpty())
+        str << blankSeparator << "-I " << individualFormats;
+}
+
 void CdbEngine::updateLocalVariable(const QByteArray &iname)
 {
     const int stackFrame = stackHandler()->currentIndex();
     if (stackFrame >= 0) {
         QByteArray localsArguments;
         ByteArrayInputStream str(localsArguments);
-        str << stackFrame <<  ' ' << iname;
+        addLocalsOptions(str);
+        str << blankSeparator << stackFrame <<  ' ' << iname;
         postExtensionCommand("locals", localsArguments, 0, &CdbEngine::handleLocals);
     } else {
         qWarning("Internal error; no stack frame in updateLocalVariable");
@@ -972,6 +986,7 @@ void CdbEngine::activateFrame(int index)
             str << e;
         }
     }
+    addLocalsOptions(str);
     // Uninitialized variables if desired
     if (debuggerCore()->boolSetting(UseCodeModel)) {
         QStringList uninitializedVariables;
@@ -1021,7 +1036,10 @@ void CdbEngine::handleDisassembler(const CdbBuiltinCommandPtr &command)
 {
     QTC_ASSERT(qVariantCanConvert<Debugger::Internal::DisassemblerViewAgent*>(command->cookie), return;)
     Debugger::Internal::DisassemblerViewAgent *agent = qvariant_cast<Debugger::Internal::DisassemblerViewAgent*>(command->cookie);
-    agent->setContents(formatCdbDisassembler(command->reply));
+    DisassemblerLines disassemblerLines;
+    foreach(const QByteArray &line, command->reply)
+        disassemblerLines.appendLine(DisassemblerLine(QString::fromLatin1(line)));
+    agent->setContents(disassemblerLines);
 }
 
 void CdbEngine::fetchMemory(Debugger::Internal::MemoryViewAgent *agent, QObject *editor, quint64 addr, quint64 length)
@@ -1295,8 +1313,10 @@ void CdbEngine::handleSessionIdle(const QByteArray &message)
         notifyInferiorSpontaneousStop();
     }
     // Start sequence to get all relevant data. Hack: Avoid module reload?
-    unsigned sequence = CommandListStack|CommandListRegisters|CommandListThreads;
-    if (modulesHandler()->modules().size() == 0)
+    unsigned sequence = CommandListStack;
+    if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_REGISTER)))
+        sequence |= CommandListRegisters;
+    if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_MODULES)))
         sequence |= CommandListModules;
     postCommandSequence(sequence);
     // Report stop reason (GDBMI)
@@ -1313,7 +1333,7 @@ void CdbEngine::handleSessionIdle(const QByteArray &message)
     if (reason == "breakpoint") {
         const int number = stopReason.findChild("breakpointId").data().toInt();
         const BreakpointId id = breakHandler()->findBreakpointByNumber(number);
-        if (id != BreakpointId(-1) && breakHandler()->type(id) == Debugger::Internal::Watchpoint) {
+        if (id && breakHandler()->type(id) == Debugger::Internal::Watchpoint) {
             showStatusMessage(msgWatchpointTriggered(id, number, breakHandler()->address(id), QString::number(threadId)));
         } else {
             showStatusMessage(msgBreakpointTriggered(id, number, QString::number(threadId)));
@@ -1417,6 +1437,10 @@ void CdbEngine::handleExtensionMessage(char t, int token, const QByteArray &what
 
     // Is there a reply expected, some command queued?
     if (t == 'R' || t == 'N') {
+        if (token == -1) { // Default token, user typed in extension command
+            showMessage(QString::fromLatin1(message), LogMisc);
+            return;
+        }
         const int index = indexOfCommand(m_extensionCommandQueue, token);
         if (index != -1) {
             // Did the command finish? Take off queue and complete, invoke CB
@@ -1662,6 +1686,23 @@ static inline BreakPointSyncType breakPointSyncType(const BreakHandler *handler,
     return added ? BreakpointsAdded : BreakpointsUnchanged;
 }
 
+bool CdbEngine::stateAcceptsBreakpointChanges() const
+{
+    switch (state()) {
+    case InferiorRunOk:
+    case InferiorStopOk:
+    return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+bool CdbEngine::acceptsBreakpoint(BreakpointId id) const
+{
+    return DebuggerEngine::isCppBreakpoint(breakHandler()->breakpointData(id));
+}
+
 void CdbEngine::attemptBreakpointSynchronization()
 {
     // Check if there is anything to be done at all.
@@ -1777,6 +1818,7 @@ static StackFrames parseFrames(const QByteArray &data)
         if (fullName.isValid()) {
             frame.file = QFile::decodeName(fullName.data());
             frame.line = frameMi.findChild("line").data().toInt();
+            frame.usable = QFileInfo(frame.file).isFile();
         }
         frame.function = QLatin1String(frameMi.findChild("func").data());
         frame.from = QLatin1String(frameMi.findChild("from").data());

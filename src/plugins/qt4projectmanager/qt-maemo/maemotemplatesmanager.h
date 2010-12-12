@@ -46,10 +46,10 @@ class Target;
 
 namespace Qt4ProjectManager {
 class Qt4Project;
+class Qt4Target;
 
 namespace Internal {
 class Qt4ProFileNode;
-class Qt4Target;
 
 class MaemoTemplatesManager : public QObject
 {
@@ -70,6 +70,17 @@ public:
         QString *error) const;
     bool setPackageManagerIcon(const ProjectExplorer::Project *project,
         const QString &iconFilePath, QString *error) const;
+
+    QString name(const ProjectExplorer::Project *project) const;
+    bool setName(const ProjectExplorer::Project *project,
+        const QString &name);
+
+    QString shortDescription(const ProjectExplorer::Project *project) const;
+    bool setShortDescription(const ProjectExplorer::Project *project,
+        const QString &description);
+
+    QString controlFileFieldValue(const ProjectExplorer::Project *project,
+        const QString &key) const;
 
 signals:
     void debianDirContentsChanged(const ProjectExplorer::Project *project);
@@ -98,10 +109,12 @@ private:
         int &lineEndPos, int &valuePos);
     bool adaptRulesFile(const ProjectExplorer::Project *project);
     bool adaptControlFile(const ProjectExplorer::Project *project);
-    void adaptControlFileField(QByteArray &document, const QByteArray &fieldName,
+    bool adaptControlFileField(QByteArray &document, const QByteArray &fieldName,
         const QByteArray &newFieldValue);
     QSharedPointer<QFile> openFile(const QString &filePath,
         QIODevice::OpenMode mode, QString *error) const;
+    bool setFieldValue(const ProjectExplorer::Project *project,
+        const QByteArray &fieldName, const QByteArray &fieldValue);
 
     static MaemoTemplatesManager *m_instance;
 

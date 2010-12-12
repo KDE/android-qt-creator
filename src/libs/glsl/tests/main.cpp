@@ -2,10 +2,18 @@
 #include <glslengine.h>
 #include <glslparser.h>
 #include <glsllexer.h>
+#include <glslastdump.h>
+#include <glslsemantic.h>
+#include <glslsymbols.h>
+#include <glsltypes.h>
+
+#include <QtCore/QTextStream>
+
 #include <iostream>
 #include <fstream>
 #include <cstring>
 #include <cassert>
+#include <cstdio>
 
 using namespace GLSL;
 
@@ -15,6 +23,10 @@ using namespace GLSL;
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS 0
 #endif
+
+namespace {
+QTextStream qout(stdout, QIODevice::WriteOnly);
+}
 
 int main(int argc, char *argv[])
 {
@@ -29,9 +41,6 @@ int main(int argc, char *argv[])
             variant |= Lexer::Variant_GLSL_400;
         } else if (!strcmp(argv[1], "--version=es")) {
             variant |= Lexer::Variant_GLSL_ES_100;
-        } else if (!strcmp(argv[1], "--version=qt")) {
-            variant |= Lexer::Variant_GLSL_ES_100 |
-                       Lexer::Variant_GLSL_Qt;
         } else if (!strcmp(argv[1], "--shader=vertex")) {
             variant |= Lexer::Variant_VertexShader;
         } else if (!strcmp(argv[1], "--shader=fragment")) {
@@ -66,19 +75,15 @@ int main(int argc, char *argv[])
         variant |= Lexer::Variant_VertexShader | Lexer::Variant_FragmentShader;
     Engine engine;
     Parser parser(&engine, source, size, variant);
-    TranslationUnit *ast = parser.parse();
+    TranslationUnitAST *ast = parser.parse();
     std::cout << argv[1] << (ast ? " OK " : " KO ") << std::endl;
 
-    if (ast) {
-        assert(ast->asTranslationUnit() != 0);
-        int n = 0;
-        for (List<Declaration *> *it = ast->declarations; it; it = it->next, ++n) {
-            Declaration *decl = it->value;
-            // ### do something with decl
-            (void) decl;
-        }
-        std::cout << "found " << n << " level declarations" << std::endl;
-    }
+    ASTDump dump(qout);
+    dump(ast);
+
+    Semantic sem;
+    Scope *globalScope = engine.newNamespace();
+    sem.translationUnit(ast, globalScope, &engine);
 
     delete source;
     delete ast;

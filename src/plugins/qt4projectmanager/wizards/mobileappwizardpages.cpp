@@ -28,9 +28,12 @@
 **************************************************************************/
 
 #include "mobileappwizardpages.h"
-#include "ui_mobileappwizardoptionspage.h"
+#include "ui_mobileappwizardgenericoptionspage.h"
+#include "ui_mobileappwizardmaemooptionspage.h"
+#include "ui_mobileappwizardsymbianoptionspage.h"
 #include <coreplugin/coreconstants.h>
 
+#include <QtCore/QTemporaryFile>
 #include <QtGui/QDesktopServices>
 #include <QtGui/QFileDialog>
 #include <QtGui/QFileDialog>
@@ -39,26 +42,32 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class MobileAppWizardOptionsPagePrivate
+class MobileAppWizardGenericOptionsPagePrivate
 {
-    Ui::MobileAppWizardOptionPage ui;
-    QString symbianSvgIcon;
-    QString maemoPngIcon;
-    friend class MobileAppWizardOptionsPage;
+    Ui::MobileAppWizardGenericOptionsPage ui;
+    friend class MobileAppWizardGenericOptionsPage;
 };
 
-MobileAppWizardOptionsPage::MobileAppWizardOptionsPage(QWidget *parent)
+class MobileAppWizardSymbianOptionsPagePrivate
+{
+    Ui::MobileAppWizardSymbianOptionsPage ui;
+    QString svgIcon;
+    friend class MobileAppWizardSymbianOptionsPage;
+};
+
+class MobileAppWizardMaemoOptionsPagePrivate
+{
+    Ui::MobileAppWizardMaemoOptionsPage ui;
+    QString pngIcon;
+    friend class MobileAppWizardMaemoOptionsPage;
+};
+
+
+MobileAppWizardGenericOptionsPage::MobileAppWizardGenericOptionsPage(QWidget *parent)
     : QWizardPage(parent)
-    , m_d(new MobileAppWizardOptionsPagePrivate)
+    , m_d(new MobileAppWizardGenericOptionsPagePrivate)
 {
     m_d->ui.setupUi(this);
-
-    const QIcon open = QApplication::style()->standardIcon(QStyle::SP_DirOpenIcon);
-    m_d->ui.symbianAppIconLoadToolButton->setIcon(open);
-    connect(m_d->ui.symbianAppIconLoadToolButton, SIGNAL(clicked()), SLOT(openSymbianSvgIcon()));
-    connect(m_d->ui.maemoPngIconButton, SIGNAL(clicked()), this,
-        SLOT(openMaemoPngIcon()));
-
     m_d->ui.orientationBehaviorComboBox->addItem(tr("Automatically Rotate Orientation"),
         AbstractMobileApp::ScreenOrientationAuto);
     m_d->ui.orientationBehaviorComboBox->addItem(tr("Lock to Landscape Orientation"),
@@ -67,12 +76,12 @@ MobileAppWizardOptionsPage::MobileAppWizardOptionsPage(QWidget *parent)
         AbstractMobileApp::ScreenOrientationLockPortrait);
 }
 
-MobileAppWizardOptionsPage::~MobileAppWizardOptionsPage()
+MobileAppWizardGenericOptionsPage::~MobileAppWizardGenericOptionsPage()
 {
     delete m_d;
 }
 
-void MobileAppWizardOptionsPage::setOrientation(AbstractMobileApp::ScreenOrientation orientation)
+void MobileAppWizardGenericOptionsPage::setOrientation(AbstractMobileApp::ScreenOrientation orientation)
 {
     QComboBox *const comboBox = m_d->ui.orientationBehaviorComboBox;
     for (int i = 0; i < comboBox->count(); ++i)
@@ -82,88 +91,139 @@ void MobileAppWizardOptionsPage::setOrientation(AbstractMobileApp::ScreenOrienta
         }
 }
 
-AbstractMobileApp::ScreenOrientation MobileAppWizardOptionsPage::orientation() const
+AbstractMobileApp::ScreenOrientation MobileAppWizardGenericOptionsPage::orientation() const
 {
     const int index = m_d->ui.orientationBehaviorComboBox->currentIndex();
     return static_cast<AbstractMobileApp::ScreenOrientation>(m_d->ui.orientationBehaviorComboBox->itemData(index).toInt());
 }
 
-QString MobileAppWizardOptionsPage::symbianSvgIcon() const
+
+MobileAppWizardSymbianOptionsPage::MobileAppWizardSymbianOptionsPage(QWidget *parent)
+    : QWizardPage(parent)
+    , m_d(new MobileAppWizardSymbianOptionsPagePrivate)
 {
-    return m_d->symbianSvgIcon;
+    m_d->ui.setupUi(this);
+    const QIcon open = QApplication::style()->standardIcon(QStyle::SP_DirOpenIcon);
+    m_d->ui.appIconLoadToolButton->setIcon(open);
+    connect(m_d->ui.appIconLoadToolButton, SIGNAL(clicked()), SLOT(openSvgIcon()));
 }
 
-void MobileAppWizardOptionsPage::setSymbianSvgIcon(const QString &icon)
+MobileAppWizardSymbianOptionsPage::~MobileAppWizardSymbianOptionsPage()
+{
+    delete m_d;
+}
+
+QString MobileAppWizardSymbianOptionsPage::svgIcon() const
+{
+    return m_d->svgIcon;
+}
+
+void MobileAppWizardSymbianOptionsPage::setSvgIcon(const QString &icon)
 {
     QPixmap iconPixmap(icon);
     if (!iconPixmap.isNull()) {
         const int symbianIconSize = 44;
         if (iconPixmap.height() > symbianIconSize || iconPixmap.width() > symbianIconSize)
             iconPixmap = iconPixmap.scaledToHeight(symbianIconSize, Qt::SmoothTransformation);
-        m_d->ui.symbianAppIconPreview->setPixmap(iconPixmap);
-        m_d->symbianSvgIcon = icon;
+        m_d->ui.appIconPreview->setPixmap(iconPixmap);
+        m_d->svgIcon = icon;
     }
 }
 
-QString MobileAppWizardOptionsPage::maemoPngIcon() const
+QString MobileAppWizardSymbianOptionsPage::symbianUid() const
 {
-    return m_d->maemoPngIcon;
+    return m_d->ui.uid3LineEdit->text();
 }
 
-void MobileAppWizardOptionsPage::setMaemoPngIcon(const QString &icon)
+void MobileAppWizardSymbianOptionsPage::setSymbianUid(const QString &uid)
 {
-    QString error;
-    QPixmap iconPixmap(icon);
-    if (iconPixmap.isNull())
-        error = tr("The file is not a valid image.");
-    else if (iconPixmap.size() != QSize(64, 64))
-        error = tr("The icon has an invalid size.");
-    if (!error.isEmpty()) {
-        QMessageBox::warning(this, tr("Icon unusable"), error);
-    } else {
-        m_d->ui.maemoPngIconButton->setIcon(iconPixmap);
-        m_d->maemoPngIcon = icon;
-    }
+    m_d->ui.uid3LineEdit->setText(uid);
 }
 
-QString MobileAppWizardOptionsPage::symbianUid() const
+void MobileAppWizardSymbianOptionsPage::setNetworkEnabled(bool enableIt)
 {
-    return m_d->ui.symbianTargetUid3LineEdit->text();
+    m_d->ui.enableNetworkCheckBox->setChecked(enableIt);
 }
 
-void MobileAppWizardOptionsPage::setSymbianUid(const QString &uid)
+bool MobileAppWizardSymbianOptionsPage::networkEnabled() const
 {
-    m_d->ui.symbianTargetUid3LineEdit->setText(uid);
+    return m_d->ui.enableNetworkCheckBox->isChecked();
 }
 
-void MobileAppWizardOptionsPage::setNetworkEnabled(bool enableIt)
-{
-    m_d->ui.symbianEnableNetworkChackBox->setChecked(enableIt);
-}
-
-bool MobileAppWizardOptionsPage::networkEnabled() const
-{
-    return m_d->ui.symbianEnableNetworkChackBox->isChecked();
-}
-
-void MobileAppWizardOptionsPage::openSymbianSvgIcon()
+void MobileAppWizardSymbianOptionsPage::openSvgIcon()
 {
     const QString svgIcon = QFileDialog::getOpenFileName(
             this,
-            m_d->ui.symbianAppIconLabel->text(),
+            m_d->ui.appIconLabel->text(),
             QDesktopServices::storageLocation(QDesktopServices::PicturesLocation),
             QLatin1String("*.svg"));
     if (!svgIcon.isEmpty())
-        setSymbianSvgIcon(svgIcon);
+        setSvgIcon(svgIcon);
 }
 
-void MobileAppWizardOptionsPage::openMaemoPngIcon()
+
+MobileAppWizardMaemoOptionsPage::MobileAppWizardMaemoOptionsPage(QWidget *parent)
+    : QWizardPage(parent)
+    , m_d(new MobileAppWizardMaemoOptionsPagePrivate)
+{
+    m_d->ui.setupUi(this);
+    connect(m_d->ui.pngIconButton, SIGNAL(clicked()), this, SLOT(openPngIcon()));
+}
+
+MobileAppWizardMaemoOptionsPage::~MobileAppWizardMaemoOptionsPage()
+{
+    delete m_d;
+}
+
+QString MobileAppWizardMaemoOptionsPage::pngIcon() const
+{
+    return m_d->pngIcon;
+}
+
+void MobileAppWizardMaemoOptionsPage::setPngIcon(const QString &icon)
+{
+    QString error;
+    QPixmap iconPixmap(icon);
+    if (iconPixmap.isNull()) {
+        QMessageBox::critical(this, tr("Invalid Icon"),
+            tr("The file is not a valid image."));
+        return;
+    }
+
+    const QSize iconSize(64, 64);
+    QString actualIconPath;
+    if (iconPixmap.size() == iconSize) {
+        actualIconPath = icon;
+    } else {
+        const QMessageBox::StandardButton button = QMessageBox::warning(this,
+            tr("Wrong Icon Size"), tr("The icon needs to be 64x64 pixels big, "
+                "but is not. Do you want Creator to scale it?"),
+            QMessageBox::Ok | QMessageBox::Cancel);
+        if (button != QMessageBox::Ok)
+            return;
+        iconPixmap = iconPixmap.scaled(iconSize);
+        QTemporaryFile tmpFile;
+        tmpFile.setAutoRemove(false);
+        const char * const format = QFileInfo(icon).suffix().toAscii().data();
+        if (!tmpFile.open() || !iconPixmap.save(&tmpFile, format)) {
+            QMessageBox::critical(this, tr("File Error"),
+                tr("Could not copy icon file."));
+            return;
+        }
+        actualIconPath = tmpFile.fileName();
+    }
+
+    m_d->ui.pngIconButton->setIcon(iconPixmap);
+    m_d->pngIcon = actualIconPath;
+}
+
+void MobileAppWizardMaemoOptionsPage::openPngIcon()
 {
     const QString iconPath = QFileDialog::getOpenFileName(this,
-        m_d->ui.maemoAppIconLabel->text(), m_d->maemoPngIcon,
+        m_d->ui.appIconLabel->text(), m_d->pngIcon,
         QLatin1String("*.png"));
     if (!iconPath.isEmpty())
-        setMaemoPngIcon(iconPath);
+        setPngIcon(iconPath);
 }
 
 } // namespace Internal

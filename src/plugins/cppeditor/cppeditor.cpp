@@ -49,6 +49,7 @@
 #include <ASTVisitor.h>
 #include <SymbolVisitor.h>
 #include <TranslationUnit.h>
+#include <cplusplus/ASTPath.h>
 #include <cplusplus/ExpressionUnderCursor.h>
 #include <cplusplus/TypeOfExpression.h>
 #include <cplusplus/Overview.h>
@@ -75,6 +76,7 @@
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <texteditor/basetextdocument.h>
+#include <texteditor/basetextdocumentlayout.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/tabsettings.h>
 #include <texteditor/texteditorconstants.h>
@@ -1106,21 +1108,30 @@ void CPPEditor::switchDeclarationDefinition()
         if (! lastVisibleSymbol)
             return;
 
-        Function *functionScope = lastVisibleSymbol->asFunction();
-        if (! functionScope)
-            functionScope = lastVisibleSymbol->enclosingFunction();
+        Function *function = lastVisibleSymbol->asFunction();
+        if (! function)
+            function = lastVisibleSymbol->enclosingFunction();
 
-        if (functionScope) {
+        if (function) {
             LookupContext context(thisDocument, snapshot);
 
-            Function *functionDefinition = functionScope->asFunction();
+            Function *functionDefinition = function->asFunction();
+            ClassOrNamespace *binding = context.lookupType(functionDefinition);
+
             const QList<LookupItem> declarations = context.lookup(functionDefinition->name(), functionDefinition->enclosingScope());
+            QList<Symbol *> best;
             foreach (const LookupItem &r, declarations) {
-                Symbol *decl = r.declaration();
-                // TODO: check decl.
-                openCppEditorAt(linkToSymbol(decl));
-                break;
+                if (Symbol *decl = r.declaration()) {
+                    if (Function *funTy = decl->type()->asFunctionType()) {
+                        if (funTy->isEqualTo(function) && decl != function && binding == r.binding())
+                            best.prepend(decl);
+                        else
+                            best.append(decl);
+                    }
+                }
             }
+            if (! best.isEmpty())
+                openCppEditorAt(linkToSymbol(best.first()));
 
         } else if (lastVisibleSymbol && lastVisibleSymbol->isDeclaration() && lastVisibleSymbol->type()->isFunctionType()) {
             if (Symbol *def = snapshot.findMatchingDefinition(lastVisibleSymbol))
@@ -1172,6 +1183,195 @@ static inline LookupItem skipForwardDeclarations(const QList<LookupItem> &resolv
     return result;
 }
 
+namespace {
+
+QList<Declaration *> findMatchingDeclaration(const LookupContext &context,
+                                             Function *functionType)
+{
+    QList<Declaration *> result;
+
+    Scope *enclosingScope = functionType->enclosingScope();
+    while (! (enclosingScope->isNamespace() || enclosingScope->isClass()))
+        enclosingScope = enclosingScope->enclosingScope();
+    Q_ASSERT(enclosingScope != 0);
+
+    const Name *functionName = functionType->name();
+    if (! functionName)
+        return result; // anonymous function names are not valid c++
+
+    ClassOrNamespace *binding = 0;
+    const QualifiedNameId *qName = functionName->asQualifiedNameId();
+    if (qName) {
+        if (qName->base())
+            binding = context.lookupType(qName->base(), enclosingScope);
+        functionName = qName->name();
+    }
+
+    if (!binding) { // declaration for a global function
+        binding = context.lookupType(enclosingScope);
+
+        if (!binding)
+            return result;
+    }
+
+    const Identifier *funcId = functionName->identifier();
+    if (!funcId) // E.g. operator, which we might be able to handle in the future...
+        return result;
+
+    QList<Declaration *> good, better, best;
+
+    foreach (Symbol *s, binding->symbols()) {
+        Class *matchingClass = s->asClass();
+        if (!matchingClass)
+            continue;
+
+        for (Symbol *s = matchingClass->find(funcId); s; s = s->next()) {
+            if (! s->name())
+                continue;
+            else if (! funcId->isEqualTo(s->identifier()))
+                continue;
+            else if (! s->type()->isFunctionType())
+                continue;
+            else if (Declaration *decl = s->asDeclaration()) {
+                if (Function *declFunTy = decl->type()->asFunctionType()) {
+                    if (functionType->isEqualTo(declFunTy))
+                        best.prepend(decl);
+                    else if (functionType->argumentCount() == declFunTy->argumentCount() && result.isEmpty())
+                        better.prepend(decl);
+                    else
+                        good.append(decl);
+                }
+            }
+        }
+    }
+
+    result.append(best);
+    result.append(better);
+    result.append(good);
+
+    return result;
+}
+
+} // end of anonymous namespace
+
+CPPEditor::Link CPPEditor::attemptFuncDeclDef(const QTextCursor &cursor, const Document::Ptr &doc, Snapshot snapshot) const
+{
+    snapshot.insert(doc);
+
+    Link result;
+
+    QList<AST *> path = ASTPath(doc)(cursor);
+
+    if (path.size() < 5)
+        return result;
+
+    NameAST *name = path.last()->asName();
+    if (!name)
+        return result;
+
+    if (QualifiedNameAST *qName = path.at(path.size() - 2)->asQualifiedName()) {
+        // TODO: check which part of the qualified name we're on
+        if (qName->unqualified_name != name)
+            return result;
+    }
+
+    for (int i = path.size() - 1; i != -1; --i) {
+        AST *node = path.at(i);
+
+        if (node->asParameterDeclaration() != 0)
+            return result;
+    }
+
+    AST *declParent = 0;
+    DeclaratorAST *decl = 0;
+    for (int i = path.size() - 2; i > 0; --i) {
+        if ((decl = path.at(i)->asDeclarator()) != 0) {
+            declParent = path.at(i - 1);
+            break;
+        }
+    }
+    if (!decl || !declParent)
+        return result;
+    if (!decl->postfix_declarator_list || !decl->postfix_declarator_list->value)
+        return result;
+    FunctionDeclaratorAST *funcDecl = decl->postfix_declarator_list->value->asFunctionDeclarator();
+    if (!funcDecl)
+        return result;
+
+    Symbol *target = 0;
+    if (FunctionDefinitionAST *funDef = declParent->asFunctionDefinition()) {
+        QList<Declaration *> candidates = findMatchingDeclaration(LookupContext(doc, snapshot),
+                                                                  funDef->symbol);
+        if (!candidates.isEmpty()) // TODO: improve disambiguation
+            target = candidates.first();
+    } else if (declParent->asSimpleDeclaration()) {
+        target = snapshot.findMatchingDefinition(funcDecl->symbol);
+    }
+
+    if (target) {
+        result = linkToSymbol(target);
+
+        unsigned startLine, startColumn, endLine, endColumn;
+        doc->translationUnit()->getTokenStartPosition(name->firstToken(), &startLine, &startColumn);
+        doc->translationUnit()->getTokenEndPosition(name->lastToken() - 1, &endLine, &endColumn);
+
+        QTextDocument *textDocument = cursor.document();
+        result.begin = textDocument->findBlockByNumber(startLine - 1).position() + startColumn - 1;
+        result.end = textDocument->findBlockByNumber(endLine - 1).position() + endColumn - 1;
+    }
+
+    return result;
+}
+
+CPPEditor::Link CPPEditor::findMacroLink(const QByteArray &name) const
+{
+    if (! name.isEmpty()) {
+        if (Document::Ptr doc = m_lastSemanticInfo.doc) {
+            const Snapshot snapshot = m_modelManager->snapshot();
+            QSet<QString> processed;
+            return findMacroLink(name, doc, snapshot, &processed);
+        }
+    }
+
+    return Link();
+}
+
+CPPEditor::Link CPPEditor::findMacroLink(const QByteArray &name,
+                                         Document::Ptr doc,
+                                         const Snapshot &snapshot,
+                                         QSet<QString> *processed) const
+{
+    if (doc && ! name.startsWith('<') && ! processed->contains(doc->fileName())) {
+        processed->insert(doc->fileName());
+
+        foreach (const Macro &macro, doc->definedMacros()) {
+            if (macro.name() == name) {
+                Link link;
+                link.fileName = macro.fileName();
+                link.line = macro.line();
+                return link;
+            }
+        }
+
+        const QList<Document::Include> includes = doc->includes();
+        for (int index = includes.size() - 1; index != -1; --index) {
+            const Document::Include &i = includes.at(index);
+            Link link = findMacroLink(name, snapshot.document(i.fileName()), snapshot, processed);
+            if (! link.fileName.isEmpty())
+                return link;
+        }
+    }
+
+    return Link();
+}
+
+QString CPPEditor::identifierUnderCursor(QTextCursor *macroCursor) const
+{
+    macroCursor->movePosition(QTextCursor::StartOfWord);
+    macroCursor->movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+    return macroCursor->selectedText();
+}
+
 CPPEditor::Link CPPEditor::findLinkAt(const QTextCursor &cursor,
                                       bool resolveTarget)
 {
@@ -1181,6 +1381,14 @@ CPPEditor::Link CPPEditor::findLinkAt(const QTextCursor &cursor,
         return link;
 
     const Snapshot snapshot = m_modelManager->snapshot();
+
+    if (m_lastSemanticInfo.doc){
+        Link l = attemptFuncDeclDef(cursor, m_lastSemanticInfo.doc, snapshot);
+        if (l.isValid()) {
+            return l;
+        }
+    }
+
     int lineNumber = 0, positionInBlock = 0;
     convertPosition(cursor.position(), &lineNumber, &positionInBlock);
     Document::Ptr doc = snapshot.document(file()->fileName());
@@ -1289,11 +1497,27 @@ CPPEditor::Link CPPEditor::findLinkAt(const QTextCursor &cursor,
 
     // Evaluate the type of the expression under the cursor
     ExpressionUnderCursor expressionUnderCursor;
-    const QString expression = expressionUnderCursor(tc);
+    QString expression = expressionUnderCursor(tc);
+
+    for (int pos = tc.position();; ++pos) {
+        const QChar ch = characterAt(pos);
+        if (ch.isSpace())
+            continue;
+        else {
+            if (ch == QLatin1Char('(') && ! expression.isEmpty()) {
+                tc.setPosition(pos);
+                if (TextEditor::TextBlockUserData::findNextClosingParenthesis(&tc, true)) {
+                    expression.append(tc.selectedText());
+                }
+            }
+
+            break;
+        }
+    }
 
     TypeOfExpression typeOfExpression;
     typeOfExpression.init(doc, snapshot);
-    const QList<LookupItem> resolvedSymbols = typeOfExpression(expression, scope, TypeOfExpression::Preprocess);
+    const QList<LookupItem> resolvedSymbols = typeOfExpression.reference(expression, scope, TypeOfExpression::Preprocess);
 
     if (!resolvedSymbols.isEmpty()) {
         LookupItem result = skipForwardDeclarations(resolvedSymbols);
@@ -1331,31 +1555,20 @@ CPPEditor::Link CPPEditor::findLinkAt(const QTextCursor &cursor,
             link.begin = beginOfToken;
             link.end = endOfToken;
             return link;
-
-        // This would jump to the type of a name
-#if 0
-        } else if (NamedType *namedType = firstType->asNamedType()) {
-            QList<Symbol *> candidates = context.resolve(namedType->name());
-            if (!candidates.isEmpty()) {
-                Symbol *s = candidates.takeFirst();
-                openCppEditorAt(s->fileName(), s->line(), s->column());
-            }
-#endif
-        }
-    } else {
-        // Handle macro uses
-        const Document::MacroUse *use = doc->findMacroUseAt(endOfToken - 1);
-        if (use && use->macro().fileName() != QLatin1String("<configuration>")) {
-            const Macro &macro = use->macro();
-            link.fileName = macro.fileName();
-            link.line = macro.line();
-            link.begin = use->begin();
-            link.end = use->end();
-            return link;
         }
     }
 
-    return link;
+    // Handle macro uses
+    QTextCursor macroCursor = cursor;
+    const QByteArray name = identifierUnderCursor(&macroCursor).toLatin1();
+    link = findMacroLink(name);
+    if (! link.fileName.isEmpty()) {
+        link.begin = macroCursor.selectionStart();
+        link.end = macroCursor.selectionEnd();
+        return link;
+    }
+
+    return Link();
 }
 
 void CPPEditor::jumpToDefinition()
@@ -1363,7 +1576,7 @@ void CPPEditor::jumpToDefinition()
     openLink(findLinkAt(textCursor()));
 }
 
-Symbol *CPPEditor::findDefinition(Symbol *symbol, const Snapshot &snapshot)
+Symbol *CPPEditor::findDefinition(Symbol *symbol, const Snapshot &snapshot) const
 {
     if (symbol->isFunction())
         return 0; // symbol is a function definition.
@@ -1593,22 +1806,7 @@ void CPPEditor::setFontSettings(const TextEditor::FontSettings &fs)
     if (!highlighter)
         return;
 
-    static QVector<QString> categories;
-    if (categories.isEmpty()) {
-        categories << QLatin1String(TextEditor::Constants::C_NUMBER)
-                   << QLatin1String(TextEditor::Constants::C_STRING)
-                   << QLatin1String(TextEditor::Constants::C_TYPE)
-                   << QLatin1String(TextEditor::Constants::C_KEYWORD)
-                   << QLatin1String(TextEditor::Constants::C_OPERATOR)
-                   << QLatin1String(TextEditor::Constants::C_PREPROCESSOR)
-                   << QLatin1String(TextEditor::Constants::C_LABEL)
-                   << QLatin1String(TextEditor::Constants::C_COMMENT)
-                   << QLatin1String(TextEditor::Constants::C_DOXYGEN_COMMENT)
-                   << QLatin1String(TextEditor::Constants::C_DOXYGEN_TAG)
-                   << QLatin1String(TextEditor::Constants::C_VISUAL_WHITESPACE);
-    }
-
-    const QVector<QTextCharFormat> formats = fs.toTextCharFormats(categories);
+    const QVector<QTextCharFormat> formats = fs.toTextCharFormats(highlighterFormatCategories());
     highlighter->setFormats(formats.constBegin(), formats.constEnd());
 
     m_occurrencesFormat = fs.toTextCharFormat(QLatin1String(TextEditor::Constants::C_OCCURRENCES));
@@ -2031,6 +2229,25 @@ QModelIndex CPPEditor::indexForPosition(int line, int column, const QModelIndex 
     }
 
     return lastIndex;
+}
+
+QVector<QString> CPPEditor::highlighterFormatCategories()
+{
+    static QVector<QString> categories;
+    if (categories.isEmpty()) {
+        categories << QLatin1String(TextEditor::Constants::C_NUMBER)
+                   << QLatin1String(TextEditor::Constants::C_STRING)
+                   << QLatin1String(TextEditor::Constants::C_TYPE)
+                   << QLatin1String(TextEditor::Constants::C_KEYWORD)
+                   << QLatin1String(TextEditor::Constants::C_OPERATOR)
+                   << QLatin1String(TextEditor::Constants::C_PREPROCESSOR)
+                   << QLatin1String(TextEditor::Constants::C_LABEL)
+                   << QLatin1String(TextEditor::Constants::C_COMMENT)
+                   << QLatin1String(TextEditor::Constants::C_DOXYGEN_COMMENT)
+                   << QLatin1String(TextEditor::Constants::C_DOXYGEN_TAG)
+                   << QLatin1String(TextEditor::Constants::C_VISUAL_WHITESPACE);
+    }
+    return categories;
 }
 
 #include "cppeditor.moc"

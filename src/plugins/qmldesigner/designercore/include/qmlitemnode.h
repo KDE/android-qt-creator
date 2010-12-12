@@ -80,7 +80,7 @@ public:
     int instancePenWidth() const;
 
 
-    void paintInstance(QPainter *painter) const;
+    void paintInstance(QPainter *painter);
 
     void selectNode();
     void deselectNode();
@@ -98,6 +98,8 @@ CORESHARED_EXPORT uint qHash(const QmlItemNode &node);
 class CORESHARED_EXPORT QmlModelStateGroup
 {
     friend class QmlItemNode;
+    friend class QmlModelView;
+
 public:
 
     QmlModelStateGroup() : m_modelNode(ModelNode()) {}

@@ -97,6 +97,15 @@ void replace(std::wstring &s, wchar_t before, wchar_t after)
             s[i] = after;
 }
 
+bool endsWith(const std::string &haystack, const char *needle)
+{
+    const size_t needleLen = strlen(needle);
+    const size_t haystackLen = haystack.size();
+    if (needleLen > haystackLen)
+        return false;
+    return haystack.compare(haystackLen - needleLen, needleLen, needle) == 0;
+}
+
 static inline void formatGdbmiChar(std::ostream &str, wchar_t c)
 {
     switch (c) {
@@ -161,6 +170,84 @@ std::string wStringToString(const std::wstring &w)
     rc.reserve(size);
     for (std::string::size_type i = 0; i < size; i++)
         rc.push_back(char(w.at(i)));
+    return rc;
+}
+
+std::wstring stringToWString(const std::string &w)
+{
+    if (w.empty())
+        return std::wstring();
+    const std::wstring::size_type size = w.size();
+    std::wstring rc;
+    rc.reserve(size);
+    for (std::wstring::size_type i = 0; i < size; i++)
+        rc.push_back(w.at(i));
+    return rc;
+}
+
+// Convert an ASCII hex digit to its value 'A'->10
+inline unsigned hexDigit(char c)
+{
+    if (c <= '9')
+        return c - '0';
+    if (c <= 'F')
+        return c - 'A' + 10;
+    return c - 'a' + 10;
+}
+
+// Convert an ASCII hex digit to its value 'A'->10
+inline char toHexDigit(unsigned v)
+{
+    if (v < 10)
+        return char(v) + '0';
+    return char(v - 10) + 'a';
+}
+
+// String from hex "414A" -> "AJ".
+std::string stringFromHex(const char *p, const char *end)
+{
+    if (p == end)
+        return std::string();
+
+    std::string rc;
+    rc.reserve((end - p) / 2);
+    for ( ; p < end; p++) {
+        unsigned c = 16 * hexDigit(*p);
+        c += hexDigit(*++p);
+        rc.push_back(char(c));
+    }
+    return rc;
+}
+
+std::wstring dataToHexW(const unsigned char *p, const unsigned char *end)
+{
+    if (p == end)
+        return std::wstring();
+
+    std::wstring rc;
+    rc.reserve(2 * (end - p));
+    for ( ; p < end ; p++) {
+        const unsigned c = *p;
+        rc.push_back(toHexDigit(c / 16));
+        rc.push_back(toHexDigit(c &0xF));
+    }
+    return rc;
+}
+
+// Readable hex: '0xAA 0xBB'..
+std::wstring dataToReadableHexW(const unsigned char *begin, const unsigned char *end)
+{
+    if (begin == end)
+        return std::wstring();
+
+    std::wstring rc;
+    rc.reserve(5 * (end - begin));
+    for (const unsigned char *p = begin; p < end ; p++) {
+        rc.append(p == begin ? L"0x" : L" 0x");
+        const unsigned c = *p;
+        rc.push_back(toHexDigit(c / 16));
+        rc.push_back(toHexDigit(c &0xF));
+    }
     return rc;
 }
 

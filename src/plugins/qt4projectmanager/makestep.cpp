@@ -35,12 +35,9 @@
 #include "qt4buildconfiguration.h"
 #include "qt4projectmanagerconstants.h"
 #include "qtparser.h"
-#include "qt-s60/abldparser.h"
-#include "qt-s60/sbsv2parser.h"
 
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/gnumakeparser.h>
 #include <projectexplorer/projectexplorer.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcprocess.h>
@@ -183,24 +180,15 @@ bool MakeStep::init()
     setEnabled(true);
     pp->setArguments(args);
 
-    m_gnuMakeParser = 0;
-
-    if (bc->qtVersion()->supportsTargetId(Qt4ProjectManager::Constants::S60_DEVICE_TARGET_ID) ||
-        bc->qtVersion()->supportsTargetId(Qt4ProjectManager::Constants::S60_EMULATOR_TARGET_ID)) {
-        if (bc->qtVersion()->isBuildWithSymbianSbsV2()) {
-            setOutputParser(new SbsV2Parser);
-        } else {
-            setOutputParser(new AbldParser);
-            m_gnuMakeParser = new ProjectExplorer::GnuMakeParser(workingDirectory);
-            appendOutputParser(m_gnuMakeParser);
-        }
-    } else {
-        setOutputParser(new ProjectExplorer::GnuMakeParser(workingDirectory));
-    }
-    appendOutputParser(new QtParser);
-
+    ProjectExplorer::IOutputParser *parser = bc->qtVersion()->createOutputParser();
+    Q_ASSERT(parser);
+    parser->appendOutputParser(new QtParser);
     if (toolchain)
-        appendOutputParser(toolchain->outputParser());
+        parser->appendOutputParser(toolchain->outputParser());
+
+    parser->setWorkingDirectory(workingDirectory);
+
+    setOutputParser(parser);
 
     return AbstractProcessStep::init();
 }
@@ -218,8 +206,8 @@ void MakeStep::run(QFutureInterface<bool> & fi)
 bool MakeStep::processSucceeded(int exitCode, QProcess::ExitStatus status)
 {
     // Symbian does retun 0, even on failed makes! So we check for fatal make errors here.
-    if (m_gnuMakeParser)
-        return m_gnuMakeParser->fatalErrors() == 0;
+    if (outputParser() && outputParser()->hasFatalErrors())
+        return false;
 
     return AbstractProcessStep::processSucceeded(exitCode, status);
 }

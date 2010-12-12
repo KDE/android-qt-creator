@@ -206,6 +206,8 @@ private slots:
     void updateActions();
     void loadCustomWizards();
 
+    void publishProject();
+
 #ifdef WITH_TESTS
     void testGccOutputParsers_data();
     void testGccOutputParsers();
@@ -231,8 +233,6 @@ private:
     void executeRunConfiguration(RunConfiguration *, const QString &mode);
     bool hasBuildSettings(Project *pro);
     bool hasDeploySettings(Project *pro);
-
-    bool showBuildConfigDialog();
 
     void setCurrent(Project *project, QString filePath, Node *node);
 

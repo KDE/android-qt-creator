@@ -40,6 +40,7 @@
 #include <QtCore/QVector>
 #include <QtCore/QVariant>
 #include <QtCore/QStringList>
+#include <QtCore/QDateTime>
 
 QT_BEGIN_NAMESPACE
 class QIODevice;
@@ -79,7 +80,8 @@ struct SYMBIANUTILS_EXPORT TcfTrkCommandError {
 
 /* Answer to a Tcf command passed to the callback. */
 struct SYMBIANUTILS_EXPORT TcfTrkCommandResult {
-    enum Type {
+    enum Type
+    {
         SuccessReply,       // 'R' and no error -> all happy.
         CommandErrorReply,  // 'R' with TcfTrkCommandError received
         ProgressReply,      // 'P', progress indicator
@@ -96,12 +98,24 @@ struct SYMBIANUTILS_EXPORT TcfTrkCommandResult {
     QString errorString() const;
     operator bool() const { return type == SuccessReply || type == ProgressReply; }
 
+    static QDateTime tcfTimeToQDateTime(quint64 tcfTimeMS);
+
     Type type;
     Services service;
     QByteArray request;
     TcfTrkCommandError commandError;
     QVector<JsonValue> values;
     QVariant cookie;
+};
+
+// Response to stat/fstat
+struct SYMBIANUTILS_EXPORT TcfTrkStatResponse
+{
+    TcfTrkStatResponse();
+
+    quint64 size;
+    QDateTime modTime;
+    QDateTime accessTime;
 };
 
 typedef trk::Callback<const TcfTrkCommandResult &> TcfTrkCallback;
@@ -118,16 +132,39 @@ http://dev.eclipse.org/svnroot/dsdp/org.eclipse.tm.tcf/trunk/docs/TCF%20Services
  * single commands. As soon as 'Registers::getm' is natively supported, all code
  * related to 'FakeRegisterGetm' should be removed. The workaround requires that
  * the register name is known.
-*/
+ * CODA notes:
+ * - Commands are accepted only after receiving the Locator Hello event
+ * - Serial communication initiation sequence:
+ *     Send serial ping from host sendSerialPing() -> receive pong response with
+ *     version information -> Send Locator Hello Event -> Receive Locator Hello Event
+ *     -> Commands are accepted.
+ * - WLAN communication initiation sequence:
+ *     Receive Locator Hello Event from CODA -> Commands are accepted.
+ */
 
 class SYMBIANUTILS_EXPORT TcfTrkDevice : public QObject
 {
     Q_PROPERTY(unsigned verbose READ verbose WRITE setVerbose)
+    Q_PROPERTY(bool serialFrame READ serialFrame WRITE setSerialFrame)
     Q_OBJECT
 public:
-    enum MessageType { MessageWithReply,
-                       MessageWithoutReply, /* Non-standard: "Settings:set" command does not reply */
-                       NoopMessage };
+    // Flags for FileSystem:open
+    enum FileSystemOpenFlags
+    {
+        FileSystem_TCF_O_READ = 0x00000001,
+        FileSystem_TCF_O_WRITE = 0x00000002,
+        FileSystem_TCF_O_APPEND = 0x00000004,
+        FileSystem_TCF_O_CREAT = 0x00000008,
+        FileSystem_TCF_O_TRUNC = 0x00000010,
+        FileSystem_TCF_O_EXCL = 0x00000020
+    };
+
+    enum MessageType
+    {
+        MessageWithReply,
+        MessageWithoutReply, /* Non-standard: "Settings:set" command does not reply */
+        NoopMessage
+    };
 
     typedef QSharedPointer<QIODevice> IODevicePtr;
 
@@ -135,6 +172,8 @@ public:
     virtual ~TcfTrkDevice();
 
     unsigned verbose() const;
+    bool serialFrame() const;
+    void setSerialFrame(bool);
 
     // Mapping of register names to indices for multi-requests.
     // Register names can be retrieved via 'Registers:getChildren' (requires
@@ -145,6 +184,9 @@ public:
     IODevicePtr device() const;
     IODevicePtr takeDevice();
     void setDevice(const IODevicePtr &dp);
+
+    // Serial Only: Initiate communication. Will emit serialPong() signal with version.
+    void sendSerialPing(bool pingOnly = false);
 
     // Send with parameters from string (which may contain '\0').
     void sendTcfTrkMessage(MessageType mt, Services service,
@@ -270,15 +312,47 @@ public:
                                  const QByteArray &value, // binary value
                                  const QVariant &cookie = QVariant());
 
+    // File System
+    void sendFileSystemOpenCommand(const TcfTrkCallback &callBack,
+                                   const QByteArray &name,
+                                   unsigned flags = FileSystem_TCF_O_READ,
+                                   const QVariant &cookie = QVariant());
+
+    void sendFileSystemFstatCommand(const TcfTrkCallback &callBack,
+                                   const QByteArray &handle,
+                                   const QVariant &cookie = QVariant());
+
+    void sendFileSystemWriteCommand(const TcfTrkCallback &callBack,
+                                    const QByteArray &handle,
+                                    const QByteArray &data,
+                                    unsigned offset = 0,
+                                    const QVariant &cookie = QVariant());
+
+    void sendFileSystemCloseCommand(const TcfTrkCallback &callBack,
+                                   const QByteArray &handle,
+                                   const QVariant &cookie = QVariant());
+
+    // Symbian Install
+    void sendSymbianInstallSilentInstallCommand(const TcfTrkCallback &callBack,
+                                                const QByteArray &file,
+                                                const QByteArray &targetDrive,
+                                                const QVariant &cookie = QVariant());
+
+    void sendSymbianInstallUIInstallCommand(const TcfTrkCallback &callBack,
+                                            const QByteArray &file,
+                                            const QVariant &cookie = QVariant());
+
     void sendLoggingAddListenerCommand(const TcfTrkCallback &callBack,
                                        const QVariant &cookie = QVariant());
 
     static QByteArray parseMemoryGet(const TcfTrkCommandResult &r);
     static QVector<QByteArray> parseRegisterGetChildren(const TcfTrkCommandResult &r);
+    static TcfTrkStatResponse parseStat(const TcfTrkCommandResult &r);
 
 signals:
     void genericTcfEvent(int service, const QByteArray &name, const QVector<tcftrk::JsonValue> &value);
     void tcfEvent(const tcftrk::TcfTrkEvent &knownEvent);
+    void serialPong(const QString &codaVersion);
 
     void logMessage(const QString &);
     void error(const QString &);
@@ -292,11 +366,16 @@ private slots:
     void slotDeviceReadyRead();
 
 private:
+    void deviceReadyReadSerial();
+    void deviceReadyReadTcp();
+
     bool checkOpen();
     void checkSendQueue();
-    void writeMessage(QByteArray data);
+    void writeMessage(QByteArray data, bool ensureTerminating0 = true);
     void emitLogMessage(const QString &);
-    int parseMessage(const QByteArray &);
+    inline int parseMessage(const QByteArray &);
+    void processMessage(const QByteArray &message);
+    inline void processSerialMessage(const QByteArray &message);
     int parseTcfCommandReply(char type, const QVector<QByteArray> &tokens);
     int parseTcfEvent(const QVector<QByteArray> &tokens);
     // Send with parameters from string (which may contain '\0').

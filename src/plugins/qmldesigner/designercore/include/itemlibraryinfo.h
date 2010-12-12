@@ -41,7 +41,7 @@ namespace Internal {
 
 class ItemLibraryEntryData;
 class ItemLibraryInfoPrivate;
-
+class MetaInfoPrivate;
 }
 
 class ItemLibraryEntry;
@@ -68,6 +68,7 @@ public:
     QString category() const;
     QIcon dragIcon() const;
     QString qml() const;
+    QString requiredImport() const;
 
     ItemLibraryEntry(const ItemLibraryEntry &other);
     ItemLibraryEntry& operator=(const ItemLibraryEntry &other);
@@ -82,8 +83,10 @@ public:
     void addProperty(const Property &p);
     void addProperty(QString &name, QString &type, QString &value);
     void setDragIcon(const QIcon &icon);
+    void setIcon(const QIcon &icon);
     void setCategory(const QString &category);
     void setQml(const QString &qml);
+    void setRequiredImport(const QString &requiredImport);
 private:
     QExplicitlySharedDataPointer<Internal::ItemLibraryEntryData> m_data;
 };

@@ -61,7 +61,6 @@ class AbstractView;
 class NodeListProperty;
 class NodeProperty;
 class NodeAbstractProperty;
-class NodeInstance;
 class ModelNode;
 
 CORESHARED_EXPORT QList<Internal::InternalNodePointer> toInternalNodeList(const QList<ModelNode> &nodeList);
@@ -165,6 +164,8 @@ public:
     QVariant auxiliaryData(const QString &name) const;
     void setAuxiliaryData(const QString &name, const QVariant &data);
     bool hasAuxiliaryData(const QString &name) const;
+
+    qint32 internalId() const;
 
 private: // functions
     Internal::InternalNodePointer internalNode() const;
