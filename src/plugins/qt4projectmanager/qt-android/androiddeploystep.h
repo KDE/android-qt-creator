@@ -31,9 +31,7 @@
 #define ANDROIDDEPLOYSTEP_H
 
 #include "androiddeployable.h"
-#include "androiddeployables.h"
 #include "androiddeviceconfigurations.h"
-#include "androidmountspecification.h"
 
 #include <coreplugin/ssh/sftpdefs.h>
 #include <projectexplorer/buildstep.h>
@@ -58,11 +56,9 @@ class SshRemoteProcess;
 
 namespace Qt4ProjectManager {
 namespace Internal {
-class AndroidRemoteMounter;
 class AndroidDeviceConfigListModel;
 class AndroidPackageCreationStep;
 class AndroidToolChain;
-class AndroidUsedPortsGatherer;
 
 class AndroidDeployStep : public ProjectExplorer::BuildStep
 {
@@ -77,7 +73,6 @@ public:
     bool currentlyNeedsDeployment(const QString &host,
         const AndroidDeployable &deployable) const;
     void setDeployed(const QString &host, const AndroidDeployable &deployable);
-    QSharedPointer<AndroidDeployables> deployables() const { return m_deployables; }
     QSharedPointer<Core::SshConnection> sshConnection() const { return m_connection; }
 
     bool isDeployToSysrootEnabled() const { return m_deployToSysroot; }
@@ -91,12 +86,7 @@ signals:
 
 private slots:
     void start();
-    void handleConnected();
     void handleConnectionFailure();
-    void handleMounted();
-    void handleUnmounted();
-    void handleMountError(const QString &errorMsg);
-    void handleMountDebugOutput(const QString &output);
     void handleProgressReport(const QString &progressMsg);
     void handleCopyProcessFinished(int exitStatus);
     void handleSysrootInstallerFinished();
@@ -141,22 +131,17 @@ private:
     void installToSysroot();
     QString uploadDir() const;
     void connectToDevice();
-    void unmountOldDirs();
-    void setupMount();
     void prepareSftpConnection();
     void runDpkg(const QString &packageFilePath);
     void setState(State newState);
-    void unmount();
 
     static const QLatin1String Id;
 
-    QSharedPointer<AndroidDeployables> m_deployables;
     QSharedPointer<Core::SshConnection> m_connection;
     QProcess *m_sysrootInstaller;
     typedef QPair<AndroidDeployable, QSharedPointer<Core::SshRemoteProcess> > DeviceDeployAction;
     QScopedPointer<DeviceDeployAction> m_currentDeviceDeployAction;
     QList<AndroidDeployable> m_filesToCopy;
-    AndroidRemoteMounter *m_mounter;
     bool m_deployToSysroot;
     QSharedPointer<Core::SftpChannel> m_uploader;
     QSharedPointer<Core::SshRemoteProcess> m_deviceInstaller;
@@ -165,8 +150,6 @@ private:
     typedef QPair<AndroidDeployable, QString> DeployablePerHost;
     QHash<DeployablePerHost, QDateTime> m_lastDeployed;
     AndroidDeviceConfigListModel *m_deviceConfigModel;
-    AndroidUsedPortsGatherer *m_portsGatherer;
-    AndroidPortList m_freePorts;
     State m_state;
 };
 

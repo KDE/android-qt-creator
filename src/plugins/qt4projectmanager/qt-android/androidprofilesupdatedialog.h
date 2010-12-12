@@ -42,26 +42,22 @@ QT_END_NAMESPACE
 
 namespace Qt4ProjectManager {
 namespace Internal {
-class AndroidDeployableListModel;
 
 class AndroidProFilesUpdateDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    typedef QPair<AndroidDeployableListModel *, bool> UpdateSetting;
 
-    explicit AndroidProFilesUpdateDialog(const QList<AndroidDeployableListModel *> &models,
-        QWidget *parent = 0);
+    explicit AndroidProFilesUpdateDialog(QWidget *parent = 0);
     ~AndroidProFilesUpdateDialog();
-    QList<UpdateSetting> getUpdateSettings() const;
+    //QList<UpdateSetting> getUpdateSettings() const;
 
 private:
     Q_SLOT void checkAll();
     Q_SLOT void uncheckAll();
     void setCheckStateForAll(Qt::CheckState checkState);
 
-    const QList<AndroidDeployableListModel *> m_models;
     Ui::AndroidProFilesUpdateDialog *ui;
 };
 

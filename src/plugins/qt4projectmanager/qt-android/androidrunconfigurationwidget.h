@@ -80,11 +80,6 @@ private slots:
     void argumentsEdited(const QString &args);
     void showSettingsDialog(const QString &link);
     void updateTargetInformation();
-    void handleCurrentDeviceConfigChanged();
-    void addMount();
-    void removeMount();
-    void changeLocalMountDir(const QModelIndex &index);
-    void enableOrDisableRemoveMountSpecButton();
     void handleDebuggingTypeChanged(bool useGdb);
     void fetchEnvironment();
     void fetchEnvironmentFinished();
@@ -95,18 +90,15 @@ private slots:
     void baseEnvironmentChanged();
     void systemEnvironmentChanged();
     void userEnvironmentChangesChanged(const QList<Utils::EnvironmentItem> &userChanges);
-    void handleRemoteMountsChanged();
     void handleDebuggingTypeChanged();
     void handleDeploySpecsChanged();
     void handleBuildConfigChanged();
-    void handleToolchainChanged();
 
 private:
     void addGenericWidgets(QVBoxLayout *mainLayout);
     void addDebuggingWidgets(QVBoxLayout *mainLayout);
     void addMountWidgets(QVBoxLayout *mainLayout);
     void addEnvironmentWidgets(QVBoxLayout *mainLayout);
-    void updateMountWarning();
 
     QLineEdit *m_argsLineEdit;
     QLabel *m_localExecutableLabel;

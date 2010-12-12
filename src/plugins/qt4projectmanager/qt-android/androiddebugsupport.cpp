@@ -34,11 +34,9 @@
 
 #include "androiddebugsupport.h"
 
-#include "androiddeployables.h"
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidsshrunner.h"
-#include "androidusedportsgatherer.h"
 
 #include <coreplugin/ssh/sftpchannel.h>
 #include <debugger/debuggerplugin.h>
@@ -260,29 +258,27 @@ void AndroidDebugSupport::startDebugging()
 {
     ASSERT_STATE(DumpersUploaded);
 
-    if (useGdb()) {
-        handleAdapterSetupDone();
-    } else {
-        setState(StartingRemoteProcess);
-        m_gdbserverOutput.clear();
-        connect(m_runner, SIGNAL(remoteErrorOutput(QByteArray)), this,
-            SLOT(handleRemoteErrorOutput(QByteArray)));
-        connect(m_runner, SIGNAL(remoteOutput(QByteArray)), this,
-            SLOT(handleRemoteOutput(QByteArray)));
-        const QString &remoteExe = m_runner->remoteExecutable();
-        const QString cmdPrefix = AndroidGlobal::remoteCommandPrefix(remoteExe);
-        const QString env
-            = environment(m_debuggingType, m_runner->userEnvChanges());
-        const QString args = m_runner->arguments();
-        const QString remoteCommandLine
-            = m_debuggingType == AndroidRunConfiguration::DebugQmlOnly
-                ? QString::fromLocal8Bit("%1 %2 %3 %4").arg(cmdPrefix).arg(env)
-                      .arg(remoteExe).arg(args)
-                : QString::fromLocal8Bit("%1 %2 gdbserver :%3 %4 %5")
-                      .arg(cmdPrefix).arg(env).arg(m_gdbServerPort)
-                      .arg(remoteExe).arg(args);
-        m_runner->startExecution(remoteCommandLine.toUtf8());
-    }
+//    if (useGdb()) {
+//        handleAdapterSetupDone();
+//    } else {
+//        setState(StartingRemoteProcess);
+//        m_gdbserverOutput.clear();
+//        connect(m_runner, SIGNAL(remoteErrorOutput(QByteArray)), this,
+//            SLOT(handleRemoteErrorOutput(QByteArray)));
+//        connect(m_runner, SIGNAL(remoteOutput(QByteArray)), this,
+//            SLOT(handleRemoteOutput(QByteArray)));
+//        const QString env
+//            = environment(m_debuggingType, m_runner->userEnvChanges());
+//        const QString args = m_runner->arguments();
+//        const QString remoteCommandLine
+//            = m_debuggingType == AndroidRunConfiguration::DebugQmlOnly
+//                ? QString::fromLocal8Bit("%1 %2 %3 %4").arg(cmdPrefix).arg(env)
+//                      .arg(remoteExe).arg(args)
+//                : QString::fromLocal8Bit("%1 %2 gdbserver :%3 %4 %5")
+//                      .arg(cmdPrefix).arg(env).arg(m_gdbServerPort)
+//                      .arg(remoteExe).arg(args);
+//        m_runner->startExecution(remoteCommandLine.toUtf8());
+//    }
 }
 
 void AndroidDebugSupport::handleDebuggingFinished()
@@ -374,11 +370,8 @@ bool AndroidDebugSupport::useGdb() const
 
 bool AndroidDebugSupport::setPort(int &port)
 {
-    port = m_runner->usedPortsGatherer()->getNextFreePort(m_runner->freePorts());
-    if (port == -1) {
-        handleAdapterSetupFailed(tr("Not enough free ports on device for debugging."));
-        return false;
-    }
+#warning FIXME Android
+    port = 5039;
     return true;
 }
 

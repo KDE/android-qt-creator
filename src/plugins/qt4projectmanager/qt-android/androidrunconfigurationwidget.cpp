@@ -34,12 +34,10 @@
 
 #include "androidrunconfigurationwidget.h"
 
-#include "androiddeployables.h"
 #include "androiddeploystep.h"
 #include "androiddeviceconfiglistmodel.h"
 #include "androiddeviceenvreader.h"
 #include "androidmanager.h"
-#include "androidremotemountsmodel.h"
 #include "androidrunconfiguration.h"
 #include "androidsettingspage.h"
 #include "androidtoolchain.h"
@@ -92,7 +90,6 @@ AndroidRunConfigurationWidget::AndroidRunConfigurationWidget(
     connect(m_runConfiguration,
         SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
         this, SLOT(handleCurrentDeviceConfigChanged()));
-    handleCurrentDeviceConfigChanged();
     connect(m_runConfiguration->qt4Target(),
         SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)),
         this, SLOT(handleBuildConfigChanged()));
@@ -172,8 +169,6 @@ void AndroidRunConfigurationWidget::addGenericWidgets(QVBoxLayout *mainLayout)
         SLOT(handleDebuggingTypeChanged()));
     connect(m_runConfiguration, SIGNAL(targetInformationChanged()), this,
         SLOT(updateTargetInformation()));
-    connect(m_runConfiguration->deployStep()->deployables().data(),
-        SIGNAL(modelReset()), this, SLOT(handleDeploySpecsChanged()));
     handleDeploySpecsChanged();
 }
 
@@ -191,11 +186,12 @@ void AndroidRunConfigurationWidget::addDebuggingWidgets(QVBoxLayout *mainLayout)
     debugRadioButtonsLayout->addWidget(gdbButton);
     debugRadioButtonsLayout->addWidget(gdbServerButton);
     debugRadioButtonsLayout->addStretch(1);
-    gdbButton->setChecked(m_runConfiguration->useRemoteGdb());
-    gdbServerButton->setChecked(!gdbButton->isChecked());
-    connect(gdbButton, SIGNAL(toggled(bool)), this,
-        SLOT(handleDebuggingTypeChanged(bool)));
-    handleDebuggingTypeChanged(gdbButton->isChecked());
+#warning FIXME Android
+//    gdbButton->setChecked(m_runConfiguration->useRemoteGdb());
+//    gdbServerButton->setChecked(!gdbButton->isChecked());
+//    connect(gdbButton, SIGNAL(toggled(bool)), this,
+//        SLOT(handleDebuggingTypeChanged(bool)));
+//    handleDebuggingTypeChanged(gdbButton->isChecked());
 }
 
 void AndroidRunConfigurationWidget::addMountWidgets(QVBoxLayout *mainLayout)
@@ -213,7 +209,6 @@ void AndroidRunConfigurationWidget::addMountWidgets(QVBoxLayout *mainLayout)
     m_mountView = new QTableView;
     m_mountView->horizontalHeader()->setResizeMode(QHeaderView::ResizeToContents);
     m_mountView->setSelectionBehavior(QTableView::SelectRows);
-    m_mountView->setModel(m_runConfiguration->remoteMounts());
     tableLayout->addWidget(m_mountView);
     QVBoxLayout *mountViewButtonsLayout = new QVBoxLayout;
     tableLayout->addLayout(mountViewButtonsLayout);
@@ -236,19 +231,6 @@ void AndroidRunConfigurationWidget::addMountWidgets(QVBoxLayout *mainLayout)
     connect(m_mountView->selectionModel(),
         SIGNAL(selectionChanged(QItemSelection,QItemSelection)), this,
         SLOT(enableOrDisableRemoveMountSpecButton()));
-    connect(m_runConfiguration->remoteMounts(),
-        SIGNAL(rowsInserted(QModelIndex, int, int)), this,
-        SLOT(handleRemoteMountsChanged()));
-    connect(m_runConfiguration->remoteMounts(),
-        SIGNAL(rowsRemoved(QModelIndex, int, int)), this,
-        SLOT(handleRemoteMountsChanged()));
-    connect(m_runConfiguration->remoteMounts(),
-        SIGNAL(dataChanged(QModelIndex, QModelIndex)), this,
-        SLOT(handleRemoteMountsChanged()));
-    connect(m_runConfiguration->remoteMounts(), SIGNAL(modelReset()), this,
-        SLOT(handleRemoteMountsChanged()));
-    enableOrDisableRemoveMountSpecButton();
-    handleRemoteMountsChanged();
 }
 
 void AndroidRunConfigurationWidget::addEnvironmentWidgets(QVBoxLayout *mainLayout)
@@ -304,8 +286,8 @@ void AndroidRunConfigurationWidget::updateTargetInformation()
 
 void AndroidRunConfigurationWidget::handleDeploySpecsChanged()
 {
-    m_remoteExecutableLabel->setText(m_runConfiguration->remoteExecutableFilePath());
-    m_runConfiguration->updateFactoryState();
+//    m_remoteExecutableLabel->setText(m_runConfiguration->remoteExecutableFilePath());
+//    m_runConfiguration->updateFactoryState();
 }
 
 void AndroidRunConfigurationWidget::handleBuildConfigChanged()
@@ -317,24 +299,8 @@ void AndroidRunConfigurationWidget::handleBuildConfigChanged()
         connect(m_lastActiveBuildConfig, SIGNAL(qtVersionChanged()), this,
             SLOT(handleToolchainChanged()));
     }
-    handleToolchainChanged();
 }
 
-void AndroidRunConfigurationWidget::handleToolchainChanged()
-{
-    const AndroidToolChain * const toolChain = m_runConfiguration->toolchain();
-    if (toolChain) {
-        const bool remoteMountsAvailable = toolChain->allowsRemoteMounts();
-        m_debugDetailsContainer->setVisible(remoteMountsAvailable);
-        m_mountDetailsContainer->setVisible(remoteMountsAvailable);
-        const bool qmlDebuggingAvailable = toolChain->allowsQmlDebugging();
-        m_debuggingLanguagesLabel->setVisible(qmlDebuggingAvailable);
-        m_debugCppOnlyButton->setVisible(qmlDebuggingAvailable);
-        m_debugQmlOnlyButton->setVisible(qmlDebuggingAvailable);
-        m_debugCppAndQmlButton->setVisible(qmlDebuggingAvailable);
-    }
-    m_runConfiguration->updateFactoryState();
-}
 
 void AndroidRunConfigurationWidget::showSettingsDialog(const QString &link)
 {
@@ -347,60 +313,9 @@ void AndroidRunConfigurationWidget::showSettingsDialog(const QString &link)
     }
 }
 
-void AndroidRunConfigurationWidget::handleCurrentDeviceConfigChanged()
-{
-#warning FIXME Android
-//    m_devConfLabel->setText(m_runConfiguration->deviceConfig().name);
-    updateMountWarning();
-}
-
-void AndroidRunConfigurationWidget::enableOrDisableRemoveMountSpecButton()
-{
-    const QModelIndexList selectedRows
-        = m_mountView->selectionModel()->selectedRows();
-    m_removeMountButton->setEnabled(!selectedRows.isEmpty());
-}
-
-void AndroidRunConfigurationWidget::addMount()
-{
-    const QString localDir = QFileDialog::getExistingDirectory(this,
-        tr("Choose directory to mount"));
-    if (!localDir.isEmpty()) {
-        AndroidRemoteMountsModel * const mountsModel
-            = m_runConfiguration->remoteMounts();
-        mountsModel->addMountSpecification(localDir);
-        m_mountView->edit(mountsModel->index(mountsModel->mountSpecificationCount() - 1,
-            mountsModel->RemoteMountPointRow));
-    }
-}
-
-void AndroidRunConfigurationWidget::removeMount()
-{
-    const QModelIndexList selectedRows
-        = m_mountView->selectionModel()->selectedRows();
-    if (!selectedRows.isEmpty()) {
-        m_runConfiguration->remoteMounts()
-            ->removeMountSpecificationAt(selectedRows.first().row());
-    }
-}
-
-void AndroidRunConfigurationWidget::changeLocalMountDir(const QModelIndex &index)
-{
-    if (index.column() == AndroidRemoteMountsModel::LocalDirRow) {
-        AndroidRemoteMountsModel * const mountsModel
-            = m_runConfiguration->remoteMounts();
-        const QString oldDir
-            = mountsModel->mountSpecificationAt(index.row()).localDir;
-        const QString localDir = QFileDialog::getExistingDirectory(this,
-            tr("Choose directory to mount"), oldDir);
-        if (!localDir.isEmpty())
-            mountsModel->setLocalDir(index.row(), localDir);
-    }
-}
-
 void AndroidRunConfigurationWidget::handleDebuggingTypeChanged(bool useGdb)
 {
-    m_runConfiguration->setUseRemoteGdb(useGdb);
+//    m_runConfiguration->setUseRemoteGdb(useGdb);
     const QString detailsText = useGdb ?
                 tr("<b>Debugging details:</b> Use gdb") :
                 tr("<b>Debugging details:</b> Use gdbserver");
@@ -475,71 +390,12 @@ void AndroidRunConfigurationWidget::userEnvironmentChangesChanged(const QList<Ut
     m_environmentWidget->setUserChanges(userChanges);
 }
 
-void AndroidRunConfigurationWidget::handleRemoteMountsChanged()
-{
-    const int mountCount
-        = m_runConfiguration->remoteMounts()->validMountSpecificationCount();
-    QString text;
-    switch (mountCount) {
-    case 0:
-        text = tr("No local directories to be mounted on the device.");
-        break;
-    case 1:
-        text = tr("One local directory to be mounted on the device.");
-        break;
-    default:
-        //: Note: Only mountCount>1  will occur here as 0, 1 are handled above.
-        text = tr("%n local directories to be mounted on the device.", 0, mountCount);
-        break;
-    }
-    m_mountDetailsContainer->setSummaryText(QLatin1String("<b>") + text
-        + QLatin1String("</b>"));
-    updateMountWarning();
-}
-
 void AndroidRunConfigurationWidget::handleDebuggingTypeChanged()
 {
     m_runConfiguration->setUseCppDebugger(m_debugCppOnlyButton->isChecked()
         || m_debugCppAndQmlButton->isChecked());
     m_runConfiguration->setUseQmlDebugger(m_debugQmlOnlyButton->isChecked()
         || m_debugCppAndQmlButton->isChecked());
-    updateMountWarning();
-}
-
-void AndroidRunConfigurationWidget::updateMountWarning()
-{
-    QString mountWarning;
-    const AndroidPortList &portList = m_runConfiguration->freePorts();
-    if (portList.hasMore()) {
-        const int availablePortCount = portList.count();
-        const int mountDirCount
-            = m_runConfiguration->remoteMounts()->validMountSpecificationCount();
-        if (mountDirCount > availablePortCount) {
-            mountWarning = tr("WARNING: You want to mount %1 directories, but "
-                "your device has only %n free ports.<br>You will not be able "
-                "to run this configuration.", 0, availablePortCount)
-            .arg(mountDirCount);
-        } else if (mountDirCount > 0) {
-            const int portsLeftByDebuggers = availablePortCount
-                - m_runConfiguration->portsUsedByDebuggers();
-            if (mountDirCount > portsLeftByDebuggers) {
-                mountWarning = tr("WARNING: You want to mount %1 directories, "
-                    "but only %n ports on the device will be available "
-                    "in debug mode. <br>You will not be able to debug your "
-                    "application with this configuration.", 0, portsLeftByDebuggers).
-                    arg(mountDirCount);
-            }
-        }
-    }
-    if (mountWarning.isEmpty()) {
-        m_mountWarningLabel->hide();
-    } else {
-        m_mountWarningLabel->setText(QLatin1String("<font color=\"red\">")
-            + mountWarning + QLatin1String("</font>"));
-        m_mountWarningLabel->show();
-        m_mountDetailsContainer->setState(Utils::DetailsWidget::Expanded);
-    }
-    m_runConfiguration->updateFactoryState();
 }
 
 } // namespace Internal

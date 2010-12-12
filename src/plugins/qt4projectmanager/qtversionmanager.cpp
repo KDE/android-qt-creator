@@ -1324,6 +1324,11 @@ void QtVersion::updateToolChainAndMkspec() const
         return;
     }
 
+    static bool updateingToolChainAndMkspec = false;
+    if (updateingToolChainAndMkspec)
+        return;
+    updateingToolChainAndMkspec = true;
+
 //    qDebug()<<"Finding mkspec for"<<qmakeCommand();
 
     // no .qmake.cache so look at the default mkspec
@@ -1521,6 +1526,8 @@ void QtVersion::updateToolChainAndMkspec() const
 
     ProFileCacheManager::instance()->decRefCount();
     m_toolChainUpToDate = true;
+    updateingToolChainAndMkspec = false;
+
 }
 
 QString QtVersion::mwcDirectory() const

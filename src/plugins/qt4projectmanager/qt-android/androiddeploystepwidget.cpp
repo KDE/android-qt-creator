@@ -2,8 +2,6 @@
 #include "ui_androiddeploystepwidget.h"
 
 #include "androiddeploystep.h"
-#include "androiddeployablelistmodel.h"
-#include "androiddeployables.h"
 #include "androiddeviceconfiglistmodel.h"
 #include "androidrunconfiguration.h"
 
@@ -22,14 +20,14 @@ AndroidDeployStepWidget::AndroidDeployStepWidget(AndroidDeployStep *step) :
     m_step(step)
 {
     ui->setupUi(this);
-    ui->modelComboBox->setModel(m_step->deployables().data());
-    connect(m_step->deployables().data(), SIGNAL(modelAboutToBeReset()),
-        SLOT(handleModelListToBeReset()));
+//    ui->modelComboBox->setModel(m_step->deployables().data());
+//    connect(m_step->deployables().data(), SIGNAL(modelAboutToBeReset()),
+//        SLOT(handleModelListToBeReset()));
 
     // Queued connection because of race condition with combo box's reaction
     // to modelReset().
-    connect(m_step->deployables().data(), SIGNAL(modelReset()),
-        SLOT(handleModelListReset()), Qt::QueuedConnection);
+//    connect(m_step->deployables().data(), SIGNAL(modelReset()),
+//        SLOT(handleModelListReset()), Qt::QueuedConnection);
 
     connect(ui->modelComboBox, SIGNAL(currentIndexChanged(int)),
         SLOT(setModel(int)));
@@ -63,12 +61,12 @@ void AndroidDeployStepWidget::handleDeviceConfigModelChanged()
         = qobject_cast<AndroidDeviceConfigListModel *>(ui->deviceConfigComboBox->model());
     if (oldModel)
         disconnect(oldModel, 0, this, 0);
-    AndroidDeviceConfigListModel * const devModel = m_step->deviceConfigModel();
-    ui->deviceConfigComboBox->setModel(devModel);
-    connect(devModel, SIGNAL(currentChanged()), this,
-        SLOT(handleDeviceUpdate()));
-    connect(devModel, SIGNAL(modelReset()), this,
-        SLOT(handleDeviceUpdate()));
+//    AndroidDeviceConfigListModel * const devModel = m_step->deviceConfigModel();
+//    ui->deviceConfigComboBox->setModel(devModel);
+//    connect(devModel, SIGNAL(currentChanged()), this,
+//        SLOT(handleDeviceUpdate()));
+//    connect(devModel, SIGNAL(modelReset()), this,
+//        SLOT(handleDeviceUpdate()));
     handleDeviceUpdate();
 }
 
@@ -109,26 +107,26 @@ void AndroidDeployStepWidget::handleModelListToBeReset()
 
 void AndroidDeployStepWidget::handleModelListReset()
 {
-    QTC_ASSERT(m_step->deployables()->modelCount() == ui->modelComboBox->count(), return);
-    if (m_step->deployables()->modelCount() > 0) {
-        if (ui->modelComboBox->currentIndex() == -1)
-            ui->modelComboBox->setCurrentIndex(0);
-        else
-            setModel(ui->modelComboBox->currentIndex());
-    }
+//    QTC_ASSERT(m_step->deployables()->modelCount() == ui->modelComboBox->count(), return);
+//    if (m_step->deployables()->modelCount() > 0) {
+//        if (ui->modelComboBox->currentIndex() == -1)
+//            ui->modelComboBox->setCurrentIndex(0);
+//        else
+//            setModel(ui->modelComboBox->currentIndex());
+//    }
 }
 
 void AndroidDeployStepWidget::setModel(int row)
 {
-    bool canAddDesktopFile = false;
-    if (row != -1) {
-        AndroidDeployableListModel *const model
-            = m_step->deployables()->modelAt(row);
-        ui->tableView->setModel(model);
-        ui->tableView->resizeRowsToContents();
-        canAddDesktopFile = model->canAddDesktopFile();
-    }
-    ui->addDesktopFileButton->setEnabled(canAddDesktopFile);
+//    bool canAddDesktopFile = false;
+//    if (row != -1) {
+//        AndroidDeployableListModel *const model
+//            = m_step->deployables()->modelAt(row);
+//        ui->tableView->setModel(model);
+//        ui->tableView->resizeRowsToContents();
+//        canAddDesktopFile = model->canAddDesktopFile();
+//    }
+//    ui->addDesktopFileButton->setEnabled(canAddDesktopFile);
 }
 
 void AndroidDeployStepWidget::addDesktopFile()
@@ -136,15 +134,15 @@ void AndroidDeployStepWidget::addDesktopFile()
     const int modelRow = ui->modelComboBox->currentIndex();
     if (modelRow == -1)
         return;
-    AndroidDeployableListModel *const model
-        = m_step->deployables()->modelAt(modelRow);
-    QString error;
-    if (!model->addDesktopFile(error)) {
-        QMessageBox::warning(this, tr("Could not create desktop file"),
-             tr("Error creating desktop file: %1").arg(error));
-    }
-    ui->addDesktopFileButton->setEnabled(model->canAddDesktopFile());
-    ui->tableView->resizeRowsToContents();
+//    AndroidDeployableListModel *const model
+//        = m_step->deployables()->modelAt(modelRow);
+//    QString error;
+//    if (!model->addDesktopFile(error)) {
+//        QMessageBox::warning(this, tr("Could not create desktop file"),
+//             tr("Error creating desktop file: %1").arg(error));
+//    }
+//    ui->addDesktopFileButton->setEnabled(model->canAddDesktopFile());
+//    ui->tableView->resizeRowsToContents();
 }
 
 } // namespace Internal

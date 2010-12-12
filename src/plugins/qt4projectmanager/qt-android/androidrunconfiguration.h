@@ -56,7 +56,6 @@ class Qt4ProFileNode;
 class AndroidDeviceConfigListModel;
 class AndroidDeployStep;
 class AndroidManager;
-class AndroidRemoteMountsModel;
 class AndroidRunConfigurationFactory;
 class AndroidToolChain;
 
@@ -84,20 +83,12 @@ public:
     Qt4BuildConfiguration *activeQt4BuildConfiguration() const;
 
     AndroidDeployStep *deployStep() const;
-    AndroidRemoteMountsModel *remoteMounts() const { return m_remoteMounts; }
 
     const AndroidToolChain *toolchain() const;
-    QString maddeRoot() const;
     QString localExecutableFilePath() const;
-    QString remoteExecutableFilePath() const;
-    const QString sysRoot() const;
-    const QString targetRoot() const;
     const QString arguments() const;
     void setArguments(const QString &args);
     AndroidConfig deviceConfig() const;
-    AndroidPortList freePorts() const;
-    bool useRemoteGdb() const;
-    void setUseRemoteGdb(bool useRemoteGdb) { m_useRemoteGdb = useRemoteGdb; }
     void updateFactoryState() { emit isEnabledChanged(true); }
     DebuggingType debuggingType() const;
 
@@ -148,7 +139,6 @@ private:
 
     QString m_proFilePath;
     mutable QString m_gdbPath;
-    AndroidRemoteMountsModel *m_remoteMounts;
     QString m_arguments;
     bool m_useRemoteGdb;
 

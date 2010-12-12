@@ -46,33 +46,11 @@ public:
     ProjectExplorer::ToolChainType type() const;
     QString makeCommand() const;
 
-    QString maddeRoot() const;
-    QString targetRoot() const;
-    QString targetName() const;
-    QString sysrootRoot() const;
-    QString madAdminCommand() const;
-
-    enum AndroidVersion { android_4, android_5, android_8};
-    AndroidVersion version() const;
-    bool allowsRemoteMounts() const { return version() == android_8; }
-    bool allowsPackagingDisabling() const { return version() == android_8; }
-    bool allowsQmlDebugging() const { return version() == android_8; }
 
 protected:
     bool equals(const ToolChain *other) const;
 
 private:
-    void setMaddeRoot() const;
-    void setSysroot() const;
-
-private:
-    mutable QString m_maddeRoot;
-    mutable bool m_maddeInitialized;
-
-    mutable QString m_sysrootRoot;
-    mutable bool m_sysrootInitialized;
-
-    const QString m_targetRoot;
 };
 
     } // namespace Internal

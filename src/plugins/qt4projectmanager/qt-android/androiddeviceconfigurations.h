@@ -49,47 +49,6 @@ QT_END_NAMESPACE
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class AndroidPortList
-{
-    typedef QPair<int, int> Range;
-public:
-    void addPort(int port) { addRange(port, port); }
-    void addRange(int startPort, int endPort) {
-        m_ranges << Range(startPort, endPort);
-    }
-    bool hasMore() const { return !m_ranges.isEmpty(); }
-    int count() const {
-        int n = 0;
-        foreach (const Range &r, m_ranges)
-            n += r.second - r.first + 1;
-        return n;
-    }
-    int getNext() {
-        Q_ASSERT(!m_ranges.isEmpty());
-        Range &firstRange = m_ranges.first();
-        const int next = firstRange.first++;
-        if (firstRange.first > firstRange.second)
-            m_ranges.removeFirst();
-        return next;
-    }
-    QString toString() const
-    {
-        QString stringRep;
-        foreach (const Range &range, m_ranges) {
-            stringRep += QString::number(range.first);
-            if (range.second != range.first)
-                stringRep += QLatin1Char('-') + QString::number(range.second);
-            stringRep += QLatin1Char(',');
-        }
-        if (!stringRep.isEmpty())
-            stringRep.remove(stringRep.length() - 1, 1); // Trailing comma.
-        return stringRep;
-    }
-
-private:
-    QList<Range> m_ranges;
-};
-
 class AndroidConfig
 {
 public:
@@ -108,8 +67,8 @@ class AndroidConfigurations : public QObject
 public:
 
     static AndroidConfigurations &instance(QObject *parent = 0);
-    AndroidConfig devConfigs() const { return m_config; }
-    void setConfig(const AndroidConfig &devConfigs);
+    AndroidConfig config() const { return m_config; }
+    void setConfig(const AndroidConfig &config);
 
 signals:
     void updated();

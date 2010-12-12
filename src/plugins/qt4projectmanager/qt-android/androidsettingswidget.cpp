@@ -36,10 +36,8 @@
 
 #include "ui_androidsettingswidget.h"
 
-#include "androidconfigtestdialog.h"
 #include "androiddeviceconfigurations.h"
 #include "androidremoteprocessesdialog.h"
-#include "androidsshconfigdialog.h"
 
 #include <coreplugin/ssh/sshremoteprocessrunner.h>
 
@@ -62,7 +60,7 @@ namespace Internal {
 AndroidSettingsWidget::AndroidSettingsWidget(QWidget *parent)
     : QWidget(parent),
       m_ui(new Ui_AndroidSettingsWidget),
-      m_androidConfig(AndroidConfigurations::instance().devConfigs()),
+      m_androidConfig(AndroidConfigurations::instance().config()),
       m_saveSettingsRequested(false)
 {
     initGui();
@@ -108,9 +106,9 @@ bool AndroidSettingsWidget::checkSDK(const QString & location)
     m_ui->devicesFrame->setEnabled(false);
     if (!location.length())
         return false;
-    if (!QFile::exists(location+QLatin1String("/tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")))
+    if (!QFile::exists(location+QLatin1String("/tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")) || !QFile::exists(location+QLatin1String("/tools/emulator")) )
     {
-        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be Android's SDK top folder'").arg(location));
+        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android SDK top folder").arg(location));
         return false;
     }
     m_ui->devicesFrame->setEnabled(true);

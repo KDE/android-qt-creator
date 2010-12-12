@@ -37,10 +37,7 @@
 #include "androiddeploystep.h"
 #include "androiddeviceconfigurations.h"
 #include "androidglobal.h"
-#include "androidremotemounter.h"
-#include "androidremotemountsmodel.h"
 #include "androidrunconfiguration.h"
-#include "androidusedportsgatherer.h"
 
 #include <coreplugin/ssh/sshconnection.h>
 #include <coreplugin/ssh/sshremoteprocess.h>
@@ -59,36 +56,14 @@ namespace Internal {
 AndroidSshRunner::AndroidSshRunner(QObject *parent,
     AndroidRunConfiguration *runConfig, bool debugging)
     : QObject(parent),
-      m_mounter(new AndroidRemoteMounter(this)),
-      m_portsGatherer(new AndroidUsedPortsGatherer(this)),
       m_devConfig(runConfig->deviceConfig()),
-      m_remoteExecutable(runConfig->remoteExecutableFilePath()),
       m_appArguments(runConfig->arguments()),
       m_userEnvChanges(runConfig->userEnvironmentChanges()),
-      m_initialFreePorts(runConfig->freePorts()),
-      m_mountSpecs(runConfig->remoteMounts()->mountSpecs()),
       m_state(Inactive)
 {
     m_connection = runConfig->deployStep()->sshConnection();
-    m_mounter->setToolchain(runConfig->toolchain());
-    if (debugging && runConfig->useRemoteGdb()) {
-        m_mountSpecs << AndroidMountSpecification(runConfig->localDirToMountForRemoteGdb(),
-            runConfig->remoteProjectSourcesMountPoint());
-    }
-
-    m_procsToKill << QFileInfo(m_remoteExecutable).fileName();
-    connect(m_mounter, SIGNAL(mounted()), this, SLOT(handleMounted()));
-    connect(m_mounter, SIGNAL(unmounted()), this, SLOT(handleUnmounted()));
-    connect(m_mounter, SIGNAL(error(QString)), this,
-        SLOT(handleMounterError(QString)));
-    connect(m_mounter, SIGNAL(reportProgress(QString)), this,
-        SIGNAL(reportProgress(QString)));
-    connect(m_mounter, SIGNAL(debugOutput(QString)), this,
-        SIGNAL(mountDebugOutput(QString)));
-    connect(m_portsGatherer, SIGNAL(error(QString)), this,
-        SLOT(handlePortsGathererError(QString)));
-    connect(m_portsGatherer, SIGNAL(portListReady()), this,
-        SLOT(handleUsedPortsAvailable()));
+#warning FIXME Android
+//    m_procsToKill << QFileInfo(m_remoteExecutable).fileName();
 }
 
 AndroidSshRunner::~AndroidSshRunner() {}
@@ -185,63 +160,65 @@ void AndroidSshRunner::cleanup()
 
 void AndroidSshRunner::handleCleanupFinished(int exitStatus)
 {
-    Q_ASSERT(exitStatus == SshRemoteProcess::FailedToStart
-        || exitStatus == SshRemoteProcess::KilledBySignal
-        || exitStatus == SshRemoteProcess::ExitedNormally);
+#warning FIXME Android
+//    Q_ASSERT(exitStatus == SshRemoteProcess::FailedToStart
+//        || exitStatus == SshRemoteProcess::KilledBySignal
+//        || exitStatus == SshRemoteProcess::ExitedNormally);
 
-    ASSERT_STATE(QList<State>() << PreRunCleaning << PostRunCleaning
-        << StopRequested << Inactive);
+//    ASSERT_STATE(QList<State>() << PreRunCleaning << PostRunCleaning
+//        << StopRequested << Inactive);
 
-    if (m_state == Inactive)
-        return;
-    if (m_state == StopRequested || m_state == PostRunCleaning) {
-        unmount();
-        return;
-    }
+//    if (m_state == Inactive)
+//        return;
+//    if (m_state == StopRequested || m_state == PostRunCleaning) {
+//        unmount();
+//        return;
+//    }
 
-    if (exitStatus != SshRemoteProcess::ExitedNormally) {
-        emitError(tr("Initial cleanup failed: %1")
-            .arg(m_cleaner->errorString()));
-    } else {
-        m_mounter->setConnection(m_connection);
-        unmount();
-    }
+//    if (exitStatus != SshRemoteProcess::ExitedNormally) {
+//        emitError(tr("Initial cleanup failed: %1")
+//            .arg(m_cleaner->errorString()));
+//    } else {
+//        m_mounter->setConnection(m_connection);
+//        unmount();
+//    }
 }
 
 void AndroidSshRunner::handleUnmounted()
 {
-    ASSERT_STATE(QList<State>() << PreRunCleaning << PreMountUnmounting
-        << PostRunCleaning << StopRequested);
+#warning FIXME Android
+//    ASSERT_STATE(QList<State>() << PreRunCleaning << PreMountUnmounting
+//        << PostRunCleaning << StopRequested);
 
-    switch (m_state) {
-    case PreRunCleaning: {
-        for (int i = 0; i < m_mountSpecs.count(); ++i)
-            m_mounter->addMountSpecification(m_mountSpecs.at(i), false);
-        setState(PreMountUnmounting);
-        unmount();
-        break;
-    }
-    case PreMountUnmounting:
-        setState(GatheringPorts);
-        m_portsGatherer->start(m_connection, m_freePorts);
-        break;
-    case PostRunCleaning:
-    case StopRequested: {
-        m_mounter->resetMountSpecifications();
-        const bool stopRequested = m_state == StopRequested;
-        setState(Inactive);
-        if (stopRequested) {
-            emit remoteProcessFinished(InvalidExitCode);
-        } else if (m_exitStatus == SshRemoteProcess::ExitedNormally) {
-            emit remoteProcessFinished(m_runner->exitCode());
-        } else {
-            emit error(tr("Error running remote process: %1")
-                .arg(m_runner->errorString()));
-        }
-        break;
-    }
-    default: ;
-    }
+//    switch (m_state) {
+//    case PreRunCleaning: {
+//        for (int i = 0; i < m_mountSpecs.count(); ++i)
+//            m_mounter->addMountSpecification(m_mountSpecs.at(i), false);
+//        setState(PreMountUnmounting);
+//        unmount();
+//        break;
+//    }
+//    case PreMountUnmounting:
+//        setState(GatheringPorts);
+//        m_portsGatherer->start(m_connection, m_freePorts);
+//        break;
+//    case PostRunCleaning:
+//    case StopRequested: {
+//        m_mounter->resetMountSpecifications();
+//        const bool stopRequested = m_state == StopRequested;
+//        setState(Inactive);
+//        if (stopRequested) {
+//            emit remoteProcessFinished(InvalidExitCode);
+//        } else if (m_exitStatus == SshRemoteProcess::ExitedNormally) {
+//            emit remoteProcessFinished(m_runner->exitCode());
+//        } else {
+//            emit error(tr("Error running remote process: %1")
+//                .arg(m_runner->errorString()));
+//        }
+//        break;
+//    }
+//    default: ;
+//    }
 }
 
 void AndroidSshRunner::handleMounted()
@@ -302,16 +279,6 @@ bool AndroidSshRunner::isConnectionUsable() const
 
 void AndroidSshRunner::setState(State newState)
 {
-    if (newState == Inactive) {
-        m_mounter->setConnection(SshConnection::Ptr());
-        m_portsGatherer->stop();
-        if (m_connection) {
-            disconnect(m_connection.data(), 0, this, 0);
-            m_connection = SshConnection::Ptr();
-        }
-        if (m_cleaner)
-            disconnect(m_cleaner.data(), 0, this, 0);
-    }
     m_state = newState;
 }
 
@@ -323,56 +290,10 @@ void AndroidSshRunner::emitError(const QString &errorMsg)
     }
 }
 
-void AndroidSshRunner::mount()
-{
-    setState(Mounting);
-    if (m_mounter->hasValidMountSpecifications()) {
-        emit reportProgress(tr("Mounting host directories..."));
-        m_mounter->mount(freePorts(), m_portsGatherer);
-    } else {
-        handleMounted();
-    }
-}
-
-void AndroidSshRunner::unmount()
-{
-    ASSERT_STATE(QList<State>() << PreRunCleaning << PreMountUnmounting
-        << PostRunCleaning << StopRequested);
-    if (m_mounter->hasValidMountSpecifications()) {
-        QString message;
-        switch (m_state) {
-        case PreRunCleaning:
-            message = tr("Unmounting left-over host directory mounts...");
-            break;
-        case PreMountUnmounting:
-            message = tr("Potentially unmounting left-over host directory mounts...");
-        case StopRequested: case PostRunCleaning:
-            message = tr("Unmounting host directories...");
-            break;
-        default:
-            break;
-        }
-        emit reportProgress(message);
-        m_mounter->unmount();
-    } else {
-        handleUnmounted();
-    }
-}
 
 void AndroidSshRunner::handlePortsGathererError(const QString &errorMsg)
 {
     emitError(errorMsg);
-}
-
-void AndroidSshRunner::handleUsedPortsAvailable()
-{
-    ASSERT_STATE(QList<State>() << GatheringPorts << StopRequested);
-
-    if (m_state == StopRequested) {
-        setState(Inactive);
-    } else {
-        mount();
-    }
 }
 
 const qint64 AndroidSshRunner::InvalidExitCode

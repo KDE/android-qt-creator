@@ -169,9 +169,10 @@ void AndroidPackageCreationWidget::handleToolchainChanged()
 {
     if (!m_step->androidToolChain())
         return;
-    m_ui->skipCheckBox
-        ->setVisible(m_step->androidToolChain()->allowsPackagingDisabling());
-    m_ui->skipCheckBox->setChecked(!m_step->isPackagingEnabled());
+#warning FIXME Android
+//    m_ui->skipCheckBox
+//        ->setVisible(m_step->androidToolChain()->allowsPackagingDisabling());
+//    m_ui->skipCheckBox->setChecked(!m_step->isPackagingEnabled());
     emit updateSummary();
 }
 

@@ -100,11 +100,10 @@ void AndroidRunControl::handleSshError(const QString &error)
 void AndroidRunControl::startExecution()
 {
     emit appendMessage(this, tr("Starting remote process ..."), false);
-    m_runner->startExecution(QString::fromLocal8Bit("%1 %2 %3 %4")
-        .arg(AndroidGlobal::remoteCommandPrefix(m_runner->remoteExecutable()))
-        .arg(AndroidGlobal::remoteEnvironment(m_runner->userEnvChanges()))
-        .arg(m_runner->remoteExecutable())
-        .arg(m_runner->arguments()).toUtf8());
+//    m_runner->startExecution(QString::fromLocal8Bit("%1 %2 %3")
+//        .arg(AndroidGlobal::remoteEnvironment(m_runner->userEnvChanges()))
+//        .arg(m_runner->remoteExecutable())
+//        .arg(m_runner->arguments()).toUtf8());
 }
 
 void AndroidRunControl::handleRemoteProcessFinished(qint64 exitCode)

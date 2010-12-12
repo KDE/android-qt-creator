@@ -29,8 +29,6 @@
 
 #include "androidtemplatesmanager.h"
 
-#include "androiddeployablelistmodel.h"
-#include "androiddeployables.h"
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidpackagecreationstep.h"
@@ -115,8 +113,8 @@ bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
     const Qt4Target * const qt4Target = qobject_cast<Qt4Target *>(target);
     const AndroidDeployStep * const deployStep
         = AndroidGlobal::buildStep<AndroidDeployStep>(qt4Target->activeDeployConfiguration());
-    connect(deployStep->deployables().data(), SIGNAL(modelReset()), this,
-        SLOT(handleProFileUpdated()), Qt::QueuedConnection);
+//    connect(deployStep->deployables().data(), SIGNAL(modelReset()), this,
+//        SLOT(handleProFileUpdated()), Qt::QueuedConnection);
 
     Project * const project = target->project();
     if (m_androidProjects.contains(project))
@@ -140,282 +138,283 @@ bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
 
 bool AndroidTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExplorer::Target *target)
 {
-    Project * const project = target->project();
-    QDir projectDir(project->projectDirectory());
-    if (QFileInfo(debianDirPath(project)).exists())
-        return true;
-    if (!projectDir.exists(PackagingDirName)
-            && !projectDir.mkdir(PackagingDirName)) {
-        raiseError(tr("Error creating Android packaging directory '%1'.")
-            .arg(PackagingDirName));
-        return false;
-    }
+#warning FIXME ANDROID
+//    Project * const project = target->project();
+//    QDir projectDir(project->projectDirectory());
+//    if (QFileInfo(debianDirPath(project)).exists())
+//        return true;
+//    if (!projectDir.exists(PackagingDirName)
+//            && !projectDir.mkdir(PackagingDirName)) {
+//        raiseError(tr("Error creating Android packaging directory '%1'.")
+//            .arg(PackagingDirName));
+//        return false;
+//    }
 
-    QProcess dh_makeProc;
-    QString error;
-    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
-    Q_ASSERT_X(qt4Target, Q_FUNC_INFO, "Target ID does not match actual type.");
-    const Qt4BuildConfiguration * const bc
-        = qt4Target->activeBuildConfiguration();
-    const AndroidToolChain * const tc
-        = dynamic_cast<AndroidToolChain *>(bc->toolChain());
-    if (!tc) {
-        qDebug("Android target has no Android toolchain.");
-        return false;
-    }
-    if (!AndroidPackageCreationStep::preparePackagingProcess(&dh_makeProc, bc,
-        projectDir.path() + QLatin1Char('/') + PackagingDirName, &error)) {
-        raiseError(error);
-        return false;
-    }
+//    QProcess dh_makeProc;
+//    QString error;
+//    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
+//    Q_ASSERT_X(qt4Target, Q_FUNC_INFO, "Target ID does not match actual type.");
+//    const Qt4BuildConfiguration * const bc
+//        = qt4Target->activeBuildConfiguration();
+//    const AndroidToolChain * const tc
+//        = dynamic_cast<AndroidToolChain *>(bc->toolChain());
+//    if (!tc) {
+//        qDebug("Android target has no Android toolchain.");
+//        return false;
+//    }
+//    if (!AndroidPackageCreationStep::preparePackagingProcess(&dh_makeProc, bc,
+//        projectDir.path() + QLatin1Char('/') + PackagingDirName, &error)) {
+//        raiseError(error);
+//        return false;
+//    }
 
-    const QString dhMakeDebianDir = projectDir.path() + QLatin1Char('/')
-        + PackagingDirName + QLatin1String("/debian");
-    AndroidPackageCreationStep::removeDirectory(dhMakeDebianDir);
-    const QString command = QLatin1String("dh_make -s -n -p ")
-        + AndroidPackageCreationStep::packageName(project) + QLatin1Char('_')
-        + AndroidPackageCreationStep::DefaultVersionNumber;
-    dh_makeProc.start(AndroidPackageCreationStep::packagingCommand(tc, command));
-    if (!dh_makeProc.waitForStarted()) {
-        raiseError(tr("Unable to create Debian templates: dh_make failed (%1)")
-            .arg(dh_makeProc.errorString()));
-        return false;
-    }
-    dh_makeProc.write("\n"); // Needs user input.
-    dh_makeProc.waitForFinished(-1);
-    if (dh_makeProc.error() != QProcess::UnknownError
-        || dh_makeProc.exitCode() != 0) {
-        raiseError(tr("Unable to create debian templates: dh_make failed (%1)")
-            .arg(dh_makeProc.errorString()));
-        return false;
-    }
+//    const QString dhMakeDebianDir = projectDir.path() + QLatin1Char('/')
+//        + PackagingDirName + QLatin1String("/debian");
+//    AndroidPackageCreationStep::removeDirectory(dhMakeDebianDir);
+//    const QString command = QLatin1String("dh_make -s -n -p ")
+//        + AndroidPackageCreationStep::packageName(project) + QLatin1Char('_')
+//        + AndroidPackageCreationStep::DefaultVersionNumber;
+//    dh_makeProc.start(AndroidPackageCreationStep::packagingCommand(tc, command));
+//    if (!dh_makeProc.waitForStarted()) {
+//        raiseError(tr("Unable to create Debian templates: dh_make failed (%1)")
+//            .arg(dh_makeProc.errorString()));
+//        return false;
+//    }
+//    dh_makeProc.write("\n"); // Needs user input.
+//    dh_makeProc.waitForFinished(-1);
+//    if (dh_makeProc.error() != QProcess::UnknownError
+//        || dh_makeProc.exitCode() != 0) {
+//        raiseError(tr("Unable to create debian templates: dh_make failed (%1)")
+//            .arg(dh_makeProc.errorString()));
+//        return false;
+//    }
 
-    if (!QFile::rename(dhMakeDebianDir, debianDirPath(project))) {
-        raiseError(tr("Unable to move new debian directory to '%1'.")
-            .arg(QDir::toNativeSeparators(debianDirPath(project))));
-        AndroidPackageCreationStep::removeDirectory(dhMakeDebianDir);
-        return false;
-    }
+//    if (!QFile::rename(dhMakeDebianDir, debianDirPath(project))) {
+//        raiseError(tr("Unable to move new debian directory to '%1'.")
+//            .arg(QDir::toNativeSeparators(debianDirPath(project))));
+//        AndroidPackageCreationStep::removeDirectory(dhMakeDebianDir);
+//        return false;
+//    }
 
-    QDir debianDir(debianDirPath(project));
-    const QStringList &files = debianDir.entryList(QDir::Files);
-    foreach (const QString &fileName, files) {
-        if (fileName.endsWith(QLatin1String(".ex"), Qt::CaseInsensitive)
-            || fileName.compare(QLatin1String("README.debian"), Qt::CaseInsensitive) == 0
-            || fileName.compare(QLatin1String("dirs"), Qt::CaseInsensitive) == 0
-            || fileName.compare(QLatin1String("docs"), Qt::CaseInsensitive) == 0) {
-            debianDir.remove(fileName);
-        }
-    }
+//    QDir debianDir(debianDirPath(project));
+//    const QStringList &files = debianDir.entryList(QDir::Files);
+//    foreach (const QString &fileName, files) {
+//        if (fileName.endsWith(QLatin1String(".ex"), Qt::CaseInsensitive)
+//            || fileName.compare(QLatin1String("README.debian"), Qt::CaseInsensitive) == 0
+//            || fileName.compare(QLatin1String("dirs"), Qt::CaseInsensitive) == 0
+//            || fileName.compare(QLatin1String("docs"), Qt::CaseInsensitive) == 0) {
+//            debianDir.remove(fileName);
+//        }
+//    }
 
-    return adaptRulesFile(project) && adaptControlFile(project);
-}
+//    return adaptRulesFile(project) && adaptControlFile(project);
+//}
 
-bool AndroidTemplatesManager::adaptRulesFile(const Project *project)
-{
-    const QString rulesFilePath = debianDirPath(project) + "/rules";
-    QFile rulesFile(rulesFilePath);
-    if (!rulesFile.open(QIODevice::ReadWrite)) {
-        raiseError(tr("Packaging Error: Cannot open file '%1'.")
-                   .arg(QDir::toNativeSeparators(rulesFilePath)));
-        return false;
-    }
-    QByteArray rulesContents = rulesFile.readAll();
-    rulesContents.replace("DESTDIR", "INSTALL_ROOT");
-    rulesContents.replace("dh_shlibdeps", "# dh_shlibdeps");
-//    rulesContents.replace("$(MAKE) clean", "# $(MAKE) clean");
-//    const Qt4Project * const qt4Project
-//        = static_cast<const Qt4Project *>(project);
-//    const QString proFileName
-//        = QFileInfo(qt4Project->rootProjectNode()->path()).fileName();
-//    rulesContents.replace("# Add here commands to configure the package.",
-//        "qmake " + proFileName.toLocal8Bit());
+//bool AndroidTemplatesManager::adaptRulesFile(const Project *project)
+//{
+//    const QString rulesFilePath = debianDirPath(project) + "/rules";
+//    QFile rulesFile(rulesFilePath);
+//    if (!rulesFile.open(QIODevice::ReadWrite)) {
+//        raiseError(tr("Packaging Error: Cannot open file '%1'.")
+//                   .arg(QDir::toNativeSeparators(rulesFilePath)));
+//        return false;
+//    }
+//    QByteArray rulesContents = rulesFile.readAll();
+//    rulesContents.replace("DESTDIR", "INSTALL_ROOT");
+//    rulesContents.replace("dh_shlibdeps", "# dh_shlibdeps");
+////    rulesContents.replace("$(MAKE) clean", "# $(MAKE) clean");
+////    const Qt4Project * const qt4Project
+////        = static_cast<const Qt4Project *>(project);
+////    const QString proFileName
+////        = QFileInfo(qt4Project->rootProjectNode()->path()).fileName();
+////    rulesContents.replace("# Add here commands to configure the package.",
+////        "qmake " + proFileName.toLocal8Bit());
 
-    // Would be the right solution, but does not work (on Windows),
-    // because dpkg-genchanges doesn't know about it (and can't be told).
-    // rulesContents.replace("dh_builddeb", "dh_builddeb --destdir=.");
+//    // Would be the right solution, but does not work (on Windows),
+//    // because dpkg-genchanges doesn't know about it (and can't be told).
+//    // rulesContents.replace("dh_builddeb", "dh_builddeb --destdir=.");
 
-    rulesFile.resize(0);
-    rulesFile.write(rulesContents);
-    rulesFile.close();
-    if (rulesFile.error() != QFile::NoError) {
-        raiseError(tr("Packaging Error: Cannot write file '%1'.")
-                   .arg(QDir::toNativeSeparators(rulesFilePath)));
-        return false;
-    }
+//    rulesFile.resize(0);
+//    rulesFile.write(rulesContents);
+//    rulesFile.close();
+//    if (rulesFile.error() != QFile::NoError) {
+//        raiseError(tr("Packaging Error: Cannot write file '%1'.")
+//                   .arg(QDir::toNativeSeparators(rulesFilePath)));
+//        return false;
+//    }
     return true;
 }
 
 bool AndroidTemplatesManager::adaptControlFile(const Project *project)
 {
-    QFile controlFile(controlFilePath(project));
-    if (!controlFile.open(QIODevice::ReadWrite)) {
-        raiseError(tr("Packaging Error: Cannot open file '%1'.")
-                   .arg(QDir::toNativeSeparators(controlFilePath(project))));
-        return false;
-    }
+//    QFile controlFile(controlFilePath(project));
+//    if (!controlFile.open(QIODevice::ReadWrite)) {
+//        raiseError(tr("Packaging Error: Cannot open file '%1'.")
+//                   .arg(QDir::toNativeSeparators(controlFilePath(project))));
+//        return false;
+//    }
 
-    QByteArray controlContents = controlFile.readAll();
+//    QByteArray controlContents = controlFile.readAll();
 
-    adaptControlFileField(controlContents, "Section", "user/hidden");
-    adaptControlFileField(controlContents, "Priority", "optional");
-    const int buildDependsOffset = controlContents.indexOf("Build-Depends:");
-    if (buildDependsOffset == -1) {
-        qDebug("Unexpected: no Build-Depends field in debian control file.");
-    } else {
-        int buildDependsNewlineOffset
-            = controlContents.indexOf('\n', buildDependsOffset);
-        if (buildDependsNewlineOffset == -1) {
-            controlContents += '\n';
-            buildDependsNewlineOffset = controlContents.length() - 1;
-        }
-        controlContents.insert(buildDependsNewlineOffset,
-            ", libqt4-dev");
-    }
+//    adaptControlFileField(controlContents, "Section", "user/hidden");
+//    adaptControlFileField(controlContents, "Priority", "optional");
+//    const int buildDependsOffset = controlContents.indexOf("Build-Depends:");
+//    if (buildDependsOffset == -1) {
+//        qDebug("Unexpected: no Build-Depends field in debian control file.");
+//    } else {
+//        int buildDependsNewlineOffset
+//            = controlContents.indexOf('\n', buildDependsOffset);
+//        if (buildDependsNewlineOffset == -1) {
+//            controlContents += '\n';
+//            buildDependsNewlineOffset = controlContents.length() - 1;
+//        }
+//        controlContents.insert(buildDependsNewlineOffset,
+//            ", libqt4-dev");
+//    }
 
-    controlFile.resize(0);
-    controlFile.write(controlContents);
-    controlFile.close();
-    if (controlFile.error() != QFile::NoError) {
-        raiseError(tr("Packaging Error: Cannot write file '%1'.")
-                   .arg(QDir::toNativeSeparators(controlFilePath(project))));
-        return false;
-    }
+//    controlFile.resize(0);
+//    controlFile.write(controlContents);
+//    controlFile.close();
+//    if (controlFile.error() != QFile::NoError) {
+//        raiseError(tr("Packaging Error: Cannot write file '%1'.")
+//                   .arg(QDir::toNativeSeparators(controlFilePath(project))));
+//        return false;
+//    }
     return true;
 }
 
 void AndroidTemplatesManager::adaptControlFileField(QByteArray &document,
     const QByteArray &fieldName, const QByteArray &newFieldValue)
 {
-    QByteArray adaptedLine = fieldName + ": " + newFieldValue;
-    const int lineOffset = document.indexOf(fieldName + ":");
-    if (lineOffset == -1) {
-        document.append(adaptedLine).append('\n');
-    } else {
-        int newlineOffset = document.indexOf('\n', lineOffset);
-        if (newlineOffset == -1) {
-            newlineOffset = document.length();
-            adaptedLine += '\n';
-        }
-        document.replace(lineOffset, newlineOffset - lineOffset, adaptedLine);
-    }
+//    QByteArray adaptedLine = fieldName + ": " + newFieldValue;
+//    const int lineOffset = document.indexOf(fieldName + ":");
+//    if (lineOffset == -1) {
+//        document.append(adaptedLine).append('\n');
+//    } else {
+//        int newlineOffset = document.indexOf('\n', lineOffset);
+//        if (newlineOffset == -1) {
+//            newlineOffset = document.length();
+//            adaptedLine += '\n';
+//        }
+//        document.replace(lineOffset, newlineOffset - lineOffset, adaptedLine);
+//    }
 }
 
 bool AndroidTemplatesManager::updateDesktopFiles(const Qt4Target *target)
 {
-    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
-    Q_ASSERT_X(qt4Target, Q_FUNC_INFO,
-        "Impossible: Target has Android id, but could not be cast to Qt4Target.");
-    const QList<Qt4ProFileNode *> &applicationProjects
-        = qt4Target->qt4Project()->applicationProFiles();
+//    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
+//    Q_ASSERT_X(qt4Target, Q_FUNC_INFO,
+//        "Impossible: Target has Android id, but could not be cast to Qt4Target.");
+//    const QList<Qt4ProFileNode *> &applicationProjects
+//        = qt4Target->qt4Project()->applicationProFiles();
     bool success = true;
-    foreach (Qt4ProFileNode *proFileNode, applicationProjects)
-        success &= updateDesktopFile(qt4Target, proFileNode);
+//    foreach (Qt4ProFileNode *proFileNode, applicationProjects)
+//        success &= updateDesktopFile(qt4Target, proFileNode);
     return success;
 }
 
 bool AndroidTemplatesManager::updateDesktopFile(const Qt4Target *target,
     Qt4ProFileNode *proFileNode)
 {
-    const QString appName = proFileNode->targetInformation().target;
-    const QString desktopFilePath = QFileInfo(proFileNode->path()).path()
-        + QLatin1Char('/') + appName + QLatin1String(".desktop");
-    QFile desktopFile(desktopFilePath);
-    const bool existsAlready = desktopFile.exists();
-    if (!desktopFile.open(QIODevice::ReadWrite)) {
-        qWarning("Failed to open '%s': %s", qPrintable(desktopFilePath),
-            qPrintable(desktopFile.errorString()));
-        return false;
-    }
+//    const QString appName = proFileNode->targetInformation().target;
+//    const QString desktopFilePath = QFileInfo(proFileNode->path()).path()
+//        + QLatin1Char('/') + appName + QLatin1String(".desktop");
+//    QFile desktopFile(desktopFilePath);
+//    const bool existsAlready = desktopFile.exists();
+//    if (!desktopFile.open(QIODevice::ReadWrite)) {
+//        qWarning("Failed to open '%s': %s", qPrintable(desktopFilePath),
+//            qPrintable(desktopFile.errorString()));
+//        return false;
+//    }
 
-    const QByteArray desktopTemplate("[Desktop Entry]\nEncoding=UTF-8\n"
-        "Version=1.0\nType=Application\nTerminal=false\nName=\nExec=\n"
-        "Icon=\nX-Window-Icon=\nX-HildonDesk-ShowInToolbar=true\n"
-        "X-Osso-Type=application/x-executable\n");
-    QByteArray desktopFileContents
-        = existsAlready ? desktopFile.readAll() : desktopTemplate;
+//    const QByteArray desktopTemplate("[Desktop Entry]\nEncoding=UTF-8\n"
+//        "Version=1.0\nType=Application\nTerminal=false\nName=\nExec=\n"
+//        "Icon=\nX-Window-Icon=\nX-HildonDesk-ShowInToolbar=true\n"
+//        "X-Osso-Type=application/x-executable\n");
+//    QByteArray desktopFileContents
+//        = existsAlready ? desktopFile.readAll() : desktopTemplate;
 
-    QString executable;
-    const QSharedPointer<AndroidDeployables> &deployables
-        = AndroidGlobal::buildStep<AndroidDeployStep>(target->activeDeployConfiguration())
-            ->deployables();
-    for (int i = 0; i < deployables->modelCount(); ++i) {
-        const AndroidDeployableListModel * const model = deployables->modelAt(i);
-        if (model->proFilePath() == proFileNode->path()) {
-            executable = model->remoteExecutableFilePath();
-            break;
-        }
-    }
-    if (executable.isEmpty()) {
-        qWarning("Strange: Project file node not managed by AndroidDeployables.");
-    } else {
-        int execNewLinePos, execValuePos;
-        findLine("Exec=", desktopFileContents, execNewLinePos, execValuePos);
-        desktopFileContents.replace(execValuePos, execNewLinePos - execValuePos,
-            executable.toUtf8());
-    }
+//    QString executable;
+//    const QSharedPointer<AndroidDeployables> &deployables
+//        = AndroidGlobal::buildStep<AndroidDeployStep>(target->activeDeployConfiguration())
+//            ->deployables();
+//    for (int i = 0; i < deployables->modelCount(); ++i) {
+//        const AndroidDeployableListModel * const model = deployables->modelAt(i);
+//        if (model->proFilePath() == proFileNode->path()) {
+//            executable = model->remoteExecutableFilePath();
+//            break;
+//        }
+//    }
+//    if (executable.isEmpty()) {
+//        qWarning("Strange: Project file node not managed by AndroidDeployables.");
+//    } else {
+//        int execNewLinePos, execValuePos;
+//        findLine("Exec=", desktopFileContents, execNewLinePos, execValuePos);
+//        desktopFileContents.replace(execValuePos, execNewLinePos - execValuePos,
+//            executable.toUtf8());
+//    }
 
-    int nameNewLinePos, nameValuePos;
-    findLine("Name=", desktopFileContents, nameNewLinePos, nameValuePos);
-    if (nameNewLinePos == nameValuePos)
-        desktopFileContents.insert(nameValuePos, appName.toUtf8());
-    int iconNewLinePos, iconValuePos;
-    findLine("Icon=", desktopFileContents, iconNewLinePos, iconValuePos);
-    if (iconNewLinePos == iconValuePos)
-        desktopFileContents.insert(iconValuePos, appName.toUtf8());
+//    int nameNewLinePos, nameValuePos;
+//    findLine("Name=", desktopFileContents, nameNewLinePos, nameValuePos);
+//    if (nameNewLinePos == nameValuePos)
+//        desktopFileContents.insert(nameValuePos, appName.toUtf8());
+//    int iconNewLinePos, iconValuePos;
+//    findLine("Icon=", desktopFileContents, iconNewLinePos, iconValuePos);
+//    if (iconNewLinePos == iconValuePos)
+//        desktopFileContents.insert(iconValuePos, appName.toUtf8());
 
-    desktopFile.resize(0);
-    desktopFile.write(desktopFileContents);
-    desktopFile.close();
-    if (desktopFile.error() != QFile::NoError) {
-        qWarning("Could not write '%s': %s", qPrintable(desktopFilePath),
-            qPrintable(desktopFile.errorString()));
-    }
+//    desktopFile.resize(0);
+//    desktopFile.write(desktopFileContents);
+//    desktopFile.close();
+//    if (desktopFile.error() != QFile::NoError) {
+//        qWarning("Could not write '%s': %s", qPrintable(desktopFilePath),
+//            qPrintable(desktopFile.errorString()));
+//    }
 
-    if (!existsAlready) {
-        proFileNode->addFiles(UnknownFileType,
-            QStringList() << desktopFilePath);
-        QFile proFile(proFileNode->path());
-        if (!proFile.open(QIODevice::ReadWrite)) {
-            qWarning("Failed to open '%s': %s", qPrintable(proFileNode->path()),
-                qPrintable(proFile.errorString()));
-            return false;
-        }
-        QByteArray proFileContents = proFile.readAll();
-        proFileContents += "\nunix:!symbian {\n"
-            "    desktopfile.files = $${TARGET}.desktop\n"
-            "    maemo5 {\n"
-            "        desktopfile.path = /usr/share/applications/hildon\n"
-            "    } else {\n"
-            "        desktopfile.path = /usr/share/applications\n    }\n"
-            "    INSTALLS += desktopfile\n}\n";
-        proFile.resize(0);
-        proFile.write(proFileContents);
-        proFile.close();
-        if (proFile.error() != QFile::NoError) {
-            qWarning("Could not write '%s': %s", qPrintable(proFileNode->path()),
-                qPrintable(proFile.errorString()));
-            return false;
-        }
-    }
+//    if (!existsAlready) {
+//        proFileNode->addFiles(UnknownFileType,
+//            QStringList() << desktopFilePath);
+//        QFile proFile(proFileNode->path());
+//        if (!proFile.open(QIODevice::ReadWrite)) {
+//            qWarning("Failed to open '%s': %s", qPrintable(proFileNode->path()),
+//                qPrintable(proFile.errorString()));
+//            return false;
+//        }
+//        QByteArray proFileContents = proFile.readAll();
+//        proFileContents += "\nunix:!symbian {\n"
+//            "    desktopfile.files = $${TARGET}.desktop\n"
+//            "    maemo5 {\n"
+//            "        desktopfile.path = /usr/share/applications/hildon\n"
+//            "    } else {\n"
+//            "        desktopfile.path = /usr/share/applications\n    }\n"
+//            "    INSTALLS += desktopfile\n}\n";
+//        proFile.resize(0);
+//        proFile.write(proFileContents);
+//        proFile.close();
+//        if (proFile.error() != QFile::NoError) {
+//            qWarning("Could not write '%s': %s", qPrintable(proFileNode->path()),
+//                qPrintable(proFile.errorString()));
+//            return false;
+//        }
+//    }
     return true;
 }
 
 void AndroidTemplatesManager::handleProjectToBeRemoved(ProjectExplorer::Project *project)
 {
-    AndroidProjectMap::Iterator it = m_androidProjects.find(project);
-    if (it != m_androidProjects.end()) {
-        delete it.value();
-        m_androidProjects.erase(it);
-    }
+//    AndroidProjectMap::Iterator it = m_androidProjects.find(project);
+//    if (it != m_androidProjects.end()) {
+//        delete it.value();
+//        m_androidProjects.erase(it);
+//    }
 }
 
 void AndroidTemplatesManager::handleProFileUpdated()
 {
-    const AndroidDeployables * const deployables
-        = qobject_cast<AndroidDeployables *>(sender());
-    if (!deployables)
-        return;
+//    const AndroidDeployables * const deployables
+//        = qobject_cast<AndroidDeployables *>(sender());
+//    if (!deployables)
+//        return;
 //    const Target * const target = deployables->buildStep()->target();
 //    if (m_androidProjects.contains(target->project()))
 //        updateDesktopFiles(qobject_cast<const Qt4Target *>(target));
@@ -424,151 +423,152 @@ void AndroidTemplatesManager::handleProFileUpdated()
 QString AndroidTemplatesManager::version(const Project *project,
     QString *error) const
 {
-    QSharedPointer<QFile> changeLog
-        = openFile(changeLogFilePath(project), QIODevice::ReadOnly, error);
-    if (!changeLog)
-        return QString();
-    const QByteArray &firstLine = changeLog->readLine();
-    const int openParenPos = firstLine.indexOf('(');
-    if (openParenPos == -1) {
-        *error = tr("Debian changelog file '%1' has unexpected format.")
-                .arg(QDir::toNativeSeparators(changeLog->fileName()));
-        return QString();
-    }
-    const int closeParenPos = firstLine.indexOf(')', openParenPos);
-    if (closeParenPos == -1) {
-        *error = tr("Debian changelog file '%1' has unexpected format.")
-                .arg(QDir::toNativeSeparators(changeLog->fileName()));
-        return QString();
-    }
-    return QString::fromUtf8(firstLine.mid(openParenPos + 1,
-        closeParenPos - openParenPos - 1).data());
+    return "1.0";
+//    QSharedPointer<QFile> changeLog
+//        = openFile(changeLogFilePath(project), QIODevice::ReadOnly, error);
+//    if (!changeLog)
+//        return QString();
+//    const QByteArray &firstLine = changeLog->readLine();
+//    const int openParenPos = firstLine.indexOf('(');
+//    if (openParenPos == -1) {
+//        *error = tr("Debian changelog file '%1' has unexpected format.")
+//                .arg(QDir::toNativeSeparators(changeLog->fileName()));
+//        return QString();
+//    }
+//    const int closeParenPos = firstLine.indexOf(')', openParenPos);
+//    if (closeParenPos == -1) {
+//        *error = tr("Debian changelog file '%1' has unexpected format.")
+//                .arg(QDir::toNativeSeparators(changeLog->fileName()));
+//        return QString();
+//    }
+//    return QString::fromUtf8(firstLine.mid(openParenPos + 1,
+//        closeParenPos - openParenPos - 1).data());
 }
 
 bool AndroidTemplatesManager::setVersion(const Project *project,
     const QString &version, QString *error) const
 {
-    QSharedPointer<QFile> changeLog
-        = openFile(changeLogFilePath(project), QIODevice::ReadWrite, error);
-    if (!changeLog)
-        return false;
+//    QSharedPointer<QFile> changeLog
+//        = openFile(changeLogFilePath(project), QIODevice::ReadWrite, error);
+//    if (!changeLog)
+//        return false;
 
-    QString content = QString::fromUtf8(changeLog->readAll());
-    content.replace(QRegExp(QLatin1String("\\([a-zA-Z0-9_\\.]+\\)")),
-        QLatin1Char('(') + version + QLatin1Char(')'));
-    changeLog->resize(0);
-    changeLog->write(content.toUtf8());
-    changeLog->close();
-    if (changeLog->error() != QFile::NoError) {
-        *error = tr("Error writing Debian changelog file '%1': %2")
-            .arg(QDir::toNativeSeparators(changeLog->fileName()),
-                 changeLog->errorString());
-        return false;
-    }
+//    QString content = QString::fromUtf8(changeLog->readAll());
+//    content.replace(QRegExp(QLatin1String("\\([a-zA-Z0-9_\\.]+\\)")),
+//        QLatin1Char('(') + version + QLatin1Char(')'));
+//    changeLog->resize(0);
+//    changeLog->write(content.toUtf8());
+//    changeLog->close();
+//    if (changeLog->error() != QFile::NoError) {
+//        *error = tr("Error writing Debian changelog file '%1': %2")
+//            .arg(QDir::toNativeSeparators(changeLog->fileName()),
+//                 changeLog->errorString());
+//        return false;
+//    }
     return true;
 }
 
 QIcon AndroidTemplatesManager::packageManagerIcon(const Project *project,
     QString *error) const
 {
-    QSharedPointer<QFile> controlFile
-        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
-    if (!controlFile)
+//    QSharedPointer<QFile> controlFile
+//        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
+//    if (!controlFile)
         return QIcon();
 
-    bool iconFieldFound = false;
-    QByteArray currentLine;
-    while (!iconFieldFound && !controlFile->atEnd()) {
-        currentLine = controlFile->readLine();
-        iconFieldFound = currentLine.startsWith(IconFieldName);
-    }
-    if (!iconFieldFound)
-        return QIcon();
+//    bool iconFieldFound = false;
+//    QByteArray currentLine;
+//    while (!iconFieldFound && !controlFile->atEnd()) {
+//        currentLine = controlFile->readLine();
+//        iconFieldFound = currentLine.startsWith(IconFieldName);
+//    }
+//    if (!iconFieldFound)
+//        return QIcon();
 
-    int pos = IconFieldName.length();
-    currentLine = currentLine.trimmed();
-    QByteArray base64Icon;
-    do {
-        while (pos < currentLine.length())
-            base64Icon += currentLine.at(pos++);
-        do
-            currentLine = controlFile->readLine();
-        while (currentLine.startsWith('#'));
-        if (currentLine.isEmpty() || !isspace(currentLine.at(0)))
-            break;
-        currentLine = currentLine.trimmed();
-        if (currentLine.isEmpty())
-            break;
-        pos = 0;
-    } while (true);
-    QPixmap pixmap;
-    if (!pixmap.loadFromData(QByteArray::fromBase64(base64Icon))) {
-        *error = tr("Invalid icon data in Debian control file.");
-        return QIcon();
-    }
-    return QIcon(pixmap);
+//    int pos = IconFieldName.length();
+//    currentLine = currentLine.trimmed();
+//    QByteArray base64Icon;
+//    do {
+//        while (pos < currentLine.length())
+//            base64Icon += currentLine.at(pos++);
+//        do
+//            currentLine = controlFile->readLine();
+//        while (currentLine.startsWith('#'));
+//        if (currentLine.isEmpty() || !isspace(currentLine.at(0)))
+//            break;
+//        currentLine = currentLine.trimmed();
+//        if (currentLine.isEmpty())
+//            break;
+//        pos = 0;
+//    } while (true);
+//    QPixmap pixmap;
+//    if (!pixmap.loadFromData(QByteArray::fromBase64(base64Icon))) {
+//        *error = tr("Invalid icon data in Debian control file.");
+//        return QIcon();
+//    }
+//    return QIcon(pixmap);
 }
 
 bool AndroidTemplatesManager::setPackageManagerIcon(const Project *project,
     const QString &iconFilePath, QString *error) const
 {
-    const QSharedPointer<QFile> controlFile
-        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);
-    if (!controlFile)
-        return false;
-    const QPixmap pixmap(iconFilePath);
-    if (pixmap.isNull()) {
-        *error = tr("Could not read image file '%1'.").arg(iconFilePath);
-        return false;
-    }
+//    const QSharedPointer<QFile> controlFile
+//        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);
+//    if (!controlFile)
+//        return false;
+//    const QPixmap pixmap(iconFilePath);
+//    if (pixmap.isNull()) {
+//        *error = tr("Could not read image file '%1'.").arg(iconFilePath);
+//        return false;
+//    }
 
-    QByteArray iconAsBase64;
-    QBuffer buffer(&iconAsBase64);
-    buffer.open(QIODevice::WriteOnly);
-    if (!pixmap.scaled(48, 48).save(&buffer,
-        QFileInfo(iconFilePath).suffix().toAscii())) {
-        *error = tr("Could not export image file '%1'.").arg(iconFilePath);
-        return false;
-    }
-    buffer.close();
-    iconAsBase64 = iconAsBase64.toBase64();
-    QByteArray contents = controlFile->readAll();
-    const int iconFieldPos = contents.startsWith(IconFieldName)
-        ? 0 : contents.indexOf('\n' + IconFieldName);
-    if (iconFieldPos == -1) {
-        if (!contents.endsWith('\n'))
-            contents += '\n';
-        contents.append(IconFieldName).append(' ').append(iconAsBase64)
-            .append('\n');
-    } else {
-        const int oldIconStartPos
-            = (iconFieldPos != 0) + iconFieldPos + IconFieldName.length();
-        int nextEolPos = contents.indexOf('\n', oldIconStartPos);
-        while (nextEolPos != -1 && nextEolPos != contents.length() - 1
-            && contents.at(nextEolPos + 1) != '\n'
-            && (contents.at(nextEolPos + 1) == '#'
-                || std::isspace(contents.at(nextEolPos + 1))))
-            nextEolPos = contents.indexOf('\n', nextEolPos + 1);
-        if (nextEolPos == -1)
-            nextEolPos = contents.length();
-        contents.replace(oldIconStartPos, nextEolPos - oldIconStartPos,
-            ' ' + iconAsBase64);
-    }
-    controlFile->resize(0);
-    controlFile->write(contents);
-    if (controlFile->error() != QFile::NoError) {
-        *error = tr("Error writing file '%1': %2")
-            .arg(QDir::toNativeSeparators(controlFile->fileName()),
-                controlFile->errorString());
-        return false;
-    }
+//    QByteArray iconAsBase64;
+//    QBuffer buffer(&iconAsBase64);
+//    buffer.open(QIODevice::WriteOnly);
+//    if (!pixmap.scaled(48, 48).save(&buffer,
+//        QFileInfo(iconFilePath).suffix().toAscii())) {
+//        *error = tr("Could not export image file '%1'.").arg(iconFilePath);
+//        return false;
+//    }
+//    buffer.close();
+//    iconAsBase64 = iconAsBase64.toBase64();
+//    QByteArray contents = controlFile->readAll();
+//    const int iconFieldPos = contents.startsWith(IconFieldName)
+//        ? 0 : contents.indexOf('\n' + IconFieldName);
+//    if (iconFieldPos == -1) {
+//        if (!contents.endsWith('\n'))
+//            contents += '\n';
+//        contents.append(IconFieldName).append(' ').append(iconAsBase64)
+//            .append('\n');
+//    } else {
+//        const int oldIconStartPos
+//            = (iconFieldPos != 0) + iconFieldPos + IconFieldName.length();
+//        int nextEolPos = contents.indexOf('\n', oldIconStartPos);
+//        while (nextEolPos != -1 && nextEolPos != contents.length() - 1
+//            && contents.at(nextEolPos + 1) != '\n'
+//            && (contents.at(nextEolPos + 1) == '#'
+//                || std::isspace(contents.at(nextEolPos + 1))))
+//            nextEolPos = contents.indexOf('\n', nextEolPos + 1);
+//        if (nextEolPos == -1)
+//            nextEolPos = contents.length();
+//        contents.replace(oldIconStartPos, nextEolPos - oldIconStartPos,
+//            ' ' + iconAsBase64);
+//    }
+//    controlFile->resize(0);
+//    controlFile->write(contents);
+//    if (controlFile->error() != QFile::NoError) {
+//        *error = tr("Error writing file '%1': %2")
+//            .arg(QDir::toNativeSeparators(controlFile->fileName()),
+//                controlFile->errorString());
+//        return false;
+//    }
     return true;
 }
 
 QStringList AndroidTemplatesManager::debianFiles(const Project *project) const
 {
-    return QDir(debianDirPath(project))
-        .entryList(QDir::Files, QDir::Name | QDir::IgnoreCase);
+    return QStringList();//QDir(debianDirPath(project))
+//        .entryList(QDir::Files, QDir::Name | QDir::IgnoreCase);
 }
 
 QString AndroidTemplatesManager::debianDirPath(const Project *project) const
@@ -594,22 +594,22 @@ void AndroidTemplatesManager::raiseError(const QString &reason)
 
 void AndroidTemplatesManager::handleDebianFileChanged(const QString &filePath)
 {
-    const Project * const project
-        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
-    if (project) {
-        if (filePath == changeLogFilePath(project))
-            emit changeLogChanged(project);
-        else if (filePath == controlFilePath(project))
-            emit controlChanged(project);
-    }
+//    const Project * const project
+//        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
+//    if (project) {
+//        if (filePath == changeLogFilePath(project))
+//            emit changeLogChanged(project);
+//        else if (filePath == controlFilePath(project))
+//            emit controlChanged(project);
+//    }
 }
 
 void AndroidTemplatesManager::handleDebianDirContentsChanged()
 {
-    const Project * const project
-        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
-    if (project)
-        emit debianDirContentsChanged(project);
+//    const Project * const project
+//        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
+//    if (project)
+//        emit debianDirContentsChanged(project);
 }
 
 QSharedPointer<QFile> AndroidTemplatesManager::openFile(const QString &filePath,

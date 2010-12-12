@@ -71,7 +71,6 @@ struct Runtime
     QString m_sshPort;
     QString m_watchPath;
     QHash<QString, QString> m_environment;
-    AndroidPortList m_freePorts;
 };
 
 class AndroidQemuManager : public QObject

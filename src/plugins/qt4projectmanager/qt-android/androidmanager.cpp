@@ -97,41 +97,7 @@ AndroidManager &AndroidManager::instance()
 
 bool AndroidManager::isValidAndroidQtVersion(const QtVersion *version) const
 {
-    QString path = QDir::cleanPath(version->qmakeCommand());
-    path.remove(QLatin1String("/bin/qmake" ANDROID_EXEC_SUFFIX));
-    QDir dir(path);
-    const QByteArray target = dir.dirName().toAscii();
-    dir.cdUp(); dir.cdUp();
-    QString madAdminCommand(dir.absolutePath() + QLatin1String("/bin/mad-admin"));
-    if (!QFileInfo(madAdminCommand).exists())
-        return false;
-
-    QProcess madAdminProc;
-    QStringList arguments(QLatin1String("list"));
-
-#ifdef Q_OS_WIN
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert(QLatin1String("PATH"),
-        QDir::toNativeSeparators(dir.absolutePath() % QLatin1String("/bin"))
-        % QLatin1Char(';') % env.value(QLatin1String("PATH")));
-    madAdminProc.setProcessEnvironment(env);
-
-    arguments.prepend(madAdminCommand);
-    madAdminCommand = dir.absolutePath() + QLatin1String("/bin/sh.exe");
-#endif
-
-    madAdminProc.start(madAdminCommand, arguments);
-    if (!madAdminProc.waitForStarted() || !madAdminProc.waitForFinished())
-        return false;
-
-    madAdminProc.setReadChannel(QProcess::StandardOutput);
-    while (madAdminProc.canReadLine()) {
-        const QByteArray &line = madAdminProc.readLine();
-        if (line.contains(target)
-            && (line.contains("(installed)") || line.contains("(default)")))
-            return true;
-    }
-    return false;
+    return version->mkspec().contains("android-g++");
 }
 
 ToolChain* AndroidManager::androidToolChain(const QtVersion *version) const

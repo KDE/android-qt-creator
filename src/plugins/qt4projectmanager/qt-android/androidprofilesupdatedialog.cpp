@@ -29,8 +29,6 @@
 #include "androidprofilesupdatedialog.h"
 #include "ui_androidprofilesupdatedialog.h"
 
-#include "androiddeployablelistmodel.h"
-
 #include <qt4projectmanager/qt4nodes.h>
 
 #include <QtGui/QTableWidgetItem>
@@ -38,27 +36,25 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 
-AndroidProFilesUpdateDialog::AndroidProFilesUpdateDialog(const QList<AndroidDeployableListModel *> &models,
-    QWidget *parent)
+AndroidProFilesUpdateDialog::AndroidProFilesUpdateDialog(QWidget *parent)
     : QDialog(parent),
-    m_models(models),
     ui(new Ui::AndroidProFilesUpdateDialog)
 {
     ui->setupUi(this);
-    ui->tableWidget->setRowCount(models.count());
-    ui->tableWidget->setHorizontalHeaderItem(0,
-        new QTableWidgetItem(tr("Updateable Project Files")));
-    for (int row = 0; row < models.count(); ++row) {
-        QTableWidgetItem *const item
-            = new QTableWidgetItem(models.at(row)->proFilePath());
-        item->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
-        item->setCheckState(Qt::Unchecked);
-        ui->tableWidget->setItem(row, 0, item);
-    }
-    ui->tableWidget->horizontalHeader()->setResizeMode(QHeaderView::ResizeToContents);
-    ui->tableWidget->resizeRowsToContents();
-    connect(ui->checkAllButton, SIGNAL(clicked()), this, SLOT(checkAll()));
-    connect(ui->uncheckAllButton, SIGNAL(clicked()), this, SLOT(uncheckAll()));
+//    ui->tableWidget->setRowCount(models.count());
+//    ui->tableWidget->setHorizontalHeaderItem(0,
+//        new QTableWidgetItem(tr("Updateable Project Files")));
+//    for (int row = 0; row < models.count(); ++row) {
+//        QTableWidgetItem *const item
+//            = new QTableWidgetItem(models.at(row)->proFilePath());
+//        item->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
+//        item->setCheckState(Qt::Unchecked);
+//        ui->tableWidget->setItem(row, 0, item);
+//    }
+//    ui->tableWidget->horizontalHeader()->setResizeMode(QHeaderView::ResizeToContents);
+//    ui->tableWidget->resizeRowsToContents();
+//    connect(ui->checkAllButton, SIGNAL(clicked()), this, SLOT(checkAll()));
+//    connect(ui->uncheckAllButton, SIGNAL(clicked()), this, SLOT(uncheckAll()));
 }
 
 AndroidProFilesUpdateDialog::~AndroidProFilesUpdateDialog()
@@ -83,17 +79,17 @@ void AndroidProFilesUpdateDialog::setCheckStateForAll(Qt::CheckState checkState)
     }
 }
 
-QList<AndroidProFilesUpdateDialog::UpdateSetting>
-AndroidProFilesUpdateDialog::getUpdateSettings() const
-{
-    QList<UpdateSetting> settings;
-    for (int row = 0; row < m_models.count(); ++row) {
-        const bool doUpdate = result() != Rejected
-            && ui->tableWidget->item(row, 0)->checkState() == Qt::Checked;
-        settings << UpdateSetting(m_models.at(row), doUpdate);
-    }
-    return settings;
-}
+//QList<AndroidProFilesUpdateDialog::UpdateSetting>
+//AndroidProFilesUpdateDialog::getUpdateSettings() const
+//{
+//    QList<UpdateSetting> settings;
+//    for (int row = 0; row < m_models.count(); ++row) {
+//        const bool doUpdate = result() != Rejected
+//            && ui->tableWidget->item(row, 0)->checkState() == Qt::Checked;
+//        settings << UpdateSetting(m_models.at(row), doUpdate);
+//    }
+//    return settings;
+//}
 
 } // namespace Qt4ProjectManager
 } // namespace Internal

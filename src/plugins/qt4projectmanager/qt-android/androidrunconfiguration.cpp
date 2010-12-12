@@ -29,12 +29,10 @@
 
 #include "androidrunconfiguration.h"
 
-#include "androiddeployables.h"
 #include "androiddeploystep.h"
 #include "androiddeviceconfiglistmodel.h"
 #include "androidglobal.h"
 #include "androidqemumanager.h"
-#include "androidremotemountsmodel.h"
 #include "androidrunconfigurationwidget.h"
 #include "androidtoolchain.h"
 #include "qtoutputformatter.h"
@@ -79,7 +77,6 @@ AndroidRunConfiguration::AndroidRunConfiguration(Qt4Target *parent,
     , m_proFilePath(source->m_proFilePath)
     , m_gdbPath(source->m_gdbPath)
     , m_arguments(source->m_arguments)
-    , m_useRemoteGdb(source->useRemoteGdb())
     , m_baseEnvironmentBase(source->m_baseEnvironmentBase)
     , m_systemEnvironment(source->m_systemEnvironment)
     , m_userEnvironmentChanges(source->m_userEnvironmentChanges)
@@ -93,7 +90,6 @@ void AndroidRunConfiguration::init()
     setDefaultDisplayName(defaultDisplayName());
     setUseCppDebugger(true);
     setUseQmlDebugger(false);
-    m_remoteMounts = new AndroidRemoteMountsModel(this);
 
     connect(target(),
         SIGNAL(activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration*)),
@@ -173,11 +169,9 @@ QVariantMap AndroidRunConfiguration::toMap() const
     map.insert(AndroidArgumentsKey, m_arguments);
     const QDir dir = QDir(target()->project()->projectDirectory());
     map.insert(AndroidProFileKey, dir.relativeFilePath(m_proFilePath));
-    map.insert(AndroidUseRemoteGdbKey, useRemoteGdb());
     map.insert(AndroidBaseEnvironmentBaseKey, m_baseEnvironmentBase);
     map.insert(AndroidUserEnvironmentChangesKey,
         Utils::EnvironmentItem::toStringList(m_userEnvironmentChanges));
-    map.unite(m_remoteMounts->toMap());
     return map;
 }
 
@@ -195,7 +189,6 @@ bool AndroidRunConfiguration::fromMap(const QVariantMap &map)
         .toStringList());
     m_baseEnvironmentBase = static_cast<BaseEnvironmentBase> (map.value(AndroidBaseEnvironmentBaseKey,
         SystemEnvironmentBase).toInt());
-    m_remoteMounts->fromMap(map);
 
     m_validParse = qt4Target()->qt4Project()->validParse(m_proFilePath);
 
@@ -228,8 +221,7 @@ const AndroidToolChain *AndroidRunConfiguration::toolchain() const
 
 const QString AndroidRunConfiguration::gdbCmd() const
 {
-    if (const AndroidToolChain *tc = toolchain())
-        return QDir::toNativeSeparators(tc->targetRoot() + QLatin1String("/bin/gdb"));
+#warning FIXME Android
     return QString();
 }
 
@@ -242,26 +234,6 @@ AndroidDeployStep *AndroidRunConfiguration::deployStep() const
     return step;
 }
 
-QString AndroidRunConfiguration::maddeRoot() const
-{
-    if (const AndroidToolChain *tc = toolchain())
-        return tc->maddeRoot();
-    return QString();
-}
-
-const QString AndroidRunConfiguration::sysRoot() const
-{
-    if (const AndroidToolChain *tc = toolchain())
-        return tc->sysrootRoot();
-    return QString();
-}
-
-const QString AndroidRunConfiguration::targetRoot() const
-{
-    if (const AndroidToolChain *tc = toolchain())
-        return tc->targetRoot();
-    return QString();
-}
 
 const QString AndroidRunConfiguration::arguments() const
 {
@@ -309,31 +281,6 @@ QString AndroidRunConfiguration::localExecutableFilePath() const
     return QDir::cleanPath(ti.workingDir + QLatin1Char('/') + ti.target);
 }
 
-QString AndroidRunConfiguration::remoteExecutableFilePath() const
-{
-    return deployStep()->deployables()
-        ->remoteExecutableFilePath(localExecutableFilePath());
-}
-
-AndroidPortList AndroidRunConfiguration::freePorts() const
-{
-#warning FIXME Android
-//    const AndroidConfig &devConfig = deviceConfig();
-//    const Qt4BuildConfiguration * const qt4bc = activeQt4BuildConfiguration();
-//    if (devConfig.type == AndroidConfig::Simulator && qt4bc) {
-//        Runtime rt;
-//        const int id = qt4bc->qtVersion()->uniqueId();
-//        if (AndroidQemuManager::instance().runtimeForQtVersion(id, &rt))
-//            return rt.m_freePorts;
-//    }
-//    return devConfig.freePorts();
-}
-
-bool AndroidRunConfiguration::useRemoteGdb() const
-{
-    return m_useRemoteGdb && toolchain()->allowsRemoteMounts();
-}
-
 void AndroidRunConfiguration::setArguments(const QString &args)
 {
     m_arguments = args;
@@ -341,14 +288,16 @@ void AndroidRunConfiguration::setArguments(const QString &args)
 
 AndroidRunConfiguration::DebuggingType AndroidRunConfiguration::debuggingType() const
 {
-    if (!toolchain() || !toolchain()->allowsQmlDebugging())
-        return DebugCppOnly;
-    if (useCppDebugger()) {
-        if (useQmlDebugger())
+#warning FIXME Android
+
+//    if (!toolchain() || !toolchain()->allowsQmlDebugging())
+//        return DebugCppOnly;
+//    if (useCppDebugger()) {
+//        if (useQmlDebugger())
             return DebugCppAndQml;
-        return DebugCppOnly;
-    }
-    return DebugQmlOnly;
+//        return DebugCppOnly;
+//    }
+//    return DebugQmlOnly;
 }
 
 int AndroidRunConfiguration::portsUsedByDebuggers() const

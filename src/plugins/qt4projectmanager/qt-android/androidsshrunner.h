@@ -36,7 +36,6 @@
 #define MAEMOSSHRUNNER_H
 
 #include "androiddeviceconfigurations.h"
-#include "androidmountspecification.h"
 
 #include <utils/environment.h>
 
@@ -53,7 +52,6 @@ namespace Qt4ProjectManager {
 namespace Internal {
 class AndroidRemoteMounter;
 class AndroidRunConfiguration;
-class AndroidUsedPortsGatherer;
 
 class AndroidSshRunner : public QObject
 {
@@ -70,10 +68,7 @@ public:
 
     QSharedPointer<Core::SshConnection> connection() const { return m_connection; }
 
-    const AndroidUsedPortsGatherer *usedPortsGatherer() const { return m_portsGatherer; }
-    AndroidPortList *freePorts() { return &m_freePorts; }
     AndroidConfig deviceConfig() const { return m_devConfig; }
-    QString remoteExecutable() const { return m_remoteExecutable; }
     QString arguments() const { return m_appArguments; }
     QList<Utils::EnvironmentItem> userEnvChanges() const { return m_userEnvChanges; }
 
@@ -98,7 +93,6 @@ private slots:
     void handleUnmounted();
     void handleMounterError(const QString &errorMsg);
     void handlePortsGathererError(const QString &errorMsg);
-    void handleUsedPortsAvailable();
 
 private:
     enum State { Inactive, Connecting, PreRunCleaning, PostRunCleaning,
@@ -111,23 +105,15 @@ private:
 
     void cleanup();
     bool isConnectionUsable() const;
-    void mount();
-    void unmount();
 
-    AndroidRemoteMounter * const m_mounter;
-    AndroidUsedPortsGatherer * const m_portsGatherer;
     const AndroidConfig m_devConfig;
-    const QString m_remoteExecutable;
     const QString m_appArguments;
     const QList<Utils::EnvironmentItem> m_userEnvChanges;
-    const AndroidPortList m_initialFreePorts;
-    QList<AndroidMountSpecification> m_mountSpecs;
 
     QSharedPointer<Core::SshConnection> m_connection;
     QSharedPointer<Core::SshRemoteProcess> m_runner;
     QSharedPointer<Core::SshRemoteProcess> m_cleaner;
     QStringList m_procsToKill;
-    AndroidPortList m_freePorts;
 
     int m_exitStatus;
     State m_state;

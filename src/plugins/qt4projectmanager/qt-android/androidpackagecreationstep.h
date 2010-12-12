@@ -114,8 +114,6 @@ private:
     bool createPackage(QProcess *buildProc);
     bool copyDebianFiles(bool inSourceBuild);
     bool runCommand(QProcess *buildProc, const QString &command);
-    QString maddeRoot() const;
-    QString targetRoot() const;
     static QString nativePath(const QFile &file);
     bool packagingNeeded() const;
     bool isFileNewerThan(const QString &filePath,
@@ -126,7 +124,6 @@ private:
     const Qt4BuildConfiguration *qt4BuildConfiguration() const;
     AndroidDeployStep * deployStep() const;
     void checkProjectName();
-    void addWorkaroundForHarmattanBug(const QString &rulesFilePath);
 
     static const QLatin1String CreatePackageId;
 

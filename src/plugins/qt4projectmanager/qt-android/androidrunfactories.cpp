@@ -36,7 +36,6 @@
 
 #include "androidconstants.h"
 #include "androiddebugsupport.h"
-#include "androidremotemountsmodel.h"
 #include "androidrunconfiguration.h"
 #include "androidruncontrol.h"
 #include "androidtoolchain.h"
@@ -161,25 +160,8 @@ AndroidRunControlFactory::~AndroidRunControlFactory()
 bool AndroidRunControlFactory::canRun(RunConfiguration *runConfiguration,
     const QString &mode) const
 {
-    const AndroidRunConfiguration * const androidRunConfig
-        = qobject_cast<AndroidRunConfiguration *>(runConfiguration);
-    if (!androidRunConfig
-        || !androidRunConfig->toolchain()
-        || androidRunConfig->remoteExecutableFilePath().isEmpty())
-        return false;
-    const int freePortCount = androidRunConfig->freePorts().count();
-
-    if (androidRunConfig->toolchain()->allowsRemoteMounts() && freePortCount == 0)
-        return false;
-    const int mountDirCount
-        = androidRunConfig->toolchain()->allowsRemoteMounts()
-            ? androidRunConfig->remoteMounts()->validMountSpecificationCount()
-            : 0;
-    if (mode == Debugger::Constants::DEBUGMODE)
-        return freePortCount >= mountDirCount + androidRunConfig->portsUsedByDebuggers();
-    if (mode == ProjectExplorer::Constants::RUNMODE)
-        return freePortCount >= mountDirCount;
-    return false;
+#warning FIXME Android
+    return true;
 }
 
 RunControl* AndroidRunControlFactory::create(RunConfiguration *runConfig,
