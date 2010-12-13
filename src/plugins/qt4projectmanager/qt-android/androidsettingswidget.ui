@@ -63,6 +63,26 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="AntLocationLabel">
+        <property name="text">
+         <string>Ant location:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="AntLocationLineEdit"/>
+      </item>
+      <item row="2" column="2">
+       <widget class="QPushButton" name="AntLocationPushButton">
+        <property name="text">
+         <string>Browse</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -77,47 +97,9 @@
      <property name="frameShadow">
       <enum>QFrame::Raised</enum>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout">
+     <layout class="QVBoxLayout" name="verticalLayout">
       <item>
-       <widget class="QTreeView" name="devicesView"/>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout">
-        <item>
-         <widget class="QPushButton" name="addAVDButton">
-          <property name="text">
-           <string>Add</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="removeAVDButton">
-          <property name="text">
-           <string>Remove</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="startAVDButton">
-          <property name="text">
-           <string>Start</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="verticalSpacer">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>40</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-       </layout>
+       <widget class="QTableView" name="tableView"/>
       </item>
      </layout>
     </widget>
@@ -190,14 +172,45 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>AntLocationLineEdit</sender>
+   <signal>editingFinished()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>AntLocationEditingFinished()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>206</x>
+     <y>81</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>AntLocationPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>browseAntLocation()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>306</x>
+     <y>80</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>SDKLocationEditingFinished()</slot>
   <slot>NDKLocationEditingFinished()</slot>
-  <slot>addAVD()</slot>
-  <slot>removeAVD()</slot>
-  <slot>startAVD()</slot>
   <slot>browseSDKLocation()</slot>
   <slot>browseNDKLocation()</slot>
+  <slot>AntLocationEditingFinished()</slot>
+  <slot>browseAntLocation()</slot>
  </slots>
 </ui>

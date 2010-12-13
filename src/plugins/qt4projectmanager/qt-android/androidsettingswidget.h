@@ -64,11 +64,11 @@ public:
 private slots:
     void SDKLocationEditingFinished();
     void NDKLocationEditingFinished();
+    void AntLocationEditingFinished();
     void browseSDKLocation();
     void browseNDKLocation();
-    void addAVD();
-    void removeAVD();
-    void startAVD();
+    void browseAntLocation();
+
 
 private:
     void initGui();

@@ -53,13 +53,15 @@ namespace {
     const QLatin1String SettingsGroup("AndroidDeviceConfigs");
     const QLatin1String SDKLocationKey("SDKLocation");
     const QLatin1String NDKLocationKey("NDKLocation");
+    const QLatin1String AntLocationKey("AntLocation");
 
 };
 
 
 AndroidConfig::AndroidConfig(const QSettings &settings)
     : SDKLocation(settings.value(SDKLocationKey).toString()),
-      NDKLocation(settings.value(NDKLocationKey).toString())
+      NDKLocation(settings.value(NDKLocationKey).toString()),
+      AntLocation(settings.value(AntLocationKey).toString())
 {
 }
 
@@ -71,6 +73,7 @@ void AndroidConfig::save(QSettings &settings) const
 {
     settings.setValue(SDKLocationKey, SDKLocation);
     settings.setValue(NDKLocationKey, NDKLocation);
+    settings.setValue(AntLocationKey, AntLocation);
 }
 
 void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)

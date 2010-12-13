@@ -58,6 +58,7 @@ public:
 
     QString SDKLocation;
     QString NDKLocation;
+    QString AntLocation;
 };
 
 class AndroidConfigurations : public QObject

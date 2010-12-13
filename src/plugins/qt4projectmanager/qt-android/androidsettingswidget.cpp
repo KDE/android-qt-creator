@@ -79,7 +79,9 @@ QString AndroidSettingsWidget::searchKeywords() const
     QTextStream(&rc) << m_ui->SDKLocationLabel->text()
         << ' ' << m_ui->SDKLocationLineEdit->text()
         << ' ' << m_ui->NDKLocationLabel->text()
-        << ' ' << m_ui->NDKLocationLineEdit->text();
+        << ' ' << m_ui->NDKLocationLineEdit->text()
+        << ' ' << m_ui->AntLocationLabel->text()
+        << ' ' << m_ui->AntLocationLineEdit->text();
     rc.remove(QLatin1Char('&'));
     return rc;
 }
@@ -91,8 +93,9 @@ void AndroidSettingsWidget::initGui()
         m_ui->SDKLocationLineEdit->setText(m_androidConfig.SDKLocation);
     else
         m_androidConfig.SDKLocation="";
-    m_ui->NDKLocationLineEdit->setText(m_androidConfig.NDKLocation);
 
+    m_ui->NDKLocationLineEdit->setText(m_androidConfig.NDKLocation);
+    m_ui->AntLocationLineEdit->setText(m_androidConfig.AntLocation);
 }
 
 void AndroidSettingsWidget::saveSettings()
@@ -106,7 +109,7 @@ bool AndroidSettingsWidget::checkSDK(const QString & location)
     m_ui->devicesFrame->setEnabled(false);
     if (!location.length())
         return false;
-    if (!QFile::exists(location+QLatin1String("/tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")) || !QFile::exists(location+QLatin1String("/tools/emulator")) )
+    if (!QFile::exists(location+QLatin1String("/platform-tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")) || !QFile::exists(location+QLatin1String("/tools/emulator")) )
     {
         QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android SDK top folder").arg(location));
         return false;
@@ -120,9 +123,9 @@ bool AndroidSettingsWidget::checkNDK(const QString & location)
     if (!location.length())
         return false;
     return true;
-    if (!QFile::exists(location+QLatin1String("/tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")))
+    if (!QFile::exists(location+QLatin1String("/platforms")) || !QFile::exists(location+QLatin1String("/toolchains")) || !QFile::exists(location+QLatin1String("/sources/cxx-stl")) )
     {
-        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be Android's SDK top folder'").arg(location));
+        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android NDK top folder'").arg(location));
         return false;
     }
     return true;
@@ -145,6 +148,14 @@ void AndroidSettingsWidget::NDKLocationEditingFinished()
     m_androidConfig.NDKLocation = location;
 }
 
+void AndroidSettingsWidget::AntLocationEditingFinished()
+{
+    QString location=m_ui->AntLocationLineEdit->text();
+    if (!location.length() || !QFile::exists(location))
+        return;
+    m_androidConfig.AntLocation = location;
+}
+
 void AndroidSettingsWidget::browseSDKLocation()
 {
     QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"));
@@ -163,18 +174,17 @@ void AndroidSettingsWidget::browseNDKLocation()
     NDKLocationEditingFinished();
 }
 
-void AndroidSettingsWidget::addAVD()
+void AndroidSettingsWidget::browseAntLocation()
 {
-}
-
-void AndroidSettingsWidget::removeAVD()
-{
-
-}
-
-void AndroidSettingsWidget::startAVD()
-{
-
+    QString dir=QDir::homePath();
+#ifdef Q_OS_LINUX
+    dir=QLatin1String("/usr/bin/ant");
+#endif
+    QString file=QFileDialog::getOpenFileName(this, tr("Select ant file"),dir,QLatin1String("ant"));
+    if (!file.length())
+        return;
+    m_ui->AntLocationLineEdit->setText(file);
+    AntLocationEditingFinished();
 }
 
 } // namespace Internal
