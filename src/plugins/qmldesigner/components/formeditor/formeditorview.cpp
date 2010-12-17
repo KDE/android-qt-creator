@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,6 +53,7 @@
 #include <QString>
 #include <QDir>
 #include <QAction>
+#include <QTimer>
 #include <zoomaction.h>
 #include <nodeabstractproperty.h>
 #include <nodelistproperty.h>
@@ -141,6 +146,16 @@ void FormEditorView::modelAboutToBeDetached(Model *model)
     m_scene->clearFormEditorItems();
 
     QmlModelView::modelAboutToBeDetached(model);
+}
+
+void FormEditorView::importAdded(const Import &)
+{
+    reset();
+}
+
+void FormEditorView::importRemoved(const Import &)
+{
+    reset();
 }
 
 void FormEditorView::nodeAboutToBeRemoved(const ModelNode &removedNode)
@@ -599,6 +614,23 @@ void FormEditorView::stateChanged(const QmlModelState &newQmlModelState, const Q
 //    FormEditorItem *item = m_scene->itemForQmlItemNode(fxObjectNode);
 //
 //    m_currentTool->formEditorItemsChanged(itemList);
+}
+
+void FormEditorView::reset()
+{
+   QTimer::singleShot(200, this, SLOT(delayedReset()));
+}
+
+void FormEditorView::delayedReset()
+{
+    m_selectionTool->clear();
+    m_moveTool->clear();
+    m_resizeTool->clear();
+    m_anchorTool->clear();
+    m_dragTool->clear();
+    m_scene->clearFormEditorItems();
+    if (rootQmlObjectNode().toQmlItemNode().isValid())
+        setupFormEditorItemTree(rootQmlObjectNode().toQmlItemNode());
 }
 
 

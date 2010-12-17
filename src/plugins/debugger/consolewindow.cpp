@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -151,7 +155,7 @@ public:
     History() : m_index(0) {}
     void append(const QString &item) {
         m_items.removeAll(item);
-        m_items.append(item); m_index = m_items.size() - 1; 
+        m_items.append(item); m_index = m_items.size() - 1;
     }
     void down() { m_index = qMin(m_index + 1, m_items.size()); }
     void up() { m_index = qMax(m_index - 1, 0); }
@@ -289,7 +293,7 @@ ConsoleWindow::ConsoleWindow(QWidget *parent)
 
     //connect(m_console, SIGNAL(statusMessageRequested(QString,int)),
     //   this, SIGNAL(statusMessageRequested(QString,int)));
-};
+}
 
 void ConsoleWindow::showOutput(int channel, const QString &output)
 {

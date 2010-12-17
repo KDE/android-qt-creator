@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -715,6 +719,31 @@ int CppCodeCompletion::startCompletion(TextEditor::ITextEditable *editor)
 {
     int index = startCompletionHelper(editor);
     if (index != -1) {
+        if (m_automaticCompletion) {
+            const int pos = editor->position();
+            const QChar ch = editor->characterAt(pos);
+            if (! (ch.isLetterOrNumber() || ch == QLatin1Char('_'))) {
+                for (int i = pos - 1;; --i) {
+                    const QChar ch = editor->characterAt(i);
+                    if (ch.isLetterOrNumber() || ch == QLatin1Char('_')) {
+                        const QString wordUnderCursor = editor->textAt(i, pos - i);
+                        if (wordUnderCursor.at(0).isLetter() || wordUnderCursor.at(0) == QLatin1Char('_')) {
+                            foreach (const TextEditor::CompletionItem &i, m_completions) {
+                                if (i.text == wordUnderCursor) {
+                                    cleanup();
+                                    return -1;
+                                }
+                            }
+                        } else {
+                            cleanup();
+                            return -1;
+                        }
+                    } else
+                        break;
+                }
+            }
+        }
+
         if (m_completionOperator != T_EOF_SYMBOL)
             qSort(m_completions.begin(), m_completions.end(), completionItemLessThan);
 
@@ -1922,6 +1951,11 @@ void CppCodeCompletion::complete(const TextEditor::CompletionItem &item, QChar t
                     }
 #endif
                 } else if (! function->isAmbiguous()) {
+                    // When the user typed the opening parenthesis, he'll likely also type the closing one,
+                    // in which case it would be annoying if we put the cursor after the already automatically
+                    // inserted closing parenthesis.
+                    const bool skipClosingParenthesis = typedChar != QLatin1Char('(');
+
                     if (completionSettings().m_spaceAfterFunctionName)
                         extraChars += QLatin1Char(' ');
                     extraChars += QLatin1Char('(');
@@ -1941,7 +1975,7 @@ void CppCodeCompletion::complete(const TextEditor::CompletionItem &item, QChar t
                     }
 
                     // If the function takes no arguments, automatically place the closing parenthesis
-                    if (item.duplicateCount == 0 && ! function->hasArguments()) {
+                    if (item.duplicateCount == 0 && ! function->hasArguments() && skipClosingParenthesis) {
                         extraChars += QLatin1Char(')');
                         if (endWithSemicolon) {
                             extraChars += semicolon;

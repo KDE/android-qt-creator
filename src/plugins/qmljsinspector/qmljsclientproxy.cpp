@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -70,9 +74,6 @@ void ClientProxy::connectToServer()
 {
     m_observerClient = new QmlJSObserverClient(m_adapter->connection(), this);
 
-
-    m_adapter->logServiceStatusChange(m_observerClient->name(), m_observerClient->status());
-
     connect(m_observerClient, SIGNAL(connectedStatusChanged(QDeclarativeDebugClient::Status)),
              this, SLOT(clientStatusChanged(QDeclarativeDebugClient::Status)));
     connect(m_observerClient, SIGNAL(currentObjectsChanged(QList<int>)),
@@ -97,6 +98,8 @@ void ClientProxy::connectToServer()
         SIGNAL(selectedColorChanged(QColor)));
     connect(m_observerClient, SIGNAL(contextPathUpdated(QStringList)),
         SIGNAL(contextPathUpdated(QStringList)));
+    connect(m_observerClient, SIGNAL(logActivity(QString,QString)),
+            m_adapter, SLOT(logServiceActivity(QString,QString)));
 
     updateConnected();
 }
@@ -136,6 +139,8 @@ void ClientProxy::disconnectFromServer()
             this, SIGNAL(selectedColorChanged(QColor)));
         disconnect(m_observerClient, SIGNAL(contextPathUpdated(QStringList)),
             this, SIGNAL(contextPathUpdated(QStringList)));
+        disconnect(m_observerClient, SIGNAL(logActivity(QString,QString)),
+                   m_adapter, SLOT(logServiceActivity(QString,QString)));
 
         delete m_observerClient;
         m_observerClient = 0;
@@ -419,7 +424,7 @@ void ClientProxy::buildDebugIdHashRecursive(const QDeclarativeDebugObjectReferen
     int rev = 0;
 
     // handle the case where the url contains the revision number encoded. (for object created by the debugger)
-    static QRegExp rx("^file://(.*)_(\\d+):(\\d+)$");
+    static QRegExp rx("(.*)_(\\d+):(\\d+)$");
     if (rx.exactMatch(filename)) {
         filename = rx.cap(1);
         rev = rx.cap(2).toInt();

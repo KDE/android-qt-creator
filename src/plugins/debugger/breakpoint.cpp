@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +47,8 @@ namespace Internal {
 
 BreakpointParameters::BreakpointParameters(BreakpointType t)
   : type(t), enabled(true), useFullPath(false),
-    ignoreCount(0), lineNumber(0), address(0), threadSpec(0)
+    ignoreCount(0), lineNumber(0), address(0), threadSpec(-1),
+    tracepoint(false)
 {}
 
 bool BreakpointParameters::equals(const BreakpointParameters &rhs) const
@@ -57,7 +62,8 @@ bool BreakpointParameters::equals(const BreakpointParameters &rhs) const
         && lineNumber == rhs.lineNumber
         && address == rhs.address
         && threadSpec == rhs.threadSpec
-        && functionName == rhs.functionName;
+        && functionName == rhs.functionName
+        && tracepoint == rhs.tracepoint;
 }
 
 bool BreakpointParameters::conditionsMatch(const QByteArray &other) const
@@ -81,6 +87,7 @@ QString BreakpointParameters::toString() const
     ts << " Address: " << address;
     ts << " FunctionName: " << functionName;
     ts << " UseFullPath: " << useFullPath;
+    ts << " Tracepoint: " << tracepoint;
     return result;
 }
 

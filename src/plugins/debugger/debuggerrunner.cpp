@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,6 +57,7 @@
 #include <utils/synchronousprocess.h>
 #include <utils/qtcassert.h>
 #include <utils/fancymainwindow.h>
+#include <utils/qtcprocess.h>
 #include <coreplugin/icore.h>
 
 #include <QtCore/QDir>
@@ -106,136 +111,10 @@ bool checkCdbConfiguration(int, QString *, QString *)
 
 #endif
 
-////////////////////////////////////////////////////////////////////////
-//
-// DebuggerRunControlFactory
-//
-////////////////////////////////////////////////////////////////////////
-
 static QString msgEngineNotAvailable(const char *engine)
 {
     return DebuggerPlugin::tr("The application requires the debugger engine '%1', "
         "which is disabled.").arg(QLatin1String(engine));
-}
-
-// A factory to create DebuggerRunControls
-DebuggerRunControlFactory::DebuggerRunControlFactory(QObject *parent,
-        unsigned enabledEngines)
-    : IRunControlFactory(parent), m_enabledEngines(enabledEngines)
-{}
-
-bool DebuggerRunControlFactory::canRun(RunConfiguration *runConfiguration, const QString &mode) const
-{
-//    return mode == ProjectExplorer::Constants::DEBUGMODE;
-    return mode == Constants::DEBUGMODE
-            && qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
-}
-
-QString DebuggerRunControlFactory::displayName() const
-{
-    return tr("Debug");
-}
-
-// Find Qt installation by running qmake
-static inline QString findQtInstallPath(const QString &qmakePath)
-{
-    QProcess proc;
-    QStringList args;
-    args.append(QLatin1String("-query"));
-    args.append(QLatin1String("QT_INSTALL_HEADERS"));
-    proc.start(qmakePath, args);
-    if (!proc.waitForStarted()) {
-        qWarning("%s: Cannot start '%s': %s", Q_FUNC_INFO, qPrintable(qmakePath),
-           qPrintable(proc.errorString()));
-        return QString();
-    }
-    proc.closeWriteChannel();
-    if (!proc.waitForFinished()) {
-        Utils::SynchronousProcess::stopProcess(proc);
-        qWarning("%s: Timeout running '%s'.", Q_FUNC_INFO, qPrintable(qmakePath));
-        return QString();
-    }
-    if (proc.exitStatus() != QProcess::NormalExit) {
-        qWarning("%s: '%s' crashed.", Q_FUNC_INFO, qPrintable(qmakePath));
-        return QString();
-    }
-    const QByteArray ba = proc.readAllStandardOutput().trimmed();
-    QDir dir(QString::fromLocal8Bit(ba));
-    if (dir.exists() && dir.cdUp())
-        return dir.absolutePath();
-    return QString();
-}
-
-static DebuggerStartParameters localStartParameters(RunConfiguration *runConfiguration)
-{
-    DebuggerStartParameters sp;
-    QTC_ASSERT(runConfiguration, return sp);
-    LocalApplicationRunConfiguration *rc =
-            qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
-    QTC_ASSERT(rc, return sp);
-
-    sp.startMode = StartInternal;
-    sp.environment = rc->environment();
-    sp.workingDirectory = rc->workingDirectory();
-    sp.executable = rc->executable();
-    sp.processArgs = rc->commandLineArguments();
-    sp.toolChainType = rc->toolChainType();
-    sp.useTerminal = rc->runMode() == LocalApplicationRunConfiguration::Console;
-    sp.dumperLibrary = rc->dumperLibrary();
-    sp.dumperLibraryLocations = rc->dumperLibraryLocations();
-
-    if (debuggerCore()->isActiveDebugLanguage(QmlLanguage)) {
-        sp.qmlServerAddress = QLatin1String("127.0.0.1");
-        sp.qmlServerPort = runConfiguration->qmlDebugServerPort();
-
-        sp.projectDir = runConfiguration->target()->project()->projectDirectory();
-        if (runConfiguration->target()->activeBuildConfiguration())
-            sp.projectBuildDir = runConfiguration->target()
-                ->activeBuildConfiguration()->buildDirectory();
-
-        sp.processArgs.append(QLatin1String("-qmljsdebugger=port:")
-            + QString::number(sp.qmlServerPort));
-    }
-
-    // FIXME: If it's not yet build this will be empty and not filled
-    // when rebuild as the runConfiguration is not stored and therefore
-    // cannot be used to retrieve the dumper location.
-    //qDebug() << "DUMPER: " << sp.dumperLibrary << sp.dumperLibraryLocations;
-    sp.displayName = rc->displayName();
-
-    // Find qtInstallPath.
-    QString qmakePath = DebuggingHelperLibrary::findSystemQt(rc->environment());
-    if (!qmakePath.isEmpty())
-        sp.qtInstallPath = findQtInstallPath(qmakePath);
-    return sp;
-}
-
-RunControl *DebuggerRunControlFactory::create
-    (RunConfiguration *runConfiguration, const QString &mode)
-{
-    QTC_ASSERT(mode == Constants::DEBUGMODE, return 0);
-    DebuggerStartParameters sp = localStartParameters(runConfiguration);
-    return create(sp, runConfiguration);
-}
-
-DebuggerRunControl *DebuggerRunControlFactory::create
-    (const DebuggerStartParameters &sp, RunConfiguration *runConfiguration)
-{
-    DebuggerRunControl *runControl =
-        new DebuggerRunControl(runConfiguration, m_enabledEngines, sp);
-    if (runControl->engine())
-        return runControl;
-    qDebug() << "FAILED TO CREATE ENGINE";
-    delete runControl;
-    return 0;
-}
-
-QWidget *DebuggerRunControlFactory::createConfigurationWidget
-    (RunConfiguration *runConfiguration)
-{
-    // NBS TODO: Add GDB-specific configuration widget
-    Q_UNUSED(runConfiguration)
-    return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -427,12 +306,12 @@ DebuggerRunControl::DebuggerRunControl(RunConfiguration *runConfiguration,
         }
     }
 
-    // Fixme: unclean ipc override. Someone please have a better idea
+    // FIXME: Unclean ipc override. Someone please have a better idea.
     if (sp.startMode == StartRemoteEngine)
-        // for now thats the only supported ipc engine
+        // For now thats the only supported IPC engine.
         engineType = LldbEngineType;
 
-    // Fixme: 1 of 3 testing hacks.
+    // FIXME: 1 of 3 testing hacks.
     if (sp.processArgs.startsWith(__("@tcf@ ")))
         engineType = GdbEngineType;
 
@@ -525,6 +404,7 @@ QString DebuggerRunControl::displayName() const
 
 void DebuggerRunControl::setCustomEnvironment(Utils::Environment env)
 {
+    QTC_ASSERT(d->m_engine, return);
     d->m_engine->startParameters().environment = env;
 }
 
@@ -580,29 +460,14 @@ bool DebuggerRunControl::checkDebugConfiguration(int toolChain,
 void DebuggerRunControl::start()
 {
     QTC_ASSERT(d->m_engine, return);
-    const DebuggerStartParameters &sp = d->m_engine->startParameters();
-
-    QString errorMessage;
-    QString settingsCategory;
-    QString settingsPage;
-
-    if (!checkDebugConfiguration(sp.toolChainType,
-            &errorMessage, &settingsCategory, &settingsPage)) {
-        emit appendMessage(this, errorMessage, true);
-        emit finished();
-        Core::ICore::instance()->showWarningWithOptions(tr("Debugger"),
-            errorMessage, QString(), settingsCategory, settingsPage);
-        return;
-    }
-
-    debuggerCore()->runControlStarted(engine());
+    debuggerCore()->runControlStarted(d->m_engine);
 
     // We might get a synchronous startFailed() notification on Windows,
     // when launching the process fails. Emit a proper finished() sequence.
     emit started();
     d->m_running = true;
 
-    engine()->startDebugger(this);
+    d->m_engine->startDebugger(this);
 
     if (d->m_running) {
         emit addToOutputWindowInline(this, tr("Debugging starts"), false);
@@ -615,15 +480,15 @@ void DebuggerRunControl::startFailed()
     emit addToOutputWindowInline(this, tr("Debugging has failed"), false);
     d->m_running = false;
     emit finished();
-    engine()->handleStartFailed();
+    d->m_engine->handleStartFailed();
 }
 
 void DebuggerRunControl::handleFinished()
 {
     emit addToOutputWindowInline(this, tr("Debugging has finished"), false);
-    if (engine())
-        engine()->handleFinished();
-    debuggerCore()->runControlFinished(engine());
+    if (d->m_engine)
+        d->m_engine->handleFinished();
+    debuggerCore()->runControlFinished(d->m_engine);
 }
 
 void DebuggerRunControl::showMessage(const QString &msg, int channel)
@@ -684,6 +549,144 @@ DebuggerEngine *DebuggerRunControl::engine()
 RunConfiguration *DebuggerRunControl::runConfiguration() const
 {
     return d->m_myRunConfiguration.data();
+}
+
+
+////////////////////////////////////////////////////////////////////////
+//
+// DebuggerRunControlFactory
+//
+////////////////////////////////////////////////////////////////////////
+
+// A factory to create DebuggerRunControls
+DebuggerRunControlFactory::DebuggerRunControlFactory(QObject *parent,
+        unsigned enabledEngines)
+    : IRunControlFactory(parent), m_enabledEngines(enabledEngines)
+{}
+
+bool DebuggerRunControlFactory::canRun(RunConfiguration *runConfiguration, const QString &mode) const
+{
+//    return mode == ProjectExplorer::Constants::DEBUGMODE;
+    return mode == Constants::DEBUGMODE
+            && qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
+}
+
+QString DebuggerRunControlFactory::displayName() const
+{
+    return tr("Debug");
+}
+
+// Find Qt installation by running qmake
+static inline QString findQtInstallPath(const QString &qmakePath)
+{
+    QProcess proc;
+    QStringList args;
+    args.append(QLatin1String("-query"));
+    args.append(QLatin1String("QT_INSTALL_HEADERS"));
+    proc.start(qmakePath, args);
+    if (!proc.waitForStarted()) {
+        qWarning("%s: Cannot start '%s': %s", Q_FUNC_INFO, qPrintable(qmakePath),
+           qPrintable(proc.errorString()));
+        return QString();
+    }
+    proc.closeWriteChannel();
+    if (!proc.waitForFinished()) {
+        Utils::SynchronousProcess::stopProcess(proc);
+        qWarning("%s: Timeout running '%s'.", Q_FUNC_INFO, qPrintable(qmakePath));
+        return QString();
+    }
+    if (proc.exitStatus() != QProcess::NormalExit) {
+        qWarning("%s: '%s' crashed.", Q_FUNC_INFO, qPrintable(qmakePath));
+        return QString();
+    }
+    const QByteArray ba = proc.readAllStandardOutput().trimmed();
+    QDir dir(QString::fromLocal8Bit(ba));
+    if (dir.exists() && dir.cdUp())
+        return dir.absolutePath();
+    return QString();
+}
+
+static DebuggerStartParameters localStartParameters(RunConfiguration *runConfiguration)
+{
+    DebuggerStartParameters sp;
+    QTC_ASSERT(runConfiguration, return sp);
+    LocalApplicationRunConfiguration *rc =
+            qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
+    QTC_ASSERT(rc, return sp);
+
+    sp.startMode = StartInternal;
+    sp.environment = rc->environment();
+    sp.workingDirectory = rc->workingDirectory();
+    sp.executable = rc->executable();
+    sp.processArgs = rc->commandLineArguments();
+    sp.toolChainType = rc->toolChainType();
+    sp.useTerminal = rc->runMode() == LocalApplicationRunConfiguration::Console;
+    sp.dumperLibrary = rc->dumperLibrary();
+    sp.dumperLibraryLocations = rc->dumperLibraryLocations();
+
+    if (debuggerCore()->isActiveDebugLanguage(QmlLanguage)) {
+        sp.qmlServerAddress = QLatin1String("127.0.0.1");
+        sp.qmlServerPort = runConfiguration->qmlDebugServerPort();
+
+        sp.projectDir = runConfiguration->target()->project()->projectDirectory();
+        if (runConfiguration->target()->activeBuildConfiguration())
+            sp.projectBuildDir = runConfiguration->target()
+                ->activeBuildConfiguration()->buildDirectory();
+
+        Utils::QtcProcess::addArg(&sp.processArgs, QLatin1String("-qmljsdebugger=port:")
+                                  + QString::number(sp.qmlServerPort));
+    }
+
+    // FIXME: If it's not yet build this will be empty and not filled
+    // when rebuild as the runConfiguration is not stored and therefore
+    // cannot be used to retrieve the dumper location.
+    //qDebug() << "DUMPER: " << sp.dumperLibrary << sp.dumperLibraryLocations;
+    sp.displayName = rc->displayName();
+
+    // Find qtInstallPath.
+    QString qmakePath = DebuggingHelperLibrary::findSystemQt(rc->environment());
+    if (!qmakePath.isEmpty())
+        sp.qtInstallPath = findQtInstallPath(qmakePath);
+    return sp;
+}
+
+RunControl *DebuggerRunControlFactory::create
+    (RunConfiguration *runConfiguration, const QString &mode)
+{
+    QTC_ASSERT(mode == Constants::DEBUGMODE, return 0);
+    DebuggerStartParameters sp = localStartParameters(runConfiguration);
+    return create(sp, runConfiguration);
+}
+
+QWidget *DebuggerRunControlFactory::createConfigurationWidget
+    (RunConfiguration *runConfiguration)
+{
+    // NBS TODO: Add GDB-specific configuration widget
+    Q_UNUSED(runConfiguration)
+    return 0;
+}
+
+DebuggerRunControl *DebuggerRunControlFactory::create
+    (const DebuggerStartParameters &sp, RunConfiguration *runConfiguration)
+{
+    QString errorMessage;
+    QString settingsCategory;
+    QString settingsPage;
+
+    if (!DebuggerRunControl::checkDebugConfiguration(sp.toolChainType,
+            &errorMessage, &settingsCategory, &settingsPage)) {
+        //emit appendMessage(this, errorMessage, true);
+        Core::ICore::instance()->showWarningWithOptions(tr("Debugger"),
+            errorMessage, QString(), settingsCategory, settingsPage);
+        return 0;
+    }
+
+    DebuggerRunControl *runControl =
+        new DebuggerRunControl(runConfiguration, m_enabledEngines, sp);
+    if (runControl->d->m_engine)
+        return runControl;
+    delete runControl;
+    return 0;
 }
 
 } // namespace Debugger

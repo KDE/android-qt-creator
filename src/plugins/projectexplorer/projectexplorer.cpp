@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -117,8 +121,8 @@
 #include <QtGui/QMainWindow>
 #include <QtGui/QWizard>
 
-Q_DECLARE_METATYPE(Core::IEditorFactory*);
-Q_DECLARE_METATYPE(Core::IExternalEditor*);
+Q_DECLARE_METATYPE(Core::IEditorFactory*)
+Q_DECLARE_METATYPE(Core::IExternalEditor*)
 
 namespace {
 bool debug = false;
@@ -435,7 +439,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     // "open with" submenu
     Core::ActionContainer * const openWith =
             am->createMenu(ProjectExplorer::Constants::M_OPENFILEWITHCONTEXT);
-    openWith->setEmptyAction(Core::ActionContainer::EA_None);
+    openWith->setOnAllDisabledBehavior(Core::ActionContainer::Show);
     d->m_openWithMenu = openWith->menu();
     d->m_openWithMenu->setTitle(tr("Open With"));
 
@@ -540,7 +544,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     Core::ActionContainer *mrecent =
         am->createMenu(Constants::M_RECENTPROJECTS);
     mrecent->menu()->setTitle(tr("Recent P&rojects"));
-    mrecent->setEmptyAction(Core::ActionContainer::EA_None);
+    mrecent->setOnAllDisabledBehavior(Core::ActionContainer::Show);
     mfile->addMenu(mrecent, Core::Constants::G_FILE_OPEN);
     connect(mfile->menu(), SIGNAL(aboutToShow()),
         this, SLOT(updateRecentProjectMenu()));
@@ -563,7 +567,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     // session menu
     Core::ActionContainer *msession = am->createMenu(Constants::M_SESSION);
     msession->menu()->setTitle(tr("Session"));
-    msession->setEmptyAction(Core::ActionContainer::EA_None);
+    msession->setOnAllDisabledBehavior(Core::ActionContainer::Show);
     mfile->addMenu(msession, Core::Constants::G_FILE_PROJECT);
     d->m_sessionMenu = msession->menu();
     connect(mfile->menu(), SIGNAL(aboutToShow()),

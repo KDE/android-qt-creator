@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -274,63 +278,55 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     const int effectiveIndividualFormat =
         individualFormat == -1 ? typeFormat : individualFormat;
 
-    QMenu typeFormatMenu;
+    QMenu formatMenu;
     QList<QAction *> typeFormatActions;
-    QAction *clearTypeFormatAction = 0;
-    if (idx.isValid()) {
-        typeFormatMenu.setTitle(
-            tr("Change Format for Type \"%1\"").arg(type));
-        if (alternativeFormats.isEmpty()) {
-            typeFormatMenu.setEnabled(false);
-        } else {
-            clearTypeFormatAction = typeFormatMenu.addAction(tr("Automatic"));
-            clearTypeFormatAction->setEnabled(typeFormat != -1);
-            clearTypeFormatAction->setCheckable(true);
-            clearTypeFormatAction->setChecked(typeFormat == -1);
-            typeFormatMenu.addSeparator();
-            for (int i = 0; i != alternativeFormats.size(); ++i) {
-                const QString format = alternativeFormats.at(i);
-                QAction *act = new QAction(format, &typeFormatMenu);
-                act->setCheckable(true);
-                if (i == typeFormat)
-                    act->setChecked(true);
-                typeFormatMenu.addAction(act);
-                typeFormatActions.append(act);
-            }
-        }
-    } else {
-        typeFormatMenu.setTitle(tr("Change Format for Type"));
-        typeFormatMenu.setEnabled(false);
-    }
-
-    QMenu individualFormatMenu;
     QList<QAction *> individualFormatActions;
+    QAction *clearTypeFormatAction = 0;
     QAction *clearIndividualFormatAction = 0;
-    if (idx.isValid()) {
-        individualFormatMenu.setTitle(
-            tr("Change Format for Object Named \"%1\"").arg(mi0.data().toString()));
-        if (alternativeFormats.isEmpty()) {
-            individualFormatMenu.setEnabled(false);
-        } else {
-            clearIndividualFormatAction
-                = individualFormatMenu.addAction(tr("Automatic"));
-            clearIndividualFormatAction->setEnabled(individualFormat != -1);
-            clearIndividualFormatAction->setCheckable(true);
-            clearIndividualFormatAction->setChecked(individualFormat == -1);
-            individualFormatMenu.addSeparator();
-            for (int i = 0; i != alternativeFormats.size(); ++i) {
-                const QString format = alternativeFormats.at(i);
-                QAction *act = new QAction(format, &individualFormatMenu);
-                act->setCheckable(true);
-                if (i == effectiveIndividualFormat)
-                    act->setChecked(true);
-                individualFormatMenu.addAction(act);
-                individualFormatActions.append(act);
-            }
+    formatMenu.setTitle(tr("Change Display Format..."));
+    if (idx.isValid() && !alternativeFormats.isEmpty()) {
+        QAction *dummy = formatMenu.addAction(
+            tr("Change Display for Type \"%1\"").arg(type));
+        dummy->setEnabled(false);
+        formatMenu.addSeparator();
+        clearTypeFormatAction = formatMenu.addAction(tr("Automatic"));
+        //clearTypeFormatAction->setEnabled(typeFormat != -1);
+        //clearTypeFormatAction->setEnabled(individualFormat != -1);
+        clearTypeFormatAction->setCheckable(true);
+        clearTypeFormatAction->setChecked(typeFormat == -1);
+        formatMenu.addSeparator();
+        for (int i = 0; i != alternativeFormats.size(); ++i) {
+            const QString format = alternativeFormats.at(i);
+            QAction *act = new QAction(format, &formatMenu);
+            act->setCheckable(true);
+            //act->setEnabled(individualFormat != -1);
+            if (i == typeFormat)
+                act->setChecked(true);
+            formatMenu.addAction(act);
+            typeFormatActions.append(act);
+        }
+        formatMenu.addSeparator();
+        dummy = formatMenu.addAction(
+            tr("Change Display for Object Named \"%1\"").arg(mi0.data().toString()));
+        dummy->setEnabled(false);
+        formatMenu.addSeparator();
+        clearIndividualFormatAction
+            = formatMenu.addAction(tr("Use Display Format Based on Type"));
+        //clearIndividualFormatAction->setEnabled(individualFormat != -1);
+        clearIndividualFormatAction->setCheckable(true);
+        clearIndividualFormatAction->setChecked(effectiveIndividualFormat == -1);
+        formatMenu.addSeparator();
+        for (int i = 0; i != alternativeFormats.size(); ++i) {
+            const QString format = alternativeFormats.at(i);
+            QAction *act = new QAction(format, &formatMenu);
+            act->setCheckable(true);
+            if (i == effectiveIndividualFormat)
+                act->setChecked(true);
+            formatMenu.addAction(act);
+            individualFormatActions.append(act);
         }
     } else {
-        individualFormatMenu.setTitle(tr("Change Format for Object"));
-        individualFormatMenu.setEnabled(false);
+        formatMenu.setEnabled(false);
     }
 
     const bool actionsEnabled = engine->debuggerActionsEnabled();
@@ -345,24 +341,9 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     QAction *actSelectWidgetToWatch = menu.addAction(tr("Select Widget to Watch"));
     actSelectWidgetToWatch->setEnabled(canHandleWatches);
 
-    QAction *actOpenMemoryEditAtVariableAddress = 0;
-    QAction *actOpenMemoryEditAtPointerValue = 0;
-    QAction *actOpenMemoryEditor =
-        new QAction(tr("Open Memory Editor..."), &menu);
-    const bool canShowMemory = engineCapabilities & ShowMemoryCapability;
-    actOpenMemoryEditor->setEnabled(actionsEnabled && canShowMemory);
-
     // Offer to open address pointed to or variable address.
     const bool createPointerActions = pointerValue && pointerValue != address;
 
-    if (canShowMemory && address)
-        actOpenMemoryEditAtVariableAddress =
-            new QAction(tr("Open Memory Editor at Object's Address (0x%1)")
-                .arg(address, 0, 16), &menu);
-    if (createPointerActions)
-        actOpenMemoryEditAtPointerValue =
-            new QAction(tr("Open Memory Editor at Referenced Address (0x%1)")
-                .arg(pointerValue, 0, 16), &menu);
     menu.addSeparator();
 
     QAction *actSetWatchpointAtVariableAddress = 0;
@@ -404,15 +385,42 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     else
         menu.addAction(actRemoveWatchExpression);
 
+    QMenu memoryMenu;
+    memoryMenu.setTitle(tr("Open Memory Editor..."));
+    QAction *actOpenMemoryEditAtVariableAddress = new QAction(&memoryMenu);
+    QAction *actOpenMemoryEditAtPointerValue = new QAction(&memoryMenu);
+    QAction *actOpenMemoryEditor = new QAction(&memoryMenu);
+    if (engineCapabilities & ShowMemoryCapability) {
+        actOpenMemoryEditor->setText(tr("Open Memory Editor..."));
+        if (address) {
+            actOpenMemoryEditAtVariableAddress->setText(
+                tr("Open Memory Editor at Object's Address (0x%1)")
+                    .arg(address, 0, 16));
+        } else {
+            actOpenMemoryEditAtVariableAddress->setText(
+                tr("Open Memory Editor at Object's Address"));
+            actOpenMemoryEditAtVariableAddress->setEnabled(false);
+        }
+        if (createPointerActions) {
+            actOpenMemoryEditAtPointerValue->setText(
+                tr("Open Memory Editor at Referenced Address (0x%1)")
+                    .arg(pointerValue, 0, 16));
+        } else {
+            actOpenMemoryEditAtPointerValue->setText(
+                tr("Open Memory Editor at Referenced Address"));
+            actOpenMemoryEditAtPointerValue->setEnabled(false);
+        }
+        memoryMenu.addAction(actOpenMemoryEditAtVariableAddress);
+        memoryMenu.addAction(actOpenMemoryEditAtPointerValue);
+        memoryMenu.addAction(actOpenMemoryEditor);
+    } else {
+        memoryMenu.setEnabled(false);
+    }
+
     menu.addAction(actInsertNewWatchItem);
     menu.addAction(actSelectWidgetToWatch);
-    menu.addMenu(&typeFormatMenu);
-    menu.addMenu(&individualFormatMenu);
-    if (actOpenMemoryEditAtVariableAddress)
-        menu.addAction(actOpenMemoryEditAtVariableAddress);
-    if (actOpenMemoryEditAtPointerValue)
-        menu.addAction(actOpenMemoryEditAtPointerValue);
-    menu.addAction(actOpenMemoryEditor);
+    menu.addMenu(&formatMenu);
+    menu.addMenu(&memoryMenu);
     menu.addAction(actSetWatchpointAtVariableAddress);
     if (actSetWatchpointAtPointerValue)
         menu.addAction(actSetWatchpointAtPointerValue);

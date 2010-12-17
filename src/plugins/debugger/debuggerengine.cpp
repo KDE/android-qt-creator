@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,6 +53,7 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/ifile.h>
+#include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 
@@ -56,6 +61,7 @@
 #include <projectexplorer/toolchaintype.h>
 
 #include <texteditor/itexteditor.h>
+#include <texteditor/basetextmark.h>
 
 #include <utils/environment.h>
 #include <utils/savedaction.h>
@@ -93,7 +99,6 @@ DebuggerStartParameters::DebuggerStartParameters() :
     isSnapshot(false),
     attachPID(-1),
     useTerminal(false),
-    breakAtMain(false),
     qmlServerAddress("127.0.0.1"),
     qmlServerPort(0),
     useServerStartScript(false),
@@ -165,6 +170,28 @@ const char *DebuggerEngine::stateName(int s)
 }
 
 
+///////////////////////////////////////////////////////////////////////
+//
+// LocationMark
+//
+///////////////////////////////////////////////////////////////////////
+
+// Used in "real" editors
+class LocationMark : public TextEditor::BaseTextMark
+{
+public:
+    LocationMark(const QString &fileName, int linenumber)
+        : BaseTextMark(fileName, linenumber)
+    {}
+
+    QIcon icon() const { return debuggerCore()->locationMarkIcon(); }
+    void updateLineNumber(int /*lineNumber*/) {}
+    void updateBlock(const QTextBlock & /*block*/) {}
+    void removedFromEditor() {}
+};
+
+
+
 //////////////////////////////////////////////////////////////////////
 //
 // DebuggerEnginePrivate
@@ -189,9 +216,12 @@ public:
         m_stackHandler(),
         m_threadsHandler(),
         m_watchHandler(engine),
-        m_disassemblerViewAgent(engine),
-        m_isSlaveEngine(false)
-    {}
+        m_isSlaveEngine(false),
+        m_disassemblerAgent(engine),
+        m_memoryAgent(engine)
+    {
+        connect(&m_locationTimer, SIGNAL(timeout()), SLOT(resetLocation()));
+    }
 
     ~DebuggerEnginePrivate() {}
 
@@ -239,6 +269,21 @@ public slots:
         m_runControl->bringApplicationToForeground(m_inferiorPid);
     }
 
+    void scheduleResetLocation()
+    {
+        m_stackHandler.scheduleResetLocation();
+        m_locationTimer.setSingleShot(true);
+        m_locationTimer.start(80);
+    }
+
+    void resetLocation()
+    {
+        m_locationTimer.stop();
+        m_locationMark.reset();
+        m_stackHandler.resetLocation();
+        m_disassemblerAgent.resetLocation();
+    }
+
 public:
     DebuggerState state() const { return m_state; }
 
@@ -264,10 +309,13 @@ public:
     StackHandler m_stackHandler;
     ThreadsHandler m_threadsHandler;
     WatchHandler m_watchHandler;
-    DisassemblerViewAgent m_disassemblerViewAgent;
     QFutureInterface<void> m_progress;
 
     bool m_isSlaveEngine;
+    DisassemblerAgent m_disassemblerAgent;
+    MemoryAgent m_memoryAgent;
+    QScopedPointer<TextEditor::BaseTextMark> m_locationMark;
+    QTimer m_locationTimer;
 };
 
 
@@ -335,11 +383,6 @@ WatchHandler *DebuggerEngine::watchHandler() const
 {
     return &d->m_watchHandler;
 }
-
-//SnapshotHandler *DebuggerEngine::snapshotHandler() const
-//{
-//    return &d->m_snapshotHandler;
-//}
 
 SourceFilesHandler *DebuggerEngine::sourceFilesHandler() const
 {
@@ -410,7 +453,7 @@ QAbstractItemModel *DebuggerEngine::sourceFilesModel() const
     return model;
 }
 
-void DebuggerEngine::fetchMemory(MemoryViewAgent *, QObject *,
+void DebuggerEngine::fetchMemory(MemoryAgent *, QObject *,
         quint64 addr, quint64 length)
 {
     Q_UNUSED(addr);
@@ -456,9 +499,6 @@ void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
     if (!d->m_startParameters.environment.size())
         d->m_startParameters.environment = Utils::Environment();
 
-    if (d->m_startParameters.breakAtMain)
-        breakByFunctionMain();
-
     const unsigned engineCapabilities = debuggerCapabilities();
     debuggerCore()->action(OperateByInstruction)
         ->setEnabled(engineCapabilities & DisassemblerCapability);
@@ -473,38 +513,45 @@ void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
     setupEngine();
 }
 
-void DebuggerEngine::breakByFunctionMain()
-{
-#ifdef Q_OS_WIN
-    // FIXME: wrong on non-Qt based binaries
-    emit breakByFunction("qMain");
-#else
-    emit breakByFunction("main");
-#endif
-}
-
-void DebuggerEngine::breakByFunction(const QString &functionName)
-{
-    breakHandler()->breakByFunction(functionName);
-}
-
 void DebuggerEngine::resetLocation()
 {
-    d->m_disassemblerViewAgent.resetLocation();
-    debuggerCore()->removeLocationMark();
+    // Do it after some delay to avoid flicker.
+    d->scheduleResetLocation();
 }
 
-void DebuggerEngine::gotoLocation(const QString &fileName, int lineNumber, bool setMarker)
+void DebuggerEngine::gotoLocation(const Location &loc)
 {
-    debuggerCore()->gotoLocation(fileName, lineNumber, setMarker);
-}
+    if (debuggerCore()->boolSetting(OperateByInstruction) || !loc.hasDebugInfo()) {
+        d->m_disassemblerAgent.setTryMixed(true);
+        d->m_disassemblerAgent.setLocation(loc);
+        return;
+    }
+    // CDB might hit on breakpoints while shutting down.
+    //if (m_shuttingDown)
+    //    return;
 
-void DebuggerEngine::gotoLocation(const StackFrame &frame, bool setMarker)
-{
-    if (debuggerCore()->boolSetting(OperateByInstruction) || !frame.isUsable())
-        d->m_disassemblerViewAgent.setFrame(frame, true, setMarker);
-    else
-        debuggerCore()->gotoLocation(frame.file, frame.line, setMarker);
+    d->resetLocation();
+
+    const QString file = loc.fileName();
+    const int line = loc.lineNumber();
+    EditorManager *editorManager = EditorManager::instance();
+    QList<IEditor *> editors = editorManager->editorsForFileName(file);
+    if (editors.isEmpty()) {
+        editors.append(editorManager->openEditor(file, QString(),
+            EditorManager::IgnoreNavigationHistory));
+        editors.back()->setProperty(Constants::OPENED_BY_DEBUGGER, true);
+    }
+    ITextEditor *texteditor = qobject_cast<ITextEditor *>(editors.back());
+    if (texteditor)
+        texteditor->gotoLine(line, 0);
+
+    if (loc.needsMarker())
+        d->m_locationMark.reset(new LocationMark(file, line));
+
+    // FIXME: Breaks with split views.
+    if (!d->m_memoryAgent.hasVisibleEditor() || loc.needsRaise())
+        editorManager->activateEditor(editors.back());
+    //qDebug() << "MEMORY: " << d->m_memoryAgent.hasVisibleEditor();
 }
 
 // Called from RunControl.
@@ -825,7 +872,7 @@ void DebuggerEnginePrivate::doInterruptInferior()
 void DebuggerEnginePrivate::doShutdownInferior()
 {
     QTC_ASSERT(state() == InferiorShutdownRequested, qDebug() << state());
-    m_engine->resetLocation();
+    resetLocation();
     m_targetState = DebuggerFinished;
     m_engine->showMessage(_("CALL: SHUTDOWN INFERIOR"));
     m_engine->shutdownInferior();
@@ -893,7 +940,7 @@ void DebuggerEnginePrivate::doFinishDebugger()
 {
     m_engine->showMessage(_("NOTE: FINISH DEBUGGER"));
     QTC_ASSERT(state() == DebuggerFinished, qDebug() << state());
-    m_engine->resetLocation();
+    resetLocation();
     if (!m_engine->isSlaveEngine()) {
         QTC_ASSERT(m_runControl, return);
         m_runControl->debuggingFinished();
@@ -937,7 +984,7 @@ void DebuggerEngine::notifyEngineSpontaneousShutdown()
 void DebuggerEngine::notifyInferiorExited()
 {
     showMessage(_("NOTE: INFERIOR EXITED"));
-    resetLocation();
+    d->resetLocation();
 
     // This can be issued in almost any state. We assume, though,
     // that at this point of time the inferior is not running anymore,
@@ -1097,8 +1144,7 @@ void DebuggerEngine::setToolTipExpression
 {
 }
 
-void DebuggerEngine::updateWatchData
-    (const Internal::WatchData &, const Internal::WatchUpdateFlags &)
+void DebuggerEngine::updateWatchData(const WatchData &, const WatchUpdateFlags &)
 {
 }
 
@@ -1106,7 +1152,7 @@ void DebuggerEngine::watchPoint(const QPoint &)
 {
 }
 
-void DebuggerEngine::fetchDisassembler(Internal::DisassemblerViewAgent *)
+void DebuggerEngine::fetchDisassembler(DisassemblerAgent *)
 {
 }
 
@@ -1235,7 +1281,7 @@ void DebuggerEngine::attemptBreakpointSynchronization()
     }
 
     if (done)
-        d->m_disassemblerViewAgent.updateBreakpointMarkers();
+        d->m_disassemblerAgent.updateBreakpointMarkers();
 }
 
 void DebuggerEngine::insertBreakpoint(BreakpointId id)
@@ -1263,8 +1309,8 @@ void DebuggerEngine::selectThread(int)
 {
 }
 
-void DebuggerEngine::assignValueInDebugger
-    (const Internal::WatchData *, const QString &, const QVariant &)
+void DebuggerEngine::assignValueInDebugger(const WatchData *,
+    const QString &, const QVariant &)
 {
 }
 
@@ -1326,7 +1372,7 @@ void DebuggerEngine::executeDebuggerCommand(const QString &)
 {
 }
 
-Internal::BreakHandler *DebuggerEngine::breakHandler() const
+BreakHandler *DebuggerEngine::breakHandler() const
 {
     return debuggerCore()->breakHandler();
 }
@@ -1421,13 +1467,19 @@ bool DebuggerEngine::isCppBreakpoint(const BreakpointParameters &p)
 
 void DebuggerEngine::openMemoryView(quint64 address)
 {
-    (void) new MemoryViewAgent(this, address);
+    d->m_memoryAgent.createBinEditor(address);
 }
 
-void DebuggerEngine::openDisassemblerView(const StackFrame &frame)
+void DebuggerEngine::updateMemoryViews()
 {
-    DisassemblerViewAgent *agent = new DisassemblerViewAgent(this);
-    agent->setFrame(frame, true, false);
+    d->m_memoryAgent.updateContents();
+}
+
+void DebuggerEngine::openDisassemblerView(const Location &location)
+{
+    DisassemblerAgent *agent = new DisassemblerAgent(this);
+    agent->setTryMixed(true);
+    agent->setLocation(location);
 }
 
 void DebuggerEngine::handleRemoteSetupDone(int gdbServerPort, int qmlPort)

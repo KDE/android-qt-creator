@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -72,7 +76,9 @@ ModulesWindow::ModulesWindow(QWidget *parent)
 
 void ModulesWindow::moduleActivated(const QModelIndex &index)
 {
-    debuggerCore()->gotoLocation(index.data().toString());
+    DebuggerEngine *engine = debuggerCore()->currentEngine();
+    QTC_ASSERT(engine, return);
+    engine->gotoLocation(index.data().toString());
 }
 
 void ModulesWindow::contextMenuEvent(QContextMenuEvent *ev)
@@ -85,6 +91,7 @@ void ModulesWindow::contextMenuEvent(QContextMenuEvent *ev)
         name = index.data().toString();
 
     DebuggerEngine *engine = debuggerCore()->currentEngine();
+    QTC_ASSERT(engine, return);
     const bool enabled = engine->debuggerActionsEnabled();
     const unsigned capabilities = engine->debuggerCapabilities();
 
@@ -167,7 +174,7 @@ void ModulesWindow::contextMenuEvent(QContextMenuEvent *ev)
     else if (act == actLoadSymbolsForModule)
       engine->loadSymbols(name);
     else if (act == actEditFile)
-      debuggerCore()->gotoLocation(name);
+      engine->gotoLocation(name);
     else if (act == actShowModuleSymbols)
       engine->requestModuleSymbols(name);
 }

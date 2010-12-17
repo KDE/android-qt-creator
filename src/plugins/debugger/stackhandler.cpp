@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -52,6 +56,8 @@ StackHandler::StackHandler()
   : m_positionIcon(QIcon(QLatin1String(":/debugger/images/location_16.png"))),
     m_emptyIcon(QIcon(QLatin1String(":/debugger/images/debugger_empty_14.png")))
 {
+    m_resetLocationScheduled = false;
+    m_contentsValid = false;
     m_currentIndex = 0;
     m_canExpand = false;
     connect(debuggerCore()->action(OperateByInstruction), SIGNAL(triggered()),
@@ -110,7 +116,8 @@ QVariant StackHandler::data(const QModelIndex &index, int role) const
 
     if (role == Qt::DecorationRole && index.column() == 0) {
         // Return icon that indicates whether this is the active stack frame
-        return (index.row() == m_currentIndex) ? m_positionIcon : m_emptyIcon;
+        return (m_contentsValid && index.row() == m_currentIndex)
+            ? m_positionIcon : m_emptyIcon;
     }
 
     if (role == Qt::ToolTipRole)
@@ -143,7 +150,8 @@ Qt::ItemFlags StackHandler::flags(const QModelIndex &index) const
     const StackFrame &frame = m_stackFrames.at(index.row());
     const bool isValid = (frame.isUsable() && !frame.function.isEmpty())
         || debuggerCore()->boolSetting(OperateByInstruction);
-    return isValid ? QAbstractTableModel::flags(index) : Qt::ItemFlags(0);
+    return isValid && m_contentsValid
+        ? QAbstractTableModel::flags(index) : Qt::ItemFlags(0);
 }
 
 StackFrame StackHandler::currentFrame() const
@@ -178,6 +186,8 @@ void StackHandler::removeAll()
 
 void StackHandler::setFrames(const StackFrames &frames, bool canExpand)
 {
+    m_resetLocationScheduled = false;
+    m_contentsValid = true;
     m_canExpand = canExpand;
     m_stackFrames = frames;
     if (m_currentIndex >= m_stackFrames.size())
@@ -190,12 +200,18 @@ const StackFrames &StackHandler::frames() const
     return m_stackFrames;
 }
 
-bool StackHandler::isDebuggingDebuggingHelpers() const
+void StackHandler::scheduleResetLocation()
 {
-    for (int i = m_stackFrames.size(); --i >= 0; )
-        if (m_stackFrames.at(i).function.startsWith(QLatin1String("qDumpObjectData")))
-            return true;
-    return false;
+    m_resetLocationScheduled = true;
+    m_contentsValid = false;
+}
+
+void StackHandler::resetLocation()
+{
+    if (m_resetLocationScheduled) {
+        m_resetLocationScheduled = false;
+        reset();
+    }
 }
 
 } // namespace Internal

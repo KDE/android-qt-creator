@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "maemopublisherfremantlefree.h"
@@ -46,6 +50,7 @@
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 #include <QtCore/QStringList>
+#include <QtGui/QIcon>
 
 #define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
 
@@ -137,6 +142,11 @@ void MaemoPublisherFremantleFree::createPackage()
             tr("Publishing failed: Could not create source package."));
         return;
     }
+    if (!fixNewlines()) {
+        finishWithFailure(tr("Error: Could not fix newlines"),
+            tr("Publishing failed: Could not create source package."));
+        return;
+    }
 
     QString error;
     if (!updateDesktopFiles(&error)) {
@@ -154,8 +164,11 @@ void MaemoPublisherFremantleFree::createPackage()
     }
 
     setState(RunningQmake);
+    ProjectExplorer::AbstractProcessStep * const qmakeStep
+        = m_buildConfig->qmakeStep();
+    qmakeStep->init();
     const ProjectExplorer::ProcessParameters * const pp
-        = m_buildConfig->qmakeStep()->processParameters();
+        = qmakeStep->processParameters();
     m_process->start(pp->effectiveCommand() + QLatin1String(" ")
         + pp->effectiveArguments());
 }
@@ -218,6 +231,25 @@ bool MaemoPublisherFremantleFree::copyRecursively(const QString &srcFilePath,
             rulesFile.resize(0);
             rulesFile.write(rulesContents);
         }
+    }
+    return true;
+}
+
+bool MaemoPublisherFremantleFree::fixNewlines()
+{
+    QDir debianDir(m_tmpProjectDir + QLatin1String("/debian"));
+    const QStringList &fileNames = debianDir.entryList(QDir::Files);
+    foreach (const QString &fileName, fileNames) {
+        QFile file(debianDir.filePath(fileName));
+        if (!file.open(QIODevice::ReadWrite))
+            return false;
+        QByteArray contents = file.readAll();
+        const QByteArray crlf("\r\n");
+        if (!contents.contains(crlf))
+            continue;
+        contents.replace(crlf, "\n");
+        file.resize(0);
+        file.write(contents);
     }
     return true;
 }
@@ -559,16 +591,15 @@ QStringList MaemoPublisherFremantleFree::findProblems() const
     QStringList problems;
     const MaemoTemplatesManager * const templatesManager
         = MaemoTemplatesManager::instance();
-    const QString &description = templatesManager
-        ->controlFileFieldValue(m_project, QLatin1String("Description"));
+    const QString &description = templatesManager->shortDescription(m_project);
     if (description.trimmed().isEmpty()) {
         problems << tr("The package description is empty.");
     } else if (description.contains(QLatin1String("insert up to"))) {
         problems << tr("The package description is '%1', which is probably "
                        "not what you want.").arg(description);
     }
-    if (templatesManager->controlFileFieldValue(m_project,
-            QLatin1String("XB-Maemo-Icon-26")).trimmed().isEmpty())
+    QString dummy;
+    if (templatesManager->packageManagerIcon(m_project, &dummy).isNull())
         problems << tr("You have not set an icon for the package manager.");
     return problems;
 }

@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -54,7 +58,7 @@ enum BreakpointType
     BreakpointAtThrow,
     BreakpointAtCatch,
     BreakpointAtMain,
-    Watchpoint,
+    Watchpoint
 };
 
 enum BreakpointState
@@ -67,7 +71,7 @@ enum BreakpointState
     BreakpointInserted,
     BreakpointRemoveRequested,
     BreakpointRemoveProceeding,
-    BreakpointDead,
+    BreakpointDead
 };
 
 class BreakpointParameters
@@ -77,7 +81,9 @@ public:
     bool equals(const BreakpointParameters &rhs) const;
     bool conditionsMatch(const QByteArray &other) const;
     bool isWatchpoint() const { return type == Watchpoint; }
-    bool isBreakpoint() const { return type != Watchpoint; } // Enough for now.
+    // Enough for now.
+    bool isBreakpoint() const { return type != Watchpoint && !tracepoint; }
+    bool isTracepoint() const { return tracepoint; }
     QString toString() const;
 
     bool operator==(const BreakpointParameters &p) const { return equals(p); }
@@ -93,6 +99,7 @@ public:
     quint64 address;         // Address for watchpoints.
     int threadSpec;          // Thread specification.
     QString functionName;
+    bool tracepoint;
 };
 
 

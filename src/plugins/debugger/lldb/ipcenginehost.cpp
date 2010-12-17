@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -234,9 +238,9 @@ void IPCEngineHost::selectThread(int index)
     rpcCall(SelectThread, p);
 }
 
-void IPCEngineHost::fetchDisassembler(DisassemblerViewAgent *v)
+void IPCEngineHost::fetchDisassembler(DisassemblerAgent *v)
 {
-    quint64 address = v->frame().address;
+    quint64 address = v->location().address();
     m_frameToDisassemblerAgent.insert(address, v);
     QByteArray p;
     {
@@ -426,7 +430,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 StackHandler *sh = stackHandler();
                 sh->setCurrentIndex(token);
                 if (!sh->currentFrame().isUsable() || QFileInfo(sh->currentFrame().file).exists())
-                    gotoLocation(sh->currentFrame(), true);
+                    gotoLocation(Location(sh->currentFrame(), true));
                 else if (!m_sourceAgents.contains(sh->currentFrame().file))
                     fetchFrameSource(token);
                 foreach(SourceAgent *agent, m_sourceAgents.values())
@@ -468,7 +472,7 @@ void IPCEngineHost::rpcCallback(quint64 f, QByteArray payload)
                 DisassemblerLines lines;
                 s >> pc;
                 s >> lines;
-                DisassemblerViewAgent *view = m_frameToDisassemblerAgent.take(pc);
+                DisassemblerAgent *view = m_frameToDisassemblerAgent.take(pc);
                 if (view)
                     view->setContents(lines);
             }

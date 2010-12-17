@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,10 +43,32 @@
 #include <QtCore/QPointer>
 #include <QtCore/QSharedPointer>
 
-QT_FORWARD_DECLARE_CLASS(QTimer)
+QT_BEGIN_NAMESPACE
+class QTimer;
+QT_END_NAMESPACE
 
 namespace Debugger {
 namespace Cdb {
+
+// Widget displaying a list of break events for the 'sxe' command
+// with a checkbox to enable 'break' and optionally a QLineEdit for
+// events with parameters (like 'out:Needle').
+class CdbBreakEventWidget : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit CdbBreakEventWidget(QWidget *parent = 0);
+
+    void setBreakEvents(const QStringList &l);
+    QStringList breakEvents() const;
+
+private:
+    QString filterText(int i) const;
+    void clear();
+
+    QList<QCheckBox*> m_checkBoxes;
+    QList<QLineEdit*> m_lineEdits;
+};
 
 class CdbOptionsPageWidget : public QWidget
 {
@@ -63,6 +89,8 @@ private slots:
     void hideReportLabel();
 
 private:
+    QStringList symbolPaths() const;
+    void setSymbolPaths(const QStringList &s);
     void setReport(const QString &, bool success);
     inline bool is64Bit() const;
     inline QString path() const;
@@ -71,6 +99,7 @@ private:
                                   QString *message);
 
     Ui::CdbOptionsPageWidget2 m_ui;
+    CdbBreakEventWidget *m_breakEventWidget;
     QTimer *m_reportTimer;
 };
 

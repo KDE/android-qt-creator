@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -648,7 +652,7 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event)
-    {        
+    {
         QFontMetrics fm(font());
         if (fm.width(text()) > (contentsRect().width() - 6) && text().length() > 4) {
             QPainter p(this);
@@ -777,6 +781,43 @@ private:
 
     QToolButton *pb;
     QUrl _url;
+};
+
+class AnimatedToolButton : public QToolButton
+{
+
+Q_OBJECT
+
+    Q_PROPERTY(QUrl hoverIconFromFile READ hoverIconFromFile WRITE setHoverIconFromFile)
+
+public:
+    AnimatedToolButton( QWidget * parent = 0 ) : QToolButton(parent)
+    {}
+
+private:
+    QUrl hoverIconFromFile() const
+    { return m_hoverIconUrl; }
+
+    void setHoverIconFromFile(const QUrl &url)
+    {  m_hoverIconUrl= url;
+       m_hoverIcon = QIcon(m_hoverIconUrl.toLocalFile());
+    }
+
+    void leaveEvent(QEvent *)
+    {
+        setIcon(m_icon);
+    }
+
+    void enterEvent(QEvent *)
+    {
+        m_icon = icon();
+        setIcon(m_hoverIcon);
+    }
+
+    QUrl m_hoverIconUrl;
+    QIcon m_hoverIcon;
+    QIcon m_icon;
+
 };
 
 class QComboBoxDeclarativeUI : public QObject
@@ -1353,10 +1394,11 @@ public:
 
 QT_END_NAMESPACE
 
-QML_DECLARE_TYPE(QTabObject);
-QML_DECLARE_TYPE(MyGroupBox);
-QML_DECLARE_TYPE(WidgetLoader);
-QML_DECLARE_TYPE(WidgetFrame);
+QML_DECLARE_TYPE(QTabObject)
+QML_DECLARE_TYPE(MyGroupBox)
+QML_DECLARE_TYPE(WidgetLoader)
+QML_DECLARE_TYPE(WidgetFrame)
+QML_DECLARE_TYPE(AnimatedToolButton)
 
 void BasicWidgets::registerDeclarativeTypes()
 {
@@ -1399,6 +1441,7 @@ void BasicWidgets::registerDeclarativeTypes()
     qmlRegisterType<QFrame>("Bauhaus",1,0,"QFrame");
     qmlRegisterType<WidgetFrame>("Bauhaus",1,0,"WidgetFrame");
     qmlRegisterType<WidgetLoader>("Bauhaus",1,0,"WidgetLoader");
+    qmlRegisterType<AnimatedToolButton>("Bauhaus",1,0,"AnimatedToolButton");
     qmlRegisterExtendedType<MyGroupBox,QGroupBoxDeclarativeUI>("Bauhaus",1,0,"QExtGroupBox");
     qmlRegisterExtendedType<QTabWidget,QTabWidgetDeclarativeUI>("Bauhaus",1,0,"QTabWidget");
     qmlRegisterExtendedType<QScrollArea,QScrollAreaDeclarativeUI>("Bauhaus",1,0,"QScrollArea");

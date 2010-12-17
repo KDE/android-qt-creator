@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -33,6 +37,7 @@
 #include <texteditor/texteditorconstants.h>
 
 #include <QtCore/QByteArrayMatcher>
+#include <QtCore/QDebug>
 #include <QtCore/QFile>
 #include <QtCore/QTemporaryFile>
 
@@ -47,8 +52,6 @@
 #include <QtGui/QScrollBar>
 #include <QtGui/QToolTip>
 #include <QtGui/QWheelEvent>
-
-using namespace BINEditor;
 
 // QByteArray::toLower() is broken, it stops at the first \0
 static void lower(QByteArray &ba)
@@ -79,6 +82,8 @@ static QByteArray calculateHexPattern(const QByteArray &pattern)
     }
     return result;
 }
+
+namespace BINEditor {
 
 BinEditor::BinEditor(QWidget *parent)
     : QAbstractScrollArea(parent)
@@ -181,27 +186,34 @@ bool BinEditor::requestDataAt(int pos, bool synchronous) const
     if (it != m_modifiedData.constEnd())
         return true;
     it = m_lazyData.find(block);
-    if (it == m_lazyData.end()) {
-        if (!m_lazyRequests.contains(block)) {
-            m_lazyRequests.insert(block);
-            emit const_cast<BinEditor*>(this)->
-                lazyDataRequested(editorInterface(), m_baseAddr / m_blockSize + block,
-                                  synchronous);
-            if (!m_lazyRequests.contains(block))
-                return true; // synchronous data source
-        }
-        return false;
+    if (it != m_lazyData.end())
+        return true;
+    if (!m_lazyRequests.contains(block)) {
+        m_lazyRequests.insert(block);
+        emit const_cast<BinEditor*>(this)->
+            lazyDataRequested(editorInterface(), m_baseAddr / m_blockSize + block,
+                              synchronous);
+        if (!m_lazyRequests.contains(block))
+            return true; // synchronous data source
     }
-
-    return true;
+    return false;
 }
 
-char BinEditor::dataAt(int pos) const
+bool BinEditor::requestOldDataAt(int pos) const
+{
+    if (!m_inLazyMode)
+        return false;
+    int block = pos / m_blockSize;
+    QMap<int, QByteArray>::const_iterator it = m_oldLazyData.find(block);
+    return it != m_oldLazyData.end();
+}
+
+char BinEditor::dataAt(int pos, bool old) const
 {
     if (!m_inLazyMode)
         return m_data.at(pos);
     int block = pos / m_blockSize;
-    return blockData(block).at(pos - (block*m_blockSize));
+    return blockData(block, old).at(pos - (block*m_blockSize));
 }
 
 void BinEditor::changeDataAt(int pos, char c)
@@ -224,7 +236,7 @@ void BinEditor::changeDataAt(int pos, char c)
     }
 }
 
-QByteArray BinEditor::dataMid(int from, int length) const
+QByteArray BinEditor::dataMid(int from, int length, bool old) const
 {
     if (!m_inLazyMode)
         return m_data.mid(from, length);
@@ -235,14 +247,19 @@ QByteArray BinEditor::dataMid(int from, int length) const
     QByteArray data;
     data.reserve(length);
     do {
-        data += blockData(block++);
+        data += blockData(block++, old);
     } while (block * m_blockSize < end);
 
     return data.mid(from - ((from / m_blockSize) * m_blockSize), length);
 }
 
-QByteArray BinEditor::blockData(int block) const
+QByteArray BinEditor::blockData(int block, bool old) const
 {
+    if (old) {
+        QMap<int, QByteArray>::const_iterator it = m_modifiedData.find(block);
+        return it != m_modifiedData.constEnd()
+                ? it.value() : m_oldLazyData.value(block, m_emptyBlock);
+    }
     if (!m_inLazyMode) {
         QByteArray data = m_data.mid(block * m_blockSize, m_blockSize);
         if (data.size() < m_blockSize)
@@ -253,7 +270,6 @@ QByteArray BinEditor::blockData(int block) const
     return it != m_modifiedData.constEnd()
             ? it.value() : m_lazyData.value(block, m_emptyBlock);
 }
-
 
 void BinEditor::setFontSettings(const TextEditor::FontSettings &fs)
 {
@@ -287,10 +303,13 @@ void BinEditor::timerEvent(QTimerEvent *e)
         QPoint pos;
         const QPoint globalPos = QCursor::pos();
         pos = viewport()->mapFromGlobal(globalPos);
-        QMouseEvent ev(QEvent::MouseMove, pos, globalPos, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent ev(QEvent::MouseMove, pos, globalPos,
+            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
         mouseMoveEvent(&ev);
-        int deltaY = qMax(pos.y() - visible.top(), visible.bottom() - pos.y()) - visible.height();
-        int deltaX = qMax(pos.x() - visible.left(), visible.right() - pos.x()) - visible.width();
+        int deltaY = qMax(pos.y() - visible.top(),
+                          visible.bottom() - pos.y()) - visible.height();
+        int deltaX = qMax(pos.x() - visible.left(),
+                          visible.right() - pos.x()) - visible.width();
         int delta = qMax(deltaX, deltaY);
         if (delta >= 0) {
             if (delta < 7)
@@ -344,6 +363,7 @@ void BinEditor::setData(const QByteArray &data)
     m_inLazyMode = false;
     m_baseAddr = 0;
     m_lazyData.clear();
+    m_oldLazyData.clear();
     m_modifiedData.clear();
     m_lazyRequests.clear();
     m_data = data;
@@ -419,7 +439,6 @@ void BinEditor::setLazyData(quint64 startAddr, int range, int blockSize)
     Q_ASSERT((blockSize/16) * 16 == blockSize);
     m_emptyBlock = QByteArray(blockSize, '\0');
     m_data.clear();
-    m_lazyData.clear();
     m_modifiedData.clear();
     m_lazyRequests.clear();
 
@@ -497,9 +516,10 @@ QRect BinEditor::cursorRect() const
     int y = (line - topLine) * m_lineHeight;
     int xoffset = horizontalScrollBar()->value();
     int column = m_cursorPosition % 16;
-    int x = m_hexCursor ?
-            (-xoffset + m_margin + m_labelWidth + column * m_columnWidth)
-            : (-xoffset + m_margin + m_labelWidth + 16 * m_columnWidth + m_charWidth + column * m_charWidth);
+    int x = m_hexCursor
+            ? (-xoffset + m_margin + m_labelWidth + column * m_columnWidth)
+            : (-xoffset + m_margin + m_labelWidth + 16 * m_columnWidth
+               + m_charWidth + column * m_charWidth);
     int w = m_hexCursor ? m_columnWidth : m_charWidth;
     return QRect(x, y, w, m_lineHeight);
 }
@@ -663,12 +683,15 @@ int BinEditor::find(const QByteArray &pattern_arg, int from,
     return pos;
 }
 
-int BinEditor::findPattern(const QByteArray &data, const QByteArray &dataHex, int from, int offset, int *match)
+int BinEditor::findPattern(const QByteArray &data, const QByteArray &dataHex,
+    int from, int offset, int *match)
 {
     if (m_searchPattern.isEmpty())
         return -1;
-    int normal = m_searchPattern.isEmpty()? -1 : data.indexOf(m_searchPattern, from - offset);
-    int hex = m_searchPatternHex.isEmpty()? -1 : dataHex.indexOf(m_searchPatternHex, from - offset);
+    int normal = m_searchPattern.isEmpty()
+        ? -1 : data.indexOf(m_searchPattern, from - offset);
+    int hex = m_searchPatternHex.isEmpty()
+        ? -1 : dataHex.indexOf(m_searchPatternHex, from - offset);
 
     if (normal >= 0 && (hex < 0 || normal < hex)) {
         if (match)
@@ -692,6 +715,17 @@ void BinEditor::drawItems(QPainter *painter, int x, int y, const QString &itemSt
     } else {
         for (int i = 0; i < 16; ++i)
             painter->drawText(x + i*m_columnWidth, y, itemString.mid(i*3, 2));
+    }
+}
+
+void BinEditor::drawChanges(QPainter *painter, int x, int y, const char *changes)
+{
+    const QBrush red(QColor(250, 150, 150));
+    for (int i = 0; i < 16; ++i) {
+        if (changes[i]) {
+            painter->fillRect(x + i*m_columnWidth, y - m_ascent,
+                2*m_charWidth, m_lineHeight, red);
+        }
     }
 }
 
@@ -747,11 +781,18 @@ void BinEditor::paintEvent(QPaintEvent *e)
 
     int foundPatternAt = findPattern(patternData, patternDataHex, patternOffset, patternOffset, &matchLength);
 
-    int selStart = qMin(m_cursorPosition, m_anchorPosition);
-    int selEnd = qMax(m_cursorPosition, m_anchorPosition);
+    int selStart, selEnd;
+    if (m_cursorPosition >= m_anchorPosition) {
+        selStart = m_anchorPosition;
+        selEnd = m_cursorPosition;
+    } else {
+        selStart = m_cursorPosition;
+        selEnd = m_anchorPosition + 1;
+    }
 
     QString itemString(16*3, QLatin1Char(' '));
     QChar *itemStringData = itemString.data();
+    char changedString[16] = { false };
     const char *hex = "0123456789abcdef";
 
     painter.setPen(palette().text().color());
@@ -769,22 +810,24 @@ void BinEditor::paintEvent(QPaintEvent *e)
 
 
         painter.drawText(-xoffset, i * m_lineHeight + m_ascent,
-                         addressString(m_baseAddr + ((uint) line) * 16));
+                         addressString(m_baseAddr + uint(line) * 16));
 
         int cursor = -1;
         if (line * 16 <= m_cursorPosition && m_cursorPosition < line * 16 + 16)
             cursor = m_cursorPosition - line * 16;
 
         bool hasData = requestDataAt(line * 16);
+        bool hasOldData = requestOldDataAt(line * 16);
+        bool isOld = hasOldData && !hasData;
 
         QString printable;
 
-        if (hasData) {
+        if (hasData || hasOldData) {
             for (int c = 0; c < 16; ++c) {
                 int pos = line * 16 + c;
                 if (pos >= m_size)
                     break;
-                QChar qc(QLatin1Char(dataAt(pos)));
+                QChar qc(QLatin1Char(dataAt(pos, isOld)));
                 if (qc.unicode() >= 127 || !qc.isPrint())
                     qc = 0xB7;
                 printable += qc;
@@ -797,8 +840,9 @@ void BinEditor::paintEvent(QPaintEvent *e)
         QRect printableSelectionRect;
 
         bool isFullySelected = (selStart < selEnd && selStart <= line*16 && (line+1)*16 <= selEnd);
+        bool somethingChanged = false;
 
-        if (hasData) {
+        if (hasData || hasOldData) {
             for (int c = 0; c < 16; ++c) {
                 int pos = line * 16 + c;
                 if (pos >= m_size) {
@@ -813,9 +857,13 @@ void BinEditor::paintEvent(QPaintEvent *e)
                     foundPatternAt = findPattern(patternData, patternDataHex, foundPatternAt + matchLength, patternOffset, &matchLength);
 
 
-                uchar value = (uchar)dataAt(pos);
+                const uchar value = uchar(dataAt(pos, isOld));
                 itemStringData[c*3] = hex[value >> 4];
                 itemStringData[c*3+1] = hex[value & 0xf];
+                if (hasOldData && !isOld && value != uchar(dataAt(pos, true))) {
+                    changedString[c] = true;
+                    somethingChanged = true;
+                }
 
                 int item_x = -xoffset +  m_margin + c * m_columnWidth + m_labelWidth;
 
@@ -840,6 +888,7 @@ void BinEditor::paintEvent(QPaintEvent *e)
         }
 
         int x = -xoffset +  m_margin + m_labelWidth;
+        bool cursorWanted = m_cursorPosition == m_anchorPosition;
 
         if (isFullySelected) {
             painter.save();
@@ -848,6 +897,8 @@ void BinEditor::paintEvent(QPaintEvent *e)
             drawItems(&painter, x, y, itemString);
             painter.restore();
         } else {
+            if (somethingChanged)
+                drawChanges(&painter, x, y, changedString);
             drawItems(&painter, x, y, itemString);
             if (!selectionRect.isEmpty()) {
                 painter.save();
@@ -860,7 +911,7 @@ void BinEditor::paintEvent(QPaintEvent *e)
         }
 
 
-        if (cursor >= 0) {
+        if (cursor >= 0 && cursorWanted) {
             int w = fm.boundingRect(itemString.mid(cursor*3, 2)).width();
             QRect cursorRect(x + cursor * m_columnWidth, y - m_ascent, w + 1, m_lineHeight);
             painter.save();
@@ -888,7 +939,7 @@ void BinEditor::paintEvent(QPaintEvent *e)
                 painter.setPen(palette().highlightedText().color());
                 painter.drawText(text_x, y, printable);
                 painter.restore();
-        }else {
+        } else {
             painter.drawText(text_x, y, printable);
             if (!printableSelectionRect.isEmpty()) {
                 painter.save();
@@ -900,7 +951,7 @@ void BinEditor::paintEvent(QPaintEvent *e)
             }
         }
 
-        if (cursor >= 0 && !printable.isEmpty()) {
+        if (cursor >= 0 && !printable.isEmpty() && cursorWanted) {
             QRect cursorRect(text_x + fm.width(printable.left(cursor)),
                              y-m_ascent,
                              fm.width(printable.at(cursor)),
@@ -1033,12 +1084,14 @@ bool BinEditor::event(QEvent *e) {
         default:;
         }
     } else if (e->type() == QEvent::ToolTip) {
+        const QHelpEvent * const helpEvent = static_cast<QHelpEvent *>(e);
         bool hide = true;
         int selStart = selectionStart();
         int selEnd = selectionEnd();
         int byteCount = selEnd - selStart;
         if (byteCount <= 0) {
             selStart = m_cursorPosition;
+            selStart = posAt(helpEvent->pos());
             selEnd = selStart + 1;
             byteCount = 1;
         }
@@ -1048,40 +1101,68 @@ bool BinEditor::event(QEvent *e) {
             const QPoint expandedEndPoint
                 = QPoint(endPoint.x(), endPoint.y() + m_lineHeight);
             const QRect selRect(startPoint, expandedEndPoint);
-            const QHelpEvent * const helpEvent = static_cast<QHelpEvent *>(e);
             const QPoint &mousePos = helpEvent->pos();
             if (selRect.contains(mousePos)) {
                 quint64 beValue, leValue;
+                quint64 beValueOld, leValueOld;
                 asIntegers(selStart, byteCount, beValue, leValue);
+                asIntegers(selStart, byteCount, beValueOld, leValueOld, true);
                 QString leSigned;
                 QString beSigned;
+                QString leSignedOld;
+                QString beSignedOld;
                 switch (byteCount) {
                 case 8: case 7: case 6: case 5:
                     leSigned = QString::number(static_cast<qint64>(leValue));
                     beSigned = QString::number(static_cast<qint64>(beValue));
+                    leSignedOld = QString::number(static_cast<qint64>(leValueOld));
+                    beSignedOld = QString::number(static_cast<qint64>(beValueOld));
                     break;
                 case 4: case 3:
                     leSigned = QString::number(static_cast<qint32>(leValue));
                     beSigned = QString::number(static_cast<qint32>(beValue));
+                    leSignedOld = QString::number(static_cast<qint32>(leValueOld));
+                    beSignedOld = QString::number(static_cast<qint32>(beValueOld));
                     break;
                 case 2:
                     leSigned = QString::number(static_cast<qint16>(leValue));
                     beSigned = QString::number(static_cast<qint16>(beValue));
+                    leSignedOld = QString::number(static_cast<qint16>(leValueOld));
+                    beSignedOld = QString::number(static_cast<qint16>(beValueOld));
                     break;
                 case 1:
                     leSigned = QString::number(static_cast<qint8>(leValue));
                     beSigned = QString::number(static_cast<qint8>(beValue));
+                    leSignedOld = QString::number(static_cast<qint8>(leValueOld));
+                    beSignedOld = QString::number(static_cast<qint8>(beValueOld));
                     break;
                 }
                 hide = false;
-                QToolTip::showText(helpEvent->globalPos(),
+                //int pos = posAt(mousePos);
+                //uchar old = dataAt(pos, true);
+                //uchar current = dataAt(pos, false);
+
+                QString msg = 
                     tr("Decimal unsigned value (little endian): %1\n"
                        "Decimal unsigned value (big endian): %2\n"
                        "Decimal signed value (little endian): %3\n"
                        "Decimal signed value (big endian): %4")
                        .arg(QString::number(leValue))
                        .arg(QString::number(beValue))
-                       .arg(leSigned).arg(beSigned));
+                       .arg(leSigned)
+                       .arg(beSigned);
+                if (beValue != beValueOld) {
+                    msg += QLatin1Char('\n');
+                    msg += tr("Previous decimal unsigned value (little endian): %1\n"
+                       "Previous decimal unsigned value (big endian): %2\n"
+                       "Previous decimal signed value (little endian): %3\n"
+                       "Previous decimal signed value (big endian): %4")
+                       .arg(QString::number(leValueOld))
+                       .arg(QString::number(beValueOld))
+                       .arg(leSignedOld)
+                       .arg(beSignedOld);
+                }
+                QToolTip::showText(helpEvent->globalPos(), msg, this);
             }
         }
         if (hide)
@@ -1213,30 +1294,31 @@ void BinEditor::zoomOut(int range)
 
 void BinEditor::copy(bool raw)
 {
-    const int selStart = selectionStart();
-    const int selEnd = selectionEnd();
-    if (selStart < selEnd) {
-        const int selectionLength = selEnd - selStart;
-        if (selectionLength >> 22) {
-            QMessageBox::warning(this, tr("Copying Failed"),
-                                 tr("You cannot copy more than 4 MB of binary data."));
-            return;
-        }
-        const QByteArray &data = dataMid(selStart, selectionLength);
-        if (raw) {
-            QApplication::clipboard()->setText(data);
-            return;
-        }
-        QString hexString;
-        const char * const hex = "0123456789abcdef";
-        hexString.reserve(3 * data.size());
-        for (int i = 0; i < data.size(); ++i) {
-            const uchar val = static_cast<uchar>(data[i]);
-            hexString.append(hex[val >> 4]).append(hex[val & 0xf]).append(' ');
-        }
-        hexString.chop(1);
-        QApplication::clipboard()->setText(hexString);
+    int selStart = selectionStart();
+    int selEnd = selectionEnd();
+    if (selStart >= selEnd)
+        qSwap(selStart, selEnd);
+
+    const int selectionLength = selEnd - selStart;
+    if (selectionLength >> 22) {
+        QMessageBox::warning(this, tr("Copying Failed"),
+                             tr("You cannot copy more than 4 MB of binary data."));
+        return;
     }
+    const QByteArray &data = dataMid(selStart, selectionLength);
+    if (raw) {
+        QApplication::clipboard()->setText(data);
+        return;
+    }
+    QString hexString;
+    const char * const hex = "0123456789abcdef";
+    hexString.reserve(3 * data.size());
+    for (int i = 0; i < data.size(); ++i) {
+        const uchar val = static_cast<uchar>(data[i]);
+        hexString.append(hex[val >> 4]).append(hex[val & 0xf]).append(' ');
+    }
+    hexString.chop(1);
+    QApplication::clipboard()->setText(hexString);
 }
 
 void BinEditor::highlightSearchResults(const QByteArray &pattern, QTextDocument::FindFlags findFlags)
@@ -1405,6 +1487,8 @@ void BinEditor::setNewWindowRequestAllowed()
 
 void BinEditor::updateContents()
 {
+    m_oldLazyData = m_lazyData;
+    m_lazyData.clear();
     setLazyData(baseAddress() + cursorPosition(), dataSize(), m_blockSize);
 }
 
@@ -1416,13 +1500,15 @@ QPoint BinEditor::offsetToPos(int offset)
 }
 
 void BinEditor::asIntegers(int offset, int count, quint64 &beValue,
-    quint64 &leValue)
+    quint64 &leValue, bool old)
 {
     beValue = leValue = 0;
-    const QByteArray &data = dataMid(offset, count);
+    const QByteArray &data = dataMid(offset, count, old);
     for (int pos = 0; pos < count; ++pos) {
         const quint64 val = static_cast<quint64>(data.at(pos)) & 0xff;
         beValue += val << (pos * 8);
         leValue += val << ((count - pos - 1) * 8);
     }
 }
+
+} // namespace BINEditor

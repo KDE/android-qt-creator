@@ -227,6 +227,10 @@ def parseAndEvaluate(exp):
 
 
 def catchCliOutput(command):
+    try:
+        return gdb.execute(command, to_string=True).split("\n")
+    except:
+        pass
     filename, file = createTempFile()
     gdb.execute("set logging off")
     gdb.execute("set logging redirect off")
@@ -928,6 +932,9 @@ def extractFields(type):
     # This seems to work.
     #warn("TYPE 0: %s" % type)
     type = stripTypedefs(type)
+    fields = type.fields()
+    if len(fields):
+        return fields
     #warn("TYPE 1: %s" % type)
     # This fails for arrays. See comment in lookupType.
     type0 = lookupType(str(type))
@@ -1578,6 +1585,22 @@ class Dumper:
             self.putNumChild(0)
             return
 
+        if value.type.code == gdb.TYPE_CODE_ARRAY:
+            self.putType(realtype)
+            self.putNumChild(1)
+            baseptr = value.cast(realtype.pointer())
+            self.putValue("%s" % baseptr)
+            if self.isExpanded(item):
+                charptr = lookupType("unsigned char").pointer()
+                addr1 = (baseptr+1).cast(charptr)
+                addr0 = baseptr.cast(charptr)
+                self.put('addrbase="%s",' % cleanAddress(addr0))
+                self.put('addrstep="%s",' % (addr1 - addr0))
+                with Children(self, 1, realtype.target()):
+                    child = Item(value, item.iname, None, item.name)
+                    self.putFields(child)
+            return
+
         typedefStrippedType = stripTypedefs(type)
 
         if isSimpleType(typedefStrippedType):
@@ -1747,15 +1770,8 @@ class Dumper:
             numfields = len(fields)
         self.putNumChild(numfields)
 
-        if self.isExpanded(item):
-            if value.type.code == gdb.TYPE_CODE_ARRAY:
-                baseptr = value.cast(value.type.target().pointer())
-                charptr = lookupType("unsigned char").pointer()
-                addr1 = (baseptr+1).cast(charptr)
-                addr0 = baseptr.cast(charptr)
-                self.put('addrbase="%s",' % cleanAddress(addr0))
-                self.put('addrstep="%s",' % (addr1 - addr0))
 
+        if self.isExpanded(item):
             innerType = None
             if len(fields) == 1 and fields[0].name is None:
                 innerType = value.type.target()

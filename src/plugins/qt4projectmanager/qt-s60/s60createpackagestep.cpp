@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +42,7 @@
 #include "sbsv2parser.h"
 #include "passphraseforkeydialog.h"
 #include "s60certificateinfo.h"
+#include "s60certificatedetailsdialog.h"
 
 #include <coreplugin/coreconstants.h>
 
@@ -179,8 +184,12 @@ bool S60CreatePackageStep::init()
     QList<Qt4ProFileNode *> nodes = pro->leafProFiles();
 
     m_workingDirectories.clear();
-    foreach (Qt4ProFileNode *node, nodes)
+    QStringList projectCapabilities;
+    foreach (Qt4ProFileNode *node, nodes) {
+        projectCapabilities += node->symbianCapabilities();
         m_workingDirectories << node->buildDir();
+    }
+    projectCapabilities.removeDuplicates();
 
     m_makeCmd = qt4BuildConfiguration()->makeCommand();
     if (!QFileInfo(m_makeCmd).isAbsolute()) {
@@ -193,7 +202,7 @@ bool S60CreatePackageStep::init()
         m_makeCmd = tmp;
     }
 
-    if (signingMode() == SignCustom && !validateCustomSigningResources())
+    if (signingMode() == SignCustom && !validateCustomSigningResources(projectCapabilities))
         return false;
 
     m_environment = qt4BuildConfiguration()->environment();
@@ -442,7 +451,7 @@ bool S60CreatePackageStep::createOnePackage()
     return true;
 }
 
-bool S60CreatePackageStep::validateCustomSigningResources()
+bool S60CreatePackageStep::validateCustomSigningResources(const QStringList &capabilitiesInPro)
 {
     Q_ASSERT(signingMode() == SignCustom);
 
@@ -462,37 +471,50 @@ bool S60CreatePackageStep::validateCustomSigningResources()
                          "Please define certificate file in the project's options.").arg(customKeyPath());
 
     if (!errorString.isEmpty()) {
-        emit addOutput(errorString, BuildStep::ErrorMessageOutput);
-        emit addTask(ProjectExplorer::Task(ProjectExplorer::Task::Error,
-                                           errorString,
-                                           QString(), -1,
-                                           ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+        reportPackageStepIssue(errorString, true);
         return false;
     }
-
-    S60CertificateInfo::CertificateState certState = S60CertificateInfo::validateCertificate(customSignaturePath(), &errorString);
+    QScopedPointer<S60CertificateInfo> certInfoPtr(new S60CertificateInfo(customSignaturePath()));
+    S60CertificateInfo::CertificateState certState = certInfoPtr.data()->validateCertificate();
     switch (certState) {
     case S60CertificateInfo::CertificateError:
-        emit addOutput(errorString, BuildStep::ErrorMessageOutput);
-        emit addTask(ProjectExplorer::Task(ProjectExplorer::Task::Error,
-                                           errorString,
-                                           QString(), -1,
-                                           ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+        reportPackageStepIssue(certInfoPtr.data()->errorString(), true);
         return false;
     case S60CertificateInfo::CertificateWarning:
-        emit addOutput(errorString, BuildStep::MessageOutput);
-        emit addTask(ProjectExplorer::Task(ProjectExplorer::Task::Warning,
-                                           errorString,
-                                           QString(), -1,
-                                           ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+        reportPackageStepIssue(certInfoPtr.data()->errorString(), false);
         break;
     default:
         break;
     }
+
+    QStringList unsupportedCaps;
+    if (certInfoPtr.data()->compareCapabilities(capabilitiesInPro, unsupportedCaps)) {
+        if (!unsupportedCaps.isEmpty()) {
+            QString message = tr("The created package will not install on a "
+                                 "device as some of the defined capabilities "
+                                 "are not supported by the certificate: %1")
+                    .arg(unsupportedCaps.join(" "));
+            reportPackageStepIssue(message, true);
+            return false;
+        }
+
+    } else
+        reportPackageStepIssue(certInfoPtr.data()->errorString(), false);
     return true;
 }
 
-
+void S60CreatePackageStep::reportPackageStepIssue(const QString &message, bool isError )
+{
+    emit addOutput(message, isError?
+                       BuildStep::ErrorMessageOutput:
+                       BuildStep::MessageOutput);
+    emit addTask(ProjectExplorer::Task(isError?
+                                           ProjectExplorer::Task::Error:
+                                           ProjectExplorer::Task::Warning,
+                                       message,
+                                       QString(), -1,
+                                       ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
+}
 
 void S60CreatePackageStep::packageWarningDialogDone()
 {
@@ -784,6 +806,13 @@ S60CreatePackageStepConfigWidget::S60CreatePackageStepConfigWidget(S60CreatePack
     m_ui.signaturePath->setPromptDialogFilter(QLatin1String("*.cer *.crt *.der *.pem"));
     m_ui.keyFilePath->setExpectedKind(Utils::PathChooser::File);
     updateUi();
+
+    bool enableCertDetails = m_signStep->signingMode() == S60CreatePackageStep::SignCustom
+            && m_ui.signaturePath->isValid();
+    m_ui.certificateDetails->setEnabled(enableCertDetails);
+
+    connect(m_ui.certificateDetails, SIGNAL(clicked()),
+            this, SLOT(displayCertificateDetails()));
     connect(m_ui.customCertificateButton, SIGNAL(clicked()),
             this, SLOT(updateFromUi()));
     connect(m_ui.selfSignedButton, SIGNAL(clicked()),
@@ -802,6 +831,8 @@ S60CreatePackageStepConfigWidget::S60CreatePackageStepConfigWidget(S60CreatePack
 
 void S60CreatePackageStepConfigWidget::signatureChanged(QString certFile)
 {
+    m_ui.certificateDetails->setEnabled(m_ui.signaturePath->isValid());
+
     if (!certFile.isEmpty() && m_ui.keyFilePath->path().isEmpty()) {
         /*  If a cert file is selected and there is not key file inserted,
             then we check if there is a .key or .pem file in the folder with
@@ -828,22 +859,24 @@ void S60CreatePackageStepConfigWidget::signatureChanged(QString certFile)
 
 void S60CreatePackageStepConfigWidget::updateUi()
 {
-
     switch(m_signStep->signingMode()) {
     case S60CreatePackageStep::SignCustom:
         m_ui.selfSignedButton->setChecked(false);
         m_ui.customCertificateButton->setChecked(true);
         m_ui.notSignedButton->setChecked(false);
+        m_ui.certificateDetails->setEnabled(m_ui.signaturePath->isValid());
         break;
     case S60CreatePackageStep::NotSigned:
         m_ui.selfSignedButton->setChecked(false);
         m_ui.customCertificateButton->setChecked(false);
         m_ui.notSignedButton->setChecked(true);
+        m_ui.certificateDetails->setEnabled(false);
         break;
     default:
         m_ui.selfSignedButton->setChecked(true);
         m_ui.customCertificateButton->setChecked(false);
         m_ui.notSignedButton->setChecked(false);
+        m_ui.certificateDetails->setEnabled(false);
         break;
     }
     bool customSigned = m_signStep->signingMode() == S60CreatePackageStep::SignCustom;
@@ -870,6 +903,17 @@ void S60CreatePackageStepConfigWidget::updateFromUi()
     m_signStep->setCustomKeyPath(m_ui.keyFilePath->path());
     m_signStep->setCreatesSmartInstaller(m_ui.smartInstaller->isChecked());
     updateUi();
+}
+
+void S60CreatePackageStepConfigWidget::displayCertificateDetails()
+{
+    S60CertificateInfo *certificateInformation = new S60CertificateInfo(m_ui.signaturePath->path());
+    certificateInformation->devicesSupported().sort();
+
+    S60CertificateDetailsDialog dialog;
+    dialog.setText(certificateInformation->toHtml(false));
+    dialog.exec();
+    delete certificateInformation;
 }
 
 void S60CreatePackageStepConfigWidget::resetPassphrases()

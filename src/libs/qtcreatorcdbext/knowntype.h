@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,27 +43,28 @@ enum KnownType
     KT_Qt_MovableType = 0x40000,
     KT_STL_Type = 0x80000,
     KT_ContainerType = 0x100000,
+    KT_HasSimpleDumper = 0x200000,
     // Qt Basic
-    KT_QChar = KT_Qt_Type + KT_Qt_MovableType + 1,
-    KT_QByteArray = KT_Qt_Type + KT_Qt_MovableType + 2,
-    KT_QString = KT_Qt_Type + KT_Qt_MovableType + 3,
-    KT_QColor = KT_Qt_Type + 4,
-    KT_QFlags = KT_Qt_Type + 5,
-    KT_QDate = KT_Qt_Type + KT_Qt_MovableType + 6,
-    KT_QTime = KT_Qt_Type + KT_Qt_MovableType + 7,
-    KT_QPoint = KT_Qt_Type + KT_Qt_MovableType + 8,
-    KT_QPointF = KT_Qt_Type +KT_Qt_MovableType + 9,
-    KT_QSize = KT_Qt_Type + KT_Qt_MovableType + 11,
-    KT_QSizeF = KT_Qt_Type + KT_Qt_MovableType + 12,
-    KT_QLine = KT_Qt_Type + KT_Qt_MovableType + 13,
-    KT_QLineF = KT_Qt_Type + KT_Qt_MovableType + 14,
-    KT_QRect = KT_Qt_Type + KT_Qt_MovableType + 15,
-    KT_QRectF = KT_Qt_Type + KT_Qt_MovableType + 16,
-    KT_QVariant = KT_Qt_Type + KT_Qt_MovableType + 17,
-    KT_QBasicAtomicInt = KT_Qt_Type + 18,
-    KT_QAtomicInt = KT_Qt_Type + 19,
-    KT_QObject = KT_Qt_Type + 20,
-    KT_QWidget = KT_Qt_Type + 21,
+    KT_QChar = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 1,
+    KT_QByteArray = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 2,
+    KT_QString = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 3,
+    KT_QColor = KT_Qt_Type + KT_HasSimpleDumper + 4,
+    KT_QFlags = KT_Qt_Type + KT_HasSimpleDumper + 5,
+    KT_QDate = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 6,
+    KT_QTime = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 7,
+    KT_QPoint = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 8,
+    KT_QPointF = KT_Qt_Type +KT_Qt_MovableType + KT_HasSimpleDumper + 9,
+    KT_QSize = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 11,
+    KT_QSizeF = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 12,
+    KT_QLine = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 13,
+    KT_QLineF = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 14,
+    KT_QRect = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 15,
+    KT_QRectF = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 16,
+    KT_QVariant = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 17,
+    KT_QBasicAtomicInt = KT_Qt_Type + KT_HasSimpleDumper + 18,
+    KT_QAtomicInt = KT_Qt_Type + KT_HasSimpleDumper + 19,
+    KT_QObject = KT_Qt_Type + KT_HasSimpleDumper + 20,
+    KT_QWidget = KT_Qt_Type + KT_HasSimpleDumper + 21,
     // Various QT movable types
     KT_QPen = KT_Qt_Type + KT_Qt_MovableType + 30,
     KT_QUrl = KT_Qt_Type + KT_Qt_MovableType + 31,
@@ -130,27 +135,28 @@ enum KnownType
     KT_QGlyphJustification = KT_Qt_Type + KT_Qt_PrimitiveType + 97,
     KT_QPainterPath_Element = KT_Qt_Type + KT_Qt_PrimitiveType + 98,
     // Qt Containers
-    KT_QStringList = KT_Qt_Type + KT_ContainerType + 1,
-    KT_QList = KT_Qt_Type + KT_ContainerType + 2,
-    KT_QLinkedList = KT_Qt_Type + KT_ContainerType + 3,
-    KT_QVector = KT_Qt_Type + KT_ContainerType + 4,
-    KT_QStack = KT_Qt_Type + KT_ContainerType + 5,
-    KT_QQueue = KT_Qt_Type + KT_ContainerType + 6,
-    KT_QSet = KT_Qt_Type + KT_ContainerType + 7,
-    KT_QHash = KT_Qt_Type + KT_ContainerType + 8,
-    KT_QMap = KT_Qt_Type + KT_ContainerType + 9,
-    KT_QMultiMap = KT_Qt_Type + KT_ContainerType + 10,
+    KT_QStringList = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 1,
+    KT_QList = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 2,
+    KT_QLinkedList = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 3,
+    KT_QVector = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 4,
+    KT_QStack = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 5,
+    KT_QQueue = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 6,
+    KT_QSet = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 7,
+    KT_QHash = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 8,
+    KT_QMultiHash = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 9,
+    KT_QMap = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 10,
+    KT_QMultiMap = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 11,
     // STL
-    KT_StdString = KT_STL_Type + 1,
-    KT_StdWString = KT_STL_Type + 2,
+    KT_StdString = KT_STL_Type + KT_HasSimpleDumper + 1,
+    KT_StdWString = KT_STL_Type + KT_HasSimpleDumper + 2,
     // STL containers
-    KT_StdVector =  KT_STL_Type + KT_ContainerType + 1,
-    KT_StdList =  KT_STL_Type + KT_ContainerType + 2,
-    KT_StdStack =  KT_STL_Type + KT_ContainerType + 3,
-    KT_StdDeque =  KT_STL_Type + KT_ContainerType + 4,
-    KT_StdSet =  KT_STL_Type + KT_ContainerType + 5,
-    KT_StdMap =  KT_STL_Type + KT_ContainerType + 6,
-    KT_StdMultiMap =  KT_STL_Type + KT_ContainerType + 7,
+    KT_StdVector =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 1,
+    KT_StdList =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 2,
+    KT_StdStack =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 3,
+    KT_StdDeque =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 4,
+    KT_StdSet =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 5,
+    KT_StdMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 6,
+    KT_StdMultiMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 7,
 };
 
 #endif // KNOWNTYPE_H

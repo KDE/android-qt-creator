@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -141,7 +145,8 @@ void BreakpointDialog::setParameters(const BreakpointParameters &data)
     setParts(AllParts, data);
     m_ui.lineEditCondition->setText(QString::fromUtf8(data.condition));
     m_ui.lineEditIgnoreCount->setText(QString::number(data.ignoreCount));
-    m_ui.lineEditThreadSpec->setText(QString::number(data.threadSpec));
+    m_ui.lineEditThreadSpec->
+        setText(BreakHandler::displayFromThreadSpec(data.threadSpec));
 }
 
 BreakpointParameters BreakpointDialog::parameters() const
@@ -150,7 +155,8 @@ BreakpointParameters BreakpointDialog::parameters() const
     getParts(AllParts, &data);
     data.condition = m_ui.lineEditCondition->text().toUtf8();
     data.ignoreCount = m_ui.lineEditIgnoreCount->text().toInt();
-    data.threadSpec = m_ui.lineEditThreadSpec->text().toInt();
+    data.threadSpec =
+        BreakHandler::threadSpecFromDisplay(m_ui.lineEditThreadSpec->text());
     return data;
 }
 
@@ -194,6 +200,7 @@ void BreakpointDialog::clearParts(unsigned partsMask)
 void BreakpointDialog::getParts(unsigned partsMask, BreakpointParameters *data) const
 {
     data->enabled = m_ui.checkBoxEnabled->isChecked();
+    data->tracepoint = m_ui.checkBoxTracepoint->isChecked();
 
     if (partsMask & FileAndLinePart) {
         data->lineNumber = m_ui.lineEditLineNumber->text().toInt();
@@ -210,11 +217,12 @@ void BreakpointDialog::getParts(unsigned partsMask, BreakpointParameters *data) 
 void BreakpointDialog::setParts(unsigned mask, const BreakpointParameters &data)
 {
     m_ui.checkBoxEnabled->setChecked(data.enabled);
+    m_ui.checkBoxUseFullPath->setChecked(data.useFullPath);
 
     if (mask & FileAndLinePart) {
         m_ui.pathChooserFileName->setPath(data.fileName);
         m_ui.lineEditLineNumber->setText(QString::number(data.lineNumber));
-        m_ui.checkBoxUseFullPath->setChecked(data.useFullPath);
+        m_ui.checkBoxTracepoint->setChecked(data.tracepoint);
     }
 
     if (mask & FunctionPart)
@@ -306,6 +314,7 @@ bool BreakpointDialog::showDialog(BreakpointParameters *data)
     return true;
 }
 
+
 ///////////////////////////////////////////////////////////////////////
 //
 // BreakWindow
@@ -370,6 +379,14 @@ void BreakWindow::mouseDoubleClickEvent(QMouseEvent *ev)
         editBreakpoints(BreakpointIds() << id);
     }
     QTreeView::mouseDoubleClickEvent(ev);
+}
+
+void BreakWindow::setModel(QAbstractItemModel *model)
+{
+    QTreeView::setModel(model);
+    resizeColumnToContents(0); // Number
+    resizeColumnToContents(3); // Line
+    resizeColumnToContents(6); // Ignore count
 }
 
 void BreakWindow::contextMenuEvent(QContextMenuEvent *ev)
@@ -564,7 +581,8 @@ void BreakWindow::editBreakpoints(const BreakpointIds &ids)
     BreakHandler *handler = breakHandler();
     const QString oldCondition = QString::fromLatin1(handler->condition(id));
     const QString oldIgnoreCount = QString::number(handler->ignoreCount(id));
-    const QString oldThreadSpec = QString::number(handler->threadSpec(id));
+    const QString oldThreadSpec =
+        BreakHandler::displayFromThreadSpec(handler->threadSpec(id));
 
     ui.lineEditCondition->setText(oldCondition);
     ui.lineEditIgnoreCount->setText(oldIgnoreCount);
@@ -584,7 +602,8 @@ void BreakWindow::editBreakpoints(const BreakpointIds &ids)
     foreach (const BreakpointId id, ids) {
         handler->setCondition(id, newCondition.toLatin1());
         handler->setIgnoreCount(id, newIgnoreCount.toInt());
-        handler->setThreadSpec(id, newThreadSpec.toInt());
+        handler->setThreadSpec(id,
+            BreakHandler::threadSpecFromDisplay(newThreadSpec));
     }
 }
 

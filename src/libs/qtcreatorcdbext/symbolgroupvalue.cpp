@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +42,8 @@ SymbolGroupValue::SymbolGroupValue(SymbolGroupNode *node,
                                    const SymbolGroupValueContext &ctx) :
     m_node(node), m_context(ctx)
 {
+    if (m_node && !m_node->isMemoryAccessible()) // Invalid if no value
+        m_node = 0;
 }
 
 SymbolGroupValue::SymbolGroupValue() :
@@ -54,7 +60,8 @@ SymbolGroupValue SymbolGroupValue::operator[](unsigned index) const
 {
     if (ensureExpanded())
         if (index < m_node->children().size())
-            return SymbolGroupValue(m_node->children().at(index), m_context);
+            if (SymbolGroupNode *n = m_node->childAt(index)->asSymbolGroupNode())
+                return SymbolGroupValue(n, m_context);
     return SymbolGroupValue();
 }
 
@@ -78,14 +85,20 @@ bool SymbolGroupValue::ensureExpanded() const
 SymbolGroupValue SymbolGroupValue::operator[](const char *name) const
 {
     if (ensureExpanded())
-        if (SymbolGroupNode *child = m_node->childByIName(name))
-            return SymbolGroupValue(child, m_context);
+        if (AbstractSymbolGroupNode *child = m_node->childByIName(name))
+            if (SymbolGroupNode *n = child->asSymbolGroupNode())
+                return SymbolGroupValue(n, m_context);
     return SymbolGroupValue();
 }
 
 std::string SymbolGroupValue::type() const
 {
     return isValid() ? m_node->type() : std::string();
+}
+
+std::string SymbolGroupValue::name() const
+{
+    return isValid() ? m_node->name() : std::string();
 }
 
 unsigned SymbolGroupValue::size() const
@@ -180,15 +193,28 @@ SymbolGroupValue SymbolGroupValue::pointerTypeCast(const char *type) const
 
 SymbolGroupValue SymbolGroupValue::typeCastedValue(ULONG64 address, const char *type) const
 {
-    if (address) {
-        SymbolGroup *sg = m_node->symbolGroup();
-        std::ostringstream str;
-        str << '(' << type << ")(" << std::showbase << std::hex << address << ')';
-        if (SymbolGroupNode *node = sg->addSymbol(str.str(),
-                                                  additionalSymbolIname(sg),
-                                                  &m_errorMessage))
-            return SymbolGroupValue(node, m_context);
-    }
+    if (!address)
+        return SymbolGroupValue();
+    const size_t len = strlen(type);
+    if (!len)
+        return SymbolGroupValue();
+    const bool nonPointer = type[len - 1] != '*';
+    SymbolGroup *sg = m_node->symbolGroup();
+    // A bit of magic: For desired pointer types, we can do
+    //     'Foo *' -> '(Foo *)(address)'.
+    // For non-pointers, we need to de-reference:
+    //      'Foo' -> '*(Foo *)(address)'
+    std::ostringstream str;
+    if (nonPointer)
+        str << '*';
+    str << '(' << type;
+    if (nonPointer)
+        str << " *";
+    str << ")(" << std::showbase << std::hex << address << ')';
+    if (SymbolGroupNode *node = sg->addSymbol(str.str(),
+                                              additionalSymbolIname(sg),
+                                              &m_errorMessage))
+        return SymbolGroupValue(node, m_context);
     return SymbolGroupValue();
 }
 
@@ -223,9 +249,7 @@ bool SymbolGroupValue::isPointerType(const std::string &t)
 
 unsigned SymbolGroupValue::pointerSize()
 {
-    static unsigned ps = 0;
-    if (!ps)
-        ps = SymbolGroupValue::sizeOf("char *");
+    static const unsigned ps = SymbolGroupValue::sizeOf("char *");
     return ps;
 }
 
@@ -298,6 +322,17 @@ std::vector<std::string> SymbolGroupValue::innerTypesOf(const std::string &t)
         }
     }
     return rc;
+}
+
+std::ostream &operator<<(std::ostream &str, const SymbolGroupValue &v)
+{
+    if (v) {
+        str << '\'' << v.name() << "' 0x" << std::showbase << std::hex << v.address() <<
+               std::dec << ' ' << v.type() << ": '" << wStringToString(v.value()) << '\'';
+    } else {
+        str << "Invalid value '" << v.error() << '\'';
+    }
+    return str;
 }
 
 // -------------------- Simple dumping helpers
@@ -455,6 +490,10 @@ static KnownType knownTypeHelper(const std::string &type, std::string::size_type
         case 9:
             if (!type.compare(qPos, 9, "QMultiMap"))
                 return KT_QMultiMap;
+            break;
+        case 10:
+            if (!type.compare(qPos, 10, "QMultiHash"))
+                return KT_QMultiHash;
             break;
         case 11:
             if (!type.compare(qPos, 11, "QLinkedList"))
@@ -1086,6 +1125,7 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
                         std::wstring *s, int *knownTypeIn /* = 0 */,
                         int *containerSizeIn /* = 0 */)
 {
+    QTC_TRACE_IN
     if (containerSizeIn)
         *containerSizeIn = -1;
     // Check for class types and strip pointer types (references appear as pointers as well)
@@ -1094,8 +1134,10 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     if (knownTypeIn)
         *knownTypeIn = kt;
 
-    if (kt == KT_Unknown)
+    if (kt == KT_Unknown || !(kt & KT_HasSimpleDumper)) {
+        QTC_TRACE_OUT
         return SymbolGroupNode::SimpleDumperNotApplicable;
+    }
 
     const SymbolGroupValue v(n, ctx);
     // Simple dump of size for containers
@@ -1175,5 +1217,6 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     }
     if (rc == SymbolGroupNode::SimpleDumperOk)
         *s = str.str();
+    QTC_TRACE_OUT
     return rc;
 }

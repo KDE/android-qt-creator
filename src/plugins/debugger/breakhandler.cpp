@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -80,6 +84,12 @@ QIcon BreakHandler::pendingBreakpointIcon()
 QIcon BreakHandler::watchpointIcon()
 {
     static QIcon icon(_(":/debugger/images/watchpoint.png"));
+    return icon;
+}
+
+QIcon BreakHandler::tracepointIcon()
+{
+    static QIcon icon(_(":/debugger/images/tracepoint.png"));
     return icon;
 }
 
@@ -261,6 +271,8 @@ void BreakHandler::saveBreakpoints()
             map.insert(_("disabled"), _("1"));
         if (data.useFullPath)
             map.insert(_("usefullpath"), _("1"));
+        if (data.tracepoint)
+            map.insert(_("tracepoint"), _("1"));
         list.append(map);
     }
     debuggerCore()->setSessionValue("Breakpoints", list);
@@ -304,6 +316,9 @@ void BreakHandler::loadBreakpoints()
         v = map.value(_("usefullpath"));
         if (v.isValid())
             data.useFullPath = bool(v.toInt());
+        v = map.value(_("tracepoint"));
+        if (v.isValid())
+            data.tracepoint = bool(v.toInt());
         v = map.value(_("type"));
         if (v.isValid() && v.toInt() != UnknownType)
             data.type = BreakpointType(v.toInt());
@@ -375,9 +390,16 @@ Qt::ItemFlags BreakHandler::flags(const QModelIndex &index) const
 //    }
 }
 
-static QString threadString(int spec)
+QString BreakHandler::displayFromThreadSpec(int spec)
 {
-    return spec == 0 ? BreakHandler::tr("(all)") : QString::number(spec);
+    return spec == -1 ? BreakHandler::tr("(all)") : QString::number(spec);
+}
+
+int BreakHandler::threadSpecFromDisplay(const QString &str)
+{
+    bool ok = false;
+    int result = str.toInt(&ok);
+    return ok ? result : -1;
 }
 
 QVariant BreakHandler::data(const QModelIndex &mi, int role) const
@@ -444,7 +466,7 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
                 //if (data.multiple && str.isEmpty() && !response.fileName.isEmpty())
                 //    str = response.fileName;
                 if (!str.isEmpty())
-                    return str;
+                    return QDir::toNativeSeparators(str);
                 return empty;
             }
             break;
@@ -494,11 +516,11 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
             break;
         case 7:
             if (role == Qt::DisplayRole)
-                return threadString(orig ? data.threadSpec : response.threadSpec);
+                return displayFromThreadSpec(orig ? data.threadSpec : response.threadSpec);
             if (role == Qt::ToolTipRole)
                 return tr("Breakpoint will only be hit in the specified thread(s).");
             if (role == Qt::UserRole + 1)
-                return data.threadSpec;
+                return displayFromThreadSpec(data.threadSpec);
             break;
     }
     if (role == Qt::ToolTipRole)
@@ -527,8 +549,10 @@ void BreakHandler::setter(BreakpointId id, const type &value) \
     if (it->data.getter == value) \
         return; \
     it->data.getter = value; \
-    it->state = BreakpointChangeRequested; \
-    scheduleSynchronization(); \
+    if (it->state != BreakpointNew) { \
+        it->state = BreakpointChangeRequested; \
+        scheduleSynchronization(); \
+    } \
 }
 
 #define PROPERTY(type, getter, setter) \
@@ -561,6 +585,26 @@ void BreakHandler::setEnabled(BreakpointId id, bool on)
     if (it->data.enabled == on)
         return;
     it->data.enabled = on;
+    it->destroyMarker();
+    it->state = BreakpointChangeRequested;
+    updateMarker(id);
+    scheduleSynchronization();
+}
+
+bool BreakHandler::isTracepoint(BreakpointId id) const
+{
+    ConstIterator it = m_storage.find(id);
+    QTC_ASSERT(it != m_storage.end(), return false);
+    return it->data.tracepoint;
+}
+
+void BreakHandler::setTracepoint(BreakpointId id, bool on)
+{
+    Iterator it = m_storage.find(id);
+    QTC_ASSERT(it != m_storage.end(), return);
+    if (it->data.tracepoint == on)
+        return;
+    it->data.tracepoint = on;
     it->destroyMarker();
     it->state = BreakpointChangeRequested;
     updateMarker(id);
@@ -852,16 +896,14 @@ void BreakHandler::gotoLocation(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
     QTC_ASSERT(it != m_storage.end(), return);
+    DebuggerEngine *engine = debuggerCore()->currentEngine();
     if (it->data.type == BreakpointByAddress) {
-        StackFrame frame;
-        frame.address = it->data.address;
-        DebuggerEngine *engine = debuggerCore()->currentEngine();
         if (engine)
-            engine->gotoLocation(frame, false);
+            engine->gotoLocation(it->data.address);
     } else {
-        const QString fileName = it->markerFileName();
-        const int lineNumber = it->markerLineNumber();
-        debuggerCore()->gotoLocation(fileName, lineNumber, false);
+        if (engine)
+            engine->gotoLocation(
+                Location(it->markerFileName(), it->markerLineNumber()));
     }
 }
 
@@ -948,7 +990,7 @@ void BreakHandler::setBreakpointData(BreakpointId id, const BreakpointParameters
     if (data == it->data)
         return;
     it->data = data;
-    if (it->needsChange()) {
+    if (it->needsChange() && it->state != BreakpointNew) {
         setState(id, BreakpointChangeRequested);
         scheduleSynchronization();
     } else {
@@ -1026,7 +1068,7 @@ static QString stateToString(BreakpointState state)
         case BreakpointDead: return "Dead";
         default: return "<invalid state>";
     }
-};
+}
 
 bool BreakHandler::BreakpointItem::needsChange() const
 {
@@ -1054,6 +1096,8 @@ QIcon BreakHandler::BreakpointItem::icon() const
 {
     // FIXME: This seems to be called on each cursor blink as soon as the
     // cursor is near a line with a breakpoint marker (+/- 2 lines or so).
+    if (data.isTracepoint())
+        return BreakHandler::tracepointIcon();
     if (data.type == Watchpoint)
         return BreakHandler::watchpointIcon();
     if (!data.enabled)

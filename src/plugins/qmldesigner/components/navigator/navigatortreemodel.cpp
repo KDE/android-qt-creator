@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -180,7 +184,7 @@ NavigatorTreeModel::ItemRow NavigatorTreeModel::createItemRow(const ModelNode &n
 {
     Q_ASSERT(node.isValid());
 
-    uint hash = qHash(node);
+    uint hash = node.internalId();
 
     const bool dropEnabled = node.metaInfo().isValid();
 
@@ -300,7 +304,7 @@ void NavigatorTreeModel::handleChangedItem(QStandardItem *item)
         return;
 
     uint nodeHash = item->data(NavigatorRole).toUInt();
-    Q_ASSERT(nodeHash && containsNodeHash(nodeHash));
+    Q_ASSERT(containsNodeHash(nodeHash));
     ModelNode node = nodeForHash(nodeHash);
 
     ItemRow itemRow = itemRowForNode(node);
@@ -399,7 +403,7 @@ ModelNode NavigatorTreeModel::nodeForIndex(const QModelIndex &index) const
 
 bool NavigatorTreeModel::isInTree(const ModelNode &node) const
 {
-    return m_nodeHash.keys().contains(qHash(node));
+    return m_nodeHash.keys().contains(node.internalId());
 }
 
 bool NavigatorTreeModel::isNodeInvisible(const QModelIndex &index) const
@@ -423,7 +427,7 @@ bool NavigatorTreeModel::isNodeInvisible(const ModelNode &node) const
 void NavigatorTreeModel::addSubTree(const ModelNode &node)
 {
     Q_ASSERT(node.isValid());
-    Q_ASSERT(!containsNodeHash(qHash(node)));
+    Q_ASSERT(!containsNodeHash(node.internalId()));
 
     //updateItemRow(node, newRow);
 
@@ -434,7 +438,7 @@ void NavigatorTreeModel::addSubTree(const ModelNode &node)
     }
 
     ItemRow newRow = createItemRow(node);
-    m_nodeHash.insert(qHash(node), node);
+    m_nodeHash.insert(node.internalId(), node);
     m_nodeItemHash.insert(node, newRow);
 
     updateItemRow(node, newRow);
@@ -481,7 +485,7 @@ void NavigatorTreeModel::removeSubTree(const ModelNode &node)
 
     qDeleteAll(rowList);
 
-    m_nodeHash.remove(qHash(node));
+    m_nodeHash.remove(node.internalId());
     m_nodeItemHash.remove(node);
 }
 

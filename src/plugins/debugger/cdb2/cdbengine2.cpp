@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -71,8 +75,8 @@
 
 #include <cctype>
 
-Q_DECLARE_METATYPE(Debugger::Internal::DisassemblerViewAgent*)
-Q_DECLARE_METATYPE(Debugger::Internal::MemoryViewAgent*)
+Q_DECLARE_METATYPE(Debugger::Internal::DisassemblerAgent*)
+Q_DECLARE_METATYPE(Debugger::Internal::MemoryAgent*)
 
 enum { debug = 0 };
 enum { debugLocals = 0 };
@@ -115,11 +119,11 @@ static const char localsPrefixC[] = "local.";
 using namespace Debugger::Internal;
 
 struct MemoryViewCookie {
-    explicit MemoryViewCookie(MemoryViewAgent *a = 0, QObject *e = 0,
+    explicit MemoryViewCookie(MemoryAgent *a = 0, QObject *e = 0,
                               quint64 addr = 0, quint64 l = 0) :
         agent(a), editorToken(e), address(addr), length(l) {}
 
-    MemoryViewAgent *agent;
+    MemoryAgent *agent;
     QObject *editorToken;
     quint64 address;
     quint64 length;
@@ -520,7 +524,14 @@ void CdbEngine::runEngine()
 {
     if (debug)
         qDebug("runEngine");
+    foreach (const QString &breakEvent, m_options->breakEvents)
+            postCommand(QByteArray("sxe ") + breakEvent.toAscii(), 0);
     postCommand("g", 0);
+}
+
+bool CdbEngine::commandsPending() const
+{
+    return !m_builtinCommandQueue.isEmpty() || !m_extensionCommandQueue.isEmpty();
 }
 
 void CdbEngine::shutdownInferior()
@@ -535,7 +546,7 @@ void CdbEngine::shutdownInferior()
         notifyInferiorShutdownOk();
         return;
     }
-    if (!canInterruptInferior()) {
+    if (!canInterruptInferior() || commandsPending()) {
         notifyInferiorShutdownFailed();
         return;
     }
@@ -562,8 +573,10 @@ void CdbEngine::shutdownInferior()
 void CdbEngine::shutdownEngine()
 {
     if (debug)
-        qDebug("CdbEngine::shutdownEngine in state '%s', process running %d",
-               stateName(state()), isCdbProcessRunning());
+        qDebug("CdbEngine::shutdownEngine in state '%s', process running %d,"
+               "accessible=%d,commands pending=%d",
+               stateName(state()), isCdbProcessRunning(), m_accessible,
+               commandsPending());
 
     if (!isCdbProcessRunning()) { // Direct launch: Terminated with process.
         if (debug)
@@ -572,8 +585,12 @@ void CdbEngine::shutdownEngine()
         return;
     }
 
-    // detach: Wait for debugger to finish.
-    if (m_accessible) {
+    // No longer trigger anything from messages
+    disconnect(&m_process, SIGNAL(readyReadStandardOutput()), this, 0);
+    disconnect(&m_process, SIGNAL(readyReadStandardError()), this, 0);
+    // Go for kill if there are commands pending.
+    if (m_accessible && !commandsPending()) {
+        // detach: Wait for debugger to finish.
         if (startParameters().startMode == AttachExternal)
             detachDebugger();
         // Remote requires a bit more force to quit.
@@ -818,7 +835,7 @@ void CdbEngine::handleJumpToLineAddressResolution(const CdbBuiltinCommandPtr &cm
     // PC-register depending on 64/32bit.
     str << "r " << (m_options->is64bit ? "rip" : "eip") << "=0x" << answer;
     postCommand(registerCmd, 0);
-    gotoLocation(cookie.fileName, cookie.lineNumber, true);
+    gotoLocation(Location(cookie.fileName, cookie.lineNumber));
 }
 
 void CdbEngine::assignValueInDebugger(const Debugger::Internal::WatchData *w, const QString &expr, const QVariant &value)
@@ -966,13 +983,13 @@ void CdbEngine::activateFrame(int index)
         watchHandler()->endCycle();
         QAction *assemblerAction = theAssemblerAction();
         if (assemblerAction->isChecked()) {
-            gotoLocation(frame, true);
+            gotoLocation(frame);
         } else {
             assemblerAction->trigger(); // Seems to trigger update
         }
         return;
     }
-    gotoLocation(frame, true);
+    gotoLocation(frame);
     // Watchers: Initial expand, get uninitialized and query
     QByteArray arguments;
     ByteArrayInputStream str(arguments);
@@ -1022,30 +1039,33 @@ void CdbEngine::selectThread(int index)
     postBuiltinCommand(cmd, 0, &CdbEngine::dummyHandler, CommandListStack);
 }
 
-void CdbEngine::fetchDisassembler(Debugger::Internal::DisassemblerViewAgent *agent)
+void CdbEngine::fetchDisassembler(Debugger::Internal::DisassemblerAgent *agent)
 {
     QTC_ASSERT(m_accessible, return;)
     QByteArray cmd;
     ByteArrayInputStream str(cmd);
     str <<  "u " << hex << hexPrefixOn << agent->address() << " L40";
-    const QVariant cookie = qVariantFromValue<Debugger::Internal::DisassemblerViewAgent*>(agent);
+    const QVariant cookie = qVariantFromValue<Debugger::Internal::DisassemblerAgent*>(agent);
     postBuiltinCommand(cmd, 0, &CdbEngine::handleDisassembler, 0, cookie);
 }
 
 // Parse: "00000000`77606060 cc              int     3"
 void CdbEngine::handleDisassembler(const CdbBuiltinCommandPtr &command)
 {
-    QTC_ASSERT(qVariantCanConvert<Debugger::Internal::DisassemblerViewAgent*>(command->cookie), return;)
-    Debugger::Internal::DisassemblerViewAgent *agent = qvariant_cast<Debugger::Internal::DisassemblerViewAgent*>(command->cookie);
+    QTC_ASSERT(qVariantCanConvert<Debugger::Internal::DisassemblerAgent*>(command->cookie), return;)
+    Debugger::Internal::DisassemblerAgent *agent = qvariant_cast<Debugger::Internal::DisassemblerAgent*>(command->cookie);
     DisassemblerLines disassemblerLines;
     foreach(const QByteArray &line, command->reply)
         disassemblerLines.appendLine(DisassemblerLine(QString::fromLatin1(line)));
     agent->setContents(disassemblerLines);
 }
 
-void CdbEngine::fetchMemory(Debugger::Internal::MemoryViewAgent *agent, QObject *editor, quint64 addr, quint64 length)
+void CdbEngine::fetchMemory(Debugger::Internal::MemoryAgent *agent, QObject *editor, quint64 addr, quint64 length)
 {
-    QTC_ASSERT(m_accessible, return;)
+    if (!m_accessible) {
+        qWarning("Internal error: Attempt to read memory from inaccessible session: %s", Q_FUNC_INFO);
+        return;
+    }
     if (debug)
         qDebug("CdbEngine::fetchMemory %llu bytes from 0x%llx", length, addr);
 
@@ -1189,20 +1209,26 @@ void CdbEngine::handleLocals(const CdbExtensionCommandPtr &reply)
 {
     if (reply->success) {
         QList<Debugger::Internal::WatchData> watchData;
-        if (Debugger::Internal::QtDumperHelper::parseValue(reply->reply.constData(), &watchData)) {
-            for (int i = 0; i < watchData.size(); i++)
-                watchData[i].setAllUnneeded();
-            if (debug > 1) {
-                QDebug nsp = qDebug().nospace();
-                nsp << "Obtained " << watchData.size() << " items:\n";
-                foreach (const Debugger::Internal::WatchData &wd, watchData)
-                    nsp << wd.toString() <<'\n';
-            }
-            watchHandler()->insertBulkData(watchData);
-            watchHandler()->endCycle();
-        } else {
-            showMessage(QString::fromLatin1("Parse error in locals response."), LogError);
-            qWarning("Parse error in locals response:\n%s", reply->reply.constData());
+        GdbMi root;
+        root.fromString(reply->reply);
+        QTC_ASSERT(root.isList(), return ; )
+        if (debugLocals) {
+            qDebug() << root.toString(true, 4);
+        }
+        // Courtesy of GDB engine
+        foreach (const GdbMi &child, root.children()) {
+            WatchData dummy;
+            dummy.iname = child.findChild("iname").data();
+            dummy.name = QLatin1String(child.findChild("name").data());
+            parseWatchData(watchHandler()->expandedINames(), dummy, child, &watchData);
+        }
+        watchHandler()->insertBulkData(watchData);
+        watchHandler()->endCycle();
+        if (debugLocals) {
+            QDebug nsp = qDebug().nospace();
+            nsp << "Obtained " << watchData.size() << " items:\n";
+            foreach (const Debugger::Internal::WatchData &wd, watchData)
+                nsp << wd.toString() <<'\n';
         }
     } else {
         showMessage(QString::fromLatin1(reply->errorMessage), LogError);
@@ -1314,7 +1340,7 @@ void CdbEngine::handleSessionIdle(const QByteArray &message)
         notifyInferiorSpontaneousStop();
     }
     // Start sequence to get all relevant data. Hack: Avoid module reload?
-    unsigned sequence = CommandListStack;
+    unsigned sequence = CommandListStack|CommandListThreads;
     if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_REGISTER)))
         sequence |= CommandListRegisters;
     if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_MODULES)))
@@ -1345,6 +1371,10 @@ void CdbEngine::handleSessionIdle(const QByteArray &message)
         WinException exception;
         exception.fromGdbMI(stopReason);
 #ifdef Q_OS_WIN
+        // It is possible to hit on a startup trap while stepping (if something
+        // pulls DLLs. Avoid showing a 'stopped' Message box.
+        if (exception.exceptionCode == winExceptionStartupCompleteTrap)
+            return;
         if (Debugger::Internal::isDebuggerWinException(exception.exceptionCode)) {
             showStatusMessage(msgInterrupted());
             return;
@@ -1839,7 +1869,7 @@ void CdbEngine::handleStackTrace(const CdbExtensionCommandPtr &command)
         for (int i = 0; i < count; i++) {
             if (!frames.at(i).file.isEmpty()) {
                 frames[i].file = QDir::cleanPath(normalizeFileName(frames.at(i).file));
-                if (current == -1)
+                if (current == -1 && frames[i].usable)
                     current = i;
             }
         }

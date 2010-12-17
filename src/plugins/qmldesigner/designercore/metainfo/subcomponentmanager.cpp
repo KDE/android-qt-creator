@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -115,7 +119,6 @@ SubComponentManagerPrivate::SubComponentManagerPrivate(MetaInfo metaInfo, SubCom
         m_metaInfo(metaInfo)
 {
     connect(&m_watcher, SIGNAL(directoryChanged(QString)), this, SLOT(parseDirectory(QString)));
-    connect(&m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(parseFile(QString)));
 }
 
 void SubComponentManagerPrivate::addImport(int pos, const QDeclarativeDomImport &import)
@@ -165,7 +168,6 @@ void SubComponentManagerPrivate::removeImport(int pos)
 
         foreach (const QFileInfo &monitoredFile, watchedFiles(canonicalDirPath)) {
             if (!m_dirToQualifier.contains(canonicalDirPath))
-                m_watcher.removePath(monitoredFile.filePath());
             unregisterQmlFile(monitoredFile, import.qualifier());
         }
     } else {
@@ -252,14 +254,12 @@ void SubComponentManagerPrivate::parseDirectory(const QString &canonicalDirPath,
         }
         // oldFileInfo > newFileInfo
         parseFile(newFileInfo.filePath(), addToLibrary, qualification);
-        m_watcher.addPath(oldFileInfo.filePath());
         ++newIter;
     }
 
     while (oldIter != monitoredList.constEnd()) {
         foreach (const QString &qualifier, m_dirToQualifier.value(canonicalDirPath))
             unregisterQmlFile(*oldIter, qualifier);
-        m_watcher.removePath(oldIter->filePath());
         ++oldIter;
     }
 
@@ -267,7 +267,6 @@ void SubComponentManagerPrivate::parseDirectory(const QString &canonicalDirPath,
         parseFile(newIter->filePath(), addToLibrary, qualification);
         if (debug)
             qDebug() << "m_watcher.addPath(" << newIter->filePath() << ')';
-        m_watcher.addPath(newIter->filePath());
         ++newIter;
     }
 }
@@ -351,7 +350,9 @@ void SubComponentManagerPrivate::registerQmlFile(const QFileInfo &fileInfo, cons
         itemLibraryEntry.setType(componentName, -1, -1);
         itemLibraryEntry.setName(componentName);
         itemLibraryEntry.setCategory("QML Components");
-        m_metaInfo.itemLibraryInfo()->addEntry(itemLibraryEntry);
+
+        if (!m_metaInfo.itemLibraryInfo()->containsEntry(itemLibraryEntry))
+            m_metaInfo.itemLibraryInfo()->addEntry(itemLibraryEntry);
     }
 }
 
@@ -434,7 +435,6 @@ void SubComponentManager::update(const QUrl &filePath, const QList<QDeclarativeD
         }
 
         if (!newDir.filePath().isEmpty()) {
-            m_d->m_watcher.addPath(newDir.filePath());
             m_d->m_dirToQualifier.insertMulti(newDir.canonicalFilePath(), QString());
         }
     }

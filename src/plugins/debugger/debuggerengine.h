@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +38,7 @@
 #include "debuggerconstants.h"
 #include "moduleshandler.h" // For 'Symbols'
 #include "breakpoint.h" // For 'BreakpointId'
+#include "stackframe.h"
 
 #include <coreplugin/ssh/sshconnection.h>
 
@@ -76,7 +81,6 @@ public:
     QString workingDirectory;
     qint64 attachPID;
     bool useTerminal;
-    bool breakAtMain;
 
     // Used by AttachCrashedExternal.
     QString crashParameter;
@@ -122,8 +126,8 @@ DEBUGGER_EXPORT QDebug operator<<(QDebug str, DebuggerState state);
 namespace Internal {
 
 class DebuggerPluginPrivate;
-class DisassemblerViewAgent;
-class MemoryViewAgent;
+class DisassemblerAgent;
+class MemoryAgent;
 class WatchData;
 class BreakHandler;
 class ModulesHandler;
@@ -141,6 +145,42 @@ struct WatchUpdateFlags
     WatchUpdateFlags() : tryIncremental(false) {}
     bool tryIncremental;
 };
+
+class Location
+{
+public:
+    Location() { init(); }
+    Location(quint64 address) { init(); m_address = address; }
+    Location(const QString &file) { init(); m_fileName = file; }
+    Location(const QString &file, int line, bool marker = true)
+        { init(); m_lineNumber = line; m_fileName = file; m_needsMarker = marker; }
+    Location(const StackFrame &frame, bool marker = true) //: m_frame(frame)
+        { init(); m_fileName = frame.file; m_lineNumber = frame.line;
+          m_needsMarker = marker; m_functionName = frame.function;
+          m_hasDebugInfo = frame.isUsable(); m_address = frame.address; }
+    QString fileName() const { return m_fileName; }
+    QString functionName() const { return m_functionName; }
+    int lineNumber() const { return m_lineNumber; }
+    void setNeedsRaise(bool on) { m_needsRaise = on; }
+    void setNeedsMarker(bool on) { m_needsMarker = on; }
+    void setFileName(const QString &fileName) { m_fileName = fileName; }
+    bool needsRaise() const { return m_needsRaise; }
+    bool needsMarker() const { return m_needsMarker; }
+    bool hasDebugInfo() const { return m_hasDebugInfo; }
+    quint64 address() const { return m_address; }
+
+private:
+    void init() { m_needsMarker = false; m_needsRaise = true; m_lineNumber = -1;
+        m_address = 0; m_hasDebugInfo = true; }
+    bool m_needsMarker;
+    bool m_needsRaise;
+    bool m_hasDebugInfo;
+    int m_lineNumber;
+    QString m_fileName;
+    QString m_functionName;
+    quint64 m_address;
+};
+
 
 } // namespace Internal
 
@@ -164,10 +204,11 @@ public:
 
     virtual void watchPoint(const QPoint &);
     virtual void openMemoryView(quint64 addr);
-    virtual void fetchMemory(Internal::MemoryViewAgent *, QObject *,
+    virtual void fetchMemory(Internal::MemoryAgent *, QObject *,
                              quint64 addr, quint64 length);
-    virtual void openDisassemblerView(const Internal::StackFrame &frame);
-    virtual void fetchDisassembler(Internal::DisassemblerViewAgent *);
+    virtual void updateMemoryViews();
+    virtual void openDisassemblerView(const Internal::Location &location);
+    virtual void fetchDisassembler(Internal::DisassemblerAgent *);
     virtual void activateFrame(int index);
 
     virtual void reloadModules();
@@ -256,9 +297,6 @@ public:
     bool debuggerActionsEnabled() const;
     static bool debuggerActionsEnabled(DebuggerState state);
 
-    void breakByFunction(const QString &functionName);
-    void breakByFunctionMain();
-
     DebuggerState state() const;
     DebuggerState lastGoodState() const;
     DebuggerState targetState() const;
@@ -278,12 +316,12 @@ public:
     void handleCommand(int role, const QVariant &value);
 
     // Convenience
-    Q_SLOT void showMessage(const QString &msg, int channel = LogDebug, int timeout = -1) const;
+    Q_SLOT void showMessage(const QString &msg, int channel = LogDebug,
+        int timeout = -1) const;
     Q_SLOT void showStatusMessage(const QString &msg, int timeout = -1) const;
 
     void resetLocation();
-    virtual void gotoLocation(const QString &fileName, int lineNumber, bool setMarker);
-    virtual void gotoLocation(const Internal::StackFrame &frame, bool setMarker);
+    virtual void gotoLocation(const Internal::Location &location);
     virtual void quitDebugger(); // called by DebuggerRunControl
 
     virtual void updateViews();
@@ -293,7 +331,7 @@ signals:
     void stateChanged(const DebuggerState &state);
     void updateViewsRequested();
     /*
-     * For "external" clients of a debugger run control that need to do
+     * For "external" clients of a debugger run control that needs to do
      * further setup before the debugger is started (e.g. Maemo).
      * Afterwards, handleSetupDone() or handleSetupFailed() must be called
      * to continue or abort debugging, respectively.

@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -85,7 +89,7 @@ public:
         RequestUpdateWatchData = 25,
         FetchFrameSource       = 26
     };
-    Q_ENUMS(Function);
+    Q_ENUMS(Function)
 
     void setupEngine();
     void setupInferior();
@@ -105,7 +109,7 @@ public:
     void executeJumpToLine(const QString &fileName, int lineNumber);
     void activateFrame(int index);
     void selectThread(int index);
-    void fetchDisassembler(DisassemblerViewAgent *);
+    void fetchDisassembler(DisassemblerAgent *);
     bool acceptsBreakpoint(BreakpointId) const { return true; } // FIXME
     void insertBreakpoint(BreakpointId id);
     void removeBreakpoint(BreakpointId id);
@@ -129,7 +133,7 @@ private:
     quint64 m_nextMessagePayloadSize;
     quint64 m_cookie;
     QIODevice *m_device;
-    QHash<quint64, DisassemblerViewAgent *> m_frameToDisassemblerAgent;
+    QHash<quint64, DisassemblerAgent *> m_frameToDisassemblerAgent;
     QHash<QString, SourceAgent *> m_sourceAgents;
 };
 

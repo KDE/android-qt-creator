@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -141,7 +145,7 @@ bool GLSLEditorPlugin::initialize(const QStringList & /*arguments*/, QString *er
     Core::ActionManager *am =  core->actionManager();
     Core::ActionContainer *contextMenu = am->createMenu(GLSLEditor::Constants::M_CONTEXT);
     Core::ActionContainer *glslToolsMenu = am->createMenu(Core::Id(Constants::M_TOOLS_GLSL));
-    glslToolsMenu->setEmptyAction(Core::ActionContainer::EA_Hide);
+    glslToolsMenu->setOnAllDisabledBehavior(Core::ActionContainer::Hide);
     QMenu *menu = glslToolsMenu->menu();
     //: GLSL sub-menu in the Tools menu
     menu->setTitle(tr("GLSL"));
@@ -281,7 +285,7 @@ QByteArray GLSLEditorPlugin::glslFile(const QString &fileName)
 void GLSLEditorPlugin::parseGlslFile(const QString &fileName, InitFile *initFile)
 {
     // Parse the builtins for any langugage variant so we can use all keywords.
-    const int variant = GLSL::Lexer::Variant_All;
+    const unsigned variant = GLSL::Lexer::Variant_All;
 
     const QByteArray code = glslFile(fileName);
     initFile->engine = new GLSL::Engine();

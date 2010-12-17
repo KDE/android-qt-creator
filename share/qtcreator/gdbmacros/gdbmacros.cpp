@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -1196,26 +1200,30 @@ static void qDumpQByteArray(QDumper &d)
     qCheckAccess(deref(d.data)); // is the d-ptr de-referenceable and valid
     const QByteArray &ba = *reinterpret_cast<const QByteArray *>(d.data);
 
+    const int size = ba.size();
+    if (size < 0)
+        return;
+
     if (!ba.isEmpty()) {
         qCheckAccess(ba.constData());
-        qCheckAccess(ba.constData() + ba.size());
+        qCheckAccess(ba.constData() + size);
     }
 
     d.beginItem("value");
-    if (ba.size() <= 100)
+    if (size <= 100)
         d.put(ba);
     else
-        d.put(ba.left(100)).put(" <size: ").put(ba.size()).put(", cut...>");
+        d.put(ba.left(100)).put(" <size: ").put(size).put(", cut...>");
     d.endItem();
     d.putItem("valueencoded", "1");
     d.putItem("type", NS"QByteArray");
-    d.putItem("numchild", ba.size());
+    d.putItem("numchild", size);
     if (d.dumpChildren) {
         d.putItem("childtype", "char");
         d.putItem("childnumchild", "0");
         d.beginChildren();
         char buf[20];
-        for (int i = 0; i != ba.size(); ++i) {
+        for (int i = 0; i != size; ++i) {
             unsigned char c = ba.at(i);
             unsigned char u = (isprint(c) && c != '\'' && c != '"') ? c : '?';
             sprintf(buf, "%02x  (%u '%c')", c, c, u);
@@ -2457,7 +2465,7 @@ static const char *qConnectionType(uint type)
 #endif
         };
     return output;
-};
+}
 
 #if QT_VERSION >= 0x040400
 static const ConnectionList &qConnectionList(const QObject *ob, int signalNumber)

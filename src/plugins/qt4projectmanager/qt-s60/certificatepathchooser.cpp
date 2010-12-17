@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -33,6 +37,9 @@
 
 #include "s60certificateinfo.h"
 
+using namespace Qt4ProjectManager;
+using namespace Qt4ProjectManager::Internal;
+
 CertificatePathChooser::CertificatePathChooser(QWidget *parent) :
     Utils::PathChooser(parent)
 {
@@ -40,7 +47,18 @@ CertificatePathChooser::CertificatePathChooser(QWidget *parent) :
 
 bool CertificatePathChooser::validatePath(const QString &path, QString *errorMessage)
 {
-    if (Utils::PathChooser::validatePath(path, errorMessage))
-        return S60CertificateInfo::validateCertificate(path, errorMessage) == S60CertificateInfo::CertificateValid;
+    if (Utils::PathChooser::validatePath(path, errorMessage)) {
+        QScopedPointer<Qt4ProjectManager::Internal::S60CertificateInfo>
+                certInfoPtr(new Qt4ProjectManager::Internal::S60CertificateInfo(path));
+        if (certInfoPtr.data()->validateCertificate()
+                == Qt4ProjectManager::Internal::S60CertificateInfo::CertificateValid) {
+            if (errorMessage)
+                *errorMessage = certInfoPtr.data()->toHtml();
+            return true;
+        } else {
+            if (errorMessage)
+                *errorMessage = certInfoPtr.data()->errorString();
+        }
+    }
     return false;
 }

@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -146,7 +150,7 @@ Q_GLOBAL_STATIC_WITH_INITIALIZER(Qt4NodeStaticData, qt4NodeStaticData, {
     x->projectIcon.addPixmap(projectPixmap);
 
     qAddPostRoutine(clearQt4NodeStaticData);
-});
+})
 
 static void clearQt4NodeStaticData()
 {
@@ -1256,6 +1260,48 @@ QString Qt4ProFileNode::makefile() const
     return m_varValues[Makefile].first();
 }
 
+QStringList Qt4ProFileNode::symbianCapabilities() const
+{
+    QStringList lowerCasedResult;
+
+    QStringList all;
+    all << "LocalServices" << "UserEnvironment" << "NetworkServices"
+        << "ReadUserData" << "WriteUserData" << "Location" << "SwEvent"
+        << "SurroundingsDD" << "ProtServ" << "PowerMgmt" << "ReadDeviceData"
+        << "WriteDeviceData" << "TrustedUI" << "NetworkControl"
+        << "MultimediaDD"<< "CommDD" << "DiskAdmin" << "AllFiles" << "DRM" << "TCB";
+
+    foreach (const QString &cap, m_varValues[SymbianCapabilities]) {
+        QString capability = cap.toLower();
+        if (capability.startsWith("-")) {
+            lowerCasedResult.removeAll(capability.mid(1));
+        } else if (capability == "all") {
+            foreach (const QString &a, all)
+                if (!lowerCasedResult.contains(a, Qt::CaseInsensitive))
+                    lowerCasedResult << a.toLower();
+        } else {
+            lowerCasedResult << cap;
+        }
+    }
+    QStringList result; //let's make the result pretty
+    int index;
+    foreach (QString lowerCase, lowerCasedResult) {
+        for (int i = 0; i < all.count(); ++i) {
+            index = -1;
+            if (QString::compare(lowerCase, all.at(i),
+                                 Qt::CaseInsensitive) == 0) {
+                index = i;
+                break;
+            }
+        }
+        if (index != -1)
+            result << all.at(index);
+        else
+            result << lowerCase; //strange capability!
+    }
+    return result;
+}
+
 /*!
   \class Qt4ProFileNode
   Implements abstract ProjectNode class
@@ -1706,9 +1752,16 @@ void Qt4ProFileNode::applyEvaluate(bool parseResult, bool async)
     newVarValues[QmlImportPathVar] = m_readerExact->absolutePathValues(
                 QLatin1String("QML_IMPORT_PATH"), m_projectDir);
     newVarValues[Makefile] = m_readerExact->values("MAKEFILE");
+    // We use the cumulative parse so that we get the capabilities for symbian even if
+    // a different target is selected and the capabilities are set in a symbian scope
+
+    if (m_readerCumulative)
+        newVarValues[SymbianCapabilities] = m_readerCumulative->values("TARGET.CAPABILITY");
+
 
     if (m_varValues != newVarValues) {
         m_varValues = newVarValues;
+
         foreach (NodesWatcher *watcher, watchers())
             if (Qt4NodesWatcher *qt4Watcher = qobject_cast<Qt4NodesWatcher*>(watcher))
                 emit qt4Watcher->variablesChanged(this, m_varValues, newVarValues);
@@ -2050,11 +2103,12 @@ void Qt4ProFileNode::setupInstallsList(const ProFileReader *reader)
             m_installsList.targetPath = itemPath;
         } else {
             if (itemFiles.isEmpty()) {
-                if (!reader->values(item + QLatin1String(".CONFIG"))
-                    .contains(QLatin1String("no_check_exist"))) {
-                    qDebug("%s: Ignoring INSTALLS item '%s', because it has no files.",
-                        qPrintable(m_projectFilePath), qPrintable(item));
-                }
+                // TODO: Fix QMAKE_SUBSTITUTES handling in pro file reader, then uncomment again
+//                if (!reader->values(item + QLatin1String(".CONFIG"))
+//                    .contains(QLatin1String("no_check_exist"))) {
+//                    qDebug("%s: Ignoring INSTALLS item '%s', because it has no files.",
+//                        qPrintable(m_projectFilePath), qPrintable(item));
+//                }
                 continue;
             }
             m_installsList.items << InstallsItem(itemPath, itemFiles);

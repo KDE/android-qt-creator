@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -283,7 +287,7 @@ struct CommandItem
     QTreeWidgetItem *m_item;
 };
 
-Q_DECLARE_METATYPE(CommandItem *);
+Q_DECLARE_METATYPE(CommandItem *)
 
 namespace FakeVim {
 namespace Internal {
@@ -753,8 +757,8 @@ static int moveRightWeight(const QRect &cursor, const QRect &other)
     if (dx < 0)
         return -1;
     int w = 10000 * dx;
-    int dy1 = cursor.top() - other.bottom(); 
-    int dy2 = cursor.bottom() - other.top(); 
+    int dy1 = cursor.top() - other.bottom();
+    int dy2 = cursor.bottom() - other.top();
     w += dy1 * (dy1 > 0);
     w += dy2 * (dy2 > 0);
     qDebug() << "      DX: " << dx << dy1 << dy2 << w;
@@ -767,8 +771,8 @@ static int moveLeftWeight(const QRect &cursor, const QRect &other)
     if (dx < 0)
         return -1;
     int w = 10000 * dx;
-    int dy1 = cursor.top() - other.bottom(); 
-    int dy2 = cursor.bottom() - other.top(); 
+    int dy1 = cursor.top() - other.bottom();
+    int dy2 = cursor.bottom() - other.top();
     w += dy1 * (dy1 > 0);
     w += dy2 * (dy2 > 0);
     return w;
@@ -780,8 +784,8 @@ static int moveUpWeight(const QRect &cursor, const QRect &other)
     if (dy < 0)
         return -1;
     int w = 10000 * dy;
-    int dx1 = cursor.left() - other.right(); 
-    int dx2 = cursor.right() - other.left(); 
+    int dx1 = cursor.left() - other.right();
+    int dx2 = cursor.right() - other.left();
     w += dx1 * (dx1 > 0);
     w += dx2 * (dx2 > 0);
     return w;
@@ -793,8 +797,8 @@ static int moveDownWeight(const QRect &cursor, const QRect &other)
     if (dy < 0)
         return -1;
     int w = 10000 * dy;
-    int dx1 = cursor.left() - other.right(); 
-    int dx2 = cursor.right() - other.left(); 
+    int dx1 = cursor.left() - other.right();
+    int dx2 = cursor.right() - other.left();
     w += dx1 * (dx1 > 0);
     w += dx2 * (dx2 > 0);
     return w;
@@ -863,7 +867,7 @@ void FakeVimPluginPrivate::moveSomewhere(DistFunction f)
         QRect editorRect(w->mapToGlobal(w->geometry().topLeft()),
                 w->mapToGlobal(w->geometry().bottomRight()));
         //qDebug() << "   EDITOR: " << editorRect << editor;
-  
+
         int value = f(cursorRect, editorRect);
         if (value != -1 && value < bestValue) {
             bestValue = value;

@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -148,7 +152,7 @@ void QmlAdapter::sendMessage(const QByteArray &msg)
 
 void QmlAdapter::connectionErrorOccurred(QAbstractSocket::SocketError socketError)
 {
-    showConnectionErrorMessage(tr("Error: (%1) %2", "%1=error code, %2=error message")
+    showConnectionStatusMessage(tr("Error: (%1) %2", "%1=error code, %2=error message")
                                 .arg(d->m_conn->error()).arg(d->m_conn->errorString()));
 
     // this is only an error if we are already connected and something goes wrong.
@@ -191,7 +195,6 @@ void QmlAdapter::connectionStateChanged()
 
             if (!d->m_mainClient) {
                 d->m_mainClient = new QDeclarativeEngineDebug(d->m_conn, this);
-                logServiceStatusChange(QLatin1String("QmlObserver"), static_cast<QDeclarativeDebugClient::Status>(d->m_mainClient->status()));
             }
 
             createDebuggerClient();
@@ -218,8 +221,6 @@ void QmlAdapter::createDebuggerClient()
             this, SLOT(sendMessage(QByteArray)));
     connect(d->m_qmlClient, SIGNAL(messageWasReceived(QByteArray)),
             d->m_engine.data(), SLOT(messageReceived(QByteArray)));
-
-    logServiceStatusChange(d->m_qmlClient->name(), d->m_qmlClient->status());
 
     //engine->startSuccessful();  // FIXME: AAA: port to new debugger states
 }
@@ -272,7 +273,7 @@ void QmlAdapter::logServiceStatusChange(const QString &service, QDeclarativeDebu
 {
     switch (newStatus) {
     case QDeclarativeDebugClient::Unavailable: {
-        showConnectionErrorMessage(tr("Error: Cannot connect to debug service '%1'. Debugging functionality will be limited.").arg(service));
+        showConnectionErrorMessage(tr("Debug service '%1' became unavailable.").arg(service));
         emit serviceConnectionError(service);
         break;
     }
@@ -286,6 +287,12 @@ void QmlAdapter::logServiceStatusChange(const QString &service, QDeclarativeDebu
         break;
     }
     }
+}
+
+void QmlAdapter::logServiceActivity(const QString &service, const QString &logMessage)
+{
+    if (!d->m_engine.isNull())
+        d->m_engine.data()->showMessage(QString("%1 %2").arg(service, logMessage), LogDebug);
 }
 
 void QmlAdapter::flushSendBuffer()

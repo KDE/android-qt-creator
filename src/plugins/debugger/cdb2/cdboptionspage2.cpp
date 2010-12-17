@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,6 +52,7 @@
 #include <QtCore/QTimer>
 #include <QtCore/QProcess>
 #include <QtGui/QMessageBox>
+#include <QtGui/QLineEdit>
 #include <QtGui/QDesktopServices>
 
 static const char *dgbToolsDownloadLink32C = "http://www.microsoft.com/whdc/devtools/debugging/installx86.Mspx";
@@ -55,6 +60,118 @@ static const char *dgbToolsDownloadLink64C = "http://www.microsoft.com/whdc/devt
 
 namespace Debugger {
 namespace Cdb {
+
+struct EventsDescription {
+    const char *abbreviation;
+    bool hasParameter;
+    const char *description;
+};
+
+// Parameters of the "sxe" command
+const EventsDescription eventDescriptions[] =
+{
+    {"eh", false, QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
+                                    "C++ exception")},
+    {"ct", false, QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
+                                    "Thread creation")},
+    {"et", false, QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
+                                    "Thread exit")},
+    {"ld", true,  QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
+                                    "Load Module:")},
+    {"ud", true,  QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
+                                    "Unload Module:")},
+    {"out", true, QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
+                                    "Output:")}
+};
+
+static inline int indexOfEvent(const QString &abbrev)
+{
+    const size_t eventCount = sizeof(eventDescriptions) / sizeof(EventsDescription);
+    for (size_t e = 0; e < eventCount; e++)
+        if (abbrev == QLatin1String(eventDescriptions[e].abbreviation))
+                return int(e);
+    return -1;
+}
+
+CdbBreakEventWidget::CdbBreakEventWidget(QWidget *parent) : QWidget(parent)
+{
+    // 1 column with checkboxes only,
+    // further columns with checkbox + parameter
+    QHBoxLayout *mainLayout = new QHBoxLayout;
+    QVBoxLayout *leftLayout = new QVBoxLayout;
+    QFormLayout *parameterLayout = 0;
+    mainLayout->addLayout(leftLayout);
+    const size_t eventCount = sizeof(eventDescriptions) / sizeof(EventsDescription);
+    for (size_t e = 0; e < eventCount; e++) {
+        QCheckBox *cb = new QCheckBox(tr(eventDescriptions[e].description));
+        QLineEdit *le = 0;
+        if (eventDescriptions[e].hasParameter) {
+            if (!parameterLayout) {
+                parameterLayout = new QFormLayout;
+                mainLayout->addSpacerItem(new QSpacerItem(20, 0, QSizePolicy::MinimumExpanding, QSizePolicy::Ignored));
+                mainLayout->addLayout(parameterLayout);
+            }
+            le = new QLineEdit;
+            parameterLayout->addRow(cb, le);
+            if (parameterLayout->count() >= 4) // New column
+                parameterLayout = 0;
+        } else {
+            leftLayout->addWidget(cb);
+        }
+        m_checkBoxes.push_back(cb);
+        m_lineEdits.push_back(le);
+    }
+    setLayout(mainLayout);
+}
+
+void CdbBreakEventWidget::clear()
+{
+    foreach (QLineEdit *l, m_lineEdits) {
+        if (l)
+            l->clear();
+    }
+    foreach (QCheckBox *c, m_checkBoxes)
+        c->setChecked(false);
+}
+
+void CdbBreakEventWidget::setBreakEvents(const QStringList &l)
+{
+    clear();
+    // Split the list of ("eh", "out:MyOutput")
+    foreach (const QString &evt, l) {
+        const int colonPos = evt.indexOf(QLatin1Char(':'));
+        const QString abbrev = colonPos != -1 ? evt.mid(0, colonPos) : evt;
+        const int index = indexOfEvent(abbrev);
+        if (index != -1)
+            m_checkBoxes.at(index)->setChecked(true);
+        if (colonPos != -1 && m_lineEdits.at(index))
+            m_lineEdits.at(index)->setText(evt.mid(colonPos + 1));
+    }
+}
+
+QString CdbBreakEventWidget::filterText(int i) const
+{
+    return m_lineEdits.at(i) ? m_lineEdits.at(i)->text() : QString();
+}
+
+QStringList CdbBreakEventWidget::breakEvents() const
+{
+    // Compile a list of ("eh", "out:MyOutput")
+    QStringList rc;
+    const int eventCount = sizeof(eventDescriptions) / sizeof(EventsDescription);
+    for (int e = 0; e < eventCount; e++) {
+        if (m_checkBoxes.at(e)->isChecked()) {
+            const QString filter = filterText(e);
+            QString s = QLatin1String(eventDescriptions[e].abbreviation);
+            if (!filter.isEmpty()) {
+                s += QLatin1Char(':');
+                s += filter;
+            }
+            rc.push_back(s);
+        }
+    }
+    return rc;
+}
 
 static inline QString msgPathConfigNote()
 {
@@ -74,7 +191,8 @@ static inline QString msgPathConfigNote()
 }
 
 CdbOptionsPageWidget::CdbOptionsPageWidget(QWidget *parent) :
-    QWidget(parent), m_reportTimer(0)
+    QWidget(parent), m_breakEventWidget(new CdbBreakEventWidget),
+    m_reportTimer(0)
 {
     m_ui.setupUi(this);
     m_ui.noteLabel->setText(msgPathConfigNote());
@@ -84,6 +202,9 @@ CdbOptionsPageWidget::CdbOptionsPageWidget(QWidget *parent) :
     m_ui.pathChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
     m_ui.pathChooser->addButton(tr("Autodetect"), this, SLOT(autoDetect()));
     m_ui.cdbPathGroupBox->installEventFilter(this);
+    QVBoxLayout *eventLayout = new QVBoxLayout;
+    eventLayout->addWidget(m_breakEventWidget);
+    m_ui.eventGroupBox->setLayout(eventLayout);
 }
 
 void CdbOptionsPageWidget::setOptions(CdbOptions &o)
@@ -91,8 +212,9 @@ void CdbOptionsPageWidget::setOptions(CdbOptions &o)
     m_ui.pathChooser->setPath(o.executable);
     m_ui.is64BitCheckBox->setChecked(o.is64bit);
     m_ui.cdbPathGroupBox->setChecked(o.enabled);
-    m_ui.symbolPathListEditor->setPathList(o.symbolPaths);
+    setSymbolPaths(o.symbolPaths);
     m_ui.sourcePathListEditor->setPathList(o.sourcePaths);
+    m_breakEventWidget->setBreakEvents(o.breakEvents);
 }
 
 bool CdbOptionsPageWidget::is64Bit() const
@@ -111,9 +233,20 @@ CdbOptions CdbOptionsPageWidget::options() const
     rc.executable = path();
     rc.enabled = m_ui.cdbPathGroupBox->isChecked();
     rc.is64bit = is64Bit();
-    rc.symbolPaths = m_ui.symbolPathListEditor->pathList();
+    rc.symbolPaths = symbolPaths();
     rc.sourcePaths = m_ui.sourcePathListEditor->pathList();
+    rc.breakEvents = m_breakEventWidget->breakEvents();
     return rc;
+}
+
+QStringList CdbOptionsPageWidget::symbolPaths() const
+{
+    return m_ui.symbolPathListEditor->pathList();
+}
+
+void CdbOptionsPageWidget::setSymbolPaths(const QStringList &s)
+{
+    m_ui.symbolPathListEditor->setPathList(s);
 }
 
 void CdbOptionsPageWidget::hideReportLabel()
@@ -136,6 +269,10 @@ void CdbOptionsPageWidget::autoDetect()
         // Now check for the extension library as well.
         const bool allOk = checkInstallation(executable, is64Bit(), &report);
         setReport(report, allOk);
+        // On this occasion, if no symbol paths are specified, check for an
+        // old CDB installation
+        if (symbolPaths().isEmpty())
+            setSymbolPaths(CdbOptions::oldEngineSymbolPaths(Core::ICore::instance()->settings()));
     } else {
         const QString msg = tr("\"Debugging Tools for Windows\" could not be found.");
         const QString details = tr("Checked:\n%1").arg(checkedDirectories.join(QString(QLatin1Char('\n'))));

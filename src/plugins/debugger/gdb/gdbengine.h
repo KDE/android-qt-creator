@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -72,7 +76,7 @@ enum DebuggingHelperState
     DebuggingHelperUninitialized,
     DebuggingHelperLoadTried,
     DebuggingHelperAvailable,
-    DebuggingHelperUnavailable,
+    DebuggingHelperUnavailable
 };
 
 
@@ -182,7 +186,7 @@ private: ////////// Gdb Command Management //////////
     enum GdbCommandFlag {
         NoFlags = 0,
         // The command needs a stopped inferior.
-        NeedsStop = 1, 
+        NeedsStop = 1,
         // No need to wait for the reply before continuing inferior.
         Discardable = 2,
         // Trigger watch model rebuild when no such commands are pending anymore.
@@ -201,7 +205,7 @@ private: ////////// Gdb Command Management //////////
         // This command needs to be send immediately.
         Immediate = 256,
         // This is a command that needs to be wrapped into -interpreter-exec console
-        ConsoleCommand = 512,
+        ConsoleCommand = 512
     };
     Q_DECLARE_FLAGS(GdbCommandFlags, GdbCommandFlag)
     private:
@@ -284,6 +288,7 @@ private: ////////// Gdb Output, State & Capability Handling //////////
     void handleStop0(const GdbMi &data);
     void handleStop1(const GdbResponse &response);
     void handleStop1(const GdbMi &data);
+    Q_SLOT void handleStop2();
     StackFrame parseStackFrame(const GdbMi &mi, int level);
     void resetCommandQueue();
 
@@ -354,6 +359,7 @@ private: ////////// View & Data Stuff //////////
     void handleBreakEnable(const GdbResponse &response);
     void handleBreakInsert1(const GdbResponse &response);
     void handleBreakInsert2(const GdbResponse &response);
+    void handleTraceInsert2(const GdbResponse &response);
     void handleBreakCondition(const GdbResponse &response);
     void handleBreakInfo(const GdbResponse &response);
     void handleBreakThreadSpec(const GdbResponse &response);
@@ -397,7 +403,7 @@ private: ////////// View & Data Stuff //////////
     //
     // Disassembler specific stuff
     //
-    void fetchDisassembler(DisassemblerViewAgent *agent);
+    void fetchDisassembler(DisassemblerAgent *agent);
     void fetchDisassemblerByAddress(const DisassemblerAgentCookie &ac,
         bool useMixedMode);
     void fetchDisassemblerByCli(const DisassemblerAgentCookie &ac,
@@ -455,7 +461,7 @@ private: ////////// View & Data Stuff //////////
     virtual void assignValueInDebugger(const WatchData *data,
         const QString &expr, const QVariant &value);
 
-    virtual void fetchMemory(MemoryViewAgent *agent, QObject *token,
+    virtual void fetchMemory(MemoryAgent *agent, QObject *token,
         quint64 addr, quint64 length);
     void handleFetchMemory(const GdbResponse &response);
 
@@ -524,7 +530,7 @@ private: ////////// View & Data Stuff //////////
     QtDumperHelper m_dumperHelper;
     QString m_gdb;
 
-    // 
+    //
     // Convenience Functions
     //
     QString errorMessage(QProcess::ProcessError error);
@@ -535,6 +541,10 @@ private: ////////// View & Data Stuff //////////
     static QByteArray tooltipIName(const QString &exp);
     QString m_toolTipExpression;
     QPoint m_toolTipPos;
+
+    // For short-circuiting stack and thread list evaluation.
+    bool m_stackNeeded;
+    int m_currentThreadId;
 
     // HACK:
     StackFrame m_targetFrame;

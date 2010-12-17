@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -100,8 +104,9 @@ static const CommandDescription commandDescriptions[] = {
  "Prints inferior process id and hooks up output callbacks.",
  "[-t token]"},
 {"expandlocals", "Expands local variables by iname in symbol group.",
- "[-t token] <frame-number> <iname1-list>\n"
- "iname1-list: Comma-separated list of inames"},
+ "[-t token] [-c] <frame-number> <iname1-list>\n"
+ "iname1-list: Comma-separated list of inames\n"
+ "-c complex dumpers"},
 {"locals",
  "Prints local variables of symbol group in GDBMI or debug format",
  "[-t token] [T formats] [-I formats] [-c] [-h] [-d] [-e expand-list] [-u uninitialized-list]\n<frame-number> [iname]\n"
@@ -247,21 +252,40 @@ extern "C" HRESULT CALLBACK expandlocals(CIDebugClient *client, PCSTR args)
     std::string errorMessage;
 
     int token;
-    const StringVector tokens = commandTokens<StringVector>(args, &token);
+    StringList tokens = commandTokens<StringList>(args, &token);
     StringVector inames;
-    if (tokens.size() == 2u && integerFromString(tokens.front(), &frame)) {
+    bool runComplexDumpers = false;
+    do {
+        if (!tokens.empty() && tokens.front() == "-c") {
+            runComplexDumpers = true;
+            tokens.pop_front();
+        }
+        if (tokens.empty() || !integerFromString(tokens.front(), &frame))  {
+            errorMessage = singleLineUsage(commandDescriptions[CmdExpandlocals]);
+            break;
+        }
+        tokens.pop_front();
+        if (tokens.empty()) {
+            errorMessage = singleLineUsage(commandDescriptions[CmdExpandlocals]);
+            break;
+        }
+        split(tokens.front(), ',', std::back_inserter(inames));
+    } while (false);
+
+    if (errorMessage.empty())
         symGroup = ExtensionContext::instance().symbolGroup(exc.symbols(), exc.threadId(), frame, &errorMessage);
-        split(tokens.at(1), ',', std::back_inserter(inames));
-    } else {
-        errorMessage = singleLineUsage(commandDescriptions[CmdExpandlocals]);
-    }
-    if (symGroup) {
-        const unsigned succeeded = symGroup->expandList(inames, &errorMessage);
-        ExtensionContext::instance().report('R', token, "expandlocals", "%u/%u %s",
-                                            succeeded, unsigned(inames.size()), errorMessage.c_str());
-    } else {
+
+    if (!symGroup) {
         ExtensionContext::instance().report('N', token, "expandlocals", errorMessage.c_str());
+        return S_OK;
     }
+
+    const unsigned succeeded = runComplexDumpers ?
+        symGroup->expandListRunComplexDumpers(inames, SymbolGroupValueContext(exc.dataSpaces()), &errorMessage) :
+        symGroup->expandList(inames, &errorMessage);
+
+    ExtensionContext::instance().report('R', token, "expandlocals", "%u/%u %s",
+                                        succeeded, unsigned(inames.size()), errorMessage.c_str());
     return S_OK;
 }
 
@@ -338,18 +362,25 @@ static std::string commmandLocals(ExtensionCommandContext &exc,PCSTR args, int *
     if (!tokens.empty())
         iname = tokens.front();
 
+    const SymbolGroupValueContext dumpContext(exc.dataSpaces());
     SymbolGroup * const symGroup = ExtensionContext::instance().symbolGroup(exc.symbols(), exc.threadId(), frame, errorMessage);
     if (!symGroup)
         return std::string();
-    if (!expandedInames.empty())
-        symGroup->expandList(expandedInames, errorMessage);
+
     if (!uninitializedInames.empty())
         symGroup->markUninitialized(uninitializedInames);
+
+    if (!expandedInames.empty()) {
+        if (parameters.dumpFlags & DumpParameters::DumpComplexDumpers) {
+            symGroup->expandListRunComplexDumpers(expandedInames, dumpContext, errorMessage);
+        } else {
+            symGroup->expandList(expandedInames, errorMessage);
+        }
+    }
 
     if (debugOutput)
         return symGroup->debug(iname, debugOutput - 1);
 
-    const SymbolGroupValueContext dumpContext(exc.dataSpaces());
     return iname.empty() ?
            symGroup->dump(dumpContext, parameters) :
            symGroup->dump(iname, dumpContext, parameters, errorMessage);
@@ -393,13 +424,13 @@ static std::string dumplocalHelper(ExtensionCommandContext &exc,PCSTR args, int 
     if (!symGroup)
         return std::string();
 
-    SymbolGroupNode *n = symGroup->find(iname);
-    if (!n) {
+    AbstractSymbolGroupNode *n = symGroup->find(iname);
+    if (!n || !n->asSymbolGroupNode()) {
         *errorMessage = "No such iname " + iname;
         return std::string();
     }
     std::wstring value;
-    if (!dumpSimpleType(n, SymbolGroupValueContext(exc.dataSpaces()), &value)) {
+    if (!dumpSimpleType(n->asSymbolGroupNode(), SymbolGroupValueContext(exc.dataSpaces()), &value)) {
         *errorMessage = "Cannot dump " + iname;
         return std::string();
     }

@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,12 +52,12 @@ namespace Internal {
 
 ///////////////////////////////////////////////////////////////////////
 //
-// MemoryViewAgent
+// MemoryAgent
 //
 ///////////////////////////////////////////////////////////////////////
 
 /*!
-    \class MemoryViewAgent
+    \class MemoryAgent
 
     Objects form this class are created in response to user actions in
     the Gui for showing raw memory from the inferior. After creation
@@ -62,30 +66,29 @@ namespace Internal {
 
 namespace { const int DataRange = 1024 * 1024; }
 
-MemoryViewAgent::MemoryViewAgent(Debugger::DebuggerEngine *engine, quint64 addr)
+MemoryAgent::MemoryAgent(Debugger::DebuggerEngine *engine)
     : QObject(engine), m_engine(engine)
 {
     QTC_ASSERT(engine, /**/);
-    createBinEditor(addr);
 }
 
-MemoryViewAgent::~MemoryViewAgent()
+MemoryAgent::~MemoryAgent()
 {
-    EditorManager *editorManager = EditorManager::instance();
     QList<IEditor *> editors;
     foreach (QPointer<IEditor> editor, m_editors)
         if (editor)
             editors.append(editor.data());
-    editorManager->closeEditors(editors);
+    EditorManager::instance()->closeEditors(editors);
 }
 
-void MemoryViewAgent::createBinEditor(quint64 addr)
+void MemoryAgent::createBinEditor(quint64 addr)
 {
     EditorManager *editorManager = EditorManager::instance();
     QString titlePattern = tr("Memory $");
     IEditor *editor = editorManager->openEditorWithContents(
         Core::Constants::K_DEFAULT_BINARY_EDITOR_ID,
         &titlePattern);
+    editorManager->activateEditor(editor);
     if (editor) {
         editor->setProperty(Debugger::Constants::OPENED_BY_DEBUGGER, true);
         editor->setProperty(Debugger::Constants::OPENED_WITH_MEMORY, true);
@@ -117,24 +120,23 @@ void MemoryViewAgent::createBinEditor(quint64 addr)
     }
 }
 
-void MemoryViewAgent::fetchLazyData(IEditor *editor, quint64 block, bool sync)
+void MemoryAgent::fetchLazyData(IEditor *editor, quint64 block, bool sync)
 {
     Q_UNUSED(sync); // FIXME: needed support for incremental searching
     m_engine->fetchMemory(this, editor, BinBlockSize * block, BinBlockSize);
 }
 
-void MemoryViewAgent::addLazyData(QObject *editorToken, quint64 addr,
+void MemoryAgent::addLazyData(QObject *editorToken, quint64 addr,
                                   const QByteArray &ba)
 {
     IEditor *editor = qobject_cast<IEditor *>(editorToken);
     if (editor && editor->widget()) {
-        Core::EditorManager::instance()->activateEditor(editor);
         QMetaObject::invokeMethod(editor->widget(), "addLazyData",
             Q_ARG(quint64, addr / BinBlockSize), Q_ARG(QByteArray, ba));
     }
 }
 
-void MemoryViewAgent::provideNewRange(IEditor *editor, quint64 address)
+void MemoryAgent::provideNewRange(IEditor *editor, quint64 address)
 {
     QMetaObject::invokeMethod(editor->widget(), "setLazyData",
         Q_ARG(quint64, address), Q_ARG(int, DataRange),
@@ -144,16 +146,32 @@ void MemoryViewAgent::provideNewRange(IEditor *editor, quint64 address)
 // Since we are not dealing with files, we take these signals to mean
 // "move to start/end of range". This seems to make more sense than
 // jumping to the start or end of the address space, respectively.
-void MemoryViewAgent::handleStartOfFileRequested(IEditor *editor)
+void MemoryAgent::handleStartOfFileRequested(IEditor *editor)
 {
     QMetaObject::invokeMethod(editor->widget(),
         "setCursorPosition", Q_ARG(int, 0));
 }
 
-void MemoryViewAgent::handleEndOfFileRequested(IEditor *editor)
+void MemoryAgent::handleEndOfFileRequested(IEditor *editor)
 {
     QMetaObject::invokeMethod(editor->widget(),
         "setCursorPosition", Q_ARG(int, DataRange - 1));
+}
+
+void MemoryAgent::updateContents()
+{
+    foreach (QPointer<IEditor> editor, m_editors)
+        if (editor)
+            QMetaObject::invokeMethod(editor->widget(), "updateContents");
+}
+
+bool MemoryAgent::hasVisibleEditor() const
+{
+    QList<IEditor *> visible = EditorManager::instance()->visibleEditors();
+    foreach (QPointer<IEditor> editor, m_editors)
+        if (visible.contains(editor.data()))
+            return true;
+    return false;
 }
 
 } // namespace Internal

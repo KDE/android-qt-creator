@@ -27,7 +27,7 @@ class QmlProjectItem : public QObject {
     Q_PROPERTY(QStringList importPaths READ importPaths WRITE setImportPaths NOTIFY importPathsChanged)
     Q_PROPERTY(QString mainFile READ mainFile WRITE setMainFile NOTIFY mainFileChanged)
 
-    Q_CLASSINFO("DefaultProperty", "content");
+    Q_CLASSINFO("DefaultProperty", "content")
 
 public:
     QmlProjectItem(QObject *parent = 0);
@@ -60,8 +60,8 @@ protected:
 
 } // namespace QmlProjectManager
 
-QML_DECLARE_TYPE(QmlProjectManager::QmlProjectItem);
-QML_DECLARE_TYPE(QmlProjectManager::QmlProjectContentItem);
-Q_DECLARE_METATYPE(QList<QmlProjectManager::QmlProjectContentItem *>);
+QML_DECLARE_TYPE(QmlProjectManager::QmlProjectItem)
+QML_DECLARE_TYPE(QmlProjectManager::QmlProjectContentItem)
+Q_DECLARE_METATYPE(QList<QmlProjectManager::QmlProjectContentItem *>)
 
 #endif // QMLPROJECTITEM_H

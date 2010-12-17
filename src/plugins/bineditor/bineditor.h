@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -57,8 +61,8 @@ class BinEditor : public QAbstractScrollArea
     Q_OBJECT
     Q_PROPERTY(bool modified READ isModified WRITE setModified DESIGNABLE false)
     Q_PROPERTY(bool readOnly READ isReadOnly WRITE setReadOnly DESIGNABLE false)
-public:
 
+public:
     BinEditor(QWidget *parent = 0);
     ~BinEditor();
 
@@ -121,7 +125,8 @@ public:
 
 public Q_SLOTS:
     void setFontSettings(const TextEditor::FontSettings &fs);
-    void highlightSearchResults(const QByteArray &pattern, QTextDocument::FindFlags findFlags = 0);
+    void highlightSearchResults(const QByteArray &pattern,
+        QTextDocument::FindFlags findFlags = 0);
     void copy(bool raw = false);
 
 Q_SIGNALS:
@@ -155,9 +160,10 @@ protected:
 private:
     bool m_inLazyMode;
     QByteArray m_data;
-    QMap <int, QByteArray> m_lazyData;
+    QMap<int, QByteArray> m_lazyData;
+    QMap<int, QByteArray> m_oldLazyData;
     int m_blockSize;
-    QMap <int, QByteArray> m_modifiedData;
+    QMap<int, QByteArray> m_modifiedData;
     mutable QSet<int> m_lazyRequests;
     QByteArray m_emptyBlock;
     QByteArray m_lowerBlock;
@@ -167,13 +173,16 @@ private:
     int dataLastIndexOf(const QByteArray &pattern, int from, bool caseSensitive = true) const;
 
     bool requestDataAt(int pos, bool synchronous = false) const;
-    char dataAt(int pos) const;
+    bool requestOldDataAt(int pos) const;
+    char dataAt(int pos, bool old = false) const;
+    char oldDataAt(int pos) const;
     void changeDataAt(int pos, char c);
-    QByteArray dataMid(int from, int length) const;
-    QByteArray blockData(int block) const;
+    QByteArray dataMid(int from, int length, bool old = false) const;
+    QByteArray blockData(int block, bool old = false) const;
 
     QPoint offsetToPos(int offset);
-    void asIntegers(int offset, int count, quint64 &beValue, quint64 &leValue);
+    void asIntegers(int offset, int count, quint64 &beValue, quint64 &leValue,
+        bool old = false);
 
     int m_unmodifiedState;
     int m_readOnly;
@@ -214,8 +223,10 @@ private:
 
     void changeData(int position, uchar character, bool highNibble = false);
 
-    int findPattern(const QByteArray &data, const QByteArray &dataHex, int from, int offset, int *match);
+    int findPattern(const QByteArray &data, const QByteArray &dataHex,
+        int from, int offset, int *match);
     void drawItems(QPainter *painter, int x, int y, const QString &itemString);
+    void drawChanges(QPainter *painter, int x, int y, const char *changes);
 
     void setupJumpToMenuAction(QMenu *menu, QAction *actionHere, QAction *actionNew,
                                quint64 addr);

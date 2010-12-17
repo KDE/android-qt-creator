@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -61,7 +65,7 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 namespace {
-const QByteArray IconFieldName("XB-Maemo-Icon-26:");
+const QByteArray IconFieldName("XB-Maemo-Icon-26");
 const QByteArray NameFieldName("XB-Maemo-Display-Name");
 const QByteArray ShortDescriptionFieldName("Description");
 const QLatin1String PackagingDirName("qtc_packaging");
@@ -484,36 +488,10 @@ bool MaemoTemplatesManager::setVersion(const Project *project,
 QIcon MaemoTemplatesManager::packageManagerIcon(const Project *project,
     QString *error) const
 {
-    QSharedPointer<QFile> controlFile
-        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
-    if (!controlFile)
+    const QByteArray &base64Icon
+        = controlFileFieldValue(project, IconFieldName, true);
+    if (base64Icon.isEmpty())
         return QIcon();
-
-    bool iconFieldFound = false;
-    QByteArray currentLine;
-    while (!iconFieldFound && !controlFile->atEnd()) {
-        currentLine = controlFile->readLine();
-        iconFieldFound = currentLine.startsWith(IconFieldName);
-    }
-    if (!iconFieldFound)
-        return QIcon();
-
-    int pos = IconFieldName.length();
-    currentLine = currentLine.trimmed();
-    QByteArray base64Icon;
-    do {
-        while (pos < currentLine.length())
-            base64Icon += currentLine.at(pos++);
-        do
-            currentLine = controlFile->readLine();
-        while (currentLine.startsWith('#'));
-        if (currentLine.isEmpty() || !isspace(currentLine.at(0)))
-            break;
-        currentLine = currentLine.trimmed();
-        if (currentLine.isEmpty())
-            break;
-        pos = 0;
-    } while (true);
     QPixmap pixmap;
     if (!pixmap.loadFromData(QByteArray::fromBase64(base64Icon))) {
         *error = tr("Invalid icon data in Debian control file.");
@@ -546,16 +524,17 @@ bool MaemoTemplatesManager::setPackageManagerIcon(const Project *project,
     buffer.close();
     iconAsBase64 = iconAsBase64.toBase64();
     QByteArray contents = controlFile->readAll();
-    const int iconFieldPos = contents.startsWith(IconFieldName)
-        ? 0 : contents.indexOf('\n' + IconFieldName);
+    const QByteArray iconFieldNameWithColon = IconFieldName + ':';
+    const int iconFieldPos = contents.startsWith(iconFieldNameWithColon)
+        ? 0 : contents.indexOf('\n' + iconFieldNameWithColon);
     if (iconFieldPos == -1) {
         if (!contents.endsWith('\n'))
             contents += '\n';
-        contents.append(IconFieldName).append(' ').append(iconAsBase64)
+        contents.append(iconFieldNameWithColon).append(' ').append(iconAsBase64)
             .append('\n');
     } else {
-        const int oldIconStartPos
-            = (iconFieldPos != 0) + iconFieldPos + IconFieldName.length();
+        const int oldIconStartPos = (iconFieldPos != 0) + iconFieldPos
+            + iconFieldNameWithColon.length();
         int nextEolPos = contents.indexOf('\n', oldIconStartPos);
         while (nextEolPos != -1 && nextEolPos != contents.length() - 1
             && contents.at(nextEolPos + 1) != '\n'
@@ -580,7 +559,7 @@ bool MaemoTemplatesManager::setPackageManagerIcon(const Project *project,
 
 QString MaemoTemplatesManager::name(const Project *project) const
 {
-    return controlFileFieldValue(project, NameFieldName);
+    return QString::fromUtf8(controlFileFieldValue(project, NameFieldName, false));
 }
 
 bool MaemoTemplatesManager::setName(const Project *project, const QString &name)
@@ -590,7 +569,8 @@ bool MaemoTemplatesManager::setName(const Project *project, const QString &name)
 
 QString MaemoTemplatesManager::shortDescription(const Project *project) const
 {
-    return controlFileFieldValue(project, ShortDescriptionFieldName);
+    return QString::fromUtf8(controlFileFieldValue(project,
+        ShortDescriptionFieldName, false));
 }
 
 bool MaemoTemplatesManager::setShortDescription(const Project *project,
@@ -636,22 +616,42 @@ QString MaemoTemplatesManager::controlFilePath(const Project *project) const
     return debianDirPath(project) + QLatin1String("/control");
 }
 
-QString MaemoTemplatesManager::controlFileFieldValue(const Project *project,
-    const QString &key) const
+QByteArray MaemoTemplatesManager::controlFileFieldValue(const Project *project,
+    const QString &key, bool multiLine) const
 {
+    QByteArray value;
     QFile controlFile(controlFilePath(project));
     if (!controlFile.open(QIODevice::ReadOnly))
-        return QString();
+        return value;
     const QByteArray &contents = controlFile.readAll();
     const int keyPos = contents.indexOf(key.toUtf8() + ':');
     if (keyPos == -1)
-        return QString();
-    const int valueStartPos = keyPos + key.length() + 1;
+        return value;
+    int valueStartPos = keyPos + key.length() + 1;
     int valueEndPos = contents.indexOf('\n', keyPos);
     if (valueEndPos == -1)
         valueEndPos = contents.count();
-    return QString::fromUtf8(contents.mid(valueStartPos,
-        valueEndPos - valueStartPos)).trimmed();
+    value = contents.mid(valueStartPos, valueEndPos - valueStartPos).trimmed();
+    if (multiLine) {
+        Q_FOREVER {
+            valueStartPos = valueEndPos + 1;
+            if (valueStartPos >= contents.count())
+                break;
+            const char firstChar = contents.at(valueStartPos);
+            if (firstChar == '#' || isspace(firstChar)) {
+                valueEndPos = contents.indexOf('\n', valueStartPos);
+                if (valueEndPos == -1)
+                    valueEndPos = contents.count();
+                if (firstChar != '#') {
+                    value += contents.mid(valueStartPos,
+                        valueEndPos - valueStartPos).trimmed();
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    return value;
 }
 
 void MaemoTemplatesManager::raiseError(const QString &reason)

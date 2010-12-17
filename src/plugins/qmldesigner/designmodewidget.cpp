@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -90,13 +94,12 @@ namespace QmlDesigner {
 namespace Internal {
 
 DocumentWarningWidget::DocumentWarningWidget(DesignModeWidget *parent) :
-        QFrame(parent),
+        Utils::FakeToolTip(parent),
         m_errorMessage(new QLabel("Placeholder", this)),
         m_goToError(new QLabel(this)),
         m_designModeWidget(parent)
 {
-    setFrameStyle(QFrame::Panel | QFrame::Raised);
-    setLineWidth(1);
+    setWindowFlags(Qt::Widget); //We only want the visual style from a ToolTip
     setForegroundRole(QPalette::ToolTipText);
     setBackgroundRole(QPalette::ToolTipBase);
     setAutoFillBackground(true);
@@ -127,6 +130,27 @@ void DocumentWarningWidget::setError(const RewriterView::Error &error)
 
     m_errorMessage->setText(str);
     resize(layout()->totalSizeHint());
+}
+
+class ItemLibrarySideBarItem : public Core::SideBarItem
+{
+public:
+    explicit ItemLibrarySideBarItem(ItemLibraryWidget *widget, const QString &id);
+    virtual ~ItemLibrarySideBarItem();
+
+    virtual QList<QToolButton *> createToolBarWidgets();
+};
+
+ItemLibrarySideBarItem::ItemLibrarySideBarItem(ItemLibraryWidget *widget, const QString &id) : Core::SideBarItem(widget, id) {}
+
+ItemLibrarySideBarItem::~ItemLibrarySideBarItem()
+{
+
+}
+
+QList<QToolButton *> ItemLibrarySideBarItem::createToolBarWidgets()
+{
+    return qobject_cast<ItemLibraryWidget*>(widget())->createToolBarWidgets();
 }
 
 void DocumentWarningWidget::goToError()
@@ -644,7 +668,7 @@ void DesignModeWidget::setup()
     m_warningWidget->setVisible(false);
 
     Core::SideBarItem *navigatorItem = new Core::SideBarItem(m_navigator->widget(), QLatin1String(SB_NAVIGATOR));
-    Core::SideBarItem *libraryItem = new Core::SideBarItem(m_itemLibraryView->widget(), QLatin1String(SB_LIBRARY));
+    Core::SideBarItem *libraryItem = new ItemLibrarySideBarItem(m_itemLibraryView->widget(), QLatin1String(SB_LIBRARY));
     Core::SideBarItem *propertiesItem = new Core::SideBarItem(m_allPropertiesBox.data(), QLatin1String(SB_PROPERTIES));
 
     // default items

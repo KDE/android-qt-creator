@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -93,11 +97,6 @@ public:
 
     // void runTest(const QString &fileName);
     virtual void showMessage(const QString &msg, int channel, int timeout = -1) = 0;
-    virtual void gotoLocation(const QString &fileName, int lineNumber = -1,
-        bool setMarker = false) = 0;
-
-    virtual void resetLocation() = 0;
-    virtual void removeLocationMark() = 0;
 
     virtual bool isReverseDebugging() const = 0;
     virtual void runControlStarted(DebuggerEngine *engine) = 0;
@@ -113,7 +112,6 @@ public:
     virtual void showModuleSymbols(const QString &moduleName,
         const QVector<Symbol> &symbols) = 0;
     virtual void openMemoryEditor() = 0;
-    virtual void updateMemoryEditors() = 0;
     virtual void languagesChanged() = 0;
 
     virtual Utils::SavedAction *action(int code) const = 0;

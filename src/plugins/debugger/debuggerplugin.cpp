@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -95,7 +99,6 @@
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 
 #include <texteditor/basetexteditor.h>
-#include <texteditor/basetextmark.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorsettings.h>
 
@@ -528,27 +531,6 @@ public:
     QString contextHelpId() const { return QString(); }
 private:
     QWidget *m_widget;
-};
-
-
-///////////////////////////////////////////////////////////////////////
-//
-// LocationMark
-//
-///////////////////////////////////////////////////////////////////////
-
-// Used in "real" editors
-class LocationMark : public TextEditor::BaseTextMark
-{
-public:
-    LocationMark(const QString &fileName, int linenumber)
-        : BaseTextMark(fileName, linenumber)
-    {}
-
-    QIcon icon() const { return debuggerCore()->locationMarkIcon(); }
-    void updateLineNumber(int /*lineNumber*/) {}
-    void updateBlock(const QTextBlock & /*block*/) {}
-    void removedFromEditor() {}
 };
 
 
@@ -1027,7 +1009,6 @@ public slots:
     void languagesChanged();
     void showStatusMessage(const QString &msg, int timeout = -1);
     void openMemoryEditor();
-    void updateMemoryEditors();
 
     const CPlusPlus::Snapshot &cppCodeModelSnapshot() const;
 
@@ -1069,8 +1050,6 @@ public slots:
     void updateWatchersWindow();
     void onCurrentProjectChanged(ProjectExplorer::Project *project);
 
-    void gotoLocation(const QString &file, int line, bool setMarker);
-
     void clearStatusMessage();
 
     void sessionLoaded();
@@ -1086,31 +1065,31 @@ public slots:
 
     void handleExecDetach()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         currentEngine()->detachDebugger();
     }
 
     void handleExecContinue()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         currentEngine()->continueInferior();
     }
 
     void handleExecInterrupt()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         currentEngine()->requestInterruptInferior();
     }
 
     void handleExecReset()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         currentEngine()->notifyEngineIll(); // FIXME: Check.
     }
 
     void handleExecStep()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         if (boolSetting(OperateByInstruction))
             currentEngine()->executeStepI();
         else
@@ -1119,7 +1098,7 @@ public slots:
 
     void handleExecNext()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         if (boolSetting(OperateByInstruction))
             currentEngine()->executeNextI();
         else
@@ -1128,20 +1107,20 @@ public slots:
 
     void handleExecStepOut()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         currentEngine()->executeStepOut();
     }
 
     void handleExecReturn()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         currentEngine()->executeReturn();
     }
 
     void handleExecJumpToLine()
     {
         //removeTooltip();
-        resetLocation();
+        currentEngine()->resetLocation();
         QString fileName;
         int lineNumber;
         if (currentTextEditorPosition(&fileName, &lineNumber))
@@ -1151,7 +1130,7 @@ public slots:
     void handleExecRunToLine()
     {
         //removeTooltip();
-        resetLocation();
+        currentEngine()->resetLocation();
         QString fileName;
         int lineNumber;
         if (currentTextEditorPosition(&fileName, &lineNumber))
@@ -1160,7 +1139,7 @@ public slots:
 
     void handleExecRunToFunction()
     {
-        resetLocation();
+        currentEngine()->resetLocation();
         ITextEditor *textEditor = currentTextEditor();
         QTC_ASSERT(textEditor, return);
         QPlainTextEdit *ed = qobject_cast<QPlainTextEdit*>(textEditor->widget());
@@ -1265,8 +1244,9 @@ public slots:
         // Go to source only if we have the file.
         if (currentEngine()->stackHandler()->currentIndex() >= 0) {
             const StackFrame frame = currentEngine()->stackHandler()->currentFrame();
-            if (operateByInstructionTriggered || frame.isUsable())
-                currentEngine()->gotoLocation(frame, true);
+            if (operateByInstructionTriggered || frame.isUsable()) {
+                currentEngine()->gotoLocation(Location(frame, true));
+            }
         }
     }
 
@@ -1275,9 +1255,6 @@ public slots:
         return m_mainWindow->activeDebugLanguages() & lang;
     }
 
-    void resetLocation();
-    void removeLocationMark();
-    void doRemoveLocationMark();
     QVariant sessionValue(const QString &name);
     void setSessionValue(const QString &name, const QVariant &value);
     QIcon locationMarkIcon() const { return m_locationMarkIcon; }
@@ -1298,7 +1275,6 @@ public:
     DebuggerRunControlFactory *m_debuggerRunControlFactory;
 
     QString m_previousMode;
-    QScopedPointer<TextEditor::BaseTextMark> m_locationMark;
     Context m_continuableContext;
     Context m_interruptibleContext;
     Context m_undisturbableContext;
@@ -1345,7 +1321,6 @@ public:
 
     bool m_busy;
     QTimer m_statusTimer;
-    QTimer m_locationTimer;
     QString m_lastPermanentStatusMessage;
 
     mutable CPlusPlus::Snapshot m_codeModelSnapshot;
@@ -1529,13 +1504,20 @@ void DebuggerPluginPrivate::startExternalApplication()
     sp.executable = dlg.executableFile();
     sp.startMode = StartExternal;
     sp.workingDirectory = dlg.workingDirectory();
-    sp.breakAtMain = dlg.breakAtMain();
     if (!dlg.executableArguments().isEmpty())
         sp.processArgs = dlg.executableArguments();
     // Fixme: 1 of 3 testing hacks.
     if (sp.processArgs.startsWith(__("@tcf@ ")) || sp.processArgs.startsWith(__("@sym@ ")))
         sp.toolChainType = ToolChain_RVCT2_ARMV5;
 
+    if (dlg.breakAtMain()) {
+#ifdef Q_OS_WIN
+        // FIXME: wrong on non-Qt based binaries
+        breakHandler()->breakByFunction("qMain");
+#else
+        breakHandler()->breakByFunction("main");
+#endif
+    }
 
     if (RunControl *rc = m_debuggerRunControlFactory->create(sp))
         startDebugger(rc);
@@ -1819,7 +1801,7 @@ void DebuggerPluginPrivate::requestContextMenu(TextEditor::ITextEditor *editor,
             .section('\n', lineNumber - 1, lineNumber - 1);
         BreakpointResponse needle;
         needle.type = BreakpointByAddress;
-        needle.address = DisassemblerViewAgent::addressFromDisassemblyLine(line);
+        needle.address = DisassemblerAgent::addressFromDisassemblyLine(line);
         address = needle.address;
         needle.lineNumber = -1;
         id = breakHandler()->findSimilarBreakpoint(needle);
@@ -1902,7 +1884,7 @@ void DebuggerPluginPrivate::toggleBreakpoint()
     if (textEditor->property("DisassemblerView").toBool()) {
         QString line = textEditor->contents()
             .section('\n', lineNumber - 1, lineNumber - 1);
-        quint64 address = DisassemblerViewAgent::addressFromDisassemblyLine(line);
+        quint64 address = DisassemblerAgent::addressFromDisassemblyLine(line);
         toggleBreakpointByAddress(address);
     } else if (lineNumber >= 0) {
         toggleBreakpointByFileAndLine(textEditor->file()->fileName(), lineNumber);
@@ -1949,7 +1931,7 @@ void DebuggerPluginPrivate::requestMark(ITextEditor *editor, int lineNumber)
     if (editor->property("DisassemblerView").toBool()) {
         QString line = editor->contents()
             .section('\n', lineNumber - 1, lineNumber - 1);
-        quint64 address = DisassemblerViewAgent::addressFromDisassemblyLine(line);
+        quint64 address = DisassemblerAgent::addressFromDisassemblyLine(line);
         toggleBreakpointByAddress(address);
     } else if (editor->file()) {
         toggleBreakpointByFileAndLine(editor->file()->fileName(), lineNumber);
@@ -2000,6 +1982,8 @@ void DebuggerPluginPrivate::connectEngine(DebuggerEngine *engine)
     if (m_currentEngine == engine)
         return;
 
+    if (m_currentEngine)
+        m_currentEngine->resetLocation();
     m_currentEngine = engine;
 
     m_localsWindow->setModel(engine->localsModel());
@@ -2285,26 +2269,6 @@ void DebuggerPluginPrivate::updateDebugActions()
     m_debugAction->setEnabled(pe->canRun(project, Constants::DEBUGMODE));
 }
 
-void DebuggerPluginPrivate::gotoLocation(const QString &file, int line, bool setMarker)
-{
-    // CDB might hit on breakpoints while shutting down.
-    if (m_shuttingDown)
-        return;
-
-    doRemoveLocationMark();
-
-    bool newEditor = false;
-    ITextEditor *editor =
-        BaseTextEditor::openEditorAt(file, line, 0, QString(),
-            EditorManager::IgnoreNavigationHistory, &newEditor);
-    if (!editor)
-        return;
-    if (newEditor)
-        editor->setProperty(Constants::OPENED_BY_DEBUGGER, true);
-    if (setMarker)
-        m_locationMark.reset(new LocationMark(file, line));
-}
-
 void DebuggerPluginPrivate::onModeChanged(IMode *mode)
 {
      // FIXME: This one gets always called, even if switching between modes
@@ -2426,16 +2390,6 @@ void DebuggerPluginPrivate::openMemoryEditor()
         currentEngine()->openMemoryView(dialog.address());
 }
 
-void DebuggerPluginPrivate::updateMemoryEditors()
-{
-    EditorManager *editorManager = EditorManager::instance();
-    QTC_ASSERT(editorManager, return);
-    foreach (IEditor *editor, editorManager->openedEditors()) {
-        if (editor->property(Constants::OPENED_WITH_MEMORY).toBool())
-            QMetaObject::invokeMethod(editor->widget(), "updateContents");
-    }
-}
-
 void DebuggerPluginPrivate::coreShutdown()
 {
     m_shuttingDown = true;
@@ -2447,23 +2401,6 @@ const CPlusPlus::Snapshot &DebuggerPluginPrivate::cppCodeModelSnapshot() const
     if (m_codeModelSnapshot.isEmpty() && action(UseCodeModel)->isChecked())
         m_codeModelSnapshot = CppModelManagerInterface::instance()->snapshot();
     return m_codeModelSnapshot;
-}
-
-void DebuggerPluginPrivate::resetLocation()
-{
-    currentEngine()->resetLocation();
-}
-
-void DebuggerPluginPrivate::removeLocationMark()
-{
-    m_locationTimer.setSingleShot(true);
-    m_locationTimer.start(80);
-}
-
-void DebuggerPluginPrivate::doRemoveLocationMark()
-{
-    m_locationTimer.stop();
-    m_locationMark.reset();
 }
 
 void DebuggerPluginPrivate::setSessionValue(const QString &name, const QVariant &value)
@@ -3190,10 +3127,6 @@ void DebuggerPluginPrivate::extensionsInitialized()
     connect(sessionManager(),
         SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
         SLOT(onCurrentProjectChanged(ProjectExplorer::Project*)));
-
-    connect(&m_locationTimer,
-        SIGNAL(timeout()),
-        SLOT(doRemoveLocationMark()));
 
     QTC_ASSERT(m_coreSettings, /**/);
     m_watchersWindow->setVisible(false);
