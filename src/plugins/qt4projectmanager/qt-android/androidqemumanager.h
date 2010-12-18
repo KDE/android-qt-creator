@@ -31,7 +31,7 @@
 #define QEMURUNTIMEMANAGER_H
 
 #include "androidconstants.h"
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 #include <QtCore/QHash>
 #include <QtCore/QMap>

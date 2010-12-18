@@ -37,7 +37,7 @@
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidrunconfiguration.h"
-#include "androidsshrunner.h"
+#include "androidrunner.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
@@ -53,7 +53,7 @@ using ProjectExplorer::RunConfiguration;
 
 AndroidRunControl::AndroidRunControl(RunConfiguration *rc)
     : RunControl(rc, ProjectExplorer::Constants::RUNMODE)
-    , m_runner(new AndroidSshRunner(this, qobject_cast<AndroidRunConfiguration *>(rc), false))
+    , m_runner(new AndroidRunner(this, qobject_cast<AndroidRunConfiguration *>(rc), false))
     , m_running(false)
 {
 }
@@ -108,7 +108,7 @@ void AndroidRunControl::startExecution()
 
 void AndroidRunControl::handleRemoteProcessFinished(qint64 exitCode)
 {
-    if (exitCode != AndroidSshRunner::InvalidExitCode) {
+    if (exitCode != AndroidRunner::InvalidExitCode) {
         emit appendMessage(this,
             tr("Finished running remote process. Exit code was %1.")
             .arg(exitCode), false);

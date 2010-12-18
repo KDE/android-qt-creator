@@ -32,10 +32,10 @@
 **
 ****************************************************************************/
 
-#include "androidsshrunner.h"
+#include "androidrunner.h"
 
 #include "androiddeploystep.h"
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 #include "androidglobal.h"
 #include "androidrunconfiguration.h"
 
@@ -53,7 +53,7 @@ using namespace Core;
 namespace Qt4ProjectManager {
 namespace Internal {
 
-AndroidSshRunner::AndroidSshRunner(QObject *parent,
+AndroidRunner::AndroidRunner(QObject *parent,
     AndroidRunConfiguration *runConfig, bool debugging)
     : QObject(parent),
       m_devConfig(runConfig->deviceConfig()),
@@ -66,9 +66,9 @@ AndroidSshRunner::AndroidSshRunner(QObject *parent,
 //    m_procsToKill << QFileInfo(m_remoteExecutable).fileName();
 }
 
-AndroidSshRunner::~AndroidSshRunner() {}
+AndroidRunner::~AndroidRunner() {}
 
-void AndroidSshRunner::start()
+void AndroidRunner::start()
 {
 #warning FIXME Android
 
@@ -103,7 +103,7 @@ void AndroidSshRunner::start()
 //    }
 }
 
-void AndroidSshRunner::stop()
+void AndroidRunner::stop()
 {
     if (m_state == PostRunCleaning || m_state == StopRequested
         || m_state == Inactive)
@@ -113,7 +113,7 @@ void AndroidSshRunner::stop()
     cleanup();
 }
 
-void AndroidSshRunner::handleConnected()
+void AndroidRunner::handleConnected()
 {
     ASSERT_STATE(QList<State>() << Connecting << StopRequested);
     if (m_state == StopRequested) {
@@ -124,7 +124,7 @@ void AndroidSshRunner::handleConnected()
     }
 }
 
-void AndroidSshRunner::handleConnectionFailure()
+void AndroidRunner::handleConnectionFailure()
 {
     if (m_state == Inactive)
         qWarning("Unexpected state %d in %s.", m_state, Q_FUNC_INFO);
@@ -134,7 +134,7 @@ void AndroidSshRunner::handleConnectionFailure()
     emitError(errorTemplate.arg(m_connection->errorString()));
 }
 
-void AndroidSshRunner::cleanup()
+void AndroidRunner::cleanup()
 {
     ASSERT_STATE(QList<State>() << PreRunCleaning << PostRunCleaning
         << StopRequested);
@@ -158,7 +158,7 @@ void AndroidSshRunner::cleanup()
     m_cleaner->start();
 }
 
-void AndroidSshRunner::handleCleanupFinished(int exitStatus)
+void AndroidRunner::handleCleanupFinished(int exitStatus)
 {
 #warning FIXME Android
 //    Q_ASSERT(exitStatus == SshRemoteProcess::FailedToStart
@@ -184,7 +184,7 @@ void AndroidSshRunner::handleCleanupFinished(int exitStatus)
 //    }
 }
 
-void AndroidSshRunner::handleUnmounted()
+void AndroidRunner::handleUnmounted()
 {
 #warning FIXME Android
 //    ASSERT_STATE(QList<State>() << PreRunCleaning << PreMountUnmounting
@@ -221,7 +221,7 @@ void AndroidSshRunner::handleUnmounted()
 //    }
 }
 
-void AndroidSshRunner::handleMounted()
+void AndroidRunner::handleMounted()
 {
     ASSERT_STATE(QList<State>() << Mounting << StopRequested);
 
@@ -231,7 +231,7 @@ void AndroidSshRunner::handleMounted()
     }
 }
 
-void AndroidSshRunner::handleMounterError(const QString &errorMsg)
+void AndroidRunner::handleMounterError(const QString &errorMsg)
 {
     ASSERT_STATE(QList<State>() << PreRunCleaning << PostRunCleaning
         << PreMountUnmounting << Mounting << StopRequested << Inactive);
@@ -239,7 +239,7 @@ void AndroidSshRunner::handleMounterError(const QString &errorMsg)
     emitError(errorMsg);
 }
 
-void AndroidSshRunner::startExecution(const QByteArray &remoteCall)
+void AndroidRunner::startExecution(const QByteArray &remoteCall)
 {
     ASSERT_STATE(ReadyForExecution);
 
@@ -256,7 +256,7 @@ void AndroidSshRunner::startExecution(const QByteArray &remoteCall)
     m_runner->start();
 }
 
-void AndroidSshRunner::handleRemoteProcessFinished(int exitStatus)
+void AndroidRunner::handleRemoteProcessFinished(int exitStatus)
 {
     Q_ASSERT(exitStatus == SshRemoteProcess::FailedToStart
         || exitStatus == SshRemoteProcess::KilledBySignal
@@ -270,19 +270,19 @@ void AndroidSshRunner::handleRemoteProcessFinished(int exitStatus)
     }
 }
 
-bool AndroidSshRunner::isConnectionUsable() const
+bool AndroidRunner::isConnectionUsable() const
 {
 #warning FIXME Android
     return false;/*m_connection && m_connection->state() == SshConnection::Connected
         && m_connection->connectionParameters() == m_devConfig.server;*/
 }
 
-void AndroidSshRunner::setState(State newState)
+void AndroidRunner::setState(State newState)
 {
     m_state = newState;
 }
 
-void AndroidSshRunner::emitError(const QString &errorMsg)
+void AndroidRunner::emitError(const QString &errorMsg)
 {
     if (m_state != Inactive) {
         setState(Inactive);
@@ -291,12 +291,12 @@ void AndroidSshRunner::emitError(const QString &errorMsg)
 }
 
 
-void AndroidSshRunner::handlePortsGathererError(const QString &errorMsg)
+void AndroidRunner::handlePortsGathererError(const QString &errorMsg)
 {
     emitError(errorMsg);
 }
 
-const qint64 AndroidSshRunner::InvalidExitCode
+const qint64 AndroidRunner::InvalidExitCode
     = std::numeric_limits<qint64>::min();
 
 } // namespace Internal

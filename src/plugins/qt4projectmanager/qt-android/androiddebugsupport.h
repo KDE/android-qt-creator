@@ -56,7 +56,7 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 class AndroidRunConfiguration;
-class AndroidSshRunner;
+class AndroidRunner;
 
 class AndroidDebugSupport : public QObject
 {
@@ -100,7 +100,7 @@ private:
 
     const QPointer<Debugger::DebuggerRunControl> m_runControl;
     const QPointer<AndroidRunConfiguration> m_runConfig;
-    AndroidSshRunner * const m_runner;
+    AndroidRunner * const m_runner;
     const AndroidRunConfiguration::DebuggingType m_debuggingType;
     const QString m_dumperLib;
 

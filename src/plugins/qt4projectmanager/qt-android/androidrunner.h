@@ -35,7 +35,7 @@
 #ifndef MAEMOSSHRUNNER_H
 #define MAEMOSSHRUNNER_H
 
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 #include <utils/environment.h>
 
@@ -53,13 +53,13 @@ namespace Internal {
 class AndroidRemoteMounter;
 class AndroidRunConfiguration;
 
-class AndroidSshRunner : public QObject
+class AndroidRunner : public QObject
 {
     Q_OBJECT
 public:
-    AndroidSshRunner(QObject *parent, AndroidRunConfiguration *runConfig,
+    AndroidRunner(QObject *parent, AndroidRunConfiguration *runConfig,
         bool debugging);
-    ~AndroidSshRunner();
+    ~AndroidRunner();
 
     void start();
     void stop();

@@ -31,7 +31,7 @@
 #define ANDROIDRUNCONFIGURATION_H
 
 #include "androidconstants.h"
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 #include "androiddeployable.h"
 
 #include <utils/environment.h>

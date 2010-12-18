@@ -28,6 +28,7 @@
 **************************************************************************/
 
 #include "androidtemplatesmanager.h"
+#include "androidconfigurations.h"
 
 #include "androiddeploystep.h"
 #include "androidglobal.h"
@@ -50,20 +51,19 @@
 #include <QtGui/QPixmap>
 #include <QtCore/QProcess>
 #include <QtGui/QMessageBox>
+#include <QDomDocument>
 
 #include <cctype>
 
 using namespace ProjectExplorer;
 
-namespace Qt4ProjectManager {
-namespace Internal {
-
 namespace {
-const QByteArray IconFieldName("XB-Maemo-Icon-26:");
-const QLatin1String PackagingDirName("qtc_packaging");
-const QLatin1String DebianDirNameFremantle("debian_fremantle");
+    const QLatin1String AndroidDirName("android");
+    const QLatin1String AndroidManifestName("AndroidManifest.xml");
 } // anonymous namespace
 
+namespace Qt4ProjectManager {
+namespace Internal {
 
 AndroidTemplatesManager *AndroidTemplatesManager::m_instance = 0;
 
@@ -104,15 +104,16 @@ void AndroidTemplatesManager::handleActiveProjectChanged(ProjectExplorer::Projec
 
 bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
 {
+
     if (!target
         || target->id() != QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
         return false;
-    if (!createDebianTemplatesIfNecessary(target))
+    if (!createAndroidTemplatesIfNecessary(target->project()))
         return false;
 
     const Qt4Target * const qt4Target = qobject_cast<Qt4Target *>(target);
-    const AndroidDeployStep * const deployStep
-        = AndroidGlobal::buildStep<AndroidDeployStep>(qt4Target->activeDeployConfiguration());
+//    const AndroidDeployStep * const deployStep
+//        = AndroidGlobal::buildStep<AndroidDeployStep>(qt4Target->activeDeployConfiguration());
 //    connect(deployStep->deployables().data(), SIGNAL(modelReset()), this,
 //        SLOT(handleProFileUpdated()), Qt::QueuedConnection);
 
@@ -121,36 +122,226 @@ bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
         return true;
 
     QFileSystemWatcher * const fsWatcher = new QFileSystemWatcher(this);
-    fsWatcher->addPath(debianDirPath(project));
-    fsWatcher->addPath(changeLogFilePath(project));
-    fsWatcher->addPath(controlFilePath(project));
+    fsWatcher->addPath(androidDirPath(project));
+//    fsWatcher->addPath(changeLogFilePath(project));
+//    fsWatcher->addPath(controlFilePath(project));
     connect(fsWatcher, SIGNAL(directoryChanged(QString)), this,
         SLOT(handleDebianDirContentsChanged()));
     connect(fsWatcher, SIGNAL(fileChanged(QString)), this,
         SLOT(handleDebianFileChanged(QString)));
-    handleDebianDirContentsChanged();
-    handleDebianFileChanged(changeLogFilePath(project));
-    handleDebianFileChanged(controlFilePath(project));
+//    handleDebianDirContentsChanged();
+//    handleDebianFileChanged(changeLogFilePath(project));
+//    handleDebianFileChanged(controlFilePath(project));
     m_androidProjects.insert(project, fsWatcher);
 
     return true;
 }
 
-bool AndroidTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExplorer::Target *target)
+QString AndroidTemplatesManager::androidDirPath(const ProjectExplorer::Project *project)
 {
-#warning FIXME ANDROID
-//    Project * const project = target->project();
-//    QDir projectDir(project->projectDirectory());
-//    if (QFileInfo(debianDirPath(project)).exists())
-//        return true;
-//    if (!projectDir.exists(PackagingDirName)
-//            && !projectDir.mkdir(PackagingDirName)) {
-//        raiseError(tr("Error creating Android packaging directory '%1'.")
-//            .arg(PackagingDirName));
-//        return false;
-//    }
+    return project->projectDirectory()+QLatin1Char('/')+AndroidDirName;
+}
 
-//    QProcess dh_makeProc;
+QString AndroidTemplatesManager::androidManifestPath(const ProjectExplorer::Project *project)
+{
+    return androidDirPath(project)+QLatin1Char('/')+AndroidManifestName;
+}
+
+void AndroidTemplatesManager::updateProject(const ProjectExplorer::Project *project, const QString &targetSDK)
+{
+    QProcess androidProc;
+    QStringList params;
+    params<<"update"<<"project"<<"-p"<<androidDirPath(project);
+    if (targetSDK.length())
+        params<<"-t"<<targetSDK;
+    androidProc.start(AndroidConfigurations::instance().androidToolPath(), params);
+    androidProc.waitForFinished();
+}
+
+bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(const ProjectExplorer::Project *project)
+{
+    QDir projectDir(project->projectDirectory());
+    QString androidPath=androidDirPath(project);
+
+    if (QFileInfo(androidPath).exists()
+            && QFileInfo(androidManifestPath(project)).exists()
+            && QFileInfo(androidPath+QLatin1String("/src/com/nokia/qt")).exists()
+            && QFileInfo(androidPath+QLatin1String("/res")).exists())
+        return true;
+
+    if (!QFileInfo(androidDirPath(project)).exists())
+        if (!projectDir.mkdir(AndroidDirName) )
+        {
+            raiseError(tr("Error creating Android directory '%1'.")
+                .arg(AndroidDirName));
+            return false;
+        }
+
+    if ( !QFileInfo(AndroidDirName+QLatin1String("/src")).exists() )
+    {
+        QList<QtVersion*> versions=QtVersionManager::instance()->versionsForTargetId(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
+        if (!versions.size())
+        {
+            raiseError(tr("Not enough Qt for Android SDK found.\nPlease install at least one SDK."));
+            return false;
+        }
+
+        QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
+        int pos=it.path().size();
+        while(it.hasNext())
+        {
+            it.next();
+            if (it.fileInfo().isDir())
+                projectDir.mkpath(AndroidDirName+QLatin1String("/src/")+it.filePath().mid(pos));
+            else
+                QFile::copy(it.filePath(), androidPath+QLatin1String("/src/")+it.filePath().mid(pos));
+        }
+    }
+
+    if (!QFileInfo(androidManifestPath(project)).exists() )
+        if (!QFile::copy(QLatin1String(":/qt-android/android/AndroidManifest.xml"),androidManifestPath(project)) )
+        {
+            raiseError(tr("Error creating AndroidManifest.xml file."));
+            return false;
+        }
+
+    if ( !QFileInfo(AndroidDirName+QLatin1String("/res")).exists() )
+    {
+        projectDir.mkpath(AndroidDirName+QLatin1String("/res/values"));
+        QFile::copy(QLatin1String(":/qt-android/android/res/values/strings.xml"),androidPath+QLatin1String("/res/values/strings.xml"));
+
+        projectDir.mkpath(AndroidDirName+QLatin1String("/res/drawable-hdpi"));
+        QFile::copy(QLatin1String(":/qt-android/android/res/drawable-hdpi/icon.png"),androidPath+QLatin1String("/res/drawable-hdpi/icon.png"));
+
+        projectDir.mkpath(AndroidDirName+QLatin1String("/res/drawable-ldpi"));
+        QFile::copy(QLatin1String(":/qt-android/android/res/drawable-ldpi/icon.png"),androidPath+QLatin1String("/res/drawable-ldpi/icon.png"));
+
+        projectDir.mkpath(AndroidDirName+QLatin1String("/res/drawable-mdpi"));
+        QFile::copy(QLatin1String(":/qt-android/android/res/drawable-mdpi/icon.png"),androidPath+QLatin1String("/res/drawable-mdpi/icon.png"));
+    }
+
+    QStringList sdks=AndroidConfigurations::instance().sdkTargets();
+    if (!sdks.size())
+    {
+        raiseError(tr("Not enough SDK's found.\nPlease install at least one SDK."));
+        return false;
+    }
+    updateProject(project, AndroidConfigurations::instance().sdkTargets().at(0));
+    return true;
+}
+
+bool AndroidTemplatesManager::openAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc)
+{
+    if (!createAndroidTemplatesIfNecessary(project))
+        return false;
+
+    QFile f(androidManifestPath(project));
+    if (!f.open(QIODevice::ReadOnly))
+    {
+        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath(project)));
+        return false;
+    }
+    if (!doc.setContent(f.readAll()))
+    {
+        raiseError(tr("Not enough SDK's found.\nPlease install at least one SDK."));
+        return false;
+    }
+    return true;
+}
+
+bool AndroidTemplatesManager::saveAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc)
+{
+    if (!createAndroidTemplatesIfNecessary(project))
+        return false;
+
+    QFile f(androidManifestPath(project));
+    if (!f.open(QIODevice::WriteOnly))
+    {
+        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath(project)));
+        return false;
+    }
+    return f.write(doc.toByteArray(4))>=0;
+}
+
+QString AndroidTemplatesManager::packageName(const ProjectExplorer::Project *project)
+{
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return QString();
+    QDomElement manifestElem = doc.documentElement();
+    return manifestElem.attribute(QLatin1String("package"));
+}
+
+bool AndroidTemplatesManager::setPackageName(const ProjectExplorer::Project *project, const QString & name)
+{
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return false;
+    QDomElement manifestElem = doc.documentElement();
+    manifestElem.setAttribute(QLatin1String("package"), name);
+    return saveAndroidManifest(project, doc);
+}
+
+QString AndroidTemplatesManager::applicationName(const ProjectExplorer::Project *project)
+{
+    return "";
+}
+
+bool AndroidTemplatesManager::setApplicationName(const ProjectExplorer::Project *project, const QString & name)
+{
+    return true;
+}
+
+int AndroidTemplatesManager::versionCode(const ProjectExplorer::Project *project)
+{
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return 0;
+    QDomElement manifestElem = doc.documentElement();
+    return manifestElem.attribute(QLatin1String("android:versionCode")).toInt();
+}
+
+bool AndroidTemplatesManager::setVersionCode(const ProjectExplorer::Project *project, int version)
+{
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return false;
+    QDomElement manifestElem = doc.documentElement();
+    manifestElem.setAttribute(QLatin1String("android:versionCode"), version);
+    return saveAndroidManifest(project, doc);
+}
+
+
+QString AndroidTemplatesManager::versionName(const ProjectExplorer::Project *project)
+{
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return 0;
+    QDomElement manifestElem = doc.documentElement();
+    return manifestElem.attribute(QLatin1String("android:versionName"));
+}
+
+bool AndroidTemplatesManager::setVersionName(const ProjectExplorer::Project *project, const QString &version)
+{
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return false;
+    QDomElement manifestElem = doc.documentElement();
+    manifestElem.setAttribute(QLatin1String("android:versionName"), version);
+    return saveAndroidManifest(project, doc);
+}
+
+QString AndroidTemplatesManager::targetSDK(const ProjectExplorer::Project *project)
+{
+    return "android-8";
+}
+
+bool AndroidTemplatesManager::setTargetSDK(const ProjectExplorer::Project *project, const QString & target)
+{
+    return true;
+}
+
+
 //    QString error;
 //    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
 //    Q_ASSERT_X(qt4Target, Q_FUNC_INFO, "Target ID does not match actual type.");
@@ -242,8 +433,7 @@ bool AndroidTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExpl
 //                   .arg(QDir::toNativeSeparators(rulesFilePath)));
 //        return false;
 //    }
-    return true;
-}
+
 
 bool AndroidTemplatesManager::adaptControlFile(const Project *project)
 {
@@ -420,10 +610,9 @@ void AndroidTemplatesManager::handleProFileUpdated()
 //        updateDesktopFiles(qobject_cast<const Qt4Target *>(target));
 }
 
-QString AndroidTemplatesManager::version(const Project *project,
-    QString *error) const
-{
-    return "1.0";
+//QString AndroidTemplatesManager::version(const Project *project)
+//{
+//    return "1.0";
 //    QSharedPointer<QFile> changeLog
 //        = openFile(changeLogFilePath(project), QIODevice::ReadOnly, error);
 //    if (!changeLog)
@@ -443,11 +632,10 @@ QString AndroidTemplatesManager::version(const Project *project,
 //    }
 //    return QString::fromUtf8(firstLine.mid(openParenPos + 1,
 //        closeParenPos - openParenPos - 1).data());
-}
+//}
 
-bool AndroidTemplatesManager::setVersion(const Project *project,
-    const QString &version, QString *error) const
-{
+//bool AndroidTemplatesManager::setVersion(const Project *project, const QString &version)
+//{
 //    QSharedPointer<QFile> changeLog
 //        = openFile(changeLogFilePath(project), QIODevice::ReadWrite, error);
 //    if (!changeLog)
@@ -465,11 +653,10 @@ bool AndroidTemplatesManager::setVersion(const Project *project,
 //                 changeLog->errorString());
 //        return false;
 //    }
-    return true;
-}
+//    return true;
+//}
 
-QIcon AndroidTemplatesManager::packageManagerIcon(const Project *project,
-    QString *error) const
+QIcon AndroidTemplatesManager::packageManagerIcon(const Project *project)
 {
 //    QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
@@ -509,8 +696,7 @@ QIcon AndroidTemplatesManager::packageManagerIcon(const Project *project,
 //    return QIcon(pixmap);
 }
 
-bool AndroidTemplatesManager::setPackageManagerIcon(const Project *project,
-    const QString &iconFilePath, QString *error) const
+bool AndroidTemplatesManager::setPackageManagerIcon(const Project *project, const QString &iconFilePath)
 {
 //    const QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);
@@ -565,28 +751,6 @@ bool AndroidTemplatesManager::setPackageManagerIcon(const Project *project,
     return true;
 }
 
-QStringList AndroidTemplatesManager::debianFiles(const Project *project) const
-{
-    return QStringList();//QDir(debianDirPath(project))
-//        .entryList(QDir::Files, QDir::Name | QDir::IgnoreCase);
-}
-
-QString AndroidTemplatesManager::debianDirPath(const Project *project) const
-{
-    return project->projectDirectory() + QLatin1Char('/') + PackagingDirName
-        + QLatin1Char('/') + DebianDirNameFremantle;
-}
-
-QString AndroidTemplatesManager::changeLogFilePath(const Project *project) const
-{
-    return debianDirPath(project) + QLatin1String("/changelog");
-}
-
-QString AndroidTemplatesManager::controlFilePath(const Project *project) const
-{
-    return debianDirPath(project) + QLatin1String("/control");
-}
-
 void AndroidTemplatesManager::raiseError(const QString &reason)
 {
     QMessageBox::critical(0, tr("Error creating Android templates"), reason);
@@ -609,7 +773,7 @@ void AndroidTemplatesManager::handleDebianDirContentsChanged()
 //    const Project * const project
 //        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
 //    if (project)
-//        emit debianDirContentsChanged(project);
+//        emit androidDirContentsChanged(project);
 }
 
 QSharedPointer<QFile> AndroidTemplatesManager::openFile(const QString &filePath,

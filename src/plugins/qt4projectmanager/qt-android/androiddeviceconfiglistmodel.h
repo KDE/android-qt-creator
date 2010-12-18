@@ -35,7 +35,7 @@
 #ifndef ANDROIDDEVICECONFIGLISTMODEL_H
 #define ANDROIDDEVICECONFIGLISTMODEL_H
 
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 #include <QtCore/QAbstractListModel>
 #include <QtCore/QList>

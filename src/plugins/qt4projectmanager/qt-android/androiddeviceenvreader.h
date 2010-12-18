@@ -35,7 +35,7 @@
 #ifndef DEVICEENVREADER_H
 #define DEVICEENVREADER_H
 
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 #include <utils/environment.h>
 

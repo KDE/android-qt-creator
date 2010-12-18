@@ -42,7 +42,7 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 class AndroidRunConfiguration;
-class AndroidSshRunner;
+class AndroidRunner;
 
 class AndroidRunControl : public ProjectExplorer::RunControl
 {
@@ -69,7 +69,7 @@ private:
     void setFinished();
     void handleError(const QString &errString);
 
-    AndroidSshRunner * const m_runner;
+    AndroidRunner * const m_runner;
     bool m_running;
 };
 

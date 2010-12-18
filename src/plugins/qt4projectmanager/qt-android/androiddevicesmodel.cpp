@@ -1,5 +1,5 @@
 #include "androiddevicesmodel.h"
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 AndroidDevicesModel::AndroidDevicesModel(QObject *parent) :
     QAbstractItemModel(parent)

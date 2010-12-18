@@ -35,7 +35,7 @@
 #ifndef ANDROIDSETTINGSWIDGET_H
 #define ANDROIDSETTINGSWIDGET_H
 
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 #include <QtCore/QList>
 #include <QtCore/QSharedPointer>

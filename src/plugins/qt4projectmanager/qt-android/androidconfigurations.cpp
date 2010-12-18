@@ -32,7 +32,7 @@
 **
 ****************************************************************************/
 
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 #include <coreplugin/icore.h>
 
@@ -40,11 +40,7 @@
 #include <QtCore/QSettings>
 #include <QtCore/QStringBuilder>
 #include <QtGui/QDesktopServices>
-
-#include <algorithm>
-#include <cctype>
-
-typedef Core::SshConnectionParameters::AuthType AuthType;
+#include <QtCore/QStringList>
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -81,6 +77,17 @@ void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
     m_config = devConfigs;
     save();
     emit updated();
+}
+
+QStringList AndroidConfigurations::sdkTargets()
+{
+#warning TODO FIX ANDROID
+    return QStringList()<<"android-8"<<"android-9";
+}
+
+QString AndroidConfigurations::androidToolPath()
+{
+    return m_config.SDKLocation+QLatin1String("/tools/android");
 }
 
 AndroidConfigurations &AndroidConfigurations::instance(QObject *parent)

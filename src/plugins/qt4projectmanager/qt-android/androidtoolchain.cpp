@@ -37,8 +37,8 @@
 using namespace ProjectExplorer;
 using namespace Qt4ProjectManager::Internal;
 
-AndroidToolChain::AndroidToolChain(const QString &targetRoot)
-    : GccToolChain(targetRoot % QLatin1String("/bin/gcc"))
+AndroidToolChain::AndroidToolChain(const QString &gccPath)
+    : GccToolChain(gccPath)
 {
 }
 

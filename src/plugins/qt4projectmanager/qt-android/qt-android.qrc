@@ -1,6 +1,9 @@
 <RCC>
-    <qresource prefix="/qt-maemo">
-        <file>images/qemu-run.png</file>
-        <file>images/qemu-stop.png</file>
+    <qresource prefix="/qt-android">
+        <file>android/AndroidManifest.xml</file>
+        <file>android/res/drawable-hdpi/icon.png</file>
+        <file>android/res/drawable-ldpi/icon.png</file>
+        <file>android/res/drawable-mdpi/icon.png</file>
+        <file>android/res/values/strings.xml</file>
     </qresource>
 </RCC>

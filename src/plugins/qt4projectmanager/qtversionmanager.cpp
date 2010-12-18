@@ -1292,6 +1292,7 @@ bool QtVersion::supportsMobileTarget() const
     return supportsTargetId(Constants::S60_DEVICE_TARGET_ID) ||
            supportsTargetId(Constants::S60_EMULATOR_TARGET_ID) ||
            supportsTargetId(Constants::MAEMO_DEVICE_TARGET_ID) ||
+            supportsTargetId(Constants::ANDROID_DEVICE_TARGET_ID) ||
            supportsTargetId(Constants::QT_SIMULATOR_TARGET_ID);
 }
 
@@ -1483,7 +1484,7 @@ void QtVersion::updateToolChainAndMkspec() const
         m_targetIds.insert(QLatin1String(Constants::MAEMO_DEVICE_TARGET_ID));
     } else if (qt_arch.startsWith(QLatin1String("arm"))
                && AndroidManager::instance().isValidAndroidQtVersion(this)) {
-        m_toolChains << ToolChainPtr(AndroidManager::instance().androidToolChain(this));
+        m_toolChains << ToolChainPtr(AndroidManager::instance().androidToolChain());
         m_targetIds.insert(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
     } else if (qmakeCXX == "cl" || qmakeCXX == "icl") {
         // TODO proper support for intel cl. Detect matching VC version unless set.

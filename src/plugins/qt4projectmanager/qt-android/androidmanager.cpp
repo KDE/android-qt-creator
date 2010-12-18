@@ -31,7 +31,7 @@
 
 #include "androidconstants.h"
 #include "androiddeploystepfactory.h"
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 #include "androidpackagecreationfactory.h"
 #include "androidqemumanager.h"
 #include "androidrunfactories.h"
@@ -100,11 +100,10 @@ bool AndroidManager::isValidAndroidQtVersion(const QtVersion *version) const
     return version->mkspec().contains("android-g++");
 }
 
-ToolChain* AndroidManager::androidToolChain(const QtVersion *version) const
+ToolChain* AndroidManager::androidToolChain() const
 {
-    QString targetRoot = QDir::cleanPath(version->qmakeCommand());
-    targetRoot.remove(QLatin1String("/bin/qmake" ANDROID_EXEC_SUFFIX));
-    return new AndroidToolChain(targetRoot);
+#warning TODO FIX Android
+    return new AndroidToolChain(AndroidConfigurations::instance().config().NDKLocation +"/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-gcc");
 }
 
     } // namespace Internal

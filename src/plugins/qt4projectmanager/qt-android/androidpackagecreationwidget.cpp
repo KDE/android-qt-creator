@@ -45,6 +45,7 @@
 #include "androidpackagecreationstep.h"
 #include "androidtemplatesmanager.h"
 #include "androidtoolchain.h"
+#include "androidconfigurations.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/project.h>
@@ -66,7 +67,6 @@ AndroidPackageCreationWidget::AndroidPackageCreationWidget(AndroidPackageCreatio
       m_ui(new Ui::AndroidPackageCreationWidget)
 {
     m_ui->setupUi(this);
-    m_ui->skipCheckBox->setChecked(!m_step->isPackagingEnabled());
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     QTimer::singleShot(0, this, SLOT(initGui()));
 }
@@ -79,73 +79,77 @@ void AndroidPackageCreationWidget::initGui()
 {
     const ProjectExplorer::Project * const project
         = m_step->buildConfiguration()->target()->project();
-    updateDebianFileList(project);
-    updateVersionInfo(project);
-    updatePackageManagerIcon(project);
+    updateAndroidProjectInfo(project);
     connect(m_step, SIGNAL(packageFilePathChanged()), this,
         SIGNAL(updateSummary()));
     connect(m_step, SIGNAL(qtVersionChanged()), this,
         SLOT(handleToolchainChanged()));
-    handleToolchainChanged();
-    versionInfoChanged();
     connect(AndroidTemplatesManager::instance(),
-        SIGNAL(debianDirContentsChanged(const ProjectExplorer::Project*)),
-        this, SLOT(updateDebianFileList(const ProjectExplorer::Project*)));
-    connect(AndroidTemplatesManager::instance(),
-        SIGNAL(changeLogChanged(const ProjectExplorer::Project*)), this,
-        SLOT(updateVersionInfo(const ProjectExplorer::Project*)));
-    connect(AndroidTemplatesManager::instance(),
-        SIGNAL(controlChanged(const ProjectExplorer::Project*)), this,
-        SLOT(updatePackageManagerIcon(const ProjectExplorer::Project*)));
+        SIGNAL(androidDirContentsChanged(const ProjectExplorer::Project*)),
+        this, SLOT(updateAndroidProjectInfo(const ProjectExplorer::Project*)));
+    connect(m_ui->packageNameLineEdit, SIGNAL(editingFinished()), SLOT(setPackageName()));
+    connect(m_ui->appNameLineEdit, SIGNAL(editingFinished()), SLOT(setApplicationName()));
+    connect(m_ui->versionCode, SIGNAL(editingFinished()), SLOT(setVersionCode()));
+    connect(m_ui->versionNameLinedit, SIGNAL(editingFinished()), SLOT(setVersionName()));
+    connect(m_ui->targetSDKComboBox, SIGNAL(activated(QString)), SLOT(setTargetSDK(QString)));
+
 }
 
-void AndroidPackageCreationWidget::updateDebianFileList(const ProjectExplorer::Project *project)
+void AndroidPackageCreationWidget::updateAndroidProjectInfo(const ProjectExplorer::Project *project)
 {
     const ProjectExplorer::Project * const ourProject
         = m_step->buildConfiguration()->target()->project();
-    if (ourProject == project)
-        m_ui->debianFilesComboBox->clear();
-        const QStringList &debianFiles = AndroidTemplatesManager::instance()
-            ->debianFiles(project);
-        foreach (const QString &fileName, debianFiles) {
-            if (fileName != QLatin1String("compat"))
-                m_ui->debianFilesComboBox->addItem(fileName);
-        }
-}
 
-void AndroidPackageCreationWidget::updateVersionInfo(const ProjectExplorer::Project *project)
-{
-    if (project != m_step->buildConfiguration()->target()->project())
+    if (project != ourProject)
         return;
-
-    QString error;
-    QString versionString = m_step->versionString(&error);
-    if (versionString.isEmpty()) {
-        QMessageBox::critical(this, tr("No Version Available."), error);
-        versionString = AndroidPackageCreationStep::DefaultVersionNumber;
-    }
-    const QStringList list = versionString.split(QLatin1Char('.'),
-        QString::SkipEmptyParts);
-    m_ui->major->setValue(list.value(0, QLatin1String("0")).toInt());
-    m_ui->minor->setValue(list.value(1, QLatin1String("0")).toInt());
-    m_ui->patch->setValue(list.value(2, QLatin1String("0")).toInt());
+    m_ui->targetSDKComboBox->clear();
+    m_ui->targetSDKComboBox->addItems(AndroidConfigurations::instance().sdkTargets());
+    m_ui->targetSDKComboBox->setCurrentIndex(AndroidConfigurations::instance().sdkTargets().indexOf(AndroidTemplatesManager::instance()->targetSDK(project)));
+    m_ui->packageNameLineEdit->setText(AndroidTemplatesManager::instance()->packageName(project));
+    m_ui->appNameLineEdit->setText(AndroidTemplatesManager::instance()->applicationName(project));
+    m_ui->versionCode->setValue(AndroidTemplatesManager::instance()->versionCode(project));
+    m_ui->versionNameLinedit->setText(AndroidTemplatesManager::instance()->versionName(project));
+//    QString error;
+//    const QIcon &icon
+//        = AndroidTemplatesManager::instance()->packageManagerIcon(project, &error);
+//    if (!error.isEmpty()) {
+//        QMessageBox::critical(this, tr("Could not read icon"), error);
+//    } else {
+//        m_ui->packageManagerIconButton->setIcon(icon);
+//        m_ui->packageManagerIconButton->setIconSize(m_ui->packageManagerIconButton->size());
+//    }
 }
 
-void AndroidPackageCreationWidget::updatePackageManagerIcon(const ProjectExplorer::Project *project)
+void AndroidPackageCreationWidget::setPackageName()
 {
-    if (project != m_step->buildConfiguration()->target()->project())
-        return;
-
-    QString error;
-    const QIcon &icon
-        = AndroidTemplatesManager::instance()->packageManagerIcon(project, &error);
-    if (!error.isEmpty()) {
-        QMessageBox::critical(this, tr("Could not read icon"), error);
-    } else {
-        m_ui->packageManagerIconButton->setIcon(icon);
-        m_ui->packageManagerIconButton->setIconSize(m_ui->packageManagerIconButton->size());
-    }
+    AndroidTemplatesManager::instance()->setPackageName(m_step->buildConfiguration()->target()->project(),
+                                                        m_ui->packageNameLineEdit->text());
 }
+
+void AndroidPackageCreationWidget::setApplicationName()
+{
+    AndroidTemplatesManager::instance()->setApplicationName(m_step->buildConfiguration()->target()->project(),
+                                                        m_ui->appNameLineEdit->text());
+}
+
+void AndroidPackageCreationWidget::setTargetSDK(const QString & target)
+{
+    AndroidTemplatesManager::instance()->setTargetSDK(m_step->buildConfiguration()->target()->project(),
+                                                        target);
+}
+
+void AndroidPackageCreationWidget::setVersionCode()
+{
+    AndroidTemplatesManager::instance()->setVersionCode(m_step->buildConfiguration()->target()->project(),
+                                                        m_ui->versionCode->value());
+}
+
+void AndroidPackageCreationWidget::setVersionName()
+{
+    AndroidTemplatesManager::instance()->setVersionName(m_step->buildConfiguration()->target()->project(),
+                                                        m_ui->versionNameLinedit->text());
+}
+
 
 void AndroidPackageCreationWidget::setPackageManagerIcon()
 {
@@ -160,7 +164,7 @@ void AndroidPackageCreationWidget::setPackageManagerIcon()
     if (!iconFileName.isEmpty()) {
         QString error;
         if (!AndroidTemplatesManager::instance()->setPackageManagerIcon(m_step->
-            buildConfiguration()->target()->project(), iconFileName, &error))
+            buildConfiguration()->target()->project(), iconFileName))
             QMessageBox::critical(this, tr("Could Not Set New Icon"), error);
     }
 }
@@ -190,36 +194,27 @@ QString AndroidPackageCreationWidget::displayName() const
     return m_step->displayName();
 }
 
-void AndroidPackageCreationWidget::handleSkipButtonToggled(bool checked)
-{
-    m_ui->major->setEnabled(!checked);
-    m_ui->minor->setEnabled(!checked);
-    m_ui->patch->setEnabled(!checked);
-    m_ui->debianFilesComboBox->setEnabled(!checked);
-    m_ui->editDebianFileButton->setEnabled(!checked);
-    m_step->setPackagingEnabled(!checked);
-    emit updateSummary();
-}
+//void AndroidPackageCreationWidget::handleSkipButtonToggled(bool checked)
+//{
+//    m_ui->major->setEnabled(!checked);
+//    m_ui->minor->setEnabled(!checked);
+//    m_ui->debianFilesComboBox->setEnabled(!checked);
+//    m_ui->editDebianFileButton->setEnabled(!checked);
+//    m_step->setPackagingEnabled(!checked);
+//    emit updateSummary();
+//}
 
-void AndroidPackageCreationWidget::versionInfoChanged()
-{
-    QString error;
-    const bool success = m_step->setVersionString(m_ui->major->text()
-        + QLatin1Char('.') + m_ui->minor->text() + QLatin1Char('.')
-        + m_ui->patch->text(), &error);
-    if (!success)
-        QMessageBox::critical(this, tr("Could Not Set Version Number"), error);
-}
 
-void AndroidPackageCreationWidget::editDebianFile()
-{
-    const QString debianFilePath = AndroidTemplatesManager::instance()
-        ->debianDirPath(m_step->buildConfiguration()->target()->project())
-        + QLatin1Char('/') + m_ui->debianFilesComboBox->currentText();
-    Core::EditorManager::instance()->openEditor(debianFilePath,
-                                                QString(),
-                                                Core::EditorManager::ModeSwitch);
-}
+
+//void AndroidPackageCreationWidget::editDebianFile()
+//{
+////    const QString debianFilePath = AndroidTemplatesManager::instance()
+////        ->debianDirPath(m_step->buildConfiguration()->target()->project())
+////        + QLatin1Char('/') + m_ui->debianFilesComboBox->currentText();
+////    Core::EditorManager::instance()->openEditor(debianFilePath,
+////                                                QString(),
+////                                                Core::EditorManager::ModeSwitch);
+//}
 
 } // namespace Internal
 } // namespace Qt4ProjectManager

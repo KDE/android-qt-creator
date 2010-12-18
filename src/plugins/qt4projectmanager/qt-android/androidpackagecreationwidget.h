@@ -63,15 +63,17 @@ public:
     virtual QString displayName() const;
 
 private slots:
-    void handleSkipButtonToggled(bool checked);
-    void editDebianFile();
-    void versionInfoChanged();
     void initGui();
-    void updateDebianFileList(const ProjectExplorer::Project *project);
-    void updateVersionInfo(const ProjectExplorer::Project *project);
-    void updatePackageManagerIcon(const ProjectExplorer::Project *project);
+    void updateAndroidProjectInfo(const ProjectExplorer::Project *project);
     void setPackageManagerIcon();
     void handleToolchainChanged();
+
+    void setPackageName();
+    void setApplicationName();
+    void setTargetSDK(const QString & target);
+    void setVersionCode();
+    void setVersionName();
+    void setIcon();
 
 private:
     AndroidPackageCreationStep * const m_step;

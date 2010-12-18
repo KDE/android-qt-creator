@@ -36,7 +36,7 @@
 
 #include "androiddeploystep.h"
 #include "androidglobal.h"
-#include "androidsshrunner.h"
+#include "androidrunner.h"
 
 #include <coreplugin/ssh/sftpchannel.h>
 #include <debugger/debuggerplugin.h>
@@ -116,7 +116,7 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
 AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
     DebuggerRunControl *runControl)
     : QObject(runControl), m_runControl(runControl), m_runConfig(runConfig),
-      m_runner(new AndroidSshRunner(this, runConfig, true)),
+      m_runner(new AndroidRunner(this, runConfig, true)),
       m_debuggingType(runConfig->debuggingType()),
       m_dumperLib(runConfig->dumperLib()),
       m_state(Inactive), m_gdbServerPort(-1), m_qmlPort(-1)

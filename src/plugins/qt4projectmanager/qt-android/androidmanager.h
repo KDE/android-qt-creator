@@ -58,7 +58,7 @@ public:
     static AndroidManager &instance();
 
     bool isValidAndroidQtVersion(const Qt4ProjectManager::QtVersion *version) const;
-    ToolChain *androidToolChain(const Qt4ProjectManager::QtVersion *version) const;
+    ToolChain *androidToolChain() const;
 
     AndroidSettingsPage *settingsPage() const { return m_settingsPage; }
 

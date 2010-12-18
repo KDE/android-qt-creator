@@ -70,6 +70,8 @@ public:
     static AndroidConfigurations &instance(QObject *parent = 0);
     AndroidConfig config() const { return m_config; }
     void setConfig(const AndroidConfig &config);
+    QStringList sdkTargets();
+    QString androidToolPath();
 
 signals:
     void updated();

@@ -35,6 +35,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QSharedPointer>
 #include <QtGui/QIcon>
+#include <QDomDocument>
 
 QT_FORWARD_DECLARE_CLASS(QFileSystemWatcher);
 
@@ -58,22 +59,29 @@ class AndroidTemplatesManager : public QObject
 
 public:
     static AndroidTemplatesManager *instance(QObject *parent = 0);
+    QString packageName(const ProjectExplorer::Project *project);
+    bool setPackageName(const ProjectExplorer::Project *project, const QString & name);
 
-    QString version(const ProjectExplorer::Project *project,
-        QString *error) const;
-    bool setVersion(const ProjectExplorer::Project *project,
-        const QString &version, QString *error) const;
+    QString applicationName(const ProjectExplorer::Project *project);
+    bool setApplicationName(const ProjectExplorer::Project *project, const QString & name);
 
-    QString debianDirPath(const ProjectExplorer::Project *project) const;
-    QStringList debianFiles(const ProjectExplorer::Project *project) const;
+    QString targetSDK(const ProjectExplorer::Project *project);
+    bool setTargetSDK(const ProjectExplorer::Project *project, const QString & target);
 
-    QIcon packageManagerIcon(const ProjectExplorer::Project *project,
-        QString *error) const;
-    bool setPackageManagerIcon(const ProjectExplorer::Project *project,
-        const QString &iconFilePath, QString *error) const;
+    int versionCode(const ProjectExplorer::Project *project);
+    bool setVersionCode(const ProjectExplorer::Project *project, int version);
+
+    QString versionName(const ProjectExplorer::Project *project);
+    bool setVersionName(const ProjectExplorer::Project *project, const QString &version);
+
+    QIcon packageManagerIcon(const ProjectExplorer::Project *project);
+    bool setPackageManagerIcon(const ProjectExplorer::Project *project, const QString &iconFilePath);
+
+    QString androidDirPath(const ProjectExplorer::Project *project);
+    QString androidManifestPath(const ProjectExplorer::Project *project);
 
 signals:
-    void debianDirContentsChanged(const ProjectExplorer::Project *project);
+    void androidDirContentsChanged(const ProjectExplorer::Project *project);
     void changeLogChanged(const ProjectExplorer::Project *project);
     void controlChanged(const ProjectExplorer::Project *project);
 
@@ -88,9 +96,11 @@ private slots:
 private:
     explicit AndroidTemplatesManager(QObject *parent);
     void raiseError(const QString &reason);
-    QString changeLogFilePath(const ProjectExplorer::Project *project) const;
-    QString controlFilePath(const ProjectExplorer::Project *project) const;
-    bool createDebianTemplatesIfNecessary(const ProjectExplorer::Target *target);
+    void updateProject(const ProjectExplorer::Project *project, const QString &targetSDK);
+    bool createAndroidTemplatesIfNecessary(const ProjectExplorer::Project *project);
+    bool openAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc);
+    bool saveAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc);
+
     bool updateDesktopFiles(const Qt4Target *target);
     bool updateDesktopFile(const Qt4Target *target,
         Qt4ProFileNode *proFileNode);

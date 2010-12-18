@@ -319,6 +319,7 @@ void AndroidRunConfiguration::updateDeviceConfigurations()
 
 void AndroidRunConfiguration::handleDeployConfigChanged()
 {
+    return;
     const QList<DeployConfiguration *> &deployConfigs
         = target()->deployConfigurations();
     DeployConfiguration * const activeDeployConf

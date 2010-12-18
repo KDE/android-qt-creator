@@ -1,6 +1,6 @@
 HEADERS += \
     $$PWD/androidconstants.h \
-    $$PWD/androiddeviceconfigurations.h \
+    $$PWD/androidconfigurations.h \
     $$PWD/androidmanager.h \
     $$PWD/androidrunconfiguration.h \
     $$PWD/androidrunconfigurationwidget.h \
@@ -18,7 +18,7 @@ HEADERS += \
     $$PWD/androiddeploystepwidget.h \
     $$PWD/androiddeploystepfactory.h \
     $$PWD/androidglobal.h \
-    $$PWD/androidsshrunner.h \
+    $$PWD/androidrunner.h \
     $$PWD/androiddebugsupport.h \
     $$PWD/androiddeviceconfiglistmodel.h \
     $$PWD/androiddeviceenvreader.h \
@@ -29,7 +29,7 @@ HEADERS += \
     $$PWD/androiddevicesmodel.h
 
 SOURCES += \
-    $$PWD/androiddeviceconfigurations.cpp \
+    $$PWD/androidconfigurations.cpp \
     $$PWD/androidmanager.cpp \
     $$PWD/androidrunconfiguration.cpp \
     $$PWD/androidrunconfigurationwidget.cpp \
@@ -46,7 +46,7 @@ SOURCES += \
     $$PWD/androiddeploystepwidget.cpp \
     $$PWD/androiddeploystepfactory.cpp \
     $$PWD/androidglobal.cpp \
-    $$PWD/androidsshrunner.cpp \
+    $$PWD/androidrunner.cpp \
     $$PWD/androiddebugsupport.cpp \
     $$PWD/androiddeviceconfiglistmodel.cpp \
     $$PWD/androiddeviceenvreader.cpp \

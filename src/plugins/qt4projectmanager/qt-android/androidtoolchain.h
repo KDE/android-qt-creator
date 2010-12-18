@@ -39,7 +39,7 @@ namespace Qt4ProjectManager {
 class AndroidToolChain : public ProjectExplorer::GccToolChain
 {
 public:
-    AndroidToolChain(const QString &targetRoot);
+    AndroidToolChain(const QString &gccPath);
     virtual ~AndroidToolChain();
 
     void addToEnvironment(Utils::Environment &env);

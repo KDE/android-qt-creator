@@ -213,7 +213,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     return true;
 }
 
-bool AndroidPackageCreationStep::copyDebianFiles(bool inSourceBuild)
+bool AndroidPackageCreationStep::copyAndroidFiles()
 {
 #warning FIXME Android
 
@@ -341,6 +341,18 @@ void AndroidPackageCreationStep::handleBuildOutput()
 
 void AndroidPackageCreationStep::handleBuildConfigChanged()
 {
+    QList<Qt4ProFileNode *> nodes = m_lastBuildConfig->qt4Target()->qt4Project()->leafProFiles();
+    foreach(Qt4ProFileNode * node, nodes)
+    {
+        qDebug()<<node->projectType()
+               <<node->targetInformation().valid
+                 <<node->targetInformation().workingDir
+                   <<node->targetInformation().target
+                     <<node->targetInformation().buildDir
+                       <<node->targetInformation().executable;
+    }
+
+
 //    if (m_lastBuildConfig)
 //        disconnect(m_lastBuildConfig, 0, this, 0);
 //    m_lastBuildConfig = qt4BuildConfiguration();
@@ -450,19 +462,19 @@ bool AndroidPackageCreationStep::isPackagingEnabled() const
 
 QString AndroidPackageCreationStep::versionString(QString *error) const
 {
-    return AndroidTemplatesManager::instance()
-        ->version(buildConfiguration()->target()->project(), error);
+    return "";/* AndroidTemplatesManager::instance()
+        ->version(buildConfiguration()->target()->project());*/
 
 }
 
 bool AndroidPackageCreationStep::setVersionString(const QString &version,
     QString *error)
 {
-    const bool success = AndroidTemplatesManager::instance()
-        ->setVersion(buildConfiguration()->target()->project(), version, error);
-    if (success)
-        emit packageFilePathChanged();
-    return success;
+//    const bool success = AndroidTemplatesManager::instance()
+//        ->setVersion(buildConfiguration()->target()->project(), version);
+//    if (success)
+//        emit packageFilePathChanged();
+    return true;
 }
 
 QString AndroidPackageCreationStep::nativePath(const QFile &file)

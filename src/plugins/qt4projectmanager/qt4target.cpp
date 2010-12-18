@@ -432,6 +432,8 @@ QString Qt4Target::defaultShadowBuildDirectory(const QString &projectLocation, c
         shortName = QLatin1String("maemo");
     else if (id == QLatin1String(Constants::QT_SIMULATOR_TARGET_ID))
         shortName = QLatin1String("simulator");
+    else if (id == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
+        shortName = QLatin1String("android");
 
     // currently we can't have the build directory to be deeper then the source directory
     // since that is broken in qmake

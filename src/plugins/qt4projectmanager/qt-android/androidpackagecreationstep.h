@@ -112,7 +112,7 @@ private:
     virtual bool fromMap(const QVariantMap &map);
 
     bool createPackage(QProcess *buildProc);
-    bool copyDebianFiles(bool inSourceBuild);
+    bool copyAndroidFiles();
     bool runCommand(QProcess *buildProc, const QString &command);
     static QString nativePath(const QFile &file);
     bool packagingNeeded() const;

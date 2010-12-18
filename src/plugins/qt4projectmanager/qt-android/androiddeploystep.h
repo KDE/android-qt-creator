@@ -31,7 +31,7 @@
 #define ANDROIDDEPLOYSTEP_H
 
 #include "androiddeployable.h"
-#include "androiddeviceconfigurations.h"
+#include "androidconfigurations.h"
 
 #include <coreplugin/ssh/sftpdefs.h>
 #include <projectexplorer/buildstep.h>
