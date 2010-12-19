@@ -80,10 +80,6 @@ void AndroidPackageCreationWidget::initGui()
     const ProjectExplorer::Project * const project
         = m_step->buildConfiguration()->target()->project();
     updateAndroidProjectInfo(project);
-    connect(m_step, SIGNAL(packageFilePathChanged()), this,
-        SIGNAL(updateSummary()));
-    connect(m_step, SIGNAL(qtVersionChanged()), this,
-        SLOT(handleToolchainChanged()));
     connect(AndroidTemplatesManager::instance(),
         SIGNAL(androidDirContentsChanged(const ProjectExplorer::Project*)),
         this, SLOT(updateAndroidProjectInfo(const ProjectExplorer::Project*)));
@@ -171,8 +167,8 @@ void AndroidPackageCreationWidget::setPackageManagerIcon()
 
 void AndroidPackageCreationWidget::handleToolchainChanged()
 {
-    if (!m_step->androidToolChain())
-        return;
+//    if (!m_step->androidToolChain())
+//        return;
 #warning FIXME Android
 //    m_ui->skipCheckBox
 //        ->setVisible(m_step->androidToolChain()->allowsPackagingDisabling());
@@ -183,10 +179,7 @@ void AndroidPackageCreationWidget::handleToolchainChanged()
 QString AndroidPackageCreationWidget::summaryText() const
 {
     const QString constantString = tr("<b>Create Package:</b> ");
-    const QString dynamicString = m_step->isPackagingEnabled()
-        ? QDir::toNativeSeparators(m_step->packageFilePath())
-        : tr("(Packaging disabled)");
-    return constantString + dynamicString;
+    return constantString;
 }
 
 QString AndroidPackageCreationWidget::displayName() const

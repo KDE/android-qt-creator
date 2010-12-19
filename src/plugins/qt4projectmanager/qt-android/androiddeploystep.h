@@ -68,14 +68,13 @@ public:
     AndroidDeployStep(ProjectExplorer::BuildStepList *bc);
 
     virtual ~AndroidDeployStep();
-    Q_INVOKABLE void stop();
 
 signals:
     void done();
     void error();
 
 private slots:
-    void start();
+    bool deployPackage();
     void handleBuildOutput();
 
 private:
@@ -93,25 +92,6 @@ private:
     bool runCommand(QProcess *buildProc, const QString &command);
 
     static const QLatin1String Id;
-};
-
-class AndroidDeployEventHandler : public QObject
-{
-    Q_OBJECT
-public:
-    AndroidDeployEventHandler(AndroidDeployStep *deployStep,
-        QFutureInterface<bool> &future);
-
-private slots:
-    void handleDeployingDone();
-    void handleDeployingFailed();
-    void checkForCanceled();
-
-private:
-    AndroidDeployStep * const m_deployStep;
-    const QFutureInterface<bool> m_future;
-    QEventLoop * const m_eventLoop;
-    bool m_error;
 };
 
 } // namespace Internal

@@ -56,10 +56,6 @@ class Qt4BuildConfiguration;
 
 namespace Internal {
 
-class AndroidDeployStep;
-class AndroidToolChain;
-class AndroidProFileWrapper;
-
 class AndroidPackageCreationStep : public ProjectExplorer::BuildStep
 {
     Q_OBJECT
@@ -68,28 +64,13 @@ public:
     AndroidPackageCreationStep(ProjectExplorer::BuildStepList *bsl);
     ~AndroidPackageCreationStep();
 
-    QString packageFilePath() const;
-    bool isPackagingEnabled() const;
-    void setPackagingEnabled(bool enabled) { m_packagingEnabled = enabled; }
-
-    const AndroidToolChain *androidToolChain() const;
-
-    static QString packageName(const ProjectExplorer::Project *project);
-    static QString packageFileName(const ProjectExplorer::Project *project,
-        const QString &version);
     static bool removeDirectory(const QString &dirPath);
 
-    QString projectName() const;
 
     static const QLatin1String DefaultVersionNumber;
 
-signals:
-    void packageFilePathChanged();
-    void qtVersionChanged();
-
 private slots:
     void handleBuildOutput();
-    void handleBuildConfigChanged();
 
 private:
     AndroidPackageCreationStep(ProjectExplorer::BuildStepList *buildConfig,
@@ -100,24 +81,13 @@ private:
     virtual void run(QFutureInterface<bool> &fi);
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const { return true; }
-    virtual QVariantMap toMap() const;
-    virtual bool fromMap(const QVariantMap &map);
 
     bool createPackage(QProcess *buildProc);
     bool runCommand(QProcess *buildProc, const QString &command);
-    bool packagingNeeded() const;
-    bool isFileNewerThan(const QString &filePath,
-        const QDateTime &timeStamp) const;
     void raiseError(const QString &shortMsg,
                     const QString &detailedMsg = QString());
-    QString buildDirectory() const;
-    const Qt4BuildConfiguration *qt4BuildConfiguration() const;
-    AndroidDeployStep * deployStep() const;
 
     static const QLatin1String CreatePackageId;
-
-    bool m_packagingEnabled;
-    const Qt4BuildConfiguration *m_lastBuildConfig;
 };
 
 } // namespace Internal

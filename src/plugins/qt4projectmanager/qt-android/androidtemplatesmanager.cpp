@@ -127,10 +127,7 @@ bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
     connect(fsWatcher, SIGNAL(directoryChanged(QString)), this,
         SLOT(handleAndroidDirContentsChanged()));
     connect(fsWatcher, SIGNAL(fileChanged(QString)), this,
-        SLOT(handleAndroidDirContentsChanged(QString)));
-//    handleDebianDirContentsChanged();
-//    handleDebianFileChanged(changeLogFilePath(project));
-//    handleDebianFileChanged(controlFilePath(project));
+        SLOT(handleAndroidDirContentsChanged()));
     m_androidProjects.insert(project, fsWatcher);
 
     return true;

@@ -96,10 +96,7 @@ bool AndroidDeployStep::init()
 
 void AndroidDeployStep::run(QFutureInterface<bool> &fi)
 {
-    // Move to GUI thread for connection sharing with run control.
-    QTimer::singleShot(0, this, SLOT(start()));
-
-    AndroidDeployEventHandler eventHandler(this, fi);
+    fi.reportResult(deployPackage());
 }
 
 BuildStepConfigWidget *AndroidDeployStep::createConfigWidget()
@@ -147,7 +144,7 @@ void AndroidDeployStep::handleBuildOutput()
     }
 }
 
-void AndroidDeployStep::start()
+bool AndroidDeployStep::deployPackage()
 {
     const Qt4BuildConfiguration * const bc
         = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
@@ -158,8 +155,7 @@ void AndroidDeployStep::start()
     if (!serialNumber.length())
     {
         raiseError(tr("Cannot deploy: no devices, emulators found for your package."));
-        emit done();
-        return;
+        return false;
     }
 
     writeOutput(tr("Installing package onto %1.").arg(serialNumber));
@@ -177,58 +173,18 @@ void AndroidDeployStep::start()
 
     if (!runCommand(&proc, AndroidConfigurations::instance().antToolPath()+QLatin1String(" install")))
         raiseError(tr("Package instalation failed"));
-    emit done();
-    return;
+    return true;
 }
 
-
 void AndroidDeployStep::raiseError(const QString &errorString)
-{
+{ 
     emit addTask(Task(Task::Error, errorString, QString(), -1,
         ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
-    emit error();
 }
 
 void AndroidDeployStep::writeOutput(const QString &text, OutputFormat format)
 {
     emit addOutput(text, format);
-}
-
-void AndroidDeployStep::stop()
-{
-}
-
-
-AndroidDeployEventHandler::AndroidDeployEventHandler(AndroidDeployStep *deployStep,
-    QFutureInterface<bool> &future)
-    : m_deployStep(deployStep), m_future(future), m_eventLoop(new QEventLoop),
-      m_error(false)
-{
-    connect(m_deployStep, SIGNAL(done()), this, SLOT(handleDeployingDone()));
-    connect(m_deployStep, SIGNAL(error()), this, SLOT(handleDeployingFailed()));
-    QTimer cancelChecker;
-    connect(&cancelChecker, SIGNAL(timeout()), this, SLOT(checkForCanceled()));
-    cancelChecker.start(500);
-    future.reportResult(m_eventLoop->exec() == 0);
-}
-
-void AndroidDeployEventHandler::handleDeployingDone()
-{
-    m_eventLoop->exit(m_error ? 1 : 0);
-}
-
-void AndroidDeployEventHandler::handleDeployingFailed()
-{
-    m_error = true;
-}
-
-void AndroidDeployEventHandler::checkForCanceled()
-{
-    if (!m_error && m_future.isCanceled()) {
-        QMetaObject::invokeMethod(m_deployStep, "stop");
-        m_error = true;
-        handleDeployingDone();
-    }
 }
 
 } // namespace Internal
