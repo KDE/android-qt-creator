@@ -78,7 +78,7 @@ bool AndroidRunConfigurationFactory::canCreate(Target *parent,
         || target->id() != QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID)) {
         return false;
     }
-    return target->qt4Project()->hasApplicationProFile(pathFromId(id));
+    return true;
 }
 
 bool AndroidRunConfigurationFactory::canRestore(Target *parent,
@@ -98,18 +98,23 @@ bool AndroidRunConfigurationFactory::canClone(Target *parent,
 
 QStringList AndroidRunConfigurationFactory::availableCreationIds(Target *parent) const
 {
-    if (Qt4Target *t = qobject_cast<Qt4Target *>(parent)) {
-        if (t->id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID)) {
-            return t->qt4Project()->
-                applicationProFilePathes(QLatin1String(ANDROID_RC_ID_PREFIX));
+    QStringList ids;
+    if (Qt4Target *t = qobject_cast<Qt4Target *>(parent))
+    {
+        if (t->id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
+        {
+            QList<Qt4ProFileNode *> nodes = t->qt4Project()->leafProFiles();
+            foreach(Qt4ProFileNode * node, nodes)
+                if (node->projectType() == ApplicationTemplate || node->projectType() == LibraryTemplate)
+                    ids<<node->targetInformation().target;
         }
     }
-    return QStringList();
+    return ids;
 }
 
 QString AndroidRunConfigurationFactory::displayNameForId(const QString &id) const
 {
-    return QFileInfo(pathFromId(id)).completeBaseName();
+    return id;
 }
 
 RunConfiguration *AndroidRunConfigurationFactory::create(Target *parent,

@@ -108,6 +108,17 @@ void AndroidPackageCreationStep::ctor()
 
 bool AndroidPackageCreationStep::init()
 {
+    QList<Qt4ProFileNode *> nodes = m_lastBuildConfig->qt4Target()->qt4Project()->leafProFiles();
+    foreach(Qt4ProFileNode * node, nodes)
+    {
+        qDebug()<<node->projectType()
+               <<node->targetInformation().valid
+                 <<node->targetInformation().workingDir
+                   <<node->targetInformation().target
+                     <<node->targetInformation().buildDir
+                       <<node->targetInformation().executable;
+    }
+
     return true;
 }
 
@@ -128,17 +139,17 @@ void AndroidPackageCreationStep::run(QFutureInterface<bool> &fi)
 {
 
     bool success=true;
-//    if (m_packagingEnabled) {
-//        // TODO: Make the build process asynchronous; i.e. no waitFor()-functions etc.
-//        QProcess * const buildProc = new QProcess;
-//        connect(buildProc, SIGNAL(readyReadStandardOutput()), this,
-//            SLOT(handleBuildOutput()));
-//        connect(buildProc, SIGNAL(readyReadStandardError()), this,
-//            SLOT(handleBuildOutput()));
-//        success = createPackage(buildProc);
-//        disconnect(buildProc, 0, this, 0);
-//        buildProc->deleteLater();
-//    }
+    if (m_packagingEnabled) {
+        // TODO: Make the build process asynchronous; i.e. no waitFor()-functions etc.
+        QProcess * const buildProc = new QProcess;
+        connect(buildProc, SIGNAL(readyReadStandardOutput()), this,
+            SLOT(handleBuildOutput()));
+        connect(buildProc, SIGNAL(readyReadStandardError()), this,
+            SLOT(handleBuildOutput()));
+        success = createPackage(buildProc);
+        disconnect(buildProc, 0, this, 0);
+        buildProc->deleteLater();
+    }
 
     fi.reportResult(success);
 }
@@ -150,72 +161,72 @@ BuildStepConfigWidget *AndroidPackageCreationStep::createConfigWidget()
 
 bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 {
-//    if (!packagingNeeded()) {
-//        emit addOutput(tr("Package up to date."), MessageOutput);
-//        return true;
-//    }
+    const Qt4BuildConfiguration * bc=qt4BuildConfiguration();
 
-//    emit addOutput(tr("Creating package file ..."), MessageOutput);
-//    checkProjectName();
-//    QString error;
-//    if (!preparePackagingProcess(buildProc, qt4BuildConfiguration(),
-//       buildDirectory(), &error)) {
-//        raiseError(error);
-//        return false;
-//    }
+    emit addOutput(tr("Copy Qt app & libs to android ..."), MessageOutput);
 
-//    const QString projectDir
-//        = buildConfiguration()->target()->project()->projectDirectory();
-//    const bool inSourceBuild
-//        = QFileInfo(buildDirectory()) == QFileInfo(projectDir);
-//    if (!copyDebianFiles(inSourceBuild))
-//        return false;
+    const QString androidDir(AndroidTemplatesManager::instance()->androidDirPath(bc->qt4Target()->qt4Project()));
+    const QString androidLibPath(androidDir+QLatin1String("/libs/armeabi"));
+    removeDirectory(androidLibPath);
+    QDir d(androidDir);
+    d.mkpath(androidLibPath);
 
-//    if (!runCommand(buildProc, QLatin1String("dpkg-buildpackage -nc -uc -us")))
-//        return false;
+    QList<Qt4ProFileNode *> nodes = bc->qt4Target()->qt4Project()->leafProFiles();
+    foreach(Qt4ProFileNode * node, nodes)
+    {
+        QString fileName;
+        switch(node->projectType())
+        {
+            case ApplicationTemplate:
+                fileName=node->targetInformation().target;
+                break;
+            case LibraryTemplate:
+                fileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
+                break;
+        }
 
-//    // Workaround for non-working dh_builddeb --destdir=.
-//    if (!QDir(buildDirectory()).isRoot()) {
-//        const ProjectExplorer::Project * const project
-//            = buildConfiguration()->target()->project();
-//        QString error;
-//        const QString pkgFileName = packageFileName(project,
-//            AndroidTemplatesManager::instance()->version(project, &error));
-//        if (!error.isEmpty())
-//            raiseError(tr("Packaging failed."), error);
-//        const QString changesFileName = QFileInfo(pkgFileName)
-//            .completeBaseName() + QLatin1String(".changes");
-//        const QString packageSourceDir = buildDirectory() + QLatin1String("/../");
-//        const QString packageSourceFilePath
-//            = packageSourceDir + pkgFileName;
-//        const QString changesSourceFilePath
-//            = packageSourceDir + changesFileName;
-//        const QString changesTargetFilePath
-//            = buildDirectory() + QLatin1Char('/') + changesFileName;
-//        QFile::remove(packageFilePath());
-//        QFile::remove(changesTargetFilePath);
-//        if (!QFile::rename(packageSourceFilePath, packageFilePath())
-//            || !QFile::rename(changesSourceFilePath, changesTargetFilePath)) {
-//            raiseError(tr("Packaging failed."),
-//                tr("Could not move package files from %1 to %2.")
-//                .arg(packageSourceDir, buildDirectory()));
-//            return false;
-//        }
-//    }
+        if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
+                    androidLibPath+QLatin1Char('/')+fileName))
+        {
+            raiseError(tr("Cant copy '%1' from '%2' to '%3'").arg(fileName)
+                       .arg(node->targetInformation().buildDir)
+                       .arg(androidLibPath));
+            return false;
+        }
+    }
+    QString build;
+    if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
+    {
+            if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(),
+                             androidLibPath+QLatin1String("/gdbserver")))
+            {
+                raiseError(tr("Cant copy gdbserver from '%1' to '%2'").arg(AndroidConfigurations::instance().gdbServerPath())
+                           .arg(androidLibPath+QLatin1String("/gdbserver")));
+                return false;
+            }
+            build=QLatin1String(" debug");
+    }
+    else
+        build=QLatin1String(" release");
 
-//    emit addOutput(tr("Package created."), BuildStep::MessageOutput);
-//    if (inSourceBuild) {
-//        buildProc->start(packagingCommand(androidToolChain(),
-//            QLatin1String("dh_clean")));
-//        buildProc->waitForFinished();
-//        buildProc->terminate();
-//    }
+
+    emit addOutput(tr("Creating package file ..."), MessageOutput);
+    if (!AndroidTemplatesManager::instance()->createAndroidTemplatesIfNecessary(qt4BuildConfiguration()->qt4Target()->qt4Project()))
+        return false;
+
+    buildProc->setWorkingDirectory(androidDir);
+
+    if (!runCommand(buildProc, AndroidConfigurations::instance().antToolPath()+build))
+        return false;
+
+    emit addOutput(tr("Package created."), BuildStep::MessageOutput);
+
     return true;
 }
 
-bool AndroidPackageCreationStep::copyAndroidFiles()
-{
-#warning FIXME Android
+//bool AndroidPackageCreationStep::copyAndroidFiles()
+//{
+//#warning FIXME Android
 
 //    const QString debianDirPath = buildDirectory() + QLatin1String("/debian");
 //    const QString magicFilePath
@@ -273,70 +284,70 @@ bool AndroidPackageCreationStep::copyAndroidFiles()
 //        return false;
 //    }
 
-    return true;
-}
+//    return true;
+//}
 
 bool AndroidPackageCreationStep::removeDirectory(const QString &dirPath)
 {
-//    QDir dir(dirPath);
-//    if (!dir.exists())
-//        return true;
+    QDir dir(dirPath);
+    if (!dir.exists())
+        return true;
 
-//    const QStringList &files
-//        = dir.entryList(QDir::Files | QDir::Hidden | QDir::System);
-//    foreach (const QString &fileName, files) {
-//        if (!dir.remove(fileName))
-//            return false;
-//    }
+    const QStringList &files
+        = dir.entryList(QDir::Files | QDir::Hidden | QDir::System);
+    foreach (const QString &fileName, files) {
+        if (!dir.remove(fileName))
+            return false;
+    }
 
-//    const QStringList &subDirs
-//        = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-//    foreach (const QString &subDirName, subDirs) {
-//        if (!removeDirectory(dirPath + QLatin1Char('/') + subDirName))
-//            return false;
-//    }
+    const QStringList &subDirs
+        = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    foreach (const QString &subDirName, subDirs) {
+        if (!removeDirectory(dirPath + QLatin1Char('/') + subDirName))
+            return false;
+    }
 
-//    return dir.rmdir(dirPath);
+    return dir.rmdir(dirPath);
 }
 
 bool AndroidPackageCreationStep::runCommand(QProcess *buildProc,
     const QString &command)
 {
-//    emit addOutput(tr("Package Creation: Running command '%1'.").arg(command), BuildStep::MessageOutput);
-//    buildProc->start(packagingCommand(androidToolChain(), command));
-//    if (!buildProc->waitForStarted()) {
-//        raiseError(tr("Packaging failed."),
-//            tr("Packaging error: Could not start command '%1'. Reason: %2")
-//            .arg(command).arg(buildProc->errorString()));
-//        return false;
-//    }
-//    buildProc->waitForFinished(-1);
-//    if (buildProc->error() != QProcess::UnknownError
-//        || buildProc->exitCode() != 0) {
-//        QString mainMessage = tr("Packaging Error: Command '%1' failed.")
-//            .arg(command);
-//        if (buildProc->error() != QProcess::UnknownError)
-//            mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
-//        else
-//            mainMessage += tr("Exit code: %1").arg(buildProc->exitCode());
-//        raiseError(mainMessage);
-//        return false;
-//    }
+    emit addOutput(tr("Package Creation: Running command '%1'.").arg(command), BuildStep::MessageOutput);
+    buildProc->start(command);
+    if (!buildProc->waitForStarted()) {
+        raiseError(tr("Packaging failed."),
+            tr("Packaging error: Could not start command '%1'. Reason: %2")
+            .arg(command).arg(buildProc->errorString()));
+        return false;
+    }
+    buildProc->waitForFinished(-1);
+    if (buildProc->error() != QProcess::UnknownError
+        || buildProc->exitCode() != 0) {
+        QString mainMessage = tr("Packaging Error: Command '%1' failed.")
+            .arg(command);
+        if (buildProc->error() != QProcess::UnknownError)
+            mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
+        else
+            mainMessage += tr("Exit code: %1").arg(buildProc->exitCode());
+        raiseError(mainMessage);
+        return false;
+    }
     return true;
 }
 
 void AndroidPackageCreationStep::handleBuildOutput()
 {
-//    QProcess * const buildProc = qobject_cast<QProcess *>(sender());
-//    if (!buildProc)
-//        return;
-//    const QByteArray &stdOut = buildProc->readAllStandardOutput();
-//    if (!stdOut.isEmpty())
-//        emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
-//    const QByteArray &errorOut = buildProc->readAllStandardError();
-//    if (!errorOut.isEmpty()) {
-//        emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput);
-//    }
+    QProcess * const buildProc = qobject_cast<QProcess *>(sender());
+    if (!buildProc)
+        return;
+    const QByteArray &stdOut = buildProc->readAllStandardOutput();
+    if (!stdOut.isEmpty())
+        emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
+    const QByteArray &errorOut = buildProc->readAllStandardError();
+    if (!errorOut.isEmpty()) {
+        emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput);
+    }
 }
 
 void AndroidPackageCreationStep::handleBuildConfigChanged()
@@ -353,15 +364,15 @@ void AndroidPackageCreationStep::handleBuildConfigChanged()
     }
 
 
-//    if (m_lastBuildConfig)
-//        disconnect(m_lastBuildConfig, 0, this, 0);
-//    m_lastBuildConfig = qt4BuildConfiguration();
-//    connect(m_lastBuildConfig, SIGNAL(qtVersionChanged()), this,
-//        SIGNAL(qtVersionChanged()));
-//    connect(m_lastBuildConfig, SIGNAL(buildDirectoryChanged()), this,
-//        SIGNAL(packageFilePathChanged()));
-//    emit qtVersionChanged();
-//    emit packageFilePathChanged();
+    if (m_lastBuildConfig)
+        disconnect(m_lastBuildConfig, 0, this, 0);
+    m_lastBuildConfig = qt4BuildConfiguration();
+    connect(m_lastBuildConfig, SIGNAL(qtVersionChanged()), this,
+        SIGNAL(qtVersionChanged()));
+    connect(m_lastBuildConfig, SIGNAL(buildDirectoryChanged()), this,
+        SIGNAL(packageFilePathChanged()));
+    emit qtVersionChanged();
+    emit packageFilePathChanged();
 }
 
 const Qt4BuildConfiguration *AndroidPackageCreationStep::qt4BuildConfiguration() const
@@ -423,7 +434,7 @@ bool AndroidPackageCreationStep::packagingNeeded() const
 //            return true;
 //    }
 
-    return false;
+    return true;
 }
 
 bool AndroidPackageCreationStep::isFileNewerThan(const QString &filePath,
@@ -447,39 +458,12 @@ bool AndroidPackageCreationStep::isFileNewerThan(const QString &filePath,
 
 QString AndroidPackageCreationStep::packageFilePath() const
 {
-    QString error;
-    const QString &version = versionString(&error);
-    if (version.isEmpty())
-        return QString();
-    return buildDirectory() % '/'
-        % packageFileName(buildConfiguration()->target()->project(), version);
+    return buildDirectory();
 }
 
 bool AndroidPackageCreationStep::isPackagingEnabled() const
 {
     return m_packagingEnabled;
-}
-
-QString AndroidPackageCreationStep::versionString(QString *error) const
-{
-    return "";/* AndroidTemplatesManager::instance()
-        ->version(buildConfiguration()->target()->project());*/
-
-}
-
-bool AndroidPackageCreationStep::setVersionString(const QString &version,
-    QString *error)
-{
-//    const bool success = AndroidTemplatesManager::instance()
-//        ->setVersion(buildConfiguration()->target()->project(), version);
-//    if (success)
-//        emit packageFilePathChanged();
-    return true;
-}
-
-QString AndroidPackageCreationStep::nativePath(const QFile &file)
-{
-    return QDir::toNativeSeparators(QFileInfo(file).filePath());
 }
 
 void AndroidPackageCreationStep::raiseError(const QString &shortMsg,
@@ -490,11 +474,9 @@ void AndroidPackageCreationStep::raiseError(const QString &shortMsg,
                       TASK_CATEGORY_BUILDSYSTEM));
 }
 
-bool AndroidPackageCreationStep::preparePackagingProcess(QProcess *proc,
-    const Qt4BuildConfiguration *bc, const QString &workingDir, QString *error)
-{
-#warning FIXME ANDROID
-    return true;
+//bool AndroidPackageCreationStep::preparePackagingProcess(QProcess *proc,
+//    const Qt4BuildConfiguration *bc)
+//{
 
 //    const AndroidToolChain * const tc
 //        = dynamic_cast<const AndroidToolChain *>(bc->toolChain());
@@ -541,31 +523,10 @@ bool AndroidPackageCreationStep::preparePackagingProcess(QProcess *proc,
 //    } while (!line.isEmpty());
 
 //    proc->setEnvironment(env.toStringList());
-//    proc->setWorkingDirectory(workingDir);
+//    proc->setWorkingDirectory(AndroidTemplatesManager::instance()->updateProject(bc->qt4Target()->qt4Project()));
 //    return true;
-}
+//}
 
-QString AndroidPackageCreationStep::packagingCommand(const AndroidToolChain *tc,
-    const QString &commandName)
-{
-//    QString perl;
-//#ifdef Q_OS_WIN
-//    perl = tc->maddeRoot() + QLatin1String("/bin/perl.exe ");
-//#endif
-//    return perl + tc->maddeRoot() % QLatin1String("/madbin/") % commandName;
-}
-
-void AndroidPackageCreationStep::checkProjectName()
-{
-//    const QRegExp legalName(QLatin1String("[0-9-+a-z\\.]+"));
-//    if (!legalName.exactMatch(buildConfiguration()->target()->project()->displayName())) {
-//        emit addTask(Task(Task::Warning,
-//            tr("Your project name contains characters not allowed in Debian packages.\n"
-//               "They must only use lower-case letters, numbers, '-', '+' and '.'.\n"
-//               "We will try to work around that, but you may experience problems."),
-//               QString(), -1, TASK_CATEGORY_BUILDSYSTEM));
-//    }
-}
 
 QString AndroidPackageCreationStep::packageName(const ProjectExplorer::Project *project)
 {

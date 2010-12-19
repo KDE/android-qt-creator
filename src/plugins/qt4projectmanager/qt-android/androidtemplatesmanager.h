@@ -80,6 +80,10 @@ public:
     QString androidDirPath(const ProjectExplorer::Project *project);
     QString androidManifestPath(const ProjectExplorer::Project *project);
 
+public slots:
+    bool createAndroidTemplatesIfNecessary(const ProjectExplorer::Project *project);
+    void updateProject(const ProjectExplorer::Project *project, const QString &targetSDK);
+
 signals:
     void androidDirContentsChanged(const ProjectExplorer::Project *project);
     void changeLogChanged(const ProjectExplorer::Project *project);
@@ -88,7 +92,7 @@ signals:
 private slots:
     void handleActiveProjectChanged(ProjectExplorer::Project *project);
     bool handleTarget(ProjectExplorer::Target *target);
-    void handleDebianDirContentsChanged();
+    void handleAndroidDirContentsChanged();
     void handleDebianFileChanged(const QString &filePath);
     void handleProjectToBeRemoved(ProjectExplorer::Project *project);
     void handleProFileUpdated();
@@ -96,8 +100,6 @@ private slots:
 private:
     explicit AndroidTemplatesManager(QObject *parent);
     void raiseError(const QString &reason);
-    void updateProject(const ProjectExplorer::Project *project, const QString &targetSDK);
-    bool createAndroidTemplatesIfNecessary(const ProjectExplorer::Project *project);
     bool openAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc);
     bool saveAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc);
 

@@ -41,6 +41,7 @@
 #include <QtCore/QStringBuilder>
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStringList>
+#include <QDebug>
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -50,8 +51,11 @@ namespace {
     const QLatin1String SDKLocationKey("SDKLocation");
     const QLatin1String NDKLocationKey("NDKLocation");
     const QLatin1String AntLocationKey("AntLocation");
-
-};
+    bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
+    {
+        return dev1.sdk< dev2.sdk;
+    }
+}
 
 
 AndroidConfig::AndroidConfig(const QSettings &settings)
@@ -85,9 +89,153 @@ QStringList AndroidConfigurations::sdkTargets()
     return QStringList()<<"android-8"<<"android-9";
 }
 
+QString AndroidConfigurations::adbToolPath()
+{
+    return m_config.SDKLocation+QLatin1String("/platform-tools/adb");
+}
+
 QString AndroidConfigurations::androidToolPath()
 {
     return m_config.SDKLocation+QLatin1String("/tools/android");
+}
+
+QString AndroidConfigurations::antToolPath()
+{
+    if (m_config.AntLocation.length())
+        return m_config.AntLocation;
+    else
+        return QLatin1String("ant");
+}
+QString AndroidConfigurations::emulatorToolPath()
+{
+    return m_config.SDKLocation+QLatin1String("/tools/emulator");
+}
+
+QString AndroidConfigurations::gdbServerPath()
+{
+    return m_config.NDKLocation+QLatin1String("/toolchains/arm-linux-androideabi-4.4.3/prebuilt/gdbserver");
+}
+
+QString AndroidConfigurations::getDeployDeviceSerialNumber(int apiLevel)
+{
+    QVector<AndroidDevice> devices=connectedDevices();
+
+    foreach(AndroidDevice device, devices)
+        if (device.sdk>=apiLevel)
+            return device.serialNumber;
+
+    return startAVD(apiLevel);
+}
+
+QVector<AndroidDevice> AndroidConfigurations::connectedDevices(int apiLevel)
+{
+    QVector<AndroidDevice> devices;
+    QProcess adbProc;
+    adbProc.start(QString("%1 devices").arg(adbToolPath()));
+    if (!adbProc.waitForFinished(-1))
+        return devices;
+    QList<QByteArray> adbDevs=adbProc.readAll().trimmed().split('\n');
+    adbDevs.removeFirst();
+    AndroidDevice dev;
+    foreach(QByteArray device, adbDevs)
+    {
+        dev.serialNumber=device.left(device.indexOf('\t')).trimmed();
+        dev.sdk=getSDKVersion(dev.serialNumber);
+        if (-1 != apiLevel && dev.sdk != apiLevel)
+            continue;
+        devices.push_back(dev);
+    }
+    qSort(devices.begin(), devices.end(), androidDevicesLessThan);
+    return devices;
+}
+
+QString AndroidConfigurations::createAVD(int apiLevel)
+{
+#warning TODO ANDROID
+    return QString();
+}
+
+
+QString AndroidConfigurations::startAVD(int apiLevel)
+{
+    if (m_avdProcess.state()!=QProcess::NotRunning) // if another emulator is running kill it
+    {
+        m_avdProcess.terminate();
+        if (!m_avdProcess.waitForFinished(-1))
+            return QString();
+    }
+
+    QVector<AndroidDevice> devices;
+    QProcess proc;
+    proc.start(QString("%1 list avd").arg(androidToolPath())); // list avaialbe AVDs
+    if (!proc.waitForFinished(-1))
+        return QString();
+    QList<QByteArray> avds=proc.readAll().trimmed().split('\n');
+    avds.removeFirst();
+    AndroidDevice dev;
+    for (int i=0;i<avds.size();i++)
+    {
+        QString line=avds[i];
+        if (!line.contains("Name:"))
+            continue;
+
+        dev.serialNumber=line.mid(line.indexOf(':')+2).trimmed();// device.left(device.indexOf('\t')).trimmed();
+        ++i;
+        for(;i<avds.size();++i)
+        {
+            line=avds[i];
+            if (!line.contains("Target:"))
+                continue;
+            dev.sdk=line.mid(line.lastIndexOf(' ')).remove(')').toInt();
+            break;
+        }
+        ++i;
+        if (dev.sdk>=apiLevel)
+            devices.push_back(dev);
+    }
+    qSort(devices.begin(), devices.end(), androidDevicesLessThan);
+
+    QString avdName;
+    foreach(AndroidDevice device, devices)
+        if (device.sdk>=apiLevel) // take first emulator how supports this package
+        {
+            avdName=device.serialNumber;
+            break;
+        }
+
+    // if no emulators found try to create one
+    if (!avdName.length())
+        avdName=createAVD(apiLevel);
+
+    if (!avdName.length())// stop here if no emulators found
+        return avdName;
+
+    // start the emulator
+    m_avdProcess.start(emulatorToolPath()+QLatin1String(" -avd ")+avdName);
+    if (!m_avdProcess.waitForStarted(-1))
+        return QString();
+
+    // wait until the emulator is online
+    proc.start(adbToolPath()+ QLatin1String(" -e wait-for-device"));
+    if (!proc.waitForFinished(-1))
+        return QString();
+
+    // get connected devices
+    devices =connectedDevices(apiLevel);
+    foreach(AndroidDevice device, devices)
+        if (device.sdk==apiLevel)
+            return device.serialNumber;
+    // this should not happen, but ...
+    return QString();
+}
+
+int AndroidConfigurations::getSDKVersion(const QString & device)
+{
+    QProcess adbProc;
+    adbProc.start(QString("%1 -s %2 shell getprop ro.build.version.sdk").arg(adbToolPath()).arg(device));
+    if (!adbProc.waitForFinished(-1))
+        return -1;
+    return adbProc.readAll().trimmed().toInt();
 }
 
 AndroidConfigurations &AndroidConfigurations::instance(QObject *parent)

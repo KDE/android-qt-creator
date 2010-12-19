@@ -123,12 +123,11 @@ bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
 
     QFileSystemWatcher * const fsWatcher = new QFileSystemWatcher(this);
     fsWatcher->addPath(androidDirPath(project));
-//    fsWatcher->addPath(changeLogFilePath(project));
-//    fsWatcher->addPath(controlFilePath(project));
+    fsWatcher->addPath(androidManifestPath(project));
     connect(fsWatcher, SIGNAL(directoryChanged(QString)), this,
-        SLOT(handleDebianDirContentsChanged()));
+        SLOT(handleAndroidDirContentsChanged()));
     connect(fsWatcher, SIGNAL(fileChanged(QString)), this,
-        SLOT(handleDebianFileChanged(QString)));
+        SLOT(handleAndroidDirContentsChanged(QString)));
 //    handleDebianDirContentsChanged();
 //    handleDebianFileChanged(changeLogFilePath(project));
 //    handleDebianFileChanged(controlFilePath(project));
@@ -756,24 +755,12 @@ void AndroidTemplatesManager::raiseError(const QString &reason)
     QMessageBox::critical(0, tr("Error creating Android templates"), reason);
 }
 
-void AndroidTemplatesManager::handleDebianFileChanged(const QString &filePath)
+void AndroidTemplatesManager::handleAndroidDirContentsChanged()
 {
-//    const Project * const project
-//        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
-//    if (project) {
-//        if (filePath == changeLogFilePath(project))
-//            emit changeLogChanged(project);
-//        else if (filePath == controlFilePath(project))
-//            emit controlChanged(project);
-//    }
-}
-
-void AndroidTemplatesManager::handleDebianDirContentsChanged()
-{
-//    const Project * const project
-//        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
-//    if (project)
-//        emit androidDirContentsChanged(project);
+    const Project * const project
+        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
+    if (project)
+        emit androidDirContentsChanged(project);
 }
 
 QSharedPointer<QFile> AndroidTemplatesManager::openFile(const QString &filePath,

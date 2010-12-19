@@ -51,11 +51,6 @@ namespace Internal {
 class AndroidGlobal
 {
 public:
-    static QString homeDirOnDevice(const QString &uname);
-    static QString remoteSudo();
-    static QString remoteCommandPrefix(const QString &commandFilePath);
-    static QString remoteEnvironment(const QList<Utils::EnvironmentItem> &list);
-    static QString remoteSourceProfilesCommand();
 
     template<class T> static T *buildStep(const ProjectExplorer::DeployConfiguration *dc)
     {

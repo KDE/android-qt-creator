@@ -353,7 +353,7 @@ QString AndroidDebugSupport::environment(AndroidRunConfiguration::DebuggingType 
 //        env << Utils::EnvironmentItem(QLatin1String(Debugger::Constants::E_QML_DEBUG_SERVER_PORT),
 //            QString::number(qmlServerPort(rc)));
     }
-    return AndroidGlobal::remoteEnvironment(userEnvChanges);
+    return QString("");//AndroidGlobal::remoteEnvironment(userEnvChanges);
 }
 
 QString AndroidDebugSupport::uploadDir(const AndroidConfig &devConf)

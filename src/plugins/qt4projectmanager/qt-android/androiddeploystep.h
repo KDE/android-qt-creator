@@ -68,16 +68,6 @@ public:
     AndroidDeployStep(ProjectExplorer::BuildStepList *bc);
 
     virtual ~AndroidDeployStep();
-    AndroidConfig deviceConfig() const;
-    AndroidDeviceConfigListModel *deviceConfigModel() const { return m_deviceConfigModel; }
-    bool currentlyNeedsDeployment(const QString &host,
-        const AndroidDeployable &deployable) const;
-    void setDeployed(const QString &host, const AndroidDeployable &deployable);
-    QSharedPointer<Core::SshConnection> sshConnection() const { return m_connection; }
-
-    bool isDeployToSysrootEnabled() const { return m_deployToSysroot; }
-    void setDeployToSysrootEnabled(bool deploy) { m_deployToSysroot = deploy; }
-
     Q_INVOKABLE void stop();
 
 signals:
@@ -86,29 +76,9 @@ signals:
 
 private slots:
     void start();
-    void handleConnectionFailure();
-    void handleProgressReport(const QString &progressMsg);
-    void handleCopyProcessFinished(int exitStatus);
-    void handleSysrootInstallerFinished();
-    void handleSysrootInstallerOutput();
-    void handleSysrootInstallerErrorOutput();
-    void handleSftpChannelInitialized();
-    void handleSftpChannelInitializationFailed(const QString &error);
-    void handleSftpJobFinished(Core::SftpJobId job, const QString &error);
-    void handleSftpChannelClosed();
-    void handleInstallationFinished(int exitStatus);
-    void handleDeviceInstallerOutput(const QByteArray &output);
-    void handleDeviceInstallerErrorOutput(const QByteArray &output);
-    void handlePortsGathererError(const QString &errorMsg);
-    void handlePortListReady();
+    void handleBuildOutput();
 
 private:
-    enum State {
-        Inactive, StopRequested, InstallingToSysroot, Connecting,
-        UnmountingOldDirs, UnmountingCurrentDirs, GatheringPorts, Mounting,
-        InstallingToDevice, UnmountingCurrentMounts, CopyingFile,
-        InitializingSftp, Uploading
-    };
 
     AndroidDeployStep(ProjectExplorer::BuildStepList *bc,
         AndroidDeployStep *other);
@@ -116,41 +86,13 @@ private:
     virtual void run(QFutureInterface<bool> &fi);
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const { return true; }
-    virtual QVariantMap toMap() const;
-    virtual bool fromMap(const QVariantMap &map);
 
     void ctor();
     void raiseError(const QString &error);
     void writeOutput(const QString &text, OutputFormat = MessageOutput);
-    void addDeployTimesToMap(QVariantMap &map) const;
-    void getDeployTimesFromMap(const QVariantMap &map);
-    const AndroidPackageCreationStep *packagingStep() const;
-    QString deployMountPoint() const;
-    const AndroidToolChain *toolChain() const;
-    void copyNextFileToDevice();
-    void installToSysroot();
-    QString uploadDir() const;
-    void connectToDevice();
-    void prepareSftpConnection();
-    void runDpkg(const QString &packageFilePath);
-    void setState(State newState);
+    bool runCommand(QProcess *buildProc, const QString &command);
 
     static const QLatin1String Id;
-
-    QSharedPointer<Core::SshConnection> m_connection;
-    QProcess *m_sysrootInstaller;
-    typedef QPair<AndroidDeployable, QSharedPointer<Core::SshRemoteProcess> > DeviceDeployAction;
-    QScopedPointer<DeviceDeployAction> m_currentDeviceDeployAction;
-    QList<AndroidDeployable> m_filesToCopy;
-    bool m_deployToSysroot;
-    QSharedPointer<Core::SftpChannel> m_uploader;
-    QSharedPointer<Core::SshRemoteProcess> m_deviceInstaller;
-
-    bool m_needsInstall;
-    typedef QPair<AndroidDeployable, QString> DeployablePerHost;
-    QHash<DeployablePerHost, QDateTime> m_lastDeployed;
-    AndroidDeviceConfigListModel *m_deviceConfigModel;
-    State m_state;
 };
 
 class AndroidDeployEventHandler : public QObject

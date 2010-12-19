@@ -61,7 +61,6 @@ AndroidRunner::AndroidRunner(QObject *parent,
       m_userEnvChanges(runConfig->userEnvironmentChanges()),
       m_state(Inactive)
 {
-    m_connection = runConfig->deployStep()->sshConnection();
 #warning FIXME Android
 //    m_procsToKill << QFileInfo(m_remoteExecutable).fileName();
 }

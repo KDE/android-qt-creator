@@ -120,11 +120,13 @@ void AndroidDeviceConfigListModel::handleDeviceConfigListChange()
 
 int AndroidDeviceConfigListModel::rowCount(const QModelIndex &parent) const
 {
+    return 0;
 //    return parent.isValid() ? 0 : m_devConfigs.count();
 }
 
 QVariant AndroidDeviceConfigListModel::data(const QModelIndex &index, int role) const
 {
+    return QVariant();
 //    if (!index.isValid() || index.row() >= rowCount()
 //        || role != Qt::DisplayRole)
 //        return QVariant();

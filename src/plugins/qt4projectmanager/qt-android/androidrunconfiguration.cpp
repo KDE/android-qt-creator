@@ -199,15 +199,12 @@ bool AndroidRunConfiguration::fromMap(const QVariantMap &map)
 
 QString AndroidRunConfiguration::defaultDisplayName()
 {
-    if (!m_proFilePath.isEmpty())
-        return (QFileInfo(m_proFilePath).completeBaseName());
-    //: Android run configuration default display name
     return tr("Run on Android device");
 }
 
 AndroidConfig AndroidRunConfiguration::deviceConfig() const
 {
-    return deployStep()->deviceConfigModel()->config();
+    return AndroidConfigurations::instance().config();
 }
 
 const AndroidToolChain *AndroidRunConfiguration::toolchain() const
@@ -320,26 +317,26 @@ void AndroidRunConfiguration::updateDeviceConfigurations()
 void AndroidRunConfiguration::handleDeployConfigChanged()
 {
     return;
-    const QList<DeployConfiguration *> &deployConfigs
-        = target()->deployConfigurations();
-    DeployConfiguration * const activeDeployConf
-        = target()->activeDeployConfiguration();
-    for (int i = 0; i < deployConfigs.count(); ++i) {
-        AndroidDeployStep * const step
-            = AndroidGlobal::buildStep<AndroidDeployStep>(deployConfigs.at(i));
-        AndroidDeviceConfigListModel * const devConfigModel
-            = step->deviceConfigModel();
-        if (deployConfigs.at(i) == activeDeployConf) {
-            connect(devConfigModel, SIGNAL(currentChanged()), this,
-                SLOT(updateDeviceConfigurations()));
-            connect(devConfigModel, SIGNAL(modelReset()), this,
-                SLOT(updateDeviceConfigurations()));
-        } else {
-            disconnect(devConfigModel, 0, this,
-                SLOT(updateDeviceConfigurations()));
-        }
-    }
-    updateDeviceConfigurations();
+//    const QList<DeployConfiguration *> &deployConfigs
+//        = target()->deployConfigurations();
+//    DeployConfiguration * const activeDeployConf
+//        = target()->activeDeployConfiguration();
+//    for (int i = 0; i < deployConfigs.count(); ++i) {
+//        AndroidDeployStep * const step
+//            = AndroidGlobal::buildStep<AndroidDeployStep>(deployConfigs.at(i));
+//        AndroidDeviceConfigListModel * const devConfigModel
+//            = step->deviceConfigModel();
+//        if (deployConfigs.at(i) == activeDeployConf) {
+//            connect(devConfigModel, SIGNAL(currentChanged()), this,
+//                SLOT(updateDeviceConfigurations()));
+//            connect(devConfigModel, SIGNAL(modelReset()), this,
+//                SLOT(updateDeviceConfigurations()));
+//        } else {
+//            disconnect(devConfigModel, 0, this,
+//                SLOT(updateDeviceConfigurations()));
+//        }
+//    }
+//    updateDeviceConfigurations();
 }
 
 QString AndroidRunConfiguration::baseEnvironmentText() const

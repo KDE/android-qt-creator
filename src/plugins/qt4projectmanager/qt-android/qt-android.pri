@@ -23,9 +23,6 @@ HEADERS += \
     $$PWD/androiddeviceconfiglistmodel.h \
     $$PWD/androiddeviceenvreader.h \
     $$PWD/androidtemplatesmanager.h \
-    $$PWD/androidprofilesupdatedialog.h \
-    $$PWD/androidremoteprocesslist.h \
-    $$PWD/androidremoteprocessesdialog.h \
     $$PWD/androiddevicesmodel.h
 
 SOURCES += \
@@ -45,22 +42,16 @@ SOURCES += \
     $$PWD/androiddeploystep.cpp \
     $$PWD/androiddeploystepwidget.cpp \
     $$PWD/androiddeploystepfactory.cpp \
-    $$PWD/androidglobal.cpp \
     $$PWD/androidrunner.cpp \
     $$PWD/androiddebugsupport.cpp \
     $$PWD/androiddeviceconfiglistmodel.cpp \
     $$PWD/androiddeviceenvreader.cpp \
     $$PWD/androidtemplatesmanager.cpp \
-    $$PWD/androidprofilesupdatedialog.cpp \
-    $$PWD/androidremoteprocesslist.cpp \
-    $$PWD/androidremoteprocessesdialog.cpp \
     $$PWD/androiddevicesmodel.cpp
 
 FORMS += \
     $$PWD/androidsettingswidget.ui \
     $$PWD/androidpackagecreationwidget.ui \
-    $$PWD/androiddeploystepwidget.ui \
-    $$PWD/androidprofilesupdatedialog.ui \
-    $$PWD/androidremoteprocessesdialog.ui
+    $$PWD/androiddeploystepwidget.ui
 
 RESOURCES += $$PWD/qt-android.qrc

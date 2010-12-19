@@ -36,6 +36,7 @@
 #include "androidpackagecreationstep.h"
 #include "androidrunconfiguration.h"
 #include "androidtoolchain.h"
+#include "androidtemplatesmanager.h"
 
 #include <coreplugin/ssh/sftpchannel.h>
 #include <coreplugin/ssh/sshconnection.h>
@@ -44,6 +45,8 @@
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
+#include <qt4project.h>
+#include <qt4target.h>
 
 #include <qt4projectmanager/qt4buildconfiguration.h>
 
@@ -73,7 +76,7 @@ AndroidDeployStep::AndroidDeployStep(ProjectExplorer::BuildStepList *parent)
 
 AndroidDeployStep::AndroidDeployStep(ProjectExplorer::BuildStepList *parent,
     AndroidDeployStep *other)
-    : BuildStep(parent, other), m_lastDeployed(other->m_lastDeployed)
+    : BuildStep(parent, other)
 {
     ctor();
 }
@@ -82,33 +85,8 @@ AndroidDeployStep::~AndroidDeployStep() { }
 
 void AndroidDeployStep::ctor()
 {
-    return;
     //: AndroidDeployStep default display name
-//    setDefaultDisplayName(tr("Deploy to Android device"));
-
-//    // A AndroidDeployables object is only dependent on the active build
-//    // configuration and therefore can (and should) be shared among all
-//    // deploy steps.
-//    const QList<DeployConfiguration *> &deployConfigs
-//        = target()->deployConfigurations();
-//    if (deployConfigs.isEmpty()) {
-//        m_deployables = QSharedPointer<AndroidDeployables>(new AndroidDeployables(this));
-//    } else {
-//        const AndroidDeployStep *const other
-//            = AndroidGlobal::buildStep<AndroidDeployStep>(deployConfigs.first());
-//        m_deployables = other->deployables();
-//    }
-
-//    m_state = Inactive;
-//    m_needsInstall = false;
-//    m_deviceConfigModel = new AndroidDeviceConfigListModel(this);
-//    m_sysrootInstaller = new QProcess(this);
-//    connect(m_sysrootInstaller, SIGNAL(finished(int,QProcess::ExitStatus)),
-//        this, SLOT(handleSysrootInstallerFinished()));
-//    connect(m_sysrootInstaller, SIGNAL(readyReadStandardOutput()), this,
-//        SLOT(handleSysrootInstallerOutput()));
-//    connect(m_sysrootInstaller, SIGNAL(readyReadStandardError()), this,
-//        SLOT(handleSysrootInstallerErrorOutput()));
+    setDefaultDisplayName(tr("Deploy to Android device"));
 }
 
 bool AndroidDeployStep::init()
@@ -129,70 +107,80 @@ BuildStepConfigWidget *AndroidDeployStep::createConfigWidget()
     return new AndroidDeployStepWidget(this);
 }
 
-QVariantMap AndroidDeployStep::toMap() const
+bool AndroidDeployStep::runCommand(QProcess *buildProc,
+    const QString &command)
 {
-    QVariantMap map(BuildStep::toMap());
-    addDeployTimesToMap(map);
-    map.insert(AndroidDeployToSysrootKey, m_deployToSysroot);
-    map.unite(m_deviceConfigModel->toMap());
-    return map;
-}
 
-void AndroidDeployStep::addDeployTimesToMap(QVariantMap &map) const
-{
-    QVariantList hostList;
-    QVariantList fileList;
-    QVariantList remotePathList;
-    QVariantList timeList;
-    typedef QHash<DeployablePerHost, QDateTime>::ConstIterator DepIt;
-    for (DepIt it = m_lastDeployed.begin(); it != m_lastDeployed.end(); ++it) {
-        fileList << it.key().first.localFilePath;
-        remotePathList << it.key().first.remoteDir;
-        hostList << it.key().second;
-        timeList << it.value();
-    }
-    map.insert(AndroidLastDeployedHostsKey, hostList);
-    map.insert(AndroidLastDeployedFilesKey, fileList);
-    map.insert(AndroidLastDeployedRemotePathsKey, remotePathList);
-    map.insert(AndroidLastDeployedTimesKey, timeList);
-}
-
-bool AndroidDeployStep::fromMap(const QVariantMap &map)
-{
-    if (!BuildStep::fromMap(map))
+    writeOutput(tr("Package deploy: Running command '%1'.").arg(command), BuildStep::MessageOutput);
+    buildProc->start(command);
+    if (!buildProc->waitForStarted()) {
+        writeOutput(tr("Packaging error: Could not start command '%1'. Reason: %2")
+            .arg(command).arg(buildProc->errorString()), BuildStep::ErrorMessageOutput);
         return false;
-    getDeployTimesFromMap(map);
-    m_deviceConfigModel->fromMap(map);
-    m_deployToSysroot = map.value(AndroidDeployToSysrootKey, true).toBool();
+    }
+    buildProc->waitForFinished(-1);
+    if (buildProc->error() != QProcess::UnknownError
+        || buildProc->exitCode() != 0) {
+        QString mainMessage = tr("Packaging Error: Command '%1' failed.")
+            .arg(command);
+        if (buildProc->error() != QProcess::UnknownError)
+            mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
+        else
+            mainMessage += tr("Exit code: %1").arg(buildProc->exitCode());
+        writeOutput(mainMessage, BuildStep::ErrorMessageOutput);
+        return false;
+    }
     return true;
 }
 
-void AndroidDeployStep::getDeployTimesFromMap(const QVariantMap &map)
+void AndroidDeployStep::handleBuildOutput()
 {
-    const QVariantList &hostList = map.value(AndroidLastDeployedHostsKey).toList();
-    const QVariantList &fileList = map.value(AndroidLastDeployedFilesKey).toList();
-    const QVariantList &remotePathList
-        = map.value(AndroidLastDeployedRemotePathsKey).toList();
-    const QVariantList &timeList = map.value(AndroidLastDeployedTimesKey).toList();
-    const int elemCount
-        = qMin(qMin(hostList.size(), fileList.size()),
-            qMin(remotePathList.size(), timeList.size()));
-    for (int i = 0; i < elemCount; ++i) {
-        const AndroidDeployable d(fileList.at(i).toString(),
-            remotePathList.at(i).toString());
-        m_lastDeployed.insert(DeployablePerHost(d, hostList.at(i).toString()),
-            timeList.at(i).toDateTime());
+    QProcess * const buildProc = qobject_cast<QProcess *>(sender());
+    if (!buildProc)
+        return;
+    const QByteArray &stdOut = buildProc->readAllStandardOutput();
+    if (!stdOut.isEmpty())
+        emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
+    const QByteArray &errorOut = buildProc->readAllStandardError();
+    if (!errorOut.isEmpty()) {
+        emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput);
     }
 }
 
-const AndroidPackageCreationStep *AndroidDeployStep::packagingStep() const
+void AndroidDeployStep::start()
 {
-    const AndroidPackageCreationStep * const step
-        = AndroidGlobal::buildStep<AndroidPackageCreationStep>(target()->activeDeployConfiguration());
-    Q_ASSERT_X(step, Q_FUNC_INFO,
-        "Impossible: Android build configuration without packaging step.");
-    return step;
+    const Qt4BuildConfiguration * const bc
+        = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
+
+    writeOutput(tr("Please wait, searching for a siutable device."));
+
+    QString serialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(8);
+    if (!serialNumber.length())
+    {
+        raiseError(tr("Cannot deploy: no devices, emulators found for your package."));
+        emit done();
+        return;
+    }
+
+    writeOutput(tr("Installing package onto %1.").arg(serialNumber));
+    QProcess proc;
+    connect(&proc, SIGNAL(readyReadStandardOutput()), this,
+        SLOT(handleBuildOutput()));
+    connect(&proc, SIGNAL(readyReadStandardError()), this,
+        SLOT(handleBuildOutput()));
+
+    proc.setWorkingDirectory(AndroidTemplatesManager::instance()->androidDirPath(bc->qt4Target()->qt4Project()));
+
+    runCommand(&proc,AndroidConfigurations::instance().adbToolPath()
+               +QLatin1String(" uninstall ")
+               +AndroidTemplatesManager::instance()->packageName(bc->qt4Target()->qt4Project()));
+
+    if (!runCommand(&proc, AndroidConfigurations::instance().antToolPath()+QLatin1String(" install")))
+        raiseError(tr("Package instalation failed"));
+    emit done();
+    return;
 }
+
 
 void AndroidDeployStep::raiseError(const QString &errorString)
 {
@@ -208,581 +196,39 @@ void AndroidDeployStep::writeOutput(const QString &text, OutputFormat format)
 
 void AndroidDeployStep::stop()
 {
-    return;
-    if (m_state == StopRequested || m_state == Inactive)
-        return;
-
-    const State oldState = m_state;
-    setState(StopRequested);
-    switch (oldState) {
-    case InstallingToSysroot:
-        if (m_needsInstall)
-            m_sysrootInstaller->terminate();
-        break;
-    case Connecting:
-        m_connection->disconnectFromHost();
-        setState(Inactive);
-        break;
-    case InstallingToDevice:
-    case CopyingFile: {
-        const QByteArray programToKill = oldState == CopyingFile
-            ? " cp " : "dpkg";
-        const QByteArray killCommand
-            = AndroidGlobal::remoteSudo().toUtf8() + " pkill -f ";
-        const QByteArray cmdLine = killCommand + programToKill + "; sleep 1; "
-            + killCommand + "-9 " + programToKill;
-        SshRemoteProcess::Ptr killProc
-            = m_connection->createRemoteProcess(cmdLine);
-        killProc->start();
-        break;
-    }
-    case Uploading:
-        m_uploader->closeChannel();
-        break;
-    case UnmountingOldDirs:
-    case UnmountingCurrentDirs:
-    case UnmountingCurrentMounts:
-    case GatheringPorts:
-    case Mounting:
-    case InitializingSftp:
-        break; // Nothing to do here.
-    default:
-        Q_ASSERT_X(false, Q_FUNC_INFO, "Missing switch case.");
-    }
 }
 
-QString AndroidDeployStep::uploadDir() const
-{
-    return AndroidGlobal::homeDirOnDevice(m_connection->connectionParameters().uname);
-}
-
-bool AndroidDeployStep::currentlyNeedsDeployment(const QString &host,
-    const AndroidDeployable &deployable) const
-{
-    const QDateTime &lastDeployed
-        = m_lastDeployed.value(DeployablePerHost(deployable, host));
-    return !lastDeployed.isValid()
-        || QFileInfo(deployable.localFilePath).lastModified() > lastDeployed;
-}
-
-void AndroidDeployStep::setDeployed(const QString &host,
-    const AndroidDeployable &deployable)
-{
-    m_lastDeployed.insert(DeployablePerHost(deployable, host),
-        QDateTime::currentDateTime());
-}
-
-AndroidConfig AndroidDeployStep::deviceConfig() const
-{
-    return deviceConfigModel()->config();
-}
-
-void AndroidDeployStep::start()
-{
-//    if (m_state != Inactive) {
-//        raiseError(tr("Cannot deploy: Still cleaning up from last time."));
-//        emit done();
-//        return;
-//    }
-
-////    if (!deviceConfig().isValid()) {
-////        raiseError(tr("Deployment failed: No valid device set."));
-////        emit done();
-////        return;
-////    }
-
-//    Q_ASSERT(!m_currentDeviceDeployAction);
-//    Q_ASSERT(!m_needsInstall);
-//    Q_ASSERT(m_filesToCopy.isEmpty());
-//    const AndroidPackageCreationStep * const pStep = packagingStep();
-////    const QString hostName = deviceConfig().server.host;
-////    if (pStep->isPackagingEnabled()) {
-////        const AndroidDeployable d(pStep->packageFilePath(), QString());
-////        if (currentlyNeedsDeployment(hostName, d))
-////            m_needsInstall = true;
-////    } else {
-////        const int deployableCount = m_deployables->deployableCount();
-////        for (int i = 0; i < deployableCount; ++i) {
-////            const AndroidDeployable &d = m_deployables->deployableAt(i);
-////            if (currentlyNeedsDeployment(hostName, d))
-////                m_filesToCopy << d;
-////        }
-////    }
-
-//    if (m_needsInstall || !m_filesToCopy.isEmpty()) {
-//        if (m_deployToSysroot)
-//            installToSysroot();
-//        else
-//            connectToDevice();
-//    } else {
-//        writeOutput(tr("All files up to date, no installation necessary."));
-//        emit done();
-//    }
-}
-
-void AndroidDeployStep::handleConnectionFailure()
-{
-//    if (m_state != Inactive) {
-//        raiseError(tr("Could not connect to host: %1")
-//            .arg(m_connection->errorString()));
-//        setState(Inactive);
-//    }
-}
-
-void AndroidDeployStep::handleSftpChannelInitialized()
-{
-//    ASSERT_STATE(QList<State>() << InitializingSftp << StopRequested);
-
-//    switch (m_state) {
-//    case InitializingSftp: {
-//        const QString filePath = packagingStep()->packageFilePath();
-//        const QString filePathNative = QDir::toNativeSeparators(filePath);
-//        const QString fileName = QFileInfo(filePath).fileName();
-//        const QString remoteFilePath = uploadDir() + QLatin1Char('/') + fileName;
-//        const SftpJobId job = m_uploader->uploadFile(filePath,
-//            remoteFilePath, SftpOverwriteExisting);
-//        if (job == SftpInvalidJob) {
-//            raiseError(tr("Upload failed: Could not open file '%1'")
-//                .arg(filePathNative));
-//            setState(Inactive);
-//        } else {
-//            setState(Uploading);
-//            writeOutput(tr("Started uploading file '%1'.").arg(filePathNative));
-//        }
-//        break;
-//    }
-//    case StopRequested:
-//        setState(Inactive);
-//        break;
-//    default:
-//        break;
-//    }
-}
-
-void AndroidDeployStep::handleSftpChannelInitializationFailed(const QString &error)
-{
-//    ASSERT_STATE(QList<State>() << InitializingSftp << StopRequested);
-
-//    switch (m_state) {
-//    case InitializingSftp:
-//    case StopRequested:
-//        raiseError(tr("Could not set up SFTP connection: %1").arg(error));
-//        setState(Inactive);
-//        break;
-//    default:
-//        break;
-//    }
-}
-
-void AndroidDeployStep::handleSftpJobFinished(Core::SftpJobId,
-    const QString &error)
-{
-//    ASSERT_STATE(QList<State>() << Uploading << StopRequested);
-
-//    const QString filePathNative
-//        = QDir::toNativeSeparators(packagingStep()->packageFilePath());
-//    if (!error.isEmpty()) {
-//        raiseError(tr("Failed to upload file %1: %2")
-//            .arg(filePathNative, error));
-//        if (m_state == Uploading)
-//            setState(Inactive);
-//    } else if (m_state == Uploading) {
-//        writeOutput(tr("Successfully uploaded file '%1'.")
-//            .arg(filePathNative));
-//        const QString remoteFilePath
-//            = uploadDir() + QLatin1Char('/') + QFileInfo(filePathNative).fileName();
-//        runDpkg(remoteFilePath);
-//    }
-}
-
-void AndroidDeployStep::handleSftpChannelClosed()
-{
-//    ASSERT_STATE(StopRequested);
-//    setState(Inactive);
-}
-
-void AndroidDeployStep::prepareSftpConnection()
-{
-//    setState(InitializingSftp);
-//    m_uploader = m_connection->createSftpChannel();
-//    connect(m_uploader.data(), SIGNAL(initialized()), this,
-//        SLOT(handleSftpChannelInitialized()));
-//    connect(m_uploader.data(), SIGNAL(initializationFailed(QString)), this,
-//        SLOT(handleSftpChannelInitializationFailed(QString)));
-//    connect(m_uploader.data(), SIGNAL(finished(Core::SftpJobId, QString)),
-//        this, SLOT(handleSftpJobFinished(Core::SftpJobId, QString)));
-//    connect(m_uploader.data(), SIGNAL(closed()), this,
-//        SLOT(handleSftpChannelClosed()));
-//    m_uploader->initialize();
-}
-
-void AndroidDeployStep::installToSysroot()
-{
-//    ASSERT_STATE(Inactive);
-//    setState(InstallingToSysroot);
-
-//    if (m_needsInstall) {
-//        writeOutput(tr("Installing package to sysroot ..."));
-//        const AndroidToolChain * const tc = toolChain();
-//        const QStringList args = QStringList() << QLatin1String("-t")
-//            << tc->targetName() << QLatin1String("xdpkg") << QLatin1String("-i")
-//            << packagingStep()->packageFilePath();
-//        m_sysrootInstaller->start(tc->madAdminCommand(), args);
-//        if (!m_sysrootInstaller->waitForStarted()) {
-//            writeOutput(tr("Installation to sysroot failed, continuing anyway."),
-//                ErrorMessageOutput);
-//            connectToDevice();
-//        }
-//    } else {
-//        writeOutput(tr("Copying files to sysroot ..."));
-//        Q_ASSERT(!m_filesToCopy.isEmpty());
-//        QDir sysRootDir(toolChain()->sysrootRoot());
-//        foreach (const AndroidDeployable &d, m_filesToCopy) {
-//            const QLatin1Char sep('/');
-//            const QString targetFilePath = toolChain()->sysrootRoot() + sep
-//                + d.remoteDir + sep + QFileInfo(d.localFilePath).fileName();
-//            sysRootDir.mkpath(d.remoteDir.mid(1));
-//            QFile::remove(targetFilePath);
-//            if (!QFile::copy(d.localFilePath, targetFilePath)) {
-//                writeOutput(tr("Sysroot installation failed: "
-//                    "Could not copy '%1' to '%2'. Continuing anyway.")
-//                    .arg(QDir::toNativeSeparators(d.localFilePath),
-//                         QDir::toNativeSeparators(targetFilePath)),
-//                    ErrorMessageOutput);
-//            }
-//            QCoreApplication::processEvents();
-//            if (m_state == StopRequested) {
-//                setState(Inactive);
-//                return;
-//            }
-//        }
-//        connectToDevice();
-//    }
-}
-
-void AndroidDeployStep::handleSysrootInstallerFinished()
-{
-//    ASSERT_STATE(QList<State>() << InstallingToSysroot << StopRequested);
-
-//    if (m_state == StopRequested) {
-//        setState(Inactive);
-//        return;
-//    }
-
-//    if (m_sysrootInstaller->error() != QProcess::UnknownError
-//        || m_sysrootInstaller->exitCode() != 0) {
-//        writeOutput(tr("Installation to sysroot failed, continuing anyway."),
-//            ErrorMessageOutput);
-//    }
-//    connectToDevice();
-}
-
-void AndroidDeployStep::connectToDevice()
-{
-#warning FIXME Android
-//    ASSERT_STATE(QList<State>() << Inactive << InstallingToSysroot);
-//    setState(Connecting);
-
-//    const bool canReUse = m_connection
-//        && m_connection->state() == SshConnection::Connected
-//        && m_connection->connectionParameters() == deviceConfig().server;
-//    if (!canReUse)
-//        m_connection = SshConnection::create();
-//    connect(m_connection.data(), SIGNAL(connected()), this,
-//        SLOT(handleConnected()));
-//    connect(m_connection.data(), SIGNAL(error(Core::SshError)), this,
-//        SLOT(handleConnectionFailure()));
-//    if (canReUse) {
-//        handleConnected();
-//    } else {
-//        writeOutput(tr("Connecting to device..."));
-//        m_connection->connectToHost(deviceConfig().server);
-//    }
-}
-
-void AndroidDeployStep::runDpkg(const QString &packageFilePath)
-{
-//    ASSERT_STATE(QList<State>() << Mounting << Uploading);
-//    const bool removeAfterInstall = m_state == Uploading;
-//    setState(InstallingToDevice);
-
-//    writeOutput(tr("Installing package to device..."));
-//    QByteArray cmd = AndroidGlobal::remoteSudo().toUtf8() + " dpkg -i "
-//        + packageFilePath.toUtf8();
-//    if (removeAfterInstall)
-//        cmd += " && (rm " + packageFilePath.toUtf8() + " || :)";
-//    m_deviceInstaller = m_connection->createRemoteProcess(cmd);
-//    connect(m_deviceInstaller.data(), SIGNAL(closed(int)), this,
-//        SLOT(handleInstallationFinished(int)));
-//    connect(m_deviceInstaller.data(), SIGNAL(outputAvailable(QByteArray)),
-//        this, SLOT(handleDeviceInstallerOutput(QByteArray)));
-//    connect(m_deviceInstaller.data(),
-//        SIGNAL(errorOutputAvailable(QByteArray)), this,
-//        SLOT(handleDeviceInstallerErrorOutput(QByteArray)));
-//    m_deviceInstaller->start();
-}
-
-void AndroidDeployStep::handleProgressReport(const QString &progressMsg)
-{
-//    ASSERT_STATE(QList<State>() << UnmountingOldDirs << UnmountingCurrentDirs
-//        << UnmountingCurrentMounts << Mounting << StopRequested << Inactive);
-
-//    switch (m_state) {
-//    case UnmountingOldDirs:
-//    case UnmountingCurrentDirs:
-//    case UnmountingCurrentMounts:
-//    case StopRequested:
-//        writeOutput(progressMsg);
-//        break;
-//    case Inactive:
-//    default:
-//        break;
-//    }
-}
-
-void AndroidDeployStep::copyNextFileToDevice()
-{
-//    ASSERT_STATE(CopyingFile);
-//    Q_ASSERT(!m_filesToCopy.isEmpty());
-//    Q_ASSERT(!m_currentDeviceDeployAction);
-//    const AndroidDeployable d = m_filesToCopy.takeFirst();
-//    QString sourceFilePath = deployMountPoint();
-//#ifdef Q_OS_WIN
-//    const QString localFilePath = QDir::fromNativeSeparators(d.localFilePath);
-//    sourceFilePath += QLatin1Char('/') + localFilePath.at(0).toLower()
-//        + localFilePath.mid(2);
-//#else
-//    sourceFilePath += d.localFilePath;
-//#endif
-
-//    QString command = QString::fromLatin1("%1 cp -r %2 %3")
-//        .arg(AndroidGlobal::remoteSudo(), sourceFilePath,
-//            d.remoteDir + QLatin1Char('/'));
-//    SshRemoteProcess::Ptr copyProcess
-//        = m_connection->createRemoteProcess(command.toUtf8());
-//    connect(copyProcess.data(), SIGNAL(errorOutputAvailable(QByteArray)),
-//        this, SLOT(handleDeviceInstallerErrorOutput(QByteArray)));
-//    connect(copyProcess.data(), SIGNAL(closed(int)), this,
-//        SLOT(handleCopyProcessFinished(int)));
-//    m_currentDeviceDeployAction.reset(new DeviceDeployAction(d, copyProcess));
-//    writeOutput(tr("Copying file '%1' to path '%2' on the device...")
-//        .arg(d.localFilePath, d.remoteDir));
-//    copyProcess->start();
-}
-
-void AndroidDeployStep::handleCopyProcessFinished(int exitStatus)
-{
-//    ASSERT_STATE(QList<State>() << CopyingFile << StopRequested << Inactive);
-
-//    switch (m_state) {
-//    case CopyingFile: {
-//        Q_ASSERT(m_currentDeviceDeployAction);
-//        const QString localFilePath
-//            = m_currentDeviceDeployAction->first.localFilePath;
-//        if (exitStatus != SshRemoteProcess::ExitedNormally
-//                || m_currentDeviceDeployAction->second->exitCode() != 0) {
-//            raiseError(tr("Copying file '%1' failed.").arg(localFilePath));
-//            m_currentDeviceDeployAction.reset(0);
-//            setState(UnmountingCurrentMounts);
-//            unmount();
-//        } else {
-//            writeOutput(tr("Successfully copied file '%1'.").arg(localFilePath));
-//            setDeployed(m_connection->connectionParameters().host,
-//                m_currentDeviceDeployAction->first);
-//            m_currentDeviceDeployAction.reset(0);
-//            if (m_filesToCopy.isEmpty()) {
-//                writeOutput(tr("All files copied."));
-//                setState(UnmountingCurrentMounts);
-//                unmount();
-//            } else {
-//                copyNextFileToDevice();
-//            }
-//        }
-//        break;
-//    }
-//    case StopRequested:
-//        unmount();
-//        break;
-//    case Inactive:
-//    default:
-//        break;
-//    }
-}
-
-QString AndroidDeployStep::deployMountPoint() const
-{
-#warning FIXME Android
-    return "";/*AndroidGlobal::homeDirOnDevice(deviceConfig().server.uname)
-        + QLatin1String("/deployMountPoint_") + packagingStep()->projectName();*/
-}
-
-const AndroidToolChain *AndroidDeployStep::toolChain() const
-{
-    const Qt4BuildConfiguration * const bc
-        = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
-    return static_cast<AndroidToolChain *>(bc->toolChain());
-}
-
-void AndroidDeployStep::handleSysrootInstallerOutput()
-{
-//    ASSERT_STATE(QList<State>() << InstallingToSysroot << StopRequested);
-
-//    switch (m_state) {
-//    case InstallingToSysroot:
-//    case StopRequested:
-//        writeOutput(QString::fromLocal8Bit(m_sysrootInstaller->readAllStandardOutput()),
-//            NormalOutput);
-//        break;
-//    default:
-//        break;
-//    }
-}
-
-void AndroidDeployStep::handleSysrootInstallerErrorOutput()
-{
-//    ASSERT_STATE(QList<State>() << InstallingToSysroot << StopRequested);
-
-//    switch (m_state) {
-//    case InstallingToSysroot:
-//    case StopRequested:
-//        writeOutput(QString::fromLocal8Bit(m_sysrootInstaller->readAllStandardError()),
-//            BuildStep::ErrorOutput);
-//        break;
-//    default:
-//        break;
-//    }
-}
-
-void AndroidDeployStep::handleInstallationFinished(int exitStatus)
-{
-//    ASSERT_STATE(QList<State>() << InstallingToDevice << StopRequested
-//        << Inactive);
-
-//    switch (m_state) {
-//    case InstallingToDevice:
-//        if (exitStatus != SshRemoteProcess::ExitedNormally
-//            || m_deviceInstaller->exitCode() != 0) {
-//            raiseError(tr("Installing package failed."));
-//        } else {
-//            m_needsInstall = false;
-//            setDeployed(m_connection->connectionParameters().host,
-//                AndroidDeployable(packagingStep()->packageFilePath(), QString()));
-//            writeOutput(tr("Package installed."));
-//        }
-//        setState(UnmountingCurrentMounts);
-//        unmount();
-//        break;
-//    case StopRequested:
-//        unmount();
-//        break;
-//    case Inactive:
-//    default:
-//        break;
-//    }
-}
-
-void AndroidDeployStep::handlePortsGathererError(const QString &errorMsg)
-{
-//    ASSERT_STATE(QList<State>() << GatheringPorts << StopRequested << Inactive);
-
-//    if (m_state != Inactive) {
-//        raiseError(errorMsg);
-//        setState(Inactive);
-//    }
-}
-
-void AndroidDeployStep::handlePortListReady()
-{
-//    ASSERT_STATE(QList<State>() << GatheringPorts << StopRequested);
-
-//    if (m_state == GatheringPorts) {
-//        setState(Mounting);
-//        m_freePorts = deviceConfig().freePorts();
-//        m_mounter->mount(&m_freePorts, m_portsGatherer);
-//    } else {
-//        setState(Inactive);
-//    }
-}
-
-void AndroidDeployStep::setState(State newState)
-{
-//    if (newState == m_state)
-//        return;
-//    m_state = newState;
-//    if (m_state == Inactive) {
-//        m_needsInstall = false;
-//        m_filesToCopy.clear();
-//        m_currentDeviceDeployAction.reset(0);
-//        if (m_connection)
-//            disconnect(m_connection.data(), 0, this, 0);
-//        if (m_uploader) {
-//            disconnect(m_uploader.data(), 0, this, 0);
-//            m_uploader->closeChannel();
-//        }
-//        if (m_deviceInstaller)
-//            disconnect(m_deviceInstaller.data(), 0, this, 0);
-//        emit done();
-//    }
-}
-
-void AndroidDeployStep::handleDeviceInstallerOutput(const QByteArray &output)
-{
-//    ASSERT_STATE(QList<State>() << InstallingToDevice << StopRequested);
-
-//    switch (m_state) {
-//    case InstallingToDevice:
-//    case StopRequested:
-//        writeOutput(QString::fromUtf8(output), NormalOutput);
-//        break;
-//    default:
-//        break;
-//    }
-}
-
-void AndroidDeployStep::handleDeviceInstallerErrorOutput(const QByteArray &output)
-{
-//    ASSERT_STATE(QList<State>() << InstallingToDevice << StopRequested);
-
-//    switch (m_state) {
-//    case InstallingToDevice:
-//    case StopRequested:
-//        writeOutput(QString::fromUtf8(output), ErrorOutput);
-//        break;
-//    default:
-//        break;
-//    }
-}
 
 AndroidDeployEventHandler::AndroidDeployEventHandler(AndroidDeployStep *deployStep,
     QFutureInterface<bool> &future)
     : m_deployStep(deployStep), m_future(future), m_eventLoop(new QEventLoop),
       m_error(false)
 {
-//    connect(m_deployStep, SIGNAL(done()), this, SLOT(handleDeployingDone()));
-//    connect(m_deployStep, SIGNAL(error()), this, SLOT(handleDeployingFailed()));
-//    QTimer cancelChecker;
-//    connect(&cancelChecker, SIGNAL(timeout()), this, SLOT(checkForCanceled()));
-//    cancelChecker.start(500);
-//    future.reportResult(m_eventLoop->exec() == 0);
+    connect(m_deployStep, SIGNAL(done()), this, SLOT(handleDeployingDone()));
+    connect(m_deployStep, SIGNAL(error()), this, SLOT(handleDeployingFailed()));
+    QTimer cancelChecker;
+    connect(&cancelChecker, SIGNAL(timeout()), this, SLOT(checkForCanceled()));
+    cancelChecker.start(500);
+    future.reportResult(m_eventLoop->exec() == 0);
 }
 
 void AndroidDeployEventHandler::handleDeployingDone()
 {
-//    m_eventLoop->exit(m_error ? 1 : 0);
+    m_eventLoop->exit(m_error ? 1 : 0);
 }
 
 void AndroidDeployEventHandler::handleDeployingFailed()
 {
-//    m_error = true;
+    m_error = true;
 }
 
 void AndroidDeployEventHandler::checkForCanceled()
 {
-//    if (!m_error && m_future.isCanceled()) {
-//        QMetaObject::invokeMethod(m_deployStep, "stop");
-//        m_error = true;
-//        handleDeployingDone();
-//    }
+    if (!m_error && m_future.isCanceled()) {
+        QMetaObject::invokeMethod(m_deployStep, "stop");
+        m_error = true;
+        handleDeployingDone();
+    }
 }
 
 } // namespace Internal

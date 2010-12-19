@@ -41,6 +41,8 @@
 #include <QtCore/QObject>
 #include <QtCore/QPair>
 #include <QtCore/QString>
+#include <QtCore/QVector>
+#include <QtCore/QProcess>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -61,6 +63,11 @@ public:
     QString AntLocation;
 };
 
+struct AndroidDevice{
+    QString serialNumber;
+    int sdk;
+};
+
 class AndroidConfigurations : public QObject
 {
     Q_OBJECT
@@ -71,8 +78,13 @@ public:
     AndroidConfig config() const { return m_config; }
     void setConfig(const AndroidConfig &config);
     QStringList sdkTargets();
+    QString adbToolPath();
     QString androidToolPath();
-
+    QString antToolPath();
+    QString emulatorToolPath();
+    QString gdbServerPath();
+    QString getDeployDeviceSerialNumber(int apiLevel=-1);
+    QString createAVD(int apiLevel);
 signals:
     void updated();
 
@@ -81,9 +93,15 @@ private:
     void load();
     void save();
 
+    QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
+    QString startAVD(int apiLevel);
+    int getSDKVersion(const QString & device);
+
+private:
     static AndroidConfigurations *m_instance;
     AndroidConfig m_config;
     friend class AndroidConfig;
+    QProcess m_avdProcess;
 };
 
 } // namespace Internal

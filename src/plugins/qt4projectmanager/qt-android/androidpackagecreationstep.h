@@ -72,16 +72,8 @@ public:
     bool isPackagingEnabled() const;
     void setPackagingEnabled(bool enabled) { m_packagingEnabled = enabled; }
 
-    QString versionString(QString *error) const;
-    bool setVersionString(const QString &version, QString *error);
-
     const AndroidToolChain *androidToolChain() const;
 
-    static bool preparePackagingProcess(QProcess *proc,
-        const Qt4BuildConfiguration *bc, const QString &workingDir,
-        QString *error);
-    static QString packagingCommand(const AndroidToolChain *tc,
-        const QString &commandName);
     static QString packageName(const ProjectExplorer::Project *project);
     static QString packageFileName(const ProjectExplorer::Project *project,
         const QString &version);
@@ -112,9 +104,7 @@ private:
     virtual bool fromMap(const QVariantMap &map);
 
     bool createPackage(QProcess *buildProc);
-    bool copyAndroidFiles();
     bool runCommand(QProcess *buildProc, const QString &command);
-    static QString nativePath(const QFile &file);
     bool packagingNeeded() const;
     bool isFileNewerThan(const QString &filePath,
         const QDateTime &timeStamp) const;
@@ -123,7 +113,6 @@ private:
     QString buildDirectory() const;
     const Qt4BuildConfiguration *qt4BuildConfiguration() const;
     AndroidDeployStep * deployStep() const;
-    void checkProjectName();
 
     static const QLatin1String CreatePackageId;
 

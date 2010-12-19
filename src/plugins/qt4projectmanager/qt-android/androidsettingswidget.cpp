@@ -37,7 +37,6 @@
 #include "ui_androidsettingswidget.h"
 
 #include "androidconfigurations.h"
-#include "androidremoteprocessesdialog.h"
 
 #include <coreplugin/ssh/sshremoteprocessrunner.h>
 

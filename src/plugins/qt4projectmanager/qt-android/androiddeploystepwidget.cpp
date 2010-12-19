@@ -49,7 +49,7 @@ void AndroidDeployStepWidget::init()
         this, SLOT(handleDeviceConfigModelChanged()));
     connect(ui->deviceConfigComboBox, SIGNAL(activated(int)), this,
         SLOT(setCurrentDeviceConfig(int)));
-    ui->deployToSysrootCheckBox->setChecked(m_step->isDeployToSysrootEnabled());
+//    ui->deployToSysrootCheckBox->setChecked(m_step->isDeployToSysrootEnabled());
     connect(ui->deployToSysrootCheckBox, SIGNAL(toggled(bool)), this,
         SLOT(setDeployToSysroot(bool)));
     handleDeviceConfigModelChanged();
@@ -90,12 +90,12 @@ QString AndroidDeployStepWidget::displayName() const
 
 void AndroidDeployStepWidget::setCurrentDeviceConfig(int index)
 {
-    m_step->deviceConfigModel()->setCurrentIndex(index);
+    //m_step->deviceConfigModel()->setCurrentIndex(index);
 }
 
 void AndroidDeployStepWidget::setDeployToSysroot(bool doDeploy)
 {
-    m_step->setDeployToSysrootEnabled(doDeploy);
+    //m_step->setDeployToSysrootEnabled(doDeploy);
 }
 
 void AndroidDeployStepWidget::handleModelListToBeReset()
