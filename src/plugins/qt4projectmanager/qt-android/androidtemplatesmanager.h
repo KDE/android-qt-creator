@@ -93,7 +93,6 @@ private slots:
     void handleActiveProjectChanged(ProjectExplorer::Project *project);
     bool handleTarget(ProjectExplorer::Target *target);
     void handleAndroidDirContentsChanged();
-    void handleDebianFileChanged(const QString &filePath);
     void handleProjectToBeRemoved(ProjectExplorer::Project *project);
     void handleProFileUpdated();
 

@@ -73,7 +73,6 @@ private slots:
     void setTargetSDK(const QString & target);
     void setVersionCode();
     void setVersionName();
-    void setIcon();
 
 private:
     AndroidPackageCreationStep * const m_step;
