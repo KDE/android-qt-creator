@@ -77,7 +77,7 @@ void AndroidPackageCreationWidget::init()
 
 void AndroidPackageCreationWidget::initGui()
 {
-    const ProjectExplorer::Project * const project
+    ProjectExplorer::Project * const project
         = m_step->buildConfiguration()->target()->project();
     updateAndroidProjectInfo(project);
     connect(AndroidTemplatesManager::instance(),
@@ -91,7 +91,7 @@ void AndroidPackageCreationWidget::initGui()
 
 }
 
-void AndroidPackageCreationWidget::updateAndroidProjectInfo(const ProjectExplorer::Project *project)
+void AndroidPackageCreationWidget::updateAndroidProjectInfo(ProjectExplorer::Project *project)
 {
     const ProjectExplorer::Project * const ourProject
         = m_step->buildConfiguration()->target()->project();

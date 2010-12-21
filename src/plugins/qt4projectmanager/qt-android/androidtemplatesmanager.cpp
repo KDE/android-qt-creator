@@ -154,8 +154,11 @@ void AndroidTemplatesManager::updateProject(const ProjectExplorer::Project *proj
     androidProc.waitForFinished();
 }
 
-bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(const ProjectExplorer::Project *project)
+bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer::Project *project)
 {
+    const Qt4Project * qt4Project = qobject_cast<Qt4Project*>(project);
+    if (!qt4Project)
+        return false;
     QDir projectDir(project->projectDirectory());
     QString androidPath=androidDirPath(project);
 
@@ -180,6 +183,7 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(const ProjectExp
         return false;
     }
 
+    QStringList androidFiles;
     QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
     int pos=it.path().size();
     while(it.hasNext())
@@ -188,8 +192,13 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(const ProjectExp
         if (it.fileInfo().isDir())
             projectDir.mkpath(AndroidDirName+QLatin1Char('/')+it.filePath().mid(pos));
         else
+        {
             QFile::copy(it.filePath(), androidPath+QLatin1Char('/')+it.filePath().mid(pos));
+            androidFiles<<androidPath+QLatin1Char('/')+it.filePath().mid(pos);
+        }
     }
+
+    qt4Project->rootProjectNode()->addFiles(UnknownFileType,androidFiles);
 
     QStringList sdks=AndroidConfigurations::instance().sdkTargets();
     if (!sdks.size())
@@ -201,7 +210,7 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(const ProjectExp
     return true;
 }
 
-bool AndroidTemplatesManager::openAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc)
+bool AndroidTemplatesManager::openAndroidManifest(ProjectExplorer::Project *project, QDomDocument & doc)
 {
     if (!createAndroidTemplatesIfNecessary(project))
         return false;
@@ -220,7 +229,7 @@ bool AndroidTemplatesManager::openAndroidManifest(const ProjectExplorer::Project
     return true;
 }
 
-bool AndroidTemplatesManager::saveAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc)
+bool AndroidTemplatesManager::saveAndroidManifest(ProjectExplorer::Project *project, QDomDocument & doc)
 {
     if (!createAndroidTemplatesIfNecessary(project))
         return false;
@@ -234,7 +243,7 @@ bool AndroidTemplatesManager::saveAndroidManifest(const ProjectExplorer::Project
     return f.write(doc.toByteArray(4))>=0;
 }
 
-QString AndroidTemplatesManager::packageName(const ProjectExplorer::Project *project)
+QString AndroidTemplatesManager::packageName(ProjectExplorer::Project *project)
 {
     QDomDocument doc;
     if (!openAndroidManifest(project, doc))
@@ -243,7 +252,7 @@ QString AndroidTemplatesManager::packageName(const ProjectExplorer::Project *pro
     return manifestElem.attribute(QLatin1String("package"));
 }
 
-bool AndroidTemplatesManager::setPackageName(const ProjectExplorer::Project *project, const QString & name)
+bool AndroidTemplatesManager::setPackageName(ProjectExplorer::Project *project, const QString & name)
 {
     QDomDocument doc;
     if (!openAndroidManifest(project, doc))
@@ -253,17 +262,17 @@ bool AndroidTemplatesManager::setPackageName(const ProjectExplorer::Project *pro
     return saveAndroidManifest(project, doc);
 }
 
-QString AndroidTemplatesManager::applicationName(const ProjectExplorer::Project *project)
+QString AndroidTemplatesManager::applicationName(ProjectExplorer::Project *project)
 {
     return "";
 }
 
-bool AndroidTemplatesManager::setApplicationName(const ProjectExplorer::Project *project, const QString & name)
+bool AndroidTemplatesManager::setApplicationName(ProjectExplorer::Project *project, const QString & name)
 {
     return true;
 }
 
-int AndroidTemplatesManager::versionCode(const ProjectExplorer::Project *project)
+int AndroidTemplatesManager::versionCode(ProjectExplorer::Project *project)
 {
     QDomDocument doc;
     if (!openAndroidManifest(project, doc))
@@ -272,7 +281,7 @@ int AndroidTemplatesManager::versionCode(const ProjectExplorer::Project *project
     return manifestElem.attribute(QLatin1String("android:versionCode")).toInt();
 }
 
-bool AndroidTemplatesManager::setVersionCode(const ProjectExplorer::Project *project, int version)
+bool AndroidTemplatesManager::setVersionCode(ProjectExplorer::Project *project, int version)
 {
     QDomDocument doc;
     if (!openAndroidManifest(project, doc))
@@ -283,7 +292,7 @@ bool AndroidTemplatesManager::setVersionCode(const ProjectExplorer::Project *pro
 }
 
 
-QString AndroidTemplatesManager::versionName(const ProjectExplorer::Project *project)
+QString AndroidTemplatesManager::versionName(ProjectExplorer::Project *project)
 {
     QDomDocument doc;
     if (!openAndroidManifest(project, doc))
@@ -292,7 +301,7 @@ QString AndroidTemplatesManager::versionName(const ProjectExplorer::Project *pro
     return manifestElem.attribute(QLatin1String("android:versionName"));
 }
 
-bool AndroidTemplatesManager::setVersionName(const ProjectExplorer::Project *project, const QString &version)
+bool AndroidTemplatesManager::setVersionName(ProjectExplorer::Project *project, const QString &version)
 {
     QDomDocument doc;
     if (!openAndroidManifest(project, doc))
@@ -302,12 +311,12 @@ bool AndroidTemplatesManager::setVersionName(const ProjectExplorer::Project *pro
     return saveAndroidManifest(project, doc);
 }
 
-QString AndroidTemplatesManager::targetSDK(const ProjectExplorer::Project *project)
+QString AndroidTemplatesManager::targetSDK(ProjectExplorer::Project *project)
 {
     return "android-8";
 }
 
-bool AndroidTemplatesManager::setTargetSDK(const ProjectExplorer::Project *project, const QString & target)
+bool AndroidTemplatesManager::setTargetSDK(ProjectExplorer::Project *project, const QString & target)
 {
     return true;
 }
@@ -627,7 +636,7 @@ void AndroidTemplatesManager::handleProFileUpdated()
 //    return true;
 //}
 
-QIcon AndroidTemplatesManager::packageManagerIcon(const Project *project)
+QIcon AndroidTemplatesManager::packageManagerIcon(Project *project)
 {
 //    QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
@@ -667,7 +676,7 @@ QIcon AndroidTemplatesManager::packageManagerIcon(const Project *project)
 //    return QIcon(pixmap);
 }
 
-bool AndroidTemplatesManager::setPackageManagerIcon(const Project *project, const QString &iconFilePath)
+bool AndroidTemplatesManager::setPackageManagerIcon(Project *project, const QString &iconFilePath)
 {
 //    const QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);

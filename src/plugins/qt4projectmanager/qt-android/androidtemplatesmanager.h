@@ -59,29 +59,29 @@ class AndroidTemplatesManager : public QObject
 
 public:
     static AndroidTemplatesManager *instance(QObject *parent = 0);
-    QString packageName(const ProjectExplorer::Project *project);
-    bool setPackageName(const ProjectExplorer::Project *project, const QString & name);
+    QString packageName(ProjectExplorer::Project *project);
+    bool setPackageName(ProjectExplorer::Project *project, const QString & name);
 
-    QString applicationName(const ProjectExplorer::Project *project);
-    bool setApplicationName(const ProjectExplorer::Project *project, const QString & name);
+    QString applicationName(ProjectExplorer::Project *project);
+    bool setApplicationName(ProjectExplorer::Project *project, const QString & name);
 
-    QString targetSDK(const ProjectExplorer::Project *project);
-    bool setTargetSDK(const ProjectExplorer::Project *project, const QString & target);
+    QString targetSDK(ProjectExplorer::Project *project);
+    bool setTargetSDK(ProjectExplorer::Project *project, const QString & target);
 
-    int versionCode(const ProjectExplorer::Project *project);
-    bool setVersionCode(const ProjectExplorer::Project *project, int version);
+    int versionCode(ProjectExplorer::Project *project);
+    bool setVersionCode(ProjectExplorer::Project *project, int version);
 
-    QString versionName(const ProjectExplorer::Project *project);
-    bool setVersionName(const ProjectExplorer::Project *project, const QString &version);
+    QString versionName(ProjectExplorer::Project *project);
+    bool setVersionName(ProjectExplorer::Project *project, const QString &version);
 
-    QIcon packageManagerIcon(const ProjectExplorer::Project *project);
-    bool setPackageManagerIcon(const ProjectExplorer::Project *project, const QString &iconFilePath);
+    QIcon packageManagerIcon(ProjectExplorer::Project *project);
+    bool setPackageManagerIcon(ProjectExplorer::Project *project, const QString &iconFilePath);
 
     QString androidDirPath(const ProjectExplorer::Project *project);
     QString androidManifestPath(const ProjectExplorer::Project *project);
 
 public slots:
-    bool createAndroidTemplatesIfNecessary(const ProjectExplorer::Project *project);
+    bool createAndroidTemplatesIfNecessary(ProjectExplorer::Project *project);
     void updateProject(const ProjectExplorer::Project *project, const QString &targetSDK);
 
 signals:
@@ -99,8 +99,8 @@ private slots:
 private:
     explicit AndroidTemplatesManager(QObject *parent);
     void raiseError(const QString &reason);
-    bool openAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc);
-    bool saveAndroidManifest(const ProjectExplorer::Project *project, QDomDocument & doc);
+    bool openAndroidManifest(ProjectExplorer::Project *project, QDomDocument & doc);
+    bool saveAndroidManifest(ProjectExplorer::Project *project, QDomDocument & doc);
 
     bool updateDesktopFiles(const Qt4Target *target);
     bool updateDesktopFile(const Qt4Target *target,
