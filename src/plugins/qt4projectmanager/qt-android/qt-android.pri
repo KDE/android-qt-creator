@@ -54,4 +54,4 @@ FORMS += \
     $$PWD/androidpackagecreationwidget.ui \
     $$PWD/androiddeploystepwidget.ui
 
-RESOURCES += $$PWD/qt-android.qrc
+#RESOURCES += $$PWD/qt-android.qrc

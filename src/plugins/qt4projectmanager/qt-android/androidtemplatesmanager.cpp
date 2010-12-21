@@ -173,47 +173,22 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(const ProjectExp
             return false;
         }
 
-    if ( !QFileInfo(AndroidDirName+QLatin1String("/src")).exists() )
+    QList<QtVersion*> versions=QtVersionManager::instance()->versionsForTargetId(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
+    if (!versions.size())
     {
-        QList<QtVersion*> versions=QtVersionManager::instance()->versionsForTargetId(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
-        if (!versions.size())
-        {
-            raiseError(tr("Not enough Qt for Android SDK found.\nPlease install at least one SDK."));
-            return false;
-        }
-
-        QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
-        int pos=it.path().size();
-        while(it.hasNext())
-        {
-            it.next();
-            if (it.fileInfo().isDir())
-                projectDir.mkpath(AndroidDirName+QLatin1String("/src/")+it.filePath().mid(pos));
-            else
-                QFile::copy(it.filePath(), androidPath+QLatin1String("/src/")+it.filePath().mid(pos));
-        }
+        raiseError(tr("Not enough Qt for Android SDKs found.\nPlease install at least one SDK."));
+        return false;
     }
 
-    if (!QFileInfo(androidManifestPath(project)).exists() )
-        if (!QFile::copy(QLatin1String(":/qt-android/android/AndroidManifest.xml"),androidManifestPath(project)) )
-        {
-            raiseError(tr("Error creating AndroidManifest.xml file."));
-            return false;
-        }
-
-    if ( !QFileInfo(AndroidDirName+QLatin1String("/res")).exists() )
+    QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
+    int pos=it.path().size();
+    while(it.hasNext())
     {
-        projectDir.mkpath(AndroidDirName+QLatin1String("/res/values"));
-        QFile::copy(QLatin1String(":/qt-android/android/res/values/strings.xml"),androidPath+QLatin1String("/res/values/strings.xml"));
-
-        projectDir.mkpath(AndroidDirName+QLatin1String("/res/drawable-hdpi"));
-        QFile::copy(QLatin1String(":/qt-android/android/res/drawable-hdpi/icon.png"),androidPath+QLatin1String("/res/drawable-hdpi/icon.png"));
-
-        projectDir.mkpath(AndroidDirName+QLatin1String("/res/drawable-ldpi"));
-        QFile::copy(QLatin1String(":/qt-android/android/res/drawable-ldpi/icon.png"),androidPath+QLatin1String("/res/drawable-ldpi/icon.png"));
-
-        projectDir.mkpath(AndroidDirName+QLatin1String("/res/drawable-mdpi"));
-        QFile::copy(QLatin1String(":/qt-android/android/res/drawable-mdpi/icon.png"),androidPath+QLatin1String("/res/drawable-mdpi/icon.png"));
+        it.next();
+        if (it.fileInfo().isDir())
+            projectDir.mkpath(AndroidDirName+QLatin1Char('/')+it.filePath().mid(pos));
+        else
+            QFile::copy(it.filePath(), androidPath+QLatin1Char('/')+it.filePath().mid(pos));
     }
 
     QStringList sdks=AndroidConfigurations::instance().sdkTargets();

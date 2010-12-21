@@ -220,6 +220,8 @@ QString AndroidConfigurations::startAVD(int apiLevel)
     if (!proc.waitForFinished(-1))
         return QString();
 
+    sleep(5);// wait for pm to start
+
     // get connected devices
     devices =connectedDevices(apiLevel);
     foreach(AndroidDevice device, devices)

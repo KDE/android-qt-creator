@@ -360,8 +360,11 @@ static bool isStringType(const char *type)
     return isEqual(type, NS"QString")
         || isEqual(type, NS"QByteArray")
         || isEqual(type, "std::string")
+#ifdef _GLIBCXX_USE_WCHAR_T
         || isEqual(type, "std::wstring")
-        || isEqual(type, "wstring");
+        || isEqual(type, "wstring")
+#endif
+;
 }
 
 static bool isMovableType(const char *type)
@@ -913,6 +916,7 @@ static void qDumpStdStringValue(QDumper &d, const std::string &str)
     d.putItem("numchild", "0", d.currentChildNumChild);
 }
 
+#ifdef _GLIBCXX_USE_WCHAR_T
 static void qDumpStdWStringValue(QDumper &d, const std::wstring &str)
 {
     d.beginItem("value");
@@ -922,6 +926,7 @@ static void qDumpStdWStringValue(QDumper &d, const std::wstring &str)
     d.putItem("type", "std::wstring", d.currentChildType);
     d.putItem("numchild", "0", d.currentChildNumChild);
 }
+#endif
 
 // Called by templates, so, not static.
 static void qDumpInnerQCharValue(QDumper &d, QChar c, const char *field)
@@ -1035,10 +1040,13 @@ void qDumpInnerValueHelper(QDumper &d, const char *type, const void *addr,
                 || isEqual(type, stdStringTypeC)) {
                 d.putCommaIfNeeded();
                 qDumpStdStringValue(d, *reinterpret_cast<const std::string*>(addr));
-            } else if (isEqual(type, "std::wstring")
+            }
+#ifdef _GLIBCXX_USE_WCHAR_T
+            else if (isEqual(type, "std::wstring")
                 || isEqual(type, stdWideStringTypeUShortC)) {
                 qDumpStdWStringValue(d, *reinterpret_cast<const std::wstring*>(addr));
             }
+#endif
             break;
         default:
             break;
@@ -3424,10 +3432,12 @@ static void qDumpStdSet(QDumper &d)
         qDumpStdSetHelper<std::string>(d);
         return;
     }
+#ifdef _GLIBCXX_USE_WCHAR_T
     if (innerSize == sizeof(std::wstring)) {
         qDumpStdSetHelper<std::wstring>(d);
         return;
     }
+#endif
 #else
     qDumpStdSetHelper<int>(d);
 #endif
@@ -3448,6 +3458,7 @@ static void qDumpStdString(QDumper &d)
     d.disarm();
 }
 
+#ifdef _GLIBCXX_USE_WCHAR_T
 static void qDumpStdWString(QDumper &d)
 {
     const std::wstring &str = *reinterpret_cast<const std::wstring *>(d.data);
@@ -3461,6 +3472,7 @@ static void qDumpStdWString(QDumper &d)
     qDumpStdWStringValue(d, str);
     d.disarm();
 }
+#endif
 
 static void qDumpStdVector(QDumper &d)
 {
@@ -3699,10 +3711,12 @@ static void handleProtocolVersion2and3(QDumper &d)
             else if (isEqual(type, "QSizeF"))
                 qDumpQSizeF(d);
             break;
+#ifdef _GLIBCXX_USE_WCHAR_T
         case 's':
             if (isEqual(type, "wstring"))
                 qDumpStdWString(d);
             break;
+#endif
         case 't':
             if (isEqual(type, "std::vector"))
                 qDumpStdVector(d);
@@ -3716,9 +3730,11 @@ static void handleProtocolVersion2and3(QDumper &d)
                 qDumpStdSet(d);
             else if (isEqual(type, "std::string") || isEqual(type, "string"))
                 qDumpStdString(d);
+#ifdef _GLIBCXX_USE_WCHAR_T
             else if (isEqual(type, "std::wstring"))
                 qDumpStdWString(d);
             break;
+#endif
         case 'T':
 #            ifndef QT_BOOTSTRAPPED
             if (isEqual(type, "QTextCodec"))
@@ -3845,10 +3861,14 @@ static inline void dumpSizes(QDumper &d)
 #endif
 #ifdef Q_OS_WIN
     sizeMap.insert(sizeof(std::string), "string");
+#ifdef _GLIBCXX_USE_WCHAR_T
     sizeMap.insert(sizeof(std::wstring), "wstring");
 #endif
+#endif
     sizeMap.insert(sizeof(std::string), "std::string");
+#ifdef _GLIBCXX_USE_WCHAR_T
     sizeMap.insert(sizeof(std::wstring), "std::wstring");
+#endif
     sizeMap.insert(sizeof(std::allocator<int>), "std::allocator");
     sizeMap.insert(sizeof(std::char_traits<char>), "std::char_traits<char>");
     sizeMap.insert(sizeof(std::char_traits<unsigned short>), "std::char_traits<unsigned short>");
@@ -3973,14 +3993,18 @@ void *qDumpObjectData440(
             "\"vector\","
 #endif
             "\"string\","
+#ifdef _GLIBCXX_USE_WCHAR_T
             "\"wstring\","
+#endif
             "\"std::basic_string\","
             "\"std::list\","
             "\"std::map\","
             "\"std::set\","
             "\"std::string\","
             "\"std::vector\","
+#ifdef _GLIBCXX_USE_WCHAR_T
             "\"std::wstring\","
+#endif
             "]");
         d.put(",qtversion=["
             "\"").put(((QT_VERSION >> 16) & 255)).put("\","
@@ -4009,9 +4033,11 @@ void *qDumpObjectData440(
         putStdPairValueOffsetExpression<std::string,std::string>(stdStringTypeC, stdStringTypeC, d).put(',');
         putStdPairValueOffsetExpression<int,std::string>("int", stdStringTypeC, d).put(',');
         putStdPairValueOffsetExpression<std::string,int>(stdStringTypeC, "int", d).put(',');
+#ifdef _GLIBCXX_USE_WCHAR_T
         putStdPairValueOffsetExpression<std::wstring,std::wstring>(stdWideStringTypeUShortC, stdWideStringTypeUShortC, d).put(',');
         putStdPairValueOffsetExpression<int,std::wstring>("int", stdWideStringTypeUShortC, d).put(',');
         putStdPairValueOffsetExpression<std::wstring,int>(stdWideStringTypeUShortC, "int", d);
+#endif
         d.put(']');
 #endif // Q_CC_MSVC
         d.disarm();

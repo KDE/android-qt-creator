@@ -81,6 +81,7 @@ static QList<int> allGdbToolChains()
        << ProjectExplorer::ToolChain_RVCT2_ARMV6
 #endif
        << ProjectExplorer::ToolChain_GCC_MAEMO
+       << ProjectExplorer::ToolChain_GCC_ANDROID
 #ifdef Q_OS_UNIX
        << ProjectExplorer::ToolChain_GCCE_GNUPOC
        << ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC
@@ -439,6 +440,7 @@ ToolChainSelectorWidget::ToolChainSelectorWidget(QWidget *parent) :
     QVBoxLayout *desktopLayout = createGroupBox(tr("Desktop/General"), mainLayout);
     QVBoxLayout *symbianLayout = createGroupBox(tr("Symbian"), mainLayout);
     QVBoxLayout *maemoLayout = createGroupBox(tr("Maemo"), mainLayout);
+    QVBoxLayout *androidLayout = createGroupBox(tr("Android"), mainLayout);
 
     // Group checkboxes into categories
     foreach(int tc, allGdbToolChains()) {
@@ -463,6 +465,9 @@ ToolChainSelectorWidget::ToolChainSelectorWidget(QWidget *parent) :
             break;
         case ProjectExplorer::ToolChain_GCC_MAEMO:
             maemoLayout->addWidget(createToolChainCheckBox(tc));
+            break;
+        case ProjectExplorer::ToolChain_GCC_ANDROID:
+            androidLayout->addWidget(createToolChainCheckBox(tc));
             break;
         case ProjectExplorer::ToolChain_INVALID:
             break;

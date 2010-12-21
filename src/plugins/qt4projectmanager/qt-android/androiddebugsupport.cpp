@@ -263,7 +263,7 @@ void AndroidDebugSupport::startDebugging()
 //    } else {
 //        setState(StartingRemoteProcess);
 //        m_gdbserverOutput.clear();
-//        connect(m_runner, SIGNAL(remoteErrorOutput(QByteArray)), this,
+//        connect(m_runner, SIGNAL(remotetErrorOuput(QByteArray)), this,
 //            SLOT(handleRemoteErrorOutput(QByteArray)));
 //        connect(m_runner, SIGNAL(remoteOutput(QByteArray)), this,
 //            SLOT(handleRemoteOutput(QByteArray)));

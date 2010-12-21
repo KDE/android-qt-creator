@@ -87,9 +87,9 @@ AndroidRunConfigurationWidget::AndroidRunConfigurationWidget(
     addDebuggingWidgets(mainLayout);
     addMountWidgets(mainLayout);
     addEnvironmentWidgets(mainLayout);
-    connect(m_runConfiguration,
-        SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
-        this, SLOT(handleCurrentDeviceConfigChanged()));
+//    connect(m_runConfiguration,
+//        SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
+//        this, SLOT(handleCurrentDeviceConfigChanged()));
     connect(m_runConfiguration->qt4Target(),
         SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)),
         this, SLOT(handleBuildConfigChanged()));
@@ -224,13 +224,13 @@ void AndroidRunConfigurationWidget::addMountWidgets(QVBoxLayout *mainLayout)
     mountViewButtonsLayout->addWidget(m_removeMountButton);
     mountViewButtonsLayout->addStretch(1);
 
-    connect(addMountButton, SIGNAL(clicked()), this, SLOT(addMount()));
-    connect(m_removeMountButton, SIGNAL(clicked()), this, SLOT(removeMount()));
-    connect(m_mountView, SIGNAL(doubleClicked(QModelIndex)), this,
-        SLOT(changeLocalMountDir(QModelIndex)));
-    connect(m_mountView->selectionModel(),
-        SIGNAL(selectionChanged(QItemSelection,QItemSelection)), this,
-        SLOT(enableOrDisableRemoveMountSpecButton()));
+//    connect(addMountButton, SIGNAL(clicked()), this, SLOT(addMount()));
+//    connect(m_removeMountButton, SIGNAL(clicked()), this, SLOT(removeMount()));
+//    connect(m_mountView, SIGNAL(doubleClicked(QModelIndex)), this,
+//        SLOT(changeLocalMountDir(QModelIndex)));
+//    connect(m_mountView->selectionModel(),
+//        SIGNAL(selectionChanged(QItemSelection,QItemSelection)), this,
+//        SLOT(enableOrDisableRemoveMountSpecButton()));
 }
 
 void AndroidRunConfigurationWidget::addEnvironmentWidgets(QVBoxLayout *mainLayout)
@@ -296,8 +296,8 @@ void AndroidRunConfigurationWidget::handleBuildConfigChanged()
         disconnect(m_lastActiveBuildConfig, 0, this, 0);
     m_lastActiveBuildConfig = m_runConfiguration->activeQt4BuildConfiguration();
     if (m_lastActiveBuildConfig) {
-        connect(m_lastActiveBuildConfig, SIGNAL(qtVersionChanged()), this,
-            SLOT(handleToolchainChanged()));
+//        connect(m_lastActiveBuildConfig, SIGNAL(qtVersionChanged()), this,
+//            SLOT(handleToolchainChanged()));
     }
 }
 
