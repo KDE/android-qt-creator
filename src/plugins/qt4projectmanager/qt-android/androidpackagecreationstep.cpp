@@ -133,20 +133,23 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     foreach(Qt4ProFileNode * node, nodes)
     {
         QString fileName;
+        QString androidFileName;
         switch(node->projectType())
         {
             case ApplicationTemplate:
                 fileName=node->targetInformation().target;
+                androidFileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
                 break;
             case LibraryTemplate:
                 fileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
+                androidFileName=fileName;
                 break;
             default:
                 continue;
         }
 
         if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
-                    androidLibPath+QLatin1Char('/')+fileName))
+                    androidLibPath+QLatin1Char('/')+androidFileName))
         {
             raiseError(tr("Cant copy '%1' from '%2' to '%3'").arg(fileName)
                        .arg(node->targetInformation().buildDir)
