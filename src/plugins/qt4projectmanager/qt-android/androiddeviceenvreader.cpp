@@ -45,7 +45,7 @@ namespace Qt4ProjectManager {
 AndroidDeviceEnvReader::AndroidDeviceEnvReader(QObject *parent, AndroidRunConfiguration *config)
     : QObject(parent)
     , m_stop(false)
-    , m_devConfig(config->deviceConfig())
+    , m_devConfig(config->config())
     , m_runConfig(config)
 {
     connect(config, SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
@@ -104,7 +104,7 @@ void AndroidDeviceEnvReader::handleConnectionFailure()
 
 void AndroidDeviceEnvReader::handleCurrentDeviceConfigChanged()
 {
-    m_devConfig = m_runConfig->deviceConfig();
+    m_devConfig = m_runConfig->config();
 
     if (m_remoteProcessRunner)
         disconnect(m_remoteProcessRunner.data(), 0, this, 0);

@@ -42,6 +42,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QSharedPointer>
 #include <QtCore/QStringList>
+#include <QtCore/QTimer>
 
 namespace Core {
     class SshConnection;
@@ -61,62 +62,34 @@ public:
         bool debugging);
     ~AndroidRunner();
 
+public slots:
     void start();
     void stop();
 
-    void startExecution(const QByteArray &remoteCall);
-
-    QSharedPointer<Core::SshConnection> connection() const { return m_connection; }
-
-    AndroidConfig deviceConfig() const { return m_devConfig; }
-    QString arguments() const { return m_appArguments; }
-    QList<Utils::EnvironmentItem> userEnvChanges() const { return m_userEnvChanges; }
-
-    static const qint64 InvalidExitCode;
 
 signals:
-    void error(const QString &error);
-    void mountDebugOutput(const QString &output);
-    void readyForExecution();
+    void remoteProcessStarted(int gdbServerPort=-1, int qmlPort=-1);
+    void remoteProcessFinished(const QString &errString="");
+
     void remoteOutput(const QByteArray &output);
     void remoteErrorOutput(const QByteArray &output);
-    void reportProgress(const QString &progressOutput);
-    void remoteProcessStarted();
-    void remoteProcessFinished(qint64 exitCode);
 
 private slots:
-    void handleConnected();
-    void handleConnectionFailure();
-    void handleCleanupFinished(int exitStatus);
-    void handleRemoteProcessFinished(int exitStatus);
-    void handleMounted();
-    void handleUnmounted();
-    void handleMounterError(const QString &errorMsg);
-    void handlePortsGathererError(const QString &errorMsg);
+    void checkPID();
+    void logcatReadStandardError();
+    void logcatReadStandardOutput();
 
 private:
-    enum State { Inactive, Connecting, PreRunCleaning, PostRunCleaning,
-        PreMountUnmounting, Mounting, ReadyForExecution,
-        ProcessStarting, StopRequested, GatheringPorts
-    };
-
-    void setState(State newState);
     void emitError(const QString &errorMsg);
 
-    void cleanup();
-    bool isConnectionUsable() const;
-
-    const AndroidConfig m_devConfig;
-    const QString m_appArguments;
-    const QList<Utils::EnvironmentItem> m_userEnvChanges;
-
-    QSharedPointer<Core::SshConnection> m_connection;
-    QSharedPointer<Core::SshRemoteProcess> m_runner;
-    QSharedPointer<Core::SshRemoteProcess> m_cleaner;
-    QStringList m_procsToKill;
-
     int m_exitStatus;
-    State m_state;
+    bool    m_debugingMode;
+    QProcess m_adbLogcatProcess;
+    QByteArray m_logcat;
+    QString m_intentName;
+    QString m_packageName;
+    qint64 m_processPID;
+    QTimer m_checkPIDTimer;
 };
 
 } // namespace Internal

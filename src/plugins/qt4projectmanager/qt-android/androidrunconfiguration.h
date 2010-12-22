@@ -88,11 +88,12 @@ public:
     QString localExecutableFilePath() const;
     const QString arguments() const;
     void setArguments(const QString &args);
-    AndroidConfig deviceConfig() const;
+    AndroidConfig config() const;
     void updateFactoryState() { emit isEnabledChanged(true); }
     DebuggingType debuggingType() const;
 
     const QString gdbCmd() const;
+    const QString remoteChannel();
     const QString dumperLib() const;
     QString localDirToMountForRemoteGdb() const;
     QString remoteProjectSourcesMountPoint() const;

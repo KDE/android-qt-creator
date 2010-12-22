@@ -48,8 +48,6 @@
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 
-#define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
-
 using namespace Core;
 using namespace Debugger;
 using namespace Debugger::Internal;
@@ -61,51 +59,17 @@ namespace Internal {
 RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *runConfig)
 {
     DebuggerStartParameters params;
-#warning FIXME Android
-//    const AndroidConfig &devConf = runConfig->deviceConfig();
-
-//    const AndroidRunConfiguration::DebuggingType debuggingType
-//        = runConfig->debuggingType();
-//    if (debuggingType != AndroidRunConfiguration::DebugCppOnly) {
-//        params.qmlServerAddress = runConfig->deviceConfig().server.host;
-//        params.qmlServerPort = -1;
-//    }
-//    if (debuggingType != AndroidRunConfiguration::DebugQmlOnly) {
-//        params.processArgs = runConfig->arguments();
-//        params.sysRoot = runConfig->sysRoot();
-//        params.toolChainType = ProjectExplorer::ToolChain_GCC_ANDROID;
-//        params.dumperLibrary = runConfig->dumperLib();
+    params.toolChainType = ProjectExplorer::ToolChain_GCC_ANDROID;
+    params.dumperLibrary = runConfig->dumperLib();
 //        params.remoteDumperLib = uploadDir(devConf).toUtf8() + '/'
 //            + QFileInfo(runConfig->dumperLib()).fileName().toUtf8();
-//        if (runConfig->useRemoteGdb()) {
-//            params.startMode = StartRemoteGdb;
-//            params.executable = runConfig->remoteExecutableFilePath();
-//            params.debuggerCommand
-//                = AndroidGlobal::remoteCommandPrefix(runConfig->remoteExecutableFilePath())
-//                    + environment(runConfig->debuggingType(), runConfig->userEnvironmentChanges())
-//                    + QLatin1String(" /usr/bin/gdb");
-//            params.connParams = devConf.server;
-//            params.localMountDir = runConfig->localDirToMountForRemoteGdb();
-//            params.remoteMountPoint
-//                = runConfig->remoteProjectSourcesMountPoint();
-//            const QString execDirAbs
-//                = QDir::fromNativeSeparators(QFileInfo(runConfig->localExecutableFilePath()).path());
-//            const QString execDirRel
-//                = QDir(params.localMountDir).relativeFilePath(execDirAbs);
-//            params.remoteSourcesDir = QString(params.remoteMountPoint
-//                + QLatin1Char('/') + execDirRel).toUtf8();
-//        } else {
-//            params.startMode = AttachToRemote;
-//            params.executable = runConfig->localExecutableFilePath();
-//            params.debuggerCommand = runConfig->gdbCmd();
-//            params.remoteChannel = devConf.server.host + QLatin1String(":-1");
-//            params.useServerStartScript = true;
-//            params.remoteArchitecture = QLatin1String("arm");
-//            params.gnuTarget = QLatin1String("arm-none-linux-gnueabi");
-//        }
-//    } else {
-//        params.startMode = AttachToRemote;
-//    }
+    params.startMode = AttachToRemote;
+    params.executable = runConfig->localExecutableFilePath();
+    params.debuggerCommand = runConfig->gdbCmd();
+    params.remoteChannel = runConfig->remoteChannel();
+    params.useServerStartScript = true;
+    params.remoteArchitecture = QLatin1String("arm");
+//        params.gnuTarget = QLatin1String("arm-none-linux-gnueabi");
 
     DebuggerRunControl * const debuggerRunControl
         = DebuggerPlugin::createDebugger(params, runConfig);
@@ -118,261 +82,48 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
     : QObject(runControl), m_runControl(runControl), m_runConfig(runConfig),
       m_runner(new AndroidRunner(this, runConfig, true)),
       m_debuggingType(runConfig->debuggingType()),
-      m_dumperLib(runConfig->dumperLib()),
-      m_state(Inactive), m_gdbServerPort(-1), m_qmlPort(-1)
+      m_gdbServerPort(5039), m_qmlPort(-1)
 {
-    connect(m_runControl, SIGNAL(engineRequestSetup()), this,
-        SLOT(handleAdapterSetupRequested()));
-    connect(m_runControl, SIGNAL(finished()), this,
-        SLOT(handleDebuggingFinished()));
+    connect(m_runControl->engine(), SIGNAL(requestRemoteSetup()), m_runner,
+        SLOT(start()));
+    connect(m_runControl, SIGNAL(finished()), m_runner,
+            SLOT(stop()));
+
+    connect(m_runner, SIGNAL(remoteProcessStarted(int,int)),
+        SLOT(handleRemoteProcessStarted(int,int)));
+    connect(m_runner, SIGNAL(remoteProcessFinished(const QString &)),
+        SLOT(handleRemoteProcessFinished(const QString &)));
+
+    connect(m_runner, SIGNAL(remoteErrorOutput(QByteArray)),
+        SLOT(handleRemoteErrorOutput(QByteArray)));
+    connect(m_runner, SIGNAL(remoteOutput(QByteArray)),
+        SLOT(handleRemoteOutput(QByteArray)));
 }
 
 AndroidDebugSupport::~AndroidDebugSupport()
 {
-    setState(Inactive);
 }
 
-void AndroidDebugSupport::handleAdapterSetupRequested()
+void AndroidDebugSupport::handleRemoteProcessStarted(int gdbServerPort, int qmlPort)
 {
-    ASSERT_STATE(Inactive);
-
-    setState(StartingRunner);
-    m_runControl->showMessage(tr("Preparing remote side ..."), AppStuff);
-    disconnect(m_runner, 0, this, 0);
-    connect(m_runner, SIGNAL(error(QString)), this,
-        SLOT(handleSshError(QString)));
-    connect(m_runner, SIGNAL(readyForExecution()), this,
-        SLOT(startExecution()));
-    connect(m_runner, SIGNAL(reportProgress(QString)), this,
-        SLOT(handleProgressReport(QString)));
-    m_runner->start();
+    m_runControl->engine()->handleRemoteSetupDone(gdbServerPort, qmlPort);
 }
 
-void AndroidDebugSupport::handleSshError(const QString &error)
+void AndroidDebugSupport::handleRemoteProcessFinished(const QString & errorMsg)
 {
-    if (m_state == Debugging) {
-        m_runControl->showMessage(tr("SSH connection error: %1").arg(error),
-            AppError);
-    } else if (m_state != Inactive) {
-        handleAdapterSetupFailed(error);
-    }
-}
-
-void AndroidDebugSupport::startExecution()
-{
-    if (m_state == Inactive)
-        return;
-#warning FIXME Android
-
-//    ASSERT_STATE(StartingRunner);
-
-//    if (!useGdb() && m_debuggingType != AndroidRunConfiguration::DebugQmlOnly) {
-//        if (!setPort(m_gdbServerPort))
-//            return;
-//    }
-//    if (m_debuggingType != AndroidRunConfiguration::DebugCppOnly) {
-//        if (!setPort(m_qmlPort))
-//            return;
-//    }
-
-//    if (m_debuggingType != AndroidRunConfiguration::DebugQmlOnly
-//            && !m_dumperLib.isEmpty()
-//            && m_runConfig
-//            && m_runConfig->deployStep()->currentlyNeedsDeployment(m_runner->deviceConfig().server.host,
-//                   AndroidDeployable(m_dumperLib, uploadDir(m_runner->deviceConfig())))) {
-//        setState(InitializingUploader);
-//        m_uploader = m_runner->connection()->createSftpChannel();
-//        connect(m_uploader.data(), SIGNAL(initialized()), this,
-//                SLOT(handleSftpChannelInitialized()));
-//        connect(m_uploader.data(), SIGNAL(initializationFailed(QString)), this,
-//                SLOT(handleSftpChannelInitializationFailed(QString)));
-//        connect(m_uploader.data(), SIGNAL(finished(Core::SftpJobId, QString)),
-//                this, SLOT(handleSftpJobFinished(Core::SftpJobId, QString)));
-//        m_uploader->initialize();
-//    } else {
-//        setState(DumpersUploaded);
-//        startDebugging();
-//    }
-}
-
-void AndroidDebugSupport::handleSftpChannelInitialized()
-{
-    if (m_state == Inactive)
-        return;
-
-    ASSERT_STATE(InitializingUploader);
-
-    const QString fileName = QFileInfo(m_dumperLib).fileName();
-    const QString remoteFilePath
-        = uploadDir(m_runner->deviceConfig()) + '/' + fileName;
-    m_uploadJob = m_uploader->uploadFile(m_dumperLib, remoteFilePath,
-        SftpOverwriteExisting);
-    if (m_uploadJob == SftpInvalidJob) {
-        handleAdapterSetupFailed(tr("Upload failed: Could not open file '%1'")
-            .arg(m_dumperLib));
-    } else {
-        setState(UploadingDumpers);
-        m_runControl->showMessage(tr("Started uploading debugging helpers ('%1').")
-            .arg(m_dumperLib), AppStuff);
-    }
-}
-
-void AndroidDebugSupport::handleSftpChannelInitializationFailed(const QString &error)
-{
-    if (m_state == Inactive)
-        return;
-    ASSERT_STATE(InitializingUploader);
-    handleAdapterSetupFailed(error);
-}
-
-void AndroidDebugSupport::handleSftpJobFinished(Core::SftpJobId job,
-    const QString &error)
-{
-    if (m_state == Inactive)
-        return;
-
-    ASSERT_STATE(UploadingDumpers);
-
-#warning FIXME Android
-//    if (job != m_uploadJob) {
-//        qWarning("Warning: Unknown debugging helpers upload job %d finished.", job);
-//        return;
-//    }
-
-//    if (!error.isEmpty()) {
-//        handleAdapterSetupFailed(tr("Could not upload debugging helpers: %1.")
-//            .arg(error));
-//    } else {
-//        setState(DumpersUploaded);
-//        if (m_runConfig) {
-//            m_runConfig->deployStep()->setDeployed(m_runner->deviceConfig().server.host,
-//                AndroidDeployable(m_dumperLib, uploadDir(m_runner->deviceConfig())));
-//        }
-//        m_runControl->showMessage(tr("Finished uploading debugging helpers."), AppStuff);
-//        startDebugging();
-//    }
-//    m_uploadJob = SftpInvalidJob;
-}
-
-void AndroidDebugSupport::startDebugging()
-{
-    ASSERT_STATE(DumpersUploaded);
-
-//    if (useGdb()) {
-//        handleAdapterSetupDone();
-//    } else {
-//        setState(StartingRemoteProcess);
-//        m_gdbserverOutput.clear();
-//        connect(m_runner, SIGNAL(remotetErrorOuput(QByteArray)), this,
-//            SLOT(handleRemoteErrorOutput(QByteArray)));
-//        connect(m_runner, SIGNAL(remoteOutput(QByteArray)), this,
-//            SLOT(handleRemoteOutput(QByteArray)));
-//        const QString env
-//            = environment(m_debuggingType, m_runner->userEnvChanges());
-//        const QString args = m_runner->arguments();
-//        const QString remoteCommandLine
-//            = m_debuggingType == AndroidRunConfiguration::DebugQmlOnly
-//                ? QString::fromLocal8Bit("%1 %2 %3 %4").arg(cmdPrefix).arg(env)
-//                      .arg(remoteExe).arg(args)
-//                : QString::fromLocal8Bit("%1 %2 gdbserver :%3 %4 %5")
-//                      .arg(cmdPrefix).arg(env).arg(m_gdbServerPort)
-//                      .arg(remoteExe).arg(args);
-//        m_runner->startExecution(remoteCommandLine.toUtf8());
-//    }
-}
-
-void AndroidDebugSupport::handleDebuggingFinished()
-{
-    setState(Inactive);
+    m_runControl->engine()->handleRemoteSetupFailed(errorMsg);
 }
 
 void AndroidDebugSupport::handleRemoteOutput(const QByteArray &output)
 {
-    ASSERT_STATE(QList<State>() << Inactive << Debugging);
     if (m_runControl)
         m_runControl->showMessage(QString::fromUtf8(output), AppOutput);
 }
 
 void AndroidDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
 {
-    ASSERT_STATE(QList<State>() << Inactive << StartingRemoteProcess << Debugging);
-
-    if (!m_runControl)
-        return;
-
-    m_runControl->showMessage(QString::fromUtf8(output), AppOutput);
-    if (m_state == StartingRemoteProcess
-            && m_debuggingType != AndroidRunConfiguration::DebugQmlOnly) {
-        m_gdbserverOutput += output;
-        if (m_gdbserverOutput.contains("Listening on port")) {
-            handleAdapterSetupDone();
-            m_gdbserverOutput.clear();
-        }
-    }
-}
-
-void AndroidDebugSupport::handleProgressReport(const QString &progressOutput)
-{
-    if (m_runControl)
-        m_runControl->showMessage(progressOutput, AppStuff);
-}
-
-void AndroidDebugSupport::handleAdapterSetupFailed(const QString &error)
-{
-    setState(Inactive);
-#warning FIXME Android
-    //m_runControl->handleRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
-}
-
-void AndroidDebugSupport::handleAdapterSetupDone()
-{
-    setState(Debugging);
-#warning FIXME Android
-   // m_runControl->handleRemoteSetupDone(m_gdbServerPort, m_qmlPort);
-}
-
-void AndroidDebugSupport::setState(State newState)
-{
-    if (m_state == newState)
-        return;
-    m_state = newState;
-    if (m_state == Inactive) {
-        if (m_uploader) {
-            disconnect(m_uploader.data(), 0, this, 0);
-            m_uploader->closeChannel();
-        }
-        m_runner->stop();
-    }
-}
-
-QString AndroidDebugSupport::environment(AndroidRunConfiguration::DebuggingType debuggingType,
-    const QList<Utils::EnvironmentItem> &userEnvChanges)
-{
-    // FIXME: this must use command line argument instead: -qmljsdebugger=port:1234.
-    if (debuggingType != AndroidRunConfiguration::DebugCppOnly) {
-//        env << Utils::EnvironmentItem(QLatin1String(Debugger::Constants::E_QML_DEBUG_SERVER_PORT),
-//            QString::number(qmlServerPort(rc)));
-    }
-    return QString("");//AndroidGlobal::remoteEnvironment(userEnvChanges);
-}
-
-QString AndroidDebugSupport::uploadDir(const AndroidConfig &devConf)
-{
-#warning FIXME Android
-    return "";//AndroidGlobal::homeDirOnDevice(devConf.server.uname);
-}
-
-bool AndroidDebugSupport::useGdb() const
-{
-    return m_runControl->engine()->startParameters().startMode == StartRemoteGdb
-        && m_debuggingType != AndroidRunConfiguration::DebugQmlOnly;
-}
-
-bool AndroidDebugSupport::setPort(int &port)
-{
-#warning FIXME Android
-    port = 5039;
-    return true;
+   if (m_runControl)
+        m_runControl->showMessage(QString::fromUtf8(output), AppError);
 }
 
 } // namespace Internal

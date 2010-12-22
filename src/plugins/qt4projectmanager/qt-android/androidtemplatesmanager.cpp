@@ -243,6 +243,17 @@ bool AndroidTemplatesManager::saveAndroidManifest(ProjectExplorer::Project *proj
     return f.write(doc.toByteArray(4))>=0;
 }
 
+QString AndroidTemplatesManager::activityName(ProjectExplorer::Project *project)
+{
+#warning FIXME Android, read this value from manifest file
+    return QString("com.nokia.qt.android.QtActivity");
+}
+
+QString AndroidTemplatesManager::intentName(ProjectExplorer::Project *project)
+{
+    return packageName(project)+QLatin1Char('/')+activityName(project);
+}
+
 QString AndroidTemplatesManager::packageName(ProjectExplorer::Project *project)
 {
     QDomDocument doc;

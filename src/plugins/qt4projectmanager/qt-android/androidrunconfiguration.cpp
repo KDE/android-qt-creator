@@ -202,7 +202,7 @@ QString AndroidRunConfiguration::defaultDisplayName()
     return tr("Run on Android device");
 }
 
-AndroidConfig AndroidRunConfiguration::deviceConfig() const
+AndroidConfig AndroidRunConfiguration::config() const
 {
     return AndroidConfigurations::instance().config();
 }
@@ -219,7 +219,7 @@ const AndroidToolChain *AndroidRunConfiguration::toolchain() const
 const QString AndroidRunConfiguration::gdbCmd() const
 {
 #warning FIXME Android
-    return QString();
+    return QString("/usr/local/android-ndk-r5/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-gdb");
 }
 
 AndroidDeployStep *AndroidRunConfiguration::deployStep() const
@@ -235,6 +235,12 @@ AndroidDeployStep *AndroidRunConfiguration::deployStep() const
 const QString AndroidRunConfiguration::arguments() const
 {
     return m_arguments;
+}
+
+const QString AndroidRunConfiguration::remoteChannel()
+{
+#warning FIXME Android
+    return QString(":5039");
 }
 
 const QString AndroidRunConfiguration::dumperLib() const

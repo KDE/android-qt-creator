@@ -81,8 +81,8 @@ void AndroidPackageCreationWidget::initGui()
         = m_step->buildConfiguration()->target()->project();
     updateAndroidProjectInfo(project);
     connect(AndroidTemplatesManager::instance(),
-        SIGNAL(androidDirContentsChanged(const ProjectExplorer::Project*)),
-        this, SLOT(updateAndroidProjectInfo(const ProjectExplorer::Project*)));
+        SIGNAL(androidDirContentsChanged(ProjectExplorer::Project*)),
+        this, SLOT(updateAndroidProjectInfo(ProjectExplorer::Project*)));
     connect(m_ui->packageNameLineEdit, SIGNAL(editingFinished()), SLOT(setPackageName()));
     connect(m_ui->appNameLineEdit, SIGNAL(editingFinished()), SLOT(setApplicationName()));
     connect(m_ui->versionCode, SIGNAL(editingFinished()), SLOT(setVersionCode()));

@@ -591,7 +591,7 @@ bool AndroidQemuManager::targetUsesMatchingRuntimeConfig(Target *target,
 
     if (qtVersion)
         *qtVersion = version;
-    const AndroidConfig &config = mrc->deviceConfig();
+    const AndroidConfig &config = mrc->config();
 #warning FIXME Android
     return false;//config.isValid() && config.type == AndroidConfig::Simulator;
 }

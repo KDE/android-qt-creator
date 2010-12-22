@@ -71,7 +71,7 @@ AndroidRunConfigurationFactory::~AndroidRunConfigurationFactory()
 }
 
 bool AndroidRunConfigurationFactory::canCreate(Target *parent,
-    const QString &id) const
+    const QString &/*id*/) const
 {
     Qt4Target *target = qobject_cast<Qt4Target *>(parent);
     if (!target
@@ -162,8 +162,8 @@ AndroidRunControlFactory::~AndroidRunControlFactory()
 {
 }
 
-bool AndroidRunControlFactory::canRun(RunConfiguration *runConfiguration,
-    const QString &mode) const
+bool AndroidRunControlFactory::canRun(RunConfiguration */*runConfiguration*/,
+    const QString &/*mode*/) const
 {
 #warning FIXME Android
     return true;

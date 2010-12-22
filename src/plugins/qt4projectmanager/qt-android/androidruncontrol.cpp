@@ -68,20 +68,14 @@ void AndroidRunControl::start()
     m_running = true;
     emit started();
     disconnect(m_runner, 0, this, 0);
-    connect(m_runner, SIGNAL(error(QString)), SLOT(handleSshError(QString)));
-    connect(m_runner, SIGNAL(readyForExecution()), SLOT(startExecution()));
+
     connect(m_runner, SIGNAL(remoteErrorOutput(QByteArray)),
         SLOT(handleRemoteErrorOutput(QByteArray)));
     connect(m_runner, SIGNAL(remoteOutput(QByteArray)),
         SLOT(handleRemoteOutput(QByteArray)));
-    connect(m_runner, SIGNAL(remoteProcessStarted()),
-        SLOT(handleRemoteProcessStarted()));
-    connect(m_runner, SIGNAL(remoteProcessFinished(qint64)),
-        SLOT(handleRemoteProcessFinished(qint64)));
-    connect(m_runner, SIGNAL(reportProgress(QString)),
-        SLOT(handleProgressReport(QString)));
-    connect(m_runner, SIGNAL(mountDebugOutput(QString)),
-        SLOT(handleMountDebugOutput(QString)));
+    connect(m_runner, SIGNAL(remoteProcessFinished(const QString &)),
+        SLOT(handleRemoteProcessFinished(const QString &)));
+    emit appendMessage(this, tr("Starting remote process ..."), false);
     m_runner->start();
 }
 
@@ -91,29 +85,12 @@ ProjectExplorer::RunControl::StopResult AndroidRunControl::stop()
     return StoppedSynchronously;
 }
 
-void AndroidRunControl::handleSshError(const QString &error)
+void AndroidRunControl::handleRemoteProcessFinished(const QString &error)
 {
-    handleError(error);
-    setFinished();
-}
-
-void AndroidRunControl::startExecution()
-{
-    emit appendMessage(this, tr("Starting remote process ..."), false);
-//    m_runner->startExecution(QString::fromLocal8Bit("%1 %2 %3")
-//        .arg(AndroidGlobal::remoteEnvironment(m_runner->userEnvChanges()))
-//        .arg(m_runner->remoteExecutable())
-//        .arg(m_runner->arguments()).toUtf8());
-}
-
-void AndroidRunControl::handleRemoteProcessFinished(qint64 exitCode)
-{
-    if (exitCode != AndroidRunner::InvalidExitCode) {
-        emit appendMessage(this,
-            tr("Finished running remote process. Exit code was %1.")
-            .arg(exitCode), false);
-    }
-    setFinished();
+    emit appendMessage(this, error , true);
+    disconnect(m_runner, 0, this, 0);
+    m_running = false;
+    emit finished();
 }
 
 void AndroidRunControl::handleRemoteOutput(const QByteArray &output)
@@ -126,33 +103,9 @@ void AndroidRunControl::handleRemoteErrorOutput(const QByteArray &output)
     emit addToOutputWindowInline(this, QString::fromUtf8(output), true);
 }
 
-void AndroidRunControl::handleProgressReport(const QString &progressString)
-{
-    emit appendMessage(this, progressString, false);
-}
-
-void AndroidRunControl::handleMountDebugOutput(const QString &output)
-{
-    emit addToOutputWindowInline(this, output, true);
-}
-
 bool AndroidRunControl::isRunning() const
 {
     return m_running;
-}
-
-void AndroidRunControl::handleError(const QString &errString)
-{
-    stop();
-    emit appendMessage(this, errString, true);
-    QMessageBox::critical(0, tr("Remote Execution Failure"), errString);
-}
-
-void AndroidRunControl::setFinished()
-{
-    disconnect(m_runner, 0, this, 0);
-    m_running = false;
-    emit finished();
 }
 
 } // namespace Internal

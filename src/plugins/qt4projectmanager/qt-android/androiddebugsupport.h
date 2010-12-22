@@ -68,35 +68,16 @@ public:
         Debugger::DebuggerRunControl *runControl);
     ~AndroidDebugSupport();
 
-    static QString uploadDir(const AndroidConfig &devConf);
-
 private slots:
-    void handleAdapterSetupRequested();
-    void handleSshError(const QString &error);
-    void startExecution();
-    void handleSftpChannelInitialized();
-    void handleSftpChannelInitializationFailed(const QString &error);
-    void handleSftpJobFinished(Core::SftpJobId job, const QString &error);
-    void handleDebuggingFinished();
+    void handleRemoteProcessStarted(int gdbServerPort=-1, int qmlPort=-1);
+    void handleRemoteProcessFinished(const QString & errorMsg);
+
     void handleRemoteOutput(const QByteArray &output);
     void handleRemoteErrorOutput(const QByteArray &output);
-    void handleProgressReport(const QString &progressOutput);
 
 private:
-    enum State {
-        Inactive, StartingRunner, InitializingUploader, UploadingDumpers,
-        DumpersUploaded, StartingRemoteProcess, Debugging
-    };
 
-    static QString environment(AndroidRunConfiguration::DebuggingType debuggingType,
-        const QList<Utils::EnvironmentItem> &userEnvChanges);
-
-    void handleAdapterSetupFailed(const QString &error);
     void handleAdapterSetupDone();
-    void startDebugging();
-    bool useGdb() const;
-    void setState(State newState);
-    bool setPort(int &port);
 
     const QPointer<Debugger::DebuggerRunControl> m_runControl;
     const QPointer<AndroidRunConfiguration> m_runConfig;
@@ -104,10 +85,6 @@ private:
     const AndroidRunConfiguration::DebuggingType m_debuggingType;
     const QString m_dumperLib;
 
-    QSharedPointer<Core::SftpChannel> m_uploader;
-    Core::SftpJobId m_uploadJob;
-    QByteArray m_gdbserverOutput;
-    State m_state;
     int m_gdbServerPort;
     int m_qmlPort;
 };

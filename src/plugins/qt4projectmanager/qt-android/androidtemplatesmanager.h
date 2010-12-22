@@ -62,6 +62,9 @@ public:
     QString packageName(ProjectExplorer::Project *project);
     bool setPackageName(ProjectExplorer::Project *project, const QString & name);
 
+    QString intentName(ProjectExplorer::Project *project);
+    QString activityName(ProjectExplorer::Project *project);
+
     QString applicationName(ProjectExplorer::Project *project);
     bool setApplicationName(ProjectExplorer::Project *project, const QString & name);
 

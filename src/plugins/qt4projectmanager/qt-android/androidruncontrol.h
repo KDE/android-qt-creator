@@ -56,18 +56,11 @@ public:
     virtual bool isRunning() const;
 
 private slots:
-    void startExecution();
-    void handleSshError(const QString &error);
-    void handleRemoteProcessStarted() {}
-    void handleRemoteProcessFinished(qint64 exitCode);
+    void handleRemoteProcessFinished(const QString &error);
     void handleRemoteOutput(const QByteArray &output);
     void handleRemoteErrorOutput(const QByteArray &output);
-    void handleProgressReport(const QString &progressString);
-    void handleMountDebugOutput(const QString &output);
 
 private:
-    void setFinished();
-    void handleError(const QString &errString);
 
     AndroidRunner * const m_runner;
     bool m_running;

@@ -38,15 +38,16 @@
 #include "androidconfigurations.h"
 #include "androidglobal.h"
 #include "androidrunconfiguration.h"
+#include "androidtemplatesmanager.h"
 
 #include <coreplugin/ssh/sshconnection.h>
 #include <coreplugin/ssh/sshremoteprocess.h>
 
+#include <qt4projectmanager/qt4project.h>
+#include <qt4projectmanager/qt4target.h>
+
 #include <QtCore/QFileInfo>
-
-#include <limits>
-
-#define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
+#include <QtCore/QThread>
 
 using namespace Core;
 
@@ -56,247 +57,116 @@ namespace Internal {
 AndroidRunner::AndroidRunner(QObject *parent,
     AndroidRunConfiguration *runConfig, bool debugging)
     : QObject(parent),
-      m_devConfig(runConfig->deviceConfig()),
-      m_appArguments(runConfig->arguments()),
-      m_userEnvChanges(runConfig->userEnvironmentChanges()),
-      m_state(Inactive)
+      m_intentName(AndroidTemplatesManager::instance()->intentName(runConfig->qt4Target()->qt4Project()))
 {
-#warning FIXME Android
-//    m_procsToKill << QFileInfo(m_remoteExecutable).fileName();
+    m_debugingMode = debugging;
+    m_packageName=m_intentName.left(m_intentName.indexOf('/'));
+    m_processPID = -1;
+    m_exitStatus = 0;
+    connect(&m_checkPIDTimer, SIGNAL(timeout()), SLOT(checkPID()));
+    connect(&m_adbLogcatProcess, SIGNAL(readyReadStandardOutput()), SLOT(logcatReadStandardOutput()));
+    connect(&m_adbLogcatProcess, SIGNAL(readyReadStandardError()) , SLOT(logcatReadStandardError()));
 }
 
 AndroidRunner::~AndroidRunner() {}
 
+void AndroidRunner::checkPID()
+{
+    QProcess psProc;
+    psProc.start(AndroidConfigurations::instance().adbToolPath()+QLatin1String(" shell ps"));
+    if (!psProc.waitForFinished(-1))
+        return;
+    QList<QByteArray> procs= psProc.readAll().split('\n');
+    foreach(QByteArray proc, procs)
+    {
+        if (proc.trimmed().endsWith(m_packageName.toAscii()))
+        {
+            QRegExp rx("(\\d+)");
+            if (rx.indexIn(proc, proc.indexOf(' ')) > 0)
+            {
+                m_processPID=rx.cap(1).toLongLong();
+                return;
+            }
+        }
+    }
+    if (-1 != m_processPID)
+    {
+        m_processPID = -1;
+        emit remoteProcessFinished(tr("\n\n'%1' died").arg(m_packageName));
+    }
+}
+
 void AndroidRunner::start()
 {
-#warning FIXME Android
-
-//    ASSERT_STATE(QList<State>() << Inactive << StopRequested);
-
-//    if (m_remoteExecutable.isEmpty()) {
-//        emitError(tr("Cannot run: No remote executable set."));
-//        return;
-//    }
-//    if (!m_devConfig.isValid()) {
-//        emitError(tr("Cannot run: No device configuration set."));
-//        return;
-//    }
-
-//    setState(Connecting);
-//    m_exitStatus = -1;
-//    m_freePorts = m_initialFreePorts;
-//    if (m_connection)
-//        disconnect(m_connection.data(), 0, this, 0);
-//    const bool reUse = isConnectionUsable();
-//    if (!reUse)
-//        m_connection = SshConnection::create();
-//    connect(m_connection.data(), SIGNAL(connected()), this,
-//        SLOT(handleConnected()));
-//    connect(m_connection.data(), SIGNAL(error(Core::SshError)), this,
-//        SLOT(handleConnectionFailure()));
-//    if (reUse) {
-//        handleConnected();
-//    } else {
-//        emit reportProgress(tr("Connecting to device..."));
-//        m_connection->connectToHost(m_devConfig.server);
-//    }
+    m_exitStatus = 0;
+    stop(); // kill any process with this name
+    if (m_debugingMode)
+    ;// start debuging socket listener
+    QProcess adbStarProc;
+    adbStarProc.start(AndroidConfigurations::instance().adbToolPath()+QLatin1String(" shell am start -n ")+m_intentName);
+    if (!adbStarProc.waitForFinished(-1))
+    {
+        emit remoteProcessFinished(tr("Unable to start '%1'").arg(m_packageName));
+        return;
+    }
+    int retires=50;
+    while(-1 == m_processPID && --retires)
+    {
+        checkPID();
+    }
+    if (-1== m_processPID)
+    {
+        m_exitStatus = -1;
+        emit remoteProcessFinished(tr("Can't find %1 precess").arg(m_packageName));
+        return;
+    }
+    m_exitStatus = 0;
+    m_checkPIDTimer.start(5000); // check the application every 5 seconds
+    m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath()+QLatin1String(" logcat"));
+    if (!m_debugingMode)
+        emit remoteProcessStarted();
+    else
+        emit remoteProcessStarted();
 }
 
 void AndroidRunner::stop()
 {
-    if (m_state == PostRunCleaning || m_state == StopRequested
-        || m_state == Inactive)
+    m_adbLogcatProcess.terminate();
+    checkPID();
+    m_checkPIDTimer.stop();
+    if (-1 == m_processPID)
         return;
-
-    setState(StopRequested);
-    cleanup();
+    QProcess adbStopProc;
+    adbStopProc.start(AndroidConfigurations::instance().adbToolPath()+QString(" shell kill -9 %1").arg(m_processPID));
+    m_processPID = -1;
+    adbStopProc.waitForFinished(-1);
+    emit remoteProcessFinished(tr("\n\n'%1' killed").arg(m_packageName));
 }
 
-void AndroidRunner::handleConnected()
+void AndroidRunner::logcatReadStandardError()
 {
-    ASSERT_STATE(QList<State>() << Connecting << StopRequested);
-    if (m_state == StopRequested) {
-        setState(Inactive);
-    } else {
-        setState(PreRunCleaning);
-        cleanup();
+    emit remoteErrorOutput(m_adbLogcatProcess.readAllStandardError());
+}
+
+void AndroidRunner::logcatReadStandardOutput()
+{
+    m_logcat+=m_adbLogcatProcess.readAllStandardOutput();
+    bool keepLastLine=m_logcat.endsWith('\n');
+    QByteArray line;
+    QByteArray pid(QString("%1):").arg(m_processPID).toAscii());
+    foreach(line, m_logcat.split('\n'))
+    {
+        if (!line.contains(pid))
+            continue;
+        if (line.startsWith("E/"))
+            emit remoteErrorOutput(line);
+        else
+            emit remoteOutput(line);
+
     }
+    if (keepLastLine)
+        m_logcat=line;
 }
-
-void AndroidRunner::handleConnectionFailure()
-{
-    if (m_state == Inactive)
-        qWarning("Unexpected state %d in %s.", m_state, Q_FUNC_INFO);
-
-    const QString errorTemplate = m_state == Connecting
-        ? tr("Could not connect to host: %1") : tr("Connection failed: %1");
-    emitError(errorTemplate.arg(m_connection->errorString()));
-}
-
-void AndroidRunner::cleanup()
-{
-    ASSERT_STATE(QList<State>() << PreRunCleaning << PostRunCleaning
-        << StopRequested);
-
-    emit reportProgress(tr("Killing remote process(es)..."));
-
-    // pkill behaves differently on Fremantle and Harmattan.
-    const char *const killTemplate = "pkill -%2 '^%1$'; pkill -%2 '/%1$';";
-    QString niceKill;
-    QString brutalKill;
-    foreach (const QString &proc, m_procsToKill) {
-        niceKill += QString::fromLocal8Bit(killTemplate).arg(proc).arg("SIGTERM");
-        brutalKill += QString::fromLocal8Bit(killTemplate).arg(proc).arg("SIGKILL");
-    }
-    QString remoteCall = niceKill + QLatin1String("sleep 1; ") + brutalKill;
-    remoteCall.remove(remoteCall.count() - 1, 1); // Get rid of trailing semicolon.
-
-    m_cleaner = m_connection->createRemoteProcess(remoteCall.toUtf8());
-    connect(m_cleaner.data(), SIGNAL(closed(int)), this,
-        SLOT(handleCleanupFinished(int)));
-    m_cleaner->start();
-}
-
-void AndroidRunner::handleCleanupFinished(int exitStatus)
-{
-#warning FIXME Android
-//    Q_ASSERT(exitStatus == SshRemoteProcess::FailedToStart
-//        || exitStatus == SshRemoteProcess::KilledBySignal
-//        || exitStatus == SshRemoteProcess::ExitedNormally);
-
-//    ASSERT_STATE(QList<State>() << PreRunCleaning << PostRunCleaning
-//        << StopRequested << Inactive);
-
-//    if (m_state == Inactive)
-//        return;
-//    if (m_state == StopRequested || m_state == PostRunCleaning) {
-//        unmount();
-//        return;
-//    }
-
-//    if (exitStatus != SshRemoteProcess::ExitedNormally) {
-//        emitError(tr("Initial cleanup failed: %1")
-//            .arg(m_cleaner->errorString()));
-//    } else {
-//        m_mounter->setConnection(m_connection);
-//        unmount();
-//    }
-}
-
-void AndroidRunner::handleUnmounted()
-{
-#warning FIXME Android
-//    ASSERT_STATE(QList<State>() << PreRunCleaning << PreMountUnmounting
-//        << PostRunCleaning << StopRequested);
-
-//    switch (m_state) {
-//    case PreRunCleaning: {
-//        for (int i = 0; i < m_mountSpecs.count(); ++i)
-//            m_mounter->addMountSpecification(m_mountSpecs.at(i), false);
-//        setState(PreMountUnmounting);
-//        unmount();
-//        break;
-//    }
-//    case PreMountUnmounting:
-//        setState(GatheringPorts);
-//        m_portsGatherer->start(m_connection, m_freePorts);
-//        break;
-//    case PostRunCleaning:
-//    case StopRequested: {
-//        m_mounter->resetMountSpecifications();
-//        const bool stopRequested = m_state == StopRequested;
-//        setState(Inactive);
-//        if (stopRequested) {
-//            emit remoteProcessFinished(InvalidExitCode);
-//        } else if (m_exitStatus == SshRemoteProcess::ExitedNormally) {
-//            emit remoteProcessFinished(m_runner->exitCode());
-//        } else {
-//            emit error(tr("Error running remote process: %1")
-//                .arg(m_runner->errorString()));
-//        }
-//        break;
-//    }
-//    default: ;
-//    }
-}
-
-void AndroidRunner::handleMounted()
-{
-    ASSERT_STATE(QList<State>() << Mounting << StopRequested);
-
-    if (m_state == Mounting) {
-        setState(ReadyForExecution);
-        emit readyForExecution();
-    }
-}
-
-void AndroidRunner::handleMounterError(const QString &errorMsg)
-{
-    ASSERT_STATE(QList<State>() << PreRunCleaning << PostRunCleaning
-        << PreMountUnmounting << Mounting << StopRequested << Inactive);
-
-    emitError(errorMsg);
-}
-
-void AndroidRunner::startExecution(const QByteArray &remoteCall)
-{
-    ASSERT_STATE(ReadyForExecution);
-
-    m_runner = m_connection->createRemoteProcess(remoteCall);
-    connect(m_runner.data(), SIGNAL(started()), this,
-        SIGNAL(remoteProcessStarted()));
-    connect(m_runner.data(), SIGNAL(closed(int)), this,
-        SLOT(handleRemoteProcessFinished(int)));
-    connect(m_runner.data(), SIGNAL(outputAvailable(QByteArray)), this,
-        SIGNAL(remoteOutput(QByteArray)));
-    connect(m_runner.data(), SIGNAL(errorOutputAvailable(QByteArray)), this,
-        SIGNAL(remoteErrorOutput(QByteArray)));
-    setState(ProcessStarting);
-    m_runner->start();
-}
-
-void AndroidRunner::handleRemoteProcessFinished(int exitStatus)
-{
-    Q_ASSERT(exitStatus == SshRemoteProcess::FailedToStart
-        || exitStatus == SshRemoteProcess::KilledBySignal
-        || exitStatus == SshRemoteProcess::ExitedNormally);
-    ASSERT_STATE(QList<State>() << ProcessStarting << StopRequested << Inactive);
-
-    m_exitStatus = exitStatus;
-    if (m_state != StopRequested && m_state != Inactive) {
-        setState(PostRunCleaning);
-        cleanup();
-    }
-}
-
-bool AndroidRunner::isConnectionUsable() const
-{
-#warning FIXME Android
-    return false;/*m_connection && m_connection->state() == SshConnection::Connected
-        && m_connection->connectionParameters() == m_devConfig.server;*/
-}
-
-void AndroidRunner::setState(State newState)
-{
-    m_state = newState;
-}
-
-void AndroidRunner::emitError(const QString &errorMsg)
-{
-    if (m_state != Inactive) {
-        setState(Inactive);
-        emit error(errorMsg);
-    }
-}
-
-
-void AndroidRunner::handlePortsGathererError(const QString &errorMsg)
-{
-    emitError(errorMsg);
-}
-
-const qint64 AndroidRunner::InvalidExitCode
-    = std::numeric_limits<qint64>::min();
 
 } // namespace Internal
 } // namespace Qt4ProjectManager
