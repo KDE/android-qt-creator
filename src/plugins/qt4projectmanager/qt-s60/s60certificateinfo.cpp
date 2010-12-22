@@ -37,6 +37,8 @@
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QTextStream>
+#include <QHash>
+#include <QMutableHashIterator>
 
 #include "s60symbiancertificate.h"
 
@@ -76,14 +78,73 @@ static const Capability capability[] =
     { "TCB", S60CertificateInfo::TCB }
 };
 
-QStringList createCapabilityList(uint capabilities)
+struct CapabilitySet {
+    const char *color;
+    const int value;
+};
+
+static const CapabilitySet capabilitySet[] =
+{
+    { "green", S60CertificateInfo::UserCapabilities },
+    { "darkorange", S60CertificateInfo::SystemCapabilities },
+    { "orangered", S60CertificateInfo::RestrictedCapabilities },
+    { "red", S60CertificateInfo::ManufacturerCapabilities }
+};
+
+QHash<int, QStringList> createCapabilityMap(uint capabilities)
 {
     const int capabilityCount = sizeof(capability)/sizeof(capability[0]);
-    QStringList capabilityList;
+    const int capabilitySetCount = sizeof(capabilitySet)/sizeof(capabilitySet[0]);
+
+    QHash<int, QStringList> capabilityMap; //to separate the groups of capabilities
     for(int i = 0; i < capabilityCount; ++i)
-        if (capabilities&capability[i].value)
-            capabilityList << QLatin1String(capability[i].name);
-    return capabilityList;
+        if (capabilities&capability[i].value) {
+            for (int j = 0; j < capabilitySetCount; ++j)
+                if (capability[i].value&capabilitySet[j].value) {
+                    capabilityMap[capabilitySet[j].value] << capability[i].name;
+                    break;
+                }
+        }
+
+    QMutableHashIterator<int, QStringList> i(capabilityMap);
+    while (i.hasNext()) {
+        i.next();
+        i.value().sort();
+    }
+
+    return capabilityMap;
+}
+
+QStringList createCapabilityList(uint capabilities)
+{
+    QHash<int, QStringList> capabilityMap(createCapabilityMap(capabilities));
+
+    return capabilityMap[S60CertificateInfo::UserCapabilities]
+            + capabilityMap[S60CertificateInfo::SystemCapabilities]
+            + capabilityMap[S60CertificateInfo::RestrictedCapabilities]
+            + capabilityMap[S60CertificateInfo::ManufacturerCapabilities];
+}
+
+QStringList createHtmlCapabilityList(uint capabilities)
+{
+    const int capabilitySetCount = sizeof(capabilitySet)/sizeof(capabilitySet[0]);
+    QHash<int, QStringList> capabilityMap(createCapabilityMap(capabilities));
+    QStringList result;
+
+    for (int j = 0; j < capabilitySetCount; ++j) {
+        QHashIterator<int, QStringList> i(capabilityMap);
+        while (i.hasNext()) {
+            i.next();
+            if (i.key() == capabilitySet[j].value) {
+                foreach (QString capability, i.value()) {
+                    result << QString("<font color=\"%1\">%2</font>")
+                              .arg(capabilitySet[j].color).arg(capability);
+                }
+                break;
+            }
+        }
+    }
+    return result;
 }
 
 S60CertificateInfo::S60CertificateInfo(const QString &filePath, QObject* parent)
@@ -211,8 +272,11 @@ QString S60CertificateInfo::toHtml(bool keepShort)
         << "</b></td><td>" << endDate.toString(QLatin1String(SIMPLE_DATE_FORMAT)) << "</td></tr>";
 
     if (capabilitiesSupported()) {
-        QStringList capabilities(createCapabilityList(capabilitiesSupported()));
-        capabilities.sort();
+        QStringList capabilities;
+        if (keepShort)
+            capabilities = createCapabilityList(capabilitiesSupported());
+        else
+            capabilities = createHtmlCapabilityList(capabilitiesSupported());
         str << "<tr><td><b>" << tr("Capabilities: ")
             << "</b></td><td><i>" << capabilities.join(" ") << "</i></td></tr>";
     }

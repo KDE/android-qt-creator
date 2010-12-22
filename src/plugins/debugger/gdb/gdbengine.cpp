@@ -1410,6 +1410,7 @@ void GdbEngine::handleStop1(const GdbMi &data)
         const QByteArray threadId = data.findChild("thread-id").data();
         const BreakpointId id = breakHandler()->findBreakpointByNumber(bpNumber);
         showStatusMessage(msgBreakpointTriggered(id, bpNumber, _(threadId)));
+        m_currentThread = threadId;
     } else {
         QString reasontr = msgStopped(_(reason));
         if (reason == "signal-received"
@@ -2617,12 +2618,40 @@ void GdbEngine::loadSymbols(const QString &moduleName)
     // FIXME: gdb does not understand quoted names here (tested with 6.8)
     postCommand("sharedlibrary " + dotEscape(moduleName.toLocal8Bit()));
     reloadModulesInternal();
+    reloadStack(true);
+    updateLocals();
 }
 
 void GdbEngine::loadAllSymbols()
 {
     postCommand("sharedlibrary .*");
     reloadModulesInternal();
+    reloadStack(true);
+    updateLocals();
+}
+
+void GdbEngine::loadSymbolsForStack()
+{
+    bool needUpdate = false;
+    const Modules &modules = modulesHandler()->modules();
+    foreach (const StackFrame &frame, stackHandler()->frames()) {
+        if (frame.function == _("??")) {
+            //qDebug() << "LOAD FOR " << frame.address;
+            foreach (const Module &module, modules) {
+                if (module.startAddress <= frame.address
+                        && frame.address < module.endAddress) {
+                    postCommand("sharedlibrary "
+                        + dotEscape(module.moduleName.toLocal8Bit()));
+                    needUpdate = true;
+                }
+            }
+        }
+    }
+    if (needUpdate) {
+        reloadModulesInternal();
+        reloadStack(true);
+        updateLocals();
+    }
 }
 
 void GdbEngine::requestModuleSymbols(const QString &moduleName)
@@ -2751,12 +2780,13 @@ void GdbEngine::handleModulesList(const GdbResponse &response)
             // shlib-info={...}...
             foreach (const GdbMi &item, response.data.children()) {
                 Module module;
-                module.moduleName = QString::fromLocal8Bit(item.findChild("path").data());
+                module.moduleName =
+                    QString::fromLocal8Bit(item.findChild("path").data());
                 module.symbolsRead = (item.findChild("state").data() == "Y")
                         ? Module::ReadOk : Module::ReadFailed;
-                module.startAddress = _(item.findChild("loaded_addr").data());
-                //: End address of loaded module
-                module.endAddress = tr("<unknown>", "address");
+                module.startAddress =
+                    item.findChild("loaded_addr").data().toULongLong(0, 0);
+                module.endAddress = 0; // FIXME: End address not easily available.
                 modules.append(module);
             }
         }
@@ -2984,8 +3014,12 @@ void GdbEngine::activateFrame(int frameIndex)
     // Otherwise the lines below would need to get triggered
     // after a response to this -stack-select-frame here.
     handler->setCurrentIndex(frameIndex);
-    postCommand("-stack-select-frame " + QByteArray::number(frameIndex),
-        Discardable, CB(handleStackSelectFrame));
+    QByteArray cmd = "-stack-select-frame";
+    //if (!m_currentThread.isEmpty())
+    //    cmd += " --thread " + m_currentThread;
+    cmd += ' ';
+    cmd += QByteArray::number(frameIndex);
+    postCommand(cmd, Discardable, CB(handleStackSelectFrame));
     gotoLocation(stackHandler()->currentFrame());
     updateLocals();
     reloadRegisters();
@@ -3006,7 +3040,7 @@ void GdbEngine::handleThreadInfo(const GdbResponse &response)
         threadsHandler()->setThreads(threads);
         threadsHandler()->setCurrentThreadId(currentThreadId);
         updateViews(); // Adjust Threads combobox.
-        if (m_hasInferiorThreadList) {
+        if (m_hasInferiorThreadList && debuggerCore()->boolSetting(ShowThreadNames)) {
             postCommand("threadnames " +
                 debuggerCore()->action(MaximalStackDepth)->value().toByteArray(),
                 Discardable, CB(handleThreadNames), id);
@@ -4054,10 +4088,11 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &gdb, const QStr
             GdbOptionsPage::settingsId());
         return false;
     }
-    showMessage(_("STARTING GDB ") + m_gdb);
     QStringList gdbArgs;
     gdbArgs << _("-i");
     gdbArgs << _("mi");
+    if (!debuggerCore()->boolSetting(LoadGdbInit))
+        gdbArgs << _("-n");
     gdbArgs += args;
 
 #ifdef Q_OS_WIN
@@ -4110,6 +4145,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &gdb, const QStr
     connect(gdbProc(), SIGNAL(readyReadStandardError()),
         SLOT(readGdbStandardError()));
 
+    showMessage(_("STARTING ") + m_gdb + _(" ") + gdbArgs.join(_(" ")));
     gdbProc()->start(m_gdb, gdbArgs);
 
     if (!gdbProc()->waitForStarted()) {
@@ -4122,7 +4158,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &gdb, const QStr
     postCommand("show version", CB(handleShowVersion));
 
     //postCommand("-enable-timings");
-    postCommand("set print static-members off"); // Seemingly doesn't work.
+    //postCommand("set print static-members off"); // Seemingly doesn't work.
     //postCommand("set debug infrun 1");
     //postCommand("define hook-stop\n-thread-list-ids\n-stack-list-frames\nend");
     //postCommand("define hook-stop\nprint 4\nend");
@@ -4333,10 +4369,12 @@ void GdbEngine::handleInferiorPrepared()
 #endif
     }
 
-    // Initial attempt to set breakpoints
-    showStatusMessage(tr("Setting breakpoints..."));
-    showMessage(tr("Setting breakpoints..."));
-    attemptBreakpointSynchronization();
+    // Initial attempt to set breakpoints.
+    if (startParameters().startMode != AttachCore) {
+        showStatusMessage(tr("Setting breakpoints..."));
+        showMessage(tr("Setting breakpoints..."));
+        attemptBreakpointSynchronization();
+    }
 
     if (m_cookieForToken.isEmpty()) {
         finishInferiorSetup();

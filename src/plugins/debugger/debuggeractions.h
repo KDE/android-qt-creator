@@ -91,6 +91,7 @@ enum DebuggerActionCode
     CustomDebuggingHelperLocation,
 
     UseCodeModel,
+    ShowThreadNames,
 
     UseToolTipsInMainEditor,
     UseToolTipsInLocalsView,
@@ -102,7 +103,7 @@ enum DebuggerActionCode
     RegisterForPostMortem,
 
     // Gdb
-    GdbEnvironment,
+    LoadGdbInit,
     GdbScriptFile,
     ExecuteCommand,
     GdbWatchdogTimeout,

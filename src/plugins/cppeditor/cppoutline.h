@@ -17,6 +17,8 @@ class CppOutlineTreeView : public Utils::NavigationTreeView
     Q_OBJECT
 public:
     CppOutlineTreeView(QWidget *parent);
+
+    void contextMenuEvent(QContextMenuEvent *event);
 };
 
 class CppOutlineFilterModel : public QSortFilterProxyModel
@@ -45,6 +47,7 @@ private slots:
     void modelUpdated();
     void updateSelectionInTree(const QModelIndex &index);
     void updateSelectionInText(const QItemSelection &selection);
+    void updateTextCursor(const QModelIndex &index);
 
 private:
     bool syncCursor();

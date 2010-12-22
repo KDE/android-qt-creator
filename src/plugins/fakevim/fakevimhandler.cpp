@@ -2094,10 +2094,12 @@ EventResult FakeVimHandler::Private::handleCommandMode(const Input &input)
     } else if (input.is('b') || input.isShift(Key_Left)) {
         m_movetype = MoveExclusive;
         moveToWordBoundary(false, false);
+        setTargetColumn();
         finishMovement();
     } else if (input.is('B')) {
         m_movetype = MoveExclusive;
         moveToWordBoundary(true, false);
+        setTargetColumn();
         finishMovement();
     } else if (input.is('c') && isNoVisualMode()) {
         if (atEndOfLine())
@@ -2193,10 +2195,12 @@ EventResult FakeVimHandler::Private::handleCommandMode(const Input &input)
     } else if (input.is('e') || input.isShift(Key_Right)) {
         m_movetype = MoveInclusive;
         moveToWordBoundary(false, true);
+        setTargetColumn();
         finishMovement("%1e", count());
     } else if (input.is('E')) {
         m_movetype = MoveInclusive;
         moveToWordBoundary(true, true);
+        setTargetColumn();
         finishMovement("%1E", count());
     } else if (input.isControl('e')) {
         // FIXME: this should use the "scroll" option, and "count"
@@ -2403,6 +2407,18 @@ EventResult FakeVimHandler::Private::handleCommandMode(const Input &input)
         updateMiniBuffer();
     } else if (input.isControl('r')) {
         redo();
+    } else if (input.is('s') && isVisualBlockMode()) {
+        Range range(position(), anchor(), RangeBlockMode);
+        int beginLine = lineForPosition(anchor());
+        int endLine = lineForPosition(position());
+        m_visualInsertCount = qAbs(endLine - beginLine);
+        setPosition(qMin(position(), anchor()));
+        yankText(range, m_register);
+        removeText(range);
+        setDotCommand("%1s", count());
+        setUndoPosition(position());
+        breakEditBlock();
+        enterInsertMode();
     } else if (input.is('s')) {
         leaveVisualMode();
         if (atEndOfLine())
@@ -2470,6 +2486,7 @@ EventResult FakeVimHandler::Private::handleCommandMode(const Input &input)
         // character of a word: only the current word will be changed
         if (m_submode == ChangeSubMode) {
             moveToWordBoundary(false, true, true);
+            setTargetColumn();
             m_movetype = MoveInclusive;
         } else {
             moveToNextWord(false, m_submode == DeleteSubMode);
@@ -2479,6 +2496,7 @@ EventResult FakeVimHandler::Private::handleCommandMode(const Input &input)
     } else if (input.is('W')) {
         if (m_submode == ChangeSubMode) {
             moveToWordBoundary(true, true, true);
+            setTargetColumn();
             m_movetype = MoveInclusive;
         } else {
             moveToNextWord(true, m_submode == DeleteSubMode);
@@ -2705,6 +2723,7 @@ EventResult FakeVimHandler::Private::handleInsertMode(const Input &input)
     } else if (input.isControl('w')) {
         int endPos = position();
         moveToWordBoundary(false, false, false);
+        setTargetColumn();
         int beginPos = position();
         Range range(beginPos, endPos, RangeCharMode);
         removeText(range);
@@ -2825,6 +2844,12 @@ EventResult FakeVimHandler::Private::handleInsertMode(const Input &input)
         removeText(Range(pos, pos+i));
     //} else if (key >= control('a') && key <= control('z')) {
     //    // ignore these
+    } else if (input.isControl('p') || input.isControl('n')) {
+        QTextCursor tc = EDITOR(textCursor());
+        moveToWordBoundary(false, false);
+        QString str = selectText(Range(position(), tc.position()));
+        EDITOR(setTextCursor(tc));
+        emit q->simpleCompletionRequested(str, input.isControl('n'));
     } else if (!input.text().isEmpty()) {
         insertInInsertMode(input.text());
     } else {
@@ -3960,7 +3985,6 @@ void FakeVimHandler::Private::moveToWordBoundary(bool simple, bool forward, bool
         if (repeat == -1)
             break;
     }
-    setTargetColumn();
 }
 
 bool FakeVimHandler::Private::handleFfTt(QString key)
@@ -4690,6 +4714,7 @@ void FakeVimHandler::Private::selectWordTextObject(bool inner)
     //if (isVisualMode())
     //    setMark('<', cursor().position());
     moveToWordBoundary(false, true, true);
+    setTargetColumn();
     m_movetype = MoveInclusive;
 }
 
@@ -4703,6 +4728,7 @@ void FakeVimHandler::Private::selectWORDTextObject(bool inner)
     //if (isVisualMode())
     //    setMark('<', cursor().position());
     moveToWordBoundary(true, true, true);
+    setTargetColumn();
     m_movetype = MoveInclusive;
 }
 

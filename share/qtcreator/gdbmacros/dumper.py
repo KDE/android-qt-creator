@@ -515,7 +515,7 @@ def listOfLocals(varList):
             block = frame.block()
             #warn("BLOCK: %s " % block)
         except RuntimeError, error:
-            warn("FRAME NOT ACCESSIBLE: %s" % error)
+            warn("BLOCK IN FRAME NOT ACCESSIBLE: %s" % error)
             return items
         except:
             warn("BLOCK NOT ACCESSIBLE FOR UNKNOWN REASONS")
@@ -788,8 +788,13 @@ def makeExpression(value):
     #warn("  EXP: %s" % exp)
     return exp
 
+qqNs = None
+
 def qtNamespace():
+    if not qqNs is None:
+        return qqNs
     try:
+        global qqNs
         str = catchCliOutput("ptype QString::Null")[0]
         # The result looks like:
         # "type = const struct myns::QString::Null {"
@@ -797,7 +802,8 @@ def qtNamespace():
         # "}"
         pos1 = str.find("struct") + 7
         pos2 = str.find("QString::Null")
-        return str[pos1:pos2]
+        qqNs = str[pos1:pos2]
+        return qqNs
     except:
         return ""
 
@@ -977,7 +983,6 @@ qqDumpers = {}
 
 # This is a cache of the namespace of the currently used Qt version.
 # FIXME: This is not available on 'bbsetup' time, only at 'bb' time.
-qqNs = ""
 
 # This is a cache of typenames->bool saying whether we are QObject
 # derived.
@@ -1011,10 +1016,11 @@ def bbsetup():
                 pass
             qqFormats[name] = formats
     result = "dumpers=["
-    qqNs = qtNamespace()
+    #qqNs = qtNamespace() # This is too early
     for key, value in qqFormats.items():
         result += '{type="%s",formats="%s"},' % (key, value)
-    result += '],namespace="%s"' % qqNs
+    result += ']'
+    #result += ',namespace="%s"' % qqNs
     result += ',hasInferiorThreadList="%s"' % int(hasInferiorThreadList())
     return result
 
@@ -1120,8 +1126,8 @@ class Dumper:
         options = []
         varList = []
         watchers = ""
-        resultVarName = ""
 
+        resultVarName = ""
         for arg in args.split(' '):
             pos = arg.find(":") + 1
             if arg.startswith("options:"):
@@ -1151,12 +1157,12 @@ class Dumper:
         self.passExceptions = "pe" in options
         self.autoDerefPointers = "autoderef" in options
         self.partialUpdate = "partial" in options
-        #self.ns = qqNs
         self.ns = qtNamespace()
-        try:
-            self.alienSource = catchCliOutput("info source")[0][-3:-1]==".d"
-        except:
-            self.alienSource = False
+        self.alienSource = False
+        #try:
+        #    self.alienSource = catchCliOutput("info source")[0][-3:-1]==".d"
+        #except:
+        #    self.alienSource = False
 
         #warn("NAMESPACE: '%s'" % self.ns)
         #warn("VARIABLES: %s" % varList)
@@ -1887,30 +1893,35 @@ class ThreadNamesCommand(gdb.Command):
     def invoke(self, arg, from_tty):
         ns = qtNamespace()
         out = '['
-        for thread in gdb.inferiors()[0].threads():
-            maximalStackDepth = int(arg)
-            thread.switch()
-            e = gdb.selected_frame ()
-            while True:
-                maximalStackDepth -= 1
-                if maximalStackDepth < 0:
-                    break
-                e = e.older()
-                if e == None or e.name() == None:
-                    break
-                if e.name() == ns + "QThreadPrivate::start":
-                    try:
-                        thrptr = e.read_var("thr").dereference()
-                        obtype = lookupType(ns + "QObjectPrivate").pointer()
-                        d_ptr = thrptr["d_ptr"]["d"].cast(obtype).dereference()
-                        objectName = d_ptr["objectName"]
-                        out += '{valueencoded="';
-                        out += str(Hex4EncodedLittleEndianWithoutQuotes)+'",id="'
-                        out += str(thread.num) + '",value="'
-                        out += encodeString(objectName)
-                        out += '"},'
-                    except:
-                        pass
+        oldthread = gdb.selected_thread()
+        try:
+            for thread in gdb.inferiors()[0].threads():
+                maximalStackDepth = int(arg)
+                thread.switch()
+                e = gdb.selected_frame ()
+                while True:
+                    maximalStackDepth -= 1
+                    if maximalStackDepth < 0:
+                        break
+                    e = e.older()
+                    if e == None or e.name() == None:
+                        break
+                    if e.name() == ns + "QThreadPrivate::start":
+                        try:
+                            thrptr = e.read_var("thr").dereference()
+                            obtype = lookupType(ns + "QObjectPrivate").pointer()
+                            d_ptr = thrptr["d_ptr"]["d"].cast(obtype).dereference()
+                            objectName = d_ptr["objectName"]
+                            out += '{valueencoded="';
+                            out += str(Hex4EncodedLittleEndianWithoutQuotes)+'",id="'
+                            out += str(thread.num) + '",value="'
+                            out += encodeString(objectName)
+                            out += '"},'
+                        except:
+                            pass
+        except:
+            pass
+        oldthread.switch()
         print out[:-1] + ']'
 
 ThreadNamesCommand()
