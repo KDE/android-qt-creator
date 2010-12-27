@@ -89,9 +89,12 @@ QStringList AndroidConfigurations::sdkTargets()
     return QStringList()<<"android-8"<<"android-9";
 }
 
-QString AndroidConfigurations::adbToolPath()
+QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 {
-    return m_config.SDKLocation+QLatin1String("/platform-tools/adb");
+    QString adbCmmand=m_config.SDKLocation+QLatin1String("/platform-tools/adb");
+    if (deviceSerialNumber.length())
+        adbCmmand+=" -s "+deviceSerialNumber;
+    return adbCmmand;
 }
 
 QString AndroidConfigurations::androidToolPath()
@@ -111,8 +114,15 @@ QString AndroidConfigurations::emulatorToolPath()
     return m_config.SDKLocation+QLatin1String("/tools/emulator");
 }
 
+QString AndroidConfigurations::stripPath()
+{
+#warning FIXME Android get rid of hard-coded path
+    return m_config.NDKLocation+QLatin1String("/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-strip");
+}
+
 QString AndroidConfigurations::gdbServerPath()
 {
+#warning FIXME Android get rid of hard-coded path
     return m_config.NDKLocation+QLatin1String("/toolchains/arm-linux-androideabi-4.4.3/prebuilt/gdbserver");
 }
 
@@ -234,7 +244,7 @@ QString AndroidConfigurations::startAVD(int apiLevel)
 int AndroidConfigurations::getSDKVersion(const QString & device)
 {
     QProcess adbProc;
-    adbProc.start(QString("%1 -s %2 shell getprop ro.build.version.sdk").arg(adbToolPath()).arg(device));
+    adbProc.start(QString("%1 shell getprop ro.build.version.sdk").arg(adbToolPath(device)));
     if (!adbProc.waitForFinished(-1))
         return -1;
     return adbProc.readAll().trimmed().toInt();

@@ -749,7 +749,7 @@ void AndroidTemplatesManager::raiseError(const QString &reason)
 
 void AndroidTemplatesManager::handleAndroidDirContentsChanged()
 {
-    const Project * const project
+    Project * const project
         = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
     if (project)
         emit androidDirContentsChanged(project);

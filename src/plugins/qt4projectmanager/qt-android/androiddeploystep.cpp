@@ -87,6 +87,8 @@ void AndroidDeployStep::ctor()
 {
     //: AndroidDeployStep default display name
     setDefaultDisplayName(tr("Deploy to Android device"));
+    m_deployQtLibs = true;
+    m_forceDeploy = false;
 }
 
 bool AndroidDeployStep::init()
@@ -102,6 +104,43 @@ void AndroidDeployStep::run(QFutureInterface<bool> &fi)
 BuildStepConfigWidget *AndroidDeployStep::createConfigWidget()
 {
     return new AndroidDeployStepWidget(this);
+}
+
+bool AndroidDeployStep::deployQtLibs()
+{
+    return m_deployQtLibs;
+}
+
+void AndroidDeployStep::setDeployQtLibs(bool deploy)
+{
+    m_deployQtLibs=deploy;
+}
+
+bool AndroidDeployStep::forceDeploy()
+{
+    return m_forceDeploy;
+}
+
+void AndroidDeployStep::setForceDeploy(bool force)
+{
+    m_forceDeploy=force;
+}
+
+QVariantMap AndroidDeployStep::toMap() const
+{
+    QVariantMap map(BuildStep::toMap());
+    map.insert(AndroidDeployQtLibsKey, m_deployQtLibs);
+    map.insert(AndroidForceDeployKey, m_forceDeploy);
+    return map;
+}
+
+bool AndroidDeployStep::fromMap(const QVariantMap &map)
+{
+    if (!BuildStep::fromMap(map))
+        return false;
+    m_deployQtLibs = map.value(AndroidDeployQtLibsKey, m_deployQtLibs).toBool();
+    m_forceDeploy = map.value(AndroidForceDeployKey, m_forceDeploy).toBool();
+    return true;
 }
 
 bool AndroidDeployStep::runCommand(QProcess *buildProc,
@@ -144,32 +183,86 @@ void AndroidDeployStep::handleBuildOutput()
     }
 }
 
+QString AndroidDeployStep::deviceSerialNumber()
+{
+    return m_deviceSerialNumber;
+}
+
+void AndroidDeployStep::copyLibs(const QString &srcPath, const QString &destPath, QStringList & copiedLibs, const QStringList &filter)
+{
+    QDir dir;
+    dir.mkpath(destPath);
+    QDirIterator libsIt(srcPath, filter, QDir::NoFilter, QDirIterator::Subdirectories);
+    int pos=srcPath.size();
+    while(libsIt.hasNext())
+    {
+        libsIt.next();
+        const QString destFile(destPath+libsIt.filePath().mid(pos));
+        if (libsIt.fileInfo().isDir())
+            dir.mkpath(destFile);
+        else
+        {
+            QFile::copy(libsIt.filePath(), destFile);
+            copiedLibs.append(destFile);
+        }
+    }
+}
+
 bool AndroidDeployStep::deployPackage()
 {
     const Qt4BuildConfiguration * const bc
         = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
-
+    const QString packageName=AndroidTemplatesManager::instance()->packageName(bc->qt4Target()->qt4Project());
     writeOutput(tr("Please wait, searching for a siutable device."));
 
-    QString serialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(8);
-    if (!serialNumber.length())
+    m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(8);
+    if (!m_deviceSerialNumber.length())
     {
+        m_deviceSerialNumber.clear();
         raiseError(tr("Cannot deploy: no devices, emulators found for your package."));
         return false;
     }
 
-    writeOutput(tr("Installing package onto %1.").arg(serialNumber));
     QProcess proc;
     connect(&proc, SIGNAL(readyReadStandardOutput()), this,
         SLOT(handleBuildOutput()));
     connect(&proc, SIGNAL(readyReadStandardError()), this,
         SLOT(handleBuildOutput()));
 
+    bool deployQtLibs=m_forceDeploy;
+    if (!deployQtLibs) // check is deploy is needed
+    {
+        writeOutput(tr("Checking if qt libs deploy is needed"));
+        deployQtLibs = !runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                                   +" shell ls /data/local/qt/lib");
+    }
+    else
+    {
+        writeOutput(tr("Clean old qt libs"));
+        runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                   +" shell rm -r /data/local/qt");
+    }
+
+    if (deployQtLibs)
+    {
+        writeOutput(tr("Deploy qt libs ... it may take some time, please wait"));
+        const QString tempPath=QDir::tempPath()+"/android_qt_libs_"+packageName;
+        AndroidPackageCreationStep::removeDirectory(tempPath);
+        QStringList stripFiles;
+        copyLibs(bc->qtVersion()->sourcePath()+"/lib", tempPath+"/lib",stripFiles,QStringList()<<"*.so");
+        copyLibs(bc->qtVersion()->sourcePath()+"/plugins", tempPath+"/plugins",stripFiles);
+        AndroidPackageCreationStep::stripAndroidLibs(stripFiles);
+        runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                   +QString(" push %1 /data/local/qt").arg(tempPath));
+        AndroidPackageCreationStep::removeDirectory(tempPath);
+    }
+
     proc.setWorkingDirectory(AndroidTemplatesManager::instance()->androidDirPath(bc->qt4Target()->qt4Project()));
 
-    runCommand(&proc,AndroidConfigurations::instance().adbToolPath()
+    writeOutput(tr("Installing package onto %1.").arg(m_deviceSerialNumber));
+    runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
                +QLatin1String(" uninstall ")
-               +AndroidTemplatesManager::instance()->packageName(bc->qt4Target()->qt4Project()));
+               +packageName);
 
     if (!runCommand(&proc, AndroidConfigurations::instance().antToolPath()+QLatin1String(" install")))
         raiseError(tr("Package instalation failed"));

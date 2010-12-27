@@ -218,6 +218,7 @@ const AndroidToolChain *AndroidRunConfiguration::toolchain() const
 
 const QString AndroidRunConfiguration::gdbCmd() const
 {
+//    return "/usr/bin/gdb";
 #warning FIXME Android
     return QString("/usr/local/android-ndk-r5/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-gdb");
 }
@@ -249,30 +250,6 @@ const QString AndroidRunConfiguration::dumperLib() const
     return qt4bc->qtVersion()->debuggingHelperLibrary();
 }
 
-
-QString AndroidRunConfiguration::localDirToMountForRemoteGdb() const
-{
-    const QString projectDir
-        = QDir::fromNativeSeparators(QDir::cleanPath(activeBuildConfiguration()
-            ->target()->project()->projectDirectory()));
-    const QString execDir
-        = QDir::fromNativeSeparators(QFileInfo(localExecutableFilePath()).path());
-    const int length = qMin(projectDir.length(), execDir.length());
-    int lastSeparatorPos = 0;
-    for (int i = 0; i < length; ++i) {
-        if (projectDir.at(i) != execDir.at(i))
-            return projectDir.left(lastSeparatorPos);
-        if (projectDir.at(i) == QLatin1Char('/'))
-            lastSeparatorPos = i;
-    }
-    return projectDir.length() == execDir.length()
-        ? projectDir : projectDir.left(lastSeparatorPos);
-}
-
-QString AndroidRunConfiguration::remoteProjectSourcesMountPoint() const
-{
-    return "";
-}
 
 QString AndroidRunConfiguration::localExecutableFilePath() const
 {

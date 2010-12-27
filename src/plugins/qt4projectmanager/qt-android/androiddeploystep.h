@@ -69,6 +69,15 @@ public:
 
     virtual ~AndroidDeployStep();
 
+    QString deviceSerialNumber();
+
+    bool deployQtLibs();
+    bool forceDeploy();
+
+public slots:
+    void setDeployQtLibs(bool deploy);
+    void setForceDeploy(bool force);
+
 signals:
     void done();
     void error();
@@ -86,10 +95,18 @@ private:
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const { return true; }
 
+    virtual QVariantMap toMap() const;
+    virtual bool fromMap(const QVariantMap &map);
+    void copyLibs(const QString &srcPath, const QString & destPath, QStringList & copiedLibs, const QStringList &filter=QStringList());
     void ctor();
     void raiseError(const QString &error);
     void writeOutput(const QString &text, OutputFormat = MessageOutput);
     bool runCommand(QProcess *buildProc, const QString &command);
+
+private:
+    QString m_deviceSerialNumber;
+    bool m_deployQtLibs;
+    bool m_forceDeploy;
 
     static const QLatin1String Id;
 };

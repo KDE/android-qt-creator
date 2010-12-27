@@ -54,6 +54,7 @@ public:
     virtual void start();
     virtual StopResult stop();
     virtual bool isRunning() const;
+    virtual QString displayName() const;
 
 private slots:
     void handleRemoteProcessFinished(const QString &error);

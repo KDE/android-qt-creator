@@ -88,7 +88,7 @@ public slots:
     void updateProject(const ProjectExplorer::Project *project, const QString &targetSDK);
 
 signals:
-    void androidDirContentsChanged(const ProjectExplorer::Project *project);
+    void androidDirContentsChanged(ProjectExplorer::Project *project);
     void changeLogChanged(const ProjectExplorer::Project *project);
     void controlChanged(const ProjectExplorer::Project *project);
 

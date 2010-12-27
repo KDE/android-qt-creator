@@ -22,21 +22,13 @@ public:
     ~AndroidDeployStepWidget();
 
 private:
-    Q_SLOT void handleDeviceUpdate();
-    Q_SLOT void handleDeviceConfigModelChanged();
-    Q_SLOT void setCurrentDeviceConfig(int index);
-    Q_SLOT void setDeployToSysroot(bool doDeloy);
-    Q_SLOT void setModel(int row);
-    Q_SLOT void handleModelListToBeReset();
-    Q_SLOT void handleModelListReset();
-    Q_SLOT void addDesktopFile();
 
     virtual void init();
     virtual QString summaryText() const;
     virtual QString displayName() const;
 
     Ui::AndroidDeployStepWidget *ui;
-    AndroidDeployStep * const m_step;
+    AndroidDeployStep * m_step;
 };
 
 } // namespace Internal

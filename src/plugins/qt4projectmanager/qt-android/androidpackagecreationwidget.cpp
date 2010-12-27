@@ -178,8 +178,7 @@ void AndroidPackageCreationWidget::handleToolchainChanged()
 
 QString AndroidPackageCreationWidget::summaryText() const
 {
-    const QString constantString = tr("<b>Create Package:</b> ");
-    return constantString;
+    return tr("<b>Package configurations</b>");
 }
 
 QString AndroidPackageCreationWidget::displayName() const

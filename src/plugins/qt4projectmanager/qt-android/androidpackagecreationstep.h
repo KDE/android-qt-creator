@@ -66,6 +66,7 @@ public:
 
     static bool removeDirectory(const QString &dirPath);
 
+    static void stripAndroidLibs(const QStringList & files);
 
     static const QLatin1String DefaultVersionNumber;
 

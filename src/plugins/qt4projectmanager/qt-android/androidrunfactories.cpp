@@ -162,11 +162,10 @@ AndroidRunControlFactory::~AndroidRunControlFactory()
 {
 }
 
-bool AndroidRunControlFactory::canRun(RunConfiguration */*runConfiguration*/,
+bool AndroidRunControlFactory::canRun(RunConfiguration *runConfiguration,
     const QString &/*mode*/) const
 {
-#warning FIXME Android
-    return true;
+    return qobject_cast<AndroidRunConfiguration *>(runConfiguration);
 }
 
 RunControl* AndroidRunControlFactory::create(RunConfiguration *runConfig,

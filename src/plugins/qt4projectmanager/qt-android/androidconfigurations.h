@@ -78,13 +78,15 @@ public:
     AndroidConfig config() const { return m_config; }
     void setConfig(const AndroidConfig &config);
     QStringList sdkTargets();
-    QString adbToolPath();
+    QString adbToolPath(const QString & deviceSerialNumber="");
     QString androidToolPath();
     QString antToolPath();
     QString emulatorToolPath();
     QString gdbServerPath();
+    QString stripPath();
     QString getDeployDeviceSerialNumber(int apiLevel=-1);
     QString createAVD(int apiLevel);
+    QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
 signals:
     void updated();
 
@@ -93,7 +95,6 @@ private:
     void load();
     void save();
 
-    QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
     QString startAVD(int apiLevel);
     int getSDKVersion(const QString & device);
 

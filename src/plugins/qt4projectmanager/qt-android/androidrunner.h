@@ -44,14 +44,9 @@
 #include <QtCore/QStringList>
 #include <QtCore/QTimer>
 
-namespace Core {
-    class SshConnection;
-    class SshRemoteProcess;
-}
 
 namespace Qt4ProjectManager {
 namespace Internal {
-class AndroidRemoteMounter;
 class AndroidRunConfiguration;
 
 class AndroidRunner : public QObject
@@ -61,6 +56,8 @@ public:
     AndroidRunner(QObject *parent, AndroidRunConfiguration *runConfig,
         bool debugging);
     ~AndroidRunner();
+
+    QString displayName() const;
 
 public slots:
     void start();
@@ -75,20 +72,21 @@ signals:
     void remoteErrorOutput(const QByteArray &output);
 
 private slots:
+    void killPID();
     void checkPID();
     void logcatReadStandardError();
     void logcatReadStandardOutput();
 
 private:
-    void emitError(const QString &errorMsg);
-
     int m_exitStatus;
     bool    m_debugingMode;
     QProcess m_adbLogcatProcess;
     QByteArray m_logcat;
     QString m_intentName;
     QString m_packageName;
+    QString m_deviceSerialNumber;
     qint64 m_processPID;
+    qint64 m_gdbserverPID;
     QTimer m_checkPIDTimer;
 };
 

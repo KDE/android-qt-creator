@@ -129,6 +129,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     QDir d(androidDir);
     d.mkpath(androidLibPath);
 
+    QStringList stripFiles;
     QList<Qt4ProFileNode *> nodes = bc->qt4Target()->qt4Project()->leafProFiles();
     foreach(Qt4ProFileNode * node, nodes)
     {
@@ -156,7 +157,11 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
                        .arg(androidLibPath));
             return false;
         }
+        stripFiles<<androidLibPath+QLatin1Char('/')+androidFileName;
     }
+
+    emit addOutput(tr("Stripping libraries, please wait"), BuildStep::MessageOutput);
+    stripAndroidLibs(stripFiles);
 
     QString build;
     if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
@@ -186,6 +191,17 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     emit addOutput(tr("Package created."), BuildStep::MessageOutput);
 
     return true;
+}
+
+void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files)
+{
+    QProcess stripProcess;
+    foreach(QString file, files)
+    {
+        qDebug()<<AndroidConfigurations::instance().stripPath()+" --strip-unneeded "+file;
+        stripProcess.start(AndroidConfigurations::instance().stripPath()+" --strip-unneeded "+file);
+        stripProcess.waitForFinished();
+    }
 }
 
 bool AndroidPackageCreationStep::removeDirectory(const QString &dirPath)

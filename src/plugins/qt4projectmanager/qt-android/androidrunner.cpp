@@ -48,6 +48,9 @@
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QThread>
+#include <QtCore/QCoreApplication>
+#include <QtNetwork/QTcpSocket>
+#include <QtNetwork/QHostAddress>
 
 using namespace Core;
 
@@ -61,7 +64,9 @@ AndroidRunner::AndroidRunner(QObject *parent,
 {
     m_debugingMode = debugging;
     m_packageName=m_intentName.left(m_intentName.indexOf('/'));
+    m_deviceSerialNumber = runConfig->deployStep()->deviceSerialNumber();
     m_processPID = -1;
+    m_gdbserverPID = -1;
     m_exitStatus = 0;
     connect(&m_checkPIDTimer, SIGNAL(timeout()), SLOT(checkPID()));
     connect(&m_adbLogcatProcess, SIGNAL(readyReadStandardOutput()), SLOT(logcatReadStandardOutput()));
@@ -72,10 +77,12 @@ AndroidRunner::~AndroidRunner() {}
 
 void AndroidRunner::checkPID()
 {
+    qApp->processEvents();
     QProcess psProc;
-    psProc.start(AndroidConfigurations::instance().adbToolPath()+QLatin1String(" shell ps"));
+    psProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" shell ps"));
     if (!psProc.waitForFinished(-1))
         return;
+    qint64 pid=-1;
     QList<QByteArray> procs= psProc.readAll().split('\n');
     foreach(QByteArray proc, procs)
     {
@@ -84,33 +91,83 @@ void AndroidRunner::checkPID()
             QRegExp rx("(\\d+)");
             if (rx.indexIn(proc, proc.indexOf(' ')) > 0)
             {
-                m_processPID=rx.cap(1).toLongLong();
-                return;
+                pid=rx.cap(1).toLongLong();
+                break;
             }
         }
     }
-    if (-1 != m_processPID)
+
+    if (-1 != m_processPID && pid==-1)
     {
         m_processPID = -1;
         emit remoteProcessFinished(tr("\n\n'%1' died").arg(m_packageName));
+        return;
     }
+    m_processPID = pid;
+    if (!m_debugingMode)
+        return;
+
+    m_gdbserverPID = -1;
+    foreach(QByteArray proc, procs)
+    {
+        if (proc.trimmed().endsWith("gdbserver"))
+        {
+            QRegExp rx("(\\d+)");
+            if (rx.indexIn(proc, proc.indexOf(' ')) > 0)
+            {
+                m_gdbserverPID=rx.cap(1).toLongLong();
+                break;
+            }
+        }
+    }
+}
+
+void AndroidRunner::killPID()
+{
+    QProcess m_killProcess;
+    do
+    {
+        checkPID();
+        if (-1 != m_processPID)
+        {
+            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell kill -9 %1").arg(m_processPID));
+            m_killProcess.waitForFinished(-1);
+        }
+        if (-1 != m_gdbserverPID)
+        {
+            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell kill -9 %1").arg(m_gdbserverPID));
+            m_killProcess.waitForFinished(-1);
+        }
+    }while(-1 != m_processPID || m_gdbserverPID != -1);
 }
 
 void AndroidRunner::start()
 {
+    m_processPID = -1;
     m_exitStatus = 0;
-    stop(); // kill any process with this name
-    if (m_debugingMode)
-    ;// start debuging socket listener
+    killPID(); // kill any process with this name
+    QString debugString;
     QProcess adbStarProc;
-    adbStarProc.start(AndroidConfigurations::instance().adbToolPath()+QLatin1String(" shell am start -n ")+m_intentName);
+    if (m_debugingMode)
+    {
+        qDebug()<<QString(" forward tcp:%1 localfilesystem:/data/data/%2/debug-socket").arg(5039).arg(m_packageName);
+        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" forward tcp:%1 localfilesystem:/data/data/%2/debug-socket").arg(5039).arg(m_packageName));
+        if (!adbStarProc.waitForFinished(-1))
+        {
+            emit remoteProcessFinished(tr("Failed to forward debugging posts"));
+            return;
+        }
+        debugString=QString("-e native_debug true -e gdbserver_socket \"+debug-socket\"");
+    }
+
+    adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell am start -n %1 %2").arg(m_intentName).arg(debugString));
     if (!adbStarProc.waitForFinished(-1))
     {
         emit remoteProcessFinished(tr("Unable to start '%1'").arg(m_packageName));
         return;
     }
-    int retires=50;
-    while(-1 == m_processPID && --retires)
+    QTime startTime=QTime::currentTime();
+    while(-1 == m_processPID && startTime.secsTo(QTime::currentTime())<5); // wait up to 5 seconds for application to start
     {
         checkPID();
     }
@@ -120,26 +177,30 @@ void AndroidRunner::start()
         emit remoteProcessFinished(tr("Can't find %1 precess").arg(m_packageName));
         return;
     }
+
+    if (m_debugingMode)
+    {
+        startTime=QTime::currentTime();
+        while(m_gdbserverPID==-1 && startTime.secsTo(QTime::currentTime())<25); // wait up to 25 seconds to connect
+        {
+            checkPID();
+        }
+        sleep(1); // give gdbserver more time to start
+    }
+
     m_exitStatus = 0;
-    m_checkPIDTimer.start(5000); // check the application every 5 seconds
-    m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath()+QLatin1String(" logcat"));
-    if (!m_debugingMode)
-        emit remoteProcessStarted();
-    else
-        emit remoteProcessStarted();
+    m_checkPIDTimer.start(5000); // check if the application is alive every 5 seconds
+    m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" logcat"));
+    emit remoteProcessStarted(5039);
 }
 
 void AndroidRunner::stop()
 {
     m_adbLogcatProcess.terminate();
-    checkPID();
     m_checkPIDTimer.stop();
-    if (-1 == m_processPID)
-        return;
-    QProcess adbStopProc;
-    adbStopProc.start(AndroidConfigurations::instance().adbToolPath()+QString(" shell kill -9 %1").arg(m_processPID));
-    m_processPID = -1;
-    adbStopProc.waitForFinished(-1);
+    if (-1==m_processPID)
+        return; // don't emit another signal
+    killPID();
     emit remoteProcessFinished(tr("\n\n'%1' killed").arg(m_packageName));
 }
 
@@ -166,6 +227,11 @@ void AndroidRunner::logcatReadStandardOutput()
     }
     if (keepLastLine)
         m_logcat=line;
+}
+
+QString AndroidRunner::displayName() const
+{
+    return m_packageName;
 }
 
 } // namespace Internal

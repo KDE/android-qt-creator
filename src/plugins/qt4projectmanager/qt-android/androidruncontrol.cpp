@@ -108,5 +108,10 @@ bool AndroidRunControl::isRunning() const
     return m_running;
 }
 
+QString AndroidRunControl::displayName() const
+{
+    return m_runner->displayName();
+}
+
 } // namespace Internal
 } // namespace Qt4ProjectManager
