@@ -32,7 +32,6 @@
 
 #include "androidconstants.h"
 #include "androidconfigurations.h"
-#include "androiddeployable.h"
 
 #include <utils/environment.h>
 
@@ -55,7 +54,6 @@ class Qt4ProFileNode;
 
 class AndroidDeviceConfigListModel;
 class AndroidDeployStep;
-class AndroidManager;
 class AndroidRunConfigurationFactory;
 class AndroidToolChain;
 

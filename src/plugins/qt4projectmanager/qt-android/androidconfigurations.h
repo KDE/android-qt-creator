@@ -35,7 +35,6 @@
 #ifndef ANDROIDDEVICECONFIGURATIONS_H
 #define ANDROIDDEVICECONFIGURATIONS_H
 
-#include <coreplugin/ssh/sshconnection.h>
 
 #include <QtCore/QList>
 #include <QtCore/QObject>
@@ -51,6 +50,20 @@ QT_END_NAMESPACE
 namespace Qt4ProjectManager {
 namespace Internal {
 
+#ifdef Q_OS_LINUX
+    const QLatin1String ToolchainHost("linux-x86");
+#else
+# ifdef Q_OS_DARWIN
+    const QLatin1String ToolchainHost("darwin-x86");
+# else
+#  ifdef Q_OS_WIN32
+    const QLatin1String ToolchainHost("windows");
+#  else
+#  error No Android supported OSs found
+#  endif
+# endif
+#endif
+
 class AndroidConfig
 {
 public:
@@ -60,6 +73,7 @@ public:
 
     QString SDKLocation;
     QString NDKLocation;
+    QString NDKToolchainVersion;
     QString AntLocation;
 };
 
@@ -78,6 +92,7 @@ public:
     AndroidConfig config() const { return m_config; }
     void setConfig(const AndroidConfig &config);
     QStringList sdkTargets();
+    QStringList ndkToolchainVersions();
     QString adbToolPath(const QString & deviceSerialNumber="");
     QString androidToolPath();
     QString antToolPath();

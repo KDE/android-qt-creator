@@ -37,7 +37,6 @@
 
 #include "androidrunconfiguration.h"
 
-#include <coreplugin/ssh/sftpdefs.h>
 #include <utils/environment.h>
 
 #include <QtCore/QObject>

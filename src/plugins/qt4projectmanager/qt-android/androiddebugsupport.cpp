@@ -38,7 +38,6 @@
 #include "androidglobal.h"
 #include "androidrunner.h"
 
-#include <coreplugin/ssh/sftpchannel.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunner.h>
 #include <debugger/debuggerengine.h>

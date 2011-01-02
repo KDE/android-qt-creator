@@ -38,7 +38,6 @@
 
 #include "androidconfigurations.h"
 
-#include <coreplugin/ssh/sshremoteprocessrunner.h>
 
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
@@ -48,10 +47,6 @@
 #include <QtGui/QFileDialog>
 #include <QtGui/QMessageBox>
 #include <QtGui/QIntValidator>
-
-#include <algorithm>
-
-using namespace Core;
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -79,6 +74,7 @@ QString AndroidSettingsWidget::searchKeywords() const
         << ' ' << m_ui->SDKLocationLineEdit->text()
         << ' ' << m_ui->NDKLocationLabel->text()
         << ' ' << m_ui->NDKLocationLineEdit->text()
+        << ' ' << m_ui->NDKToolchainVersionLabel->text()
         << ' ' << m_ui->AntLocationLabel->text()
         << ' ' << m_ui->AntLocationLineEdit->text();
     rc.remove(QLatin1Char('&'));
@@ -88,12 +84,15 @@ QString AndroidSettingsWidget::searchKeywords() const
 void AndroidSettingsWidget::initGui()
 {
     m_ui->setupUi(this);
+    m_ui->toolchainVersionComboBox->clear();
     if (checkSDK(m_androidConfig.SDKLocation))
         m_ui->SDKLocationLineEdit->setText(m_androidConfig.SDKLocation);
     else
         m_androidConfig.SDKLocation="";
-
-    m_ui->NDKLocationLineEdit->setText(m_androidConfig.NDKLocation);
+    if (checkNDK(m_androidConfig.NDKLocation))
+        m_ui->NDKLocationLineEdit->setText(m_androidConfig.NDKLocation);
+    else
+        m_androidConfig.NDKLocation="";
     m_ui->AntLocationLineEdit->setText(m_androidConfig.AntLocation);
 }
 
@@ -105,7 +104,6 @@ void AndroidSettingsWidget::saveSettings()
 
 bool AndroidSettingsWidget::checkSDK(const QString & location)
 {
-    m_ui->devicesFrame->setEnabled(false);
     if (!location.length())
         return false;
     if (!QFile::exists(location+QLatin1String("/platform-tools/adb")) || !QFile::exists(location+QLatin1String("/tools/android")) || !QFile::exists(location+QLatin1String("/tools/emulator")) )
@@ -113,20 +111,21 @@ bool AndroidSettingsWidget::checkSDK(const QString & location)
         QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android SDK top folder").arg(location));
         return false;
     }
-    m_ui->devicesFrame->setEnabled(true);
     return true;
 }
 
 bool AndroidSettingsWidget::checkNDK(const QString & location)
 {
+    m_ui->toolchainVersionComboBox->setEnabled(false);
     if (!location.length())
         return false;
-    return true;
     if (!QFile::exists(location+QLatin1String("/platforms")) || !QFile::exists(location+QLatin1String("/toolchains")) || !QFile::exists(location+QLatin1String("/sources/cxx-stl")) )
     {
         QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android NDK top folder'").arg(location));
         return false;
     }
+    m_ui->toolchainVersionComboBox->setEnabled(true);
+    fillToolchainVersions();
     return true;
 
 }
@@ -137,6 +136,7 @@ void AndroidSettingsWidget::SDKLocationEditingFinished()
     if (!checkSDK(location))
         return;
     m_androidConfig.SDKLocation = location;
+    saveSettings();
 }
 
 void AndroidSettingsWidget::NDKLocationEditingFinished()
@@ -145,7 +145,25 @@ void AndroidSettingsWidget::NDKLocationEditingFinished()
     if (!checkNDK(location))
         return;
     m_androidConfig.NDKLocation = location;
+    saveSettings();
 }
+
+void AndroidSettingsWidget::fillToolchainVersions()
+{
+    m_ui->toolchainVersionComboBox->clear();
+    QStringList toolchainVersions=AndroidConfigurations::instance().ndkToolchainVersions();
+    QString toolchain=m_androidConfig.NDKToolchainVersion;
+    foreach(QString item, toolchainVersions)
+        m_ui->toolchainVersionComboBox->addItem(item);
+    m_ui->toolchainVersionComboBox->setCurrentIndex(toolchainVersions.indexOf(toolchain));
+}
+
+void AndroidSettingsWidget::toolchainVersionIndexChanged(QString version)
+{
+    m_androidConfig.NDKToolchainVersion=version;
+    saveSettings();
+}
+
 
 void AndroidSettingsWidget::AntLocationEditingFinished()
 {

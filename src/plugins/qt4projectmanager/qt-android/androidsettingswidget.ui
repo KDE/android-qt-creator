@@ -7,123 +7,103 @@
     <x>0</x>
     <y>0</y>
     <width>705</width>
-    <height>421</height>
+    <height>266</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Android Configuration</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
-   <item>
-    <widget class="QFrame" name="frame_2">
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QLabel" name="SDKLocationLabel">
+     <property name="text">
+      <string>Android SDK location:</string>
      </property>
-     <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
-     <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="SDKLocationLabel">
-        <property name="text">
-         <string>Android SDK location:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QLineEdit" name="SDKLocationLineEdit"/>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="SDKLocationPushButton">
-        <property name="text">
-         <string>Browse</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="NDKLocationLabel">
-        <property name="text">
-         <string>Android NDK location:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="NDKLocationLineEdit"/>
-      </item>
-      <item row="1" column="2">
-       <widget class="QPushButton" name="NDKLocationPushButton">
-        <property name="text">
-         <string>Browse</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="AntLocationLabel">
-        <property name="text">
-         <string>Ant location:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLineEdit" name="AntLocationLineEdit"/>
-      </item>
-      <item row="2" column="2">
-       <widget class="QPushButton" name="AntLocationPushButton">
-        <property name="text">
-         <string>Browse</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
     </widget>
    </item>
-   <item>
-    <widget class="QFrame" name="devicesFrame">
-     <property name="enabled">
-      <bool>true</bool>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="SDKLocationLineEdit"/>
+   </item>
+   <item row="0" column="2">
+    <widget class="QPushButton" name="SDKLocationPushButton">
+     <property name="text">
+      <string>Browse</string>
      </property>
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <item>
-       <widget class="QTableView" name="tableView"/>
-      </item>
-     </layout>
     </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="NDKLocationLabel">
+     <property name="text">
+      <string>Android NDK location:</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLineEdit" name="NDKLocationLineEdit"/>
+   </item>
+   <item row="1" column="2">
+    <widget class="QPushButton" name="NDKLocationPushButton">
+     <property name="text">
+      <string>Browse</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="NDKToolchainVersionLabel">
+     <property name="text">
+      <string>Android NDK toolchain version:</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QComboBox" name="toolchainVersionComboBox"/>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="AntLocationLabel">
+     <property name="text">
+      <string>Ant location:</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QLineEdit" name="AntLocationLineEdit"/>
+   </item>
+   <item row="3" column="2">
+    <widget class="QPushButton" name="AntLocationPushButton">
+     <property name="text">
+      <string>Browse</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>127</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>
  <resources/>
  <connections>
-  <connection>
-   <sender>SDKLocationLineEdit</sender>
-   <signal>editingFinished()</signal>
-   <receiver>AndroidSettingsWidget</receiver>
-   <slot>SDKLocationEditingFinished()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>387</x>
-     <y>24</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>352</x>
-     <y>210</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>NDKLocationLineEdit</sender>
    <signal>editingFinished()</signal>
@@ -131,24 +111,8 @@
    <slot>NDKLocationEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>387</x>
-     <y>56</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>352</x>
-     <y>210</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>SDKLocationPushButton</sender>
-   <signal>clicked()</signal>
-   <receiver>AndroidSettingsWidget</receiver>
-   <slot>browseSDKLocation()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>650</x>
-     <y>24</y>
+     <x>420</x>
+     <y>49</y>
     </hint>
     <hint type="destinationlabel">
      <x>352</x>
@@ -163,8 +127,56 @@
    <slot>browseNDKLocation()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>650</x>
-     <y>56</y>
+     <x>657</x>
+     <y>49</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>toolchainVersionComboBox</sender>
+   <signal>currentIndexChanged(QString)</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>toolchainVersionIndexChanged(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>420</x>
+     <y>81</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SDKLocationLineEdit</sender>
+   <signal>editingFinished()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>SDKLocationEditingFinished()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>420</x>
+     <y>17</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>SDKLocationPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>browseSDKLocation()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>657</x>
+     <y>17</y>
     </hint>
     <hint type="destinationlabel">
      <x>352</x>
@@ -179,8 +191,8 @@
    <slot>AntLocationEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>206</x>
-     <y>81</y>
+     <x>420</x>
+     <y>113</y>
     </hint>
     <hint type="destinationlabel">
      <x>352</x>
@@ -195,8 +207,8 @@
    <slot>browseAntLocation()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>306</x>
-     <y>80</y>
+     <x>657</x>
+     <y>113</y>
     </hint>
     <hint type="destinationlabel">
      <x>352</x>
@@ -212,5 +224,6 @@
   <slot>browseNDKLocation()</slot>
   <slot>AntLocationEditingFinished()</slot>
   <slot>browseAntLocation()</slot>
+  <slot>toolchainVersionIndexChanged(QString)</slot>
  </slots>
 </ui>

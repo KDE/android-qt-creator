@@ -36,7 +36,6 @@
 
 #include "androiddeploystep.h"
 #include "androiddeviceconfiglistmodel.h"
-#include "androiddeviceenvreader.h"
 #include "androidmanager.h"
 #include "androidrunconfiguration.h"
 #include "androidsettingspage.h"
@@ -76,8 +75,7 @@ AndroidRunConfigurationWidget::AndroidRunConfigurationWidget(
         AndroidRunConfiguration *runConfiguration, QWidget *parent)
     : QWidget(parent),
     m_runConfiguration(runConfiguration),
-    m_ignoreChange(false),
-    m_deviceEnvReader(new AndroidDeviceEnvReader(this, runConfiguration))
+    m_ignoreChange(false)
 {
     m_lastActiveBuildConfig = m_runConfiguration->activeQt4BuildConfiguration();
     QVBoxLayout *mainLayout = new QVBoxLayout;
@@ -251,7 +249,7 @@ void AndroidRunConfigurationWidget::addEnvironmentWidgets(QVBoxLayout *mainLayou
     baseEnvironmentLayout->addStretch(10);
 
     m_environmentWidget = new ProjectExplorer::EnvironmentWidget(this, baseEnvironmentWidget);
-    m_environmentWidget->setBaseEnvironment(m_deviceEnvReader->deviceEnvironment());
+//    m_environmentWidget->setBaseEnvironment(m_deviceEnvReader->deviceEnvironment());
     m_environmentWidget->setBaseEnvironmentText(m_runConfiguration->baseEnvironmentText());
     m_environmentWidget->setUserChanges(m_runConfiguration->userEnvironmentChanges());
     mainLayout->addWidget(m_environmentWidget);
@@ -268,9 +266,9 @@ void AndroidRunConfigurationWidget::addEnvironmentWidgets(QVBoxLayout *mainLayou
         SIGNAL(userEnvironmentChangesChanged(QList<Utils::EnvironmentItem>)),
         this, SLOT(userEnvironmentChangesChanged(QList<Utils::EnvironmentItem>)));
     connect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
-    connect(m_deviceEnvReader, SIGNAL(finished()), this, SLOT(fetchEnvironmentFinished()));
-    connect(m_deviceEnvReader, SIGNAL(error(QString)), this,
-        SLOT(fetchEnvironmentError(QString)));
+//    connect(m_deviceEnvReader, SIGNAL(finished()), this, SLOT(fetchEnvironmentFinished()));
+//    connect(m_deviceEnvReader, SIGNAL(error(QString)), this,
+//        SLOT(fetchEnvironmentError(QString)));
 }
 
 void AndroidRunConfigurationWidget::argumentsEdited(const QString &text)
@@ -327,12 +325,12 @@ void AndroidRunConfigurationWidget::fetchEnvironment()
     disconnect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
     connect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(stopFetchEnvironment()));
     m_fetchEnv->setText(tr("Cancel Fetch Operation"));
-    m_deviceEnvReader->start();
+//    m_deviceEnvReader->start();
 }
 
 void AndroidRunConfigurationWidget::stopFetchEnvironment()
 {
-    m_deviceEnvReader->stop();
+//    m_deviceEnvReader->stop();
     fetchEnvironmentFinished();
 }
 
@@ -342,7 +340,7 @@ void AndroidRunConfigurationWidget::fetchEnvironmentFinished()
         SLOT(stopFetchEnvironment()));
     connect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
     m_fetchEnv->setText(FetchEnvButtonText);
-    m_runConfiguration->setSystemEnvironment(m_deviceEnvReader->deviceEnvironment());
+//    m_runConfiguration->setSystemEnvironment(m_deviceEnvReader->deviceEnvironment());
 }
 
 void AndroidRunConfigurationWidget::fetchEnvironmentError(const QString &error)

@@ -29,6 +29,7 @@
 
 #include "androidtoolchain.h"
 #include "androidconstants.h"
+#include "androidconfigurations.h"
 
 #include <QtCore/QDir>
 #include <QtCore/QStringBuilder>
@@ -53,20 +54,17 @@ ProjectExplorer::ToolChainType AndroidToolChain::type() const
 
 void AndroidToolChain::addToEnvironment(Utils::Environment &env)
 {
-#warning FIXME Android
-//    env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/bin")
-//        .arg(maddeRoot())));
-//    env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/bin")
-//        .arg(targetRoot())));
-
-//    // put this into environment to make pkg-config stuff work
-//    env.prependOrSet(QLatin1String("SYSROOT_DIR"), sysrootRoot());
-//    env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/madbin")
-//        .arg(maddeRoot())));
-//    env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/madlib")
-//        .arg(maddeRoot())));
-//    env.prependOrSet(QLatin1String("PERL5LIB"),
-//        QDir::toNativeSeparators(QString("%1/madlib/perl5").arg(maddeRoot())));
+#warning TODO this vars should be configurable in projects -> build tab
+#warning TODO invalidate all .pro files !!!
+    // this env vars are used by qmake mkspecs to generate makefiles (check QTDIR/mkspecs/android-g++/qmake.conf for more info)
+    env.prependOrSet(QLatin1String("NDK_ROOT")
+                     ,QDir::toNativeSeparators(AndroidConfigurations::instance().config().NDKLocation));
+    env.prependOrSet(QLatin1String("NDK_TOOLCHAIN_PREFIX")
+                     ,AndroidConfigurations::instance().config().NDKToolchainVersion.left(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')));
+    env.prependOrSet(QLatin1String("NDK_TOOLCHAIN_VERSION")
+                     ,AndroidConfigurations::instance().config().NDKToolchainVersion.mid(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')+1));
+    env.prependOrSet(QLatin1String("ANDROID_PLATFORM")
+                     ,QLatin1String("android-8"));
 }
 
 QString AndroidToolChain::makeCommand() const

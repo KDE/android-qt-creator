@@ -65,7 +65,6 @@ class Qt4BuildConfiguration;
 
 namespace Internal {
 
-class AndroidDeviceEnvReader;
 class AndroidRunConfiguration;
 
 class AndroidRunConfigurationWidget : public QWidget
@@ -118,7 +117,6 @@ private:
     bool m_ignoreChange;
     QPushButton *m_fetchEnv;
     QComboBox *m_baseEnvironmentComboBox;
-    AndroidDeviceEnvReader *m_deviceEnvReader;
     ProjectExplorer::EnvironmentWidget *m_environmentWidget;
     Qt4BuildConfiguration *m_lastActiveBuildConfig;
 };

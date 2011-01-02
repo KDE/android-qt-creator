@@ -40,8 +40,6 @@
 #include "androidrunconfiguration.h"
 #include "androidtemplatesmanager.h"
 
-#include <coreplugin/ssh/sshconnection.h>
-#include <coreplugin/ssh/sshremoteprocess.h>
 
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4target.h>

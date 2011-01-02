@@ -44,8 +44,6 @@
 
 #include <QtGui/QMessageBox>
 
-using namespace Core;
-
 namespace Qt4ProjectManager {
 namespace Internal {
 

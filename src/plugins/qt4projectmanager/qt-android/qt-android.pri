@@ -13,7 +13,6 @@ HEADERS += \
     $$PWD/androidpackagecreationfactory.h \
     $$PWD/androidpackagecreationwidget.h \
     $$PWD/androidqemumanager.h \
-    $$PWD/androiddeployable.h \
     $$PWD/androiddeploystep.h \
     $$PWD/androiddeploystepwidget.h \
     $$PWD/androiddeploystepfactory.h \
@@ -21,7 +20,6 @@ HEADERS += \
     $$PWD/androidrunner.h \
     $$PWD/androiddebugsupport.h \
     $$PWD/androiddeviceconfiglistmodel.h \
-    $$PWD/androiddeviceenvreader.h \
     $$PWD/androidtemplatesmanager.h \
     $$PWD/androiddevicesmodel.h
 
@@ -45,7 +43,6 @@ SOURCES += \
     $$PWD/androidrunner.cpp \
     $$PWD/androiddebugsupport.cpp \
     $$PWD/androiddeviceconfiglistmodel.cpp \
-    $$PWD/androiddeviceenvreader.cpp \
     $$PWD/androidtemplatesmanager.cpp \
     $$PWD/androiddevicesmodel.cpp
 

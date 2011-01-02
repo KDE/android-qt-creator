@@ -68,12 +68,14 @@ private slots:
     void browseSDKLocation();
     void browseNDKLocation();
     void browseAntLocation();
+    void toolchainVersionIndexChanged(QString);
 
 
 private:
     void initGui();
     bool checkSDK(const QString & location);
     bool checkNDK(const QString & location);
+    void fillToolchainVersions();
 
     Ui_AndroidSettingsWidget *m_ui;
     AndroidConfig m_androidConfig;

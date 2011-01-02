@@ -33,6 +33,7 @@
 ****************************************************************************/
 
 #include "androidconfigurations.h"
+#include "androidconstants.h"
 
 #include <coreplugin/icore.h>
 
@@ -50,6 +51,7 @@ namespace {
     const QLatin1String SettingsGroup("AndroidDeviceConfigs");
     const QLatin1String SDKLocationKey("SDKLocation");
     const QLatin1String NDKLocationKey("NDKLocation");
+    const QLatin1String NDKToolchainVersionKey("NDKToolchainVersion");
     const QLatin1String AntLocationKey("AntLocation");
     bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
     {
@@ -61,6 +63,7 @@ namespace {
 AndroidConfig::AndroidConfig(const QSettings &settings)
     : SDKLocation(settings.value(SDKLocationKey).toString()),
       NDKLocation(settings.value(NDKLocationKey).toString()),
+      NDKToolchainVersion(settings.value(NDKToolchainVersionKey).toString()),
       AntLocation(settings.value(AntLocationKey).toString())
 {
 }
@@ -73,6 +76,7 @@ void AndroidConfig::save(QSettings &settings) const
 {
     settings.setValue(SDKLocationKey, SDKLocation);
     settings.setValue(NDKLocationKey, NDKLocation);
+    settings.setValue(NDKToolchainVersionKey, NDKToolchainVersion);
     settings.setValue(AntLocationKey, AntLocation);
 }
 
@@ -85,13 +89,19 @@ void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
 
 QStringList AndroidConfigurations::sdkTargets()
 {
-#warning TODO FIX ANDROID
+#warning TODO run android list targets and take targets fron the output
     return QStringList()<<"android-8"<<"android-9";
+}
+
+QStringList AndroidConfigurations::ndkToolchainVersions()
+{
+#warning TODO list the content of NDK_path/toolchains and get only the folders which contain "prebuilt" folder
+    return QStringList()<<"arm-linux-androideabi-4.4.3"<<"arm-eabi-4.4.0";
 }
 
 QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 {
-    QString adbCmmand=m_config.SDKLocation+QLatin1String("/platform-tools/adb");
+    QString adbCmmand=m_config.SDKLocation+QLatin1String("/platform-tools/adb"ANDROID_EXEC_SUFFIX);
     if (deviceSerialNumber.length())
         adbCmmand+=" -s "+deviceSerialNumber;
     return adbCmmand;
@@ -99,7 +109,7 @@ QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 
 QString AndroidConfigurations::androidToolPath()
 {
-    return m_config.SDKLocation+QLatin1String("/tools/android");
+    return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX);
 }
 
 QString AndroidConfigurations::antToolPath()
@@ -111,19 +121,18 @@ QString AndroidConfigurations::antToolPath()
 }
 QString AndroidConfigurations::emulatorToolPath()
 {
-    return m_config.SDKLocation+QLatin1String("/tools/emulator");
+    return m_config.SDKLocation+QLatin1String("/tools/emulator"ANDROID_EXEC_SUFFIX);
 }
 
 QString AndroidConfigurations::stripPath()
 {
-#warning FIXME Android get rid of hard-coded path
-    return m_config.NDKLocation+QLatin1String("/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-strip");
+    qDebug()<<m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-strip"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-strip"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
 QString AndroidConfigurations::gdbServerPath()
 {
-#warning FIXME Android get rid of hard-coded path
-    return m_config.NDKLocation+QLatin1String("/toolchains/arm-linux-androideabi-4.4.3/prebuilt/gdbserver");
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/gdbserver").arg(m_config.NDKToolchainVersion);
 }
 
 QString AndroidConfigurations::getDeployDeviceSerialNumber(int apiLevel)
@@ -161,10 +170,9 @@ QVector<AndroidDevice> AndroidConfigurations::connectedDevices(int apiLevel)
 
 QString AndroidConfigurations::createAVD(int apiLevel)
 {
-#warning TODO ANDROID
+#warning TODO ANDROID use "android create avd" command
     return QString();
 }
-
 
 QString AndroidConfigurations::startAVD(int apiLevel)
 {

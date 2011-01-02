@@ -30,10 +30,8 @@
 #ifndef ANDROIDDEPLOYSTEP_H
 #define ANDROIDDEPLOYSTEP_H
 
-#include "androiddeployable.h"
 #include "androidconfigurations.h"
 
-#include <coreplugin/ssh/sftpdefs.h>
 #include <projectexplorer/buildstep.h>
 
 #include <QtCore/QHash>
@@ -47,12 +45,6 @@ class QEventLoop;
 class QProcess;
 class QTimer;
 QT_END_NAMESPACE
-
-namespace Core {
-class SftpChannel;
-class SshConnection;
-class SshRemoteProcess;
-}
 
 namespace Qt4ProjectManager {
 namespace Internal {
