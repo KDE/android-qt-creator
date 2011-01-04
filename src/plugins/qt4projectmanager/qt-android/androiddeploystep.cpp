@@ -262,6 +262,17 @@ bool AndroidDeployStep::deployPackage()
 
     if (!runCommand(&proc, AndroidConfigurations::instance().antToolPath()+QLatin1String(" install")))
         raiseError(tr("Package instalation failed"));
+
+    if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
+    {
+        writeOutput(tr("Pulling necessary files to debug"));
+        runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                                           +QString(" pull /system/bin/app_process %1/app_process")
+                                            .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+        runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                                           +QString(" pull /system/lib/libc.so %1/libc.so")
+                                            .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+    }
     return true;
 }
 

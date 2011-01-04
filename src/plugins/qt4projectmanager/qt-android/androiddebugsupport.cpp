@@ -43,6 +43,10 @@
 #include <debugger/debuggerengine.h>
 
 #include <projectexplorer/toolchaintype.h>
+#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qt4projectmanager/qt4target.h>
+#include <qt4projectmanager/qt4project.h>
+
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -60,15 +64,20 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     DebuggerStartParameters params;
     params.toolChainType = ProjectExplorer::ToolChain_GCC_ANDROID;
     params.dumperLibrary = runConfig->dumperLib();
-//        params.remoteDumperLib = uploadDir(devConf).toUtf8() + '/'
-//            + QFileInfo(runConfig->dumperLib()).fileName().toUtf8();
     params.startMode = AttachToRemote;
-    params.executable = runConfig->localExecutableFilePath();
+    params.executable = runConfig->qt4Target()->qt4Project()->rootProjectNode()->buildDir()+"/app_process";
+    qDebug()<<params.executable;
     params.debuggerCommand = runConfig->gdbCmd();
     params.remoteChannel = runConfig->remoteChannel();
+    params.solibSearchPath.clear();
+    params.solibSearchPath.append(runConfig->activeQt4BuildConfiguration()->qtVersion()->sourcePath()+"/lib");
+    QList<Qt4ProFileNode *> nodes = runConfig->qt4Target()->qt4Project()->leafProFiles();
+    foreach(Qt4ProFileNode * node, nodes)
+        if (node->projectType() == ApplicationTemplate)
+            params.solibSearchPath.append(node->targetInformation().buildDir);
+
     params.useServerStartScript = true;
     params.remoteArchitecture = QLatin1String("arm");
-//        params.gnuTarget = QLatin1String("arm-none-linux-gnueabi");
 
     DebuggerRunControl * const debuggerRunControl
         = DebuggerPlugin::createDebugger(params, runConfig);

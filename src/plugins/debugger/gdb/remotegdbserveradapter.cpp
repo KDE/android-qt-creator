@@ -179,8 +179,13 @@ void RemoteGdbServerAdapter::setupInferior()
     const QByteArray sysRoot = startParameters().sysRoot.toLocal8Bit();
     const QByteArray remoteArch = startParameters().remoteArchitecture.toLatin1();
     const QByteArray gnuTarget = startParameters().gnuTarget.toLatin1();
-    const QByteArray solibPath =
+    QByteArray solibPath =
          QFileInfo(startParameters().dumperLibrary).path().toLocal8Bit();
+
+    if (solibPath.size() && startParameters().solibSearchPath.size())
+        solibPath+=":";
+    solibPath+=startParameters().solibSearchPath.join(":").toLatin1();
+
     const QString args = startParameters().processArgs;
 
     if (!remoteArch.isEmpty())
@@ -216,7 +221,7 @@ void RemoteGdbServerAdapter::setupInferior()
         return;
     }
 
-    m_engine->postCommand("-file-exec-and-symbols \""
+    m_engine->postCommand("file \""
         + fileName.toLocal8Bit() + '"',
         CB(handleFileExecAndSymbols));
 }

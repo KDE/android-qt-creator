@@ -114,6 +114,7 @@ public:
 
     QString dumperLibrary;
     QStringList dumperLibraryLocations;
+    QStringList solibSearchPath;
     DebuggerStartMode startMode;
 
     // for SymbianOS debugging
