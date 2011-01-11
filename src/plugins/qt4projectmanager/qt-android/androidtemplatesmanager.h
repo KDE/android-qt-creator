@@ -82,9 +82,11 @@ public:
 
     QString androidDirPath(const ProjectExplorer::Project *project);
     QString androidManifestPath(const ProjectExplorer::Project *project);
+    QString androidDefaultPropertiesPath(const ProjectExplorer::Project *project);
+
 
 public slots:
-    bool createAndroidTemplatesIfNecessary(ProjectExplorer::Project *project);
+    bool createAndroidTemplatesIfNecessary(ProjectExplorer::Project *project, bool forceJava=false);
     void updateProject(const ProjectExplorer::Project *project, const QString &targetSDK);
 
 signals:

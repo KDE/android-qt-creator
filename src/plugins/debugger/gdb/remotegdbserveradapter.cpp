@@ -221,7 +221,7 @@ void RemoteGdbServerAdapter::setupInferior()
         return;
     }
 
-    m_engine->postCommand("file \""
+    m_engine->postCommand("-file-exec-and-symbols \""
         + fileName.toLocal8Bit() + '"',
         CB(handleFileExecAndSymbols));
 }

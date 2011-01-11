@@ -57,14 +57,14 @@ void AndroidToolChain::addToEnvironment(Utils::Environment &env)
 #warning TODO this vars should be configurable in projects -> build tab
 #warning TODO invalidate all .pro files !!!
     // this env vars are used by qmake mkspecs to generate makefiles (check QTDIR/mkspecs/android-g++/qmake.conf for more info)
-    env.set(QLatin1String("NDK_ROOT")
+    env.set(QLatin1String("ANDROID_NDK_ROOT")
                      ,QDir::toNativeSeparators(AndroidConfigurations::instance().config().NDKLocation));
-    env.set(QLatin1String("NDK_TOOLCHAIN_PREFIX")
+    env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_PREFIX")
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.left(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')));
-    env.set(QLatin1String("NDK_TOOLCHAIN_VERSION")
+    env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_VERSION")
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.mid(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')+1));
     env.set(QLatin1String("ANDROID_PLATFORM")
-                     ,QLatin1String("android-8"));
+                     ,QLatin1String("android-4"));
 }
 
 QString AndroidToolChain::makeCommand() const

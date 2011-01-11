@@ -90,7 +90,7 @@ void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
 QStringList AndroidConfigurations::sdkTargets()
 {
 #warning TODO run android list targets and take targets fron the output
-    return QStringList()<<"android-8"<<"android-9";
+    return QStringList()<<"android-4"<<"android-5"<<"android-8"<<"android-9";
 }
 
 QStringList AndroidConfigurations::ndkToolchainVersions()

@@ -60,6 +60,7 @@ using namespace ProjectExplorer;
 namespace {
     const QLatin1String AndroidDirName("android");
     const QLatin1String AndroidManifestName("AndroidManifest.xml");
+    const QLatin1String AndroidDefaultPropertiesName("default.properties");
 } // anonymous namespace
 
 namespace Qt4ProjectManager {
@@ -143,18 +144,76 @@ QString AndroidTemplatesManager::androidManifestPath(const ProjectExplorer::Proj
     return androidDirPath(project)+QLatin1Char('/')+AndroidManifestName;
 }
 
+QString AndroidTemplatesManager::androidDefaultPropertiesPath(const ProjectExplorer::Project *project)
+{
+    return androidDirPath(project)+QLatin1Char('/')+AndroidDefaultPropertiesName;
+}
+
+
 void AndroidTemplatesManager::updateProject(const ProjectExplorer::Project *project, const QString &targetSDK)
 {
+    QString androidDir=androidDirPath(project);
+    bool commentLines=targetSDK=="android-4";
+    QDirIterator it(androidDir,QStringList()<<"*.java",QDir::Files, QDirIterator::Subdirectories);
+    while(it.hasNext())
+    {
+        it.next();
+        qDebug()<<"Parsing:"<<it.filePath();
+        QFile file(it.filePath());
+        if (!file.open(QIODevice::ReadWrite))
+            continue;
+        QList<QByteArray> lines=file.readAll().split('\n');
+
+        bool modified=false;
+        bool comment=false;
+        for (int i=0;i<lines.size();i++)
+        {
+            if (lines[i].contains("@!ANDROID-4"))
+            {
+                comment = !comment;
+                continue;
+            }
+            if (!comment)
+                continue;
+            if (commentLines)
+            {
+                if (!lines[i].trimmed().startsWith("//"))
+                {
+                    lines[i] = "// "+lines[i];
+                    modified =  true;
+                }
+            }
+            else
+            {
+                if (lines[i].trimmed().startsWith("//"))
+                {
+                    lines[i] = lines[i].mid(3);
+                    modified =  true;
+                }
+            }
+        }
+        if (modified)
+        {
+            file.resize(0);
+            foreach(const QByteArray & line, lines)
+            {
+                file.write(line);
+                file.write("\n");
+            }
+        }
+        file.close();
+    }
+
     QProcess androidProc;
     QStringList params;
-    params<<"update"<<"project"<<"-p"<<androidDirPath(project);
+    params<<"update"<<"project"<<"-p"<<androidDir;
     if (targetSDK.length())
         params<<"-t"<<targetSDK;
     androidProc.start(AndroidConfigurations::instance().androidToolPath(), params);
     androidProc.waitForFinished();
 }
 
-bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer::Project *project)
+bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer::Project *project, bool forceJava)
 {
     const Qt4Project * qt4Project = qobject_cast<Qt4Project*>(project);
     if (!qt4Project)
@@ -162,14 +221,14 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer:
     QDir projectDir(project->projectDirectory());
     QString androidPath=androidDirPath(project);
 
-    if (QFileInfo(androidPath).exists()
+    if (!forceJava && QFileInfo(androidPath).exists()
             && QFileInfo(androidManifestPath(project)).exists()
             && QFileInfo(androidPath+QLatin1String("/src/com/nokia/qt")).exists()
             && QFileInfo(androidPath+QLatin1String("/res")).exists())
         return true;
 
     if (!QFileInfo(androidDirPath(project)).exists())
-        if (!projectDir.mkdir(AndroidDirName) )
+        if (!projectDir.mkdir(AndroidDirName) && !forceJava)
         {
             raiseError(tr("Error creating Android directory '%1'.")
                 .arg(AndroidDirName));
@@ -182,6 +241,9 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer:
         raiseError(tr("Not enough Qt for Android SDKs found.\nPlease install at least one SDK."));
         return false;
     }
+
+    if (forceJava)
+        AndroidPackageCreationStep::removeDirectory(AndroidDirName+QLatin1Char('/src'));
 
     QStringList androidFiles;
     QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
@@ -197,7 +259,6 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer:
             androidFiles<<androidPath+QLatin1Char('/')+it.filePath().mid(pos);
         }
     }
-
     qt4Project->rootProjectNode()->addFiles(UnknownFileType,androidFiles);
 
     QStringList sdks=AndroidConfigurations::instance().sdkTargets();
@@ -324,11 +385,23 @@ bool AndroidTemplatesManager::setVersionName(ProjectExplorer::Project *project, 
 
 QString AndroidTemplatesManager::targetSDK(ProjectExplorer::Project *project)
 {
-    return "android-8";
+    if (!createAndroidTemplatesIfNecessary(project))
+        return "android-4";
+    QFile file(androidDefaultPropertiesPath(project));
+    if (!file.open(QIODevice::ReadOnly))
+        return "android-4";
+    while(!file.atEnd())
+    {
+        QByteArray line=file.readLine();
+        if (line.startsWith("target="))
+            return line.trimmed().mid(7);
+    }
+    return "android-4";
 }
 
 bool AndroidTemplatesManager::setTargetSDK(ProjectExplorer::Project *project, const QString & target)
 {
+    updateProject(project, target);
     return true;
 }
 
