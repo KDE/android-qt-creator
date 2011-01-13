@@ -223,7 +223,7 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer:
 
     if (!forceJava && QFileInfo(androidPath).exists()
             && QFileInfo(androidManifestPath(project)).exists()
-            && QFileInfo(androidPath+QLatin1String("/src/com/nokia/qt")).exists()
+            && QFileInfo(androidPath+QLatin1String("/src")).exists()
             && QFileInfo(androidPath+QLatin1String("/res")).exists())
         return true;
 
@@ -252,11 +252,11 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer:
     {
         it.next();
         if (it.fileInfo().isDir())
-            projectDir.mkpath(AndroidDirName+QLatin1Char('/')+it.filePath().mid(pos));
+            projectDir.mkpath(AndroidDirName+it.filePath().mid(pos));
         else
         {
-            QFile::copy(it.filePath(), androidPath+QLatin1Char('/')+it.filePath().mid(pos));
-            androidFiles<<androidPath+QLatin1Char('/')+it.filePath().mid(pos);
+            QFile::copy(it.filePath(), androidPath+it.filePath().mid(pos));
+            androidFiles<<androidPath+it.filePath().mid(pos);
         }
     }
     qt4Project->rootProjectNode()->addFiles(UnknownFileType,androidFiles);

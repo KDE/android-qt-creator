@@ -12,7 +12,6 @@ HEADERS += \
     $$PWD/androidpackagecreationstep.h \
     $$PWD/androidpackagecreationfactory.h \
     $$PWD/androidpackagecreationwidget.h \
-    $$PWD/androidqemumanager.h \
     $$PWD/androiddeploystep.h \
     $$PWD/androiddeploystepwidget.h \
     $$PWD/androiddeploystepfactory.h \
@@ -36,7 +35,6 @@ SOURCES += \
     $$PWD/androidpackagecreationstep.cpp \
     $$PWD/androidpackagecreationfactory.cpp \
     $$PWD/androidpackagecreationwidget.cpp \
-    $$PWD/androidqemumanager.cpp \
     $$PWD/androiddeploystep.cpp \
     $$PWD/androiddeploystepwidget.cpp \
     $$PWD/androiddeploystepfactory.cpp \

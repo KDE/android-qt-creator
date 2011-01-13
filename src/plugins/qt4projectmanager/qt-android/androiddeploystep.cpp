@@ -212,7 +212,7 @@ bool AndroidDeployStep::deployPackage()
     const QString targetSDK=AndroidTemplatesManager::instance()->targetSDK(bc->qt4Target()->qt4Project());
 
     writeOutput(tr("Please wait, searching for a siutable device for target:%1.").arg(targetSDK));
-    m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(targetSDK.left(targetSDK.indexOf('-')).toInt());
+    m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(targetSDK.mid(targetSDK.indexOf('-')+1).toInt());
     if (!m_deviceSerialNumber.length())
     {
         m_deviceSerialNumber.clear();

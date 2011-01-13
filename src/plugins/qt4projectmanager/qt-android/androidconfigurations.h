@@ -41,7 +41,6 @@
 #include <QtCore/QPair>
 #include <QtCore/QString>
 #include <QtCore/QVector>
-#include <QtCore/QProcess>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -117,7 +116,6 @@ private:
     static AndroidConfigurations *m_instance;
     AndroidConfig m_config;
     friend class AndroidConfig;
-    QProcess m_avdProcess;
 };
 
 } // namespace Internal

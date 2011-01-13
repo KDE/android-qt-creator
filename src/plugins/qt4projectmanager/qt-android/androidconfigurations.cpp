@@ -42,6 +42,7 @@
 #include <QtCore/QStringBuilder>
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStringList>
+#include <QtCore/QProcess>
 #include <QDebug>
 
 namespace Qt4ProjectManager {
@@ -176,12 +177,8 @@ QString AndroidConfigurations::createAVD(int apiLevel)
 
 QString AndroidConfigurations::startAVD(int apiLevel)
 {
-    if (m_avdProcess.state()!=QProcess::NotRunning) // if another emulator is running kill it
-    {
-        m_avdProcess.terminate();
-        if (!m_avdProcess.waitForFinished(-1))
-            return QString();
-    }
+    QProcess * m_avdProcess = new QProcess(this);
+    connect(m_avdProcess, SIGNAL(finished(int)), m_avdProcess, SLOT(deleteLater()));
 
     QVector<AndroidDevice> devices;
     QProcess proc;
@@ -229,8 +226,8 @@ QString AndroidConfigurations::startAVD(int apiLevel)
         return avdName;
 
     // start the emulator
-    m_avdProcess.start(emulatorToolPath()+QLatin1String(" -avd ")+avdName);
-    if (!m_avdProcess.waitForStarted(-1))
+    m_avdProcess->start(emulatorToolPath()+QLatin1String(" -avd ")+avdName);
+    if (!m_avdProcess->waitForStarted(-1))
         return QString();
 
     // wait until the emulator is online

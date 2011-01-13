@@ -43,6 +43,7 @@
 #include <QtCore/QSharedPointer>
 #include <QtCore/QStringList>
 #include <QtCore/QTimer>
+#include <QtCore/QProcess>
 
 
 namespace Qt4ProjectManager {

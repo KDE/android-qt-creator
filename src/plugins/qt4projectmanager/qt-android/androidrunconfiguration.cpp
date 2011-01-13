@@ -32,7 +32,6 @@
 #include "androiddeploystep.h"
 #include "androiddeviceconfiglistmodel.h"
 #include "androidglobal.h"
-#include "androidqemumanager.h"
 #include "androidrunconfigurationwidget.h"
 #include "androidtoolchain.h"
 #include "qtoutputformatter.h"

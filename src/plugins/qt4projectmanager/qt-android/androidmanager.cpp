@@ -33,7 +33,6 @@
 #include "androiddeploystepfactory.h"
 #include "androidconfigurations.h"
 #include "androidpackagecreationfactory.h"
-#include "androidqemumanager.h"
 #include "androidrunfactories.h"
 #include "androidsettingspage.h"
 #include "androidtemplatesmanager.h"
@@ -65,7 +64,6 @@ AndroidManager::AndroidManager()
     Q_ASSERT(!m_instance);
 
     m_instance = this;
-    AndroidQemuManager::instance(this);
     AndroidConfigurations::instance(this);
     AndroidTemplatesManager::instance(this);
 
