@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -54,8 +54,8 @@ class SshRemoteProcess;
 }
 
 namespace Qt4ProjectManager {
+class Qt4BuildConfiguration;
 namespace Internal {
-class MaemoToolChain;
 class MaemoUsedPortsGatherer;
 
 class MaemoRemoteMounter : public QObject
@@ -68,7 +68,7 @@ public:
     // Must already be connected.
     void setConnection(const QSharedPointer<Core::SshConnection> &connection);
 
-    void setToolchain(const MaemoToolChain *toolChain);
+    void setBuildConfiguration(const Qt4BuildConfiguration *bc);
     void addMountSpecification(const MaemoMountSpecification &mountSpec,
         bool mountAsRoot);
     bool hasValidMountSpecifications() const;

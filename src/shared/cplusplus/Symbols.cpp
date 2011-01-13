@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -683,6 +683,45 @@ void Class::visitSymbol0(SymbolVisitor *visitor)
         }
     }
 }
+
+
+QtPropertyDeclaration::QtPropertyDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+    : Symbol(translationUnit, sourceLocation, name)
+    , _flags(NoFlags)
+{ }
+
+QtPropertyDeclaration::~QtPropertyDeclaration()
+{ }
+
+void QtPropertyDeclaration::setType(const FullySpecifiedType &type)
+{ _type = type; }
+
+void QtPropertyDeclaration::setFlags(int flags)
+{ _flags = flags; }
+
+int QtPropertyDeclaration::flags() const
+{ return _flags; }
+
+FullySpecifiedType QtPropertyDeclaration::type() const
+{ return _type; }
+
+void QtPropertyDeclaration::visitSymbol0(SymbolVisitor *visitor)
+{ visitor->visit(this); }
+
+
+QtEnum::QtEnum(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
+    : Symbol(translationUnit, sourceLocation, name)
+{ }
+
+QtEnum::~QtEnum()
+{ }
+
+FullySpecifiedType QtEnum::type() const
+{ return FullySpecifiedType(); }
+
+void QtEnum::visitSymbol0(SymbolVisitor *visitor)
+{ visitor->visit(this); }
+
 
 ObjCBaseClass::ObjCBaseClass(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name)
     : Symbol(translationUnit, sourceLocation, name)

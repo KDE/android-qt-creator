@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,12 +36,14 @@
 #include "cmaketarget.h"
 #include "cmakebuildconfiguration.h"
 
+#include <cplusplus/ModelManagerInterface.h>
+
 #include <QtCore/QProcess>
 
 using namespace CMakeProjectManager;
 using namespace Internal;
 
-CMakeUiCodeModelSupport::CMakeUiCodeModelSupport(CppTools::CppModelManagerInterface *modelmanager,
+CMakeUiCodeModelSupport::CMakeUiCodeModelSupport(CPlusPlus::CppModelManagerInterface *modelmanager,
                                              CMakeProject *project,
                                              const QString &source,
                                              const QString &uiHeaderFile)

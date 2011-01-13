@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -265,7 +265,7 @@ void BreakHandler::saveBreakpoints()
             map.insert(_("condition"), data.condition);
         if (data.ignoreCount)
             map.insert(_("ignorecount"), data.ignoreCount);
-        if (data.threadSpec)
+        if (data.threadSpec >= 0)
             map.insert(_("threadspec"), data.threadSpec);
         if (!data.enabled)
             map.insert(_("disabled"), _("1"));
@@ -1175,6 +1175,9 @@ QString BreakHandler::BreakpointItem::toToolTip() const
         << "<tr><td>" << tr("Line Number:")
         << "</td><td>" << data.lineNumber
         << "</td><td>" << response.lineNumber << "</td></tr>"
+        << "<tr><td>" << tr("Corrected Line Number:")
+        << "</td><td>-"
+        << "</td><td>" << response.correctedLineNumber << "</td></tr>"
         << "<tr><td>" << tr("Breakpoint Address:")
         << "</td><td>";
     formatAddress(str, data.address);

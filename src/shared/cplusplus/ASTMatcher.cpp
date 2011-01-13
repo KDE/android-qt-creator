@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -300,6 +300,13 @@ bool ASTMatcher::match(QtPropertyDeclarationAST *node, QtPropertyDeclarationAST 
     pattern->property_specifier_token = node->property_specifier_token;
 
     pattern->lparen_token = node->lparen_token;
+
+    if (! pattern->expression)
+        pattern->expression = node->expression;
+    else if (! AST::match(node->expression, pattern->expression, this))
+        return false;
+
+    pattern->comma_token = node->comma_token;
 
     if (! pattern->type_id)
         pattern->type_id = node->type_id;

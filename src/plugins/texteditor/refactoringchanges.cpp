@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -49,12 +49,7 @@ RefactoringChanges::RefactoringChanges()
 RefactoringChanges::~RefactoringChanges()
 {
     if (!m_fileToOpen.isEmpty()) {
-        BaseTextEditor *editor = editorForFile(m_fileToOpen, true);
-        editor->gotoLine(m_lineToOpen, m_columnToOpen);
-
-        Core::EditorManager *editorManager = Core::EditorManager::instance();
-        editorManager->activateEditor(editor->editableInterface(),
-                                      Core::EditorManager::ModeSwitch);
+        BaseTextEditor::openEditorAt(m_fileToOpen, m_lineToOpen, m_columnToOpen);
     }
 }
 

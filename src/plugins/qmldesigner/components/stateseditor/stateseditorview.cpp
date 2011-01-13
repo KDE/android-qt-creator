@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -47,10 +47,6 @@
 
 #include <variantproperty.h>
 #include <nodelistproperty.h>
-
-enum {
-    debug = false
-};
 
 namespace QmlDesigner {
 
@@ -228,6 +224,9 @@ void StatesEditorView::modelAttached(Model *model)
     Q_ASSERT(model);
     QmlModelView::modelAttached(model);
 
+    if (m_statesEditorWidget)
+        m_statesEditorWidget->setNodeInstanceView(nodeInstanceView());
+
     resetModel();
 }
 
@@ -248,14 +247,6 @@ void StatesEditorView::propertiesAboutToBeRemoved(const QList<AbstractProperty> 
 
 void StatesEditorView::variantPropertiesChanged(const QList<VariantProperty> &propertyList, PropertyChangeFlags /*propertyChange*/)
 {
-    foreach (const VariantProperty &property, propertyList) {
-        if (property.name() == "name" && property.parentModelNode().hasParentProperty()) {
-            NodeAbstractProperty parentProperty = property.parentModelNode().parentProperty();
-            if (parentProperty.name() == "states" && parentProperty.parentModelNode().isRootNode()) {
-                m_statesEditorModel->updateState(parentProperty.indexOf(property.parentModelNode()));
-            }
-        }
-    }
 }
 
 
@@ -337,21 +328,25 @@ void StatesEditorView::otherPropertyChanged(const QmlObjectNode &qmlObjectNode, 
 
 void StatesEditorView::customNotification(const AbstractView * view, const QString & identifier, const QList<ModelNode> & nodeList, const QList<QVariant> &imageList)
 {
-    if (debug)
-        qDebug() << __FUNCTION__;
 
-    if (identifier == "__state preview updated__")   {
-        if (nodeList.size() != imageList.size())
-            return;
-
-//        if (++m_updateCounter == INT_MAX)
-//            m_updateCounter = 0;
-
-        for (int i = 0; i < nodeList.size(); i++) {
-            QmlModelState modelState(nodeList.at(i));            
+    if (identifier == "__instance preview image changed__")   {
+        int minimumIndex = 10000;
+        int maximumIndex = -1;
+        foreach(const ModelNode &node, nodeList) {
+            if (node.isRootNode()) {
+                minimumIndex = qMin(minimumIndex, 0);
+                maximumIndex = qMax(maximumIndex, 0);
+            } else {
+                int index = rootStateGroup().allStates().indexOf(QmlModelState(node)) + 1;
+                if (index > 0) {
+                    minimumIndex = qMin(minimumIndex, index);
+                    maximumIndex = qMax(maximumIndex, index);
+                }
+            }
         }
 
-     //   emit dataChanged(createIndex(i, 0), createIndex(i, 0));
+        if (maximumIndex >= 0)
+            m_statesEditorModel->updateState(minimumIndex, maximumIndex);
 
     } else {
         QmlModelView::customNotification(view, identifier, nodeList, imageList);
@@ -360,8 +355,6 @@ void StatesEditorView::customNotification(const AbstractView * view, const QStri
 
 void StatesEditorView::scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList)
 {
-    if (debug)
-        qDebug() << __FUNCTION__;
 
     QmlModelView::scriptFunctionsChanged(node, scriptFunctionList);
 }

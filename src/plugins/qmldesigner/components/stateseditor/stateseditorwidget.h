@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -47,7 +47,11 @@ class Model;
 class ModelState;
 class StatesEditorModel;
 class StatesEditorView;
+class NodeInstanceView;
 
+namespace Internal {
+class StatesEditorImageProvider;
+}
 
 class StatesEditorWidget : public QWidget
 {
@@ -61,10 +65,12 @@ public:
 
     int currentStateInternalId() const;
     void setCurrentStateInternalId(int internalId);
+    void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
 
 private:
     QWeakPointer<QDeclarativeView> m_declarativeView;
     QWeakPointer<StatesEditorView> m_statesEditorView;
+    Internal::StatesEditorImageProvider *m_imageProvider;
 };
 
 }

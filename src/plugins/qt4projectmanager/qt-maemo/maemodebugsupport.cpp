@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -42,6 +42,7 @@
 
 #include <coreplugin/ssh/sftpchannel.h>
 #include <debugger/debuggerplugin.h>
+#include <debugger/debuggerstartparameters.h>
 #include <debugger/debuggerrunner.h>
 #include <debugger/debuggerengine.h>
 
@@ -82,7 +83,7 @@ RunControl *MaemoDebugSupport::createDebugRunControl(MaemoRunConfiguration *runC
             params.executable = runConfig->remoteExecutableFilePath();
             params.debuggerCommand
                 = MaemoGlobal::remoteCommandPrefix(runConfig->remoteExecutableFilePath())
-                    + environment(runConfig->debuggingType(), runConfig->userEnvironmentChanges())
+                    + MaemoGlobal::remoteEnvironment(runConfig->userEnvironmentChanges())
                     + QLatin1String(" /usr/bin/gdb");
             params.connParams = devConf.server;
             params.localMountDir = runConfig->localDirToMountForRemoteGdb();
@@ -107,24 +108,29 @@ RunControl *MaemoDebugSupport::createDebugRunControl(MaemoRunConfiguration *runC
         params.startMode = AttachToRemote;
     }
 
-    DebuggerRunControl * const debuggerRunControl
-        = DebuggerPlugin::createDebugger(params, runConfig);
-    new MaemoDebugSupport(runConfig, debuggerRunControl);
-    return debuggerRunControl;
+    DebuggerRunControl * const runControl =
+        DebuggerPlugin::createDebugger(params, runConfig);
+    bool useGdb = params.startMode == StartRemoteGdb
+        && debuggingType != MaemoRunConfiguration::DebugQmlOnly;
+    MaemoDebugSupport *debugSupport =
+        new MaemoDebugSupport(runConfig, runControl->engine(), useGdb);
+    connect(runControl, SIGNAL(finished()),
+        debugSupport, SLOT(handleDebuggingFinished()));
+    return runControl;
 }
 
 MaemoDebugSupport::MaemoDebugSupport(MaemoRunConfiguration *runConfig,
-    DebuggerRunControl *runControl)
-    : QObject(runControl), m_runControl(runControl), m_runConfig(runConfig),
+    DebuggerEngine *engine, bool useGdb)
+    : QObject(engine), m_engine(engine), m_runConfig(runConfig),
       m_runner(new MaemoSshRunner(this, runConfig, true)),
       m_debuggingType(runConfig->debuggingType()),
       m_dumperLib(runConfig->dumperLib()),
-      m_state(Inactive), m_gdbServerPort(-1), m_qmlPort(-1)
+      m_userEnvChanges(runConfig->userEnvironmentChanges()),
+      m_state(Inactive), m_gdbServerPort(-1), m_qmlPort(-1),
+      m_useGdb(useGdb)
 {
-    connect(m_runControl->engine(), SIGNAL(requestRemoteSetup()), this,
+    connect(m_engine, SIGNAL(requestRemoteSetup()), this,
         SLOT(handleAdapterSetupRequested()));
-    connect(m_runControl, SIGNAL(finished()), this,
-        SLOT(handleDebuggingFinished()));
 }
 
 MaemoDebugSupport::~MaemoDebugSupport()
@@ -132,12 +138,18 @@ MaemoDebugSupport::~MaemoDebugSupport()
     setState(Inactive);
 }
 
+void MaemoDebugSupport::showMessage(const QString &msg, int channel)
+{
+    if (m_engine)
+        m_engine->showMessage(msg, channel);
+}
+
 void MaemoDebugSupport::handleAdapterSetupRequested()
 {
     ASSERT_STATE(Inactive);
 
     setState(StartingRunner);
-    m_runControl->showMessage(tr("Preparing remote side ..."), AppStuff);
+    showMessage(tr("Preparing remote side ..."), AppStuff);
     disconnect(m_runner, 0, this, 0);
     connect(m_runner, SIGNAL(error(QString)), this,
         SLOT(handleSshError(QString)));
@@ -151,7 +163,7 @@ void MaemoDebugSupport::handleAdapterSetupRequested()
 void MaemoDebugSupport::handleSshError(const QString &error)
 {
     if (m_state == Debugging) {
-        m_runControl->showMessage(tr("SSH connection error: %1").arg(error),
+        showMessage(tr("SSH connection error: %1").arg(error),
             AppError);
     } else if (m_state != Inactive) {
         handleAdapterSetupFailed(error);
@@ -211,7 +223,7 @@ void MaemoDebugSupport::handleSftpChannelInitialized()
             .arg(m_dumperLib));
     } else {
         setState(UploadingDumpers);
-        m_runControl->showMessage(tr("Started uploading debugging helpers ('%1').")
+        showMessage(tr("Started uploading debugging helpers ('%1').")
             .arg(m_dumperLib), AppStuff);
     }
 }
@@ -246,7 +258,7 @@ void MaemoDebugSupport::handleSftpJobFinished(Core::SftpJobId job,
             m_runConfig->deployStep()->setDeployed(m_runner->deviceConfig().server.host,
                 MaemoDeployable(m_dumperLib, uploadDir(m_runner->deviceConfig())));
         }
-        m_runControl->showMessage(tr("Finished uploading debugging helpers."), AppStuff);
+        showMessage(tr("Finished uploading debugging helpers."), AppStuff);
         startDebugging();
     }
     m_uploadJob = SftpInvalidJob;
@@ -267,9 +279,12 @@ void MaemoDebugSupport::startDebugging()
             SLOT(handleRemoteOutput(QByteArray)));
         const QString &remoteExe = m_runner->remoteExecutable();
         const QString cmdPrefix = MaemoGlobal::remoteCommandPrefix(remoteExe);
-        const QString env
-            = environment(m_debuggingType, m_runner->userEnvChanges());
-        const QString args = m_runner->arguments();
+        const QString env = MaemoGlobal::remoteEnvironment(m_userEnvChanges);
+        QString args = m_runner->arguments();
+        if (m_debuggingType != MaemoRunConfiguration::DebugCppOnly) {
+            args += QString(QLatin1String(" -qmljsdebugger=port:%1,block"))
+                .arg(m_qmlPort);
+        }
         const QString remoteCommandLine
             = m_debuggingType == MaemoRunConfiguration::DebugQmlOnly
                 ? QString::fromLocal8Bit("%1 %2 %3 %4").arg(cmdPrefix).arg(env)
@@ -289,18 +304,17 @@ void MaemoDebugSupport::handleDebuggingFinished()
 void MaemoDebugSupport::handleRemoteOutput(const QByteArray &output)
 {
     ASSERT_STATE(QList<State>() << Inactive << Debugging);
-    if (m_runControl)
-        m_runControl->showMessage(QString::fromUtf8(output), AppOutput);
+    showMessage(QString::fromUtf8(output), AppOutput);
 }
 
 void MaemoDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
 {
     ASSERT_STATE(QList<State>() << Inactive << StartingRemoteProcess << Debugging);
 
-    if (!m_runControl)
+    if (!m_engine)
         return;
 
-    m_runControl->showMessage(QString::fromUtf8(output), AppOutput);
+    showMessage(QString::fromUtf8(output), AppOutput);
     if (m_state == StartingRemoteProcess
             && m_debuggingType != MaemoRunConfiguration::DebugQmlOnly) {
         m_gdbserverOutput += output;
@@ -313,20 +327,19 @@ void MaemoDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
 
 void MaemoDebugSupport::handleProgressReport(const QString &progressOutput)
 {
-    if (m_runControl)
-        m_runControl->showMessage(progressOutput, AppStuff);
+    showMessage(progressOutput, AppStuff);
 }
 
 void MaemoDebugSupport::handleAdapterSetupFailed(const QString &error)
 {
     setState(Inactive);
-    m_runControl->engine()->handleRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
+    m_engine->handleRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
 }
 
 void MaemoDebugSupport::handleAdapterSetupDone()
 {
     setState(Debugging);
-    m_runControl->engine()->handleRemoteSetupDone(m_gdbServerPort, m_qmlPort);
+    m_engine->handleRemoteSetupDone(m_gdbServerPort, m_qmlPort);
 }
 
 void MaemoDebugSupport::setState(State newState)
@@ -343,17 +356,6 @@ void MaemoDebugSupport::setState(State newState)
     }
 }
 
-QString MaemoDebugSupport::environment(MaemoRunConfiguration::DebuggingType debuggingType,
-    const QList<Utils::EnvironmentItem> &userEnvChanges)
-{
-    // FIXME: this must use command line argument instead: -qmljsdebugger=port:1234.
-    if (debuggingType != MaemoRunConfiguration::DebugCppOnly) {
-//        env << Utils::EnvironmentItem(QLatin1String(Debugger::Constants::E_QML_DEBUG_SERVER_PORT),
-//            QString::number(qmlServerPort(rc)));
-    }
-    return MaemoGlobal::remoteEnvironment(userEnvChanges);
-}
-
 QString MaemoDebugSupport::uploadDir(const MaemoDeviceConfig &devConf)
 {
     return MaemoGlobal::homeDirOnDevice(devConf.server.uname);
@@ -361,8 +363,7 @@ QString MaemoDebugSupport::uploadDir(const MaemoDeviceConfig &devConf)
 
 bool MaemoDebugSupport::useGdb() const
 {
-    return m_runControl->engine()->startParameters().startMode == StartRemoteGdb
-        && m_debuggingType != MaemoRunConfiguration::DebugQmlOnly;
+    return m_useGdb;
 }
 
 bool MaemoDebugSupport::setPort(int &port)

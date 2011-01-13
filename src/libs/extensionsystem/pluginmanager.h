@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -38,8 +38,8 @@
 #include <aggregation/aggregate.h>
 
 #include <QtCore/QObject>
-#include <QtCore/QStringList>
 #include <QtCore/QReadWriteLock>
+#include <QtCore/QStringList>
 
 QT_BEGIN_NAMESPACE
 class QTextStream;
@@ -94,6 +94,9 @@ public:
         }
         return result;
     }
+
+    QObject *getObjectByName(const QString &name) const;
+    QObject *getObjectByClassName(const QString &className) const;
 
     // Plugin operations
     QList<PluginSpec *> loadQueue();

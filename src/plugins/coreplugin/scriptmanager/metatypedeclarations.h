@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -55,8 +55,6 @@ Q_DECLARE_METATYPE(Core::FileManager*)
 Q_DECLARE_METATYPE(Core::IFile*)
 Q_DECLARE_METATYPE(QList<Core::IFile*>)
 Q_DECLARE_METATYPE(QList<Core::IEditor*>)
-Q_DECLARE_METATYPE(Core::EditorGroup*)
-Q_DECLARE_METATYPE(QList<Core::EditorGroup*>)
 Q_DECLARE_METATYPE(Core::EditorManager*)
 Q_DECLARE_METATYPE(Core::ICore*)
 

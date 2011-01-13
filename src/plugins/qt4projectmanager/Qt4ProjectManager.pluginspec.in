@@ -1,6 +1,6 @@
 <plugin name=\"Qt4ProjectManager\" version=\"$$QTCREATOR_VERSION\" compatVersion=\"$$QTCREATOR_VERSION\">
     <vendor>Nokia Corporation</vendor>
-    <copyright>(C) 2010 Nokia Corporation</copyright>
+    <copyright>(C) 2011 Nokia Corporation</copyright>
     <license>
 Commercial Usage
 
@@ -17,7 +17,7 @@ Alternatively, this plugin may be used under the terms of the GNU Lesser General
         <dependency name=\"TextEditor\" version=\"$$QTCREATOR_VERSION\"/>
         <dependency name=\"ProjectExplorer\" version=\"$$QTCREATOR_VERSION\"/>
         <dependency name=\"CppTools\" version=\"$$QTCREATOR_VERSION\"/>
-        <dependency name=\"Designer\" version=\"$$QTCREATOR_VERSION\"/>
         <dependency name=\"Debugger\" version=\"$$QTCREATOR_VERSION\"/>
+        <dependency name=\"Designer\" version=\"$$QTCREATOR_VERSION\" type=\"optional\"/>
     </dependencyList>
 </plugin>

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -97,6 +97,6 @@ STDMETHODIMP OutputCallback::Output(
     // Base encode as GDBMI is not really made for wide chars
     std::ostringstream str;
     base64Encode(str, reinterpret_cast<const unsigned char *>(text), sizeof(wchar_t) * std::wcslen(text));
-    ExtensionContext::instance().report('E', 0, "debuggee_output", str.str().c_str());
+    ExtensionContext::instance().reportLong('E', 0, "debuggee_output", str.str().c_str());
     return S_OK;
 }

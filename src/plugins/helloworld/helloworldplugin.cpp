@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -135,10 +135,6 @@ bool HelloWorldPlugin::initialize(const QStringList &arguments, QString *error_m
     // it will unregister itself from the plugin manager when it is deleted.
     Core::IMode *helloMode = new HelloMode;
     addAutoReleasedObject(helloMode);
-
-    // Add the Hello World action command to the mode manager (with 0 priority)
-    Core::ModeManager *modeManager = core->modeManager();
-    modeManager->addAction(command, 0);
 
     return true;
 }

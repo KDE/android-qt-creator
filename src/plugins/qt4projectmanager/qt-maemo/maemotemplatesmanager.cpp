@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -38,7 +38,6 @@
 #include "maemodeploystep.h"
 #include "maemoglobal.h"
 #include "maemopackagecreationstep.h"
-#include "maemotoolchain.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
@@ -105,6 +104,8 @@ void MaemoTemplatesManager::handleActiveProjectChanged(ProjectExplorer::Project 
         this, SLOT(handleTarget(ProjectExplorer::Target*)));
     connect(project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
         this, SLOT(handleTarget(ProjectExplorer::Target*)));
+    connect(project, SIGNAL(removedTarget(ProjectExplorer::Target*)),
+        SLOT(handleTargetRemoved(ProjectExplorer::Target*)));
     const QList<Target *> &targets = project->targets();
     foreach (Target * const target, targets)
         handleTarget(target);
@@ -144,6 +145,32 @@ bool MaemoTemplatesManager::handleTarget(ProjectExplorer::Target *target)
     return true;
 }
 
+void MaemoTemplatesManager::handleTargetRemoved(ProjectExplorer::Target *target)
+{
+    if (target->id() != QLatin1String(Constants::MAEMO_DEVICE_TARGET_ID))
+        return;
+    const QString debianPath = debianDirPath(target->project());
+    if (!QFileInfo(debianPath).exists())
+        return;
+    const int answer = QMessageBox::warning(0, tr("Qt Creator"),
+        tr("Do you want to remove the packaging directory\n"
+           "associated with the target?"),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer == QMessageBox::No)
+        return;
+    QString error;
+    if (!MaemoGlobal::removeRecursively(debianPath, error))
+        qDebug("%s", qPrintable(error));
+    const QString packagingPath = target->project()->projectDirectory()
+        + QLatin1Char('/') + PackagingDirName;
+    const QStringList otherContents = QDir(packagingPath).entryList(QDir::Dirs
+        | QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot);
+    if (otherContents.isEmpty()) {
+        if (!MaemoGlobal::removeRecursively(packagingPath, error))
+            qDebug("%s", qPrintable(error));
+    }
+}
+
 bool MaemoTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExplorer::Target *target)
 {
     Project * const project = target->project();
@@ -163,12 +190,6 @@ bool MaemoTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExplor
     Q_ASSERT_X(qt4Target, Q_FUNC_INFO, "Target ID does not match actual type.");
     const Qt4BuildConfiguration * const bc
         = qt4Target->activeBuildConfiguration();
-    const MaemoToolChain * const tc
-        = dynamic_cast<MaemoToolChain *>(bc->toolChain());
-    if (!tc) {
-        qDebug("Maemo target has no Maemo toolchain.");
-        return false;
-    }
     if (!MaemoPackageCreationStep::preparePackagingProcess(&dh_makeProc, bc,
         projectDir.path() + QLatin1Char('/') + PackagingDirName, &error)) {
         raiseError(error);
@@ -182,7 +203,7 @@ bool MaemoTemplatesManager::createDebianTemplatesIfNecessary(const ProjectExplor
     const QString command = QLatin1String("dh_make -s -n -p ")
         + MaemoPackageCreationStep::packageName(project) + QLatin1Char('_')
         + MaemoPackageCreationStep::DefaultVersionNumber;
-    dh_makeProc.start(MaemoPackageCreationStep::packagingCommand(tc, command));
+    dh_makeProc.start(MaemoPackageCreationStep::packagingCommand(bc, command));
     if (!dh_makeProc.waitForStarted()) {
         raiseError(tr("Unable to create Debian templates: dh_make failed (%1)")
             .arg(dh_makeProc.errorString()));
@@ -229,7 +250,8 @@ bool MaemoTemplatesManager::adaptRulesFile(const Project *project)
     }
     QByteArray rulesContents = rulesFile.readAll();
     rulesContents.replace("DESTDIR", "INSTALL_ROOT");
-    rulesContents.replace("dh_shlibdeps", "# dh_shlibdeps");
+    rulesContents.replace("dh_shlibdeps",
+        "# dh_shlibdeps                      # Uncomment this line for publishing!");
 //    rulesContents.replace("$(MAKE) clean", "# $(MAKE) clean");
 //    const Qt4Project * const qt4Project
 //        = static_cast<const Qt4Project *>(project);
@@ -465,8 +487,10 @@ QString MaemoTemplatesManager::version(const Project *project,
 bool MaemoTemplatesManager::setVersion(const Project *project,
     const QString &version, QString *error) const
 {
+    const QString filePath = changeLogFilePath(project);
+    MaemoGlobal::FileUpdate update(filePath);
     QSharedPointer<QFile> changeLog
-        = openFile(changeLogFilePath(project), QIODevice::ReadWrite, error);
+        = openFile(filePath, QIODevice::ReadWrite, error);
     if (!changeLog)
         return false;
 
@@ -503,8 +527,10 @@ QIcon MaemoTemplatesManager::packageManagerIcon(const Project *project,
 bool MaemoTemplatesManager::setPackageManagerIcon(const Project *project,
     const QString &iconFilePath, QString *error) const
 {
+    const QString filePath = controlFilePath(project);
+    MaemoGlobal::FileUpdate update(filePath);
     const QSharedPointer<QFile> controlFile
-        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);
+        = openFile(filePath, QIODevice::ReadWrite, error);
     if (!controlFile)
         return false;
     const QPixmap pixmap(iconFilePath);
@@ -584,6 +610,7 @@ bool MaemoTemplatesManager::setFieldValue(const Project *project,
     const QByteArray &fieldName, const QByteArray &fieldValue)
 {
     QFile controlFile(controlFilePath(project));
+    MaemoGlobal::FileUpdate update(controlFile.fileName());
     if (!controlFile.open(QIODevice::ReadWrite))
         return false;
     QByteArray contents = controlFile.readAll();

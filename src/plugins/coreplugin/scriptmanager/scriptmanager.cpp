@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -245,8 +245,6 @@ ScriptManager::QScriptEnginePtr ScriptManagerPrivate::ensureEngineInitialized()
     SharedTools::registerQObject<QSettings>(m_engine.data());
 
     qScriptRegisterSequenceMetaType<QList<Core::IEditor *> >(m_engine.data());
-
-    qScriptRegisterSequenceMetaType<QList<Core::EditorGroup *> >(m_engine.data());
 
     // CLASSIC:  registerInterfaceWithDefaultPrototype<Core::MessageManager, MessageManagerPrototype>(m_engine);
 

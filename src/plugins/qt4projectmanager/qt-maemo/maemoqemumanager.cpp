@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -38,7 +38,6 @@
 #include "maemoqemuruntimeparser.h"
 #include "maemosettingspages.h"
 #include "maemorunconfiguration.h"
-#include "maemotoolchain.h"
 #include "qtversionmanager.h"
 #include "qt4project.h"
 #include "qt4projectmanagerconstants.h"
@@ -100,7 +99,7 @@ MaemoQemuManager::MaemoQemuManager(QObject *parent)
     qemuCommand->setAttribute(Core::Command::CA_UpdateIcon);
 
     Core::ModeManager *modeManager = core->modeManager();
-    modeManager->addAction(qemuCommand, 1);
+    modeManager->addAction(qemuCommand->action(), 1);
 
     // listen to qt version changes to update the start button
     connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>)),

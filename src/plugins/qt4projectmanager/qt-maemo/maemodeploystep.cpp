@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -52,6 +52,7 @@
 #include <projectexplorer/target.h>
 
 #include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qt4projectmanager/qt4target.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -96,7 +97,9 @@ void MaemoDeployStep::ctor()
     const QList<DeployConfiguration *> &deployConfigs
         = target()->deployConfigurations();
     if (deployConfigs.isEmpty()) {
-        m_deployables = QSharedPointer<MaemoDeployables>(new MaemoDeployables(this));
+        const Qt4Target * const qt4Target = qobject_cast<Qt4Target *>(target());
+        Q_ASSERT(qt4Target);
+        m_deployables = QSharedPointer<MaemoDeployables>(new MaemoDeployables(qt4Target));
     } else {
         const MaemoDeployStep *const other
             = MaemoGlobal::buildStep<MaemoDeployStep>(deployConfigs.first());
@@ -455,12 +458,15 @@ void MaemoDeployStep::handleUnmounted()
         m_mounter->resetMountSpecifications();
         setState(Inactive);
         break;
-    case UnmountingOldDirs:
-        if (toolChain()->allowsRemoteMounts())
+    case UnmountingOldDirs: {
+        const Qt4BuildConfiguration * const bc
+            = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
+        if (MaemoGlobal::allowsRemoteMounts(bc->qtVersion()))
             setupMount();
         else
             prepareSftpConnection();
         break;
+    }
     case UnmountingCurrentDirs:
         setState(GatheringPorts);
         m_portsGatherer->start(m_connection, deviceConfig().freePorts());
@@ -519,7 +525,7 @@ void MaemoDeployStep::setupMount()
 
     Q_ASSERT(m_needsInstall || !m_filesToCopy.isEmpty());
     m_mounter->resetMountSpecifications();
-    m_mounter->setToolchain(toolChain());
+    m_mounter->setBuildConfiguration(static_cast<Qt4BuildConfiguration *>(buildConfiguration()));
     if (m_needsInstall) {
         const QString localDir
             = QFileInfo(packagingStep()->packageFilePath()).absolutePath();
@@ -579,11 +585,13 @@ void MaemoDeployStep::installToSysroot()
 
     if (m_needsInstall) {
         writeOutput(tr("Installing package to sysroot ..."));
-        const MaemoToolChain * const tc = toolChain();
+        const Qt4BuildConfiguration * const bc
+            = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
+        const QtVersion * const qtVersion = bc->qtVersion();
         const QStringList args = QStringList() << QLatin1String("-t")
-            << tc->targetName() << QLatin1String("xdpkg") << QLatin1String("-i")
-            << packagingStep()->packageFilePath();
-        m_sysrootInstaller->start(tc->madAdminCommand(), args);
+            << MaemoGlobal::targetName(qtVersion) << QLatin1String("xdpkg")
+            << QLatin1String("-i") << packagingStep()->packageFilePath();
+        MaemoGlobal::callMadAdmin(*m_sysrootInstaller, args, qtVersion);
         if (!m_sysrootInstaller->waitForStarted()) {
             writeOutput(tr("Installation to sysroot failed, continuing anyway."),
                 ErrorMessageOutput);
@@ -592,10 +600,10 @@ void MaemoDeployStep::installToSysroot()
     } else {
         writeOutput(tr("Copying files to sysroot ..."));
         Q_ASSERT(!m_filesToCopy.isEmpty());
-        QDir sysRootDir(toolChain()->sysrootRoot());
+        QDir sysRootDir(toolChain()->sysroot());
         foreach (const MaemoDeployable &d, m_filesToCopy) {
             const QLatin1Char sep('/');
-            const QString targetFilePath = toolChain()->sysrootRoot() + sep
+            const QString targetFilePath = toolChain()->sysroot() + sep
                 + d.remoteDir + sep + QFileInfo(d.localFilePath).fileName();
             sysRootDir.mkpath(d.remoteDir.mid(1));
             QFile::remove(targetFilePath);

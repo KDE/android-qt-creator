@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -43,6 +43,7 @@
 #include <utils/projectintropage.h>
 
 #include <QtCore/QDebug>
+#include <QtCore/QDir>
 
 #include <QtGui/QComboBox>
 #include <QtGui/QLabel>
@@ -156,25 +157,41 @@ LibraryWizardDialog::LibraryWizardDialog(const QString &templateName,
     setIntroDescription(tr("This wizard generates a C++ library project."));
 
     m_targetPageId = addTargetSetupPage();
-    Utils::WizardProgressItem *targetItem = wizardProgress()->item(m_targetPageId);
 
-    m_mobilePageId = addPage(m_mobilePage);
-    Utils::WizardProgressItem *mobileItem = wizardProgress()->item(m_mobilePageId);
-    mobileItem->setTitle(QLatin1String("    ") + tr("Symbian Specific"));
+    if (m_targetPageId != -1)
+        m_mobilePageId = addPage(m_mobilePage);
 
     m_modulesPageId = addModulesPage();
-    Utils::WizardProgressItem *modulesItem = wizardProgress()->item(m_modulesPageId);
-
-    targetItem->setNextItems(QList<Utils::WizardProgressItem *>()
-                             << mobileItem << modulesItem);
-    targetItem->setNextShownItem(0);
 
     m_filesPage->setNamespacesEnabled(true);
     m_filesPage->setFormFileInputVisible(false);
     m_filesPage->setClassTypeComboVisible(false);
 
     m_filesPageId = addPage(m_filesPage);
-    wizardProgress()->item(m_filesPageId)->setTitle(tr("Details"));
+
+    Utils::WizardProgressItem *introItem = wizardProgress()->item(startId());
+    Utils::WizardProgressItem *targetItem;
+    if (m_targetPageId != -1)
+        targetItem = wizardProgress()->item(m_targetPageId);
+    Utils::WizardProgressItem *mobileItem = wizardProgress()->item(m_mobilePageId);
+    mobileItem->setTitle(QLatin1String("    ") + tr("Symbian Specific"));
+    Utils::WizardProgressItem *modulesItem = wizardProgress()->item(m_modulesPageId);
+    Utils::WizardProgressItem *filesItem = wizardProgress()->item(m_filesPageId);
+    filesItem->setTitle(tr("Details"));
+
+    if (m_targetPageId != -1) {
+        targetItem->setNextItems(QList<Utils::WizardProgressItem *>()
+                                 << mobileItem << modulesItem << filesItem);
+        targetItem->setNextShownItem(0);
+        mobileItem->setNextItems(QList<Utils::WizardProgressItem *>()
+                                 << modulesItem << filesItem);
+        mobileItem->setNextShownItem(0);
+    } else {
+        introItem->setNextItems(QList<Utils::WizardProgressItem *>()
+                                << modulesItem << filesItem);
+        introItem->setNextShownItem(0);
+    }
+
 
     connect(this, SIGNAL(currentIdChanged(int)), this, SLOT(slotCurrentIdChanged(int)));
 
@@ -202,28 +219,73 @@ QtProjectParameters::Type  LibraryWizardDialog::type() const
     return static_cast<const LibraryIntroPage*>(introPage())->type();
 }
 
+bool LibraryWizardDialog::isModulesPageSkipped() const
+{
+    // When leaving the intro, target or mobile page, the modules page is skipped
+    // in the case of a plugin since it knows its dependencies by itself.
+    return type() == QtProjectParameters::Qt4Plugin;
+}
+
+int LibraryWizardDialog::skipModulesPageIfNeeded() const
+{
+    if (isModulesPageSkipped())
+        return m_filesPageId;
+    return m_modulesPageId;
+}
+
 int LibraryWizardDialog::nextId() const
 {
-    //if there was no Symbian target defined we omit "Symbian specific" step
-    //we omit this step if the library type is not dll
-    if (currentId() == m_filesPageId) {
-        bool symbianTargetEnabled = isTargetSelected(QLatin1String(Constants::S60_DEVICE_TARGET_ID))
-                || isTargetSelected(QLatin1String(Constants::S60_EMULATOR_TARGET_ID));
-        if (!symbianTargetEnabled || type() != QtProjectParameters::SharedLibrary) {
-            QList<int> ids = pageIds();
-            int mobileIndex = ids.lastIndexOf(m_mobilePageId);
-            if (mobileIndex>=0)
-                return ids[mobileIndex+1];
+    if (m_targetPageId != -1) {
+        if (currentId() == m_targetPageId) {
+
+            int next = m_modulesPageId;
+
+            const bool symbianTargetEnabled = isTargetSelected(QLatin1String(Constants::S60_DEVICE_TARGET_ID))
+                    || isTargetSelected(QLatin1String(Constants::S60_EMULATOR_TARGET_ID));
+
+            // If there was no Symbian target defined we omit "Symbian specific" step
+            // We also omit this step if the library type is not dll
+            if (symbianTargetEnabled
+                    && (type() == QtProjectParameters::SharedLibrary
+                        || type() == QtProjectParameters::Qt4Plugin))
+                next = m_mobilePageId;
+
+            if (next == m_modulesPageId)
+                return skipModulesPageIfNeeded();
+
+            return next;
+        } else if (currentId() == m_mobilePageId) {
+            return skipModulesPageIfNeeded();
         }
+    } else if (currentId() == startId()) {
+        return skipModulesPageIfNeeded();
     }
-    // When leaving the intro or target page, the modules page is skipped
-    // in the case of a plugin since it knows its dependencies by itself.
-    const int m_beforeModulesPageId = m_targetPageId != -1 ? m_targetPageId : 0;
-    if (currentId() != m_beforeModulesPageId)
-        return BaseQt4ProjectWizardDialog::nextId();
-    if (type() != QtProjectParameters::Qt4Plugin && m_modulesPageId != -1)
-        return m_modulesPageId;
-    return m_filesPageId;
+
+    return BaseQt4ProjectWizardDialog::nextId();
+}
+
+void LibraryWizardDialog::initializePage(int id)
+{
+    if (m_targetPageId != -1 && id == m_targetPageId) {
+        Utils::WizardProgressItem *mobileItem = wizardProgress()->item(m_mobilePageId);
+        Utils::WizardProgressItem *modulesItem = wizardProgress()->item(m_modulesPageId);
+        Utils::WizardProgressItem *filesItem = wizardProgress()->item(m_filesPageId);
+        if (isModulesPageSkipped())
+            mobileItem->setNextShownItem(filesItem);
+        else
+            mobileItem->setNextShownItem(modulesItem);
+
+    }
+    BaseQt4ProjectWizardDialog::initializePage(id);
+}
+
+void LibraryWizardDialog::cleanupPage(int id)
+{
+    if (m_targetPageId != -1 && id == m_targetPageId) {
+        Utils::WizardProgressItem *mobileItem = wizardProgress()->item(m_mobilePageId);
+        mobileItem->setNextShownItem(0);
+    }
+    BaseQt4ProjectWizardDialog::cleanupPage(id);
 }
 
 QtProjectParameters LibraryWizardDialog::parameters() const
@@ -294,6 +356,9 @@ void LibraryWizardDialog::setupFilesPage()
 void LibraryWizardDialog::setupMobilePage()
 {
     m_mobilePage->setSymbianUid(AbstractMobileApp::symbianUidForPath(path()+projectName()));
+
+    if (type() == QtProjectParameters::Qt4Plugin)
+        m_mobilePage->setQtPluginDirectory(projectName());
     m_mobilePage->setLibraryType(type());
 }
 
@@ -322,6 +387,7 @@ MobileLibraryParameters LibraryWizardDialog::mobileLibraryParameters() const
 
     if (mlp.type & MobileLibraryParameters::Symbian) {
         mlp.symbianUid = m_mobilePage->symbianUid();
+        mlp.qtPluginDirectory = m_mobilePage->qtPluginDirectory();
         mlp.symbianCapabilities |= m_mobilePage->networkEnabled()?MobileLibraryParameters::NetworkServices:0;
     }
 

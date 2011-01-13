@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -39,6 +39,8 @@
 #include <QtCore/QSharedPointer>
 #include <QtCore/QString>
 
+#include <languageutils/fakemetaobject.h>
+
 #include "parser/qmldirparser_p.h"
 #include "parser/qmljsengine_p.h"
 #include "qmljs_global.h"
@@ -49,10 +51,6 @@ namespace QmlJS {
 
 class Bind;
 class Snapshot;
-
-namespace Interpreter {
-    class FakeMetaObject;
-}
 
 class QMLJS_EXPORT Document
 {
@@ -134,7 +132,7 @@ private:
     bool _valid;
     QList<QmlDirParser::Component> _components;
     QList<QmlDirParser::Plugin> _plugins;
-    typedef QList<const Interpreter::FakeMetaObject *> FakeMetaObjectList;
+    typedef QList<LanguageUtils::FakeMetaObject::ConstPtr> FakeMetaObjectList;
     FakeMetaObjectList _metaObjects;
 
     DumpStatus _dumpStatus;

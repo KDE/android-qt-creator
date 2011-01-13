@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -43,6 +43,7 @@
 
 #include <QHash>
 #include <QSet>
+#include <QImage>
 #include <QWeakPointer>
 #include <QRectF>
 
@@ -107,12 +108,10 @@ public:
     NodeInstance instanceForNode(const ModelNode &node) const ;
     bool hasInstanceForNode(const ModelNode &node) const;
 
-    NodeInstance instanceForId(qint32 id) const;
-    bool hasInstanceForId(qint32 id) const;
+    NodeInstance instanceForId(qint32 id);
+    bool hasInstanceForId(qint32 id);
 
     QRectF sceneRect() const;
-
-    void setBlockUpdates(bool block);
 
     NodeInstance activeStateInstance() const;
 
@@ -126,12 +125,12 @@ public:
     void statePreviewImagesChanged(const StatePreviewImageChangedCommand &command);
     void componentCompleted(const ComponentCompletedCommand &command);
 
+    QImage statePreviewImage(const ModelNode &stateNode) const;
+
 private: // functions
     NodeInstance rootNodeInstance() const;
 
     NodeInstance loadNode(const ModelNode &node);
-
-    void loadNodes(const QList<ModelNode> &nodeList);
 
     void removeAllInstanceNodeRelationships();
 
@@ -147,7 +146,7 @@ private: // functions
 
     NodeInstanceServerInterface *nodeInstanceServer() const;
 
-    CreateSceneCommand createCreateSceneCommand() const;
+    CreateSceneCommand createCreateSceneCommand();
     ClearSceneCommand createClearSceneCommand() const;
     CreateInstancesCommand createCreateInstancesCommand(const QList<NodeInstance> &instanceList) const;
     CompleteComponentCommand createComponentCompleteCommand(const QList<NodeInstance> &instanceList) const;
@@ -174,10 +173,11 @@ private: //variables
     NodeInstance m_activeStateInstance;
 
     QHash<ModelNode, NodeInstance> m_nodeInstanceHash;
-    QHash<qint32, NodeInstance> m_idInstanceHash; // This is purely internal. Might contain dangling pointers!
+    QHash<ModelNode, QImage> m_statePreviewImage;
 
     uint m_blockUpdates;
     QWeakPointer<NodeInstanceServerInterface> m_nodeInstanceServer;
+    QImage m_baseStatePreviewImage;
 };
 
 } // namespace ProxyNodeInstanceView

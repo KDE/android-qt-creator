@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -70,7 +70,7 @@ MaemoSshRunner::MaemoSshRunner(QObject *parent,
       m_state(Inactive)
 {
     m_connection = runConfig->deployStep()->sshConnection();
-    m_mounter->setToolchain(runConfig->toolchain());
+    m_mounter->setBuildConfiguration(runConfig->activeQt4BuildConfiguration());
     if (debugging && runConfig->useRemoteGdb()) {
         m_mountSpecs << MaemoMountSpecification(runConfig->localDirToMountForRemoteGdb(),
             runConfig->remoteProjectSourcesMountPoint());
@@ -131,6 +131,11 @@ void MaemoSshRunner::stop()
     if (m_state == PostRunCleaning || m_state == StopRequested
         || m_state == Inactive)
         return;
+    if (m_state == Connecting) {
+        setState(Inactive);
+        emit remoteProcessFinished(InvalidExitCode);
+        return;
+    }
 
     setState(StopRequested);
     cleanup();

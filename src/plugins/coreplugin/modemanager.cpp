@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -71,7 +71,7 @@ struct ModeManagerPrivate
     Internal::MainWindow *m_mainWindow;
     Internal::FancyTabWidget *m_modeStack;
     Internal::FancyActionBar *m_actionBar;
-    QMap<Command*, int> m_actions;
+    QMap<QAction*, int> m_actions;
     QVector<IMode*> m_modes;
     QVector<Command*> m_modeShortcuts;
     QSignalMapper *m_signalMapper;
@@ -269,9 +269,9 @@ void ModeManager::aboutToRemoveObject(QObject *obj)
     d->m_mainWindow->removeContextObject(mode);
 }
 
-void ModeManager::addAction(Command *command, int priority)
+void ModeManager::addAction(QAction *action, int priority)
 {
-    d->m_actions.insert(command, priority);
+    d->m_actions.insert(action, priority);
 
     // Count the number of commands with a higher priority
     int index = 0;
@@ -280,7 +280,7 @@ void ModeManager::addAction(Command *command, int priority)
             ++index;
     }
 
-    d->m_actionBar->insertAction(index, command->action());
+    d->m_actionBar->insertAction(index, action);
 }
 
 void ModeManager::addProjectSelector(QAction *action)

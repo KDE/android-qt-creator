@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -50,7 +50,9 @@ class SymbolGroup;
 struct SymbolGroupValueContext;
 class SymbolGroupNode;
 
-// All parameters for GDBMI dumping in one struct.
+// All parameters for GDBMI dumping of a symbol group in one struct.
+// The debugging engine passes maps of type names/inames to special
+// integer values indicating hex/dec, etc.
 struct DumpParameters
 {
     typedef std::map<std::string, int> FormatMap; // type or iname to format
@@ -75,7 +77,7 @@ struct DumpParameters
     FormatMap individualFormats;
 };
 
-// Base class for a node of SymbolGroup, handling the list of children.
+// Abstract base class for a node of SymbolGroup providing the child list interface.
 class AbstractSymbolGroupNode
 {
     AbstractSymbolGroupNode(const AbstractSymbolGroupNode&);
@@ -93,7 +95,7 @@ public:
     // 'iname' used as an internal id.
     const std::string &iName() const { return m_iname; }
     // Full iname 'local.x.foo': WARNING: this returns the absolute path not
-    // taking reference nodes into account.
+    // taking reference nodes into account by recursing up the parents.
     std::string absoluteFullIName() const;
 
     virtual const AbstractSymbolGroupNodePtrVector &children() const = 0;
@@ -118,9 +120,9 @@ public:
                 const std::string &visitingParentIname,
                 unsigned child, unsigned depth);
 
-    // I/O: GDBMI dump for Visitors
-    virtual void dump(std::ostream &str, const std::string &visitingFullIname,
-                      const DumpParameters &p, const SymbolGroupValueContext &ctx) = 0;
+    // I/O: GDBMI dump for Visitors, return child count
+    virtual int dump(std::ostream &str, const std::string &visitingFullIname,
+                     const DumpParameters &p, const SymbolGroupValueContext &ctx) = 0;
     // I/O: debug output for Visitors
     virtual void debug(std::ostream &os, const std::string &visitingFullIname,
                        unsigned verbosity, unsigned depth) const;
@@ -169,11 +171,11 @@ private:
  * consisting of:
  * - 'Simple' dumping done when running the DumpVisitor. This produces one
  *   line of formatted output shown for the class. These values
- *   values should are displayed, while still allowing for expansion of the structure
+ *   values are always displayed, while still allowing for expansion of the structure
  *   in the debugger.
  *   It also pre-determines some information for complex dumping (type, container).
  * - 'Complex' dumping: Obscures the symbol group children by fake children, for
- *   example container children, run when calling SymbolGroup::dump with an iname.
+ *   example container children, to be run when calling SymbolGroup::dump with an iname.
  *   The fake children are appended to the child list (other children are just marked as
  *   obscured for GDBMI dumping so that SymbolGroupValue expressions still work as before).
  * The dumping is mostly based on SymbolGroupValue expressions.
@@ -217,10 +219,10 @@ public:
     SymbolGroup *symbolGroup() const { return m_symbolGroup; }
 
     // I/O: Gdbmi dump for Visitors
-    virtual void dump(std::ostream &str, const std::string &fullIname,
+    virtual int dump(std::ostream &str, const std::string &fullIname,
                       const DumpParameters &p, const SymbolGroupValueContext &ctx);
-    // Dumper functionality for reference nodes.
-    void dumpNode(std::ostream &str, const std::string &aName, const std::string &aFullIName,
+    // Dumper functionality for reference nodes, returns child count guess
+    int dumpNode(std::ostream &str, const std::string &aName, const std::string &aFullIName,
                   const DumpParameters &p, const SymbolGroupValueContext &ctx);
 
     // I/O: debug for Visitors
@@ -266,12 +268,13 @@ private:
     std::wstring m_dumperValue;
     int m_dumperType;
     int m_dumperContainerSize;
+    void *m_dumperSpecialInfo; // Opaque information passed from simple to complex dumpers
 };
 
 // Artificial node referencing another (real) SymbolGroupNode (added symbol or
-// symbol from within a linked list structure. Forwards dumping to referenced node
-// using its own name.
-class ReferenceSymbolGroupNode  : public AbstractSymbolGroupNode
+// symbol from within an expanded linked list structure). Forwards the
+// dumping to the referenced node using its own name.
+class ReferenceSymbolGroupNode : public AbstractSymbolGroupNode
 {
 public:
     explicit ReferenceSymbolGroupNode(const std::string &name,
@@ -281,7 +284,7 @@ public:
     static ReferenceSymbolGroupNode *createArrayNode(int index,
                                                      SymbolGroupNode *referencedNode);
 
-    virtual void dump(std::ostream &str, const std::string &visitingFullIname,
+    virtual int dump(std::ostream &str, const std::string &visitingFullIname,
                       const DumpParameters &p, const SymbolGroupValueContext &ctx);
     virtual void debug(std::ostream &os, const std::string &visitingFullIname,
                        unsigned verbosity, unsigned depth) const;
@@ -295,7 +298,8 @@ private:
     SymbolGroupNode * const m_referencedNode;
 };
 
-// Base class for a [fake] map node with a fake array index and key/value entries.
+// A [fake] map node with a fake array index and key/value entries consisting
+// of ReferenceSymbolGroupNode.
 class MapNodeSymbolGroupNode : public BaseSymbolGroupNode
 {
 private:
@@ -311,7 +315,7 @@ public:
         create(int i, ULONG64 address /* = 0 */, const std::string &type,
                SymbolGroupNode *key, SymbolGroupNode *value);
 
-    virtual void dump(std::ostream &str, const std::string &visitingFullIname,
+    virtual int dump(std::ostream &str, const std::string &visitingFullIname,
                       const DumpParameters &p, const SymbolGroupValueContext &ctx);
     virtual void debug(std::ostream &os, const std::string &visitingFullIname,
                        unsigned verbosity, unsigned depth) const;
@@ -328,7 +332,7 @@ private:
  * or by expanding the whole structure).
  * visit() is not called for the (invisible) root node, but starting with the
  * root's children with depth=0.
- * Return true from visit() to terminate the recursion. */
+ * Return VisitStop from visit() to terminate the recursion. */
 
 class SymbolGroupNodeVisitor {
     SymbolGroupNodeVisitor(const SymbolGroupNodeVisitor&);
@@ -391,7 +395,8 @@ private:
     const std::string m_filter;
 };
 
-// GDBMI dump output visitor.
+// GDBMI dump output visitor used to report locals values back to the
+// debugging engine.
 class DumpSymbolGroupNodeVisitor : public SymbolGroupNodeVisitor {
 public:
     explicit DumpSymbolGroupNodeVisitor(std::ostream &os,
@@ -408,7 +413,6 @@ private:
     std::ostream &m_os;
     const SymbolGroupValueContext &m_context;
     const DumpParameters &m_parameters;
-    bool m_visitChildren;
     unsigned m_lastDepth;
 };
 

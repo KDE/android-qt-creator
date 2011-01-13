@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -38,7 +38,7 @@
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/helpmanager.h>
-#include <cpptools/cppmodelmanagerinterface.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <extensionsystem/pluginmanager.h>
 #include <texteditor/itexteditor.h>
 #include <texteditor/basetexteditor.h>

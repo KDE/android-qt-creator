@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -95,6 +95,7 @@ private slots:
     void handleDebianFileChanged(const QString &filePath);
     void handleProjectToBeRemoved(ProjectExplorer::Project *project);
     void handleProFileUpdated();
+    void handleTargetRemoved(ProjectExplorer::Target *target);
 
 private:
     explicit MaemoTemplatesManager(QObject *parent);

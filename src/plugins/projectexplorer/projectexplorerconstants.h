@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -147,8 +147,8 @@ const char * const G_SESSION_FILES      = "Session.Group.Files";
 const char * const G_SESSION_OTHER      = "Session.Group.Other";
 const char * const G_SESSION_CONFIG     = "Session.Group.Config";
 
-const char * const G_PROJECT_FIRST      = "Project.Group.Open";
 const char * const G_PROJECT_FILES      = "Project.Group.Files";
+const char * const G_PROJECT_FIRST      = "Project.Group.Open";
 const char * const G_PROJECT_BUILD      = "Project.Group.Build";
 const char * const G_PROJECT_OTHER      = "Project.Group.Other";
 const char * const G_PROJECT_RUN        = "Project.Group.Run";

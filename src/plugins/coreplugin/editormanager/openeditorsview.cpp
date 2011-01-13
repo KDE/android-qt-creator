@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -193,7 +193,7 @@ void OpenEditorsWidget::handleClicked(const QModelIndex &index)
 void OpenEditorsWidget::activateEditor(const QModelIndex &index)
 {
     m_ui.editorList->selectionModel()->select(index, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-    EditorManager::instance()->activateEditor(index, 0, EditorManager::ModeSwitch);
+    EditorManager::instance()->activateEditorForIndex(index, EditorManager::ModeSwitch);
 }
 
 void OpenEditorsWidget::closeEditor(const QModelIndex &index)

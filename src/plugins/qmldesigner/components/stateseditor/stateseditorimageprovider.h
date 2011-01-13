@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,7 +35,8 @@
 #define STATESEDITORIMAGEPROVIDER_H
 
 #include <QDeclarativeImageProvider>
-#include <QHash>
+#include <QWeakPointer>
+#include"abstractview.h"
 
 namespace QmlDesigner {
 
@@ -50,11 +51,10 @@ public:
 
     QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize);
 
-    void setImage(const QString &id, const QImage &image);
-    void removeImage(const QString &id);
+    void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
 
 private:
-    QHash<QString, QImage> m_imageHash;
+    QWeakPointer<NodeInstanceView> m_nodeInstanceView;
 };
 
 }

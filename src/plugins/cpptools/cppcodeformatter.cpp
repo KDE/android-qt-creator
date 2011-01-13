@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -702,6 +702,7 @@ bool CodeFormatter::tryDeclaration()
     switch (kind) {
     case T_Q_ENUMS:
     case T_Q_PROPERTY:
+    case T_Q_PRIVATE_PROPERTY:
     case T_Q_FLAGS:
     case T_Q_GADGET:
     case T_Q_OBJECT:

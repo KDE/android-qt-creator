@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -337,7 +337,7 @@ bool FutureProgress::hasError() const
 void FutureProgress::fadeAway()
 {
     d->m_faderWidget->raise();
-    QSequentialAnimationGroup *group = new QSequentialAnimationGroup;
+    QSequentialAnimationGroup *group = new QSequentialAnimationGroup(this);
     QPropertyAnimation *animation = new QPropertyAnimation(d->m_faderWidget, "opacity");
     animation->setDuration(600);
     animation->setEndValue(1.0);

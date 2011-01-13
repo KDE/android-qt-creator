@@ -8,3 +8,4 @@ unix:QMAKE_CXXFLAGS_DEBUG += -O3
 include(../../qtcreatorlibrary.pri)
 include(qmljs-lib.pri)
 include(../utils/utils.pri)
+include(../languageutils/languageutils.pri)

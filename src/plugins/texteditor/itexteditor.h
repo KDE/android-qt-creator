@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -136,6 +136,7 @@ signals:
     void contentsChangedBecauseOfUndo();
     void markRequested(TextEditor::ITextEditor *editor, int line);
     void markContextMenuRequested(TextEditor::ITextEditor *editor, int line, QMenu *menu);
+    void tooltipOverrideRequested(TextEditor::ITextEditor *editor, const QPoint &globalPos, int position, bool *handled);
     void tooltipRequested(TextEditor::ITextEditor *editor, const QPoint &globalPos, int position);
     void contextHelpIdRequested(TextEditor::ITextEditor *editor, int position);
 };

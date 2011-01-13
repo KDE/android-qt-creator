@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -40,10 +40,13 @@
 #include "qmljsscopebuilder.h"
 #include "qmljsmodelmanagerinterface.h"
 
+#include <languageutils/componentversion.h>
+
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
 #include <QtCore/QDebug>
 
+using namespace LanguageUtils;
 using namespace QmlJS;
 using namespace QmlJS::Interpreter;
 using namespace QmlJS::AST;
@@ -117,6 +120,14 @@ Link::Link(Context *context, const Document::Ptr &doc, const Snapshot &snapshot,
     d->snapshot = snapshot;
     d->importPaths = importPaths;
 
+    // populate engine with types from C++
+    ModelManagerInterface *modelManager = ModelManagerInterface::instance();
+    if (modelManager) {
+        foreach (const QList<FakeMetaObject::ConstPtr> &cppTypes, modelManager->cppQmlTypes()) {
+            engine()->cppQmlTypes().load(engine(), cppTypes);
+        }
+    }
+
     linkImports();
 }
 
@@ -159,8 +170,25 @@ void Link::populateImportedTypes(TypeEnvironment *typeEnv, Document::Ptr doc)
 {
     Q_D(Link);
 
-    if (! (doc->qmlProgram() && doc->qmlProgram()->imports))
+    if (! doc->qmlProgram())
         return;
+
+    // implicit imports: the <default> package is always available
+    const QLatin1String defaultPackage("<default>");
+    if (engine()->cppQmlTypes().hasPackage(defaultPackage)) {
+        ImportInfo info(ImportInfo::LibraryImport, defaultPackage);
+        ObjectValue *import = d->importCache.value(ImportCacheKey(info));
+        if (!import) {
+            import = new ObjectValue(engine());
+            foreach (QmlObjectValue *object,
+                     engine()->cppQmlTypes().typesForImport(defaultPackage, ComponentVersion())) {
+                import->setProperty(object->className(), object);
+            }
+            d->importCache.insert(ImportCacheKey(info), import);
+        }
+        typeEnv->addImport(import, info);
+    }
+
 
     // implicit imports:
     // qml files in the same directory are available without explicit imports

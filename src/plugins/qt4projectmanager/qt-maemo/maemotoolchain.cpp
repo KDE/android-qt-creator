@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -32,20 +32,24 @@
 **************************************************************************/
 
 #include "maemotoolchain.h"
+
 #include "maemoconstants.h"
+#include "maemoglobal.h"
+#include "qtversionmanager.h"
 
 #include <QtCore/QDir>
 #include <QtCore/QStringBuilder>
 #include <QtCore/QTextStream>
 
 using namespace ProjectExplorer;
-using namespace Qt4ProjectManager::Internal;
 
-MaemoToolChain::MaemoToolChain(const QString &targetRoot)
-    : GccToolChain(targetRoot % QLatin1String("/bin/gcc"))
-    , m_maddeInitialized(false)
+namespace Qt4ProjectManager {
+namespace Internal {
+
+MaemoToolChain::MaemoToolChain(const QtVersion *qtVersion)
+    : GccToolChain(MaemoGlobal::targetRoot(qtVersion) % QLatin1String("/bin/gcc"))
     , m_sysrootInitialized(false)
-    , m_targetRoot(targetRoot)
+    , m_qtVersionId(qtVersion->uniqueId())
 {
 }
 
@@ -60,19 +64,21 @@ ProjectExplorer::ToolChainType MaemoToolChain::type() const
 
 void MaemoToolChain::addToEnvironment(Utils::Environment &env)
 {
+    QtVersion *version = QtVersionManager::instance()->version(m_qtVersionId);
+    const QString maddeRoot = MaemoGlobal::maddeRoot(version);
     env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/bin")
-        .arg(maddeRoot())));
+        .arg(maddeRoot)));
     env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/bin")
-        .arg(targetRoot())));
+        .arg(MaemoGlobal::targetRoot(version))));
 
     // put this into environment to make pkg-config stuff work
-    env.prependOrSet(QLatin1String("SYSROOT_DIR"), sysrootRoot());
+    env.prependOrSet(QLatin1String("SYSROOT_DIR"), sysroot());
     env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/madbin")
-        .arg(maddeRoot())));
+        .arg(maddeRoot)));
     env.prependOrSetPath(QDir::toNativeSeparators(QString("%1/madlib")
-        .arg(maddeRoot())));
+        .arg(maddeRoot)));
     env.prependOrSet(QLatin1String("PERL5LIB"),
-        QDir::toNativeSeparators(QString("%1/madlib/perl5").arg(maddeRoot())));
+        QDir::toNativeSeparators(QString("%1/madlib/perl5").arg(maddeRoot)));
 }
 
 QString MaemoToolChain::makeCommand() const
@@ -83,63 +89,21 @@ QString MaemoToolChain::makeCommand() const
 bool MaemoToolChain::equals(const ToolChain *other) const
 {
     const MaemoToolChain *toolChain = static_cast<const MaemoToolChain*> (other);
-    return other->type() == type()
-        && toolChain->sysrootRoot() == sysrootRoot()
-        && toolChain->targetRoot() == targetRoot();
+    return other->type() == type() && toolChain->m_qtVersionId == m_qtVersionId;
 }
 
-QString MaemoToolChain::maddeRoot() const
-{
-    if (!m_maddeInitialized)
-        setMaddeRoot();
-    return m_maddeRoot;
-}
-
-QString MaemoToolChain::madAdminCommand() const
-{
-    return maddeRoot() + QLatin1String("/bin/mad-admin");
-}
-
-QString MaemoToolChain::targetRoot() const
-{
-    return m_targetRoot;
-}
-
-QString MaemoToolChain::targetName() const
-{
-    return QDir(targetRoot()).dirName();
-}
-
-QString MaemoToolChain::sysrootRoot() const
+QString MaemoToolChain::sysroot() const
 {
     if (!m_sysrootInitialized)
         setSysroot();
     return m_sysrootRoot;
 }
 
-MaemoToolChain::MaemoVersion MaemoToolChain::version() const
-{
-    const QString &name = targetName();
-    if (name.startsWith(QLatin1String("fremantle")))
-        return Maemo5;
-    if (name.startsWith(QLatin1String("harmattan")))
-        return Maemo6;
-    qWarning("Unknown Maemo version!");
-    return static_cast<MaemoVersion>(-1);
-}
-
-void MaemoToolChain::setMaddeRoot() const
-{
-    QDir dir(targetRoot());
-    dir.cdUp(); dir.cdUp();
-
-    m_maddeInitialized = true;
-    m_maddeRoot = dir.absolutePath();
-}
-
 void MaemoToolChain::setSysroot() const
 {
-    QFile file(QDir::cleanPath(targetRoot()) + QLatin1String("/information"));
+    QtVersion *version = QtVersionManager::instance()->version(m_qtVersionId);
+    QFile file(QDir::cleanPath(MaemoGlobal::targetRoot(version))
+        + QLatin1String("/information"));
     if (file.exists() && file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream stream(&file);
         while (!stream.atEnd()) {
@@ -148,11 +112,14 @@ void MaemoToolChain::setSysroot() const
             if (list.count() <= 1)
                 continue;
             if (list.at(0) == QLatin1String("sysroot")) {
-                m_sysrootRoot = maddeRoot() + QLatin1String("/sysroots/")
-                    + list.at(1);
+                m_sysrootRoot = MaemoGlobal::maddeRoot(version)
+                    + QLatin1String("/sysroots/") + list.at(1);
             }
         }
     }
 
     m_sysrootInitialized = true;
 }
+
+} // namespace Internal
+} // namespace Qt4ProjectManager

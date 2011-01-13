@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -173,11 +173,8 @@ void TextEditorPlugin::extensionsInitialized()
 
     updateSearchResultsFont(m_settings->fontSettings());
 
-    addAutoReleasedObject(new FindInFiles(
-        ExtensionSystem::PluginManager::instance()->getObject<Find::SearchResultWindow>()));
-    addAutoReleasedObject(new FindInCurrentFile(
-        ExtensionSystem::PluginManager::instance()->getObject<Find::SearchResultWindow>()));
-
+    addAutoReleasedObject(new FindInFiles(Find::SearchResultWindow::instance()));
+    addAutoReleasedObject(new FindInCurrentFile(Find::SearchResultWindow::instance()));
 }
 
 void TextEditorPlugin::initializeEditor(PlainTextEditor *editor)

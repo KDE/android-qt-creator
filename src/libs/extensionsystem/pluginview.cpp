@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -351,7 +351,12 @@ void PluginView::updatePluginDependencies()
         if (m_whitelist.contains(spec->name()))
             continue;
 
-        foreach(const PluginSpec *depSpec, spec->dependencySpecs()) {
+        QHashIterator<PluginDependency, PluginSpec *> it(spec->dependencySpecs());
+        while (it.hasNext()) {
+            it.next();
+            if (it.key().type == PluginDependency::Optional)
+                continue;
+            PluginSpec *depSpec = it.value();
             if (!depSpec->isEnabled() || depSpec->isDisabledIndirectly()) {
                 disableIndirectly = true;
                 break;

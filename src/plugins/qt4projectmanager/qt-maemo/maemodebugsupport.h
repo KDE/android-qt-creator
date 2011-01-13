@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -47,7 +47,7 @@
 namespace Core { class SftpChannel; }
 
 namespace Debugger {
-class DebuggerRunControl;
+class DebuggerEngine;
 }
 
 namespace ProjectExplorer { class RunControl; }
@@ -65,7 +65,7 @@ public:
     static ProjectExplorer::RunControl *createDebugRunControl(MaemoRunConfiguration *runConfig);
 
     MaemoDebugSupport(MaemoRunConfiguration *runConfig,
-        Debugger::DebuggerRunControl *runControl);
+        Debugger::DebuggerEngine *engine, bool useGdb);
     ~MaemoDebugSupport();
 
     static QString uploadDir(const MaemoDeviceConfig &devConf);
@@ -88,9 +88,6 @@ private:
         DumpersUploaded, StartingRemoteProcess, Debugging
     };
 
-    static QString environment(MaemoRunConfiguration::DebuggingType debuggingType,
-        const QList<Utils::EnvironmentItem> &userEnvChanges);
-
     void handleAdapterSetupFailed(const QString &error);
     void handleAdapterSetupDone();
     void startDebugging();
@@ -98,11 +95,13 @@ private:
     void setState(State newState);
     bool setPort(int &port);
 
-    const QPointer<Debugger::DebuggerRunControl> m_runControl;
+    void showMessage(const QString &msg, int channel);
+    const QPointer<Debugger::DebuggerEngine> m_engine;
     const QPointer<MaemoRunConfiguration> m_runConfig;
     MaemoSshRunner * const m_runner;
     const MaemoRunConfiguration::DebuggingType m_debuggingType;
     const QString m_dumperLib;
+    const QList<Utils::EnvironmentItem> m_userEnvChanges;
 
     QSharedPointer<Core::SftpChannel> m_uploader;
     Core::SftpJobId m_uploadJob;
@@ -110,6 +109,7 @@ private:
     State m_state;
     int m_gdbServerPort;
     int m_qmlPort;
+    bool m_useGdb;
 };
 
 } // namespace Internal

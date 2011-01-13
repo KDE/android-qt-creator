@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,12 +35,12 @@
 #include "helpconstants.h"
 #include "localhelpmanager.h"
 
-#include <QtCore/QCoreApplication>
 #include <QtCore/QFileInfo>
 #include <QtCore/QStringBuilder>
 #include <QtCore/QTemporaryFile>
 #include <QtCore/QUrl>
 
+#include <QtGui/QApplication>
 #include <QtGui/QDesktopServices>
 #include <QtGui/QMouseEvent>
 
@@ -162,6 +162,18 @@ void HelpViewer::home()
     }
 
     setSource(homepage);
+}
+
+void HelpViewer::slotLoadStarted()
+{
+    qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
+}
+
+void HelpViewer::slotLoadFinished(bool ok)
+{
+    Q_UNUSED(ok)
+    emit sourceChanged(source());
+    qApp->restoreOverrideCursor();
 }
 
 bool HelpViewer::handleForwardBackwardMouseButtons(QMouseEvent *event)

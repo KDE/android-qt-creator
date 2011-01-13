@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -676,7 +676,7 @@ QmlJSTextEditor::QmlJSTextEditor(QWidget *parent) :
         connect(m_modelManager, SIGNAL(documentUpdated(QmlJS::Document::Ptr)),
                 this, SLOT(onDocumentUpdated(QmlJS::Document::Ptr)));
         connect(m_modelManager, SIGNAL(libraryInfoUpdated(QString,QmlJS::LibraryInfo)),
-                this, SLOT(forceSemanticRehighlight()));
+                this, SLOT(forceSemanticRehighlightIfCurrentEditor()));
         connect(this->document(), SIGNAL(modificationChanged(bool)), this, SLOT(modificationChanged(bool)));
     }
 
@@ -1463,6 +1463,13 @@ void QmlJSTextEditor::unCommentSelection()
 void QmlJSTextEditor::forceSemanticRehighlight()
 {
     m_semanticHighlighter->rehighlight(currentSource(/* force = */ true));
+}
+
+void QmlJSEditor::QmlJSTextEditor::forceSemanticRehighlightIfCurrentEditor()
+{
+    Core::EditorManager *editorManager = Core::EditorManager::instance();
+    if (editorManager->currentEditor() == editableInterface())
+        forceSemanticRehighlight();
 }
 
 void QmlJSTextEditor::semanticRehighlight()

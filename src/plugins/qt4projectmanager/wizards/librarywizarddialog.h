@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -68,6 +68,10 @@ public:
 
     virtual int nextId() const;
 
+protected:
+    void initializePage(int id);
+    void cleanupPage(int id);
+
 private slots:
     void slotCurrentIdChanged(int);
 
@@ -75,6 +79,8 @@ private:
     QtProjectParameters::Type type() const;
     void setupFilesPage();
     void setupMobilePage();
+    bool isModulesPageSkipped() const;
+    int skipModulesPageIfNeeded() const;
 
     FilesPage *m_filesPage;
     MobileLibraryWizardOptionPage *m_mobilePage;

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -43,8 +43,32 @@
 #include <QtCore/QPointer>
 #include <QtCore/QSharedPointer>
 
+QT_BEGIN_NAMESPACE
+class QTimer;
+QT_END_NAMESPACE
+
 namespace Debugger {
 namespace Internal {
+
+// Widget displaying a list of break events for the 'sxe' command
+// with a checkbox to enable 'break' and optionally a QLineEdit for
+// events with parameters (like 'out:Needle').
+class CdbBreakEventWidget : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit CdbBreakEventWidget(QWidget *parent = 0);
+
+    void setBreakEvents(const QStringList &l);
+    QStringList breakEvents() const;
+
+private:
+    QString filterText(int i) const;
+    void clear();
+
+    QList<QCheckBox*> m_checkBoxes;
+    QList<QLineEdit*> m_lineEdits;
+};
 
 class CdbOptionsPageWidget : public QWidget
 {
@@ -55,16 +79,28 @@ public:
     void setOptions(CdbOptions &o);
     CdbOptions options() const;
 
-    void setFailureMessage(const QString &);
-
     QString searchKeywords() const;
+
+    virtual bool eventFilter(QObject *, QEvent *);
 
 private slots:
     void autoDetect();
     void downLoadLinkActivated(const QString &);
+    void hideReportLabel();
 
 private:
+    QStringList symbolPaths() const;
+    void setSymbolPaths(const QStringList &s);
+    void setReport(const QString &, bool success);
+    inline bool is64Bit() const;
+    inline QString path() const;
+
+    static bool checkInstallation(const QString &executable, bool is64Bit,
+                                  QString *message);
+
     Ui::CdbOptionsPageWidget m_ui;
+    CdbBreakEventWidget *m_breakEventWidget;
+    QTimer *m_reportTimer;
 };
 
 class CdbOptionsPage : public Core::IOptionsPage
@@ -74,6 +110,8 @@ class CdbOptionsPage : public Core::IOptionsPage
 public:
     explicit CdbOptionsPage();
     virtual ~CdbOptionsPage();
+
+    static CdbOptionsPage *instance();
 
     // IOptionsPage
     virtual QString id() const { return settingsId(); }
@@ -89,18 +127,12 @@ public:
 
     static QString settingsId();
 
-    // Load  failure messages can be displayed here
-    void setFailureMessage(const QString &msg) { m_failureMessage = msg; }
     QSharedPointer<CdbOptions> options() const { return m_options; }
 
-signals:
-    void debuggerPathsChanged();
-    void optionsChanged();
-
 private:
+    static CdbOptionsPage *m_instance;
     const QSharedPointer<CdbOptions> m_options;
     QPointer<CdbOptionsPageWidget> m_widget;
-    QString m_failureMessage;
     QString m_searchKeywords;
 };
 

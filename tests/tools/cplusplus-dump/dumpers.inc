@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -198,6 +198,9 @@ virtual bool visit(QtPropertyDeclarationAST *ast)
         terminal(ast->property_specifier_token, ast);
     if (ast->lparen_token)
         terminal(ast->lparen_token, ast);
+    nonterminal(ast->expression);
+    if (ast->comma_token)
+        terminal(ast->comma_token, ast);
     nonterminal(ast->type_id);
     nonterminal(ast->property_name);
     for (QtPropertyDeclarationItemListAST *iter = ast->property_declaration_item_list; iter; iter = iter->next)

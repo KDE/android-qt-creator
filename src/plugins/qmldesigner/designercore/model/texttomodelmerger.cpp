@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -44,6 +44,7 @@
 #include "rewriterview.h"
 #include "variantproperty.h"
 
+#include <languageutils/componentversion.h>
 #include <qmljs/qmljsevaluate.h>
 #include <qmljs/qmljsinterpreter.h>
 #include <qmljs/qmljslink.h>
@@ -54,6 +55,7 @@
 #include <QtCore/QSet>
 #include <QtGui/QMessageBox>
 
+using namespace LanguageUtils;
 using namespace QmlJS;
 using namespace QmlJS::AST;
 

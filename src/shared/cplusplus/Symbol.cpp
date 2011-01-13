@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -372,6 +372,12 @@ bool Symbol::isClass() const
 
 bool Symbol::isForwardClassDeclaration() const
 { return asForwardClassDeclaration() != 0; }
+
+bool Symbol::isQtPropertyDeclaration() const
+{ return asQtPropertyDeclaration() != 0; }
+
+bool Symbol::isQtEnum() const
+{ return asQtEnum() != 0; }
 
 bool Symbol::isBlock() const
 { return asBlock() != 0; }

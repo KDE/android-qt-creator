@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -76,6 +76,27 @@ static inline void dump64bitPointerArray(std::ostream &os, const void *a, int co
     dumpHexArray(os, reinterpret_cast<const ULONG64 *>(a), count);
 }
 
+// Fix the inner type of containers (that is, make it work smoothly with AddSymbol)
+// by prefixing it with the module except for well-known types like STL/Qt types
+static inline std::string fixInnerType(std::string type,
+                                       const SymbolGroupValue &container)
+{
+    const std::string stripped = SymbolGroupValue::stripClassPrefixes(type);
+    const KnownType kt = knownType(stripped, 0);
+    // Resolve types unless they are POD or pointers to POD (that is, qualify 'Foo' and 'Foo*')
+    const bool needResolve = kt == KT_Unknown || kt ==  KT_PointerType || !(kt & KT_POD_Type);
+    const std::string fixed = needResolve ?
+                SymbolGroupValue::resolveType(stripped, container.context(), container.node()->symbolGroup()) :
+                stripped;
+    if (SymbolGroupValue::verbose) {
+        DebugPrint dp;
+        dp << "fixInnerType (resolved=" << needResolve << ") '" << type << "' [";
+        formatKnownTypeFlags(dp, kt);
+        dp << "] -> '" << fixed <<"'\n";
+    }
+    return fixed;
+}
+
 // Return size from an STL vector (last/first iterators).
 static inline int msvcStdVectorSize(const SymbolGroupValue &v)
 {
@@ -89,7 +110,7 @@ static inline int msvcStdVectorSize(const SymbolGroupValue &v)
                 return 0;
             // Subtract the pointers: We need to do the pointer arithmetics ourselves
             // as we get char *pointers.
-            const std::string innerType = SymbolGroupValue::stripPointerType(myFirstPtrV.type());
+            const std::string innerType = fixInnerType(SymbolGroupValue::stripPointerType(myFirstPtrV.type()), v);
             const size_t size = SymbolGroupValue::sizeOf(innerType.c_str());
             if (size == 0)
                 return -1;
@@ -235,10 +256,15 @@ private:
 static inline AbstractSymbolGroupNodePtrVector stdListChildList(SymbolGroupNode *n, int count,
                                                         const SymbolGroupValueContext &ctx)
 {
-    if (count)
-        if (const SymbolGroupValue head = SymbolGroupValue(n, ctx)[unsigned(0)][unsigned(0)]["_Myhead"]["_Next"])
-            return linkedListChildList(head, count, MemberByName("_Myval"), MemberByName("_Next"));
-    return AbstractSymbolGroupNodePtrVector();
+    if (!count)
+        return AbstractSymbolGroupNodePtrVector();
+    const SymbolGroupValue head = SymbolGroupValue(n, ctx)[unsigned(0)][unsigned(0)]["_Myhead"]["_Next"];
+    if (!head) {
+        if (SymbolGroupValue::verbose)
+            DebugPrint() << "std::list failure: " << head;
+        return AbstractSymbolGroupNodePtrVector();
+    }
+    return linkedListChildList(head, count, MemberByName("_Myval"), MemberByName("_Next"));
 }
 
 // QLinkedList<T>: Dummy head node and then a linked list of "n", "t".
@@ -280,9 +306,14 @@ AbstractSymbolGroupNodePtrVector arrayChildList(SymbolGroup *sg, AddressFunc add
         if (SymbolGroupNode *child = sg->addSymbol(name, std::string(), &errorMessage)) {
             rc.push_back(ReferenceSymbolGroupNode::createArrayNode(i, child));
         } else {
+            if (SymbolGroupValue::verbose)
+                DebugPrint() << "addSymbol fails in arrayChildList";
             break;
         }
     }
+    if (SymbolGroupValue::verbose)
+        DebugPrint() << "arrayChildList '" << innerType << "' count=" << count << " returns "
+                     << rc.size() << " elements";
     return rc;
 }
 
@@ -324,10 +355,15 @@ static inline AbstractSymbolGroupNodePtrVector
         SymbolGroupValue myFirst = vec[unsigned(0)]["_Myfirst"]; // MSVC2010
         if (!myFirst)
             myFirst = vec["_Myfirst"]; // MSVC2008
-        if (myFirst)
-            if (const ULONG64 address = myFirst.pointerValue())
-                return arrayChildList(n->symbolGroup(), address,
-                                      SymbolGroupValue::stripPointerType(myFirst.type()), count);
+        if (myFirst) {
+            if (const ULONG64 address = myFirst.pointerValue()) {
+                const std::string firstType = myFirst.type();
+                const std::string innerType = fixInnerType(SymbolGroupValue::stripPointerType(firstType), vec);
+                if (SymbolGroupValue::verbose)
+                    DebugPrint() << n->name() << " inner type: '" << innerType << "' from '" << firstType << '\'';
+                return arrayChildList(n->symbolGroup(), address, innerType, count);
+            }
+        }
     }
     return AbstractSymbolGroupNodePtrVector();
 }
@@ -377,9 +413,10 @@ static inline AbstractSymbolGroupNodePtrVector
     const std::vector<std::string> innerTypes = deque.innerTypes();
     if (innerTypes.empty())
         return AbstractSymbolGroupNodePtrVector();
+    const std::string innerType = fixInnerType(innerTypes.front(), deque);
     // Get the deque size (block size) which is an unavailable static member
     // (cf <deque> for the actual expression).
-    const unsigned innerTypeSize = SymbolGroupValue::sizeOf(innerTypes.front().c_str());
+    const unsigned innerTypeSize = SymbolGroupValue::sizeOf(innerType.c_str());
     if (!innerTypeSize)
         return AbstractSymbolGroupNodePtrVector();
     const int dequeSize = innerTypeSize <= 1 ? 16 : innerTypeSize <= 2 ?
@@ -391,10 +428,10 @@ static inline AbstractSymbolGroupNodePtrVector
     const AbstractSymbolGroupNodePtrVector rc = SymbolGroupValue::pointerSize() == 8 ?
         stdDequeChildrenHelper(deque.node()->symbolGroup(),
                                reinterpret_cast<const ULONG64 *>(mapArray), mapSize,
-                               innerTypes.front(), innerTypeSize, startOffset, dequeSize, count) :
+                               innerType, innerTypeSize, startOffset, dequeSize, count) :
         stdDequeChildrenHelper(deque.node()->symbolGroup(),
                                reinterpret_cast<const ULONG32 *>(mapArray), mapSize,
-                               innerTypes.front(), innerTypeSize, startOffset, dequeSize, count);
+                               innerType, innerTypeSize, startOffset, dequeSize, count);
     delete [] mapArray;
     return rc;
 }
@@ -549,7 +586,8 @@ static inline SymbolGroupValueVector
         return SymbolGroupValueVector();
     // MSVC2010: "class _Tree : public _Tree_val: public _Tree_nod".
     // MSVC2008: Direct class
-    const bool isMSVC2010 = tree[unsigned(0)][unsigned(0)]["_Mysize"].intValue() == count;
+    const int size = tree[unsigned(0)][unsigned(0)]["_Mysize"].intValue();
+    const bool isMSVC2010 = size >= 0 && size <= count; // Count may be limited
     if (isMSVC2010In)
         *isMSVC2010In = isMSVC2010;
     const SymbolGroupValue treeNode = isMSVC2010 ? tree[unsigned(0)][unsigned(0)] : tree;
@@ -619,9 +657,12 @@ static inline AbstractSymbolGroupNodePtrVector
         // QVector<T>: p/array is declared as array of T. Dereference first
         // element to obtain address.
         const SymbolGroupValue vec(n, ctx);
-        if (const SymbolGroupValue firstElementV = vec["p"]["array"][unsigned(0)])
-            if (const ULONG64 arrayAddress = firstElementV.address())
-                    return arrayChildList(n->symbolGroup(), arrayAddress, firstElementV.type(), count);
+        if (const SymbolGroupValue firstElementV = vec["p"]["array"][unsigned(0)]) {
+            if (const ULONG64 arrayAddress = firstElementV.address()) {
+                const std::string fixedInnerType = fixInnerType(firstElementV.type(), vec);
+                return arrayChildList(n->symbolGroup(), arrayAddress, fixedInnerType, count);
+            }
+        }
     }
     return AbstractSymbolGroupNodePtrVector();
 }
@@ -662,8 +703,10 @@ static inline AbstractSymbolGroupNodePtrVector
      const std::vector<std::string> innerTypes = v.innerTypes();
      if (innerTypes.size() != 1)
          return AbstractSymbolGroupNodePtrVector();
-     const std::string &innerType = innerTypes.front();
+     const std::string innerType = fixInnerType(innerTypes.front(), v);
      const unsigned innerTypeSize = SymbolGroupValue::sizeOf(innerType.c_str());
+     if (SymbolGroupValue::verbose)
+         DebugPrint() << "QList " << v.name() << " inner type " << innerType << ' ' << innerTypeSize;
      if (!innerTypeSize)
          return AbstractSymbolGroupNodePtrVector();
      /* QList<> is:
@@ -681,11 +724,13 @@ static inline AbstractSymbolGroupNodePtrVector
                                innerType, count);
      // Check condition for large||static.
      bool isLargeOrStatic = innerTypeSize > pointerSize;
-     if (!isLargeOrStatic) {
+     if (!isLargeOrStatic && !SymbolGroupValue::isPointerType(innerType)) {
          const KnownType kt = knownType(innerType, false); // inner type, no 'class ' prefix.
-         if (kt != KT_Unknown && !(knownType(innerType, false) & (KT_Qt_PrimitiveType|KT_Qt_MovableType)))
+         if (kt != KT_Unknown && !(kt & (KT_POD_Type|KT_Qt_PrimitiveType|KT_Qt_MovableType)))
              isLargeOrStatic = true;
      }
+     if (SymbolGroupValue::verbose)
+         DebugPrint() << "isLargeOrStatic " << isLargeOrStatic;
      if (isLargeOrStatic) {
          // Retrieve the pointer array ourselves to avoid having to evaluate '*(class foo**)'
          if (void *data = readPointerArray(arrayAddress, count, v.context()))  {
@@ -706,7 +751,7 @@ static inline AbstractSymbolGroupNodePtrVector
 // Return the list of buckets of a 'QHash<>' as 'QHashData::Node *' values from
 // the list of addresses passed in
 template<class AddressType>
-SymbolGroupValueVector hashBuckets(SymbolGroup *sg, const std::string hashNodeType,
+SymbolGroupValueVector hashBuckets(SymbolGroup *sg, const std::string &hashNodeType,
                                    const AddressType *pointerArray,
                                    int numBuckets,
                                    AddressType ePtr,
@@ -733,11 +778,11 @@ SymbolGroupValueVector hashBuckets(SymbolGroup *sg, const std::string hashNodeTy
 }
 
 // Return the node type of a QHash/QMap:
-// "class QHash<K,V>" -> [struct] "QtCored4!QHashNode<K,V>";
+// "class QHash<K,V>[ *]" -> [struct] "QtCored4!QHashNode<K,V>";
 static inline std::string qHashNodeType(const SymbolGroupValue &v,
                                         const char *nodeType)
 {
-    std::string qHashType = v.type();
+    std::string qHashType = SymbolGroupValue::stripPointerType(v.type());
     const std::string::size_type pos = qHashType.find('<');
     if (pos != std::string::npos)
         qHashType.insert(pos, nodeType);
@@ -749,8 +794,6 @@ static inline std::string qHashNodeType(const SymbolGroupValue &v,
     return QtInfo::prependModuleAndNameSpace(qHashType, currentModule, qtInfo.nameSpace);
 }
 
-enum { debugMap  = 0 };
-
 // Return up to count nodes of type "QHashNode<K,V>" of a "class QHash<K,V>".
 SymbolGroupValueVector qHashNodes(const SymbolGroupValue &v,
                                   VectorIndexType count)
@@ -760,7 +803,7 @@ SymbolGroupValueVector qHashNodes(const SymbolGroupValue &v,
     const SymbolGroupValue hashData = v["d"];
     // 'e' is used as a special value to indicate empty hash buckets in the array.
     const ULONG64 ePtr = v["e"].pointerValue();
-    if (debugMap)
+    if (SymbolGroupValue::verbose)
         DebugPrint() << v << " Count=" << count << ",ePtr=0x" << std::hex << ePtr;
     if (!hashData || !ePtr)
         return SymbolGroupValueVector();
@@ -785,7 +828,8 @@ SymbolGroupValueVector qHashNodes(const SymbolGroupValue &v,
     // Generate the list 'QHashData::Node *' by iterating over the linked list of
     // nodes starting at each bucket. Using the 'QHashData::Node *' instead of
     // the 'QHashNode<K,T>' is much faster. Each list has a trailing, unused
-    // dummy element.
+    // dummy element. The initial element as such is skipped due to the pointer/value
+    // duality (since its 'next' element is identical to it when using typecast<> later on).
     SymbolGroupValueVector dummyNodeList;
     dummyNodeList.reserve(count);
     bool notEnough = true;
@@ -794,11 +838,11 @@ SymbolGroupValueVector qHashNodes(const SymbolGroupValue &v,
         for (SymbolGroupValue l = *it; notEnough && l ; ) {
             const SymbolGroupValue next = l["next"];
             if (next && next.pointerValue()) { // Stop at trailing dummy element
-                dummyNodeList.push_back(l);
+                dummyNodeList.push_back(next);
                 if (dummyNodeList.size() >= count) // Stop at maximum count
                     notEnough = false;
-                if (debugMap)
-                    DebugPrint() << '#' << (dummyNodeList.size() - 1) << "l=" << l << ",next=" << next;
+                if (SymbolGroupValue::verbose > 1)
+                    DebugPrint() << '#' << (dummyNodeList.size() - 1) << " l=" << l << ",next=" << next;
                 l = next;
             } else {
                 break;
@@ -807,7 +851,7 @@ SymbolGroupValueVector qHashNodes(const SymbolGroupValue &v,
     }
     // Finally convert them into real nodes 'QHashNode<K,V> (potentially expensive)
     const std::string nodeType = qHashNodeType(v, "Node");
-    if (debugMap)
+    if (SymbolGroupValue::verbose)
         DebugPrint() << "Converting into " << nodeType;
     SymbolGroupValueVector nodeList;
     nodeList.reserve(count);
@@ -873,11 +917,11 @@ static inline SymbolGroupValueVector qMapNodes(const SymbolGroupValue &v, Vector
 {
     const SymbolGroupValue e = v["e"];
     const ULONG64 ePtr = e.pointerValue();
-    if (debugMap)
+    if (SymbolGroupValue::verbose)
         DebugPrint() << v.type() << " E=0x" << std::hex << ePtr;
     if (!ePtr)
         return SymbolGroupValueVector();
-    if (debugMap)
+    if (SymbolGroupValue::verbose)
         DebugPrint() << v.type() << " E=0x" << std::hex << ePtr;
     SymbolGroupValueVector rc;
     rc.reserve(count);
@@ -893,7 +937,7 @@ static inline SymbolGroupValueVector qMapNodes(const SymbolGroupValue &v, Vector
 static inline AbstractSymbolGroupNodePtrVector
     qMapChildList(const SymbolGroupValue &v, VectorIndexType count)
 {
-    if (debugMap)
+    if (SymbolGroupValue::verbose)
         DebugPrint() << v.type() << "," << count;
 
     if (!count)
@@ -904,33 +948,33 @@ static inline AbstractSymbolGroupNodePtrVector
     const std::string mapNodeType = qHashNodeType(v, "Node");
     const std::string mapPayloadNodeType = qHashNodeType(v, "PayloadNode");
     // Calculate the offset needed (see QMap::concrete() used by the iterator).
-    const unsigned mapNodeSize = SymbolGroupValue::sizeOf(mapPayloadNodeType.c_str());
     const unsigned payloadNodeSize = SymbolGroupValue::sizeOf(mapPayloadNodeType.c_str());
-    const unsigned pointerSize = SymbolGroupValue::pointerSize();
-    if (debugMap) {
+    if (SymbolGroupValue::verbose) {
         DebugPrint() << v.type() << "," << mapNodeType << ':'
-                     << mapNodeSize << ',' << mapPayloadNodeType << ':' << payloadNodeSize
-                     << ", pointerSize=" << pointerSize;
+                     << mapPayloadNodeType << ':' << payloadNodeSize
+                     << ", pointerSize=" << SymbolGroupValue::pointerSize();
     }
-    if (!payloadNodeSize || !mapNodeSize)
+    if (!payloadNodeSize)
         return AbstractSymbolGroupNodePtrVector();
-    const ULONG64 payLoad  = payloadNodeSize - pointerSize;
+    const ULONG64 payLoad  = payloadNodeSize - SymbolGroupValue::pointerSize();
     // Get the value offset. Manually determine the alignment to be able
     // to retrieve key/value without having to deal with QMapNode<> (see below).
     // Subtract the 2 trailing pointers of the node.
     const std::vector<std::string> innerTypes = v.innerTypes();
     if (innerTypes.size() != 2u)
         return AbstractSymbolGroupNodePtrVector();
-    const unsigned valueSize = SymbolGroupValue::sizeOf(innerTypes.at(1).c_str());
-    const unsigned valueOffset = mapNodeSize - valueSize - pointerSize;
-    if (debugMap)
+    const std::string keyType = fixInnerType(innerTypes.front(), v);
+    const std::string valueType = fixInnerType(innerTypes.at(1), v);
+    const unsigned valueSize = SymbolGroupValue::sizeOf(valueType.c_str());
+    const unsigned valueOffset = SymbolGroupValue::fieldOffset(mapNodeType.c_str(), "value");
+    if (SymbolGroupValue::verbose)
         DebugPrint() << "Payload=" << payLoad << ",valueOffset=" << valueOffset << ','
                      << innerTypes.front() << ',' << innerTypes.back() << ':' << valueSize;
     if (!valueOffset || !valueSize)
         return AbstractSymbolGroupNodePtrVector();
     // Get the children.
     const SymbolGroupValueVector childNodes = qMapNodes(v, count);
-    if (debugMap)
+    if (SymbolGroupValue::verbose)
         DebugPrint() << "children: " << childNodes.size() << " of " << count;
     // Deep  expansion of the forward[0] sometimes fails. In that case,
     // take what we can get.
@@ -945,15 +989,14 @@ static inline AbstractSymbolGroupNodePtrVector
     rc.reserve(count);
     std::string errorMessage;
     SymbolGroup *sg = v.node()->symbolGroup();
-
     for (VectorIndexType i = 0; i < count ; i++) {
         const ULONG64 nodePtr = childNodes.at(i).pointerValue();
         if (!nodePtr)
             return AbstractSymbolGroupNodePtrVector();
         const ULONG64 keyAddress = nodePtr - payLoad;
-        const std::string keyExp = pointedToSymbolName(keyAddress, innerTypes.front());
-        const std::string valueExp = pointedToSymbolName(keyAddress + valueOffset, innerTypes.at(1));
-        if (debugMap) {
+        const std::string keyExp = pointedToSymbolName(keyAddress, keyType);
+        const std::string valueExp = pointedToSymbolName(keyAddress + valueOffset, valueType);
+        if (SymbolGroupValue::verbose) {
             DebugPrint() << '#' << i << '/' << count << ' ' << std::hex << ",node=0x" << nodePtr <<
                   ',' <<keyExp << ',' << valueExp;
         }
@@ -971,6 +1014,14 @@ static inline AbstractSymbolGroupNodePtrVector
 AbstractSymbolGroupNodePtrVector containerChildren(SymbolGroupNode *node, int type,
                                                    int size, const SymbolGroupValueContext &ctx)
 {
+    if (SymbolGroupValue::verbose) {
+        DebugPrint dp;
+        dp << "containerChildren " << node->name() << '/' << node->iName() << '/' << node->type()
+           << " at 0x" << std::hex << node->address() << std::dec
+           << " count=" << size << ",knowntype=" << type << " [";
+        formatKnownTypeFlags(dp, static_cast<KnownType>(type));
+        dp << ']';
+    }
     if (!size)
         return AbstractSymbolGroupNodePtrVector();
     if (size > 100)

@@ -3,6 +3,7 @@
 
 #include <QUrl>
 #include <QVector>
+#include <QSet>
 #include <QStringList>
 
 #include <nodeinstanceserverinterface.h>
@@ -22,6 +23,9 @@ class ValuesChangedCommand;
 class PixmapChangedCommand;
 class InformationChangedCommand;
 class ChildrenChangedCommand;
+class ReparentContainer;
+class ComponentCompletedCommand;
+class AddImportContainer;
 
 namespace Internal {
     class ChildrenChangeEventFilter;
@@ -83,6 +87,10 @@ public slots:
     void emitParentChanged(QObject *child);
 
 protected:
+    QList<ServerNodeInstance> createInstances(const QVector<InstanceContainer> &container);
+    void reparentInstances(const QVector<ReparentContainer> &containerVector);
+    void addImports(const QVector<AddImportContainer> &container);
+
     Internal::ChildrenChangeEventFilter *childrenChangeEventFilter();
     void resetInstanceProperty(const PropertyAbstractContainer &propertyContainer);
     void setInstancePropertyBinding(const PropertyBindingContainer &bindingContainer);
@@ -97,7 +105,7 @@ protected:
     void timerEvent(QTimerEvent *);
 
     bool nonInstanceChildIsDirty(QGraphicsObject *graphicsObject) const;
-    void findItemChangesAndSendChangeCommands();
+    virtual void findItemChangesAndSendChangeCommands();
     void resetAllItems();
 
     ValuesChangedCommand createValuesChangedCommand(const QList<ServerNodeInstance> &instanceList) const;
@@ -105,7 +113,7 @@ protected:
     PixmapChangedCommand createPixmapChangedCommand(const QList<ServerNodeInstance> &instanceList) const;
     InformationChangedCommand createAllInformationChangedCommand(const QList<ServerNodeInstance> &instanceList, bool initial = false) const;
     ChildrenChangedCommand createChildrenChangedCommand(const ServerNodeInstance &parentInstance, const QList<ServerNodeInstance> &instanceList) const;
-
+    ComponentCompletedCommand createComponentCompletedCommand(const QList<ServerNodeInstance> &instanceList);
     void sendChildrenChangedCommand(const QList<ServerNodeInstance> childList);
 
     void addChangedProperty(const InstancePropertyPair &property);
@@ -113,6 +121,13 @@ protected:
     void startRenderTimer();
     void slowDownRenderTimer();
     void stopRenderTimer();
+    void setRenderTimerInterval(int timerInterval);
+    void setSlowRenderTimerInterval(int timerInterval);
+
+    void initializeDeclarativeView();
+    QList<ServerNodeInstance> setupScene(const CreateSceneCommand &command);
+
+    QImage renderPreviewImage();
 
 private:
     ServerNodeInstance m_rootNodeInstance;
@@ -126,10 +141,13 @@ private:
     QUrl m_fileUrl;
     NodeInstanceClientInterface *m_nodeInstanceClient;
     int m_timer;
+    int m_renderTimerInterval;
     bool m_slowRenderTimer;
+    int m_slowRenderTimerInterval;
     QVector<InstancePropertyPair> m_changedPropertyList;
-    QVector<qint32> m_componentCompletedVector;
     QStringList m_importList;
+    QSet<ServerNodeInstance> m_dirtyInstanceSet;
+    QList<ServerNodeInstance> m_completedComponentList;
 };
 
 }

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -86,6 +86,10 @@ public:
     virtual bool visit(Class *) { return true; }
     virtual bool visit(Block *) { return true; }
     virtual bool visit(ForwardClassDeclaration *) { return true; }
+
+    // Qt
+    virtual bool visit(QtPropertyDeclaration *) { return true; }
+    virtual bool visit(QtEnum *) { return true; }
 
     // Objective-C
     virtual bool visit(ObjCBaseClass *) { return true; }

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -1675,12 +1675,15 @@ void CppCodeCompletion::completeClass(ClassOrNamespace *b, bool staticLookup)
 
             for (Scope::iterator it = scope->firstMember(); it != scope->lastMember(); ++it) {
                 Symbol *member = *it;
-                if (member->isFriend())
+                if (member->isFriend()
+                        || member->isQtPropertyDeclaration()
+                        || member->isQtEnum()) {
                     continue;
-                else if (! staticLookup && (member->isTypedef() ||
+                } else if (! staticLookup && (member->isTypedef() ||
                                             member->isEnum()    ||
-                                            member->isClass()))
+                                            member->isClass())) {
                     continue;
+                }
 
                 addCompletionItem(member);
             }

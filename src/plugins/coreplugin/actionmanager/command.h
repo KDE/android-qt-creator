@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -54,12 +54,12 @@ class CORE_EXPORT Command : public QObject
     Q_OBJECT
 public:
     enum CommandAttribute {
-        CA_Hide             = 0x0100,
-        CA_UpdateText       = 0x0200,
-        CA_UpdateIcon       = 0x0400,
-        CA_NonConfigureable = 0x8000,
-        CA_Mask             = 0xFF00
+        CA_Hide,
+        CA_UpdateText,
+        CA_UpdateIcon,
+        CA_NonConfigureable
     };
+    Q_DECLARE_FLAGS(CommandAttributes, CommandAttribute)
 
     virtual void setDefaultKeySequence(const QKeySequence &key) = 0;
     virtual QKeySequence defaultKeySequence() const = 0;
@@ -94,5 +94,7 @@ signals:
 };
 
 } // namespace Core
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(Core::Command::CommandAttributes)
 
 #endif // COMMAND_H

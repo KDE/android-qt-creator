@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -403,6 +403,20 @@ public:
         return c;
     }
 
+    QtPropertyDeclaration *newQtPropertyDeclaration(unsigned sourceLocation, const Name *name)
+    {
+        QtPropertyDeclaration *d = new QtPropertyDeclaration(translationUnit, sourceLocation, name);
+        symbols.push_back(d);
+        return d;
+    }
+
+    QtEnum *newQtEnum(unsigned sourceLocation, const Name *name)
+    {
+        QtEnum *d = new QtEnum(translationUnit, sourceLocation, name);
+        symbols.push_back(d);
+        return d;
+    }
+
     ObjCBaseClass *newObjCBaseClass(unsigned sourceLocation, const Name *name)
     {
         ObjCBaseClass *c = new ObjCBaseClass(translationUnit, sourceLocation, name);
@@ -708,6 +722,13 @@ UsingDeclaration *Control::newUsingDeclaration(unsigned sourceLocation, const Na
 ForwardClassDeclaration *Control::newForwardClassDeclaration(unsigned sourceLocation,
                                                              const Name *name)
 { return d->newForwardClassDeclaration(sourceLocation, name); }
+
+QtPropertyDeclaration *Control::newQtPropertyDeclaration(unsigned sourceLocation,
+                                                         const Name *name)
+{ return d->newQtPropertyDeclaration(sourceLocation, name); }
+
+QtEnum *Control::newQtEnum(unsigned sourceLocation, const Name *name)
+{ return d->newQtEnum(sourceLocation, name); }
 
 ObjCBaseClass *Control::newObjCBaseClass(unsigned sourceLocation, const Name *name)
 { return d->newObjCBaseClass(sourceLocation, name); }

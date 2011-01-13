@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -47,40 +47,37 @@ struct CdbOptions
 {
 public:
     CdbOptions();
+
+    bool isValid() const { return enabled && !executable.isEmpty(); }
+
+    void clearExecutable();
     void clear();
 
-    void fromSettings(const QSettings *s);
+    void fromSettings(QSettings *s); // Writes parameters on first-time autodetect
+    bool autoDetect(const QSettings *s);
     void toSettings(QSettings *s) const;
 
-    // A set of flags for comparison function.
-    enum ChangeFlags { InitializationOptionsChanged = 0x1,
-                       DebuggerPathsChanged = 0x2,
-                       SymbolOptionsChanged = 0x4,
-                       FastLoadDebuggingHelpersChanged = 0x8,
-                       OtherOptionsChanged = 0x100
-                     };
-    unsigned compare(const CdbOptions &s) const;
+    bool equals(const CdbOptions &rhs) const;
 
-    // Format a symbol server specification with a cache directory
-    static QString symbolServerPath(const QString &cacheDir);
-    // Check whether the path is a symbol server specification and return the cache directory
-    static int indexOfSymbolServerPath(const QStringList &symbolPaths, QString *cacheDir = 0);
+    static bool autoDetectExecutable(QString *outPath, bool *is64bit = 0,
+                                     QStringList *checkedDirectories = 0);
 
     static QString settingsGroup();
+    static QStringList oldEngineSymbolPaths(const QSettings *s);
 
     bool enabled;
-    QString path;
+    bool is64bit;
+    QString executable;
     QStringList symbolPaths;
     QStringList sourcePaths;
-    bool breakOnException;
-    bool verboseSymbolLoading;
-    bool fastLoadDebuggingHelpers;
+    // Events to break on (Command 'sxe' with abbreviation and optional parameter)
+    QStringList breakEvents;
 };
 
 inline bool operator==(const CdbOptions &s1, const CdbOptions &s2)
-{ return s1.compare(s2) == 0u; }
+{ return s1.equals(s2); }
 inline bool operator!=(const CdbOptions &s1, const CdbOptions &s2)
-{ return s1.compare(s2) != 0u; }
+{ return !s1.equals(s2); }
 
 } // namespace Internal
 } // namespace Debugger

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -173,7 +173,7 @@ STDMETHODIMP EventCallback::Exception(
     std::ostringstream str;
     formatGdbmiHash(str, parameters);
     ExtensionContext::instance().setStopReason(parameters, "exception");
-    ExtensionContext::instance().report('E', 0, "exception", "%s", str.str().c_str());
+    ExtensionContext::instance().report('E', 0, 0, "exception", "%s", str.str().c_str());
     return m_wrapped ? m_wrapped->Exception(Ex, FirstChance) : S_OK;
 }
 
@@ -222,7 +222,7 @@ STDMETHODIMP EventCallback::ExitProcess(
     __in ULONG ExitCode
     )
 {
-    ExtensionContext::instance().report('E', 0, eventContextC, "Process exited (%lu)",
+    ExtensionContext::instance().report('E', 0, 0, eventContextC, "Process exited (%lu)",
                                         ExitCode);
     const HRESULT hr = m_wrapped ? m_wrapped->ExitProcess(ExitCode) : S_OK;
     // Remotely debugged process exited, there is no session-inactive notification.

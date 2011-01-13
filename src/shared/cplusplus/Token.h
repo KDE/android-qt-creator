@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -244,6 +244,7 @@ enum Kind {
     T_Q_Q,
     T_Q_INVOKABLE,
     T_Q_PROPERTY,
+    T_Q_PRIVATE_PROPERTY,
     T_Q_INTERFACES,
     T_Q_ENUMS,
     T_Q_FLAGS,

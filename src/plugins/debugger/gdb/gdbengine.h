@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -85,7 +85,8 @@ class GdbEngine : public Debugger::DebuggerEngine
     Q_OBJECT
 
 public:
-    explicit GdbEngine(const DebuggerStartParameters &startParameters);
+    GdbEngine(const DebuggerStartParameters &startParameters,
+        DebuggerEngine *masterEngine);
     ~GdbEngine();
     AbstractGdbAdapter *gdbAdapter() const { return m_gdbAdapter; }
 

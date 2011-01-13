@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -213,7 +213,8 @@ QString MaemoRunConfiguration::defaultDisplayName()
 
 MaemoDeviceConfig MaemoRunConfiguration::deviceConfig() const
 {
-    return deployStep()->deviceConfigModel()->current();
+    const MaemoDeployStep * const step = deployStep();
+    return step ? step->deviceConfigModel()->current() : MaemoDeviceConfig();
 }
 
 const MaemoToolChain *MaemoRunConfiguration::toolchain() const
@@ -227,39 +228,25 @@ const MaemoToolChain *MaemoRunConfiguration::toolchain() const
 
 const QString MaemoRunConfiguration::gdbCmd() const
 {
-    if (const MaemoToolChain *tc = toolchain())
-        return QDir::toNativeSeparators(tc->targetRoot() + QLatin1String("/bin/gdb"));
-    return QString();
+    return QDir::toNativeSeparators(targetRoot() + QLatin1String("/bin/gdb"));
 }
 
 MaemoDeployStep *MaemoRunConfiguration::deployStep() const
 {
-    MaemoDeployStep * const step
-        = MaemoGlobal::buildStep<MaemoDeployStep>(target()->activeDeployConfiguration());
-    Q_ASSERT_X(step, Q_FUNC_INFO,
-        "Impossible: Maemo build configuration without deploy step.");
-    return step;
-}
-
-QString MaemoRunConfiguration::maddeRoot() const
-{
-    if (const MaemoToolChain *tc = toolchain())
-        return tc->maddeRoot();
-    return QString();
+    return MaemoGlobal::buildStep<MaemoDeployStep>(target()->activeDeployConfiguration());
 }
 
 const QString MaemoRunConfiguration::sysRoot() const
 {
     if (const MaemoToolChain *tc = toolchain())
-        return tc->sysrootRoot();
+        return tc->sysroot();
     return QString();
 }
 
 const QString MaemoRunConfiguration::targetRoot() const
 {
-    if (const MaemoToolChain *tc = toolchain())
-        return tc->targetRoot();
-    return QString();
+    QTC_ASSERT(activeQt4BuildConfiguration(), return QString());
+    return MaemoGlobal::targetRoot(activeQt4BuildConfiguration()->qtVersion());
 }
 
 const QString MaemoRunConfiguration::arguments() const
@@ -312,8 +299,10 @@ QString MaemoRunConfiguration::localExecutableFilePath() const
 
 QString MaemoRunConfiguration::remoteExecutableFilePath() const
 {
-    return deployStep()->deployables()
-        ->remoteExecutableFilePath(localExecutableFilePath());
+    const MaemoDeployStep * const step = deployStep();
+    return step
+        ? step->deployables()->remoteExecutableFilePath(localExecutableFilePath())
+        : QString();
 }
 
 MaemoPortList MaemoRunConfiguration::freePorts() const
@@ -331,7 +320,8 @@ MaemoPortList MaemoRunConfiguration::freePorts() const
 
 bool MaemoRunConfiguration::useRemoteGdb() const
 {
-    return m_useRemoteGdb && toolchain()->allowsRemoteMounts();
+    return m_useRemoteGdb
+        && MaemoGlobal::allowsRemoteMounts(activeQt4BuildConfiguration()->qtVersion());
 }
 
 void MaemoRunConfiguration::setArguments(const QString &args)
@@ -341,7 +331,7 @@ void MaemoRunConfiguration::setArguments(const QString &args)
 
 MaemoRunConfiguration::DebuggingType MaemoRunConfiguration::debuggingType() const
 {
-    if (!toolchain() || !toolchain()->allowsQmlDebugging())
+    if (!MaemoGlobal::allowsQmlDebugging(activeQt4BuildConfiguration()->qtVersion()))
         return DebugCppOnly;
     if (useCppDebugger()) {
         if (useQmlDebugger())
@@ -390,6 +380,7 @@ void MaemoRunConfiguration::handleDeployConfigChanged()
         }
     }
     updateDeviceConfigurations();
+    updateFactoryState();
 }
 
 QString MaemoRunConfiguration::baseEnvironmentText() const

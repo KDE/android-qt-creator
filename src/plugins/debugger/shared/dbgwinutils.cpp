@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -291,6 +291,9 @@ void formatWindowsException(unsigned long code, quint64 address,
         break;
     case winExceptionRpcServerInvalid:
         str << "Invalid RPC server";
+        break;
+    case winExceptionWX86Breakpoint:
+        str << "Win32 x86 emulation subsystem breakpoint hit";
         break;
     case EXCEPTION_ACCESS_VIOLATION: {
             const bool writeOperation = info1;

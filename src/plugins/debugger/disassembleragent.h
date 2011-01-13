@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,21 +34,14 @@
 #ifndef DEBUGGER_DISASSEMBLERAGENT_H
 #define DEBUGGER_DISASSEMBLERAGENT_H
 
-#include "disassemblerlines.h"
-
 #include <QtCore/QObject>
-#include <QtCore/QPointer>
-
-namespace Core {
-class IEditor;
-}
 
 namespace Debugger {
 
 class DebuggerEngine;
 
 namespace Internal {
-
+class DisassemblerLines;
 class Location;
 class DisassemblerAgentPrivate;
 
@@ -84,7 +77,6 @@ public:
 private:
     DisassemblerAgentPrivate *d;
 };
-
 
 } // namespace Internal
 } // namespace Debugger

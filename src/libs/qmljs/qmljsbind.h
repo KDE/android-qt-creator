@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,7 +36,6 @@
 
 #include <qmljs/parser/qmljsastvisitor_p.h>
 #include <qmljs/qmljsinterpreter.h>
-#include <qmljs/qmljscomponentversion.h>
 
 #include <QtCore/QHash>
 #include <QtCore/QStringList>

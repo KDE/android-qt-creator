@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -1469,21 +1469,18 @@ bool BaseTextEditor::cursorMoveKeyEvent(QKeyEvent *e)
 
     bool visualNavigation = cursor.visualNavigation();
     cursor.setVisualNavigation(true);
-    bool moved = false;
 
     if (op == QTextCursor::WordRight) {
-        moved = camelCaseRight(cursor, mode);
+        camelCaseRight(cursor, mode);
     } else if (op == QTextCursor::WordLeft) {
-            moved = camelCaseLeft(cursor, mode);
+        camelCaseLeft(cursor, mode);
     } else {
-        moved = cursor.movePosition(op, mode);
+        cursor.movePosition(op, mode);
     }
     cursor.setVisualNavigation(visualNavigation);
 
-    if (moved) {
-        setTextCursor(cursor);
-        ensureCursorVisible();
-    }
+    setTextCursor(cursor);
+    ensureCursorVisible();
     return true;
 }
 
@@ -2533,7 +2530,11 @@ bool BaseTextEditor::viewportEvent(QEvent *event)
         QPoint cursorPos = mapToGlobal(cursorRect(c).bottomRight() + QPoint(1,1));
         cursorPos.setX(cursorPos.x() + d->m_extraArea->width());
 
-        emit editableInterface()->tooltipRequested(editableInterface(), cursorPos, c.position());
+        bool handled = false;
+        BaseTextEditorEditable *editable = editableInterface();
+        emit editable->tooltipOverrideRequested(editable, cursorPos, c.position(), &handled);
+        if (!handled)
+            emit editable->tooltipRequested(editable, cursorPos, c.position());
         return true;
     }
     return QPlainTextEdit::viewportEvent(event);

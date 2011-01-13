@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -66,7 +66,7 @@ public:
     HelpNetworkReply(const QNetworkRequest &request, const QByteArray &fileData,
         const QString &mimeType);
 
-    virtual void abort();
+    virtual void abort() {}
 
     virtual qint64 bytesAvailable() const
         { return data.length() + QNetworkReply::bytesAvailable(); }
@@ -76,24 +76,21 @@ protected:
 
 private:
     QByteArray data;
-    qint64 origLen;
+    qint64 dataLength;
 };
 
 HelpNetworkReply::HelpNetworkReply(const QNetworkRequest &request,
         const QByteArray &fileData, const QString& mimeType)
-    : data(fileData), origLen(fileData.length())
+    : data(fileData)
+    , dataLength(fileData.length())
 {
     setRequest(request);
     setOpenMode(QIODevice::ReadOnly);
 
     setHeader(QNetworkRequest::ContentTypeHeader, mimeType);
-    setHeader(QNetworkRequest::ContentLengthHeader, QByteArray::number(origLen));
+    setHeader(QNetworkRequest::ContentLengthHeader, QByteArray::number(dataLength));
     QTimer::singleShot(0, this, SIGNAL(metaDataChanged()));
     QTimer::singleShot(0, this, SIGNAL(readyRead()));
-}
-
-void HelpNetworkReply::abort()
-{
 }
 
 qint64 HelpNetworkReply::readData(char *buffer, qint64 maxlen)
@@ -242,7 +239,10 @@ HelpViewer::HelpViewer(qreal zoom, QWidget *parent)
     settings()->setAttribute(QWebSettings::PluginsEnabled, false);
 
     setPage(new HelpPage(this));
-    page()->setNetworkAccessManager(new HelpNetworkAccessManager(this));
+    HelpNetworkAccessManager *manager = new HelpNetworkAccessManager(this);
+    page()->setNetworkAccessManager(manager);
+    connect(manager, SIGNAL(finished(QNetworkReply*)), this,
+        SLOT(slotNetworkReplyFinished(QNetworkReply*)));
 
     QAction* action = pageAction(QWebPage::OpenLinkInNewWindow);
     action->setText(tr("Open Link as New Page"));
@@ -258,7 +258,8 @@ HelpViewer::HelpViewer(qreal zoom, QWidget *parent)
     connect(pageAction(QWebPage::Forward), SIGNAL(changed()), this,
         SLOT(actionChanged()));
     connect(this, SIGNAL(urlChanged(QUrl)), this, SIGNAL(sourceChanged(QUrl)));
-    connect(this, SIGNAL(loadFinished(bool)), this, SLOT(setLoadFinished(bool)));
+    connect(this, SIGNAL(loadStarted()), this, SLOT(slotLoadStarted()));
+    connect(this, SIGNAL(loadFinished(bool)), this, SLOT(slotLoadFinished(bool)));
     connect(this, SIGNAL(titleChanged(QString)), this, SIGNAL(titleChanged()));
     connect(page(), SIGNAL(printRequested(QWebFrame*)), this, SIGNAL(printRequested()));
 
@@ -435,10 +436,13 @@ void HelpViewer::actionChanged()
         emit forwardAvailable(a->isEnabled());
 }
 
-void HelpViewer::setLoadFinished(bool ok)
+void HelpViewer::slotNetworkReplyFinished(QNetworkReply *reply)
 {
-    Q_UNUSED(ok)
-    emit sourceChanged(source());
+    if (reply && reply->error() != QNetworkReply::NoError) {
+        setSource(QUrl(Help::Constants::AboutBlank));
+        setHtml(HelpViewer::PageNotFoundMessage.arg(reply->url().toString()
+            + QString::fromLatin1("<br><br>Error: %1").arg(reply->errorString())));
+    }
 }
 
 // -- private

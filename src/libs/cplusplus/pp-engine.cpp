@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -1432,11 +1432,15 @@ bool Preprocessor::isQtReservedWord(const QByteArray &macroId) const
         return true;
     else if (size == 10 && macroId.at(0) == 'Q' && macroId == "Q_PROPERTY")
         return true;
+    else if (size == 18 && macroId.at(0) == 'Q' && macroId == "Q_PRIVATE_PROPERTY")
+        return true;
     else if (size == 7 && macroId.at(0) == 'Q' && macroId == "Q_ENUMS")
         return true;
     else if (size == 7 && macroId.at(0) == 'Q' && macroId == "Q_FLAGS")
         return true;
     else if (size == 12 && macroId.at(0) == 'Q' && macroId == "Q_INTERFACES")
+        return true;
+    else if (size == 11 && macroId.at(0) == 'Q' && macroId == "Q_INVOKABLE")
         return true;
     else if (size == 6 && macroId.at(0) == 'S' && macroId == "SIGNAL")
         return true;

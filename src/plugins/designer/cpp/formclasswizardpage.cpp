@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -112,11 +112,11 @@ void FormClassWizardPage::setPath(const QString &p)
 
 void FormClassWizardPage::getParameters(FormClassWizardParameters *p) const
 {
-    p->setClassName(m_ui->newClassWidget->className());
-    p->setPath(path());
-    p->setSourceFile(m_ui->newClassWidget->sourceFileName());
-    p->setHeaderFile(m_ui->newClassWidget->headerFileName());
-    p->setUiFile(m_ui->newClassWidget-> formFileName());
+    p->className = m_ui->newClassWidget->className();
+    p->path = path();
+    p->sourceFile = m_ui->newClassWidget->sourceFileName();
+    p->headerFile = m_ui->newClassWidget->headerFileName();
+    p->uiFile = m_ui->newClassWidget-> formFileName();
 }
 
 void FormClassWizardPage::slotValidChanged()

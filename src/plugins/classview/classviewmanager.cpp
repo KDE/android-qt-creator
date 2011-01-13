@@ -41,7 +41,7 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <texteditor/basetexteditor.h>
-#include <cpptools/cppmodelmanagerinterface.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -60,12 +60,13 @@ namespace Internal {
 
 /*!
    \struct ManagerPrivate
+   \internal
    \brief Private class data for \a Manager
    \sa Manager
  */
 struct ManagerPrivate
 {
-    ManagerPrivate() : state(false) {}
+    ManagerPrivate() : state(false), disableCodeParser(false) {}
 
     //! instance
     static Manager *instance;
@@ -76,17 +77,14 @@ struct ManagerPrivate
     //! State mutex
     QMutex mutexState;
 
-    //! Internal manager state. \sa Manager::state
-    bool state;
-
     //! code state/changes parser
     Parser parser;
 
     //! separate thread for the parser
     QThread parserThread;
 
-    //! cpp code model manager
-    QPointer<CppTools::CppModelManagerInterface> codeModelManager;
+    //! Internal manager state. \sa Manager::state
+    bool state;
 
     //! there is some massive operation ongoing so temporary we should wait
     bool disableCodeParser;
@@ -166,20 +164,9 @@ void Manager::initialize()
     connect(core->progressManager(), SIGNAL(allTasksFinished(QString)),
             SLOT(onAllTasksFinished(QString)), Qt::QueuedConnection);
 
-    // connect to the cpp model manager for signals about document updates
-    d_ptr->codeModelManager = CppTools::CppModelManagerInterface::instance();
-
-    // when code manager signals that document is updated - handle it by ourselves
-    connect(d_ptr->codeModelManager, SIGNAL(documentUpdated(CPlusPlus::Document::Ptr)),
-            SLOT(onDocumentUpdated(CPlusPlus::Document::Ptr)), Qt::QueuedConnection);
-
     // when we signals that really document is updated - sent it to the parser
     connect(this, SIGNAL(requestDocumentUpdated(CPlusPlus::Document::Ptr)),
             &d_ptr->parser, SLOT(parseDocument(CPlusPlus::Document::Ptr)), Qt::QueuedConnection);
-
-    //
-    connect(d_ptr->codeModelManager, SIGNAL(aboutToRemoveFiles(QStringList)),
-            &d_ptr->parser, SLOT(removeFiles(QStringList)), Qt::QueuedConnection);
 
     // translate data update from the parser to listeners
     connect(&d_ptr->parser, SIGNAL(treeDataUpdate(QSharedPointer<QStandardItem>)),
@@ -204,6 +191,17 @@ void Manager::initialize()
     // flat mode request
     connect(this, SIGNAL(requestSetFlatMode(bool)),
             &d_ptr->parser, SLOT(setFlatMode(bool)), Qt::QueuedConnection);
+
+    // connect to the cpp model manager for signals about document updates
+    CPlusPlus::CppModelManagerInterface *codeModelManager
+        = CPlusPlus::CppModelManagerInterface::instance();
+
+    // when code manager signals that document is updated - handle it by ourselves
+    connect(codeModelManager, SIGNAL(documentUpdated(CPlusPlus::Document::Ptr)),
+            SLOT(onDocumentUpdated(CPlusPlus::Document::Ptr)), Qt::QueuedConnection);
+    //
+    connect(codeModelManager, SIGNAL(aboutToRemoveFiles(QStringList)),
+            &d_ptr->parser, SLOT(removeFiles(QStringList)), Qt::QueuedConnection);
 }
 
 bool Manager::state() const

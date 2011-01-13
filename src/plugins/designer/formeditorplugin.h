@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,19 +35,9 @@
 #define FORMEDITORPLUGIN_H
 
 #include <extensionsystem/iplugin.h>
-#include <QtCore/QPointer>
-
-namespace Core {
-    class DesignMode;
-    class IMode;
-    class IEditor;
-}
 
 namespace Designer {
-class FormWindowEditor;
 namespace Internal {
-class FormEditorStack;
-
 
 class FormEditorPlugin : public ExtensionSystem::IPlugin
 {
@@ -62,10 +52,7 @@ public:
     void extensionsInitialized();
 
 private:
-
     void initializeTemplates();
-
-    //Core::IMode *m_prevMode;
 };
 
 } // namespace Internal

@@ -1,4 +1,5 @@
 #include "qmlcppengine.h"
+#include "debuggerstartparameters.h"
 #include "qmlengine.h"
 #include "debuggermainwindow.h"
 #include "debuggercore.h"
@@ -14,9 +15,12 @@ namespace Internal {
 
 const int ConnectionWaitTimeMs = 5000;
 
-DebuggerEngine *createCdbEngine(const DebuggerStartParameters &, QString *);
-DebuggerEngine *createGdbEngine(const DebuggerStartParameters &);
-DebuggerEngine *createQmlEngine(const DebuggerStartParameters &);
+DebuggerEngine *createCdbEngine(const DebuggerStartParameters &,
+    DebuggerEngine *masterEngine, QString *);
+DebuggerEngine *createGdbEngine(const DebuggerStartParameters &,
+    DebuggerEngine *masterEngine);
+DebuggerEngine *createQmlEngine(const DebuggerStartParameters &,
+    DebuggerEngine *masterEngine);
 
 DebuggerEngine *createQmlCppEngine(const DebuggerStartParameters &sp)
 {
@@ -52,27 +56,24 @@ QmlCppEnginePrivate::QmlCppEnginePrivate()
 QmlCppEngine::QmlCppEngine(const DebuggerStartParameters &sp)
     : DebuggerEngine(sp), d(new QmlCppEnginePrivate)
 {
-    d->m_qmlEngine = createQmlEngine(sp);
+    d->m_qmlEngine = createQmlEngine(sp, this);
 
     if (startParameters().cppEngineType == GdbEngineType) {
-        d->m_cppEngine = createGdbEngine(sp);
+        d->m_cppEngine = createGdbEngine(sp, this);
     } else {
         QString errorMessage;
-        d->m_cppEngine = createCdbEngine(sp, &errorMessage);
+        d->m_cppEngine = Debugger::Internal::createCdbEngine(sp, this, &errorMessage);
         if (!d->m_cppEngine) {
             qWarning("%s", qPrintable(errorMessage));
             return;
         }
     }
 
-    d->m_cppEngine->setSlaveEngine(true);
-    d->m_qmlEngine->setSlaveEngine(true);
-
     d->m_activeEngine = d->m_cppEngine;
     connect(d->m_cppEngine, SIGNAL(stateChanged(DebuggerState)),
-        SLOT(masterEngineStateChanged(DebuggerState)));
+        SLOT(cppEngineStateChanged(DebuggerState)));
     connect(d->m_qmlEngine, SIGNAL(stateChanged(DebuggerState)),
-        SLOT(slaveEngineStateChanged(DebuggerState)));
+        SLOT(qmlEngineStateChanged(DebuggerState)));
 
     connect(Core::EditorManager::instance(),
         SIGNAL(currentEditorChanged(Core::IEditor*)),
@@ -527,22 +528,19 @@ void QmlCppEngine::setupSlaveEngine()
         d->m_qmlEngine->startDebugger(runControl());
 }
 
-void QmlCppEngine::masterEngineStateChanged(const DebuggerState &newState)
+void QmlCppEngine::cppEngineStateChanged(const DebuggerState &newState)
 {
-    if (newState == InferiorStopOk) {
+    if (newState == InferiorStopOk)
         setActiveEngine(CppLanguage);
-    }
     engineStateChanged(newState);
 }
 
-void QmlCppEngine::slaveEngineStateChanged(const DebuggerState &newState)
+void QmlCppEngine::qmlEngineStateChanged(const DebuggerState &newState)
 {
-    if (newState == InferiorStopOk) {
+    if (newState == InferiorStopOk)
         setActiveEngine(QmlLanguage);
-    }
     engineStateChanged(newState);
 }
-
 
 void QmlCppEngine::engineStateChanged(const DebuggerState &newState)
 {

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -33,6 +33,8 @@
 
 #ifndef NAME_DEMANGLER_H
 #define NAME_DEMANGLER_H
+
+#include <QtCore/QtGlobal>
 
 QT_BEGIN_NAMESPACE
 class QString;

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,9 +36,9 @@
 
 #include <extensionsystem/pluginmanager.h>
 
+#include <cplusplus/ModelManagerInterface.h>
 #include <cpptools/cpprefactoringchanges.h>
 #include <cpptools/cpptoolsconstants.h>
-#include <cpptools/cppmodelmanagerinterface.h>
 
 #include <AST.h>
 #include <cplusplus/ASTPath.h>
@@ -56,7 +56,7 @@ CppQuickFixCollector::~CppQuickFixCollector()
 
 bool CppQuickFixCollector::supportsEditor(TextEditor::ITextEditable *editor)
 {
-    return CppTools::CppModelManagerInterface::instance()->isCppEditor(editor);
+    return CPlusPlus::CppModelManagerInterface::instance()->isCppEditor(editor);
 }
 
 TextEditor::QuickFixState *CppQuickFixCollector::initializeCompletion(TextEditor::BaseTextEditor *editor)
@@ -78,7 +78,7 @@ TextEditor::QuickFixState *CppQuickFixCollector::initializeCompletion(TextEditor
                 CppQuickFixState *state = new CppQuickFixState(editor);
                 state->_path = path;
                 state->_semanticInfo = info;
-                state->_snapshot = CppTools::CppModelManagerInterface::instance()->snapshot();
+                state->_snapshot = CPlusPlus::CppModelManagerInterface::instance()->snapshot();
                 state->_context = CPlusPlus::LookupContext(info.doc, state->snapshot());
                 return state;
             }

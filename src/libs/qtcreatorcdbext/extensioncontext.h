@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -68,22 +68,28 @@ public:
     // Undo hooking.
     void unhookCallbacks();
 
-    // Report output in standardized format understood by Qt Creator.
-    // '<qtcreatorcdbext>|R|<token>|<serviceName>|<one-line-output>'.
-    // Char code is 'R' command reply, 'N' command fail, 'E' event notification
-    bool report(char code, int token, const char *serviceName, PCSTR Format, ...);
-
+     // CDB has a limitation on output, so, long messages need to be split (empirically ca 10KB)
+    static const size_t outputChunkSize = 10240;
+    /* Report output in standardized format understood by Qt Creator.
+     * '<qtcreatorcdbext>|R|<token>|remainingChunks|<serviceName>|<one-line-output>'.
+     * Char code is 'R' command reply, 'N' command fail, 'E' event notification,
+     * 'X' exception, error. If the message is larger than outputChunkSize,
+     * it needs to be split up in chunks, remainingChunks needs to indicate the number
+     * of the following chunks (0 for just one chunk). */
+    bool report(char code, int remainingChunks, int token, const char *serviceName, PCSTR Format, ...);
+    // Convenience for reporting potentially long messages in chunks
+    bool reportLong(char code, int token, const char *serviceName, const std::string &message);
     ULONG executionStatus() const;
     // Call from notify handler, tell engine about state.
     void notifyState(ULONG Notify);
     // register as '.idle_cmd' to notify creator about stop
     void notifyIdle();
 
-    // Return symbol group for frame (cache as long as frame does not change).
+    // Return symbol group for frame (cached as long as frame/thread do not change).
     SymbolGroup *symbolGroup(CIDebugSymbols *symbols, ULONG threadId, int frame, std::string *errorMessage);
     int symbolGroupFrame() const;
 
-    // Stop reason is reported with the next idle notification
+    // Set a stop reason to be reported with the next idle notification (exception).
     void setStopReason(const StopReasonMap &, const std::string &reason = std::string());
 
 private:
@@ -103,6 +109,7 @@ private:
 };
 
 // Context for extension commands to be instantiated on stack in a command handler.
+// Provides the IDebug objects on demand.
 class ExtensionCommandContext
 {
     ExtensionCommandContext(const ExtensionCommandContext&);

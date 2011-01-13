@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -124,6 +124,8 @@ public:
     };
 
     void check(CheckMode mode = FullCheck);
+
+    void findExposedQmlTypes();
 
     void releaseSource();
     void releaseTranslationUnit();
@@ -318,6 +320,19 @@ public:
     const MacroUse *findMacroUseAt(unsigned offset) const;
     const UndefinedMacroUse *findUndefinedMacroUseAt(unsigned offset) const;
 
+    class ExportedQmlType {
+    public:
+        QString packageName;
+        QString typeName;
+        int majorVersion;
+        int minorVersion;
+        Scope *scope;
+        QString typeExpression;
+    };
+
+    QList<ExportedQmlType> exportedQmlTypes() const
+    { return _exportedQmlTypes; }
+
 private:
     QString _fileName;
     Control *_control;
@@ -329,6 +344,7 @@ private:
     QList<Block> _skippedBlocks;
     QList<MacroUse> _macroUses;
     QList<UndefinedMacroUse> _undefinedMacroUses;
+    QList<ExportedQmlType> _exportedQmlTypes;
     QByteArray _source;
     QDateTime _lastModified;
     unsigned _revision;

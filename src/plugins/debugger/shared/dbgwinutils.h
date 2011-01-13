@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -75,7 +75,8 @@ enum { winExceptionCppException = 0xe06d7363,
        winExceptionDllEntryPointNoFound = 0xc0000139,
        winExceptionDllInitFailed = 0xc0000142,
        winExceptionMissingSystemFile = 0xc0000143,
-       winExceptionAppInitFailed = 0xc0000143
+       winExceptionAppInitFailed = 0xc0000143,
+       winExceptionWX86Breakpoint = 0x4000001f
 };
 
 // Format windows Exception

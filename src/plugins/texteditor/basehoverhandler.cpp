@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -80,12 +80,6 @@ void BaseHoverHandler::showToolTip(TextEditor::ITextEditor *editor, const QPoint
         return;
 
     editor->setContextHelpId(QString());
-
-    ICore *core = ICore::instance();
-    const int dbgContext =
-        core->uniqueIDManager()->uniqueIdentifier(Debugger::Constants::C_DEBUGMODE);
-    if (core->hasContext(dbgContext))
-        return;
 
     process(editor, pos);
 

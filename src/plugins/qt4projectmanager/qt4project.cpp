@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -51,7 +51,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <extensionsystem/pluginmanager.h>
-#include <cpptools/cppmodelmanagerinterface.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/buildenvironmentwidget.h>
@@ -421,9 +421,8 @@ void Qt4Project::updateCppCodeModel()
 {
     Qt4BuildConfiguration *activeBC = activeTarget()->activeBuildConfiguration();
 
-    CppTools::CppModelManagerInterface *modelmanager =
-        ExtensionSystem::PluginManager::instance()
-            ->getObject<CppTools::CppModelManagerInterface>();
+    CPlusPlus::CppModelManagerInterface *modelmanager =
+        CPlusPlus::CppModelManagerInterface::instance();
 
     if (!modelmanager)
         return;
@@ -544,7 +543,7 @@ void Qt4Project::updateCppCodeModel()
     files += m_projectFiles->files[SourceType];
     files += m_projectFiles->generatedFiles[SourceType];
 
-    CppTools::CppModelManagerInterface::ProjectInfo pinfo = modelmanager->projectInfo(this);
+    CPlusPlus::CppModelManagerInterface::ProjectInfo pinfo = modelmanager->projectInfo(this);
 
     //qDebug()<<"Using precompiled header"<<allPrecompileHeaders;
 
@@ -922,8 +921,11 @@ ProFileReader *Qt4Project::createProFileReader(Qt4ProFileNode *qt4ProFileNode)
         if (activeTarget() &&
             activeTarget()->activeBuildConfiguration()) {
             QtVersion *version = activeTarget()->activeBuildConfiguration()->qtVersion();
-            if (version->isValid())
+            if (version->isValid()) {
                 m_proFileOption->properties = version->versionInfo();
+                m_proFileOption->sysroot
+                    = activeTarget()->activeBuildConfiguration()->toolChain()->sysroot();
+            }
         }
 
         ProFileCacheManager::instance()->incRefCount();

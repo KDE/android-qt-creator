@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -37,11 +37,12 @@
 enum { debug = 0 };
 
 using namespace CppTools;
+using namespace CPlusPlus;
 
-UiCodeModelSupport::UiCodeModelSupport(CppTools::CppModelManagerInterface *modelmanager,
+UiCodeModelSupport::UiCodeModelSupport(CppModelManagerInterface *modelmanager,
                                        const QString &source,
                                        const QString &uiHeaderFile)
-    : CppTools::AbstractEditorSupport(modelmanager),
+    : AbstractEditorSupport(modelmanager),
       m_sourceName(source),
       m_fileName(uiHeaderFile),
       m_updateIncludingFiles(false),

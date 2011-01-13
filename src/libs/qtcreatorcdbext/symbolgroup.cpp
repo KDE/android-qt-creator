@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -238,6 +238,10 @@ std::string SymbolGroup::dump(const std::string &iname,
 
     // Real nodes: Expand and complex dumpers
     if (SymbolGroupNode *node = aNode->resolveReference()->asSymbolGroupNode()) {
+        if (symbolGroupDebug)
+            DebugPrint() << "SymbolGroup::dump(" << iname << '/'
+                         << aNode->absoluteFullIName() <<" resolves to " << node->absoluteFullIName()
+                         << " expanded=" << node->isExpanded();
         if (node->isExpanded()) { // Mark expand request by watch model
             node->clearFlags(SymbolGroupNode::ExpandedByDumper);
         } else {
@@ -247,6 +251,8 @@ std::string SymbolGroup::dump(const std::string &iname,
         // After expansion, run the complex dumpers
         if (p.dumpFlags & DumpParameters::DumpComplexDumpers)
             node->runComplexDumpers(ctx);
+        if (symbolGroupDebug)
+            DebugPrint() << "SymbolGroup::dump(" << iname << ") ran complex dumpers 0x" << std::hex << node->flags();
     }
 
     std::ostringstream str;
@@ -258,7 +264,7 @@ std::string SymbolGroup::dump(const std::string &iname,
     str << ']';
     QTC_TRACE_OUT
     if (symbolGroupDebug)
-        DebugPrint() << "<SymbolGroup::dump(" << iname << ")";
+            DebugPrint() << "<SymbolGroup::dump(" << iname << ')';
     return str.str();
 }
 

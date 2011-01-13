@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -65,8 +65,7 @@ public:
     virtual bool isRunning() const;
 private slots:
     void processExited(int exitCode);
-    void slotAddToOutputWindow(const QString &line, bool isError);
-    void slotAppendMessage(const QString &err, bool isError);
+    void slotAppendMessage(const QString &err, ProjectExplorer::OutputFormat isError);
 private:
     ProjectExplorer::ApplicationLauncher m_applicationLauncher;
     QString m_executable;

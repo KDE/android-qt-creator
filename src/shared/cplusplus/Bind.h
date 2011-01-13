@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -110,7 +110,6 @@ protected:
     const Name *objCSelectorArgument(ObjCSelectorArgumentAST *ast, bool *hasArg);
     void attribute(AttributeAST *ast);
     FullySpecifiedType declarator(DeclaratorAST *ast, const FullySpecifiedType &init, DeclaratorIdAST **declaratorId);
-    void qtPropertyDeclarationItem(QtPropertyDeclarationItemAST *ast);
     void qtInterfaceName(QtInterfaceNameAST *ast);
     void baseSpecifier(BaseSpecifierAST *ast, unsigned colon_token, Class *klass);
     void ctorInitializer(CtorInitializerAST *ast, Function *fun);

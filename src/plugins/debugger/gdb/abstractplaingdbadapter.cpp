@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,6 +34,7 @@
 #include "abstractplaingdbadapter.h"
 #include "gdbmi.h"
 #include "gdbengine.h"
+#include "debuggerstartparameters.h"
 #include "debuggeractions.h"
 #include "debuggercore.h"
 #include "debuggerstringutils.h"
@@ -75,6 +76,10 @@ void AbstractPlainGdbAdapter::handleFileExecAndSymbols(const GdbResponse &respon
             if (m_engine->m_gdbVersion < 70000)
                 m_engine->postCommand("info target", CB(handleInfoTarget));
         }
+        //if (m_engine->isSlaveEngine())
+            //m_engine->postCommand("qmlb", GdbEngine::ConsoleCommand);
+            //m_engine->postCommand("rbreak QScript::FunctionWrapper::proxyCall");
+         //   m_engine->postCommand("-break-insert -f 'myns::QScript::FunctionWrapper::proxyCall'");
         m_engine->handleInferiorPrepared();
     } else {
         QByteArray ba = response.data.findChild("msg").data();

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -203,11 +203,7 @@ class S60DeviceDebugRunControl : public Debugger::DebuggerRunControl
 public:
     explicit S60DeviceDebugRunControl(S60DeviceRunConfiguration *runConfiguration,
                                       const QString &mode);
-    virtual ~S60DeviceDebugRunControl();
     virtual void start();
-
-private:
-    static Debugger::DebuggerStartParameters s60DebuggerStartParams(const S60DeviceRunConfiguration *rc);
 };
 
 } // namespace Internal

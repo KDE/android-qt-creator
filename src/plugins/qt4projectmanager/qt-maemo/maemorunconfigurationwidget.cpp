@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -39,10 +39,10 @@
 #include "maemodeviceconfiglistmodel.h"
 #include "maemodeviceenvreader.h"
 #include "maemomanager.h"
+#include "maemoglobal.h"
 #include "maemoremotemountsmodel.h"
 #include "maemorunconfiguration.h"
 #include "maemosettingspages.h"
-#include "maemotoolchain.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
@@ -79,7 +79,8 @@ MaemoRunConfigurationWidget::MaemoRunConfigurationWidget(
     : QWidget(parent),
     m_runConfiguration(runConfiguration),
     m_ignoreChange(false),
-    m_deviceEnvReader(new MaemoDeviceEnvReader(this, runConfiguration))
+    m_deviceEnvReader(new MaemoDeviceEnvReader(this, runConfiguration)),
+    m_deployablesConnected(false)
 {
     m_lastActiveBuildConfig = m_runConfiguration->activeQt4BuildConfiguration();
     QVBoxLayout *mainLayout = new QVBoxLayout;
@@ -172,9 +173,10 @@ void MaemoRunConfigurationWidget::addGenericWidgets(QVBoxLayout *mainLayout)
         SLOT(handleDebuggingTypeChanged()));
     connect(m_runConfiguration, SIGNAL(targetInformationChanged()), this,
         SLOT(updateTargetInformation()));
-    connect(m_runConfiguration->deployStep()->deployables().data(),
-        SIGNAL(modelReset()), this, SLOT(handleDeploySpecsChanged()));
-    handleDeploySpecsChanged();
+    connect(m_runConfiguration->target(),
+        SIGNAL(activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration*)),
+        SLOT(handleActiveDeployConfigurationChanged()));
+    handleActiveDeployConfigurationChanged();
 }
 
 void MaemoRunConfigurationWidget::addDebuggingWidgets(QVBoxLayout *mainLayout)
@@ -302,6 +304,24 @@ void MaemoRunConfigurationWidget::updateTargetInformation()
         ->setText(QDir::toNativeSeparators(m_runConfiguration->localExecutableFilePath()));
 }
 
+void MaemoRunConfigurationWidget::handleActiveDeployConfigurationChanged()
+{
+    if (m_deployablesConnected)
+        return;
+    MaemoDeployStep * const deployStep = m_runConfiguration->deployStep();
+    if (!deployStep)
+        return;
+    connect(deployStep->deployables().data(), SIGNAL(modelReset()),
+        SLOT(handleDeploySpecsChanged()));
+   handleDeploySpecsChanged();
+   m_deployablesConnected = true;
+   disconnect(m_runConfiguration->target(),
+       SIGNAL(activeDeployConfigurationChanged(ProjectExplorer::DeployConfiguration*)),
+       this,
+       SLOT(handleActiveDeployConfigurationChanged()));
+
+}
+
 void MaemoRunConfigurationWidget::handleDeploySpecsChanged()
 {
     m_remoteExecutableLabel->setText(m_runConfiguration->remoteExecutableFilePath());
@@ -322,12 +342,16 @@ void MaemoRunConfigurationWidget::handleBuildConfigChanged()
 
 void MaemoRunConfigurationWidget::handleToolchainChanged()
 {
-    const MaemoToolChain * const toolChain = m_runConfiguration->toolchain();
-    if (toolChain) {
-        const bool remoteMountsAvailable = toolChain->allowsRemoteMounts();
+    const Qt4BuildConfiguration * const bc
+        = m_runConfiguration->activeQt4BuildConfiguration();
+    if (bc) {
+        const QtVersion * const qtVersion = bc->qtVersion();
+        const bool remoteMountsAvailable
+            = MaemoGlobal::allowsRemoteMounts(qtVersion);
         m_debugDetailsContainer->setVisible(remoteMountsAvailable);
         m_mountDetailsContainer->setVisible(remoteMountsAvailable);
-        const bool qmlDebuggingAvailable = toolChain->allowsQmlDebugging();
+        const bool qmlDebuggingAvailable
+            = MaemoGlobal::allowsQmlDebugging(qtVersion);
         m_debuggingLanguagesLabel->setVisible(qmlDebuggingAvailable);
         m_debugCppOnlyButton->setVisible(qmlDebuggingAvailable);
         m_debugQmlOnlyButton->setVisible(qmlDebuggingAvailable);

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -3387,6 +3387,11 @@ unsigned QtPropertyDeclarationAST::firstToken() const
         return property_specifier_token;
     if (lparen_token)
         return lparen_token;
+    if (expression)
+        if (unsigned candidate = expression->firstToken())
+            return candidate;
+    if (comma_token)
+        return comma_token;
     if (type_id)
         if (unsigned candidate = type_id->firstToken())
             return candidate;
@@ -3414,6 +3419,11 @@ unsigned QtPropertyDeclarationAST::lastToken() const
             return candidate;
     if (type_id)
         if (unsigned candidate = type_id->lastToken())
+            return candidate;
+    if (comma_token)
+        return comma_token + 1;
+    if (expression)
+        if (unsigned candidate = expression->lastToken())
             return candidate;
     if (lparen_token)
         return lparen_token + 1;

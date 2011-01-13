@@ -30,6 +30,7 @@ HEADERS += breakhandler.h \
     debuggermainwindow.h \
     debuggerplugin.h \
     debuggerrunner.h \
+    debuggerstartparameters.h \
     debuggerstreamops.h \
     debuggerstringutils.h \
     debuggertooltip.h \
@@ -58,7 +59,8 @@ HEADERS += breakhandler.h \
     watchwindow.h \
     threaddata.h \
     threadshandler.h \
-    watchdelegatewidgets.h
+    watchdelegatewidgets.h \
+    debuggerruncontrolfactory.h
 
 SOURCES += breakhandler.cpp \
     breakpoint.cpp \
@@ -126,7 +128,6 @@ LIBS  *= -lole32 \
     -lshell32
 }
 include(cdb/cdb.pri)
-include(cdb2/cdb2.pri)
 include(gdb/gdb.pri)
 include(script/script.pri)
 include(pdb/pdb.pri)

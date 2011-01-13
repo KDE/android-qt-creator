@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,17 +35,20 @@
 #define OUTPUTFORMATTER_H
 
 #include "projectexplorer_export.h"
+#include "outputformat.h"
 
 #include <QtCore/QObject>
 
-QT_FORWARD_DECLARE_CLASS(QMouseEvent)
-QT_FORWARD_DECLARE_CLASS(QPlainTextEdit)
-QT_FORWARD_DECLARE_CLASS(QTextCharFormat)
-QT_FORWARD_DECLARE_CLASS(QColor)
+QT_BEGIN_NAMESPACE
+class QMouseEvent;
+class QPlainTextEdit;
+class QTextCharFormat;
+class QColor;
+QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 
-class PROJECTEXPLORER_EXPORT OutputFormatter: public QObject
+class PROJECTEXPLORER_EXPORT OutputFormatter : public QObject
 {
     Q_OBJECT
 
@@ -56,24 +59,13 @@ public:
     QPlainTextEdit *plainTextEdit() const;
     void setPlainTextEdit(QPlainTextEdit *plainText);
 
-    virtual void appendApplicationOutput(const QString &text, bool onStdErr);
-    virtual void appendMessage(const QString &text, bool isError);
-
+    virtual void appendMessage(const QString &text, OutputFormat format);
     virtual void handleLink(const QString &href);
 
 protected:
-    enum Format {
-        NormalMessageFormat = 0,
-        ErrorMessageFormat = 1,
-        StdOutFormat = 2,
-        StdErrFormat = 3,
-
-        NumberOfFormats = 4
-    };
-
     void initFormats();
     void clearLastLine();
-    QTextCharFormat format(Format format);
+    QTextCharFormat charFormat(OutputFormat format) const;
 
     static QColor mixColors(const QColor &a, const QColor &b);
 

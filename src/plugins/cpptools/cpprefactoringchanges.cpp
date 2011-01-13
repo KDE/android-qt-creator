@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,6 +36,7 @@
 #include <TranslationUnit.h>
 #include <AST.h>
 #include <cpptools/cppcodeformatter.h>
+#include <cpptools/cppmodelmanager.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/tabsettings.h>
 
@@ -47,7 +48,7 @@ using namespace Utils;
 
 CppRefactoringChanges::CppRefactoringChanges(const Snapshot &snapshot)
     : m_snapshot(snapshot)
-    , m_modelManager(CppTools::CppModelManagerInterface::instance())
+    , m_modelManager(Internal::CppModelManager::instance())
 {
     Q_ASSERT(m_modelManager);
     m_workingCopy = m_modelManager->workingCopy();

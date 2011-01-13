@@ -87,6 +87,7 @@ HEADERS += projectexplorer.h \
     buildenvironmentwidget.h \
     ldparser.h \
     linuxiccparser.h \
+    outputformat.h \
     outputformatter.h \
     runconfigurationmodel.h \
     buildconfigurationmodel.h \
@@ -96,6 +97,8 @@ HEADERS += projectexplorer.h \
     localapplicationruncontrol.h \
     customexecutableconfigurationwidget.h \
     sessionnodeimpl.h \
+    metatypedeclarations.h \
+    toolchaintype.h \
     publishing/publishingwizardselectiondialog.h \
     publishing/ipublishingwizardfactory.h
 

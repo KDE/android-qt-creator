@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -40,7 +40,7 @@
 using namespace Qt4ProjectManager;
 using namespace Internal;
 
-Qt4UiCodeModelSupport::Qt4UiCodeModelSupport(CppTools::CppModelManagerInterface *modelmanager,
+Qt4UiCodeModelSupport::Qt4UiCodeModelSupport(CPlusPlus::CppModelManagerInterface *modelmanager,
                                              Qt4Project *project,
                                              const QString &source,
                                              const QString &uiHeaderFile)

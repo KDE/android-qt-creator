@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -39,6 +39,10 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/mimedatabase.h>
+#include <cplusplus/ModelManagerInterface.h>
+#include <cplusplus/CppDocument.h>
+#include <cplusplus/TypeOfExpression.h>
+#include <cplusplus/Overview.h>
 #include <qmljs/qmljsinterpreter.h>
 #include <qmljs/qmljsbind.h>
 #include <qmljs/parser/qmldirparser_p.h>
@@ -56,6 +60,7 @@
 #include <qtconcurrent/runextensions.h>
 #include <QTextStream>
 #include <QCoreApplication>
+#include <QTimer>
 
 #include <QDebug>
 
@@ -72,6 +77,11 @@ ModelManager::ModelManager(QObject *parent):
 {
     m_synchronizer.setCancelOnWait(true);
 
+    m_updateCppQmlTypesTimer = new QTimer(this);
+    m_updateCppQmlTypesTimer->setInterval(1000);
+    m_updateCppQmlTypesTimer->setSingleShot(true);
+    connect(m_updateCppQmlTypesTimer, SIGNAL(timeout()), SLOT(startCppQmlTypeUpdate()));
+
     qRegisterMetaType<QmlJS::Document::Ptr>("QmlJS::Document::Ptr");
     qRegisterMetaType<QmlJS::LibraryInfo>("QmlJS::LibraryInfo");
 
@@ -79,6 +89,16 @@ ModelManager::ModelManager(QObject *parent):
 
     m_defaultImportPaths << environmentImportPaths();
     updateImportPaths();
+}
+
+void ModelManager::delayedInitialization()
+{
+    CPlusPlus::CppModelManagerInterface *cppModelManager =
+            CPlusPlus::CppModelManagerInterface::instance();
+    if (cppModelManager) {
+        connect(cppModelManager, SIGNAL(documentUpdated(CPlusPlus::Document::Ptr)),
+                this, SLOT(queueCppQmlTypeUpdate(CPlusPlus::Document::Ptr)));
+    }
 }
 
 void ModelManager::loadQmlTypeDescriptions()
@@ -329,7 +349,7 @@ static void findNewFileImports(const Document::Ptr &doc, const Snapshot &snapsho
 
 static void findNewLibraryImports(const Document::Ptr &doc, const Snapshot &snapshot,
                            ModelManager *modelManager,
-                           QStringList *importedFiles, QSet<QString> *scannedPaths)
+                           QStringList *importedFiles, QSet<QString> *scannedPaths, QSet<QString> *newLibraries)
 {
     // scan library imports
     const QStringList importPaths = modelManager->importPaths();
@@ -344,6 +364,8 @@ static void findNewLibraryImports(const Document::Ptr &doc, const Snapshot &snap
             // if we know there is a library, done
             if (snapshot.libraryInfo(targetPath).isValid())
                 break;
+            if (newLibraries->contains(targetPath))
+                break;
 
             // if there is a qmldir file, we found a new library!
             if (dir.exists("qmldir")) {
@@ -355,8 +377,10 @@ static void findNewLibraryImports(const Document::Ptr &doc, const Snapshot &snap
                 qmldirParser.setSource(qmldirData);
                 qmldirParser.parse();
 
-                modelManager->updateLibraryInfo(QFileInfo(qmldirFile).absolutePath(),
-                                                     LibraryInfo(qmldirParser));
+                const QString libraryPath = QFileInfo(qmldirFile).absolutePath();
+                newLibraries->insert(libraryPath);
+                modelManager->updateLibraryInfo(libraryPath,
+                                                LibraryInfo(qmldirParser));
 
                 // scan the qml files in the library
                 foreach (const QmlDirParser::Component &component, qmldirParser.components()) {
@@ -405,6 +429,8 @@ void ModelManager::parse(QFutureInterface<void> &future,
 
     // paths we have scanned for files and added to the files list
     QSet<QString> scannedPaths;
+    // libraries we've found while scanning imports
+    QSet<QString> newLibraries;
 
     for (int i = 0; i < files.size(); ++i) {
         future.setProgressValue(qreal(i) / files.size() * progressRange);
@@ -451,7 +477,7 @@ void ModelManager::parse(QFutureInterface<void> &future,
         QStringList importedFiles;
         findNewImplicitImports(doc, snapshot, &importedFiles, &scannedPaths);
         findNewFileImports(doc, snapshot, &importedFiles, &scannedPaths);
-        findNewLibraryImports(doc, snapshot, modelManager, &importedFiles, &scannedPaths);
+        findNewLibraryImports(doc, snapshot, modelManager, &importedFiles, &scannedPaths, &newLibraries);
 
         // add new files to parse list
         foreach (const QString &file, importedFiles) {
@@ -527,8 +553,9 @@ void ModelManager::updateImportPaths()
     Snapshot snapshot = _snapshot;
     QStringList importedFiles;
     QSet<QString> scannedPaths;
+    QSet<QString> newLibraries;
     foreach (const Document::Ptr &doc, snapshot)
-        findNewLibraryImports(doc, snapshot, this, &importedFiles, &scannedPaths);
+        findNewLibraryImports(doc, snapshot, this, &importedFiles, &scannedPaths, &newLibraries);
 
     updateSourceFiles(importedFiles, true);
 }
@@ -536,4 +563,48 @@ void ModelManager::updateImportPaths()
 void ModelManager::loadPluginTypes(const QString &libraryPath, const QString &importPath, const QString &importUri)
 {
     m_pluginDumper->loadPluginTypes(libraryPath, importPath, importUri);
+}
+
+void ModelManager::queueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc)
+{
+    m_queuedCppDocuments.insert(doc->fileName());
+    m_updateCppQmlTypesTimer->start();
+}
+
+void ModelManager::startCppQmlTypeUpdate()
+{
+    CPlusPlus::CppModelManagerInterface *cppModelManager =
+            CPlusPlus::CppModelManagerInterface::instance();
+    if (!cppModelManager)
+        return;
+
+    QtConcurrent::run(&ModelManager::updateCppQmlTypes,
+                      this, cppModelManager, m_queuedCppDocuments);
+    m_queuedCppDocuments.clear();
+}
+
+void ModelManager::updateCppQmlTypes(ModelManager *qmlModelManager, CPlusPlus::CppModelManagerInterface *cppModelManager, QSet<QString> files)
+{
+    CppQmlTypeHash newCppTypes = qmlModelManager->cppQmlTypes();
+    CPlusPlus::Snapshot snapshot = cppModelManager->snapshot();
+
+    foreach (const QString &fileName, files) {
+        CPlusPlus::Document::Ptr doc = snapshot.document(fileName);
+        QList<LanguageUtils::FakeMetaObject::ConstPtr> exported;
+        if (doc)
+            exported = cppModelManager->exportedQmlObjects(doc);
+        if (!exported.isEmpty())
+            newCppTypes[fileName] = exported;
+        else
+            newCppTypes.remove(fileName);
+    }
+
+    QMutexLocker locker(&qmlModelManager->m_cppTypesMutex);
+    qmlModelManager->m_cppTypes = newCppTypes;
+}
+
+ModelManagerInterface::CppQmlTypeHash ModelManager::cppQmlTypes() const
+{
+    QMutexLocker locker(&m_cppTypesMutex);
+    return m_cppTypes;
 }

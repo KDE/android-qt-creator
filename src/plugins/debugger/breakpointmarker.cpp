@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,12 +35,7 @@
 #include "breakhandler.h"
 #include "debuggercore.h"
 
-#include <texteditor/basetextmark.h>
-#include <utils/qtcassert.h>
-
-#include <QtCore/QByteArray>
-#include <QtCore/QDebug>
-
+#include <QtGui/QIcon>
 
 //////////////////////////////////////////////////////////////////
 //

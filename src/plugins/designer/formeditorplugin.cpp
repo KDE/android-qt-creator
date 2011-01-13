@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -43,6 +43,7 @@
 
 #include "settingspage.h"
 #include "designerconstants.h"
+#include "qtdesignerformclasscodegenerator.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -90,7 +91,7 @@ bool FormEditorPlugin::initialize(const QStringList &arguments, QString *error)
 
     addAutoReleasedObject(new FormEditorFactory);
     addAutoReleasedObject(new SettingsPageProvider);
-
+    addAutoReleasedObject(new QtDesignerFormClassCodeGenerator);
     // Ensure that loading designer translations is done before FormEditorW is instantiated
     const QString locale = Core::ICore::instance()->userInterfaceLanguage();
     if (!locale.isEmpty()) {

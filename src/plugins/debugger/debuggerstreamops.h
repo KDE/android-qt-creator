@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,17 +34,19 @@
 #ifndef DEBUGGERPLUGIN_STREAMOPS_H
 #define DEBUGGERPLUGIN_STREAMOPS_H
 
-#include "breakpoint.h"
-#include "stackframe.h"
 #include "threaddata.h"
-#include "watchdata.h"
-#include "disassemblerlines.h"
+#include "stackframe.h"
 
-#include <QtCore/QDataStream>
-#include <QtCore/QVector>
+QT_FORWARD_DECLARE_CLASS(QDataStream)
 
 namespace Debugger {
 namespace Internal {
+
+class BreakpointParameters;
+class BreakpointResponse;
+class WatchData;
+class DisassemblerLine;
+class DisassemblerLines;
 
 QDataStream &operator<<(QDataStream& stream, const ThreadData &thread);
 QDataStream &operator>>(QDataStream& stream, ThreadData &threads);

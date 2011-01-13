@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -1386,7 +1386,7 @@ void FakeVimPluginPrivate::switchToFile(int n)
     n = n % size;
     if (n < 0)
         n += size;
-    editorManager()->activateEditor(model->index(n, 0), 0);
+    editorManager()->activateEditorForIndex(model->index(n, 0));
 }
 
 CommandMap &FakeVimExCommandsPage::exCommandMap()

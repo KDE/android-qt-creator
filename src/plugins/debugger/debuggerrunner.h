@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,9 +35,9 @@
 #define DEBUGGERRUNNER_H
 
 #include "debugger_global.h"
-#include "debuggerconstants.h"
 
 #include <projectexplorer/runconfiguration.h>
+#include <projectexplorer/toolchaintype.h>
 
 #include <QtCore/QScopedPointer>
 
@@ -51,36 +51,24 @@ class DebuggerRunControl;
 class DebuggerStartParameters;
 
 namespace Internal {
-
 class DebuggerRunControlPrivate;
-
-class DebuggerRunControlFactory
-    : public ProjectExplorer::IRunControlFactory
-{
-public:
-    DebuggerRunControlFactory(QObject *parent, unsigned enabledEngines);
-
-    // This is used by the "Non-Standard" scenarios, e.g. Attach to Core.
-    // FIXME: What to do in case of a 0 runConfiguration?
-    typedef ProjectExplorer::RunConfiguration RunConfiguration;
-    typedef ProjectExplorer::RunControl RunControl;
-    DebuggerRunControl *create(const DebuggerStartParameters &sp,
-        RunConfiguration *runConfiguration = 0);
-
-    // ProjectExplorer::IRunControlFactory
-    // FIXME: Used by qmljsinspector.cpp:469
-    RunControl *create(RunConfiguration *runConfiguration, const QString &mode);
-    bool canRun(RunConfiguration *runConfiguration, const QString &mode) const;
-
-private:
-    QString displayName() const;
-    QWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
-
-    unsigned m_enabledEngines;
-};
-
+class DebuggerRunControlFactory;
 } // namespace Internal
 
+
+class DEBUGGER_EXPORT ConfigurationCheck
+{
+public:
+    ConfigurationCheck() {}
+    operator bool() const { return errorMessage.isEmpty(); }
+
+public:
+    QString errorMessage;
+    QString settingsCategory;
+    QString settingsPage;
+};
+
+DEBUGGER_EXPORT ConfigurationCheck checkDebugConfiguration(ProjectExplorer::ToolChainType toolChain);
 
 // This is a job description containing all data "local" to the jobs, including
 // the models of the individual debugger views.
@@ -92,7 +80,7 @@ class DEBUGGER_EXPORT DebuggerRunControl
 public:
     typedef ProjectExplorer::RunConfiguration RunConfiguration;
     DebuggerRunControl(RunConfiguration *runConfiguration,
-        unsigned enabledEngines, const DebuggerStartParameters &sp);
+        const DebuggerStartParameters &sp);
     ~DebuggerRunControl();
 
     // ProjectExplorer::RunControl
@@ -110,10 +98,6 @@ public:
 
     void showMessage(const QString &msg, int channel);
 
-    static bool checkDebugConfiguration(int toolChain,
-                                 QString *errorMessage,
-                                 QString *settingsCategory = 0,
-                                 QString *settingsPage = 0);
 signals:
     void engineRequestSetup();
 

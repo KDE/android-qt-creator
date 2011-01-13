@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -39,6 +39,7 @@
 #include "debuggerrunner.h"
 #include "debuggerstringutils.h"
 #include "debuggertooltip.h"
+#include "debuggerstartparameters.h"
 
 #include "memoryagent.h"
 #include "disassembleragent.h"
@@ -63,7 +64,6 @@
 #include <texteditor/itexteditor.h>
 #include <texteditor/basetextmark.h>
 
-#include <utils/environment.h>
 #include <utils/savedaction.h>
 #include <utils/qtcassert.h>
 
@@ -95,22 +95,15 @@ using namespace TextEditor;
 
 namespace Debugger {
 
-DebuggerStartParameters::DebuggerStartParameters() :
-    isSnapshot(false),
-    attachPID(-1),
-    useTerminal(false),
-    qmlServerAddress("127.0.0.1"),
-    qmlServerPort(0),
-    useServerStartScript(false),
-    connParams(SshConnectionParameters::NoProxy),
-    toolChainType(ToolChain_UNKNOWN),
-    startMode(NoStartMode),
-    executableUid(0)
-{}
-
-QString DebuggerStartParameters::toolChainName() const
+Internal::Location::Location(const StackFrame &frame, bool marker)
 {
-    return ToolChain::toolChainName(ProjectExplorer::ToolChainType(toolChainType));
+    init();
+    m_fileName = frame.file;
+    m_lineNumber = frame.line;
+    m_needsMarker = marker;
+    m_functionName = frame.function;
+    m_hasDebugInfo = frame.isUsable();
+    m_address = frame.address;
 }
 
 QDebug operator<<(QDebug d, DebuggerState state)
@@ -136,37 +129,6 @@ QDebug operator<<(QDebug str, const DebuggerStartParameters &sp)
             << " serverStartScript=" << sp.serverStartScript
             << " toolchain=" << sp.toolChainType << '\n';
     return str;
-}
-
-const char *DebuggerEngine::stateName(int s)
-{
-#    define SN(x) case x: return #x;
-    switch (s) {
-        SN(DebuggerNotReady)
-        SN(EngineSetupRequested)
-        SN(EngineSetupOk)
-        SN(EngineSetupFailed)
-        SN(EngineRunFailed)
-        SN(InferiorSetupRequested)
-        SN(InferiorSetupFailed)
-        SN(EngineRunRequested)
-        SN(InferiorRunRequested)
-        SN(InferiorRunOk)
-        SN(InferiorRunFailed)
-        SN(InferiorUnrunnable)
-        SN(InferiorStopRequested)
-        SN(InferiorStopOk)
-        SN(InferiorStopFailed)
-        SN(InferiorShutdownRequested)
-        SN(InferiorShutdownOk)
-        SN(InferiorShutdownFailed)
-        SN(EngineShutdownRequested)
-        SN(EngineShutdownOk)
-        SN(EngineShutdownFailed)
-        SN(DebuggerFinished)
-    }
-    return "<unknown>";
-#    undef SN
 }
 
 
@@ -203,8 +165,11 @@ class DebuggerEnginePrivate : public QObject
     Q_OBJECT
 
 public:
-    DebuggerEnginePrivate(DebuggerEngine *engine, const DebuggerStartParameters &sp)
+    DebuggerEnginePrivate(DebuggerEngine *engine,
+            DebuggerEngine *masterEngine,
+            const DebuggerStartParameters &sp)
       : m_engine(engine),
+        m_masterEngine(masterEngine),
         m_runControl(0),
         m_startParameters(sp),
         m_state(DebuggerNotReady),
@@ -216,7 +181,6 @@ public:
         m_stackHandler(),
         m_threadsHandler(),
         m_watchHandler(engine),
-        m_isSlaveEngine(false),
         m_disassemblerAgent(engine),
         m_memoryAgent(engine)
     {
@@ -288,6 +252,7 @@ public:
     DebuggerState state() const { return m_state; }
 
     DebuggerEngine *m_engine; // Not owned.
+    DebuggerEngine *m_masterEngine; // Not owned
     DebuggerRunControl *m_runControl;  // Not owned.
 
     DebuggerStartParameters m_startParameters;
@@ -311,7 +276,6 @@ public:
     WatchHandler m_watchHandler;
     QFutureInterface<void> m_progress;
 
-    bool m_isSlaveEngine;
     DisassemblerAgent m_disassemblerAgent;
     MemoryAgent m_memoryAgent;
     QScopedPointer<TextEditor::BaseTextMark> m_locationMark;
@@ -325,8 +289,9 @@ public:
 //
 //////////////////////////////////////////////////////////////////////
 
-DebuggerEngine::DebuggerEngine(const DebuggerStartParameters &startParameters)
-  : d(new DebuggerEnginePrivate(this, startParameters))
+DebuggerEngine::DebuggerEngine(const DebuggerStartParameters &startParameters,
+        DebuggerEngine *parentEngine)
+  : d(new DebuggerEnginePrivate(this, parentEngine, startParameters))
 {
 }
 
@@ -334,6 +299,37 @@ DebuggerEngine::~DebuggerEngine()
 {
     disconnect();
     delete d;
+}
+
+const char *DebuggerEngine::stateName(int s)
+{
+#    define SN(x) case x: return #x;
+    switch (s) {
+        SN(DebuggerNotReady)
+        SN(EngineSetupRequested)
+        SN(EngineSetupOk)
+        SN(EngineSetupFailed)
+        SN(EngineRunFailed)
+        SN(InferiorSetupRequested)
+        SN(InferiorSetupFailed)
+        SN(EngineRunRequested)
+        SN(InferiorRunRequested)
+        SN(InferiorRunOk)
+        SN(InferiorRunFailed)
+        SN(InferiorUnrunnable)
+        SN(InferiorStopRequested)
+        SN(InferiorStopOk)
+        SN(InferiorStopFailed)
+        SN(InferiorShutdownRequested)
+        SN(InferiorShutdownOk)
+        SN(InferiorShutdownFailed)
+        SN(EngineShutdownRequested)
+        SN(EngineShutdownOk)
+        SN(EngineShutdownFailed)
+        SN(DebuggerFinished)
+    }
+    return "<unknown>";
+#    undef SN
 }
 
 void DebuggerEngine::showStatusMessage(const QString &msg, int timeout) const
@@ -361,37 +357,49 @@ void DebuggerEngine::frameDown()
 
 ModulesHandler *DebuggerEngine::modulesHandler() const
 {
-    return &d->m_modulesHandler;
+    return d->m_masterEngine
+        ? d->m_masterEngine->modulesHandler()
+        : &d->m_modulesHandler;
 }
 
 RegisterHandler *DebuggerEngine::registerHandler() const
 {
-    return &d->m_registerHandler;
+    return d->m_masterEngine
+        ? d->m_masterEngine->registerHandler()
+        : &d->m_registerHandler;
 }
 
 StackHandler *DebuggerEngine::stackHandler() const
 {
-    return &d->m_stackHandler;
+    return d->m_masterEngine
+        ? d->m_masterEngine->stackHandler()
+        : &d->m_stackHandler;
 }
 
 ThreadsHandler *DebuggerEngine::threadsHandler() const
 {
-    return &d->m_threadsHandler;
+    return d->m_masterEngine
+        ? d->m_masterEngine->threadsHandler()
+        : &d->m_threadsHandler;
 }
 
 WatchHandler *DebuggerEngine::watchHandler() const
 {
-    return &d->m_watchHandler;
+    return d->m_masterEngine
+        ? d->m_masterEngine->watchHandler()
+        : &d->m_watchHandler;
 }
 
 SourceFilesHandler *DebuggerEngine::sourceFilesHandler() const
 {
-    return &d->m_sourceFilesHandler;
+    return d->m_masterEngine
+        ? d->m_masterEngine->sourceFilesHandler()
+        : &d->m_sourceFilesHandler;
 }
 
 QAbstractItemModel *DebuggerEngine::modulesModel() const
 {
-    QAbstractItemModel *model = d->m_modulesHandler.model();
+    QAbstractItemModel *model = modulesHandler()->model();
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("ModulesModel"));
     return model;
@@ -399,7 +407,7 @@ QAbstractItemModel *DebuggerEngine::modulesModel() const
 
 QAbstractItemModel *DebuggerEngine::registerModel() const
 {
-    QAbstractItemModel *model = d->m_registerHandler.model();
+    QAbstractItemModel *model = registerHandler()->model();
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("RegisterModel"));
     return model;
@@ -407,7 +415,7 @@ QAbstractItemModel *DebuggerEngine::registerModel() const
 
 QAbstractItemModel *DebuggerEngine::stackModel() const
 {
-    QAbstractItemModel *model = d->m_stackHandler.model();
+    QAbstractItemModel *model = stackHandler()->model();
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("StackModel"));
     return model;
@@ -415,7 +423,7 @@ QAbstractItemModel *DebuggerEngine::stackModel() const
 
 QAbstractItemModel *DebuggerEngine::threadsModel() const
 {
-    QAbstractItemModel *model = d->m_threadsHandler.model();
+    QAbstractItemModel *model = threadsHandler()->model();
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("ThreadsModel"));
     return model;
@@ -423,7 +431,7 @@ QAbstractItemModel *DebuggerEngine::threadsModel() const
 
 QAbstractItemModel *DebuggerEngine::localsModel() const
 {
-    QAbstractItemModel *model = d->m_watchHandler.model(LocalsWatch);
+    QAbstractItemModel *model = watchHandler()->model(LocalsWatch);
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("LocalsModel"));
     return model;
@@ -431,7 +439,7 @@ QAbstractItemModel *DebuggerEngine::localsModel() const
 
 QAbstractItemModel *DebuggerEngine::watchersModel() const
 {
-    QAbstractItemModel *model = d->m_watchHandler.model(WatchersWatch);
+    QAbstractItemModel *model = watchHandler()->model(WatchersWatch);
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("WatchersModel"));
     return model;
@@ -439,7 +447,7 @@ QAbstractItemModel *DebuggerEngine::watchersModel() const
 
 QAbstractItemModel *DebuggerEngine::returnModel() const
 {
-    QAbstractItemModel *model = d->m_watchHandler.model(ReturnWatch);
+    QAbstractItemModel *model = watchHandler()->model(ReturnWatch);
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("ReturnModel"));
     return model;
@@ -447,7 +455,7 @@ QAbstractItemModel *DebuggerEngine::returnModel() const
 
 QAbstractItemModel *DebuggerEngine::sourceFilesModel() const
 {
-    QAbstractItemModel *model = d->m_sourceFilesHandler.model();
+    QAbstractItemModel *model = sourceFilesHandler()->model();
     if (model->objectName().isEmpty()) // Make debugging easier.
         model->setObjectName(objectName() + QLatin1String("SourceFilesModel"));
     return model;
@@ -1046,12 +1054,12 @@ void DebuggerEngine::updateViews()
 
 bool DebuggerEngine::isSlaveEngine() const
 {
-    return d->m_isSlaveEngine;
+    return d->m_masterEngine != 0;
 }
 
-void DebuggerEngine::setSlaveEngine(bool value)
+DebuggerEngine *DebuggerEngine::masterEngine() const
 {
-    d->m_isSlaveEngine = value;
+    return d->m_masterEngine;
 }
 
 bool DebuggerEngine::debuggerActionsEnabled() const

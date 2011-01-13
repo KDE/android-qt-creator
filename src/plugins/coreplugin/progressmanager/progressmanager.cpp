@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -299,7 +299,11 @@ FutureProgress *ProgressManagerPrivate::addTask(const QFuture<void> &future, con
     m_runningTasks.insert(watcher, type);
     connect(watcher, SIGNAL(finished()), this, SLOT(taskFinished()));
     if (flags & ShowInApplicationIcon) {
+        if (m_applicationTask)
+            disconnectApplicationTask();
         m_applicationTask = watcher;
+        setApplicationProgressRange(future.progressMinimum(), future.progressMaximum());
+        setApplicationProgressValue(future.progressValue());
         connect(m_applicationTask, SIGNAL(progressRangeChanged(int,int)),
                 this, SLOT(setApplicationProgressRange(int,int)));
         connect(m_applicationTask, SIGNAL(progressValueChanged(int)),

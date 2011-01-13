@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,12 +34,12 @@
 #include "maemoremotemounter.h"
 
 #include "maemoglobal.h"
-#include "maemotoolchain.h"
 #include "maemousedportsgatherer.h"
 
 #include <coreplugin/ssh/sftpchannel.h>
 #include <coreplugin/ssh/sshconnection.h>
 #include <coreplugin/ssh/sshremoteprocess.h>
+#include <qt4projectmanager/qt4buildconfiguration.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QTimer>
@@ -70,11 +70,12 @@ void MaemoRemoteMounter::setConnection(const SshConnection::Ptr &connection)
     m_connection = connection;
 }
 
-void MaemoRemoteMounter::setToolchain(const MaemoToolChain *toolChain)
+void MaemoRemoteMounter::setBuildConfiguration(const Qt4BuildConfiguration *bc)
 {
     ASSERT_STATE(Inactive);
-    m_remoteMountsAllowed = toolChain->allowsRemoteMounts();
-    m_maddeRoot = toolChain->maddeRoot();
+    const QtVersion * const qtVersion = bc->qtVersion();
+    m_remoteMountsAllowed = MaemoGlobal::allowsRemoteMounts(qtVersion);
+    m_maddeRoot = MaemoGlobal::maddeRoot(qtVersion);
 }
 
 void MaemoRemoteMounter::addMountSpecification(const MaemoMountSpecification &mountSpec,

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -58,12 +58,18 @@ QTCREATOR_UTILS_EXPORT QString winGetDLLVersion(WinDLLVersionType t,
 QTCREATOR_UTILS_EXPORT QString getShortPathName(const QString &name,
                                                 QString *errorMessage);
 
+// Returns long name
+QTCREATOR_UTILS_EXPORT QString getLongPathName(const QString &name,
+                                               QString *errorMessage);
+
 QTCREATOR_UTILS_EXPORT unsigned long winQPidToPid(const Q_PID qpid);
 
 QTCREATOR_UTILS_EXPORT bool winIs64BitSystem();
 
 // Check for a 64bit binary.
 QTCREATOR_UTILS_EXPORT bool winIs64BitBinary(const QString &binary);
+
+
 
 } // namespace Utils
 #endif // WINUTILS_H

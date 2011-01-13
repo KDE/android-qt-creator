@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -47,7 +47,6 @@
 #include "maemoglobal.h"
 #include "maemopackagecreationwidget.h"
 #include "maemotemplatesmanager.h"
-#include "maemotoolchain.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -172,16 +171,17 @@ bool MaemoPackageCreationStep::createPackage(QProcess *buildProc)
     if (!copyDebianFiles(inSourceBuild))
         return false;
 
-    const QString maddeRoot = maemoToolChain()->maddeRoot();
-    const QString madCommand = maddeRoot + QLatin1String("/bin/mad");
+    const QtVersion * const qtVersion = qt4BuildConfiguration()->qtVersion();
+    const QString madCommand = MaemoGlobal::madCommand(qtVersion);
     const QStringList args = QStringList() << QLatin1String("-t")
-        << maemoToolChain()->targetName() << QLatin1String("dpkg-buildpackage")
-        << QLatin1String("-nc") << QLatin1String("-uc") << QLatin1String("-us");
+        << MaemoGlobal::targetName(qtVersion)
+        << QLatin1String("dpkg-buildpackage") << QLatin1String("-nc")
+        << QLatin1String("-uc") << QLatin1String("-us");
     const QString cmdLine = madCommand + QLatin1Char(' ')
         + args.join(QLatin1String(" "));
     emit addOutput(tr("Package Creation: Running command '%1'.").arg(cmdLine),
         BuildStep::MessageOutput);
-    MaemoGlobal::callMaddeShellScript(*buildProc, maddeRoot, madCommand, args);
+    MaemoGlobal::callMad(*buildProc, args, qtVersion);
     if (!buildProc->waitForStarted()) {
         raiseError(tr("Packaging failed."),
             tr("Packaging error: Could not start command '%1'. Reason: %2")
@@ -233,7 +233,7 @@ bool MaemoPackageCreationStep::createPackage(QProcess *buildProc)
     emit addOutput(tr("Package created."), BuildStep::MessageOutput);
     deployStep()->deployables()->setUnmodified();
     if (inSourceBuild) {
-        buildProc->start(packagingCommand(maemoToolChain(),
+        buildProc->start(packagingCommand(qt4BuildConfiguration(),
             QLatin1String("dh_clean")));
         buildProc->waitForFinished();
         buildProc->terminate();
@@ -285,7 +285,7 @@ bool MaemoPackageCreationStep::copyDebianFiles(bool inSourceBuild)
         }
 
         if (fileName == QLatin1String("rules"))
-            updateDesktopFiles(destFile);
+            adaptRulesFile(destFile);
     }
 
     QFile magicFile(magicFilePath);
@@ -341,11 +341,6 @@ QString MaemoPackageCreationStep::projectName() const
         ->rootProjectNode()->displayName().toLower();
 }
 
-const MaemoToolChain *MaemoPackageCreationStep::maemoToolChain() const
-{
-    return static_cast<MaemoToolChain *>(qt4BuildConfiguration()->toolChain());
-}
-
 MaemoDeployStep *MaemoPackageCreationStep::deployStep() const
 {
     MaemoDeployStep * const deployStep
@@ -353,16 +348,6 @@ MaemoDeployStep *MaemoPackageCreationStep::deployStep() const
     Q_ASSERT(deployStep &&
         "Fatal error: Maemo build configuration without deploy step.");
     return deployStep;
-}
-
-QString MaemoPackageCreationStep::maddeRoot() const
-{
-    return maemoToolChain()->maddeRoot();
-}
-
-QString MaemoPackageCreationStep::targetRoot() const
-{
-    return maemoToolChain()->targetRoot();
 }
 
 bool MaemoPackageCreationStep::packagingNeeded() const
@@ -427,7 +412,8 @@ QString MaemoPackageCreationStep::packageFilePath() const
 
 bool MaemoPackageCreationStep::isPackagingEnabled() const
 {
-    return m_packagingEnabled || !maemoToolChain()->allowsPackagingDisabling();
+    return m_packagingEnabled
+        || !MaemoGlobal::allowsPackagingDisabling(qt4BuildConfiguration()->qtVersion());
 }
 
 QString MaemoPackageCreationStep::versionString(QString *error) const
@@ -463,13 +449,8 @@ void MaemoPackageCreationStep::raiseError(const QString &shortMsg,
 bool MaemoPackageCreationStep::preparePackagingProcess(QProcess *proc,
     const Qt4BuildConfiguration *bc, const QString &workingDir, QString *error)
 {
-    const MaemoToolChain * const tc
-        = dynamic_cast<const MaemoToolChain *>(bc->toolChain());
-    if (!tc) {
-        *error = tr("Build configuration has no Maemo toolchain.");
-        return false;
-    }
-    QFile configFile(tc->targetRoot() % QLatin1String("/config.sh"));
+    const QString targetRoot = MaemoGlobal::targetRoot(bc->qtVersion());
+    QFile configFile(targetRoot % QLatin1String("/config.sh"));
     if (!configFile.open(QIODevice::ReadOnly)) {
         *error = tr("Cannot open MADDE config file '%1'.")
             .arg(nativePath(configFile));
@@ -478,11 +459,12 @@ bool MaemoPackageCreationStep::preparePackagingProcess(QProcess *proc,
 
     Utils::Environment env = bc->environment();
     const QString &path
-        = QDir::toNativeSeparators(tc->maddeRoot() + QLatin1Char('/'));
+        = QDir::toNativeSeparators(MaemoGlobal::maddeRoot(bc->qtVersion())
+              + QLatin1Char('/'));
 #ifdef Q_OS_WIN
     env.prependOrSetPath(path % QLatin1String("bin"));
 #endif
-    env.prependOrSetPath(tc->targetRoot() % QLatin1String("/bin"));
+    env.prependOrSetPath(targetRoot % QLatin1String("/bin"));
     env.prependOrSetPath(path % QLatin1String("madbin"));
 
     if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild) {
@@ -512,14 +494,15 @@ bool MaemoPackageCreationStep::preparePackagingProcess(QProcess *proc,
     return true;
 }
 
-QString MaemoPackageCreationStep::packagingCommand(const MaemoToolChain *tc,
+QString MaemoPackageCreationStep::packagingCommand(const Qt4BuildConfiguration *bc,
     const QString &commandName)
 {
     QString perl;
+    const QString maddeRoot = MaemoGlobal::maddeRoot(bc->qtVersion());
 #ifdef Q_OS_WIN
-    perl = tc->maddeRoot() + QLatin1String("/bin/perl.exe ");
+    perl = maddeRoot + QLatin1String("/bin/perl.exe ");
 #endif
-    return perl + tc->maddeRoot() % QLatin1String("/madbin/") % commandName;
+    return perl + maddeRoot % QLatin1String("/madbin/") % commandName;
 }
 
 void MaemoPackageCreationStep::checkProjectName()
@@ -553,7 +536,19 @@ QString MaemoPackageCreationStep::packageFileName(const ProjectExplorer::Project
         % QLatin1String("_armel.deb");
 }
 
-void MaemoPackageCreationStep::updateDesktopFiles(const QString &rulesFilePath)
+void MaemoPackageCreationStep::ensureShlibdeps(QByteArray &rulesContent)
+{
+    QString contentAsString = QString::fromLocal8Bit(rulesContent);
+    const QString whiteSpace(QLatin1String("[ \\t]*"));
+    const QString pattern = QLatin1String("\\n") + whiteSpace
+        + QLatin1Char('#') + whiteSpace + QLatin1String("dh_shlibdeps")
+        + QLatin1String("[^\\n]*\\n");
+    contentAsString.replace(QRegExp(pattern),
+        QLatin1String("\n\tdh_shlibdeps\n"));
+    rulesContent = contentAsString.toLocal8Bit();
+}
+
+void MaemoPackageCreationStep::adaptRulesFile(const QString &rulesFilePath)
 {
     QFile rulesFile(rulesFilePath);
     rulesFile.setPermissions(rulesFile.permissions() | QFile::ExeUser);
@@ -571,7 +566,10 @@ void MaemoPackageCreationStep::updateDesktopFiles(const QString &rulesFilePath)
     QString desktopFileDir = QFileInfo(rulesFile).dir().path()
         + QLatin1Char('/') + projectName()
         + QLatin1String("/usr/share/applications/");
-    if (maemoToolChain()->version() == MaemoToolChain::Maemo5)
+    const Qt4BuildConfiguration * const bc = qt4BuildConfiguration();
+    const MaemoGlobal::MaemoVersion version
+        = MaemoGlobal::version(bc->qtVersion());
+    if (version == MaemoGlobal::Maemo5)
         desktopFileDir += QLatin1String("hildon/");
 #ifdef Q_OS_WIN
     desktopFileDir.remove(QLatin1Char(':'));
@@ -583,7 +581,7 @@ void MaemoPackageCreationStep::updateDesktopFiles(const QString &rulesFilePath)
             = deployStep()->deployables()->modelAt(i);
         if (!model->hasDesktopFile())
             continue;
-        if (maemoToolChain()->version() == MaemoToolChain::Maemo6) {
+        if (version == MaemoGlobal::Maemo6) {
             addWorkaroundForHarmattanBug(content, insertPos,
                 model, desktopFileDir);
         }
@@ -600,6 +598,11 @@ void MaemoPackageCreationStep::updateDesktopFiles(const QString &rulesFilePath)
         addSedCmdToRulesFile(content, insertPos, desktopFilePath, lineBefore,
             lineAfter);
     }
+
+    // Always check for dependencies in release builds.
+    if (!(bc->qmakeBuildConfiguration() & QtVersion::DebugBuild))
+        ensureShlibdeps(content);
+
     rulesFile.resize(0);
     rulesFile.write(content);
 }

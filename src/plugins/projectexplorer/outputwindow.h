@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,6 +34,7 @@
 #ifndef OUTPUTWINDOW_H
 #define OUTPUTWINDOW_H
 
+#include "outputformat.h"
 #include <coreplugin/ioutputpane.h>
 
 #include <QtGui/QPlainTextEdit>
@@ -88,6 +89,7 @@ public:
     void goToPrev();
     bool canNavigate();
 
+    void createNewOutputWindow(RunControl *rc);
     void showTabFor(RunControl *rc);
 
     bool aboutToClose() const;
@@ -97,15 +99,11 @@ signals:
      void allRunControlsFinished();
 
 public slots:
-    // ApplicationOutputspecifics
-    void createNewOutputWindow(RunControl *rc);
+    // ApplicationOutput specifics
     void projectRemoved();
 
-    void appendApplicationOutput(ProjectExplorer::RunControl *rc, const QString &out,
-                                 bool onStdErr);
-    void appendApplicationOutputInline(ProjectExplorer::RunControl *rc, const QString &out,
-                                       bool onStdErr);
-    void appendMessage(ProjectExplorer::RunControl *rc, const QString &out, bool isError);
+    void appendMessage(ProjectExplorer::RunControl *rc, const QString &out,
+                       ProjectExplorer::OutputFormat format);
 
 private slots:
     void reRunRunControl();
@@ -157,9 +155,7 @@ public:
     OutputFormatter* formatter() const;
     void setFormatter(OutputFormatter *formatter);
 
-    void appendApplicationOutput(const QString &out, bool onStdErr);
-    void appendApplicationOutputInline(const QString &out, bool onStdErr);
-    void appendMessage(const QString &out, bool isError);
+    void appendMessage(const QString &out, OutputFormat format);
     /// appends a \p text using \p format without using formater
     void appendText(const QString &text, const QTextCharFormat &format, int maxLineCount);
 

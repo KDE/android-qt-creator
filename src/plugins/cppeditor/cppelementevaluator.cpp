@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,7 +34,6 @@
 #include "cppelementevaluator.h"
 
 #include <coreplugin/ifile.h>
-#include <cpptools/cppmodelmanagerinterface.h>
 
 #include <FullySpecifiedType.h>
 #include <Names.h>
@@ -42,6 +41,7 @@
 #include <Scope.h>
 #include <Symbol.h>
 #include <Symbols.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <cplusplus/ExpressionUnderCursor.h>
 #include <cplusplus/Overview.h>
 #include <cplusplus/TypeOfExpression.h>
@@ -86,7 +86,7 @@ namespace {
 
 CppElementEvaluator::CppElementEvaluator(CPPEditor *editor) :
     m_editor(editor),
-    m_modelManager(CppTools::CppModelManagerInterface::instance()),
+    m_modelManager(CppModelManagerInterface::instance()),
     m_tc(editor->textCursor()),
     m_lookupBaseClasses(false)
 {}

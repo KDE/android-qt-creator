@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,6 +36,7 @@
 
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
+#include "outputformat.h"
 
 #include <QtCore/QMetaType>
 #include <QtCore/QWeakPointer>
@@ -200,15 +201,15 @@ public:
     OutputFormatter *outputFormatter();
     QString runMode() const;
 
-signals:
-    void addToOutputWindow(ProjectExplorer::RunControl *, const QString &line, bool onStdErr);
-    void addToOutputWindowInline(ProjectExplorer::RunControl *, const QString &line, bool onStdErr);
-    void appendMessage(ProjectExplorer::RunControl *, const QString &error, bool isError);
-    void started();
-    void finished();
-
 public slots:
     void bringApplicationToForeground(qint64 pid);
+    void appendMessage(const QString &msg, ProjectExplorer::OutputFormat format);
+
+signals:
+    void appendMessage(ProjectExplorer::RunControl *runControl,
+        const QString &msg, ProjectExplorer::OutputFormat format);
+    void started();
+    void finished();
 
 private slots:
     void bringApplicationToForegroundInternal();

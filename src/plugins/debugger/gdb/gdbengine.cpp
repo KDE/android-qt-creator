@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,6 +35,8 @@
 
 #include "gdbengine.h"
 
+#include "debuggerstartparameters.h"
+#include "disassemblerlines.h"
 #include "attachgdbadapter.h"
 #include "coregdbadapter.h"
 #include "localplaingdbadapter.h"
@@ -174,11 +176,11 @@ static QByteArray parsePlainConsoleStream(const GdbResponse &response)
 //
 ///////////////////////////////////////////////////////////////////////
 
-GdbEngine::GdbEngine(const DebuggerStartParameters &startParameters)
-  : DebuggerEngine(startParameters)
+GdbEngine::GdbEngine(const DebuggerStartParameters &startParameters,
+        DebuggerEngine *masterEngine)
+  : DebuggerEngine(startParameters, masterEngine)
 {
     setObjectName(QLatin1String("GdbEngine"));
-    qRegisterMetaType<WatchData>("WatchData");
 
     m_busy = false;
     m_gdbAdapter = 0;
@@ -769,7 +771,7 @@ void GdbEngine::flushCommand(const GdbCommand &cmd0)
 int GdbEngine::commandTimeoutTime() const
 {
     int time = debuggerCore()->action(GdbWatchdogTimeout)->value().toInt();
-    return 1000 * qMax(20, time);
+    return 1000 * qMax(40, time);
 }
 
 void GdbEngine::commandTimeout()
@@ -2067,7 +2069,10 @@ void GdbEngine::updateBreakpointDataFromOutput(BreakpointId id, const GdbMi &bkp
         } else if (child.hasName("fullname")) {
             fullName = child.data();
         } else if (child.hasName("line")) {
-            response.lineNumber = child.data().toInt();
+            // The line numbers here are the uncorrected ones. So don't
+            // change it if we know better already.
+            if (response.correctedLineNumber == 0)
+                response.lineNumber = child.data().toInt();
         } else if (child.hasName("cond")) {
             // gdb 6.3 likes to "rewrite" conditions. Just accept that fact.
             response.condition = child.data();
@@ -2476,6 +2481,7 @@ void GdbEngine::handleInfoLine(const GdbResponse &response)
             const int line = ba.mid(5, pos - 5).toInt();
             BreakpointResponse br = breakHandler()->response(id);
             br.lineNumber = line;
+            br.correctedLineNumber = line;
             breakHandler()->setResponse(id, br);
         }
     }
@@ -2768,6 +2774,8 @@ void GdbEngine::handleModulesList(const GdbResponse &response)
                 // gdb 6.4 symbianelf
                 ts >> symbolsRead;
                 QTC_ASSERT(symbolsRead == __("No"), continue);
+                module.startAddress = 0;
+                module.endAddress = 0;
                 module.moduleName = ts.readLine().trimmed();
                 modules.append(module);
             }
@@ -4114,26 +4122,31 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &gdb, const QStr
     const QString pythonPathVariable = QLatin1String("PYTHONPATH");
     QString pythonPath;
 
+    const QString environmentPythonPath = environment.value(pythonPathVariable);
     if (dir.exists(winPythonVersion)) {
         pythonPath = QDir::toNativeSeparators(dir.absoluteFilePath(winPythonVersion));
     } else if (dir.exists(QLatin1String("lib"))) { // Needed for our gdb 7.2 packages
         pythonPath = QDir::toNativeSeparators(dir.absoluteFilePath(QLatin1String("lib")));
     } else {
-        if (environment.contains(pythonPathVariable)) {
-            pythonPath = environment.value(pythonPathVariable);
-        } else {
-            showMessage(_("GDB %1 CANNOT FIND PYTHON INSTALLATION.").arg(m_gdb));
-            showStatusMessage(_("Gdb at %1 cannot find python").arg(m_gdb));
-            const QString msg = tr("The gdb installed at %1 cannot "
-                "find a valid python installation in its %2 subdirectory.\n"
-                "You may set the PYTHONPATH to your installation.")
-                    .arg(m_gdb).arg(winPythonVersion);
-            handleAdapterStartFailed(msg, settingsIdHint);
-            return false;
-        }
+        pythonPath = environmentPythonPath;
     }
-    environment.insert(pythonPathVariable, pythonPath);
+    if (pythonPath.isEmpty()) {
+        const QString nativeGdb = QDir::toNativeSeparators(m_gdb);
+        showMessage(_("GDB %1 CANNOT FIND THE PYTHON INSTALLATION.").arg(nativeGdb));
+        showStatusMessage(_("%1 cannot find python").arg(nativeGdb));
+        const QString msg = tr("The gdb installed at %1 cannot "
+                               "find a valid python installation in its %2 subdirectory.\n"
+                               "You may set the PYTHONPATH to your installation.")
+                .arg(nativeGdb).arg(winPythonVersion);
+        handleAdapterStartFailed(msg, settingsIdHint);
+        return false;
+    }
     showMessage(_("Python path: %1").arg(pythonPath), LogMisc);
+    // Apply to process
+    if (pythonPath != environmentPythonPath) {
+        environment.insert(pythonPathVariable, pythonPath);
+        gdbProc()->setProcessEnvironment(environment);
+    }
 #endif
 
     connect(gdbProc(), SIGNAL(error(QProcess::ProcessError)),
@@ -4488,9 +4501,10 @@ void GdbEngine::handleRemoteSetupFailed(const QString &message)
 // Factory
 //
 
-DebuggerEngine *createGdbEngine(const DebuggerStartParameters &startParameters)
+DebuggerEngine *createGdbEngine(const DebuggerStartParameters &startParameters,
+    DebuggerEngine *masterEngine)
 {
-    return new GdbEngine(startParameters);
+    return new GdbEngine(startParameters, masterEngine);
 }
 
 void addGdbOptionPages(QList<Core::IOptionsPage *> *opts)

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -71,17 +71,9 @@ QString ProjectFileFactory::displayName() const
 
 Core::IFile *ProjectFileFactory::open(const QString &fileName)
 {
-    Core::IFile *fIFace = 0;
-
     ProjectExplorerPlugin *pe = ProjectExplorerPlugin::instance();
-    if (!pe->openProject(fileName)) {
-        Core::ICore::instance()->messageManager()->printToOutputPane(tr("Could not open the following project: '%1'").arg(fileName));
-    } else if (pe->session()) {
-        SessionManager *session = pe->session();
-        if (session->projects().count() == 1)
-            fIFace = session->projects().first()->file();
-    }
-    return fIFace;
+    pe->openProject(fileName);
+    return 0;
 }
 
 QList<ProjectFileFactory *> ProjectFileFactory::createFactories(QString *filterString)

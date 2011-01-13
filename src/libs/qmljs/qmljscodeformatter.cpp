@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -468,6 +468,18 @@ int CodeFormatter::indentFor(const QTextBlock &block)
 
     restoreCurrentState(block.previous());
     correctIndentation(block);
+    return m_indentDepth;
+}
+
+int CodeFormatter::indentForNewLineAfter(const QTextBlock &block)
+{
+    restoreCurrentState(block);
+
+    int lexerState = loadLexerState(block);
+    m_tokens.clear();
+    m_currentLine.clear();
+    adjustIndent(m_tokens, lexerState, &m_indentDepth);
+
     return m_indentDepth;
 }
 

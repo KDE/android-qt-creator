@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -40,10 +40,10 @@
 #include "codemodelhelpers.h"
 #include <widgethost.h>
 
-#include <cpptools/cppmodelmanagerinterface.h>
 #include <cpptools/cpprefactoringchanges.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/insertionpointlocator.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <cplusplus/Symbols.h>
 #include <cplusplus/Overview.h>
 #include <cplusplus/CoreTypes.h>
@@ -87,12 +87,6 @@ static QString msgClassNotFound(const QString &uiClassName, const QList<Document
         files += doc->fileName();
     }
     return QtCreatorIntegration::tr("The class definition of '%1' could not be found in %2.").arg(uiClassName, files);
-}
-
-static inline CppTools::CppModelManagerInterface *cppModelManagerInstance()
-{
-    return ExtensionSystem::PluginManager::instance()
-        ->getObject<CppTools::CppModelManagerInterface>();
 }
 
 QtCreatorIntegration::QtCreatorIntegration(QDesignerFormEditorInterface *core, FormEditorW *parent) :
@@ -259,7 +253,7 @@ static Function *findDeclaration(const Class *cl, const QString &functionName)
 // TODO: remove me, this is taken from cppeditor.cpp. Find some common place for this method
 static Document::Ptr findDefinition(Function *functionDeclaration, int *line)
 {
-    if (CppTools::CppModelManagerInterface *cppModelManager = cppModelManagerInstance()) {
+    if (CppModelManagerInterface *cppModelManager = CppModelManagerInterface::instance()) {
         const Snapshot snapshot = cppModelManager->snapshot();
 
         if (Symbol *def = snapshot.findMatchingDefinition(functionDeclaration)) {
@@ -490,7 +484,7 @@ static inline QString uiClassName(QString formObjectName)
     return formObjectName;
 }
 
-static Document::Ptr getParsedDocument(const QString &fileName, CppTools::CppModelManagerInterface::WorkingCopy &workingCopy, Snapshot &snapshot)
+static Document::Ptr getParsedDocument(const QString &fileName, CppModelManagerInterface::WorkingCopy &workingCopy, Snapshot &snapshot)
 {
     QString src;
     if (workingCopy.contains(fileName)) {
@@ -537,7 +531,7 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
         *errorMessage = tr("Internal error: No project could be found for %1.").arg(currentUiFile);
         return false;
     }
-    CPlusPlus::Snapshot docTable = cppModelManagerInstance()->snapshot();
+    CPlusPlus::Snapshot docTable = CppModelManagerInterface::instance()->snapshot();
     CPlusPlus::Snapshot newDocTable;
 
     for  (CPlusPlus::Snapshot::iterator it = docTable.begin(); it != docTable.end(); ++it) {
@@ -606,7 +600,8 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
         }
     } else {
         // add function declaration to cl
-        CppTools::CppModelManagerInterface::WorkingCopy workingCopy = cppModelManagerInstance()->workingCopy();
+        CppModelManagerInterface::WorkingCopy workingCopy =
+            CppModelManagerInterface::instance()->workingCopy();
         const QString fileName = doc->fileName();
         getParsedDocument(fileName, workingCopy, docTable);
         addDeclaration(docTable, fileName, cl, functionNameWithParameterNames);

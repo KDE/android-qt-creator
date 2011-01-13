@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -582,7 +582,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     mbuild->addAction(cmd, Constants::G_BUILD_SESSION);
     msessionContextMenu->addAction(cmd, Constants::G_SESSION_BUILD);
     // Add to mode bar
-    modeManager->addAction(cmd, Constants::P_ACTION_BUILDSESSION);
+    modeManager->addAction(cmd->action(), Constants::P_ACTION_BUILDSESSION);
 
     // rebuild session action
     QIcon rebuildIcon(Constants::ICON_REBUILD);
@@ -705,7 +705,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+R")));
     mbuild->addAction(cmd, Constants::G_BUILD_RUN);
 
-    modeManager->addAction(cmd, Constants::P_ACTION_RUN);
+    modeManager->addAction(cmd->action(), Constants::P_ACTION_RUN);
 
     d->m_runActionContextMenu = new QAction(runIcon, tr("Run"), this);
     cmd = am->registerAction(d->m_runActionContextMenu, Constants::RUNCONTEXTMENU, projecTreeContext);
@@ -746,6 +746,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     d->m_removeFileAction = new QAction(tr("Remove File..."), this);
     cmd = am->registerAction(d->m_removeFileAction, ProjectExplorer::Constants::REMOVEFILE,
                        projecTreeContext);
+    cmd->setDefaultKeySequence(QKeySequence::Delete);
     mfileContextMenu->addAction(cmd, Constants::G_FILE_OTHER);
 
     //: Remove project from parent profile (Project explorer view); will not physically delete any files.
@@ -758,6 +759,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     d->m_deleteFileAction = new QAction(tr("Delete File..."), this);
     cmd = am->registerAction(d->m_deleteFileAction, ProjectExplorer::Constants::DELETEFILE,
                              projecTreeContext);
+    cmd->setDefaultKeySequence(QKeySequence::Delete);
     mfileContextMenu->addAction(cmd, Constants::G_FILE_OTHER);
 
     // renamefile action
@@ -825,6 +827,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
         d->m_projectExplorerSettings.deployBeforeRun = s->value("ProjectExplorer/Settings/DeployBeforeRun", true).toBool();
         d->m_projectExplorerSettings.saveBeforeBuild = s->value("ProjectExplorer/Settings/SaveBeforeBuild", false).toBool();
         d->m_projectExplorerSettings.showCompilerOutput = s->value("ProjectExplorer/Settings/ShowCompilerOutput", false).toBool();
+        d->m_projectExplorerSettings.showRunOutput = s->value("ProjectExplorer/Settings/ShowRunOutput", true).toBool();
         d->m_projectExplorerSettings.cleanOldAppOutput = s->value("ProjectExplorer/Settings/CleanOldAppOutput", false).toBool();
         d->m_projectExplorerSettings.wrapAppOutput = s->value("ProjectExplorer/Settings/WrapAppOutput", true).toBool();
         d->m_projectExplorerSettings.useJom = s->value("ProjectExplorer/Settings/UseJom", true).toBool();
@@ -884,19 +887,6 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     return true;
 }
 
-ProjectFileFactory *ProjectExplorerPlugin::findProjectFileFactory(const QString &filename) const
-{
-    // Find factory
-    if (const Core::MimeType mt = Core::ICore::instance()->mimeDatabase()->findByFile(QFileInfo(filename))) {
-        const QString mimeType = mt.type();
-        foreach (ProjectFileFactory *f, d->m_fileFactories)
-            if (f->mimeTypes().contains(mimeType))
-                return f;
-    }
-    qWarning("Unable to find project file factory for '%s'", filename.toUtf8().constData());
-    return 0;
-}
-
 void ProjectExplorerPlugin::loadAction()
 {
     if (debug)
@@ -920,8 +910,7 @@ void ProjectExplorerPlugin::loadAction()
                                                     d->m_projectFilterString);
     if (filename.isEmpty())
         return;
-    if (ProjectFileFactory *pf = findProjectFileFactory(filename))
-        pf->open(filename);
+    loadProject(filename);
     updateActions();
 }
 
@@ -1098,11 +1087,24 @@ void ProjectExplorerPlugin::savePersistentSettings()
         s->setValue("ProjectExplorer/Settings/DeployBeforeRun", d->m_projectExplorerSettings.deployBeforeRun);
         s->setValue("ProjectExplorer/Settings/SaveBeforeBuild", d->m_projectExplorerSettings.saveBeforeBuild);
         s->setValue("ProjectExplorer/Settings/ShowCompilerOutput", d->m_projectExplorerSettings.showCompilerOutput);
+        s->setValue("ProjectExplorer/Settings/ShowRunOutput", d->m_projectExplorerSettings.showRunOutput);
         s->setValue("ProjectExplorer/Settings/CleanOldAppOutput", d->m_projectExplorerSettings.cleanOldAppOutput);
         s->setValue("ProjectExplorer/Settings/WrapAppOutput", d->m_projectExplorerSettings.wrapAppOutput);
         s->setValue("ProjectExplorer/Settings/UseJom", d->m_projectExplorerSettings.useJom);
         s->setValue("ProjectExplorer/Settings/AutoRestoreLastSession", d->m_projectExplorerSettings.autorestoreLastSession);
         s->setValue("ProjectExplorer/Settings/EnvironmentId", d->m_projectExplorerSettings.environmentId.toString());
+    }
+}
+
+void ProjectExplorerPlugin::loadProject(const QString &project)
+{
+    if (!openProject(project)) {
+        QMessageBox box(QMessageBox::Warning,
+                        tr("Failed to open project"),
+                        tr("Failed to open project:\n%1").arg(project),
+                        QMessageBox::Ok,
+                        Core::ICore::instance()->mainWindow());
+        box.exec();
     }
 }
 
@@ -1157,11 +1159,8 @@ QList<Project *> ProjectExplorerPlugin::openProjects(const QStringList &fileName
     }
     updateActions();
 
-    if (openedPro.isEmpty()) {
-        qDebug() << "ProjectExplorerPlugin - Could not open any projects!";
-    } else {
+    if (!openedPro.isEmpty())
         Core::ModeManager::instance()->activateMode(Core::Constants::MODE_EDIT);
-    }
 
     return openedPro;
 }
@@ -1383,20 +1382,10 @@ void ProjectExplorerPlugin::executeRunConfiguration(RunConfiguration *runConfigu
 void ProjectExplorerPlugin::startRunControl(RunControl *runControl, const QString &runMode)
 {
     d->m_outputPane->createNewOutputWindow(runControl);
-    if (runMode == ProjectExplorer::Constants::RUNMODE)
+    if (runMode == ProjectExplorer::Constants::RUNMODE && d->m_projectExplorerSettings.showRunOutput)
         d->m_outputPane->popup(false);
     d->m_outputPane->showTabFor(runControl);
-
-    connect(runControl, SIGNAL(addToOutputWindow(ProjectExplorer::RunControl*,QString,bool)),
-            d->m_outputPane, SLOT(appendApplicationOutput(ProjectExplorer::RunControl*,QString, bool)));
-    connect(runControl, SIGNAL(addToOutputWindowInline(ProjectExplorer::RunControl*,QString,bool)),
-            d->m_outputPane, SLOT(appendApplicationOutputInline(ProjectExplorer::RunControl*,QString,bool)));
-    connect(runControl, SIGNAL(appendMessage(ProjectExplorer::RunControl*,QString,bool)),
-            d->m_outputPane, SLOT(appendMessage(ProjectExplorer::RunControl*,QString,bool)));
-
-    connect(runControl, SIGNAL(finished()),
-            this, SLOT(runControlFinished()));
-
+    connect(runControl, SIGNAL(finished()), this, SLOT(runControlFinished()));
     runControl->start();
     emit updateRunActions();
 }
@@ -1990,8 +1979,16 @@ void ProjectExplorerPlugin::openRecentProject()
     if (!a)
         return;
     QString fileName = a->data().toString();
-    if (!fileName.isEmpty())
-        openProject(fileName);
+    if (!fileName.isEmpty()) {
+        if (!openProject(fileName)) {
+            QMessageBox box(QMessageBox::Warning,
+                            tr("Failed to open project"),
+                            tr("Failed to open project:\n%1").arg(fileName),
+                            QMessageBox::Ok,
+                            Core::ICore::instance()->mainWindow());
+            box.exec();
+        }
+    }
 }
 
 void ProjectExplorerPlugin::invalidateProject(Project *project)

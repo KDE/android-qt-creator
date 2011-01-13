@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -42,9 +42,9 @@
 #include "maemopackagecreationwidget.h"
 #include "ui_maemopackagecreationwidget.h"
 
+#include "maemoglobal.h"
 #include "maemopackagecreationstep.h"
 #include "maemotemplatesmanager.h"
-#include "maemotoolchain.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/project.h>
@@ -209,10 +209,11 @@ void MaemoPackageCreationWidget::setShortDescription()
 
 void MaemoPackageCreationWidget::handleToolchainChanged()
 {
-    if (!m_step->maemoToolChain())
+    const Qt4BuildConfiguration * const bc = m_step->qt4BuildConfiguration();
+    if (!bc)
         return;
-    m_ui->skipCheckBox
-        ->setVisible(m_step->maemoToolChain()->allowsPackagingDisabling());
+    m_ui->skipCheckBox->setVisible(MaemoGlobal::allowsPackagingDisabling(
+        bc->qtVersion()));
     m_ui->skipCheckBox->setChecked(!m_step->isPackagingEnabled());
     emit updateSummary();
 }
@@ -238,6 +239,9 @@ void MaemoPackageCreationWidget::handleSkipButtonToggled(bool checked)
     m_ui->patch->setEnabled(!checked);
     m_ui->debianFilesComboBox->setEnabled(!checked);
     m_ui->editDebianFileButton->setEnabled(!checked);
+    m_ui->packageManagerIconButton->setEnabled(!checked);
+    m_ui->nameLineEdit->setEnabled(!checked);
+    m_ui->shortDescriptionLineEdit->setEnabled(!checked);
     m_step->setPackagingEnabled(!checked);
     emit updateSummary();
 }

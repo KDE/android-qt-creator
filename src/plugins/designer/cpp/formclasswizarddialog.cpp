@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -103,7 +103,7 @@ FormClassWizardParameters FormClassWizardDialog::parameters() const
     FormClassWizardParameters rc;
     m_classPage->getParameters(&rc);
     // Name the ui class in the Ui namespace after the class specified
-    rc.setUiTemplate(FormTemplateWizardPage::changeUiClassName(m_rawFormTemplate, rc.className()));
+    rc.uiTemplate = FormTemplateWizardPage::changeUiClassName(m_rawFormTemplate, rc.className);
     return rc;
 }
 

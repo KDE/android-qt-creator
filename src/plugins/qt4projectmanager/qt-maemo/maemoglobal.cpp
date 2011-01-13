@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,7 +36,9 @@
 #include "maemoconstants.h"
 #include "maemodeviceconfigurations.h"
 
+#include <coreplugin/filemanager.h>
 #include <coreplugin/ssh/sshconnection.h>
+#include <qt4projectmanager/qtversionmanager.h>
 #include <utils/environment.h>
 
 #include <QtCore/QCoreApplication>
@@ -107,21 +109,47 @@ QString MaemoGlobal::failedToConnectToServerMessage(const Core::SshConnection::P
     return errorMsg;
 }
 
-QString MaemoGlobal::maddeRoot(const QString &qmakePath)
+QString MaemoGlobal::maddeRoot(const QtVersion *qtVersion)
 {
-    QDir dir(QDir::cleanPath(qmakePath).remove(binQmake));
+    QDir dir(targetRoot(qtVersion));
     dir.cdUp(); dir.cdUp();
     return dir.absolutePath();
 }
 
-QString MaemoGlobal::targetName(const QString &qmakePath)
+QString MaemoGlobal::targetRoot(const QtVersion *qtVersion)
 {
-    const QString target = QDir::cleanPath(qmakePath).remove(binQmake);
-    return target.mid(target.lastIndexOf(QLatin1Char('/')) + 1);
+    return QDir::cleanPath(qtVersion->qmakeCommand()).remove(binQmake);
+}
+
+QString MaemoGlobal::targetName(const QtVersion *qtVersion)
+{
+    return QDir(targetRoot(qtVersion)).dirName();
+}
+
+QString MaemoGlobal::madAdminCommand(const QtVersion *qtVersion)
+{
+    return maddeRoot(qtVersion) + QLatin1String("/bin/mad-admin");
+}
+
+QString MaemoGlobal::madCommand(const QtVersion *qtVersion)
+{
+    return maddeRoot(qtVersion) + QLatin1String("/bin/mad");
+}
+
+MaemoGlobal::MaemoVersion MaemoGlobal::version(const QtVersion *qtVersion)
+{
+    const QString &name = targetName(qtVersion);
+    if (name.startsWith(QLatin1String("fremantle")))
+        return Maemo5;
+    if (name.startsWith(QLatin1String("harmattan")))
+        return Maemo6;
+    qWarning("Unknown Maemo version!");
+    return static_cast<MaemoVersion>(-1);
 }
 
 bool MaemoGlobal::removeRecursively(const QString &filePath, QString &error)
 {
+    error.clear();
     QFileInfo fileInfo(filePath);
     if (!fileInfo.exists())
         return true;
@@ -150,9 +178,25 @@ bool MaemoGlobal::removeRecursively(const QString &filePath, QString &error)
     return true;
 }
 
-void MaemoGlobal::callMaddeShellScript(QProcess &proc, const QString &maddeRoot,
+bool MaemoGlobal::callMad(QProcess &proc, const QStringList &args,
+    const QtVersion *qtVersion)
+{
+    return callMaddeShellScript(proc, maddeRoot(qtVersion),
+        madCommand(qtVersion), args);
+}
+
+bool MaemoGlobal::callMadAdmin(QProcess &proc, const QStringList &args,
+    const QtVersion *qtVersion)
+{
+    return callMaddeShellScript(proc, maddeRoot(qtVersion),
+        madAdminCommand(qtVersion), args);
+}
+
+bool MaemoGlobal::callMaddeShellScript(QProcess &proc, const QString &maddeRoot,
     const QString &command, const QStringList &args)
 {
+    if (!QFileInfo(command).exists())
+        return false;
     QString actualCommand = command;
     QStringList actualArgs = args;
 #ifdef Q_OS_WIN
@@ -167,6 +211,18 @@ void MaemoGlobal::callMaddeShellScript(QProcess &proc, const QString &maddeRoot,
     Q_UNUSED(maddeRoot);
 #endif
     proc.start(actualCommand, actualArgs);
+    return true;
+}
+
+MaemoGlobal::FileUpdate::FileUpdate(const QString &fileName)
+    : m_fileName(fileName)
+{
+    Core::FileManager::instance()->expectFileChange(fileName);
+}
+
+MaemoGlobal::FileUpdate::~FileUpdate()
+{
+    Core::FileManager::instance()->unexpectFileChange(m_fileName);
 }
 
 } // namespace Internal

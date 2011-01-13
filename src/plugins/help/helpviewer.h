@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -127,7 +127,11 @@ protected:
 
 private slots:
     void actionChanged();
-    void setLoadFinished(bool ok);
+    void slotLoadStarted();
+    void slotLoadFinished(bool ok);
+#if !defined(QT_NO_WEBKIT)
+    void slotNetworkReplyFinished(QNetworkReply *reply);
+#endif
 
 private:
     bool eventFilter(QObject *obj, QEvent *event);

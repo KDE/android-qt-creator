@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -246,6 +246,8 @@ void OutputPane::createNewOutputWindow(RunControl *rc)
             this, SLOT(runControlStarted()));
     connect(rc, SIGNAL(finished()),
             this, SLOT(runControlFinished()));
+    connect(rc, SIGNAL(appendMessage(ProjectExplorer::RunControl*,QString,ProjectExplorer::OutputFormat)),
+            this, SLOT(appendMessage(ProjectExplorer::RunControl*,QString,ProjectExplorer::OutputFormat)));
 
     // First look if we can reuse a tab
     const int size = m_runControlTabs.size();
@@ -277,28 +279,11 @@ void OutputPane::createNewOutputWindow(RunControl *rc)
         qDebug() << "OutputPane::createNewOutputWindow: Adding tab for " << rc;
 }
 
-void OutputPane::appendApplicationOutput(RunControl *rc, const QString &out,
-                                         bool onStdErr)
+void OutputPane::appendMessage(RunControl *rc, const QString &out, OutputFormat format)
 {
     const int index = indexOf(rc);
     if (index != -1)
-        m_runControlTabs.at(index).window->appendApplicationOutput(out, onStdErr);
-}
-
-void OutputPane::appendApplicationOutputInline(RunControl *rc,
-                                               const QString &out,
-                                               bool onStdErr)
-{
-    const int index = indexOf(rc);
-    if (index != -1)
-        m_runControlTabs.at(index).window->appendApplicationOutputInline(out, onStdErr);
-}
-
-void OutputPane::appendMessage(RunControl *rc, const QString &out, bool isError)
-{
-    const int index = indexOf(rc);
-    if (index != -1)
-        m_runControlTabs.at(index).window->appendMessage(out, isError);
+        m_runControlTabs.at(index).window->appendMessage(out, format);
 }
 
 void OutputPane::showTabFor(RunControl *rc)
@@ -625,60 +610,51 @@ QString OutputWindow::doNewlineEnfocement(const QString &out)
     return s;
 }
 
-void OutputWindow::appendApplicationOutput(const QString &output, bool onStdErr)
+void OutputWindow::appendMessage(const QString &output, OutputFormat format)
 {
     QString out = output;
     out.remove(QLatin1Char('\r'));
     setMaximumBlockCount(MaxBlockCount);
     const bool atBottom = isScrollbarAtBottom();
-    m_formatter->appendApplicationOutput(doNewlineEnfocement(out), onStdErr);
-    if (atBottom)
-        scrollToBottom();
-    enableUndoRedo();
-}
 
-void OutputWindow::appendApplicationOutputInline(const QString &output, bool onStdErr)
-{
-    QString out = output;
-    out.remove(QLatin1Char('\r'));
-    m_scrollToBottom = true;
-    setMaximumBlockCount(MaxBlockCount);
+    if (format == ErrorMessageFormat || format == NormalMessageFormat) {
 
-    int newline = -1;
-    bool enforceNewline = m_enforceNewline;
-    m_enforceNewline = false;
-    const bool atBottom = isScrollbarAtBottom();
+        m_formatter->appendMessage(doNewlineEnfocement(out), format);
 
-    if (!enforceNewline) {
-        newline = out.indexOf(QLatin1Char('\n'));
-        moveCursor(QTextCursor::End);
-        if (newline != -1)
-            m_formatter->appendApplicationOutput(out.left(newline), onStdErr); // doesn't enforce new paragraph like appendPlainText
-    }
-
-    QString s = out.mid(newline+1);
-    if (s.isEmpty()) {
-        m_enforceNewline = true;
     } else {
-        if (s.endsWith(QLatin1Char('\n'))) {
-            m_enforceNewline = true;
-            s.chop(1);
+
+        bool sameLine = format == StdOutFormatSameLine
+                     || format == StdErrFormatSameLine;
+
+        if (sameLine) {
+            m_scrollToBottom = true;
+
+            int newline = -1;
+            bool enforceNewline = m_enforceNewline;
+            m_enforceNewline = false;
+
+            if (!enforceNewline) {
+                newline = out.indexOf(QLatin1Char('\n'));
+                moveCursor(QTextCursor::End);
+                if (newline != -1)
+                    m_formatter->appendMessage(out.left(newline), format);// doesn't enforce new paragraph like appendPlainText
+            }
+
+            QString s = out.mid(newline+1);
+            if (s.isEmpty()) {
+                m_enforceNewline = true;
+            } else {
+                if (s.endsWith(QLatin1Char('\n'))) {
+                    m_enforceNewline = true;
+                    s.chop(1);
+                }
+                m_formatter->appendMessage(QLatin1Char('\n') + s, format);
+            }
+        } else {
+            m_formatter->appendMessage(doNewlineEnfocement(out), format);
         }
-        m_formatter->appendApplicationOutput(QLatin1Char('\n') + s, onStdErr);
     }
 
-    if (atBottom)
-        scrollToBottom();
-    enableUndoRedo();
-}
-
-void OutputWindow::appendMessage(const QString &output, bool isError)
-{
-    QString out = output;
-    out.remove(QLatin1Char('\r'));
-    setMaximumBlockCount(MaxBlockCount);
-    const bool atBottom = isScrollbarAtBottom();
-    m_formatter->appendMessage(doNewlineEnfocement(out), isError);
     if (atBottom)
         scrollToBottom();
     enableUndoRedo();

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -46,7 +46,7 @@
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 
 #ifdef Q_OS_WIN32
-#include <Windows.h>
+#include <utils/winutils.h>
 #endif
 
 using Core::EditorManager;
@@ -186,20 +186,16 @@ QString QmlProjectRunConfiguration::canonicalCapsPath(const QString &fileName)
     QString canonicalPath = QFileInfo(fileName).canonicalFilePath();
 
 #if defined(Q_OS_WIN32)
-    wchar_t *buffer = 0;
-    do {
-        long length = ::GetLongPathName((wchar_t*)fileName.utf16(), NULL, 0);
-        if (!length)
-            break;
-        buffer = new wchar_t[length];
-        DWORD rv = ::GetLongPathName((wchar_t*)fileName.utf16(), buffer, length);
-        if (!rv)
-            break;
-        canonicalPath = QString((QChar*)buffer);
-    } while (false);
-    delete buffer;
+    QString error;
+    // don't know whether the shortpath step is really needed,
+    // but we do this in QtDeclarative too.
+    QString path = Utils::getShortPathName(canonicalPath, &error);
+    if (!path.isEmpty())
+        path = Utils::getLongPathName(canonicalPath, &error);
+    if (!path.isEmpty())
+        canonicalPath = path;
 #endif
-    
+
     return canonicalPath;
 }
 
@@ -339,14 +335,14 @@ void QmlProjectRunConfiguration::updateEnabled()
                 qmlFileFound = true;
         }
         if (!editor
-            || db->findByFile(mainScript()).type() == QLatin1String("application/x-qmlproject")) {
+                || db->findByFile(mainScript()).type() == QLatin1String("application/x-qmlproject")) {
             // find a qml file with lowercase filename. This is slow, but only done
             // in initialization/other border cases.
             foreach(const QString &filename, m_projectTarget->qmlProject()->files()) {
                 const QFileInfo fi(filename);
 
                 if (!filename.isEmpty() && fi.baseName()[0].isLower()
-                    && db->findByFile(fi).type() == QLatin1String("application/x-qml"))
+                        && db->findByFile(fi).type() == QLatin1String("application/x-qml"))
                 {
                     m_currentFileFilename = filename;
                     qmlFileFound = true;
@@ -360,7 +356,7 @@ void QmlProjectRunConfiguration::updateEnabled()
     }
 
     bool newValue = (QFileInfo(viewerPath()).exists()
-                    || QFileInfo(observerPath()).exists()) && qmlFileFound;
+                     || QFileInfo(observerPath()).exists()) && qmlFileFound;
 
 
     // Always emit change signal to force reevaluation of run/debug buttons
@@ -423,6 +419,5 @@ QList<Utils::EnvironmentItem> QmlProjectRunConfiguration::userEnvironmentChanges
 {
     return m_userEnvironmentChanges;
 }
-
 
 } // namespace QmlProjectManager

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,6 +34,7 @@
 #include "localapplicationruncontrol.h"
 #include "applicationrunconfiguration.h"
 #include "projectexplorerconstants.h"
+#include "outputformat.h"
 
 #include <utils/qtcassert.h>
 #include <utils/environment.h>
@@ -89,10 +90,8 @@ LocalApplicationRunControl::LocalApplicationRunControl(LocalApplicationRunConfig
     m_runMode = static_cast<ApplicationLauncher::Mode>(rc->runMode());
     m_commandLineArguments = rc->commandLineArguments();
 
-    connect(&m_applicationLauncher, SIGNAL(appendMessage(QString,bool)),
-            this, SLOT(slotAppendMessage(QString,bool)));
-    connect(&m_applicationLauncher, SIGNAL(appendOutput(QString, bool)),
-            this, SLOT(slotAddToOutputWindow(QString, bool)));
+    connect(&m_applicationLauncher, SIGNAL(appendMessage(QString,ProjectExplorer::OutputFormat)),
+            this, SLOT(slotAppendMessage(QString,ProjectExplorer::OutputFormat)));
     connect(&m_applicationLauncher, SIGNAL(processExited(int)),
             this, SLOT(processExited(int)));
     connect(&m_applicationLauncher, SIGNAL(bringToForegroundRequested(qint64)),
@@ -108,7 +107,8 @@ void LocalApplicationRunControl::start()
     m_applicationLauncher.start(m_runMode, m_executable, m_commandLineArguments);
     emit started();
 
-    emit appendMessage(this, tr("Starting %1...").arg(QDir::toNativeSeparators(m_executable)), false);
+    QString msg = tr("Starting %1...").arg(QDir::toNativeSeparators(m_executable));
+    appendMessage(msg, NormalMessageFormat);
 }
 
 LocalApplicationRunControl::StopResult LocalApplicationRunControl::stop()
@@ -123,21 +123,16 @@ bool LocalApplicationRunControl::isRunning() const
 }
 
 void LocalApplicationRunControl::slotAppendMessage(const QString &err,
-                                                   bool isError)
+                                                   OutputFormat format)
 {
-    emit appendMessage(this, err, isError);
-    emit finished();
-}
-
-void LocalApplicationRunControl::slotAddToOutputWindow(const QString &line,
-                                                       bool isError)
-{
-    emit addToOutputWindowInline(this, line, isError);
+    appendMessage(err, format);
 }
 
 void LocalApplicationRunControl::processExited(int exitCode)
 {
-    emit appendMessage(this, tr("%1 exited with code %2").arg(QDir::toNativeSeparators(m_executable)).arg(exitCode), false);
+    QString msg = tr("%1 exited with code %2")
+        .arg(QDir::toNativeSeparators(m_executable)).arg(exitCode);
+    appendMessage(msg, NormalMessageFormat);
     emit finished();
 }
 

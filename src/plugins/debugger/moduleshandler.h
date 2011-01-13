@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,8 +36,9 @@
 
 #include <QtCore/QVector>
 #include <QtCore/QObject>
-#include <QtGui/QSortFilterProxyModel>
+#include <QtCore/QAbstractItemModel>
 
+QT_FORWARD_DECLARE_CLASS(QSortFilterProxyModel)
 
 namespace Debugger {
 namespace Internal {

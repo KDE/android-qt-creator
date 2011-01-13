@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,17 +35,19 @@
 #ifndef UICODECOMPLETIONSUPPORT_H
 #define UICODECOMPLETIONSUPPORT_H
 
-#include "cppmodelmanagerinterface.h"
 #include "cpptools_global.h"
+#include "abstracteditorsupport.h"
+
+#include <cplusplus/ModelManagerInterface.h>
 
 #include <QtCore/QDateTime>
 
 namespace CppTools {
 
-class CPPTOOLS_EXPORT UiCodeModelSupport : public CppTools::AbstractEditorSupport
+class CPPTOOLS_EXPORT UiCodeModelSupport : public AbstractEditorSupport
 {
 public:
-    UiCodeModelSupport(CppTools::CppModelManagerInterface *modelmanager,
+    UiCodeModelSupport(CPlusPlus::CppModelManagerInterface *modelmanager,
                        const QString &sourceFile,
                        const QString &uiHeaderFile);
     ~UiCodeModelSupport();

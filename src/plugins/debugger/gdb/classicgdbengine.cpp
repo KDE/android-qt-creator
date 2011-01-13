@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,6 +34,7 @@
 #include "gdbengine.h"
 #include "gdbmi.h"
 
+#include "debuggerstartparameters.h"
 #include "abstractgdbadapter.h"
 #include "debuggeractions.h"
 #include "debuggercore.h"
@@ -179,8 +180,7 @@ void GdbEngine::runDebuggingHelperClassic(const WatchData &data0, bool dumpChild
     QByteArray params;
     QList<QByteArray> extraArgs;
     const QtDumperHelper::TypeData td = m_dumperHelper.typeData(data0.type);
-    m_dumperHelper.evaluationParameters(data, td, QtDumperHelper::GdbDebugger,
-        &params, &extraArgs);
+    m_dumperHelper.evaluationParameters(data, td, &params, &extraArgs);
 
     //int protocol = (data.iname.startsWith("watch") && data.type == "QImage") ? 3 : 2;
     //int protocol = data.iname.startsWith("watch") ? 3 : 2;

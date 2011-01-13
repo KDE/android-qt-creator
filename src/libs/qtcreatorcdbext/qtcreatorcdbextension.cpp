@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -44,7 +44,8 @@
 #include <list>
 #include <iterator>
 
-/* QtCreatorCDB ext is an extension loaded into CDB.exe (see cdbengine2.cpp):
+/* QtCreatorCDB ext is an extension loaded into CDB.exe (see cdbengine.cpp)
+ * providing:
  * - Notification about the state of the debugging session:
  *   + idle: (hooked with .idle_cmd) debuggee stopped
  *   + accessible: Debuggee stopped, cdb.exe accepts commands
@@ -96,7 +97,8 @@ enum Command {
     CmdHelp,
     CmdMemory,
     CmdStack,
-    CmdShutdownex
+    CmdShutdownex,
+    CmdTest
 };
 
 static const CommandDescription commandDescriptions[] = {
@@ -109,8 +111,9 @@ static const CommandDescription commandDescriptions[] = {
  "-c complex dumpers"},
 {"locals",
  "Prints local variables of symbol group in GDBMI or debug format",
- "[-t token] [T formats] [-I formats] [-f debugfilter] [-c] [-h] [-d] [-e expand-list] [-u uninitialized-list]\n<frame-number> [iname]\n"
+ "[-t token] [-v] [T formats] [-I formats] [-f debugfilter] [-c] [-h] [-d] [-e expand-list] [-u uninitialized-list]\n<frame-number> [iname]\n"
  "-h human-readable ouput\n"
+ "-v increase verboseness of dumping\n"
  "-d debug output\n"
  "-f debug_filter\n"
  "-c complex dumpers\n"
@@ -135,7 +138,8 @@ static const CommandDescription commandDescriptions[] = {
 {"help","Prints help.",""},
 {"memory","Prints memory contents in Base64 encoding.","[-t token] <address> <length>"},
 {"stack","Prints stack in GDBMI format.","[-t token] [max-frames]"},
-{"shutdownex","Unhooks output callbacks.\nNeeds to be called explicitly only in case of remote debugging.",""}
+{"shutdownex","Unhooks output callbacks.\nNeeds to be called explicitly only in case of remote debugging.",""},
+{"test","Testing command","-T type"}
 };
 
 typedef std::vector<std::string> StringVector;
@@ -235,9 +239,9 @@ extern "C" HRESULT CALLBACK pid(CIDebugClient *client, PCSTR args)
     commandTokens<StringList>(args, &token);
 
     if (const ULONG pid = currentProcessId(client)) {
-        ExtensionContext::instance().report('R', token, "pid", "%u", pid);
+        ExtensionContext::instance().report('R', token, 0, "pid", "%u", pid);
     } else {
-        ExtensionContext::instance().report('N', token, "pid", "0");
+        ExtensionContext::instance().report('N', token, 0, "pid", "0");
     }
     return S_OK;
 }
@@ -277,7 +281,7 @@ extern "C" HRESULT CALLBACK expandlocals(CIDebugClient *client, PCSTR args)
         symGroup = ExtensionContext::instance().symbolGroup(exc.symbols(), exc.threadId(), frame, &errorMessage);
 
     if (!symGroup) {
-        ExtensionContext::instance().report('N', token, "expandlocals", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "expandlocals", errorMessage.c_str());
         return S_OK;
     }
 
@@ -285,7 +289,7 @@ extern "C" HRESULT CALLBACK expandlocals(CIDebugClient *client, PCSTR args)
         symGroup->expandListRunComplexDumpers(inames, SymbolGroupValueContext(exc.dataSpaces(), exc.symbols()), &errorMessage) :
         symGroup->expandList(inames, &errorMessage);
 
-    ExtensionContext::instance().report('R', token, "expandlocals", "%u/%u %s",
+    ExtensionContext::instance().report('R', token, 0, "expandlocals", "%u/%u %s",
                                         succeeded, unsigned(inames.size()), errorMessage.c_str());
     return S_OK;
 }
@@ -304,6 +308,7 @@ static std::string commmandLocals(ExtensionCommandContext &exc,PCSTR args, int *
     StringVector expandedInames;
     StringVector uninitializedInames;
     DumpParameters parameters;
+    SymbolGroupValue::verbose = 0;
     // Parse away options
     while (!tokens.empty() && tokens.front().size() == 2 && tokens.front().at(0) == '-') {
         const char option = tokens.front().at(1);
@@ -333,6 +338,9 @@ static std::string commmandLocals(ExtensionCommandContext &exc,PCSTR args, int *
             }
             debugFilter = tokens.front();
             tokens.pop_front();
+            break;
+        case 'v':
+            SymbolGroupValue::verbose++;
             break;
         case 'e':
             if (tokens.empty()) {
@@ -403,9 +411,9 @@ extern "C" HRESULT CALLBACK locals(CIDebugClient *client, PCSTR args)
     int token;
     const std::string output = commmandLocals(exc, args, &token, &errorMessage);
     if (output.empty()) {
-        ExtensionContext::instance().report('N', token, "locals", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "locals", errorMessage.c_str());
     } else {
-        ExtensionContext::instance().report('R', token, "locals", "%s", output.c_str());
+        ExtensionContext::instance().reportLong('R', token, "locals", output);
     }
     return S_OK;
 }
@@ -454,9 +462,9 @@ extern "C" HRESULT CALLBACK dumplocal(CIDebugClient *client, PCSTR  argsIn)
     int token = 0;
     const std::string value = dumplocalHelper(exc,argsIn, &token, &errorMessage);
     if (value.empty()) {
-        ExtensionContext::instance().report('N', token, "dumplocal", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "dumplocal", errorMessage.c_str());
     } else {
-        ExtensionContext::instance().report('R', token, "dumplocal", value.c_str());
+        ExtensionContext::instance().reportLong('R', token, "dumplocal", value);
     }
     return S_OK;
 }
@@ -483,9 +491,9 @@ extern "C" HRESULT CALLBACK typecast(CIDebugClient *client, PCSTR args)
         errorMessage = singleLineUsage(commandDescriptions[CmdTypecast]);
     }
     if (symGroup != 0 && symGroup->typeCast(iname, desiredType, &errorMessage)) {
-        ExtensionContext::instance().report('R', token, "typecast", "OK");
+        ExtensionContext::instance().report('R', token, 0, "typecast", "OK");
     } else {
-        ExtensionContext::instance().report('N', token, "typecast", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "typecast", errorMessage.c_str());
     }
     return S_OK;
 }
@@ -513,9 +521,9 @@ extern "C" HRESULT CALLBACK addsymbol(CIDebugClient *client, PCSTR args)
         errorMessage = singleLineUsage(commandDescriptions[CmdAddsymbol]);
     }
     if (symGroup != 0 && symGroup->addSymbol(name, iname, &errorMessage)) {
-        ExtensionContext::instance().report('R', token, "addsymbol", "OK");
+        ExtensionContext::instance().report('R', token, 0, "addsymbol", "OK");
     } else {
-        ExtensionContext::instance().report('N', token, "addsymbol", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "addsymbol", errorMessage.c_str());
     }
     return S_OK;
 }
@@ -554,9 +562,9 @@ extern "C" HRESULT CALLBACK assign(CIDebugClient *client, PCSTR argsIn)
     } while (false);
 
     if (success) {
-        ExtensionContext::instance().report('R', token, "assign", "Ok");
+        ExtensionContext::instance().report('R', token, 0, "assign", "Ok");
     } else {
-        ExtensionContext::instance().report('N', token, "assign", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "assign", errorMessage.c_str());
     }
     return S_OK;
 }
@@ -578,9 +586,9 @@ extern "C" HRESULT CALLBACK threads(CIDebugClient *client, PCSTR  argsIn)
                                               exc.advanced(),
                                               &errorMessage);
     if (gdbmi.empty()) {
-        ExtensionContext::instance().report('N', token, "threads", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "threads", errorMessage.c_str());
     } else {
-        ExtensionContext::instance().report('R', token, "threads", gdbmi.c_str());
+        ExtensionContext::instance().reportLong('R', token, "threads", gdbmi);
     }
     return S_OK;
 }
@@ -598,9 +606,9 @@ extern "C" HRESULT CALLBACK registers(CIDebugClient *Client, PCSTR argsIn)
     const bool humanReadable = !tokens.empty() && tokens.front() == "-h";
     const std::string regs = gdbmiRegisters(exc.registers(), exc.control(), humanReadable, IncludePseudoRegisters, &errorMessage);
     if (regs.empty()) {
-        ExtensionContext::instance().report('N', token, "registers", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "registers", errorMessage.c_str());
     } else {
-        ExtensionContext::instance().report('R', token, "registers", regs.c_str());
+        ExtensionContext::instance().reportLong('R', token, "registers", regs);
     }
     return S_OK;
 }
@@ -618,9 +626,9 @@ extern "C" HRESULT CALLBACK modules(CIDebugClient *Client, PCSTR argsIn)
     const bool humanReadable = !tokens.empty() && tokens.front() == "-h";
     const std::string modules = gdbmiModules(exc.symbols(), humanReadable, &errorMessage);
     if (modules.empty()) {
-        ExtensionContext::instance().report('N', token, "modules", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "modules", errorMessage.c_str());
     } else {
-        ExtensionContext::instance().report('R', token, "modules", modules.c_str());
+        ExtensionContext::instance().reportLong('R', token, "modules", modules);
     }
     return S_OK;
 }
@@ -671,11 +679,11 @@ extern "C" HRESULT CALLBACK memory(CIDebugClient *Client, PCSTR argsIn)
     }
 
     if (memory.empty()) {
-        ExtensionContext::instance().report('N', token, "memory", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "memory", errorMessage.c_str());
     } else {
-        ExtensionContext::instance().report('R', token, "memory", memory.c_str());
+        ExtensionContext::instance().reportLong('R', token, "memory", memory);
         if (!errorMessage.empty())
-            ExtensionContext::instance().report('W', token, "memory", errorMessage.c_str());
+            ExtensionContext::instance().report('W', token, 0, "memory", errorMessage.c_str());
     }
     return S_OK;
 }
@@ -704,9 +712,9 @@ extern "C" HRESULT CALLBACK stack(CIDebugClient *Client, PCSTR argsIn)
                                          maxFrames, humanReadable, &errorMessage);
 
     if (stack.empty()) {
-        ExtensionContext::instance().report('N', token, "stack", errorMessage.c_str());
+        ExtensionContext::instance().report('N', token, 0, "stack", errorMessage.c_str());
     } else {
-        ExtensionContext::instance().report('R', token, "stack", stack.c_str());
+        ExtensionContext::instance().reportLong('R', token, "stack", stack);
     }
     return S_OK;
 }
@@ -719,6 +727,45 @@ extern "C" HRESULT CALLBACK shutdownex(CIDebugClient *, PCSTR)
     ExtensionContext::instance().unhookCallbacks();
     return S_OK;
 }
+
+extern "C" HRESULT CALLBACK test(CIDebugClient *client, PCSTR argsIn)
+{
+    enum Mode { Invalid, TestType };
+    ExtensionCommandContext exc(client);
+
+    std::string testType;
+    Mode mode = Invalid;
+    int token = 0;
+    StringList tokens = commandTokens<StringList>(argsIn, &token);
+    // Parse away options
+    while (!tokens.empty() && tokens.front().size() == 2 && tokens.front().at(0) == '-') {
+        const char option = tokens.front().at(1);
+        tokens.pop_front();
+        switch (option) {
+        case 'T':
+            mode = TestType;
+            if (!tokens.empty()) {
+                testType = tokens.front();
+                tokens.pop_front();
+            }
+            break;
+        } // case option
+    }  // for options
+
+    // Frame and iname
+    if (mode == Invalid || testType.empty()) {
+        ExtensionContext::instance().report('N', token, 0, "test", singleLineUsage(commandDescriptions[CmdTest]).c_str());
+    } else {
+        const KnownType kt = knownType(testType, 0);
+        std::ostringstream str;
+        str << testType << ' ' << kt << " [";
+        formatKnownTypeFlags(str, kt);
+        str << ']';
+        ExtensionContext::instance().reportLong('R', token, "test", str.str());
+    }
+    return S_OK;
+}
+
 
 // Hook for dumping Known Structs. Not currently used.
 // Shows up in 'dv' as well as IDebugSymbolGroup::GetValueText.

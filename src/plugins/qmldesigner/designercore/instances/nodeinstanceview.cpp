@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -113,8 +113,10 @@ d too.
 \see ~NodeInstanceView setRenderOffScreen
 */
 NodeInstanceView::NodeInstanceView(QObject *parent)
-        : AbstractView(parent)
+        : AbstractView(parent),
+          m_baseStatePreviewImage(QSize(100, 100), QImage::Format_ARGB32)
 {
+    m_baseStatePreviewImage.fill(0xFFFFFF);
 }
 
 
@@ -142,16 +144,7 @@ void NodeInstanceView::modelAttached(Model *model)
     m_nodeInstanceServer = new NodeInstanceServerProxy(this);
     connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(restartProcess()));
 
-    setBlockUpdates(true);
     nodeInstanceServer()->createScene(createCreateSceneCommand());
-
-    nodeInstanceServer()->changeFileUrl(createChangeFileUrlCommand(model->fileUrl()));
-    foreach(const Import &import, model->imports())
-        nodeInstanceServer()->addImport(createImportCommand(import));
-
-    loadNodes(allModelNodes());
-
-    setBlockUpdates(false);
 }
 
 void NodeInstanceView::modelAboutToBeDetached(Model * model)
@@ -165,13 +158,14 @@ void NodeInstanceView::modelAboutToBeDetached(Model * model)
 
 void NodeInstanceView::restartProcess()
 {
-    setBlockUpdates(true);
-    Model *oldModel = model();
-    if (oldModel) {
-        oldModel->detachView(this);
-        oldModel->attachView(this);
+    if (model()) {
+        delete nodeInstanceServer();
+
+        m_nodeInstanceServer = new NodeInstanceServerProxy(this);
+        connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(restartProcess()));
+
+        nodeInstanceServer()->createScene(createCreateSceneCommand());
     }
-    setBlockUpdates(false);
 }
 
 /*! \brief Notifing the view that a node was created.
@@ -314,12 +308,7 @@ void NodeInstanceView::rootNodeTypeChanged(const QString &/*type*/, int /*majorV
     nodeInstanceServer()->clearScene(createClearSceneCommand());
     removeAllInstanceNodeRelationships();
 
-    QList<ModelNode> nodeList;
-
-    nodeList.append(allModelNodes());
-
     nodeInstanceServer()->createScene(createCreateSceneCommand());
-    loadNodes(nodeList);
 }
 
 void NodeInstanceView::bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags /*propertyChange*/)
@@ -439,9 +428,9 @@ void NodeInstanceView::instancesCompleted(const QVector<ModelNode> &/*completedN
 {
 }
 
-void NodeInstanceView::importAdded(const Import & /*import*/)
+void NodeInstanceView::importAdded(const Import & import)
 {
-    restartProcess();
+    nodeInstanceServer()->addImport(createImportCommand(import));
 }
 
 void NodeInstanceView::importRemoved(const Import &/*import*/)
@@ -452,54 +441,9 @@ void NodeInstanceView::importRemoved(const Import &/*import*/)
 //\}
 
 
-void NodeInstanceView::loadNodes(const QList<ModelNode> &nodeList)
-{
-    QList<NodeInstance> instanceList;
-
-    foreach (const ModelNode &node, nodeList)
-        instanceList.append(loadNode(node));
-
-
-    QList<VariantProperty> variantPropertyList;
-    QList<BindingProperty> bindingPropertyList;
-
-    foreach (const ModelNode &node, nodeList) {
-        variantPropertyList.append(node.variantProperties());
-        bindingPropertyList.append(node.bindingProperties());
-    }
-
-    nodeInstanceServer()->createInstances(createCreateInstancesCommand(instanceList));
-    nodeInstanceServer()->reparentInstances(createReparentInstancesCommand(instanceList));
-    nodeInstanceServer()->changeIds(createChangeIdsCommand(instanceList));
-    nodeInstanceServer()->changePropertyValues(createChangeValueCommand(variantPropertyList));
-    nodeInstanceServer()->changePropertyBindings(createChangeBindingCommand(bindingPropertyList));
-    nodeInstanceServer()->completeComponent(createComponentCompleteCommand(instanceList));
-}
-
 void NodeInstanceView::removeAllInstanceNodeRelationships()
 {
-    // prevent destroyed() signals calling back
-
-//    foreach (NodeInstance instance, m_objectInstanceHash.values()) {
-//        if (instance.isValid())
-//            instance.setId(QString());
-//    }
-
-//    //first  the root object
-//    if (rootNodeInstance().internalObject())
-//        rootNodeInstance().internalObject()->disconnect();
-
-//    rootNodeInstance().makeInvalid();
-
-
-    foreach (NodeInstance instance, m_idInstanceHash.values()) {
-//        if (instance.internalObject())
-//            instance.internalObject()->disconnect();
-        instance.makeInvalid();
-        }
-
     m_nodeInstanceHash.clear();
-    m_idInstanceHash.clear();
 }
 
 /*! \brief Returns a List of all NodeInstances
@@ -533,20 +477,20 @@ bool NodeInstanceView::hasInstanceForNode(const ModelNode &node) const
     return m_nodeInstanceHash.contains(node);
 }
 
-NodeInstance NodeInstanceView::instanceForId(qint32 id) const
+NodeInstance NodeInstanceView::instanceForId(qint32 id)
 {
-    if (id < 0)
+    if (id < 0 || !hasModelNodeForInternalId(id))
         return NodeInstance();
 
-    return m_idInstanceHash.value(id);
+    return m_nodeInstanceHash.value(modelNodeForInternalId(id));
 }
 
-bool NodeInstanceView::hasInstanceForId(qint32 id) const
+bool NodeInstanceView::hasInstanceForId(qint32 id)
 {
-    if (id < 0)
+    if (id < 0 || !hasModelNodeForInternalId(id))
         return false;
 
-    return m_idInstanceHash.contains(id);
+    return m_nodeInstanceHash.contains(modelNodeForInternalId(id));
 }
 
 
@@ -592,33 +536,18 @@ NodeInstance NodeInstanceView::rootNodeInstance() const
 void NodeInstanceView::insertInstanceRelationships(const NodeInstance &instance)
 {
     Q_ASSERT(instance.instanceId() >=0);
-    Q_ASSERT(!m_nodeInstanceHash.contains(instance.modelNode()));
-    Q_ASSERT(!m_idInstanceHash.contains(instance.instanceId()));
+    if(m_nodeInstanceHash.contains(instance.modelNode()))
+        return;
+
     m_nodeInstanceHash.insert(instance.modelNode(), instance);
-    m_idInstanceHash.insert(instance.instanceId(), instance);
 }
 
 void NodeInstanceView::removeInstanceNodeRelationship(const ModelNode &node)
 {
     Q_ASSERT(m_nodeInstanceHash.contains(node));
     NodeInstance instance = instanceForNode(node);
-//    if (instance.isValid())
-//        instance.setId(QString());
-    m_idInstanceHash.remove(instanceForNode(node).instanceId());
     m_nodeInstanceHash.remove(node);
     instance.makeInvalid();
-}
-
-void NodeInstanceView::setBlockUpdates(bool block)
-{
-    if (m_blockUpdates == 0 && block == true)
-        m_nodeInstanceServer->setBlockUpdates(true);
-
-    if (block) {
-        m_blockUpdates++;
-    } else if (m_blockUpdates > 0) {
-        m_blockUpdates--;
-    }
 }
 
 void NodeInstanceView::setStateInstance(const NodeInstance &stateInstance)
@@ -690,10 +619,80 @@ QRectF NodeInstanceView::sceneRect() const
     return QRectF();
 }
 
-CreateSceneCommand NodeInstanceView::createCreateSceneCommand() const
+CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
 {
-    return CreateSceneCommand();
+    QList<ModelNode> nodeList = allModelNodes();
+    QList<NodeInstance> instanceList;
+
+    foreach (const ModelNode &node, nodeList)
+        instanceList.append(loadNode(node));
+
+
+    QList<VariantProperty> variantPropertyList;
+    QList<BindingProperty> bindingPropertyList;
+
+    foreach (const ModelNode &node, nodeList) {
+        variantPropertyList.append(node.variantProperties());
+        bindingPropertyList.append(node.bindingProperties());
+    }
+
+    QVector<InstanceContainer> instanceContainerList;
+    foreach(const NodeInstance &instance, instanceList) {
+        InstanceContainer container(instance.instanceId(), instance.modelNode().type(), instance.modelNode().majorVersion(), instance.modelNode().minorVersion(), instance.modelNode().metaInfo().componentFileName());
+        instanceContainerList.append(container);
+    }
+
+    QVector<ReparentContainer> reparentContainerList;
+    foreach(const NodeInstance &instance, instanceList) {
+        if (instance.modelNode().hasParentProperty()) {
+            NodeAbstractProperty parentProperty = instance.modelNode().parentProperty();
+            ReparentContainer container(instance.instanceId(), -1, QString(), instanceForNode(parentProperty.parentModelNode()).instanceId(), parentProperty.name());
+            reparentContainerList.append(container);
+        }
+    }
+
+    QVector<IdContainer> idContainerList;
+    foreach(const NodeInstance &instance, instanceList) {
+        QString id = instance.modelNode().id();
+        if (!id.isEmpty()) {
+            IdContainer container(instance.instanceId(), id);
+            idContainerList.append(container);
+        }
+    }
+
+    QVector<PropertyValueContainer> valueContainerList;
+    foreach(const VariantProperty &property, variantPropertyList) {
+        ModelNode node = property.parentModelNode();
+        if (node.isValid() && hasInstanceForNode(node)) {
+            NodeInstance instance = instanceForNode(node);
+            PropertyValueContainer container(instance.instanceId(), property.name(), property.value(), property.dynamicTypeName());
+            valueContainerList.append(container);
+        }
+    }
+
+    QVector<PropertyBindingContainer> bindingContainerList;
+    foreach(const BindingProperty &property, bindingPropertyList) {
+        ModelNode node = property.parentModelNode();
+        if (node.isValid() && hasInstanceForNode(node)) {
+            NodeInstance instance = instanceForNode(node);
+            PropertyBindingContainer container(instance.instanceId(), property.name(), property.expression(), property.dynamicTypeName());
+            bindingContainerList.append(container);
+        }
+    }
+
+    QVector<AddImportContainer> importVector;
+    foreach(const Import &import, model()->imports())
+        importVector.append(AddImportContainer(import.url(), import.file(), import.version(), import.alias(), import.importPaths()));
+
+    return CreateSceneCommand(instanceContainerList,
+                              reparentContainerList,
+                              idContainerList,
+                              valueContainerList,
+                              bindingContainerList,
+                              importVector,
+                              model()->fileUrl());
 }
+
 ClearSceneCommand NodeInstanceView::createClearSceneCommand() const
 {
     return ClearSceneCommand();
@@ -868,7 +867,7 @@ RemovePropertiesCommand NodeInstanceView::createRemovePropertiesCommand(const QL
 
 AddImportCommand NodeInstanceView::createImportCommand(const Import &import)
 {
-    return AddImportCommand(import.url(), import.file(), import.version(), import.alias(), import.importPaths());
+    return AddImportCommand(AddImportContainer(import.url(), import.file(), import.version(), import.alias(), import.importPaths()));
 }
 
 void NodeInstanceView::valuesChanged(const ValuesChangedCommand &command)
@@ -894,7 +893,7 @@ void NodeInstanceView::valuesChanged(const ValuesChangedCommand &command)
 
 void NodeInstanceView::pixmapChanged(const PixmapChangedCommand &command)
 {
-      if (!model())
+    if (!model())
         return;
 
     QSet<ModelNode> renderImageChangeSet;
@@ -910,7 +909,7 @@ void NodeInstanceView::pixmapChanged(const PixmapChangedCommand &command)
     }
 
     if (!renderImageChangeSet.isEmpty())
-         emitCustomNotification("__instance render pixmap changed__", renderImageChangeSet.toList());
+        emitCustomNotification("__instance render pixmap changed__", renderImageChangeSet.toList());
 }
 
 void NodeInstanceView::informationChanged(const InformationChangedCommand &command)
@@ -934,9 +933,34 @@ void NodeInstanceView::informationChanged(const InformationChangedCommand &comma
         emitCustomNotification("__instance information changed__", informationChangedList);
 }
 
-void NodeInstanceView::statePreviewImagesChanged(const StatePreviewImageChangedCommand &/*command*/)
+QImage NodeInstanceView::statePreviewImage(const ModelNode &stateNode) const
 {
+    if (stateNode == rootModelNode())
+        return m_baseStatePreviewImage;
 
+    return m_statePreviewImage.value(stateNode);
+}
+
+void NodeInstanceView::statePreviewImagesChanged(const StatePreviewImageChangedCommand &command)
+{
+    if (!model())
+      return;
+
+  QList<ModelNode> previewImageChangeList;
+
+  foreach (const ImageContainer &container, command.previews()) {
+      if (container.instanceId() == 0) {
+          m_baseStatePreviewImage = container.image();
+          previewImageChangeList.append(rootModelNode());
+      } else if (hasInstanceForId(container.instanceId())) {
+          ModelNode node = modelNodeForInternalId(container.instanceId());
+          m_statePreviewImage.insert(node, container.image());
+          previewImageChangeList.append(node);
+      }
+  }
+
+  if (!previewImageChangeList.isEmpty())
+       emitCustomNotification("__instance preview image changed__", previewImageChangeList);
 }
 
 void NodeInstanceView::componentCompleted(const ComponentCompletedCommand &command)

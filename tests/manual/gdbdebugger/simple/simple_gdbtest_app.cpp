@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -83,7 +83,7 @@
 #if defined(__GNUC__) && !defined(__llvm__) && !defined(Q_OS_MAC)
 #    define USE_GCC_EXT 1
 #    undef __DEPRECATED
-#    include <hash_set>
+#    include <ext/hash_set>
 #endif
 
 #ifdef Q_OS_WIN
@@ -92,7 +92,7 @@
 #undef max
 #endif
 
-#ifdef Q_OS_LINUX
+#ifdef __SSE__
 #include <xmmintrin.h>
 #include <stddef.h>
 #endif
@@ -882,7 +882,7 @@ void testQObject(int &argc, char *argv[])
     ob1.setObjectName("A Subobject");
 #endif
 
-#if 0
+#if 1
     QString str = QString::fromUtf8("XXXXXXXXXXXXXXyyXXX ö");
     QLabel l(str);
     l.setObjectName("Some Label");
@@ -2095,7 +2095,7 @@ void testWCout0()
 
 void testSSE()
 {
-#ifdef Q_OS_LINUX
+#ifdef __SSE__
     float a[4];
     float b[4];
     int i;

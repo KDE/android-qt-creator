@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,6 +35,7 @@
 #define APPLICATIONLAUNCHER_H
 
 #include "projectexplorer_export.h"
+#include "outputformat.h"
 
 #include <QtCore/QProcess>
 
@@ -68,13 +69,13 @@ public:
     qint64 applicationPID() const;
 
 signals:
-    void appendMessage(const QString &message, bool isError);
-    void appendOutput(const QString &line, bool onStdErr);
+    void appendMessage(const QString &message, ProjectExplorer::OutputFormat format);
     void processExited(int exitCode);
     void bringToForegroundRequested(qint64 pid);
 
 private slots:
     void processStopped();
+    void appendProcessMessage(const QString &output, bool onStdErr);
 #ifdef Q_OS_WIN
     void readWinDebugOutput(const QString &output, bool onStdErr);
     void processFinished(int exitCode);

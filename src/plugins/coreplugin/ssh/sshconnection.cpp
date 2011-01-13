@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -40,6 +40,8 @@
 #include "sshcryptofacility_p.h"
 #include "sshexception_p.h"
 #include "sshkeyexchange_p.h"
+
+#include <utils/qtcassert.h>
 
 #include <botan/exceptn.h>
 #include <botan/init.h>
@@ -164,18 +166,14 @@ SshConnection::~SshConnection()
 
 QSharedPointer<SshRemoteProcess> SshConnection::createRemoteProcess(const QByteArray &command)
 {
-    // TODO: Is this conditonal return value really a good idea?
-    // Get rid of this IF we can prove that no harm is done by returning
-    // a non-working (but non-null) process pointer.
-    return state() == Connected
-        ? d->createRemoteProcess(command) : QSharedPointer<SshRemoteProcess>();
+    QTC_ASSERT(state() == Connected, return QSharedPointer<SshRemoteProcess>());
+    return d->createRemoteProcess(command);
 }
 
 QSharedPointer<SftpChannel> SshConnection::createSftpChannel()
 {
-    // TODO: See above
-    return state() == Connected
-        ? d->createSftpChannel() : QSharedPointer<SftpChannel>();
+    QTC_ASSERT(state() == Connected, return QSharedPointer<SftpChannel>());
+    return d->createSftpChannel();
 }
 
 

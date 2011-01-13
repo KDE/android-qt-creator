@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -91,7 +91,6 @@ public:
     MaemoRemoteMountsModel *remoteMounts() const { return m_remoteMounts; }
 
     const MaemoToolChain *toolchain() const;
-    QString maddeRoot() const;
     QString localExecutableFilePath() const;
     QString remoteExecutableFilePath() const;
     const QString sysRoot() const;

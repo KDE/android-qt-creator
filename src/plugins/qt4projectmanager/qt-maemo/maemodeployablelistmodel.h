@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -45,8 +45,8 @@
 #include <QtCore/QString>
 
 namespace Qt4ProjectManager {
+class QtVersion;
 namespace Internal {
-class MaemoToolChain;
 
 class MaemoDeployableListModel : public QAbstractTableModel
 {
@@ -98,7 +98,7 @@ private:
     bool isEditable(const QModelIndex &index) const;
     bool buildModel();
     bool addLinesToProFile(const QStringList &lines);
-    const MaemoToolChain *maemoToolchain() const;
+    const QtVersion *qtVersion() const;
     QString proFileScope() const;
     QString installPrefix() const;
 

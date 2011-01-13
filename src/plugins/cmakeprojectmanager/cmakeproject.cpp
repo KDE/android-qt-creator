@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -47,9 +47,8 @@
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/toolchain.h>
-#include <cpptools/cppmodelmanagerinterface.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <extensionsystem/pluginmanager.h>
-#include <designer/formwindoweditor.h>
 #include <utils/qtcassert.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -76,6 +75,20 @@ using namespace ProjectExplorer;
 // Open Questions
 // Who sets up the environment for cl.exe ? INCLUDEPATH and so on
 
+// Test for form editor (loosely coupled)
+static inline bool isFormWindowEditor(const QObject *o)
+{
+    return o && !qstrcmp(o->metaObject()->className(), "Designer::FormWindowEditor");
+}
+
+// Return contents of form editor (loosely coupled)
+static inline QString formWindowEditorContents(const QObject *editor)
+{
+    const QVariant contentV = editor->property("contents");
+    QTC_ASSERT(contentV.isValid(), return QString(); )
+    return contentV.toString();
+}
+
 /*!
   \class CMakeProject
 */
@@ -95,8 +108,8 @@ CMakeProject::CMakeProject(CMakeManager *manager, const QString &fileName)
 CMakeProject::~CMakeProject()
 {
     // Remove CodeModel support
-    CppTools::CppModelManagerInterface *modelManager
-            = ExtensionSystem::PluginManager::instance()->getObject<CppTools::CppModelManagerInterface>();
+    CPlusPlus::CppModelManagerInterface *modelManager
+            = CPlusPlus::CppModelManagerInterface::instance();
     QMap<QString, CMakeUiCodeModelSupport *>::const_iterator it, end;
     it = m_uiCodeModelSupport.constBegin();
     end = m_uiCodeModelSupport.constEnd();
@@ -282,10 +295,10 @@ bool CMakeProject::parseCMakeLists()
     allIncludePaths.append(projectDirectory());
 
     allIncludePaths.append(cbpparser.includeFiles());
-    CppTools::CppModelManagerInterface *modelmanager =
-            ExtensionSystem::PluginManager::instance()->getObject<CppTools::CppModelManagerInterface>();
+    CPlusPlus::CppModelManagerInterface *modelmanager =
+            CPlusPlus::CppModelManagerInterface::instance();
     if (modelmanager) {
-        CppTools::CppModelManagerInterface::ProjectInfo pinfo = modelmanager->projectInfo(this);
+        CPlusPlus::CppModelManagerInterface::ProjectInfo pinfo = modelmanager->projectInfo(this);
         if (pinfo.includePaths != allIncludePaths
             || pinfo.sourceFiles != m_files
             || pinfo.defines != activeBC->toolChain()->predefinedMacros()
@@ -608,8 +621,8 @@ QString CMakeProject::uiHeaderFile(const QString &uiFile)
 void CMakeProject::createUiCodeModelSupport()
 {
 //    qDebug()<<"creatUiCodeModelSupport()";
-    CppTools::CppModelManagerInterface *modelManager
-            = ExtensionSystem::PluginManager::instance()->getObject<CppTools::CppModelManagerInterface>();
+    CPlusPlus::CppModelManagerInterface *modelManager
+            = CPlusPlus::CppModelManagerInterface::instance();
 
     // First move all to
     QMap<QString, CMakeUiCodeModelSupport *> oldCodeModelSupport;
@@ -659,13 +672,11 @@ void CMakeProject::updateCodeModelSupportFromEditor(const QString &uiFileName,
 void CMakeProject::editorChanged(Core::IEditor *editor)
 {
     // Handle old editor
-    Designer::FormWindowEditor *lastFormEditor = qobject_cast<Designer::FormWindowEditor *>(m_lastEditor);
-    if (lastFormEditor) {
-        disconnect(lastFormEditor, SIGNAL(changed()), this, SLOT(uiEditorContentsChanged()));
-
+    if (isFormWindowEditor(m_lastEditor)) {
+        disconnect(m_lastEditor, SIGNAL(changed()), this, SLOT(uiEditorContentsChanged()));
         if (m_dirtyUic) {
-            const QString contents = lastFormEditor->contents();
-            updateCodeModelSupportFromEditor(lastFormEditor->file()->fileName(), contents);
+            const QString contents =  formWindowEditorContents(m_lastEditor);
+            updateCodeModelSupportFromEditor(m_lastEditor->file()->fileName(), contents);
             m_dirtyUic = false;
         }
     }
@@ -673,8 +684,8 @@ void CMakeProject::editorChanged(Core::IEditor *editor)
     m_lastEditor = editor;
 
     // Handle new editor
-    if (Designer::FormWindowEditor *fw = qobject_cast<Designer::FormWindowEditor *>(editor))
-        connect(fw, SIGNAL(changed()), this, SLOT(uiEditorContentsChanged()));
+    if (isFormWindowEditor(editor))
+        connect(editor, SIGNAL(changed()), this, SLOT(uiEditorContentsChanged()));
 }
 
 void CMakeProject::editorAboutToClose(Core::IEditor *editor)
@@ -682,12 +693,11 @@ void CMakeProject::editorAboutToClose(Core::IEditor *editor)
     if (m_lastEditor == editor) {
         // Oh no our editor is going to be closed
         // get the content first
-        Designer::FormWindowEditor *lastEditor = qobject_cast<Designer::FormWindowEditor *>(m_lastEditor);
-        if (lastEditor) {
-            disconnect(lastEditor, SIGNAL(changed()), this, SLOT(uiEditorContentsChanged()));
+        if (isFormWindowEditor(m_lastEditor)) {
+            disconnect(m_lastEditor, SIGNAL(changed()), this, SLOT(uiEditorContentsChanged()));
             if (m_dirtyUic) {
-                const QString contents = lastEditor->contents();
-                updateCodeModelSupportFromEditor(lastEditor->file()->fileName(), contents);
+                const QString contents = formWindowEditorContents(m_lastEditor);
+                updateCodeModelSupportFromEditor(m_lastEditor->file()->fileName(), contents);
                 m_dirtyUic = false;
             }
         }
@@ -698,12 +708,8 @@ void CMakeProject::editorAboutToClose(Core::IEditor *editor)
 void CMakeProject::uiEditorContentsChanged()
 {
     // cast sender, get filename
-    if (m_dirtyUic)
-        return;
-    Designer::FormWindowEditor *fw = qobject_cast<Designer::FormWindowEditor *>(sender());
-    if (!fw)
-        return;
-    m_dirtyUic = true;
+    if (!m_dirtyUic && isFormWindowEditor(sender()))
+        m_dirtyUic = true;
 }
 
 void CMakeProject::buildStateChanged(ProjectExplorer::Project *project)

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -78,13 +78,18 @@ ApplicationLauncher::ApplicationLauncher(QObject *parent)
 
     d->m_consoleProcess.setSettings(Core::ICore::instance()->settings());
     connect(&d->m_consoleProcess, SIGNAL(processMessage(QString,bool)),
-            this, SIGNAL(appendMessage(QString,bool)));
+            this, SLOT(appendProcessMessage(QString,bool)));
     connect(&d->m_consoleProcess, SIGNAL(processStopped()),
             this, SLOT(processStopped()));
 }
 
 ApplicationLauncher::~ApplicationLauncher()
 {
+}
+
+void ApplicationLauncher::appendProcessMessage(const QString &output, bool onStdErr)
+{
+    emit appendMessage(output, onStdErr ? ErrorMessageFormat : NormalMessageFormat);
 }
 
 void ApplicationLauncher::setWorkingDirectory(const QString &dir)
@@ -161,23 +166,24 @@ void ApplicationLauncher::guiProcessError()
     default:
         error = tr("Some error has occurred while running the program.");
     }
-    emit appendMessage(error, true);
+    emit appendMessage(error, ErrorMessageFormat);
+    emit processExited(d->m_guiProcess.exitCode());
 }
 
 void ApplicationLauncher::readStandardOutput()
 {
     QByteArray data = d->m_guiProcess.readAllStandardOutput();
-    emit appendOutput(d->m_outputCodec->toUnicode(
-            data.constData(), data.length(), &d->m_outputCodecState),
-                      false);
+    QString msg = d->m_outputCodec->toUnicode(
+            data.constData(), data.length(), &d->m_outputCodecState);
+    emit appendMessage(msg, StdOutFormatSameLine);
 }
 
 void ApplicationLauncher::readStandardError()
 {
     QByteArray data = d->m_guiProcess.readAllStandardError();
-    emit appendOutput(d->m_outputCodec->toUnicode(
-            data.constData(), data.length(), &d->m_errorCodecState),
-                      true);
+    QString msg = d->m_outputCodec->toUnicode(
+            data.constData(), data.length(), &d->m_outputCodecState);
+    emit appendMessage(msg, StdErrFormatSameLine);
 }
 
 void ApplicationLauncher::processStopped()

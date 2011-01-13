@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -192,6 +192,7 @@ private slots:
     void renameIdUnderCursor();
 
     void semanticRehighlight();
+    void forceSemanticRehighlightIfCurrentEditor();
     void updateSemanticInfo(const QmlJSEditor::SemanticInfo &semanticInfo);
     void onCursorPositionChanged();
     void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker);

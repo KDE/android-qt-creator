@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -35,6 +35,7 @@
 #include <cplusplus/Overview.h>
 
 #include "cppmodelmanager.h"
+#include "abstracteditorsupport.h"
 #ifndef ICHECK_BUILD
 #  include "cpptoolsconstants.h"
 #  include "cpptoolseditorsupport.h"
@@ -76,6 +77,7 @@
 #include <Token.h>
 #include <Parser.h>
 #include <Control.h>
+#include <CoreTypes.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDebug>
@@ -189,7 +191,7 @@ CppPreprocessor::~CppPreprocessor()
 void CppPreprocessor::setRevision(unsigned revision)
 { m_revision = revision; }
 
-void CppPreprocessor::setWorkingCopy(const CppTools::CppModelManagerInterface::WorkingCopy &workingCopy)
+void CppPreprocessor::setWorkingCopy(const CppModelManagerInterface::WorkingCopy &workingCopy)
 { m_workingCopy = workingCopy; }
 
 void CppPreprocessor::setIncludePaths(const QStringList &includePaths)
@@ -289,6 +291,8 @@ public:
     void operator()()
     {
         _doc->check(_mode);
+        _doc->findExposedQmlTypes();
+        _doc->releaseSource();
         _doc->releaseTranslationUnit();
 
         if (_mode == Document::FastCheck)
@@ -588,7 +592,6 @@ void CppPreprocessor::sourceNeeded(QString &fileName, IncludeType type, unsigned
 
     doc->setSource(preprocessedCode);
     doc->tokenize();
-    doc->releaseSource();
 
     snapshot.insert(doc);
     m_todo.remove(fileName);
@@ -600,6 +603,7 @@ void CppPreprocessor::sourceNeeded(QString &fileName, IncludeType type, unsigned
 
     (void) switchDocument(previousDoc);
 #else
+    doc->releaseSource();
     Document::CheckMode mode = Document::FastCheck;
     mode = Document::FullCheck;
     doc->parse();
@@ -617,7 +621,7 @@ Document::Ptr CppPreprocessor::switchDocument(Document::Ptr doc)
 }
 
 #ifndef ICHECK_BUILD
-void CppTools::CppModelManagerInterface::updateModifiedSourceFiles()
+void CppModelManager::updateModifiedSourceFiles()
 {
     const Snapshot snapshot = this->snapshot();
     QStringList sourceFiles;
@@ -636,11 +640,10 @@ void CppTools::CppModelManagerInterface::updateModifiedSourceFiles()
     updateSourceFiles(sourceFiles);
 }
 
-CppTools::CppModelManagerInterface *CppTools::CppModelManagerInterface::instance()
+CppModelManager *CppModelManager::instance()
 {
     ExtensionSystem::PluginManager *pluginManager = ExtensionSystem::PluginManager::instance();
-    return pluginManager->getObject<CppTools::CppModelManagerInterface>();
-
+    return pluginManager->getObject<CppModelManager>();
 }
 
 
@@ -1208,6 +1211,13 @@ void CppModelManager::updateIncludesInPaths(QFutureInterface<void> &future,
 
     future.setProgressRange(0, paths.size());
 
+    static const int MAX_DEPTH = 3;
+    QList<int> pathDepths;
+    pathDepths.reserve(paths.size());
+    for (int i = 0; i < paths.size(); ++i) {
+        pathDepths.append(0);
+    }
+
     // Add framework header directories to path list
     QStringList frameworkFilter;
     frameworkFilter << QLatin1String("*.framework");
@@ -1220,6 +1230,7 @@ void CppModelManager::updateIncludesInPaths(QFutureInterface<void> &future,
         while (fwIt.hasNext()) {
             QString framework = fwIt.next();
             paths.append(fwPath + QLatin1Char('/') + framework + QLatin1String("/Headers"));
+            pathDepths.append(0);
             framework.chop(10); // remove the ".framework"
             entriesInFrameworkPath.append(framework + QLatin1Char('/'));
         }
@@ -1234,9 +1245,7 @@ void CppModelManager::updateIncludesInPaths(QFutureInterface<void> &future,
             return;
 
         const QString path = paths.takeFirst();
-
-        if (path == QLatin1String("/"))
-            continue;
+        const int depth = pathDepths.takeFirst();
 
         // Skip non-existing paths
         if (!QFile::exists(path))
@@ -1253,7 +1262,7 @@ void CppModelManager::updateIncludesInPaths(QFutureInterface<void> &future,
             const QString fileName = i.next();
             const QFileInfo fileInfo = i.fileInfo();
             QString text = fileInfo.fileName();
-            if (fileInfo.isDir()) {
+            if (depth < MAX_DEPTH && fileInfo.isDir()) {
                 text += QLatin1Char('/');
 
                 // Also scan subdirectory, but avoid endless recursion with symbolic links
@@ -1269,10 +1278,12 @@ void CppModelManager::updateIncludesInPaths(QFutureInterface<void> &future,
                         entriesInPaths.insert(fileName, result.value());
                     } else {
                         paths.append(target);
+                        pathDepths.append(depth + 1);
                         symlinks.append(SymLink(fileName, target));
                     }
                 } else {
                     paths.append(fileName);
+                    pathDepths.append(depth + 1);
                 }
                 entries.append(text);
             } else {
@@ -1417,5 +1428,165 @@ void CppModelManager::GC()
     m_snapshot = newSnapshot;
     protectSnapshot.unlock();
 }
+
+static FullySpecifiedType stripPointerAndReference(const FullySpecifiedType &type)
+{
+    Type *t = type.type();
+    while (t) {
+        if (PointerType *ptr = t->asPointerType())
+            t = ptr->elementType().type();
+        else if (ReferenceType *ref = t->asReferenceType())
+            t = ref->elementType().type();
+        else
+            break;
+    }
+    return FullySpecifiedType(t);
+}
+
+static QString toQmlType(const FullySpecifiedType &type)
+{
+    Overview overview;
+    QString result = overview(stripPointerAndReference(type));
+    if (result == QLatin1String("QString"))
+        result = QLatin1String("string");
+    return result;
+}
+
+static Class *lookupClass(const QString &expression, Scope *scope, TypeOfExpression &typeOf)
+{
+    QList<LookupItem> results = typeOf(expression, scope);
+    Class *klass = 0;
+    foreach (const LookupItem &item, results) {
+        if (item.declaration()) {
+            klass = item.declaration()->asClass();
+            if (klass)
+                return klass;
+        }
+    }
+    return 0;
+}
+
+static void populate(LanguageUtils::FakeMetaObject::Ptr fmo, Class *klass,
+                     QHash<Class *, LanguageUtils::FakeMetaObject::Ptr> *classes,
+                     TypeOfExpression &typeOf)
+{
+    using namespace LanguageUtils;
+
+    Overview namePrinter;
+
+    classes->insert(klass, fmo);
+
+    for (unsigned i = 0; i < klass->memberCount(); ++i) {
+        Symbol *member = klass->memberAt(i);
+        if (!member->name())
+            continue;
+        if (Function *func = member->type()->asFunctionType()) {
+            if (!func->isSlot() && !func->isInvokable() && !func->isSignal())
+                continue;
+            FakeMetaMethod method(namePrinter(func->name()), toQmlType(func->returnType()));
+            if (func->isSignal())
+                method.setMethodType(FakeMetaMethod::Signal);
+            else
+                method.setMethodType(FakeMetaMethod::Slot);
+            for (unsigned a = 0; a < func->argumentCount(); ++a) {
+                Symbol *arg = func->argumentAt(a);
+                QString name(CppModelManager::tr("unnamed"));
+                if (arg->name())
+                    name = namePrinter(arg->name());
+                method.addParameter(name, toQmlType(arg->type()));
+            }
+            fmo->addMethod(method);
+        }
+        if (QtPropertyDeclaration *propDecl = member->asQtPropertyDeclaration()) {
+            const FullySpecifiedType &type = propDecl->type();
+            const bool isList = false; // ### fixme
+            const bool isWritable = propDecl->flags() & QtPropertyDeclaration::WriteFunction;
+            const bool isPointer = type.type() && type.type()->isPointerType();
+            FakeMetaProperty property(
+                        namePrinter(propDecl->name()),
+                        toQmlType(type),
+                        isList, isWritable, isPointer);
+            fmo->addProperty(property);
+        }
+        if (QtEnum *qtEnum = member->asQtEnum()) {
+            // find the matching enum
+            Enum *e = 0;
+            QList<LookupItem> result = typeOf(namePrinter(qtEnum->name()), klass);
+            foreach (const LookupItem &item, result) {
+                if (item.declaration()) {
+                    e = item.declaration()->asEnum();
+                    if (e)
+                        break;
+                }
+            }
+            if (!e)
+                continue;
+
+            FakeMetaEnum metaEnum(namePrinter(e->name()));
+            for (unsigned j = 0; j < e->memberCount(); ++j) {
+                Symbol *enumMember = e->memberAt(j);
+                if (!enumMember->name())
+                    continue;
+                metaEnum.addKey(namePrinter(enumMember->name()), 0);
+            }
+            fmo->addEnum(metaEnum);
+        }
+    }
+
+    // only single inheritance is supported
+    if (klass->baseClassCount() > 0) {
+        BaseClass *base = klass->baseClassAt(0);
+        if (!base->name())
+            return;
+
+        const QString baseClassName = namePrinter(base->name());
+        fmo->setSuperclassName(baseClassName);
+
+        Class *baseClass = lookupClass(baseClassName, klass, typeOf);
+        if (!baseClass)
+            return;
+
+        FakeMetaObject::Ptr baseFmo = classes->value(baseClass);
+        if (!baseFmo) {
+            baseFmo = FakeMetaObject::Ptr(new FakeMetaObject);
+            populate(baseFmo, baseClass, classes, typeOf);
+        }
+        fmo->setSuperclass(baseFmo);
+    }
+}
+
+QList<LanguageUtils::FakeMetaObject::ConstPtr> CppModelManager::exportedQmlObjects(const Document::Ptr &doc) const
+{
+    using namespace LanguageUtils;
+    QList<FakeMetaObject::ConstPtr> exportedObjects;
+    QHash<Class *, FakeMetaObject::Ptr> classes;
+
+    const QList<CPlusPlus::Document::ExportedQmlType> exported = doc->exportedQmlTypes();
+    if (exported.isEmpty())
+        return exportedObjects;
+
+    TypeOfExpression typeOf;
+    const Snapshot currentSnapshot = snapshot();
+    typeOf.init(doc, currentSnapshot);
+    foreach (const Document::ExportedQmlType &exportedType, exported) {
+        FakeMetaObject::Ptr fmo(new FakeMetaObject);
+        fmo->addExport(exportedType.typeName, exportedType.packageName,
+                       ComponentVersion(exportedType.majorVersion, exportedType.minorVersion));
+        exportedObjects += fmo;
+
+        Class *klass = lookupClass(exportedType.typeExpression, exportedType.scope, typeOf);
+        if (!klass)
+            continue;
+
+        // add the no-package export, so the cpp name can be used in properties
+        Overview overview;
+        fmo->addExport(overview(klass->name()), QString(), ComponentVersion());
+
+        populate(fmo, klass, &classes, typeOf);
+    }
+
+    return exportedObjects;
+}
+
 #endif
 

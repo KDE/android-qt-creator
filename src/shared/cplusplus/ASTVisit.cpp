@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -154,6 +154,7 @@ void QtPropertyDeclarationItemAST::accept0(ASTVisitor *visitor)
 void QtPropertyDeclarationAST::accept0(ASTVisitor *visitor)
 {
     if (visitor->visit(this)) {
+        accept(expression, visitor);
         accept(type_id, visitor);
         accept(property_name, visitor);
         accept(property_declaration_item_list, visitor);

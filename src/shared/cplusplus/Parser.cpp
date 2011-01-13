@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -286,6 +286,7 @@ void Parser::skipUntilDeclaration()
         case T_Q_SIGNALS:
         case T_Q_SLOTS:
         case T_Q_PROPERTY:
+        case T_Q_PRIVATE_PROPERTY:
         case T_Q_ENUMS:
         case T_Q_FLAGS:
         case T_Q_INTERFACES:
@@ -1972,13 +1973,26 @@ bool Parser::parseAccessDeclaration(DeclarationAST *&node)
 bool Parser::parseQtPropertyDeclaration(DeclarationAST *&node)
 {
     DEBUG_THIS_RULE();
-    if (LA() != T_Q_PROPERTY)
+    const bool privateProperty = (LA() == T_Q_PRIVATE_PROPERTY);
+    if (LA() != T_Q_PROPERTY && !privateProperty)
         return false;
 
     QtPropertyDeclarationAST *ast = new (_pool)QtPropertyDeclarationAST;
     ast->property_specifier_token = consumeToken();
     if (LA() == T_LPAREN) {
         ast->lparen_token = consumeToken();
+
+        if (privateProperty) {
+            if (parsePostfixExpression(ast->expression)) {
+                match(T_COMMA, &ast->comma_token);
+            } else {
+                error(cursor(),
+                      "expected expression before `%s'",
+                      tok().spell());
+                return true;
+            }
+        }
+
         parseTypeId(ast->type_id);
 
         SimpleNameAST *property_name = new (_pool) SimpleNameAST;
@@ -2238,6 +2252,7 @@ bool Parser::parseMemberSpecification(DeclarationAST *&node, ClassSpecifierAST *
         return parseAccessDeclaration(node);
 
     case T_Q_PROPERTY:
+    case T_Q_PRIVATE_PROPERTY:
         return parseQtPropertyDeclaration(node);
 
     case T_Q_ENUMS:
@@ -4862,7 +4877,7 @@ void Parser::parseExpressionWithOperatorPrecedence(ExpressionAST *&lhs, int minP
         if (operPrecedence == Prec::Conditional) {
             condExpr = new (_pool) ConditionalExpressionAST;
             condExpr->question_token = oper;
-            if (oper == T_COLON) {
+            if (tok().kind() == T_COLON) {
                 // GNU extension:
                 //   logical-or-expression '?' ':' conditional-expression
                 condExpr->left_expression = 0;

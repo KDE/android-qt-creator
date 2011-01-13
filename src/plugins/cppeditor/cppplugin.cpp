@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -62,8 +62,8 @@
 #include <texteditor/texteditorplugin.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/texteditorconstants.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <cpptools/cpptoolsconstants.h>
-#include <cpptools/cppmodelmanagerinterface.h>
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QSettings>
@@ -307,7 +307,7 @@ bool CppPlugin::initialize(const QStringList & /*arguments*/, QString *errorMess
     cppToolsMenu->addAction(createSeparator(am, this, globalContext, CppEditor::Constants::SEPARATOR4));
     m_updateCodeModelAction = new QAction(tr("Update Code Model"), this);
     cmd = am->registerAction(m_updateCodeModelAction, Core::Id(Constants::UPDATE_CODEMODEL), globalContext);
-    CppTools::CppModelManagerInterface *cppModelManager = CppTools::CppModelManagerInterface::instance();
+    CPlusPlus::CppModelManagerInterface *cppModelManager = CPlusPlus::CppModelManagerInterface::instance();
     connect(m_updateCodeModelAction, SIGNAL(triggered()), cppModelManager, SLOT(updateModifiedSourceFiles()));
     cppToolsMenu->addAction(cmd);
 

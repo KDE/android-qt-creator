@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -370,8 +370,7 @@ void NavigatorTreeModel::setView(AbstractView *view)
     m_view = view;
     m_hiddenProperties.clear();
     if (view) {
-        ModelNode sampleItemNode(m_view->createModelNode("Qt/Item", 4, 7));
-        m_hiddenProperties << visibleProperties(sampleItemNode);
+        m_hiddenProperties.append("parent");
         addSubTree(view->rootModelNode());
     }
 }

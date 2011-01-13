@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -52,6 +52,7 @@
 #include <coreplugin/progressmanager/progressmanager.h>
 
 #include <debugger/debuggerengine.h>
+#include <debugger/debuggerstartparameters.h>
 
 #include <QtGui/QMessageBox>
 #include <QtGui/QMainWindow>
@@ -64,6 +65,7 @@ using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
 
 namespace {
+
 const char * const S60_DEVICE_RC_ID("Qt4ProjectManager.S60DeviceRunConfiguration");
 const char * const S60_DEVICE_RC_PREFIX("Qt4ProjectManager.S60DeviceRunConfiguration.");
 
@@ -81,11 +83,10 @@ static inline QString msgListFile(const QString &f)
     QString rc;
     const QFileInfo fi(f);
     QTextStream str(&rc);
-    if (fi.exists()) {
+    if (fi.exists())
         str << fi.size() << ' ' << fi.lastModified().toString(Qt::ISODate) << ' ' << QDir::toNativeSeparators(fi.absoluteFilePath());
-    } else {
+    else
         str << "<non-existent> " << QDir::toNativeSeparators(fi.absoluteFilePath());
-    }
     return rc;
 }
 
@@ -101,7 +102,7 @@ QString pathToId(const QString &path)
     return QString::fromLatin1(S60_DEVICE_RC_PREFIX) + path;
 }
 
-}
+} // anon namespace
 
 // ======== S60DeviceRunConfiguration
 
@@ -217,7 +218,7 @@ ProjectExplorer::OutputFormatter *S60DeviceRunConfiguration::createOutputFormatt
 
 QVariantMap S60DeviceRunConfiguration::toMap() const
 {
-    QVariantMap map(ProjectExplorer::RunConfiguration::toMap());
+    QVariantMap map = ProjectExplorer::RunConfiguration::toMap();
     const QDir projectDir = QDir(target()->project()->projectDirectory());
 
     map.insert(QLatin1String(PRO_FILE_KEY), projectDir.relativeFilePath(m_proFilePath));
@@ -374,7 +375,7 @@ QString S60DeviceRunConfiguration::localExecutableFileName() const
 quint32 S60DeviceRunConfiguration::executableUid() const
 {
     quint32 uid = 0;
-    QString executablePath(localExecutableFileName());
+    QString executablePath = localExecutableFileName();
     if (!executablePath.isEmpty()) {
         QFile file(executablePath);
         if (file.open(QIODevice::ReadOnly)) {
@@ -421,8 +422,7 @@ S60DeviceRunConfigurationFactory::~S60DeviceRunConfigurationFactory()
 QStringList S60DeviceRunConfigurationFactory::availableCreationIds(Target *parent) const
 {
     Qt4Target *target = qobject_cast<Qt4Target *>(parent);
-    if (!target ||
-        target->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID))
+    if (!target || target->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID))
         return QStringList();
 
     return target->qt4Project()->applicationProFilePathes(QLatin1String(S60_DEVICE_RC_PREFIX));
@@ -437,9 +437,8 @@ QString S60DeviceRunConfigurationFactory::displayNameForId(const QString &id) co
 
 bool S60DeviceRunConfigurationFactory::canCreate(Target *parent, const QString &id) const
 {
-    Qt4Target * t(qobject_cast<Qt4Target *>(parent));
-    if (!t ||
-        t->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID))
+    Qt4Target *t = qobject_cast<Qt4Target *>(parent);
+    if (!t || t->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID))
         return false;
     return t->qt4Project()->hasApplicationProFile(pathFromId(id));
 }
@@ -449,17 +448,16 @@ RunConfiguration *S60DeviceRunConfigurationFactory::create(Target *parent, const
     if (!canCreate(parent, id))
         return 0;
 
-    Qt4Target *t(static_cast<Qt4Target *>(parent));
+    Qt4Target *t = static_cast<Qt4Target *>(parent);
     return new S60DeviceRunConfiguration(t, pathFromId(id));
 }
 
 bool S60DeviceRunConfigurationFactory::canRestore(Target *parent, const QVariantMap &map) const
 {
-    Qt4Target * t(qobject_cast<Qt4Target *>(parent));
-    if (!t ||
-        t->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID))
+    Qt4Target *t = qobject_cast<Qt4Target *>(parent);
+    if (!t || t->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID))
         return false;
-    QString id(ProjectExplorer::idFromMap(map));
+    QString id = ProjectExplorer::idFromMap(map);
     return id == QLatin1String(S60_DEVICE_RC_ID);
 }
 
@@ -467,7 +465,7 @@ RunConfiguration *S60DeviceRunConfigurationFactory::restore(Target *parent, cons
 {
     if (!canRestore(parent, map))
         return 0;
-    Qt4Target *t(static_cast<Qt4Target *>(parent));
+    Qt4Target *t = static_cast<Qt4Target *>(parent);
     S60DeviceRunConfiguration *rc(new S60DeviceRunConfiguration(t, QString()));
     if (rc->fromMap(map))
         return rc;
@@ -488,7 +486,7 @@ RunConfiguration *S60DeviceRunConfigurationFactory::clone(Target *parent, RunCon
     if (!canClone(parent, source))
         return 0;
     Qt4Target *t = static_cast<Qt4Target *>(parent);
-    S60DeviceRunConfiguration * old(static_cast<S60DeviceRunConfiguration *>(source));
+    S60DeviceRunConfiguration *old = static_cast<S60DeviceRunConfiguration *>(source);
     return new S60DeviceRunConfiguration(t, old);
 }
 
@@ -543,19 +541,21 @@ void S60DeviceRunControl::start()
     emit started();
     if (m_serialPortName.isEmpty()) {
         m_launchProgress->reportCanceled();
-        appendMessage(this, tr("No device is connected. Please connect a device and try again."), true);
+        QString msg = tr("No device is connected. Please connect a device and try again.");
+        appendMessage(msg, NormalMessageFormat);
         emit finished();
         return;
     }
 
-    emit appendMessage(this, tr("Executable file: %1").arg(msgListFile(m_executableFileName)), false);
+    appendMessage(tr("Executable file: %1").arg(msgListFile(m_executableFileName)),
+        NormalMessageFormat);
 
     QString errorMessage;
     QString settingsCategory;
     QString settingsPage;
     if (!checkConfiguration(&errorMessage, &settingsCategory, &settingsPage)) {
         m_launchProgress->reportCanceled();
-        appendMessage(this, errorMessage, true);
+        appendMessage(errorMessage, ErrorMessageFormat);
         emit finished();
         Core::ICore::instance()->showWarningWithOptions(tr("Debugger for Symbian Platform"),
                                                         errorMessage, QString(),
@@ -588,7 +588,7 @@ void S60DeviceRunControl::startLaunching()
                     m_launchProgress->setProgressValue(PROGRESS_MAX/2);
     } else {
         if (!errorMessage.isEmpty())
-            appendMessage(this, errorMessage, true);
+            appendMessage(errorMessage, ErrorMessageFormat);
         stop();
         emit finished();
     }
@@ -629,7 +629,8 @@ bool S60DeviceRunControl::setupLauncher(QString &errorMessage)
 
 void S60DeviceRunControl::printConnectFailed(const QString &errorMessage)
 {
-    emit appendMessage(this, tr("Could not connect to App TRK on device: %1. Restarting App TRK might help.").arg(errorMessage), true);
+    appendMessage(tr("Could not connect to App TRK on device: %1. Restarting App TRK might help.").arg(errorMessage),
+        ErrorMessageFormat);
 }
 
 void S60DeviceRunControl::launcherFinished()
@@ -649,9 +650,9 @@ void S60DeviceRunControl::reportDeployFinished()
     }
 }
 
-void S60DeviceRunControl::processStopped(uint pc, uint pid, uint tid, const QString& reason)
+void S60DeviceRunControl::processStopped(uint pc, uint pid, uint tid, const QString &reason)
 {
-    emit addToOutputWindow(this, trk::Launcher::msgStopped(pid, tid, pc, reason), false);
+    appendMessage(trk::Launcher::msgStopped(pid, tid, pc, reason), StdOutFormat);
     m_launcher->terminate();
 }
 
@@ -682,7 +683,7 @@ void S60DeviceRunControl::slotWaitingForTrkClosed()
 {
     if (m_launcher && m_launcher->state() == trk::Launcher::WaitingForTrk) {
         stop();
-        appendMessage(this, tr("Canceled."), true);
+        appendMessage(tr("Canceled."), ErrorMessageFormat);
         emit finished();
     }
 }
@@ -694,7 +695,7 @@ void S60DeviceRunControl::printApplicationOutput(const QString &output)
 
 void S60DeviceRunControl::printApplicationOutput(const QString &output, bool onStdErr)
 {
-    emit addToOutputWindowInline(this, output, onStdErr);
+    appendMessage(output, onStdErr ? StdErrFormat : StdOutFormat);
 }
 
 void S60DeviceRunControl::deviceRemoved(const SymbianUtils::SymbianDevice &d)
@@ -703,7 +704,8 @@ void S60DeviceRunControl::deviceRemoved(const SymbianUtils::SymbianDevice &d)
         trk::Launcher::releaseToDeviceManager(m_launcher);
         m_launcher->deleteLater();
         m_launcher = 0;
-        appendMessage(this, tr("The device '%1' has been disconnected").arg(d.friendlyName()), true);
+        QString msg = tr("The device '%1' has been disconnected").arg(d.friendlyName());
+        appendMessage(msg, ErrorMessageFormat);
         emit finished();
     }
 }
@@ -728,34 +730,27 @@ void S60DeviceRunControl::initLauncher(const QString &executable, trk::Launcher 
 void S60DeviceRunControl::handleLauncherFinished()
 {
      emit finished();
-     emit appendMessage(this, tr("Finished."), false);
+     appendMessage(tr("Finished."), NormalMessageFormat);
  }
 
 void S60DeviceRunControl::printStartingNotice()
 {
-    emit appendMessage(this, tr("Starting application..."), false);
+    appendMessage(tr("Starting application..."), NormalMessageFormat);
 }
 
 void S60DeviceRunControl::applicationRunNotice(uint pid)
 {
-    emit appendMessage(this, tr("Application running with pid %1.").arg(pid), false);
+    appendMessage(tr("Application running with pid %1.").arg(pid), NormalMessageFormat);
     if (m_launchProgress)
         m_launchProgress->setProgressValue(PROGRESS_MAX);
 }
 
 void S60DeviceRunControl::applicationRunFailedNotice(const QString &errorMessage)
 {
-    emit appendMessage(this, tr("Could not start application: %1").arg(errorMessage), true);
+    appendMessage(tr("Could not start application: %1").arg(errorMessage), NormalMessageFormat);
 }
 
 // ======== S60DeviceDebugRunControl
-
-static inline QString localExecutable(const S60DeviceRunConfiguration *rc)
-{
-    if (const S60DeviceRunConfiguration *s60runConfig = qobject_cast<const S60DeviceRunConfiguration *>(rc))
-        return s60runConfig->localExecutableFileName();
-    return QString();
-}
 
 // Return symbol file which should co-exist with the executable.
 // location in debug builds. This can be 'foo.sym' (ABLD) or 'foo.exe.sym' (Raptor)
@@ -777,12 +772,13 @@ static inline QString symbolFileFromExecutable(const QString &executable)
 }
 
 // Create start parameters from run configuration
-Debugger::DebuggerStartParameters S60DeviceDebugRunControl::s60DebuggerStartParams(const S60DeviceRunConfiguration *rc)
+static Debugger::DebuggerStartParameters s60DebuggerStartParams(const S60DeviceRunConfiguration *rc)
 {
     Debugger::DebuggerStartParameters sp;
     QTC_ASSERT(rc, return sp);
 
-    const S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(rc->qt4Target()->activeDeployConfiguration());
+    const S60DeployConfiguration *activeDeployConf =
+        qobject_cast<S60DeployConfiguration *>(rc->qt4Target()->activeDeployConfiguration());
 
     const QString debugFileName = QString::fromLatin1("%1:\\sys\\bin\\%2.exe")
             .arg(activeDeployConf->installationDrive()).arg(rc->targetName());
@@ -793,46 +789,40 @@ Debugger::DebuggerStartParameters S60DeviceDebugRunControl::s60DebuggerStartPara
     sp.toolChainType = rc->toolChainType();
     sp.executable = debugFileName;
     sp.executableUid = rc->executableUid();
+    sp.enabledEngines = Debugger::GdbEngineType;
 
     QTC_ASSERT(sp.executableUid, return sp);
 
     // Prefer the '*.sym' file over the '.exe', which should exist at the same
     // location in debug builds. This can be 'foo.exe' (ABLD) or 'foo.exe.sym' (Raptor)
-    sp.symbolFileName = symbolFileFromExecutable(localExecutable(rc));
+    sp.symbolFileName = symbolFileFromExecutable(rc->localExecutableFileName());
     return sp;
 }
 
 S60DeviceDebugRunControl::S60DeviceDebugRunControl(S60DeviceRunConfiguration *rc,
                                                    const QString &) :
-    Debugger::DebuggerRunControl(rc, Debugger::GdbEngineType,
-                                 S60DeviceDebugRunControl::s60DebuggerStartParams(rc))
+    Debugger::DebuggerRunControl(rc, s60DebuggerStartParams(rc))
 {
     if (startParameters().symbolFileName.isEmpty()) {
         const QString msg = tr("Warning: Cannot locate the symbol file belonging to %1.").
-                               arg(localExecutable(rc));
-        emit appendMessage(this, msg, true);
+                               arg(rc->localExecutableFileName());
+        appendMessage(msg, ErrorMessageFormat);
     }
 }
 
 void S60DeviceDebugRunControl::start()
 {
-    QString errorMessage;
-    QString settingsCategory;
-    QString settingsPage;
-    if (!Debugger::DebuggerRunControl::checkDebugConfiguration(startParameters().toolChainType,
-                                                               &errorMessage, &settingsCategory, &settingsPage)) {
-        appendMessage(this, errorMessage, true);
+    Debugger::ConfigurationCheck check =
+        Debugger::checkDebugConfiguration(startParameters().toolChainType);
+
+    if (!check) {
+        appendMessage(check.errorMessage, ErrorMessageFormat);
         emit finished();
         Core::ICore::instance()->showWarningWithOptions(tr("Debugger for Symbian Platform"),
-                                                        errorMessage, QString(),
-                                                        settingsCategory, settingsPage);
+            check.errorMessage, QString(), check.settingsCategory, check.settingsPage);
         return;
     }
 
-    emit appendMessage(this, tr("Launching debugger..."), false);
+    appendMessage(tr("Launching debugger..."), NormalMessageFormat);
     Debugger::DebuggerRunControl::start();
-}
-
-S60DeviceDebugRunControl::~S60DeviceDebugRunControl()
-{
 }

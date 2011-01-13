@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -92,19 +92,14 @@ MaemoQemuRuntimeParser::MaemoQemuRuntimeParser(const QString &madInfoOutput,
 MaemoQemuRuntime MaemoQemuRuntimeParser::parseRuntime(const QtVersion *qtVersion)
 {
     MaemoQemuRuntime runtime;
-    const QString maddeRootPath
-        = MaemoGlobal::maddeRoot(qtVersion->qmakeCommand());
-    const QString madCommand = maddeRootPath + QLatin1String("/bin/mad");
-    if (!QFileInfo(madCommand).exists())
-        return runtime;
+    const QString maddeRootPath = MaemoGlobal::maddeRoot(qtVersion);
     QProcess madProc;
-    MaemoGlobal::callMaddeShellScript(madProc, maddeRootPath, madCommand,
-        QStringList() << QLatin1String("info"));
+    if (!MaemoGlobal::callMad(madProc, QStringList() << QLatin1String("info"), qtVersion))
+        return runtime;
     if (!madProc.waitForStarted() || !madProc.waitForFinished())
         return runtime;
     const QByteArray &madInfoOutput = madProc.readAllStandardOutput();
-    const QString &targetName
-        = MaemoGlobal::targetName(qtVersion->qmakeCommand());
+    const QString &targetName = MaemoGlobal::targetName(qtVersion);
     runtime = MaemoQemuRuntimeParserV2(madInfoOutput, targetName, maddeRootPath)
         .parseRuntime();
     if (!runtime.m_name.isEmpty()) {

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -82,8 +82,7 @@ public:
     QString filePath;
     QStringList arguments;
 
-    QList<PluginSpec *> providesSpecs;
-    QList<PluginSpec *> dependencySpecs;
+    QHash<PluginDependency, PluginSpec *> dependencySpecs;
     PluginSpec::PluginArgumentDescriptions argumentDescriptions;
     IPlugin *plugin;
 
@@ -94,9 +93,6 @@ public:
     static bool isValidVersion(const QString &version);
     static int versionCompare(const QString &version1, const QString &version2);
 
-    // add/remove from providesSpecs
-    void addProvidesForPlugin(PluginSpec *dependent);
-    void removeProvidesForPlugin(PluginSpec *dependent);
     void disableIndirectlyIfDependencyDisabled();
 
 

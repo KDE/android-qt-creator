@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -45,8 +45,6 @@
 #define KDEXT_64BIT
 #include <wdbgexts.h>
 #include <dbgeng.h>
-
-static const char creatorOutputPrefixC[] = "QtCreatorExt: ";
 
 typedef IDebugControl CIDebugControl;
 typedef IDebugSymbols3 CIDebugSymbols;

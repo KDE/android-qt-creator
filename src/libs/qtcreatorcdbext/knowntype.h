@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -34,17 +34,28 @@
 #ifndef KNOWNTYPE_H
 #define KNOWNTYPE_H
 
-// Helpers for detecting types
+// Enumeration describing a type.
 enum KnownType
 {
     KT_Unknown =0,
-    KT_Qt_Type = 0x10000,
-    KT_Qt_PrimitiveType = 0x20000,
-    KT_Qt_MovableType = 0x40000,
-    KT_STL_Type = 0x80000,
-    KT_ContainerType = 0x100000,
-    KT_HasSimpleDumper = 0x200000,
-    // Qt Basic
+    // Flags to be used in type values.
+    KT_POD_Type = 0x10000,
+    KT_Qt_Type = 0x20000,
+    KT_Qt_PrimitiveType = 0x40000,
+    KT_Qt_MovableType = 0x80000,
+    KT_STL_Type = 0x100000,
+    KT_ContainerType = 0x200000,
+    KT_HasSimpleDumper = 0x400000,
+    KT_HasComplexDumper = 0x800000, // Non-container complex dumper
+    // Types: PODs
+    KT_Char = KT_POD_Type + 1,
+    KT_UnsignedChar = KT_POD_Type + 2,
+    KT_IntType = KT_POD_Type + 3,         // any signed short, long, int
+    KT_UnsignedIntType = KT_POD_Type + 4, // any unsigned int
+    KT_FloatType = KT_POD_Type + 5,       // float, double
+    KT_POD_PointerType = KT_POD_Type + 6,     // pointer to some POD
+    KT_PointerType = KT_POD_Type + 7,     // pointer to class or complex type
+    // Types: Qt Basic
     KT_QChar = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 1,
     KT_QByteArray = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 2,
     KT_QString = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 3,
@@ -60,12 +71,12 @@ enum KnownType
     KT_QLineF = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 14,
     KT_QRect = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 15,
     KT_QRectF = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 16,
-    KT_QVariant = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 17,
+    KT_QVariant = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + KT_HasComplexDumper + 17,
     KT_QBasicAtomicInt = KT_Qt_Type + KT_HasSimpleDumper + 18,
     KT_QAtomicInt = KT_Qt_Type + KT_HasSimpleDumper + 19,
-    KT_QObject = KT_Qt_Type + KT_HasSimpleDumper + 20,
-    KT_QWidget = KT_Qt_Type + KT_HasSimpleDumper + 21,
-    // Various QT movable types
+    KT_QObject = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 20,
+    KT_QWidget = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 21,
+    // Types: Various QT movable types
     KT_QPen = KT_Qt_Type + KT_Qt_MovableType + 30,
     KT_QUrl = KT_Qt_Type + KT_Qt_MovableType + 31,
     KT_QIcon = KT_Qt_Type + KT_Qt_MovableType + 32,
@@ -124,7 +135,7 @@ enum KnownType
     KT_QPatternist_ItemSequenceCacheCell = KT_Qt_Type + KT_Qt_MovableType + 86,
     KT_QNetworkHeadersPrivate_RawHeaderPair = KT_Qt_Type + KT_Qt_MovableType + 87,
     KT_QPatternist_AccelTree_BasicNodeData = KT_Qt_Type + KT_Qt_MovableType + 88,
-    // Qt primitive types
+    // Types: Qt primitive types
     KT_QFixed = KT_Qt_Type + KT_Qt_PrimitiveType + 90,
     KT_QTextItem = KT_Qt_Type + KT_Qt_PrimitiveType + 91,
     KT_QFixedSize = KT_Qt_Type + KT_Qt_PrimitiveType + 92,
@@ -134,7 +145,7 @@ enum KnownType
     KT_QTextUndoCommand = KT_Qt_Type + KT_Qt_PrimitiveType + 96,
     KT_QGlyphJustification = KT_Qt_Type + KT_Qt_PrimitiveType + 97,
     KT_QPainterPath_Element = KT_Qt_Type + KT_Qt_PrimitiveType + 98,
-    // Qt Containers
+    // Types: Qt Containers
     KT_QStringList = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 1,
     KT_QList = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 2,
     KT_QLinkedList = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 3,
@@ -146,17 +157,17 @@ enum KnownType
     KT_QMultiHash = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 9,
     KT_QMap = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 10,
     KT_QMultiMap = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 11,
-    // STL
+    // Types: STL
     KT_StdString = KT_STL_Type + KT_HasSimpleDumper + 1,
     KT_StdWString = KT_STL_Type + KT_HasSimpleDumper + 2,
-    // STL containers
+    // Types: STL containers
     KT_StdVector =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 1,
     KT_StdList =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 2,
     KT_StdStack =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 3,
     KT_StdDeque =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 4,
     KT_StdSet =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 5,
     KT_StdMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 6,
-    KT_StdMultiMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 7,
+    KT_StdMultiMap =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 7
 };
 
 #endif // KNOWNTYPE_H

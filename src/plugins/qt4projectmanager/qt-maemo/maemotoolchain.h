@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -37,49 +37,33 @@
 #include <projectexplorer/toolchain.h>
 
 namespace Qt4ProjectManager {
-    class QtVersion;
-    namespace Internal {
+class QtVersion;
+namespace Internal {
 
 class MaemoToolChain : public ProjectExplorer::GccToolChain
 {
 public:
-    MaemoToolChain(const QString &targetRoot);
+    MaemoToolChain(const QtVersion *qtVersion);
     virtual ~MaemoToolChain();
 
     void addToEnvironment(Utils::Environment &env);
     ProjectExplorer::ToolChainType type() const;
     QString makeCommand() const;
-
-    QString maddeRoot() const;
-    QString targetRoot() const;
-    QString targetName() const;
-    QString sysrootRoot() const;
-    QString madAdminCommand() const;
-
-    enum MaemoVersion { Maemo5, Maemo6 };
-    MaemoVersion version() const;
-    bool allowsRemoteMounts() const { return version() == Maemo5; }
-    bool allowsPackagingDisabling() const { return version() == Maemo5; }
-    bool allowsQmlDebugging() const { return version() == Maemo6; }
+    QString sysroot() const;
 
 protected:
     bool equals(const ToolChain *other) const;
 
 private:
-    void setMaddeRoot() const;
     void setSysroot() const;
 
 private:
-    mutable QString m_maddeRoot;
-    mutable bool m_maddeInitialized;
-
     mutable QString m_sysrootRoot;
     mutable bool m_sysrootInitialized;
-
-    const QString m_targetRoot;
+    int m_qtVersionId;
 };
 
-    } // namespace Internal
+} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // MAEMOTOOLCHAIN_H

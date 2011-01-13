@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -429,7 +429,7 @@ SymbolGroupNode::SymbolGroupNode(SymbolGroup *symbolGroup,
                                  const std::string &iname) :
     BaseSymbolGroupNode(name, iname),
     m_symbolGroup(symbolGroup),
-    m_index(index), m_dumperType(-1), m_dumperContainerSize(-1)
+    m_index(index), m_dumperType(-1), m_dumperContainerSize(-1), m_dumperSpecialInfo(0)
 {
     memset(&m_parameters, 0, sizeof(DEBUG_SYMBOL_PARAMETERS));
     m_parameters.ParentSymbol = DEBUG_ANY_ID;
@@ -757,15 +757,30 @@ bool SymbolGroupNode::isMemoryAccessible() const
 // Complex dumpers: Get container/fake children
 void SymbolGroupNode::runComplexDumpers(const SymbolGroupValueContext &ctx)
 {
-    if (symbolGroupDebug)
-        DebugPrint() << "SymbolGroupNode::runComplexDumpers "  << name() << '/'
-                        << absoluteFullIName() << ' ' << m_index << DebugNodeFlags(flags());
+    if (symbolGroupDebug) {
+        DebugPrint dp;
+        dp << "SymbolGroupNode::runComplexDumpers "  << name() << '/'
+           << absoluteFullIName() << ' ' << m_index << ' ' << DebugNodeFlags(flags())
+           << " type: ";
+        formatKnownTypeFlags(dp, static_cast<KnownType>(m_dumperType));
+        if (m_dumperSpecialInfo)
+            dp << std::hex << std::showbase << " Special " << m_dumperSpecialInfo;
+    }
 
-    if (m_dumperContainerSize <= 0 || (testFlags(ComplexDumperOk) || !testFlags(SimpleDumperOk)))
+    if ((testFlags(ComplexDumperOk) || !testFlags(SimpleDumperOk)))
         return;
+
+    const bool isContainer = (m_dumperType & KT_ContainerType) != 0;
+    const bool otherDumper = (m_dumperType & KT_HasComplexDumper) != 0;
+    if (!isContainer && !otherDumper)
+        return;
+    if (isContainer && m_dumperContainerSize <= 0)
+        return;
+
     addFlags(ComplexDumperOk);
-    const AbstractSymbolGroupNodePtrVector ctChildren =
-            containerChildren(this, m_dumperType, m_dumperContainerSize, ctx);
+    const AbstractSymbolGroupNodePtrVector ctChildren = otherDumper ?
+             dumpComplexType(this, m_dumperType, m_dumperSpecialInfo, ctx) :
+             containerChildren(this, m_dumperType, m_dumperContainerSize, ctx);
     m_dumperContainerSize = int(ctChildren.size()); // Just in case...
     if (ctChildren.empty())
         return;
@@ -786,7 +801,7 @@ void SymbolGroupNode::runComplexDumpers(const SymbolGroupValueContext &ctx)
 bool SymbolGroupNode::runSimpleDumpers(const SymbolGroupValueContext &ctx)
 {
     if (symbolGroupDebug)
-        DebugPrint() << "SymbolGroupNode::runSimpleDumpers "  << name() << '/'
+        DebugPrint() << ">SymbolGroupNode::runSimpleDumpers "  << name() << '/'
                         << absoluteFullIName() << ' ' << m_index << DebugNodeFlags(flags());
     if (testFlags(Uninitialized))
         return false;
@@ -795,9 +810,10 @@ bool SymbolGroupNode::runSimpleDumpers(const SymbolGroupValueContext &ctx)
     if (testFlags(SimpleDumperMask))
         return false;
     addFlags(dumpSimpleType(this , ctx, &m_dumperValue,
-                            &m_dumperType, &m_dumperContainerSize));
+                            &m_dumperType, &m_dumperContainerSize, &m_dumperSpecialInfo));
     if (symbolGroupDebug)
-        DebugPrint() << "-> '" << wStringToString(m_dumperValue) << "' Type="
+        DebugPrint() << "<SymbolGroupNode::runSimpleDumpers " << name() << " '"
+                     << wStringToString(m_dumperValue) << "' Type="
                      << m_dumperType << ' ' << DebugNodeFlags(flags());
     return testFlags(SimpleDumperOk);
 }
@@ -811,17 +827,17 @@ std::wstring SymbolGroupNode::simpleDumpValue(const SymbolGroupValueContext &ctx
     return symbolGroupFixedValue();
 }
 
-void SymbolGroupNode::dump(std::ostream &str, const std::string &visitingFullIname,
+int SymbolGroupNode::dump(std::ostream &str, const std::string &visitingFullIname,
                            const DumpParameters &p, const SymbolGroupValueContext &ctx)
 {
-    dumpNode(str, name(), visitingFullIname, p, ctx);
+    return dumpNode(str, name(), visitingFullIname, p, ctx);
 }
 
-void SymbolGroupNode::dumpNode(std::ostream &str,
-                               const std::string &aName,
-                               const std::string &aFullIName,
-                               const DumpParameters &dumpParameters,
-                               const SymbolGroupValueContext &ctx)
+int SymbolGroupNode::dumpNode(std::ostream &str,
+                              const std::string &aName,
+                              const std::string &aFullIName,
+                              const DumpParameters &dumpParameters,
+                              const SymbolGroupValueContext &ctx)
 {
     const std::string t = type();
     SymbolGroupNode::dumpBasicData(str, aName, aFullIName, t, aFullIName);
@@ -867,8 +883,8 @@ void SymbolGroupNode::dumpNode(std::ostream &str,
     if (childCountGuess != 0)
         valueEditable = false;
     str << ",valueenabled=\"" << (valueEnabled ? "true" : "false") << '"'
-        << ",valueeditable=\"" << (valueEditable ? "true" : "false") << '"'
-        << ",numchild=\"" << childCountGuess << '"';
+        << ",valueeditable=\"" << (valueEditable ? "true" : "false") << '"';
+    return childCountGuess;
 }
 
 void SymbolGroupNode::debug(std::ostream &str,
@@ -950,7 +966,7 @@ bool SymbolGroupNode::expand(std::string *errorMessage)
 
     if (FAILED(hr)) {
         *errorMessage = msgExpandFailed(name(), absoluteFullIName(), m_index, msgDebugEngineComFailed("ExpandSymbol", hr));
-        ExtensionContext::instance().report('X', 0, "Error", "%s", errorMessage->c_str());
+        ExtensionContext::instance().report('X', 0, 0, "Error", "%s", errorMessage->c_str());
         return false;
     }
     SymbolGroup::SymbolParameterVector parameters;
@@ -1020,12 +1036,12 @@ SymbolGroupNode *SymbolGroupNode::addSymbolByName(const std::string &name,
     HRESULT hr = m_symbolGroup->debugSymbolGroup()->AddSymbol(name.c_str(), &index);
     if (FAILED(hr)) {
         *errorMessage = msgCannotAddSymbol(name, msgDebugEngineComFailed("AddSymbol", hr));
-        ExtensionContext::instance().report('X', 0, "Error", "%s", errorMessage->c_str());
+        ExtensionContext::instance().report('X', 0, 0, "Error", "%s", errorMessage->c_str());
         return 0;
     }
     if (index == DEBUG_ANY_ID) { // Occasionally happens for unknown or 'complicated' types
         *errorMessage = msgCannotAddSymbol(name, "DEBUG_ANY_ID was returned as symbol index by AddSymbol.");
-        ExtensionContext::instance().report('X', 0, "Error", "%s", errorMessage->c_str());
+        ExtensionContext::instance().report('X', 0, 0, "Error", "%s", errorMessage->c_str());
         return 0;
     }
     SymbolParameterVector parameters(1, DEBUG_SYMBOL_PARAMETERS());
@@ -1080,11 +1096,11 @@ ReferenceSymbolGroupNode *ReferenceSymbolGroupNode::createArrayNode(int index,
     return new ReferenceSymbolGroupNode(nameIname.first, nameIname.second, referencedNode);
 }
 
-void ReferenceSymbolGroupNode::dump(std::ostream &str, const std::string &visitingFullIname,
+int ReferenceSymbolGroupNode::dump(std::ostream &str, const std::string &visitingFullIname,
                                     const DumpParameters &p, const SymbolGroupValueContext &ctx)
 {
     // Let the referenced node dump with our iname/name
-    m_referencedNode->dumpNode(str, name(), visitingFullIname, p, ctx);
+    return m_referencedNode->dumpNode(str, name(), visitingFullIname, p, ctx);
 }
 
 void ReferenceSymbolGroupNode::debug(std::ostream &str, const std::string &visitingFullIname,
@@ -1121,14 +1137,15 @@ MapNodeSymbolGroupNode
     return new MapNodeSymbolGroupNode(nameIname.first, nameIname.second, address, type, keyRN, valueRN);
 }
 
-void MapNodeSymbolGroupNode::dump(std::ostream &str, const std::string &visitingFullIname,
+int MapNodeSymbolGroupNode::dump(std::ostream &str, const std::string &visitingFullIname,
                                   const DumpParameters &, const SymbolGroupValueContext &)
 {
     SymbolGroupNode::dumpBasicData(str, name(), visitingFullIname);
     if (m_address)
         str << ",addr=\"0x" << std::hex << m_address << '"';
     str << ",type=\"" << m_type << "\",valueencoded=\"0\",value=\"\",valueenabled=\"false\""
-           ",valueeditable=\"false\",numchild=\"2\"";
+           ",valueeditable=\"false\"";
+    return 2;
 }
 
 void MapNodeSymbolGroupNode::debug(std::ostream &os, const std::string &visitingFullIname,
@@ -1184,7 +1201,7 @@ DumpSymbolGroupNodeVisitor::DumpSymbolGroupNodeVisitor(std::ostream &os,
                                                        const SymbolGroupValueContext &context,
                                                        const DumpParameters &parameters) :
     m_os(os), m_context(context), m_parameters(parameters),
-    m_visitChildren(false),m_lastDepth(unsigned(-1))
+    m_lastDepth(unsigned(-1))
 {
 }
 
@@ -1194,17 +1211,16 @@ SymbolGroupNodeVisitor::VisitResult
                                       unsigned /* child */, unsigned depth)
 {
     // Show container children only, no additional symbol below root.
-    const unsigned flags = node->flags();
-    if (flags & (SymbolGroupNode::Obscured|SymbolGroupNode::AdditionalSymbol))
+    if (node->testFlags(SymbolGroupNode::Obscured|SymbolGroupNode::AdditionalSymbol))
         return VisitSkipChildren;
     // Recurse to children only if expanded by explicit watchmodel request
     // and initialized.
-    m_visitChildren = true;
+    bool visitChildren = depth < 1; // Report only one level for Qt Creator.
     // Visit children of a SymbolGroupNode only if not expanded by its dumpers.
-    // Report only one level for Qt Creator.
-    if (SymbolGroupNode *snode = node->asSymbolGroupNode())
-        m_visitChildren = depth < 1 && snode->isExpanded()
-            && (flags & (SymbolGroupNode::Uninitialized|SymbolGroupNode::ExpandedByDumper)) == 0;
+    if (visitChildren)
+        if (const SymbolGroupNode *realNode = node->resolveReference()->asSymbolGroupNode())
+            if (!realNode->isExpanded() || realNode->testFlags(SymbolGroupNode::Uninitialized|SymbolGroupNode::ExpandedByDumper))
+                    visitChildren = false;
     // Comma between same level children given obscured children
     if (depth == m_lastDepth) {
         m_os << ',';
@@ -1216,15 +1232,18 @@ SymbolGroupNodeVisitor::VisitResult
         indentStream(m_os, depth * 2);
     }
     m_os << '{';
-    node->dump(m_os, fullIname, m_parameters, m_context);
-    if (m_visitChildren) { // open children array
+    const int childCount = node->dump(m_os, fullIname, m_parameters, m_context);
+    m_os << ",numchild=\"" << childCount << '"';
+    if (!childCount)
+        visitChildren = false;
+    if (visitChildren) { // open children array
         m_os << ",children=[";
     } else {               // No children, close array.
         m_os << '}';
     }
     if (m_parameters.humanReadable())
         m_os << '\n';
-    return m_visitChildren ? VisitContinue : VisitSkipChildren;
+    return visitChildren ? VisitContinue : VisitSkipChildren;
 }
 
 void DumpSymbolGroupNodeVisitor::childrenVisited(const AbstractSymbolGroupNode *n, unsigned)

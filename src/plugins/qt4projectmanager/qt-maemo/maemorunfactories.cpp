@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,10 +36,10 @@
 
 #include "maemoconstants.h"
 #include "maemodebugsupport.h"
+#include "maemoglobal.h"
 #include "maemoremotemountsmodel.h"
 #include "maemorunconfiguration.h"
 #include "maemoruncontrol.h"
-#include "maemotoolchain.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <debugger/debuggerconstants.h>
@@ -163,16 +163,20 @@ bool MaemoRunControlFactory::canRun(RunConfiguration *runConfiguration,
 {
     const MaemoRunConfiguration * const maemoRunConfig
         = qobject_cast<MaemoRunConfiguration *>(runConfiguration);
-    if (!maemoRunConfig || !maemoRunConfig->deviceConfig().isValid()
+    if (!maemoRunConfig
+        || !maemoRunConfig->deviceConfig().isValid()
         || !maemoRunConfig->toolchain()
         || maemoRunConfig->remoteExecutableFilePath().isEmpty())
         return false;
     const int freePortCount = maemoRunConfig->freePorts().count();
 
-    if (maemoRunConfig->toolchain()->allowsRemoteMounts() && freePortCount == 0)
+    const QtVersion * const qtVersion
+        = maemoRunConfig->activeQt4BuildConfiguration()->qtVersion();
+    const bool remoteMountsAllowed = MaemoGlobal::allowsRemoteMounts(qtVersion);
+    if (remoteMountsAllowed && freePortCount == 0)
         return false;
     const int mountDirCount
-        = maemoRunConfig->toolchain()->allowsRemoteMounts()
+        = remoteMountsAllowed
             ? maemoRunConfig->remoteMounts()->validMountSpecificationCount()
             : 0;
     if (mode == Debugger::Constants::DEBUGMODE)

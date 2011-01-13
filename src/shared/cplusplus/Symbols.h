@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -518,6 +518,72 @@ protected:
 private:
     Key _key;
     std::vector<BaseClass *> _baseClasses;
+};
+
+class CPLUSPLUS_EXPORT QtPropertyDeclaration: public Symbol
+{
+public:
+    enum Flag {
+        NoFlags = 0,
+        ReadFunction = 1 << 0,
+        WriteFunction = 1 << 1,
+        ResetFunction = 1 << 2,
+        NotifyFunction = 1 << 3,
+        DesignableFlag = 1 << 4,
+        DesignableFunction = 1 << 5,
+        ScriptableFlag = 1 << 6,
+        ScriptableFunction = 1 << 7,
+        StoredFlag = 1 << 8,
+        StoredFunction = 1 << 9,
+        UserFlag = 1 << 10,
+        UserFunction = 1 << 11,
+        ConstantFlag = 1 << 12,
+        FinalFlag = 1 << 13,
+    };
+
+public:
+    QtPropertyDeclaration(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    virtual ~QtPropertyDeclaration();
+
+    void setType(const FullySpecifiedType &type);
+
+    void setFlags(int flags);
+    int flags() const;
+
+    // Symbol's interface
+    virtual FullySpecifiedType type() const;
+
+    virtual const QtPropertyDeclaration *asQtPropertyDeclaration() const
+    { return this; }
+
+    virtual QtPropertyDeclaration *asQtPropertyDeclaration()
+    { return this; }
+
+protected:
+    virtual void visitSymbol0(SymbolVisitor *visitor);
+
+private:
+    FullySpecifiedType _type;
+    int _flags;
+};
+
+class CPLUSPLUS_EXPORT QtEnum: public Symbol
+{
+public:
+    QtEnum(TranslationUnit *translationUnit, unsigned sourceLocation, const Name *name);
+    virtual ~QtEnum();
+
+    // Symbol's interface
+    virtual FullySpecifiedType type() const;
+
+    virtual const QtEnum *asQtEnum() const
+    { return this; }
+
+    virtual QtEnum *asQtEnum()
+    { return this; }
+
+protected:
+    virtual void visitSymbol0(SymbolVisitor *visitor);
 };
 
 class CPLUSPLUS_EXPORT ObjCBaseClass: public Symbol

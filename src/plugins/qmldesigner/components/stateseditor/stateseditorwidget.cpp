@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -72,14 +72,21 @@ void StatesEditorWidget::setCurrentStateInternalId(int internalId)
     m_declarativeView->rootObject()->setProperty("currentStateInternalId", internalId);
 }
 
-StatesEditorWidget::StatesEditorWidget(StatesEditorView *statesEditorView, StatesEditorModel *statesEditorModel):
-        QWidget()
+void StatesEditorWidget::setNodeInstanceView(NodeInstanceView *nodeInstanceView)
 {
-    m_declarativeView = new QDeclarativeView(this);
+    m_imageProvider->setNodeInstanceView(nodeInstanceView);
+}
 
+StatesEditorWidget::StatesEditorWidget(StatesEditorView *statesEditorView, StatesEditorModel *statesEditorModel):
+        QWidget(),
+    m_declarativeView(new QDeclarativeView(this)),
+    m_statesEditorView(statesEditorView),
+    m_imageProvider(0)
+{
+    m_imageProvider = new Internal::StatesEditorImageProvider;
+    m_imageProvider->setNodeInstanceView(statesEditorView->nodeInstanceView());
     m_declarativeView->engine()->addImageProvider(
-            QLatin1String("qmldesigner_stateseditor"), new Internal::StatesEditorImageProvider);
-
+            QLatin1String("qmldesigner_stateseditor"), m_imageProvider);
 
     m_declarativeView->setAcceptDrops(false);
 

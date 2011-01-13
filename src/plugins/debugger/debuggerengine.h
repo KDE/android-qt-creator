@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -36,13 +36,7 @@
 
 #include "debugger_global.h"
 #include "debuggerconstants.h"
-#include "moduleshandler.h" // For 'Symbols'
 #include "breakpoint.h" // For 'BreakpointId'
-#include "stackframe.h"
-
-#include <coreplugin/ssh/sshconnection.h>
-
-#include <utils/environment.h>
 
 #include <QtCore/QObject>
 #include <QtCore/QStringList>
@@ -51,6 +45,7 @@ QT_BEGIN_NAMESPACE
 class QDebug;
 class QPoint;
 class QMessageBox;
+class QAbstractItemModel;
 QT_END_NAMESPACE
 
 namespace TextEditor {
@@ -65,61 +60,8 @@ namespace Debugger {
 
 class DebuggerEnginePrivate;
 class DebuggerRunControl;
-
-class DEBUGGER_EXPORT DebuggerStartParameters
-{
-public:
-    DebuggerStartParameters();
-    QString toolChainName() const;
-
-    QString executable;
-    QString displayName;
-    QString coreFile;
-    bool isSnapshot; // set if created internally
-    QString processArgs;
-    Utils::Environment environment;
-    QString workingDirectory;
-    qint64 attachPID;
-    bool useTerminal;
-
-    // Used by AttachCrashedExternal.
-    QString crashParameter;
-
-    // Used by Qml debugging.
-    QString qmlServerAddress;
-    quint16 qmlServerPort;
-    QString projectBuildDir;
-    QString projectDir;
-
-    // Used by combined cpp+qml debugging.
-    DebuggerEngineType cppEngineType;
-
-    // Used by remote debugging.
-    QString remoteChannel;
-    QString remoteArchitecture;
-    QString gnuTarget;
-    QString symbolFileName;
-    bool useServerStartScript;
-    QString serverStartScript;
-    QString sysRoot;
-    QByteArray remoteDumperLib;
-    QByteArray remoteSourcesDir;
-    QString remoteMountPoint;
-    QString localMountDir;
-    Core::SshConnectionParameters connParams;
-
-    QString debuggerCommand;
-    int toolChainType;
-    QString qtInstallPath;
-
-    QString dumperLibrary;
-    QStringList dumperLibraryLocations;
+class DebuggerStartParameters;
     QStringList solibSearchPath;
-    DebuggerStartMode startMode;
-
-    // for SymbianOS debugging
-    quint32 executableUid;
-};
 
 DEBUGGER_EXPORT QDebug operator<<(QDebug str, const DebuggerStartParameters &);
 DEBUGGER_EXPORT QDebug operator<<(QDebug str, DebuggerState state);
@@ -155,10 +97,7 @@ public:
     Location(const QString &file) { init(); m_fileName = file; }
     Location(const QString &file, int line, bool marker = true)
         { init(); m_lineNumber = line; m_fileName = file; m_needsMarker = marker; }
-    Location(const StackFrame &frame, bool marker = true) //: m_frame(frame)
-        { init(); m_fileName = frame.file; m_lineNumber = frame.line;
-          m_needsMarker = marker; m_functionName = frame.function;
-          m_hasDebugInfo = frame.isUsable(); m_address = frame.address; }
+    Location(const StackFrame &frame, bool marker = true);
     QString fileName() const { return m_fileName; }
     QString functionName() const { return m_functionName; }
     int lineNumber() const { return m_lineNumber; }
@@ -182,7 +121,6 @@ private:
     quint64 m_address;
 };
 
-
 } // namespace Internal
 
 
@@ -192,16 +130,19 @@ class DEBUGGER_EXPORT DebuggerEngine : public QObject
     Q_OBJECT
 
 public:
-    explicit DebuggerEngine(const DebuggerStartParameters &sp);
+    explicit DebuggerEngine(const DebuggerStartParameters &sp,
+        DebuggerEngine *parentEngine = 0);
     virtual ~DebuggerEngine();
 
-    typedef Internal::BreakpointId BreakpointId;
+    const DebuggerStartParameters &startParameters() const;
+    DebuggerStartParameters &startParameters();
+
     virtual void setToolTipExpression(const QPoint & mousePos,
         TextEditor::ITextEditor *editor, int cursorPos);
 
     virtual void updateWatchData(const Internal::WatchData &data,
         const Internal::WatchUpdateFlags & flags = Internal::WatchUpdateFlags());
-    void startDebugger(DebuggerRunControl *runControl);
+    virtual void startDebugger(DebuggerRunControl *runControl);
 
     virtual void watchPoint(const QPoint &);
     virtual void openMemoryView(quint64 addr);
@@ -233,7 +174,7 @@ public:
     virtual void createSnapshot();
     virtual void updateAll();
 
-
+    typedef Internal::BreakpointId BreakpointId;
     virtual bool stateAcceptsBreakpointChanges() const { return true; }
     virtual void attemptBreakpointSynchronization();
     virtual bool acceptsBreakpoint(BreakpointId id) const = 0;
@@ -249,40 +190,13 @@ public:
     virtual void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
     virtual void handleRemoteSetupFailed(const QString &message);
 
-protected:
-    friend class Internal::DebuggerPluginPrivate;
-    virtual void detachDebugger();
-    virtual void exitDebugger();
-    virtual void executeStep();
-    virtual void executeStepOut() ;
-    virtual void executeNext();
-    virtual void executeStepI();
-    virtual void executeNextI();
-    virtual void executeReturn();
-
-    virtual void continueInferior();
-    virtual void interruptInferior();
-    virtual void requestInterruptInferior();
-
-    virtual void executeRunToLine(const QString &fileName, int lineNumber);
-    virtual void executeRunToFunction(const QString &functionName);
-    virtual void executeJumpToLine(const QString &fileName, int lineNumber);
-    virtual void executeDebuggerCommand(const QString &command);
-
-    virtual void frameUp();
-    virtual void frameDown();
-
-public:
-    const DebuggerStartParameters &startParameters() const;
-    DebuggerStartParameters &startParameters();
-
-    Internal::ModulesHandler *modulesHandler() const;
-    Internal::RegisterHandler *registerHandler() const;
-    Internal::StackHandler *stackHandler() const;
-    Internal::ThreadsHandler *threadsHandler() const;
-    Internal::WatchHandler *watchHandler() const;
-    Internal::SourceFilesHandler *sourceFilesHandler() const;
-    Internal::BreakHandler *breakHandler() const;
+    virtual Internal::ModulesHandler *modulesHandler() const;
+    virtual Internal::RegisterHandler *registerHandler() const;
+    virtual Internal::StackHandler *stackHandler() const;
+    virtual Internal::ThreadsHandler *threadsHandler() const;
+    virtual Internal::WatchHandler *watchHandler() const;
+    virtual Internal::SourceFilesHandler *sourceFilesHandler() const;
+    virtual Internal::BreakHandler *breakHandler() const;
 
     virtual QAbstractItemModel *modulesModel() const;
     virtual QAbstractItemModel *registerModel() const;
@@ -328,6 +242,7 @@ public:
 
     virtual void updateViews();
     bool isSlaveEngine() const;
+    DebuggerEngine *masterEngine() const;
 
 signals:
     void stateChanged(const DebuggerState &state);
@@ -385,9 +300,29 @@ protected:
     virtual void shutdownInferior() = 0;
     virtual void shutdownEngine() = 0;
 
+    virtual void detachDebugger();
+    virtual void exitDebugger();
+    virtual void executeStep();
+    virtual void executeStepOut() ;
+    virtual void executeNext();
+    virtual void executeStepI();
+    virtual void executeNextI();
+    virtual void executeReturn();
+
+    virtual void continueInferior();
+    virtual void interruptInferior();
+    virtual void requestInterruptInferior();
+
+    virtual void executeRunToLine(const QString &fileName, int lineNumber);
+    virtual void executeRunToFunction(const QString &functionName);
+    virtual void executeJumpToLine(const QString &fileName, int lineNumber);
+    virtual void executeDebuggerCommand(const QString &command);
+
+    virtual void frameUp();
+    virtual void frameDown();
+
     DebuggerRunControl *runControl() const; // FIXME: Protect.
 
-protected:
     static QString msgWatchpointTriggered(BreakpointId id,
         int number, quint64 address);
     static QString msgWatchpointTriggered(BreakpointId id,
@@ -407,8 +342,9 @@ protected:
 private:
     // Wrapper engine needs access to state of its subengines.
     friend class Internal::QmlCppEngine;
+    friend class Internal::DebuggerPluginPrivate;
+
     void setState(DebuggerState state, bool forced = false);
-    void setSlaveEngine(bool value);
 
     friend class DebuggerEnginePrivate;
     DebuggerEnginePrivate *d;

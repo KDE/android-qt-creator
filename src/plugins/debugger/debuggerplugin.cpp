@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -33,6 +33,7 @@
 
 #include "debuggerplugin.h"
 
+#include "debuggerstartparameters.h"
 #include "debuggeractions.h"
 #include "debuggerconstants.h"
 #include "debuggercore.h"
@@ -40,6 +41,7 @@
 #include "debuggerengine.h"
 #include "debuggermainwindow.h"
 #include "debuggerrunner.h"
+#include "debuggerruncontrolfactory.h"
 #include "debuggerstringutils.h"
 #include "debuggertooltip.h"
 
@@ -50,6 +52,7 @@
 #include "disassembleragent.h"
 #include "logwindow.h"
 #include "moduleswindow.h"
+#include "moduleshandler.h"
 #include "registerwindow.h"
 #include "snapshotwindow.h"
 #include "stackhandler.h"
@@ -85,7 +88,7 @@
 #include <coreplugin/modemanager.h>
 
 #include <cppeditor/cppeditorconstants.h>
-#include <cpptools/cppmodelmanagerinterface.h>
+#include <cplusplus/ModelManagerInterface.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -94,6 +97,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
+#include <projectexplorer/toolchain.h>
 #include <projectexplorer/toolchaintype.h>
 
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
@@ -105,6 +109,7 @@
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
 #include <utils/styledbar.h>
+#include <utils/proxyaction.h>
 
 #include <qml/scriptconsole.h>
 
@@ -401,11 +406,6 @@ const char * const SNAPSHOT_KEY             = "Ctrl+D,Ctrl+S";
 } // namespace Constants
 
 
-namespace Cdb {
-void addCdb2OptionPages(QList<Core::IOptionsPage*> *);
-} // namespace Cdb
-
-
 namespace Internal {
 
 // FIXME: Outdated?
@@ -414,12 +414,10 @@ namespace Internal {
 // of the engine. That's good for not enabling the related ActiveX control
 // unnecessarily.
 
+void addCdbOptionPages(QList<IOptionsPage*> *opts);
 void addGdbOptionPages(QList<IOptionsPage*> *opts);
 void addScriptOptionPages(QList<IOptionsPage*> *opts);
 void addTcfOptionPages(QList<IOptionsPage*> *opts);
-#ifdef CDB_ENABLED
-void addCdbOptionPages(QList<IOptionsPage*> *opts);
-#endif
 
 #ifdef WITH_LLDB
 void addLldbOptionPages(QList<IOptionsPage*> *opts);
@@ -435,21 +433,6 @@ static QToolButton *toolButton(QAction *action)
     QToolButton *button = new QToolButton;
     button->setDefaultAction(action);
     return button;
-}
-
-// Retrieve file name and line and optionally address
-// from the data set on the text editor context menu action.
-static bool positionFromActionData(const QObject *sender,
-    QString *fileName, int *lineNumber, quint64 *address)
-{
-    const QAction *action = qobject_cast<const QAction *>(sender);
-    QTC_ASSERT(action, return false);
-    const QVariantList data = action->data().toList();
-    QTC_ASSERT(data.size() == 3, return false);
-    *fileName = data.front().toString();
-    *lineNumber = data.at(1).toInt();
-    *address = data.at(2).toULongLong();
-    return true;
 }
 
 struct AttachRemoteParameters
@@ -843,12 +826,30 @@ static bool isDebuggable(IEditor *editor)
     return editor;
 }
 
+class ContextData
+{
+public:
+    ContextData() : lineNumber(0), address(0) {}
+
+public:
+    QString fileName;
+    int lineNumber;
+    quint64 address;
+};
+
+} // namespace Internal
+} // namespace Debugger
+
+Q_DECLARE_METATYPE(Debugger::Internal::ContextData)
 
 ///////////////////////////////////////////////////////////////////////
 //
 // Debugger Actions
 //
 ///////////////////////////////////////////////////////////////////////
+
+namespace Debugger {
+namespace Internal {
 
 struct DebuggerActions
 {
@@ -907,15 +908,13 @@ public slots:
 
     void breakpointSetMarginActionTriggered()
     {
-        QString fileName;
-        int lineNumber;
-        quint64 address;
-        if (positionFromActionData(sender(), &fileName, &lineNumber, &address)) {
-            if (address)
-                toggleBreakpointByAddress(address);
-            else
-                toggleBreakpointByFileAndLine(fileName, lineNumber);
-        }
+        const QAction *action = qobject_cast<const QAction *>(sender());
+        QTC_ASSERT(action, return);
+        const ContextData data = action->data().value<ContextData>();
+        if (data.address)
+            toggleBreakpointByAddress(data.address);
+        else
+            toggleBreakpointByFileAndLine(data.fileName, data.lineNumber);
     }
 
     void breakpointRemoveMarginActionTriggered()
@@ -980,10 +979,10 @@ public slots:
     }
 
     void editorOpened(Core::IEditor *editor);
-    void editorAboutToClose(Core::IEditor *editor);
     void setBusyCursor(bool busy);
     void requestMark(TextEditor::ITextEditor *editor, int lineNumber);
-    void showToolTip(TextEditor::ITextEditor *editor, const QPoint &pnt, int pos);
+    void showToolTip(TextEditor::ITextEditor *editor,
+        const QPoint &pnt, int pos, bool *handled);
     void requestContextMenu(TextEditor::ITextEditor *editor,
         int lineNumber, QMenu *menu);
 
@@ -1048,7 +1047,6 @@ public slots:
     void setInitialState();
 
     void fontSettingsChanged(const TextEditor::FontSettings &settings);
-    DebuggerState state() const { return m_state; }
 
     void updateState(DebuggerEngine *engine);
     void updateWatchersWindow();
@@ -1183,21 +1181,18 @@ public slots:
 
     void slotRunToLine()
     {
-        // Run to line, file name and line number set as list.
-        QString fileName;
-        int lineNumber;
-        quint64 address;
-        if (positionFromActionData(sender(), &fileName, &lineNumber, &address))
-            currentEngine()->executeRunToLine(fileName, lineNumber);
+        const QAction *action = qobject_cast<const QAction *>(sender());
+        QTC_ASSERT(action, return);
+        const ContextData data = action->data().value<ContextData>();
+        currentEngine()->executeRunToLine(data.fileName, data.lineNumber);
     }
 
     void slotJumpToLine()
     {
-        QString fileName;
-        int lineNumber;
-        quint64 address;
-        if (positionFromActionData(sender(), &fileName, &lineNumber, &address))
-            currentEngine()->executeJumpToLine(fileName, lineNumber);
+        const QAction *action = qobject_cast<const QAction *>(sender());
+        QTC_ASSERT(action, return);
+        const ContextData data = action->data().value<ContextData>();
+        currentEngine()->executeJumpToLine(data.fileName, data.lineNumber);
     }
 
     void handleAddToWatchWindow()
@@ -1274,18 +1269,13 @@ public slots:
     void showModuleSymbols(const QString &moduleName, const Symbols &symbols);
 
 public:
-    DebuggerState m_state;
     DebuggerMainWindow *m_mainWindow;
     DebuggerRunControlFactory *m_debuggerRunControlFactory;
 
     QString m_previousMode;
-    Context m_continuableContext;
-    Context m_interruptibleContext;
-    Context m_undisturbableContext;
-    Context m_finishedContext;
-    Context m_anyContext;
     AttachRemoteParameters m_attachRemoteParameters;
 
+    Utils::ProxyAction *m_visibleDebugAction;
     QAction *m_debugAction;
     QAction *m_startExternalAction;
     QAction *m_startRemoteAction;
@@ -1341,6 +1331,10 @@ public:
 
 DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin)
 {
+    qRegisterMetaType<WatchData>("WatchData");
+    qRegisterMetaType<ContextData>("ContextData");
+    qRegisterMetaType<DebuggerStartParameters>("DebuggerStartParameters");
+
     QTC_ASSERT(!theDebuggerCore, /**/);
     theDebuggerCore = this;
 
@@ -1365,14 +1359,7 @@ DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin)
     m_logWindow = 0;
     m_scriptConsoleWindow = 0;
 
-    m_continuableContext = Context(0);
-    m_interruptibleContext = Context(0);
-    m_undisturbableContext = Context(0);
-    m_finishedContext = Context(0);
-    m_anyContext = Context(0);
-
     m_mainWindow = 0;
-    m_state = DebuggerNotReady;
     m_snapshotHandler = 0;
     m_currentEngine = 0;
     m_debuggerSettings = 0;
@@ -1464,7 +1451,12 @@ void DebuggerPluginPrivate::onCurrentProjectChanged(Project *project)
     }
     // No corresponding debugger found. So we are ready to start one.
     ICore *core = ICore::instance();
-    core->updateAdditionalContexts(m_anyContext, Context());
+    ActionManager *am = core->actionManager();
+    m_actions.interruptAction->setEnabled(false);
+    m_actions.continueAction->setEnabled(false);
+    m_actions.exitAction->setEnabled(false);
+    m_debugAction->setEnabled(true);
+    m_visibleDebugAction->setAction(am->command(Constants::DEBUG)->action());
 }
 
 void DebuggerPluginPrivate::languagesChanged()
@@ -1753,7 +1745,7 @@ bool DebuggerPluginPrivate::attachCmdLine()
     return true;
 }
 
-void DebuggerPluginPrivate::editorOpened(Core::IEditor *editor)
+void DebuggerPluginPrivate::editorOpened(IEditor *editor)
 {
     if (!isDebuggable(editor))
         return;
@@ -1764,32 +1756,14 @@ void DebuggerPluginPrivate::editorOpened(Core::IEditor *editor)
         SIGNAL(markRequested(TextEditor::ITextEditor*,int)),
         SLOT(requestMark(TextEditor::ITextEditor*,int)));
     connect(editor,
-        SIGNAL(tooltipRequested(TextEditor::ITextEditor*,QPoint,int)),
-        SLOT(showToolTip(TextEditor::ITextEditor*,QPoint,int)));
+        SIGNAL(tooltipOverrideRequested(TextEditor::ITextEditor*,QPoint,int,bool*)),
+        SLOT(showToolTip(TextEditor::ITextEditor*,QPoint,int,bool*)));
     connect(textEditor,
         SIGNAL(markContextMenuRequested(TextEditor::ITextEditor*,int,QMenu*)),
         SLOT(requestContextMenu(TextEditor::ITextEditor*,int,QMenu*)));
 }
 
-void DebuggerPluginPrivate::editorAboutToClose(Core::IEditor *editor)
-{
-    if (!isDebuggable(editor))
-        return;
-    ITextEditor *textEditor = qobject_cast<ITextEditor *>(editor);
-    if (!textEditor)
-        return;
-    disconnect(textEditor,
-        SIGNAL(markRequested(TextEditor::ITextEditor*,int)),
-        this, SLOT(requestMark(TextEditor::ITextEditor*,int)));
-    disconnect(editor,
-        SIGNAL(tooltipRequested(TextEditor::ITextEditor*,QPoint,int)),
-        this, SLOT(showToolTip(TextEditor::ITextEditor*,QPoint,int)));
-    disconnect(textEditor,
-        SIGNAL(markContextMenuRequested(TextEditor::ITextEditor*,int,QMenu*)),
-        this, SLOT(requestContextMenu(TextEditor::ITextEditor*,int,QMenu*)));
-}
-
-void DebuggerPluginPrivate::requestContextMenu(TextEditor::ITextEditor *editor,
+void DebuggerPluginPrivate::requestContextMenu(ITextEditor *editor,
     int lineNumber, QMenu *menu)
 {
     if (!isDebuggable(editor))
@@ -1799,25 +1773,23 @@ void DebuggerPluginPrivate::requestContextMenu(TextEditor::ITextEditor *editor,
     QString fileName;
     quint64 address = 0;
 
+    ContextData args;
+    args.lineNumber = lineNumber;
+
     if (editor->property("DisassemblerView").toBool()) {
-        fileName = editor->file()->fileName();
+        args.fileName = editor->file()->fileName();
         QString line = editor->contents()
             .section('\n', lineNumber - 1, lineNumber - 1);
         BreakpointResponse needle;
         needle.type = BreakpointByAddress;
         needle.address = DisassemblerAgent::addressFromDisassemblyLine(line);
-        address = needle.address;
+        args.address = needle.address;
         needle.lineNumber = -1;
         id = breakHandler()->findSimilarBreakpoint(needle);
     } else {
-        fileName = editor->file()->fileName();
+        args.fileName = editor->file()->fileName();
         id = breakHandler()->findBreakpointByFileAndLine(fileName, lineNumber);
     }
-
-    QList<QVariant> args;
-    args.append(fileName);
-    args.append(lineNumber);
-    args.append(address);
 
     if (id) {
         // Remove existing breakpoint.
@@ -1854,18 +1826,18 @@ void DebuggerPluginPrivate::requestContextMenu(TextEditor::ITextEditor *editor,
                     tr("Set Breakpoint at 0x%1").arg(address, 0, 16) :
                     tr("Set Breakpoint at line %1").arg(lineNumber);
         QAction *act = new QAction(text, menu);
-        act->setData(args);
+        act->setData(QVariant::fromValue(args));
         connect(act, SIGNAL(triggered()),
             SLOT(breakpointSetMarginActionTriggered()));
         menu->addAction(act);
     }
     // Run to, jump to line below in stopped state.
-    if (state() == InferiorStopOk) {
+    if (currentEngine()->state() == InferiorStopOk) {
         menu->addSeparator();
         const QString runText =
             DebuggerEngine::tr("Run to Line %1").arg(lineNumber);
         QAction *runToLineAction  = new QAction(runText, menu);
-        runToLineAction->setData(args);
+        runToLineAction->setData(QVariant::fromValue(args));
         connect(runToLineAction, SIGNAL(triggered()), SLOT(slotRunToLine()));
         menu->addAction(runToLineAction);
         if (currentEngine()->debuggerCapabilities() & JumpToLineCapability) {
@@ -1873,7 +1845,7 @@ void DebuggerPluginPrivate::requestContextMenu(TextEditor::ITextEditor *editor,
                 DebuggerEngine::tr("Jump to Line %1").arg(lineNumber);
             QAction *jumpToLineAction  = new QAction(jumpText, menu);
             menu->addAction(runToLineAction);
-            jumpToLineAction->setData(args);
+            jumpToLineAction->setData(QVariant::fromValue(args));
             connect(jumpToLineAction, SIGNAL(triggered()), SLOT(slotJumpToLine()));
             menu->addAction(jumpToLineAction);
         }
@@ -1943,14 +1915,18 @@ void DebuggerPluginPrivate::requestMark(ITextEditor *editor, int lineNumber)
 }
 
 void DebuggerPluginPrivate::showToolTip(ITextEditor *editor,
-    const QPoint &point, int pos)
+    const QPoint &point, int pos, bool *handled)
 {
     if (!isDebuggable(editor))
         return;
     if (!boolSetting(UseToolTipsInMainEditor))
         return;
-    if (state() != InferiorStopOk)
+    if (!currentEngine())
         return;
+    if (currentEngine()->state() != InferiorStopOk)
+        return;
+    QTC_ASSERT(handled, return);
+    *handled = true;
     currentEngine()->setToolTipExpression(point, editor, pos);
 }
 
@@ -2114,11 +2090,9 @@ void DebuggerPluginPrivate::setInitialState()
 
     action(AutoDerefPointers)->setEnabled(true);
     action(ExpandStack)->setEnabled(false);
-    action(ExecuteCommand)->setEnabled(m_state == InferiorStopOk);
+    action(ExecuteCommand)->setEnabled(false);
 
     m_scriptConsoleWindow->setEnabled(false);
-
-    //emit m_plugin->stateChanged(m_state);
 }
 
 void DebuggerPluginPrivate::updateWatchersWindow()
@@ -2140,71 +2114,65 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
 
     updateWatchersWindow();
 
-    //m_plugin->showMessage(QString("PLUGIN SET STATE: ")
-    //    + DebuggerEngine::stateName(engine->state()), LogStatus);
-    //qDebug() << "PLUGIN SET STATE: " << engine->state();
+    const DebuggerState state = engine->state();
+    //showMessage(QString("PLUGIN SET STATE: ")
+    //    + DebuggerEngine::stateName(state), LogStatus);
+    //qDebug() << "PLUGIN SET STATE: " << state;
 
-    if (m_state == engine->state())
+    static DebuggerState previousState = DebuggerNotReady;
+    if (state == previousState)
         return;
 
-    m_state = engine->state();
-    bool actionsEnabled = DebuggerEngine::debuggerActionsEnabled(m_state);
+    bool actionsEnabled = DebuggerEngine::debuggerActionsEnabled(state);
 
     ICore *core = ICore::instance();
     ActionManager *am = core->actionManager();
-    if (m_state == DebuggerNotReady) {
+    if (state == DebuggerNotReady) {
         QTC_ASSERT(false, /* We use the Core m_debugAction here */);
         // F5 starts debugging. It is "startable".
         m_actions.interruptAction->setEnabled(false);
         m_actions.continueAction->setEnabled(false);
         m_actions.exitAction->setEnabled(false);
-        am->command(Constants::STOP)->setKeySequence(QKeySequence());
-        am->command(Constants::DEBUG)->setKeySequence(QKeySequence(DEBUG_KEY));
-        core->updateAdditionalContexts(m_anyContext, Context());
-    } else if (m_state == InferiorStopOk) {
+        m_debugAction->setEnabled(true);
+        m_visibleDebugAction->setAction(am->command(Constants::DEBUG)->action());
+    } else if (state == InferiorStopOk) {
         // F5 continues, Shift-F5 kills. It is "continuable".
         m_actions.interruptAction->setEnabled(false);
         m_actions.continueAction->setEnabled(true);
         m_actions.exitAction->setEnabled(true);
-        am->command(Constants::STOP)->setKeySequence(QKeySequence(STOP_KEY));
-        am->command(Constants::DEBUG)->setKeySequence(QKeySequence(DEBUG_KEY));
-        core->updateAdditionalContexts(m_anyContext, m_continuableContext);
-    } else if (m_state == InferiorRunOk) {
+        m_debugAction->setEnabled(false);
+        m_visibleDebugAction->setAction(am->command(Constants::CONTINUE)->action());
+    } else if (state == InferiorRunOk) {
         // Shift-F5 interrupts. It is also "interruptible".
         m_actions.interruptAction->setEnabled(true);
         m_actions.continueAction->setEnabled(false);
         m_actions.exitAction->setEnabled(false);
-        am->command(Constants::STOP)->setKeySequence(QKeySequence());
-        am->command(Constants::DEBUG)->setKeySequence(QKeySequence(STOP_KEY));
-        core->updateAdditionalContexts(m_anyContext, m_interruptibleContext);
-    } else if (m_state == DebuggerFinished) {
+        m_debugAction->setEnabled(false);
+        m_visibleDebugAction->setAction(am->command(Constants::INTERRUPT)->action());
+    } else if (state == DebuggerFinished) {
         // We don't want to do anything anymore.
         m_actions.interruptAction->setEnabled(false);
         m_actions.continueAction->setEnabled(false);
         m_actions.exitAction->setEnabled(false);
-        am->command(Constants::STOP)->setKeySequence(QKeySequence());
-        am->command(Constants::DEBUG)->setKeySequence(QKeySequence(DEBUG_KEY));
-        //core->updateAdditionalContexts(m_anyContext, m_finishedContext);
+        m_debugAction->setEnabled(true);
+        m_visibleDebugAction->setAction(am->command(Constants::DEBUG)->action());
         m_codeModelSnapshot = CPlusPlus::Snapshot();
-        core->updateAdditionalContexts(m_anyContext, Context());
         setBusyCursor(false);
         cleanupViews();
-    } else if (m_state == InferiorUnrunnable) {
+    } else if (state == InferiorUnrunnable) {
         // We don't want to do anything anymore.
         m_actions.interruptAction->setEnabled(false);
         m_actions.continueAction->setEnabled(false);
         m_actions.exitAction->setEnabled(true);
-        am->command(Constants::STOP)->setKeySequence(QKeySequence(STOP_KEY));
-        am->command(Constants::DEBUG)->setKeySequence(QKeySequence(STOP_KEY));
-        core->updateAdditionalContexts(m_anyContext, m_finishedContext);
+        m_debugAction->setEnabled(false);
+        m_visibleDebugAction->setAction(am->command(Constants::DEBUG)->action());
     } else {
         // Everything else is "undisturbable".
         m_actions.interruptAction->setEnabled(false);
         m_actions.continueAction->setEnabled(false);
         m_actions.exitAction->setEnabled(false);
-        am->command(Constants::STOP)->setKeySequence(QKeySequence());
-        am->command(Constants::DEBUG)->setKeySequence(QKeySequence());
-        core->updateAdditionalContexts(m_anyContext, m_undisturbableContext);
+        m_debugAction->setEnabled(false);
+        m_visibleDebugAction->setAction(m_actions.undisturbableAction);
     }
 
     m_startExternalAction->setEnabled(true);
@@ -2217,7 +2185,7 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
     m_startRemoteAction->setEnabled(true);
 
     const bool isCore = engine->startParameters().startMode == AttachCore;
-    const bool stopped = m_state == InferiorStopOk;
+    const bool stopped = state == InferiorStopOk;
     const bool detachable = stopped && !isCore;
     m_detachAction->setEnabled(detachable);
 
@@ -2236,8 +2204,8 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
 
     action(OperateByInstruction)->setEnabled(stopped || isCore);
 
-    m_actions.resetAction->setEnabled(m_state != DebuggerNotReady
-                                      && m_state != DebuggerFinished);
+    m_actions.resetAction->setEnabled(state != DebuggerNotReady
+                                      && state != DebuggerFinished);
 
     m_actions.stepAction->setEnabled(stopped);
     m_actions.stepOutAction->setEnabled(stopped);
@@ -2255,12 +2223,12 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
     action(AutoDerefPointers)->setEnabled(canDeref);
     action(AutoDerefPointers)->setEnabled(true);
     action(ExpandStack)->setEnabled(actionsEnabled);
-    action(ExecuteCommand)->setEnabled(m_state == InferiorStopOk);
+    action(ExecuteCommand)->setEnabled(state == InferiorStopOk);
 
-    const bool notbusy = m_state == InferiorStopOk
-        || m_state == DebuggerNotReady
-        || m_state == DebuggerFinished
-        || m_state == InferiorUnrunnable;
+    const bool notbusy = state == InferiorStopOk
+        || state == DebuggerNotReady
+        || state == DebuggerFinished
+        || state == InferiorUnrunnable;
     setBusyCursor(!notbusy);
 
     m_scriptConsoleWindow->setEnabled(stopped);
@@ -2401,9 +2369,8 @@ void DebuggerPluginPrivate::coreShutdown()
 
 const CPlusPlus::Snapshot &DebuggerPluginPrivate::cppCodeModelSnapshot() const
 {
-    using namespace CppTools;
     if (m_codeModelSnapshot.isEmpty() && action(UseCodeModel)->isChecked())
-        m_codeModelSnapshot = CppModelManagerInterface::instance()->snapshot();
+        m_codeModelSnapshot = CPlusPlus::CppModelManagerInterface::instance()->snapshot();
     return m_codeModelSnapshot;
 }
 
@@ -2518,9 +2485,10 @@ void DebuggerPluginPrivate::createNewDock(QWidget *widget)
 void DebuggerPluginPrivate::runControlStarted(DebuggerEngine *engine)
 {
     activateDebugMode();
+    QString toolChainName =
+        ToolChain::toolChainName(engine->startParameters().toolChainType);
     const QString message = tr("Starting debugger '%1' for tool chain '%2'...")
-            .arg(engine->objectName())
-            .arg(engine->startParameters().toolChainName());
+            .arg(engine->objectName()).arg(toolChainName);
     showMessage(message, StatusBar);
     showMessage(m_debuggerSettings->dump(), LogDebug);
     m_snapshotHandler->appendSnapshot(engine);
@@ -2595,15 +2563,6 @@ void DebuggerPluginPrivate::extensionsInitialized()
     QTC_ASSERT(core, return);
     m_coreSettings = core->settings();
     m_debuggerSettings = new DebuggerSettings(m_coreSettings);
-
-    m_continuableContext = Context("Gdb.Continuable");
-    m_interruptibleContext = Context("Gdb.Interruptible");
-    m_undisturbableContext = Context("Gdb.Undisturbable");
-    m_finishedContext = Context("Gdb.Finished");
-    m_anyContext.add(m_continuableContext);
-    m_anyContext.add(m_interruptibleContext);
-    m_anyContext.add(m_undisturbableContext);
-    m_anyContext.add(m_finishedContext);
 
     connect(core, SIGNAL(coreAboutToClose()), this, SLOT(coreShutdown()));
 
@@ -2852,16 +2811,16 @@ void DebuggerPluginPrivate::extensionsInitialized()
     ActionContainer *mstart = am->actionContainer(PE::M_DEBUG_STARTDEBUGGING);
 
     cmd = am->registerAction(m_debugAction, Constants::DEBUG, globalcontext);
-    cmd->setAttribute(Core::Command::CA_UpdateText);
-    cmd->setAttribute(Core::Command::CA_UpdateIcon);
     cmd->setDefaultText(tr("Start Debugging"));
     cmd->setDefaultKeySequence(QKeySequence(Constants::DEBUG_KEY));
     mstart->addAction(cmd, Core::Constants::G_DEFAULT_ONE);
-    Core::ICore::instance()->modeManager()->addAction(cmd, Constants::P_ACTION_DEBUG);
 
-    cmd = am->registerAction(m_actions.continueAction,
-        Constants::DEBUG, m_continuableContext);
-    mstart->addAction(cmd, CC::G_DEFAULT_ONE);
+    m_visibleDebugAction = new Utils::ProxyAction(this);
+    m_visibleDebugAction->initialize(m_debugAction);
+    m_visibleDebugAction->setAttribute(Utils::ProxyAction::UpdateText);
+    m_visibleDebugAction->setAttribute(Utils::ProxyAction::UpdateIcon);
+    m_visibleDebugAction->setAction(cmd->action());
+    Core::ICore::instance()->modeManager()->addAction(m_visibleDebugAction, Constants::P_ACTION_DEBUG);
 
     cmd = am->registerAction(m_startExternalAction,
         Constants::STARTEXTERNAL, globalcontext);
@@ -2905,19 +2864,21 @@ void DebuggerPluginPrivate::extensionsInitialized()
     cmd->setAttribute(Command::CA_Hide);
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 
+    cmd = am->registerAction(m_actions.interruptAction,
+        Constants::INTERRUPT, globalcontext);
+    cmd->setDefaultText(tr("Interrupt Debugger"));
+    debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
+
+    cmd = am->registerAction(m_actions.continueAction,
+        Constants::CONTINUE, globalcontext);
+    cmd->setDefaultKeySequence(QKeySequence(Constants::DEBUG_KEY));
+    debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
+
     cmd = am->registerAction(m_actions.exitAction,
         Constants::STOP, globalcontext);
     //cmd->setDefaultKeySequence(QKeySequence(Constants::STOP_KEY));
     cmd->setDefaultText(tr("Stop Debugger"));
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
-
-    cmd = am->registerAction(m_actions.interruptAction,
-        Constants::DEBUG, m_interruptibleContext);
-    cmd->setDefaultText(tr("Interrupt Debugger"));
-
-    cmd = am->registerAction(m_actions.undisturbableAction,
-        Constants::DEBUG, m_undisturbableContext);
-    cmd->setDefaultText(tr("Debugger is Busy"));
 
     cmd = am->registerAction(m_actions.resetAction,
         Constants::RESET, globalcontext);
@@ -3015,32 +2976,27 @@ void DebuggerPluginPrivate::extensionsInitialized()
     //cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+D,Ctrl+W")));
     debugMenu->addAction(cmd);
 
+    // If the CppEditor plugin is there, we want to add something to
+    // the editor context menu.
+    if (ActionContainer *editorContextMenu =
+            am->actionContainer(CppEditor::Constants::M_CONTEXT)) {
+        cmd = am->registerAction(sep, _("Debugger.Sep.Views"),
+            cppDebuggercontext);
+        editorContextMenu->addAction(cmd);
+        cmd->setAttribute(Command::CA_Hide);
 
-    // Editor context menu
-    ActionContainer *editorContextMenu =
-        am->actionContainer(CppEditor::Constants::M_CONTEXT);
-    cmd = am->registerAction(sep, _("Debugger.Sep.Views"),
-        cppDebuggercontext);
-    editorContextMenu->addAction(cmd);
-    cmd->setAttribute(Command::CA_Hide);
-
-    cmd = am->registerAction(m_actions.watchAction2,
-        Constants::ADD_TO_WATCH2, cppDebuggercontext);
-    cmd->action()->setEnabled(true);
-    editorContextMenu->addAction(cmd);
-    cmd->setAttribute(Command::CA_Hide);
+        cmd = am->registerAction(m_actions.watchAction2,
+            Constants::ADD_TO_WATCH2, cppDebuggercontext);
+        cmd->action()->setEnabled(true);
+        editorContextMenu->addAction(cmd);
+        cmd->setAttribute(Command::CA_Hide);
+    }
 
     m_plugin->addAutoReleasedObject(new CommonOptionsPage);
     QList<Core::IOptionsPage *> engineOptionPages;
     if (m_cmdLineEnabledEngines & GdbEngineType)
         addGdbOptionPages(&engineOptionPages);
-#ifdef CDB_ENABLED
-    if (m_cmdLineEnabledEngines & CdbEngineType)
-        addCdbOptionPages(&engineOptionPages);
-#endif
-#ifdef Q_OS_WIN
-    Debugger::Cdb::addCdb2OptionPages(&engineOptionPages);
-#endif
+   addCdbOptionPages(&engineOptionPages);
 #ifdef WITH_LLDB
     if (m_cmdLineEnabledEngines & LldbEngineType)
         addLldbOptionPages(&engineOptionPages);
@@ -3082,8 +3038,6 @@ void DebuggerPluginPrivate::extensionsInitialized()
 
     // EditorManager
     QObject *editorManager = core->editorManager();
-    connect(editorManager, SIGNAL(editorAboutToClose(Core::IEditor*)),
-        SLOT(editorAboutToClose(Core::IEditor*)));
     connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)),
         SLOT(editorOpened(Core::IEditor*)));
 
@@ -3097,7 +3051,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
     QHBoxLayout *hbox = new QHBoxLayout(toolbarContainer);
     hbox->setMargin(0);
     hbox->setSpacing(0);
-    hbox->addWidget(toolButton(am->command(Constants::DEBUG)->action()));
+    hbox->addWidget(toolButton(m_visibleDebugAction));
     hbox->addWidget(toolButton(am->command(STOP)->action()));
     hbox->addWidget(toolButton(am->command(NEXT)->action()));
     hbox->addWidget(toolButton(am->command(STEP)->action()));

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -38,6 +38,8 @@
 #include "qmljsscopebuilder.h"
 #include "parser/qmljsast_p.h"
 
+#include <languageutils/fakemetaobject.h>
+
 #include <QtCore/QFile>
 #include <QtCore/QDir>
 #include <QtCore/QString>
@@ -48,6 +50,7 @@
 #include <QtCore/QProcess>
 #include <QtCore/QDebug>
 
+using namespace LanguageUtils;
 using namespace QmlJS::Interpreter;
 using namespace QmlJS::AST;
 
@@ -102,210 +105,6 @@ public:
         return process(name, value);
     }
 };
-
-} // end of anonymous namespace
-
-namespace QmlJS {
-namespace Interpreter {
-
-class FakeMetaEnum {
-    QString m_name;
-    QStringList m_keys;
-    QList<int> m_values;
-
-public:
-    FakeMetaEnum(const QString &name)
-        : m_name(name)
-    {}
-
-    QString name() const
-    { return m_name; }
-
-    void addKey(const QString &key, int value)
-    { m_keys.append(key); m_values.append(value); }
-
-    QString key(int index) const
-    { return m_keys.at(index); }
-
-    int keyCount() const
-    { return m_keys.size(); }
-
-    QStringList keys() const
-    { return m_keys; }
-};
-
-class FakeMetaMethod {
-public:
-    enum {
-        Signal,
-        Slot,
-        Method
-    };
-
-    enum {
-        Private,
-        Protected,
-        Public
-    };
-
-public:
-    FakeMetaMethod(const QString &name, const QString &returnType = QString())
-        : m_name(name), m_returnType(returnType), m_methodTy(Method), m_methodAccess(Public)
-    {}
-
-    QString methodName() const
-    { return m_name; }
-
-    QStringList parameterNames() const
-    { return m_paramNames; }
-
-    QStringList parameterTypes() const
-    { return m_paramTypes; }
-
-    void addParameter(const QString &name, const QString &type)
-    { m_paramNames.append(name); m_paramTypes.append(type); }
-
-    int methodType() const
-    { return m_methodTy; }
-    void setMethodType(int methodType)
-    { m_methodTy = methodType; }
-
-    int access() const
-    { return m_methodAccess; }
-
-private:
-    QString m_name;
-    QString m_returnType;
-    QStringList m_paramNames;
-    QStringList m_paramTypes;
-    int m_methodTy;
-    int m_methodAccess;
-};
-
-class FakeMetaProperty {
-    QString m_propertyName;
-    QString m_type;
-    bool m_isList;
-    bool m_isWritable;
-    bool m_isPointer;
-
-public:
-    FakeMetaProperty(const QString &name, const QString &type, bool isList, bool isWritable, bool isPointer)
-        : m_propertyName(name), m_type(type), m_isList(isList), m_isWritable(isWritable), m_isPointer(isPointer)
-    {}
-
-    QString name() const
-    { return m_propertyName; }
-
-    QString typeName() const
-    { return m_type; }
-
-    bool isList() const
-    { return m_isList; }
-
-    bool isWritable() const
-    { return m_isWritable; }
-
-    bool isPointer() const
-    { return m_isPointer; }
-};
-
-class FakeMetaObject {
-    Q_DISABLE_COPY(FakeMetaObject)
-
-public:
-    class Export {
-    public:
-        QString package;
-        QString type;
-        QmlJS::ComponentVersion version;
-        QString packageNameVersion;
-    };
-
-private:
-    QList<Export> m_exports;
-    const FakeMetaObject *m_super;
-    QString m_superName;
-    QList<FakeMetaEnum> m_enums;
-    QHash<QString, int> m_enumNameToIndex;
-    QList<FakeMetaProperty> m_props;
-    QHash<QString, int> m_propNameToIdx;
-    QList<FakeMetaMethod> m_methods;
-    QString m_defaultPropertyName;
-
-public:
-    FakeMetaObject()
-        : m_super(0)
-    {
-    }
-
-    void addExport(const QString &name, const QString &package, QmlJS::ComponentVersion version)
-    {
-        Export exp;
-        exp.type = name;
-        exp.package = package;
-        exp.version = version;
-        exp.packageNameVersion = QString::fromLatin1("%1.%2 %3.%4").arg(
-                package, name,
-                QString::number(version.majorVersion()),
-                QString::number(version.minorVersion()));
-        m_exports.append(exp);
-    }
-    QList<Export> exports() const
-    { return m_exports; }
-
-    void setSuperclassName(const QString &superclass)
-    { m_superName = superclass; }
-    QString superclassName() const
-    { return m_superName; }
-
-    void setSuperclass(FakeMetaObject *superClass)
-    { m_super = superClass; }
-    const FakeMetaObject *superClass() const
-    { return m_super; }
-
-    void addEnum(const FakeMetaEnum &fakeEnum)
-    { m_enumNameToIndex.insert(fakeEnum.name(), m_enums.size()); m_enums.append(fakeEnum); }
-    int enumeratorCount() const
-    { return m_enums.size(); }
-    int enumeratorOffset() const
-    { return 0; }
-    FakeMetaEnum enumerator(int index) const
-    { return m_enums.at(index); }
-    int enumeratorIndex(const QString &name) const
-    { return m_enumNameToIndex.value(name, -1); }
-
-    void addProperty(const FakeMetaProperty &property)
-    { m_propNameToIdx.insert(property.name(), m_props.size()); m_props.append(property); }
-    int propertyCount() const
-    { return m_props.size(); }
-    int propertyOffset() const
-    { return 0; }
-    FakeMetaProperty property(int index) const
-    { return m_props.at(index); }
-    int propertyIndex(const QString &name) const
-    { return m_propNameToIdx.value(name, -1); }
-
-    void addMethod(const FakeMetaMethod &method)
-    { m_methods.append(method); }
-    int methodCount() const
-    { return m_methods.size(); }
-    int methodOffset() const
-    { return 0; }
-    FakeMetaMethod method(int index) const
-    { return m_methods.at(index); }
-
-    QString defaultPropertyName() const
-    { return m_defaultPropertyName; }
-
-    void setDefaultPropertyName(const QString defaultPropertyName)
-    { m_defaultPropertyName = defaultPropertyName; }
-};
-
-} // end of Interpreter namespace
-} // end of QmlJS namespace
-
-namespace {
 
 class MetaFunction: public FunctionValue
 {
@@ -365,7 +164,7 @@ public:
         : _xml(data)
     {}
 
-    bool operator()(QMap<QString, FakeMetaObject *> *objects) {
+    bool operator()(QMap<QString, FakeMetaObject::Ptr> *objects) {
         Q_ASSERT(objects);
         _objects = objects;
 
@@ -423,7 +222,7 @@ private:
 
         bool doInsert = true;
         QString name, defaultPropertyName;
-        QmlJS::ComponentVersion version;
+        ComponentVersion version;
         QString extends;
         QString id;
         foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
@@ -448,7 +247,7 @@ private:
             }
         }
 
-        FakeMetaObject *metaObject = new FakeMetaObject;
+        FakeMetaObject::Ptr metaObject = FakeMetaObject::Ptr(new FakeMetaObject);
         if (! extends.isEmpty())
             metaObject->setSuperclassName(extends);
         if (! defaultPropertyName.isEmpty())
@@ -469,13 +268,10 @@ private:
                 unexpectedElement(_xml.name(), tag);
         }
 
-        metaObject->addExport(id, QString(), QmlJS::ComponentVersion());
+        metaObject->addExport(id, QString(), ComponentVersion());
 
-        if (doInsert) {
+        if (doInsert)
             _objects->insert(id, metaObject);
-        } else {
-            delete metaObject;
-        }
     }
 
     bool split(const QString &name, QString *packageName, QString *className) {
@@ -495,7 +291,7 @@ private:
         }
     }
 
-    void readProperty(FakeMetaObject *metaObject)
+    void readProperty(FakeMetaObject::Ptr metaObject)
     {
         const QLatin1String tag("property");
         Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
@@ -553,14 +349,14 @@ private:
         }
     }
 
-    void createProperty(FakeMetaObject *metaObject, const QString &name,
+    void createProperty(FakeMetaObject::Ptr metaObject, const QString &name,
                         const QString &type, bool isList, bool isWritable, bool isPointer) {
         Q_ASSERT(metaObject);
 
         metaObject->addProperty(FakeMetaProperty(name, type, isList, isWritable, isPointer));
     }
 
-    void readEnum(FakeMetaObject *metaObject)
+    void readEnum(FakeMetaObject::Ptr metaObject)
     {
         Q_ASSERT(metaObject);
 
@@ -627,7 +423,7 @@ private:
         }
     }
 
-    void readSignal(FakeMetaObject *metaObject)
+    void readSignal(FakeMetaObject::Ptr metaObject)
     {
         Q_ASSERT(metaObject);
         QLatin1String tag("signal");
@@ -690,7 +486,7 @@ private:
         }
     }
 
-    void readMethod(FakeMetaObject *metaObject)
+    void readMethod(FakeMetaObject::Ptr metaObject)
     {
         Q_ASSERT(metaObject);
         QLatin1String tag("method");
@@ -727,7 +523,7 @@ private:
         metaObject->addMethod(method);
     }
 
-    void readExports(FakeMetaObject *metaObject)
+    void readExports(FakeMetaObject::Ptr metaObject)
     {
         Q_ASSERT(metaObject);
         QLatin1String tag("exports");
@@ -738,7 +534,7 @@ private:
             if (_xml.name() == childTag) {
                 QString type;
                 QString package;
-                QmlJS::ComponentVersion version;
+                ComponentVersion version;
                 foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
                     if (attr.name() == QLatin1String("module")) {
                         package = attr.value().toString();
@@ -754,7 +550,7 @@ private:
                                 invalidAttr(versionStr, QLatin1String("version"), childTag);
                                 continue;
                             }
-                            version = QmlJS::ComponentVersion(major, QmlJS::ComponentVersion::NoVersion);
+                            version = ComponentVersion(major, ComponentVersion::NoVersion);
                         } else {
                             bool ok = false;
                             const int major = versionStr.left(dotIdx).toInt(&ok);
@@ -767,7 +563,7 @@ private:
                                 invalidAttr(versionStr, QLatin1String("version"), childTag);
                                 continue;
                             }
-                            version = QmlJS::ComponentVersion(major, minor);
+                            version = ComponentVersion(major, minor);
                         }
                     } else {
                         ignoreAttr(attr);
@@ -783,13 +579,13 @@ private:
 
 private:
     QXmlStreamReader _xml;
-    QMap<QString, FakeMetaObject *> *_objects;
+    QMap<QString, FakeMetaObject::Ptr> *_objects;
 };
 
 } // end of anonymous namespace
 
-QmlObjectValue::QmlObjectValue(const FakeMetaObject *metaObject, const QString &className,
-                               const QString &packageName, const QmlJS::ComponentVersion version, Engine *engine)
+QmlObjectValue::QmlObjectValue(FakeMetaObject::ConstPtr metaObject, const QString &className,
+                               const QString &packageName, const ComponentVersion version, Engine *engine)
     : ObjectValue(engine),
       _metaObject(metaObject),
       _packageName(packageName),
@@ -927,7 +723,7 @@ QString QmlObjectValue::nameInPackage(const QString &packageName) const
     return QString();
 }
 
-QmlJS::ComponentVersion QmlObjectValue::version() const
+ComponentVersion QmlObjectValue::version() const
 { return _componentVersion; }
 
 QString QmlObjectValue::defaultPropertyName() const
@@ -935,7 +731,7 @@ QString QmlObjectValue::defaultPropertyName() const
 
 QString QmlObjectValue::propertyType(const QString &propertyName) const
 {
-    for (const FakeMetaObject *iter = _metaObject; iter; iter = iter->superClass()) {
+    for (FakeMetaObject::ConstPtr iter = _metaObject; iter; iter = iter->superClass()) {
         int propIdx = iter->propertyIndex(propertyName);
         if (propIdx != -1) {
             return iter->property(propIdx).typeName();
@@ -946,7 +742,7 @@ QString QmlObjectValue::propertyType(const QString &propertyName) const
 
 bool QmlObjectValue::isListProperty(const QString &propertyName) const
 {
-  for (const FakeMetaObject *iter = _metaObject; iter; iter = iter->superClass()) {
+    for (FakeMetaObject::ConstPtr iter = _metaObject; iter; iter = iter->superClass()) {
         int propIdx = iter->propertyIndex(propertyName);
         if (propIdx != -1) {
             return iter->property(propIdx).isList();
@@ -962,7 +758,7 @@ bool QmlObjectValue::isEnum(const QString &typeName) const
 
 bool QmlObjectValue::isWritable(const QString &propertyName) const
 {
-    for (const FakeMetaObject *iter = _metaObject; iter; iter = iter->superClass()) {
+    for (FakeMetaObject::ConstPtr iter = _metaObject; iter; iter = iter->superClass()) {
         int propIdx = iter->propertyIndex(propertyName);
         if (propIdx != -1) {
             return iter->property(propIdx).isWritable();
@@ -973,7 +769,7 @@ bool QmlObjectValue::isWritable(const QString &propertyName) const
 
 bool QmlObjectValue::isPointer(const QString &propertyName) const
 {
-    for (const FakeMetaObject *iter = _metaObject; iter; iter = iter->superClass()) {
+    for (FakeMetaObject::ConstPtr iter = _metaObject; iter; iter = iter->superClass()) {
         int propIdx = iter->propertyIndex(propertyName);
         if (propIdx != -1) {
             return iter->property(propIdx).isPointer();
@@ -992,7 +788,7 @@ bool QmlObjectValue::hasLocalProperty(const QString &typeName) const
 
 bool QmlObjectValue::hasProperty(const QString &propertyName) const
 {
-    for (const FakeMetaObject *iter = _metaObject; iter; iter = iter->superClass()) {
+    for (FakeMetaObject::ConstPtr iter = _metaObject; iter; iter = iter->superClass()) {
         int propIdx = iter->propertyIndex(propertyName);
         if (propIdx != -1) {
             return true;
@@ -1032,11 +828,11 @@ bool QmlObjectValue::hasChildInPackage() const
     QHashIterator<QString, QmlObjectValue *> it(engine()->cppQmlTypes().types());
     while (it.hasNext()) {
         it.next();
-        const FakeMetaObject *other = it.value()->_metaObject;
+        FakeMetaObject::ConstPtr other = it.value()->_metaObject;
         // if it has only the default no-package export, it is not really exported
         if (other->exports().size() <= 1)
             continue;
-        for (const FakeMetaObject *iter = other; iter; iter = iter->superClass()) {
+        for (FakeMetaObject::ConstPtr iter = other; iter; iter = iter->superClass()) {
             if (iter == _metaObject) // this object is a parent of other
                 return true;
         }
@@ -1044,9 +840,9 @@ bool QmlObjectValue::hasChildInPackage() const
     return false;
 }
 
-bool QmlObjectValue::isDerivedFrom(const FakeMetaObject *base) const
+bool QmlObjectValue::isDerivedFrom(FakeMetaObject::ConstPtr base) const
 {
-    for (const FakeMetaObject *iter = _metaObject; iter; iter = iter->superClass()) {
+    for (FakeMetaObject::ConstPtr iter = _metaObject; iter; iter = iter->superClass()) {
         if (iter == base)
             return true;
     }
@@ -2147,11 +1943,11 @@ const Value *Function::invoke(const Activation *activation) const
 // typing environment
 ////////////////////////////////////////////////////////////////////////////////
 
-QList<const FakeMetaObject *> CppQmlTypesLoader::builtinObjects;
+QList<FakeMetaObject::ConstPtr> CppQmlTypesLoader::builtinObjects;
 
 QStringList CppQmlTypesLoader::load(const QFileInfoList &xmlFiles)
 {
-    QMap<QString, FakeMetaObject *> newObjects;
+    QMap<QString, FakeMetaObject::Ptr> newObjects;
     QStringList errorMsgs;
 
     foreach (const QFileInfo &xmlFile, xmlFiles) {
@@ -2173,7 +1969,7 @@ QStringList CppQmlTypesLoader::load(const QFileInfoList &xmlFiles)
 
         // we need to go from QList<T *> of newObjects.values() to QList<const T *>
         // and there seems to be no better way
-        QMapIterator<QString, FakeMetaObject *> it(newObjects);
+        QMapIterator<QString, FakeMetaObject::Ptr> it(newObjects);
         while (it.hasNext()) {
             it.next();
             builtinObjects.append(it.value());
@@ -2183,7 +1979,7 @@ QStringList CppQmlTypesLoader::load(const QFileInfoList &xmlFiles)
     return errorMsgs;
 }
 
-QString CppQmlTypesLoader::parseQmlTypeXml(const QByteArray &xml, QMap<QString, FakeMetaObject *> *newObjects)
+QString CppQmlTypesLoader::parseQmlTypeXml(const QByteArray &xml, QMap<QString, FakeMetaObject::Ptr> *newObjects)
 {
     QmlXmlReader reader(xml);
     if (!reader(newObjects)) {
@@ -2195,16 +1991,16 @@ QString CppQmlTypesLoader::parseQmlTypeXml(const QByteArray &xml, QMap<QString, 
     return QString();
 }
 
-void CppQmlTypesLoader::setSuperClasses(QMap<QString, FakeMetaObject *> *newObjects)
+void CppQmlTypesLoader::setSuperClasses(QMap<QString, FakeMetaObject::Ptr> *newObjects)
 {
-    QMapIterator<QString, FakeMetaObject *> it(*newObjects);
+    QMapIterator<QString, FakeMetaObject::Ptr> it(*newObjects);
     while (it.hasNext()) {
         it.next();
-        FakeMetaObject *obj = it.value();
+        FakeMetaObject::Ptr obj = it.value();
 
         const QString superName = obj->superclassName();
         if (! superName.isEmpty()) {
-            FakeMetaObject *superClass = newObjects->value(superName);
+            FakeMetaObject::Ptr superClass = newObjects->value(superName);
             if (superClass)
                 obj->setSuperclass(superClass);
             else
@@ -2213,16 +2009,18 @@ void CppQmlTypesLoader::setSuperClasses(QMap<QString, FakeMetaObject *> *newObje
     }
 }
 
-void CppQmlTypes::load(Engine *engine, const QList<const FakeMetaObject *> &objects)
+void CppQmlTypes::load(Engine *engine, const QList<FakeMetaObject::ConstPtr> &objects)
 {
     // load
-    foreach (const FakeMetaObject *metaObject, objects) {
+    QList<FakeMetaObject::ConstPtr> newObjects;
+    foreach (FakeMetaObject::ConstPtr metaObject, objects) {
         for (int i = 0; i < metaObject->exports().size(); ++i) {
             const FakeMetaObject::Export &exp = metaObject->exports().at(i);
             // make sure we're not loading duplicate objects
             if (_typesByFullyQualifiedName.contains(exp.packageNameVersion))
                 continue;
 
+            newObjects.append(metaObject);
             QmlObjectValue *objectValue = new QmlObjectValue(
                         metaObject, exp.type, exp.package, exp.version, engine);
             _typesByPackage[exp.package].append(objectValue);
@@ -2231,7 +2029,7 @@ void CppQmlTypes::load(Engine *engine, const QList<const FakeMetaObject *> &obje
     }
 
     // set prototypes
-    foreach (const FakeMetaObject *metaObject, objects) {
+    foreach (FakeMetaObject::ConstPtr metaObject, newObjects) {
         foreach (const FakeMetaObject::Export &exp, metaObject->exports()) {
             QmlObjectValue *objectValue = _typesByFullyQualifiedName.value(exp.packageNameVersion);
             if (!objectValue || !metaObject->superClass())
@@ -2243,7 +2041,7 @@ void CppQmlTypes::load(Engine *engine, const QList<const FakeMetaObject *> &obje
             // needs to create Positioner (Qt) and Positioner (QtQuick)
             bool created = true;
             QmlObjectValue *v = objectValue;
-            const FakeMetaObject *fmo = metaObject;
+            FakeMetaObject::ConstPtr fmo = metaObject;
             while (created && fmo->superClass()) {
                 QmlObjectValue *superValue = getOrCreate(exp.package, fmo->superclassName(),
                                                          fmo->superClass(), engine, &created);
@@ -2255,7 +2053,7 @@ void CppQmlTypes::load(Engine *engine, const QList<const FakeMetaObject *> &obje
     }
 }
 
-QList<QmlObjectValue *> CppQmlTypes::typesForImport(const QString &packageName, QmlJS::ComponentVersion version) const
+QList<QmlObjectValue *> CppQmlTypes::typesForImport(const QString &packageName, ComponentVersion version) const
 {
     QMap<QString, QmlObjectValue *> objectValuesByName;
 
@@ -2280,7 +2078,7 @@ QList<QmlObjectValue *> CppQmlTypes::typesForImport(const QString &packageName, 
 }
 
 QmlObjectValue *CppQmlTypes::typeForImport(const QString &qualifiedName,
-                                           QmlJS::ComponentVersion version) const
+                                           ComponentVersion version) const
 {
     QString name = qualifiedName;
     QString packageName;
@@ -2317,7 +2115,7 @@ bool CppQmlTypes::hasPackage(const QString &package) const
     return _typesByPackage.contains(package);
 }
 
-QString CppQmlTypes::qualifiedName(const QString &package, const QString &type, QmlJS::ComponentVersion version)
+QString CppQmlTypes::qualifiedName(const QString &package, const QString &type, ComponentVersion version)
 {
     return QString("%1.%2 %3.%4").arg(
                 package, type,
@@ -2330,13 +2128,13 @@ QmlObjectValue *CppQmlTypes::typeByQualifiedName(const QString &name) const
     return _typesByFullyQualifiedName.value(name);
 }
 
-QmlObjectValue *CppQmlTypes::typeByQualifiedName(const QString &package, const QString &type, QmlJS::ComponentVersion version) const
+QmlObjectValue *CppQmlTypes::typeByQualifiedName(const QString &package, const QString &type, ComponentVersion version) const
 {
     return typeByQualifiedName(qualifiedName(package, type, version));
 }
 
 QmlObjectValue *CppQmlTypes::getOrCreate(const QString &package, const QString &cppName,
-                                          const FakeMetaObject *metaObject, Engine *engine, bool *created)
+                                         FakeMetaObject::ConstPtr metaObject, Engine *engine, bool *created)
 {
     QString typeName = cppName;
     ComponentVersion version;
@@ -2353,7 +2151,7 @@ QmlObjectValue *CppQmlTypes::getOrCreate(const QString &package, const QString &
     if (!value) {
         *created = true;
         value = new QmlObjectValue(
-                    metaObject, typeName, package, QmlJS::ComponentVersion(), engine);
+                    metaObject, typeName, package, ComponentVersion(), engine);
         _typesByFullyQualifiedName[qName] = value;
     } else {
         *created = false;
@@ -3484,7 +3282,7 @@ ImportInfo::ImportInfo()
 }
 
 ImportInfo::ImportInfo(Type type, const QString &name,
-                       QmlJS::ComponentVersion version, UiImport *ast)
+                       ComponentVersion version, UiImport *ast)
     : _type(type)
     , _name(name)
     , _version(version)
@@ -3514,7 +3312,7 @@ QString ImportInfo::id() const
     return QString();
 }
 
-QmlJS::ComponentVersion ImportInfo::version() const
+ComponentVersion ImportInfo::version() const
 {
     return _version;
 }
@@ -3532,11 +3330,12 @@ TypeEnvironment::TypeEnvironment(Engine *engine)
 const Value *TypeEnvironment::lookupMember(const QString &name, const Context *context,
                                            const ObjectValue **foundInObject, bool) const
 {
-    QHashIterator<const ObjectValue *, ImportInfo> it(_imports);
-    while (it.hasNext()) {
-        it.next();
-        const ObjectValue *import = it.key();
-        const ImportInfo &info = it.value();
+    QListIterator<Import> it(_imports);
+    it.toBack();
+    while (it.hasPrevious()) {
+        const Import &i = it.previous();
+        const ObjectValue *import = i.object;
+        const ImportInfo &info = i.info;
 
         if (!info.id().isEmpty()) {
             if (info.id() == name) {
@@ -3565,11 +3364,12 @@ const Value *TypeEnvironment::lookupMember(const QString &name, const Context *c
 
 void TypeEnvironment::processMembers(MemberProcessor *processor) const
 {
-    QHashIterator<const ObjectValue *, ImportInfo> it(_imports);
-    while (it.hasNext()) {
-        it.next();
-        const ObjectValue *import = it.key();
-        const ImportInfo &info = it.value();
+    QListIterator<Import> it(_imports);
+    it.toBack();
+    while (it.hasPrevious()) {
+        const Import &i = it.previous();
+        const ObjectValue *import = i.object;
+        const ImportInfo &info = i.info;
 
         if (!info.id().isEmpty()) {
             processor->processProperty(info.id(), import);
@@ -3584,7 +3384,10 @@ void TypeEnvironment::processMembers(MemberProcessor *processor) const
 
 void TypeEnvironment::addImport(const ObjectValue *import, const ImportInfo &info)
 {
-    _imports.insert(import, info);
+    Import i;
+    i.object = import;
+    i.info = info;
+    _imports.append(i);
 }
 
 ImportInfo TypeEnvironment::importInfo(const QString &name, const Context *context) const
@@ -3594,11 +3397,12 @@ ImportInfo TypeEnvironment::importInfo(const QString &name, const Context *conte
     if (dotIdx != -1)
         firstId = firstId.left(dotIdx);
 
-    QHashIterator<const ObjectValue *, ImportInfo> it(_imports);
-    while (it.hasNext()) {
-        it.next();
-        const ObjectValue *import = it.key();
-        const ImportInfo &info = it.value();
+    QListIterator<Import> it(_imports);
+    it.toBack();
+    while (it.hasPrevious()) {
+        const Import &i = it.previous();
+        const ObjectValue *import = i.object;
+        const ImportInfo &info = i.info;
 
         if (!info.id().isEmpty()) {
             if (info.id() == firstId)

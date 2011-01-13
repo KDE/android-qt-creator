@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -39,6 +39,10 @@
 #include <iomanip>
 #include <algorithm>
 
+typedef std::vector<int>::size_type VectorIndexType;
+
+unsigned SymbolGroupValue::verbose = 0;
+
 SymbolGroupValue::SymbolGroupValue(const std::string &parentError) :
     m_node(0), m_errorMessage(parentError)
 {
@@ -50,8 +54,11 @@ SymbolGroupValue::SymbolGroupValue(SymbolGroupNode *node,
                                    const SymbolGroupValueContext &ctx) :
     m_node(node), m_context(ctx)
 {
-    if (m_node && !m_node->isMemoryAccessible()) // Invalid if no value
+    if (m_node && !m_node->isMemoryAccessible()) { // Invalid if no value
         m_node = 0;
+        if (SymbolGroupValue::verbose)
+            DebugPrint() << node->name() << '/' << node->iName() << " memory access error";
+    }
 }
 
 SymbolGroupValue::SymbolGroupValue() :
@@ -70,6 +77,8 @@ SymbolGroupValue SymbolGroupValue::operator[](unsigned index) const
         if (index < m_node->children().size())
             if (SymbolGroupNode *n = m_node->childAt(index)->asSymbolGroupNode())
                 return SymbolGroupValue(n, m_context);
+    if (isValid() && SymbolGroupValue::verbose)
+        DebugPrint() << name() << "::operator[" << index << "](const char*) failed.";
     return SymbolGroupValue(m_errorMessage);
 }
 
@@ -87,6 +96,8 @@ bool SymbolGroupValue::ensureExpanded() const
         m_node->addFlags(SymbolGroupNode::ExpandedByDumper);
         return true;
     }
+    if (SymbolGroupValue::verbose)
+        DebugPrint() << "Expand failure of '" << name() << "': " << m_errorMessage;
     return false;
 }
 
@@ -96,6 +107,8 @@ SymbolGroupValue SymbolGroupValue::operator[](const char *name) const
         if (AbstractSymbolGroupNode *child = m_node->childByIName(name))
             if (SymbolGroupNode *n = child->asSymbolGroupNode())
                 return SymbolGroupValue(n, m_context);
+    if (isValid() && SymbolGroupValue::verbose) // Do not report subsequent errors
+        DebugPrint() << this->name() << "::operator[](" << name << ") failed.";
     return SymbolGroupValue(m_errorMessage);
 }
 
@@ -143,6 +156,8 @@ int SymbolGroupValue::intValue(int defaultValue) const
         if (integerFromString(wStringToString(v), &rc))
             return rc;
     }
+    if (SymbolGroupValue::verbose)
+        DebugPrint() << name() << "::intValue() fails";
     return defaultValue;
 }
 
@@ -153,6 +168,8 @@ ULONG64 SymbolGroupValue::pointerValue(ULONG64 defaultValue) const
         if (integerFromString(wStringToString(value()), &rc))
             return rc;
     }
+    if (SymbolGroupValue::verbose)
+        DebugPrint() << name() << "::pointerValue() fails";
     return defaultValue;
 }
 
@@ -250,9 +267,14 @@ std::string SymbolGroupValue::error() const
     return m_errorMessage;
 }
 
-bool SymbolGroupValue::isPointerType(const std::string &t)
+// Return number of characters to strip for pointer type
+unsigned SymbolGroupValue::isPointerType(const std::string &t)
 {
-    return endsWith(t, " *");
+    if (endsWith(t, "**"))
+        return 1;
+    if (endsWith(t, " *"))
+        return 2;
+    return 0;
 }
 
 unsigned SymbolGroupValue::pointerSize()
@@ -267,9 +289,44 @@ unsigned SymbolGroupValue::intSize()
     return is;
 }
 
+unsigned SymbolGroupValue::sizeOf(const char *type)
+{
+    const unsigned rc = GetTypeSize(type);
+    if (!rc && SymbolGroupValue::verbose)
+        DebugPrint() << "GetTypeSize fails for '" << type << '\'';
+    return rc;
+}
+
+unsigned SymbolGroupValue::fieldOffset(const char *type, const char *field)
+{
+    ULONG rc = 0;
+    if (GetFieldOffset(type, field, &rc)) {
+        if (SymbolGroupValue::verbose)
+            DebugPrint() << "GetFieldOffset fails for '" << type << "' '" << field << '\'';
+        return 0;
+    }
+    return rc;
+}
+
 std::string SymbolGroupValue::stripPointerType(const std::string &t)
 {
-    return isPointerType(t) ? t.substr(0, t.size() - 2) : t;
+    // 'Foo *' -> 'Foo', 'Bar **' -> 'Bar *'.
+    if (const unsigned stripLength = isPointerType(t))
+        return t.substr(0, t.size() - stripLength);
+    return t;
+}
+
+// Strip "class Foo", "struct Bar"-> "Foo", "Bar "
+std::string SymbolGroupValue::stripClassPrefixes(const std::string &type)
+{
+    std::string rc = type;
+    if (rc.compare(0, 6, "class ") == 0) {
+        rc.erase(0, 6);
+    } else {
+        if (rc.compare(0, 7, "struct ") == 0)
+            rc.erase(0, 7);
+    }
+    return rc;
 }
 
 std::string SymbolGroupValue::addPointerType(const std::string &t)
@@ -291,6 +348,12 @@ std::string SymbolGroupValue::stripArrayType(const std::string &t)
         return rc;
     }
     return t;
+}
+
+std::string SymbolGroupValue::stripModuleFromType(const std::string &type)
+{
+    const std::string::size_type exclPos = type.find('!');
+    return exclPos != std::string::npos ? type.substr(exclPos + 1, type.size() - exclPos - 1) : type;
 }
 
 /* QtInfo helper: Determine the full name of a Qt Symbol like 'qstrdup' in 'QtCored4'.
@@ -330,16 +393,18 @@ static inline std::string resolveQtSymbol(const char *symbolC,
 const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
 {
     static const char qtCoreDefaultModule[] = "QtCored4";
+    static const char qtGuiDefaultModule[] = "QtGuid4";
     static QtInfo rc;
     if (!rc.coreModule.empty())
         return rc;
 
     do {
-        // Lookup qstrdup() to hopefully get module and namespace
+        // Lookup qstrdup() to hopefully get module (potential libinfix) and namespace
         // Typically, this resolves to 'QtGuid4!qstrdup' and 'QtCored4!qstrdup'...
         const std::string qualifiedSymbol = resolveQtSymbol("qstrdup", qtCoreDefaultModule, "Core", ctx);
         if (qualifiedSymbol.empty()) {
             rc.coreModule = qtCoreDefaultModule;
+            rc.guiModule = qtGuiDefaultModule;
             break;
         }
         // Should be 'QtCored4!qstrdup'
@@ -349,12 +414,21 @@ const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
             break;
         }
         rc.coreModule = qualifiedSymbol.substr(0, exclPos);
+        // Derive other module names 'QtXX<infix>d4'
+        rc.guiModule = rc.coreModule;
+        rc.guiModule.replace(0, 6, "QtGui");
         // Any namespace? 'QtCored4!nsp::qstrdup'
         const std::string::size_type nameSpaceStart = exclPos + 1;
         const std::string::size_type colonPos = qualifiedSymbol.find(':', nameSpaceStart);
         if (colonPos != std::string::npos)
             rc.nameSpace = qualifiedSymbol.substr(nameSpaceStart, colonPos - nameSpaceStart);
+
     } while (false);
+    rc.qObjectType = rc.prependQtCoreModule("QObject");
+    rc.qObjectPrivateType = rc.prependQtCoreModule("QObjectPrivate");
+    rc.qWidgetPrivateType = rc.prependQtGuiModule("QWidgetPrivate");
+    if (SymbolGroupValue::verbose)
+        DebugPrint() << rc;
     return rc;
 }
 
@@ -363,13 +437,7 @@ std::string QtInfo::prependModuleAndNameSpace(const std::string &type,
                                               const std::string &aNameSpace)
 {
     // Strip the prefixes "class ", "struct ".
-    std::string rc = type;
-    if (rc.compare(0, 6, "class ") == 0) {
-        rc.erase(0, 6);
-    } else {
-        if (rc.compare(0, 7, "struct ") == 0)
-            rc.erase(0, 7);
-    }
+    std::string rc = SymbolGroupValue::stripClassPrefixes(type);
     // Is the namespace 'nsp::' missing?
     if (!aNameSpace.empty()) {
         const bool nameSpaceMissing = rc.size() <= aNameSpace.size()
@@ -391,6 +459,14 @@ std::string QtInfo::prependModuleAndNameSpace(const std::string &type,
         }
     }
     return rc;
+}
+
+std::ostream &operator<<(std::ostream &os, const QtInfo &i)
+{
+    os << "Qt Info: Modules '" << i.coreModule << "', '" << i.guiModule
+       << "', Namespace='" << i.nameSpace
+       << "', types: " << i.qObjectType << ',' << i.qObjectPrivateType << ',' << i.qWidgetPrivateType;
+    return os;
 }
 
 std::list<std::string>
@@ -429,6 +505,53 @@ std::list<std::string>
             rc.push_back(std::string(buf));
     }
     c.symbols->EndSymbolMatch(handle);
+    return rc;
+}
+
+// Resolve a type, that is, obtain its module name ('QString'->'QtCored4!QString')
+std::string SymbolGroupValue::resolveType(const std::string &typeIn,
+                                          const SymbolGroupValueContext &ctx,
+                                          const SymbolGroup *current /* = 0 */)
+{
+    enum { BufSize = 512 };
+
+    if (typeIn.empty() || typeIn.find('!') != std::string::npos)
+        return typeIn;
+
+    const std::string stripped = SymbolGroupValue::stripClassPrefixes(typeIn);
+
+    // Use the module of the current symbol group for templates.
+    // This is because resolving some template types (std::list<> has been
+    // observed to result in 'QtGui4d!std::list', which subseqently fails.
+    if (current && stripped.find('<') != std::string::npos) {
+        std::string trc = current->module();
+        trc.push_back('!');
+        trc += stripped;
+        return trc;
+    }
+    // Obtain the base address of the module using an obscure ioctl() call.
+    // See inline implementation of GetTypeSize() and docs.
+    SYM_DUMP_PARAM symParameters = { sizeof (SYM_DUMP_PARAM), (PUCHAR)stripped.c_str(), DBG_DUMP_NO_PRINT, 0,
+                                     NULL, NULL, NULL, 0, NULL };
+    const ULONG typeSize = Ioctl(IG_GET_TYPE_SIZE, &symParameters, symParameters.size);
+    if (!typeSize || !symParameters.ModBase) // Failed?
+        return stripped;
+    ULONG index = 0;
+    ULONG64 base = 0;
+    // Convert module base address to module index
+    HRESULT hr = ctx.symbols->GetModuleByOffset(symParameters.ModBase, 0, &index, &base);
+    if (FAILED(hr))
+        return stripped;
+    // Obtain module name
+    char buf[BufSize];
+    buf[0] = '\0';
+    hr = ctx.symbols->GetModuleNameString(DEBUG_MODNAME_MODULE, index, base, buf, BufSize, 0);
+    if (FAILED(hr))
+        return stripped;
+
+    std::string rc = buf;
+    rc.push_back('!');
+    rc += stripped;
     return rc;
 }
 
@@ -480,7 +603,7 @@ std::vector<std::string> SymbolGroupValue::innerTypesOf(const std::string &t)
 std::ostream &operator<<(std::ostream &str, const SymbolGroupValue &v)
 {
     if (v) {
-        str << '\'' << v.name() << "' 0x" << std::showbase << std::hex << v.address() <<
+        str << '\'' << v.name() << "' 0x" << std::hex << v.address() <<
                std::dec << ' ' << v.type() << ": '" << wStringToString(v.value()) << '\'';
     } else {
         str << "Invalid value '" << v.error() << '\'';
@@ -559,12 +682,68 @@ static inline void formatMilliSeconds(std::wostream &str, int milliSecs)
 static const char stdStringTypeC[] = "std::basic_string<char,std::char_traits<char>,std::allocator<char> >";
 static const char stdWStringTypeC[] = "std::basic_string<unsigned short,std::char_traits<unsigned short>,std::allocator<unsigned short> >";
 
-// Determine type starting from a position (with/without 'class '/'struct ' prefix).
-static KnownType knownTypeHelper(const std::string &type, std::string::size_type pos)
+static KnownType knownPODTypeHelper(const std::string &type, std::string::size_type endPos)
 {
+    if (type.empty() || !endPos)
+        return KT_Unknown;
     // Strip pointer types.
-    const std::wstring::size_type compareLen =
-            endsWith(type, " *") ? type.size() -2 : type.size();
+    const bool isPointer = type.at(endPos - 1) == '*';
+    if (isPointer) {
+        endPos--;
+        if (endPos > 0 && type.at(endPos - 1) == ' ')
+            endPos--;
+    }
+    switch (type.at(0)) {
+    case 'c':
+        if (endPos == 4 && !type.compare(0, endPos, "char"))
+            return isPointer ? KT_POD_PointerType : KT_Char;
+        break;
+    case 'd':
+        if (endPos == 6 && !type.compare(0, endPos, "double"))
+            return isPointer ? KT_POD_PointerType : KT_FloatType;
+        break;
+    case 'f':
+        if (endPos == 5 && !type.compare(0, endPos, "float"))
+            return isPointer ? KT_POD_PointerType : KT_FloatType;
+        break;
+    case 'l':
+        if (endPos >= 4 && !type.compare(0, 4, "long"))
+            if (endPos == 4 || type.at(4) == ' ')
+                return isPointer ? KT_POD_PointerType : KT_IntType;
+        break;
+    case 'i':
+        // 'int' 'int64'
+        if (endPos >= 3 && !type.compare(0, 3, "int"))
+            if (endPos == 3 || type.at(3) == ' ' || type.at(3) == '6')
+                return isPointer ? KT_POD_PointerType : KT_IntType;
+        break;
+    case 's':
+        if (endPos == 5 && !type.compare(0, 5, "short"))
+            return isPointer ? KT_POD_PointerType : KT_IntType;
+        if (endPos >= 6 && !type.compare(0, 6, "signed"))
+            if (endPos == 6 || type.at(6) == ' ')
+                return isPointer ? KT_POD_PointerType : KT_IntType;
+        break;
+    case 'u':
+        if (endPos >= 8 && !type.compare(0, 8, "unsigned")) {
+            if (endPos == 8 || type.at(8) == ' ') {
+                if (isPointer)
+                    return KT_POD_PointerType;
+                return type.compare(0, 13, "unsigned char") ?
+                            KT_UnsignedIntType :
+                            KT_UnsignedChar;
+            }
+        }
+        break;
+    }
+    return isPointer ? KT_PointerType : KT_Unknown;
+}
+
+// Determine type starting from a position (with/without 'class '/'struct ' prefix).
+static KnownType knownClassTypeHelper(const std::string &type,
+                                      std::string::size_type pos,
+                                      std::string::size_type endPos)
+{
     // STL ?
     const std::wstring::size_type templatePos = type.find('<', pos);
     static const std::wstring::size_type stlClassLen = 5;
@@ -600,9 +779,9 @@ static KnownType knownTypeHelper(const std::string &type, std::string::size_type
             }
         }
         // STL strings
-        if (!type.compare(pos, compareLen - pos, stdStringTypeC))
+        if (!type.compare(pos, endPos - pos, stdStringTypeC))
             return KT_StdString;
-        if (!type.compare(pos, compareLen - pos, stdWStringTypeC))
+        if (!type.compare(pos, endPos - pos, stdWStringTypeC))
             return KT_StdWString;
         return KT_Unknown;
     } // std::sth
@@ -655,8 +834,7 @@ static KnownType knownTypeHelper(const std::string &type, std::string::size_type
         }
     }
     // Remaining non-template types
-    switch (compareLen - qPos) {
-
+    switch (endPos - qPos) {
     case 4:
         if (!type.compare(qPos, 4, "QPen"))
             return KT_QPen;
@@ -889,26 +1067,67 @@ static KnownType knownTypeHelper(const std::string &type, std::string::size_type
     return KT_Unknown;
 }
 
-KnownType knownType(const std::string &type, bool hasClassPrefix)
+KnownType knownType(const std::string &type, unsigned flags)
 {
     if (type.empty())
         return KT_Unknown;
-    if (hasClassPrefix) {
+    // Autostrip one pointer if desired
+    const std::string::size_type endPos = (flags & KnownTypeAutoStripPointer) ?
+                type.size() - SymbolGroupValue::isPointerType(type) :
+                type.size();
+
+    // PODs first
+    const KnownType podType = knownPODTypeHelper(type, endPos);
+    if (podType != KT_Unknown)
+        return podType;
+
+    if (flags & KnownTypeHasClassPrefix) {
         switch (type.at(0)) { // Check 'class X' or 'struct X'
         case 'c':
             if (!type.compare(0, 6, "class "))
-                return knownTypeHelper(type, 6);
+                return knownClassTypeHelper(type, 6, endPos);
             break;
         case 's':
             if (!type.compare(0, 7, "struct "))
-                return knownTypeHelper(type, 7);
+                return knownClassTypeHelper(type, 7, endPos);
             break;
         }
     } else {
         // No prefix, full check
-        return knownTypeHelper(type, 0);
+        return knownClassTypeHelper(type, 0, endPos);
     }
     return KT_Unknown;
+}
+
+void formatKnownTypeFlags(std::ostream &os, KnownType kt)
+{
+    switch (kt) {
+    case KT_Unknown:
+        os << "<unknown>";
+        return;
+    case KT_POD_PointerType:
+        os << " pod_pointer";
+        break;
+    case KT_PointerType:
+        os << " pointer";
+        break;
+    default:
+        break;
+    }
+    if (kt & KT_POD_Type)
+        os << " pod";
+    if (kt & KT_Qt_Type)
+        os << " qt";
+    if (kt & KT_Qt_PrimitiveType)
+        os << " qt_primitive";
+    if (kt & KT_Qt_MovableType)
+        os << " qt_movable";
+    if (kt & KT_ContainerType)
+        os << " container";
+    if (kt & KT_STL_Type)
+        os << " stl";
+    if (kt & KT_HasSimpleDumper)
+        os << " simple_dumper";
 }
 
 static inline bool dumpQString(const SymbolGroupValue &v, std::wostream &str)
@@ -1108,13 +1327,51 @@ static inline bool dumpQRectF(const SymbolGroupValue &v, std::wostream &str)
 }
 
 // Dump the object name
-static inline bool dumpQObject(const SymbolGroupValue &v, std::wostream &str)
+static inline bool dumpQWidget(const SymbolGroupValue &v, std::wostream &str, void **specialInfoIn = 0)
 {
-    if (SymbolGroupValue oName = v["d_ptr"]["d"].pointerTypeCast("QObjectPrivate *")["objectName"]) {
-        str << L'"';
-        dumpQString(oName, str);
-        str << L'"';
-        return true;
+    const QtInfo &qtInfo = QtInfo::get(v.context());
+    const std::string &qwPrivateType = qtInfo.qWidgetPrivateType;
+    // We get differing behaviour caused by multiple inheritance of QWidget from QObject,QPaintDevice:
+    // For 'QWidget *', the base class QObject usually can be accessed (past the vtable).
+    // When browsing class hierarchies, typically only the uninteresting QPaintDevice is seen.
+    SymbolGroupValue qwPrivate;
+    if (const SymbolGroupValue base = v[SymbolGroupValue::stripModuleFromType(qtInfo.qObjectType).c_str()])
+        qwPrivate = base["d_ptr"]["d"].pointerTypeCast(qwPrivateType.c_str());
+    if (!qwPrivate && !SymbolGroupValue::isPointerType(v.type())) {
+        // Class hierarchy: Using brute force, add new symbol based on that
+        // QScopedPointer<Private> is basically a 'X *' (first member).
+        std::string errorMessage;
+        std::ostringstream str;
+        str << '(' << qwPrivateType << "*)(" << std::showbase << std::hex << v.address() << ')';
+        const std::string name = str.str();
+        SymbolGroupNode *qwPrivateNode
+            = v.node()->symbolGroup()->addSymbol(name, std::string(), &errorMessage);
+        qwPrivate = SymbolGroupValue(qwPrivateNode, v.context());
+    }
+    const SymbolGroupValue oName = qwPrivate[unsigned(0)]["objectName"]; // QWidgetPrivate inherits QObjectPrivate
+    if (!oName)
+        return false;
+    if (specialInfoIn)
+        *specialInfoIn = qwPrivate.node();
+    str << L'"';
+    dumpQString(oName, str);
+    str << L'"';
+    return true;
+}
+
+// Dump the object name
+static inline bool dumpQObject(const SymbolGroupValue &v, std::wostream &str, void **specialInfoIn = 0)
+{
+    const std::string &qoPrivateType = QtInfo::get(v.context()).qObjectPrivateType;
+    if (SymbolGroupValue qoPrivate = v["d_ptr"]["d"].pointerTypeCast(qoPrivateType.c_str())) {
+        if (SymbolGroupValue oName = qoPrivate["objectName"]) {
+            if (specialInfoIn)
+                *specialInfoIn = qoPrivate.node();
+            str << L'"';
+            dumpQString(oName, str);
+            str << L'"';
+            return true;
+        }
     }
     return false;
 }
@@ -1148,8 +1405,30 @@ static inline SymbolGroupValue qVariantCast(const SymbolGroupValue &variantData,
     return variantData.typeCast(ptrType.c_str());
 }
 
-static bool dumpQVariant(const SymbolGroupValue &v, std::wostream &str)
+// Qualify a local container template of Qt Types for QVariant
+// as 'QList' of 'QVariant' -> 'localModule!qtnamespace::QList<qtnamespace::QVariant> *'
+static inline std::string
+    variantContainerType(const std::string &containerType,
+                         const std::string &innerType1,
+                         const std::string &innerType2 /* = "" */,
+                         const QtInfo &qtInfo,
+                         const SymbolGroupValue &contextHelper)
 {
+    const std::string module = contextHelper.node()->symbolGroup()->module();
+    std::string rc = QtInfo::prependModuleAndNameSpace(containerType, module, qtInfo.nameSpace);
+    rc.push_back('<');
+    rc += QtInfo::prependModuleAndNameSpace(innerType1, std::string(), qtInfo.nameSpace);
+    if (!innerType2.empty()) {
+        rc.push_back(',');
+        rc += QtInfo::prependModuleAndNameSpace(innerType2, std::string(), qtInfo.nameSpace);
+    }
+    rc += "> *";
+    return rc;
+}
+
+static bool dumpQVariant(const SymbolGroupValue &v, std::wostream &str, void **specialInfoIn = 0)
+{
+    const QtInfo &qtInfo = QtInfo::get(v.context());
     const SymbolGroupValue dV = v["d"];
     if (!dV)
         return false;
@@ -1184,27 +1463,67 @@ static bool dumpQVariant(const SymbolGroupValue &v, std::wostream &str)
     case 7: // Char
         str << L"(char) " << dataV["c"].value();
         break;
+    case 8: {
+        str << L"(QVariantMap) ";
+        const std::string vmType = variantContainerType("QMap", "QString", "QVariant", qtInfo, dataV);
+        if (const SymbolGroupValue mv = dataV.typeCast(vmType.c_str())) {
+            SymbolGroupNode *mapNode = mv.node();
+            std::wstring value;
+            if (dumpSimpleType(mapNode, dataV.context(), &value) == SymbolGroupNode::SimpleDumperOk) {
+                str << value;
+                if (specialInfoIn)
+                    *specialInfoIn = mapNode;
+            }
+        }
+    }
+        break;
+    case 9: { // QVariantList
+        str << L"(QVariantList) ";
+        const std::string vLType = variantContainerType("QList", "QVariant", std::string(), qtInfo, dataV);
+        if (const SymbolGroupValue vl = dataV.typeCast(vLType.c_str())) {
+            SymbolGroupNode *vListNode = vl.node();
+            std::wstring value;
+            if (dumpSimpleType(vListNode, dataV.context(), &value) == SymbolGroupNode::SimpleDumperOk) {
+                str << value;
+                if (specialInfoIn)
+                    *specialInfoIn = vListNode;
+            }
+        }
+    }
+        break;
     case 10: // String
         str << L"(QString) \"";
-        if (const SymbolGroupValue sv = dataV.typeCast("QString *")) {
+        if (const SymbolGroupValue sv = dataV.typeCast(qtInfo.prependQtCoreModule("QString *").c_str())) {
             dumpQString(sv, str);
             str << L'"';
         }
         break;
+    case 11: //StringList: Dump container size
+        str << L"(QStringList) ";
+        if (const SymbolGroupValue sl = dataV.typeCast(qtInfo.prependQtCoreModule("QStringList *").c_str())) {
+            SymbolGroupNode *listNode = sl.node();
+            std::wstring value;
+            if (dumpSimpleType(listNode, dataV.context(), &value) == SymbolGroupNode::SimpleDumperOk) {
+                str << value;
+                if (specialInfoIn)
+                    *specialInfoIn = listNode;
+            }
+        }
+        break;
     case 12: //ByteArray
         str << L"(QByteArray) ";
-        if (const SymbolGroupValue sv = dataV.typeCast("QByteArray *"))
+        if (const SymbolGroupValue sv = dataV.typeCast(qtInfo.prependQtCoreModule("QByteArray *").c_str()))
             dumpQByteArray(sv, str);
         break;
     case 13: // BitArray
         str << L"(QBitArray)";
         break;
-    case 14: // Date
+    case 14: // Date: Do not qualify - fails non-deterministically with QtCored4!QDate
         str << L"(QDate) ";
         if (const SymbolGroupValue sv = dataV.typeCast("QDate *"))
             dumpQDate(sv, str);
         break;
-    case 15: // Time
+    case 15: // Time: Do not qualify - fails non-deterministically with QtCored4!QTime
         str << L"(QTime) ";
         if (const SymbolGroupValue sv = dataV.typeCast("QTime *"))
             dumpQTime(sv, str);
@@ -1220,43 +1539,43 @@ static bool dumpQVariant(const SymbolGroupValue &v, std::wostream &str)
         break;
     case 19: // Rect:
         str << L"(QRect) ";
-        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast("QRect *"))
+        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast(qtInfo.prependQtCoreModule("QRect *").c_str()))
             dumpQRect(sv, str);
         break;
     case 20: // RectF
         str << L"(QRectF) ";
-        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast("QRectF *"))
+        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast(qtInfo.prependQtCoreModule("QRectF *").c_str()))
             dumpQRectF(sv, str);
         break;
     case 21: // Size
         // Anything bigger than the data union is a pointer, else the data union is used
         str << L"(QSize) ";
-        if (const SymbolGroupValue sv = qVariantCast(dataV, "QSize"))
+        if (const SymbolGroupValue sv = qVariantCast(dataV, qtInfo.prependQtCoreModule("QSize").c_str()))
             dumpQSize_F(sv, str);
         break;
     case 22: // SizeF
         str << L"(QSizeF) ";
-        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast("QSizeF *"))
+        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast(qtInfo.prependQtCoreModule("QSizeF *").c_str()))
             dumpQSize_F(sv, str);
         break;
     case 23: // Line
         str << L"(QLine) ";
-        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast("QLine *"))
+        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast(qtInfo.prependQtCoreModule("QLine *").c_str()))
             dumpQLine_F(sv, str);
         break;
     case 24: // LineF
         str << L"(QLineF) ";
-        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast("QLineF *"))
+        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast(qtInfo.prependQtCoreModule("QLineF *").c_str()))
             dumpQLine_F(sv, str);
         break;
     case 25: // Point
         str << L"(QPoint) ";
-        if (const SymbolGroupValue sv = qVariantCast(dataV, "QPoint"))
+        if (const SymbolGroupValue sv = qVariantCast(dataV, qtInfo.prependQtCoreModule("QPoint").c_str()))
             dumpQPoint_F(sv, str);
         break;
     case 26: // PointF
         str << L"(QPointF) ";
-        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast("QPointF *"))
+        if (const SymbolGroupValue sv = dataV["shared"]["ptr"].pointerTypeCast(qtInfo.prependQtCoreModule("QPointF *").c_str()))
             dumpQPoint_F(sv, str);
         break;
     default:
@@ -1266,45 +1585,52 @@ static bool dumpQVariant(const SymbolGroupValue &v, std::wostream &str)
     return true;
 }
 
-static inline std::wstring msgContainerSize(int s)
-{
-    std::wostringstream str;
-    str << L'<' << s << L" items>";
-    return str.str();
-}
-
 // Dump builtin simple types using SymbolGroupValue expressions.
 unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
                         std::wstring *s, int *knownTypeIn /* = 0 */,
-                        int *containerSizeIn /* = 0 */)
+                        int *containerSizeIn /* = 0 */,
+                        void **specialInfoIn /* = 0 */)
 {
     QTC_TRACE_IN
     if (containerSizeIn)
         *containerSizeIn = -1;
+    if (specialInfoIn)
+        *specialInfoIn  = 0;
     // Check for class types and strip pointer types (references appear as pointers as well)
     s->clear();
-    const KnownType kt  = knownType(n->type());
+    const KnownType kt = knownType(n->type(), KnownTypeHasClassPrefix|KnownTypeAutoStripPointer);
     if (knownTypeIn)
         *knownTypeIn = kt;
 
     if (kt == KT_Unknown || !(kt & KT_HasSimpleDumper)) {
+        if (SymbolGroupValue::verbose > 1)
+            DebugPrint() << "dumpSimpleType N/A " << n->name() << '/' << n->type();
         QTC_TRACE_OUT
         return SymbolGroupNode::SimpleDumperNotApplicable;
     }
 
+    std::wostringstream str;
+
+    // Prefix by pointer value
     const SymbolGroupValue v(n, ctx);
+    if (SymbolGroupValue::isPointerType(v.type()))
+        if (const ULONG64 pointerValue = v.pointerValue())
+            str << std::showbase << std::hex << pointerValue << std::dec << std::noshowbase << ' ';
+
     // Simple dump of size for containers
     if (kt & KT_ContainerType) {
         const int size = containerSize(kt, v);
+        if (SymbolGroupValue::verbose > 1)
+            DebugPrint() << "dumpSimpleType Container " << n->name() << '/' << n->type() << " size=" << size;
         if (containerSizeIn)
             *containerSizeIn = size;
         if (size >= 0) {
-            *s = msgContainerSize(size);
+            str << L'<' << size << L" items>";
+            *s = str.str();
             return SymbolGroupNode::SimpleDumperOk;
         }
         return SymbolGroupNode::SimpleDumperFailed;
     }
-    std::wostringstream str;
     unsigned rc = SymbolGroupNode::SimpleDumperNotApplicable;
     switch (kt) {
     case KT_QChar:
@@ -1347,7 +1673,7 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
         rc = dumpQRectF(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
     case KT_QVariant:
-        rc = dumpQVariant(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        rc = dumpQVariant(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
     case KT_QAtomicInt:
         rc = dumpQAtomicInt(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
@@ -1356,10 +1682,10 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
         rc = dumpQBasicAtomicInt(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
     case KT_QObject:
-        rc = dumpQObject(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        rc = dumpQObject(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
     case KT_QWidget:
-        rc = dumpQObject(v[unsigned(0)], str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        rc = dumpQWidget(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
     case KT_StdString:
     case KT_StdWString:
@@ -1371,5 +1697,45 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     if (rc == SymbolGroupNode::SimpleDumperOk)
         *s = str.str();
     QTC_TRACE_OUT
+
+    if (SymbolGroupValue::verbose > 1) {
+        DebugPrint dp;
+        dp << "dumpSimpleType " << n->name() << '/' << n->type() << " knowntype= " << kt << " [";
+        formatKnownTypeFlags(dp, kt);
+        dp << "] returns " << rc;
+    }
+    return rc;
+}
+
+std::vector<AbstractSymbolGroupNode *>
+    dumpComplexType(SymbolGroupNode *, int type, void *specialInfo,
+                    const SymbolGroupValueContext &)
+{
+    std::vector<AbstractSymbolGroupNode *> rc;
+    if (!(type & KT_HasComplexDumper))
+        return rc;
+    switch (type) {
+    case KT_QWidget: // Special info by simple dumper is the QWidgetPrivate node
+    case KT_QObject: // Special info by simple dumper is the QObjectPrivate node
+        if (specialInfo) {
+            SymbolGroupNode *qObjectPrivateNode = reinterpret_cast<SymbolGroupNode *>(specialInfo);
+            rc.push_back(new ReferenceSymbolGroupNode("d", "d", qObjectPrivateNode));
+        }
+        break;
+    case KT_QVariant: // Special info by simple dumper is the container (stringlist, map,etc)
+        if (specialInfo) {
+            SymbolGroupNode *containerNode = reinterpret_cast<SymbolGroupNode *>(specialInfo);
+            rc.push_back(new ReferenceSymbolGroupNode("children", "children", containerNode));
+        }
+        break;
+    default:
+        break;
+    }
+    if (SymbolGroupValue::verbose) {
+        DebugPrint dp;
+        dp << "<dumpComplexType" << rc.size() << ' ';
+        for (VectorIndexType i = 0; i < rc.size() ; i++)
+            dp << i << ' ' << rc.at(i)->name();
+    }
     return rc;
 }

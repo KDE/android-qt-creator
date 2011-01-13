@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -152,6 +152,11 @@
         \o version
         \o The version to which the plugin must be compatible to
            fill the dependency, in the form \c {"x.y.z_n"}.
+           Can be empty if the version does not matter.
+    \row
+        \o type
+        \o Value 'required' or 'optional'. Defines if the dependency is
+           a hard requirement or optional. Defaults to 'required'.
     \endtable
 
     \section2 Example \c plugin.xml
