@@ -41,6 +41,7 @@
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunner.h>
 #include <debugger/debuggerengine.h>
+#include <debugger/debuggerstartparameters.h>
 
 #include <projectexplorer/toolchaintype.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>

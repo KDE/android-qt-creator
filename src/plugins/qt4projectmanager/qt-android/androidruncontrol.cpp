@@ -48,6 +48,7 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 using ProjectExplorer::RunConfiguration;
+using namespace ProjectExplorer;
 
 AndroidRunControl::AndroidRunControl(RunConfiguration *rc)
     : RunControl(rc, ProjectExplorer::Constants::RUNMODE)
@@ -73,7 +74,7 @@ void AndroidRunControl::start()
         SLOT(handleRemoteOutput(QByteArray)));
     connect(m_runner, SIGNAL(remoteProcessFinished(const QString &)),
         SLOT(handleRemoteProcessFinished(const QString &)));
-    emit appendMessage(this, tr("Starting remote process ..."), false);
+    appendMessage(tr("Starting remote process ..."), NormalMessageFormat);
     m_runner->start();
 }
 
@@ -85,7 +86,7 @@ ProjectExplorer::RunControl::StopResult AndroidRunControl::stop()
 
 void AndroidRunControl::handleRemoteProcessFinished(const QString &error)
 {
-    emit appendMessage(this, error , true);
+    appendMessage(error , ErrorMessageFormat);
     disconnect(m_runner, 0, this, 0);
     m_running = false;
     emit finished();
@@ -93,12 +94,12 @@ void AndroidRunControl::handleRemoteProcessFinished(const QString &error)
 
 void AndroidRunControl::handleRemoteOutput(const QByteArray &output)
 {
-    emit addToOutputWindowInline(this, QString::fromUtf8(output), false);
+    appendMessage(QString::fromUtf8(output), StdOutFormatSameLine);
 }
 
 void AndroidRunControl::handleRemoteErrorOutput(const QByteArray &output)
 {
-    emit addToOutputWindowInline(this, QString::fromUtf8(output), true);
+    appendMessage(QString::fromUtf8(output), StdErrFormatSameLine);
 }
 
 bool AndroidRunControl::isRunning() const

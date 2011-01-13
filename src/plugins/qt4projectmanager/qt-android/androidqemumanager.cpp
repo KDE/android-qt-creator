@@ -96,7 +96,7 @@ AndroidQemuManager::AndroidQemuManager(QObject *parent)
     qemuCommand->setAttribute(Core::Command::CA_UpdateIcon);
 
     Core::ModeManager *modeManager = core->modeManager();
-    modeManager->addAction(qemuCommand, 1);
+    //modeManager->addAction(qemuCommand, 1);
 
     // listen to qt version changes to update the start button
     connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>)),

@@ -61,7 +61,7 @@ namespace Debugger {
 class DebuggerEnginePrivate;
 class DebuggerRunControl;
 class DebuggerStartParameters;
-    QStringList solibSearchPath;
+
 
 DEBUGGER_EXPORT QDebug operator<<(QDebug str, const DebuggerStartParameters &);
 DEBUGGER_EXPORT QDebug operator<<(QDebug str, DebuggerState state);

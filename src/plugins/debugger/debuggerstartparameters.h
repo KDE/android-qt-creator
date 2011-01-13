@@ -107,6 +107,7 @@ public:
     QString qtInstallPath;
 
     QString dumperLibrary;
+    QStringList solibSearchPath;
     QStringList dumperLibraryLocations;
     DebuggerStartMode startMode;
 

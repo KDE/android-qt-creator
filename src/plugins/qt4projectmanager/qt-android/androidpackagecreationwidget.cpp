@@ -99,8 +99,9 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo(ProjectExplorer::Pro
     if (project != ourProject)
         return;
     m_ui->targetSDKComboBox->clear();
-    m_ui->targetSDKComboBox->addItems(AndroidConfigurations::instance().sdkTargets());
-    m_ui->targetSDKComboBox->setCurrentIndex(AndroidConfigurations::instance().sdkTargets().indexOf(AndroidTemplatesManager::instance()->targetSDK(project)));
+    QStringList targets=AndroidConfigurations::instance().sdkTargets();
+    m_ui->targetSDKComboBox->addItems(targets);
+    m_ui->targetSDKComboBox->setCurrentIndex(targets.indexOf(AndroidTemplatesManager::instance()->targetSDK(project)));
     m_ui->packageNameLineEdit->setText(AndroidTemplatesManager::instance()->packageName(project));
     m_ui->appNameLineEdit->setText(AndroidTemplatesManager::instance()->applicationName(project));
     m_ui->versionCode->setValue(AndroidTemplatesManager::instance()->versionCode(project));
