@@ -61,11 +61,72 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 
+
+CheckModel::CheckModel(QObject * parent ):QAbstractListModel ( parent )
+{
+
+}
+
+void CheckModel::setAvailableItems(const QStringList & items)
+{
+    m_availableItems = items;
+    reset();
+}
+
+void CheckModel::setCheckedItems(const QStringList & items)
+{
+    m_checkedItems=items;
+    reset();
+}
+
+QStringList CheckModel::checkedItems()
+{
+    return m_checkedItems;
+}
+
+QVariant CheckModel::data(const QModelIndex &index, int role) const
+{
+    if (!index.isValid())
+        return QVariant();
+    switch(role)
+    {
+    case Qt::CheckStateRole:
+        return m_checkedItems.contains(m_availableItems.at(index.row()))?Qt::Checked:Qt::Unchecked;
+    case Qt::DisplayRole:
+        return m_availableItems.at(index.row());
+    }
+    return QVariant();
+}
+
+bool CheckModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if (role != Qt::CheckStateRole || !index.isValid())
+        return false;
+    if (value.toInt() == Qt::Checked)
+        m_checkedItems.append(m_availableItems.at(index.row()));
+    else
+        m_checkedItems.removeAll(m_availableItems.at(index.row()));
+    emit dataChanged(index, index);
+    return true;
+}
+
+int CheckModel::rowCount(const QModelIndex &/*parent*/) const
+{
+    return m_availableItems.count();
+}
+
+Qt::ItemFlags CheckModel::flags(const QModelIndex &/*index*/) const
+{
+    return Qt::ItemIsSelectable|Qt::ItemIsUserCheckable|Qt::ItemIsEnabled;
+}
+
 AndroidPackageCreationWidget::AndroidPackageCreationWidget(AndroidPackageCreationStep *step)
     : ProjectExplorer::BuildStepConfigWidget(),
       m_step(step),
       m_ui(new Ui::AndroidPackageCreationWidget)
 {
+    m_qtLibsModel = new CheckModel(this);
+    m_prebundledLibs = new CheckModel(this);
     m_ui->setupUi(this);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     QTimer::singleShot(0, this, SLOT(initGui()));
@@ -88,7 +149,10 @@ void AndroidPackageCreationWidget::initGui()
     connect(m_ui->versionCode, SIGNAL(editingFinished()), SLOT(setVersionCode()));
     connect(m_ui->versionNameLinedit, SIGNAL(editingFinished()), SLOT(setVersionName()));
     connect(m_ui->targetSDKComboBox, SIGNAL(activated(QString)), SLOT(setTargetSDK(QString)));
-
+    m_qtLibsModel->setAvailableItems(AndroidTemplatesManager::instance()->availableQtLibs(project));
+    m_prebundledLibs->setAvailableItems(AndroidTemplatesManager::instance()->availablePrebundledLibs(project));
+    m_ui->qtLibsListView->setModel(m_qtLibsModel);
+    m_ui->prebundledLibsListView->setModel(m_prebundledLibs);
 }
 
 void AndroidPackageCreationWidget::updateAndroidProjectInfo(ProjectExplorer::Project *project)
@@ -104,6 +168,11 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo(ProjectExplorer::Pro
     m_ui->targetSDKComboBox->setCurrentIndex(targets.indexOf(AndroidTemplatesManager::instance()->targetSDK(project)));
     m_ui->packageNameLineEdit->setText(AndroidTemplatesManager::instance()->packageName(project));
     m_ui->appNameLineEdit->setText(AndroidTemplatesManager::instance()->applicationName(project));
+    if (!m_ui->appNameLineEdit->text().length())
+    {
+        m_ui->appNameLineEdit->setText(project->displayName());
+        AndroidTemplatesManager::instance()->setApplicationName(project, project->displayName());
+    }
     m_ui->versionCode->setValue(AndroidTemplatesManager::instance()->versionCode(project));
     m_ui->versionNameLinedit->setText(AndroidTemplatesManager::instance()->versionName(project));
 //    QString error;

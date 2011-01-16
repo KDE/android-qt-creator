@@ -77,6 +77,18 @@ public:
     QString versionName(ProjectExplorer::Project *project);
     bool setVersionName(ProjectExplorer::Project *project, const QString &version);
 
+    QStringList permissions(ProjectExplorer::Project *project);
+    bool setPermissions(ProjectExplorer::Project *project, const QStringList &permissions);
+
+    QStringList availableQtLibs(ProjectExplorer::Project *project);
+    QStringList qtLibs(ProjectExplorer::Project *project);
+    bool setQtLibs(ProjectExplorer::Project *project, const QStringList & qtLibs);
+
+    QStringList availablePrebundledLibs(ProjectExplorer::Project *project);
+    QStringList prebundledLibs(ProjectExplorer::Project *project);
+    bool setPrebundledLibs(ProjectExplorer::Project *project, const QStringList & qtLibs);
+
+
     QIcon packageManagerIcon(ProjectExplorer::Project *project);
     bool setPackageManagerIcon(ProjectExplorer::Project *project, const QString &iconFilePath);
 

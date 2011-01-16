@@ -217,9 +217,7 @@ const AndroidToolChain *AndroidRunConfiguration::toolchain() const
 
 const QString AndroidRunConfiguration::gdbCmd() const
 {
-//    return "/usr/bin/gdb";
-#warning FIXME Android
-    return QString("/usr/local/android-ndk-r5/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-gdb");
+    return AndroidConfigurations::instance().gdbPath();
 }
 
 AndroidDeployStep *AndroidRunConfiguration::deployStep() const

@@ -43,6 +43,8 @@
 #define ANDROIDPACKAGECREATIONWIDGET_H
 
 #include <projectexplorer/buildstep.h>
+#include <QtCore/QAbstractListModel>
+#include <QtCore/QStringList>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class AndroidPackageCreationWidget; }
@@ -51,6 +53,23 @@ QT_END_NAMESPACE
 namespace Qt4ProjectManager {
 namespace Internal {
 class AndroidPackageCreationStep;
+
+class CheckModel: public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    CheckModel(QObject * parent = 0 );
+    void setAvailableItems(const QStringList & items);
+    void setCheckedItems(const QStringList & items);
+    QStringList checkedItems();
+    QVariant data(const QModelIndex &index, int role) const;
+    bool setData(const QModelIndex &index, const QVariant &value, int role);
+    int rowCount(const QModelIndex &parent) const;
+    Qt::ItemFlags flags(const QModelIndex &index) const;
+private:
+    QStringList m_availableItems;
+    QStringList m_checkedItems;
+};
 
 class AndroidPackageCreationWidget : public ProjectExplorer::BuildStepConfigWidget
 {
@@ -77,6 +96,8 @@ private slots:
 private:
     AndroidPackageCreationStep * const m_step;
     Ui::AndroidPackageCreationWidget * const m_ui;
+    CheckModel * m_qtLibsModel;
+    CheckModel * m_prebundledLibs;
 };
 
 } // namespace Internal

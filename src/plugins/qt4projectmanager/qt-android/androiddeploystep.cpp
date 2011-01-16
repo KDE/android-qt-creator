@@ -248,6 +248,7 @@ bool AndroidDeployStep::deployPackage()
         QStringList stripFiles;
         copyLibs(bc->qtVersion()->sourcePath()+"/lib", tempPath+"/lib",stripFiles,QStringList()<<"*.so");
         copyLibs(bc->qtVersion()->sourcePath()+"/plugins", tempPath+"/plugins",stripFiles);
+        copyLibs(bc->qtVersion()->sourcePath()+"/imports", tempPath+"/imports",stripFiles);
         AndroidPackageCreationStep::stripAndroidLibs(stripFiles);
         runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
                    +QString(" push %1 /data/local/qt").arg(tempPath));
@@ -278,7 +279,7 @@ bool AndroidDeployStep::deployPackage()
 }
 
 void AndroidDeployStep::raiseError(const QString &errorString)
-{ 
+{
     emit addTask(Task(Task::Error, errorString, QString(), -1,
         ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
 }

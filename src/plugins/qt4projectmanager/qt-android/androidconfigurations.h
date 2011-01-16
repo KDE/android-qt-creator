@@ -97,6 +97,7 @@ public:
     QString antToolPath();
     QString emulatorToolPath();
     QString gdbServerPath();
+    QString gdbPath();
     QString stripPath();
     QString getDeployDeviceSerialNumber(int apiLevel=-1);
     QString createAVD(int apiLevel);

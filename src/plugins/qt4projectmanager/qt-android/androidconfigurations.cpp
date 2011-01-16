@@ -127,13 +127,17 @@ QString AndroidConfigurations::emulatorToolPath()
 
 QString AndroidConfigurations::stripPath()
 {
-    qDebug()<<m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-strip"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
     return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-strip"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
 QString AndroidConfigurations::gdbServerPath()
 {
     return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/gdbserver").arg(m_config.NDKToolchainVersion);
+}
+
+QString AndroidConfigurations::gdbPath()
+{
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gdb"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
 QString AndroidConfigurations::getDeployDeviceSerialNumber(int apiLevel)

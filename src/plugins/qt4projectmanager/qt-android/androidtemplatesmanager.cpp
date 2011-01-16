@@ -112,7 +112,7 @@ bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
     if (!createAndroidTemplatesIfNecessary(target->project()))
         return false;
 
-    const Qt4Target * const qt4Target = qobject_cast<Qt4Target *>(target);
+//    const Qt4Target * const qt4Target = qobject_cast<Qt4Target *>(target);
 //    const AndroidDeployStep * const deployStep
 //        = AndroidGlobal::buildStep<AndroidDeployStep>(qt4Target->activeDeployConfiguration());
 //    connect(deployStep->deployables().data(), SIGNAL(modelReset()), this,
@@ -243,7 +243,7 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer:
     }
 
     if (forceJava)
-        AndroidPackageCreationStep::removeDirectory(AndroidDirName+QLatin1Char('/src'));
+        AndroidPackageCreationStep::removeDirectory(AndroidDirName+QLatin1String("/src"));
 
     QStringList androidFiles;
     QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
@@ -306,8 +306,11 @@ bool AndroidTemplatesManager::saveAndroidManifest(ProjectExplorer::Project *proj
 
 QString AndroidTemplatesManager::activityName(ProjectExplorer::Project *project)
 {
-#warning FIXME Android, read this value from manifest file
-    return QString("com.nokia.qt.android.QtActivity");
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return QString();
+    QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
+    return activityElem.attribute(QLatin1String("android:name"));
 }
 
 QString AndroidTemplatesManager::intentName(ProjectExplorer::Project *project)
@@ -336,12 +339,21 @@ bool AndroidTemplatesManager::setPackageName(ProjectExplorer::Project *project, 
 
 QString AndroidTemplatesManager::applicationName(ProjectExplorer::Project *project)
 {
-    return "";
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return QString();
+    QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
+    return activityElem.attribute(QLatin1String("android:label"));
 }
 
 bool AndroidTemplatesManager::setApplicationName(ProjectExplorer::Project *project, const QString & name)
 {
-    return true;
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return false;
+    QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
+    activityElem.setAttribute(QLatin1String("android:label"), name);
+    return saveAndroidManifest(project, doc);
 }
 
 int AndroidTemplatesManager::versionCode(ProjectExplorer::Project *project)
@@ -381,6 +393,105 @@ bool AndroidTemplatesManager::setVersionName(ProjectExplorer::Project *project, 
     QDomElement manifestElem = doc.documentElement();
     manifestElem.setAttribute(QLatin1String("android:versionName"), version);
     return saveAndroidManifest(project, doc);
+}
+
+QStringList AndroidTemplatesManager::permissions(ProjectExplorer::Project *project)
+{
+    QStringList per;
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return per;
+    QDomElement permissionElem = doc.documentElement().firstChildElement("uses-permission");
+    while(!permissionElem.isNull())
+    {
+        per<<permissionElem.attribute(QLatin1String("android:name"));
+        permissionElem = permissionElem.nextSiblingElement("uses-permission");
+    }
+    return per;
+}
+
+bool AndroidTemplatesManager::setPermissions(ProjectExplorer::Project *project, const QStringList & permissions)
+{
+    QDomDocument doc;
+    if (!openAndroidManifest(project, doc))
+        return false;
+    QDomElement docElement=doc.documentElement();
+    QDomElement permissionElem = docElement.firstChildElement("uses-permission");
+    while(!permissionElem.isNull())
+    {
+        doc.removeChild(permissionElem);
+        permissionElem = docElement.firstChildElement("uses-permission");
+    }
+
+    foreach(const QString & permission, permissions )
+    {
+        permissionElem = doc.createElement("uses-permission");
+        permissionElem.setAttribute("android:name", permission);
+        docElement.appendChild(permissionElem);
+    }
+
+    return saveAndroidManifest(project, doc);
+}
+
+QStringList AndroidTemplatesManager::availableQtLibs(ProjectExplorer::Project *project)
+{
+    QStringList libs;
+    const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project);
+    QString libsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->sourcePath()+"/lib";
+    QDirIterator libsIt(libsPath, QStringList()<<"libQt*.so");
+    while(libsIt.hasNext())
+    {
+        libsIt.next();
+        libs<<libsIt.fileName().mid(5,libsIt.fileName().indexOf('.')-5);
+    }
+    return libs;
+}
+
+QStringList AndroidTemplatesManager::qtLibs(ProjectExplorer::Project *project)
+{
+    QStringList libs;
+
+    return libs;
+}
+
+bool AndroidTemplatesManager::setQtLibs(ProjectExplorer::Project *project, const QStringList & qtLibs)
+{
+
+    return true;
+}
+
+QStringList AndroidTemplatesManager::availablePrebundledLibs(ProjectExplorer::Project *project)
+{
+    QStringList libs;
+    Qt4Project * qt4Project = qobject_cast<Qt4Project *>(project);
+    QList<Qt4Project *> qt4Projects;
+    qt4Projects<<qt4Project;
+    foreach (ProjectExplorer::Project* pr, qt4Project->dependsOn())
+    {
+        qt4Project = qobject_cast<Qt4Project *>(pr);
+        if (qt4Project)
+            qt4Projects<<qt4Project;
+    }
+
+    foreach(qt4Project, qt4Projects)
+        foreach(Qt4ProFileNode * node, qt4Project->leafProFiles())
+            if (node->projectType()== LibraryTemplate)
+                libs<<QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
+
+    return libs;
+}
+
+QStringList AndroidTemplatesManager::prebundledLibs(ProjectExplorer::Project *project)
+{
+    QStringList libs;
+
+    return libs;
+}
+
+bool AndroidTemplatesManager::setPrebundledLibs(ProjectExplorer::Project *project, const QStringList & qtLibs)
+{
+
+    return true;
 }
 
 QString AndroidTemplatesManager::targetSDK(ProjectExplorer::Project *project)
