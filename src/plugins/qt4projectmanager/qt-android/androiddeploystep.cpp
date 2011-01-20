@@ -36,7 +36,6 @@
 #include "androidpackagecreationstep.h"
 #include "androidrunconfiguration.h"
 #include "androidtoolchain.h"
-#include "androidtemplatesmanager.h"
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>

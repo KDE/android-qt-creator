@@ -28,12 +28,13 @@
 **************************************************************************/
 
 #include "androidrunconfiguration.h"
-
 #include "androiddeploystep.h"
 #include "androiddeviceconfiglistmodel.h"
 #include "androidglobal.h"
 #include "androidrunconfigurationwidget.h"
 #include "androidtoolchain.h"
+#include "qt4androidtarget.h"
+
 #include "qtoutputformatter.h"
 
 #include <coreplugin/icore.h>
@@ -59,7 +60,7 @@ const bool DefaultUseRemoteGdbValue = false;
 
 using namespace ProjectExplorer;
 
-AndroidRunConfiguration::AndroidRunConfiguration(Qt4Target *parent,
+AndroidRunConfiguration::AndroidRunConfiguration(Qt4AndroidTarget *parent,
         const QString &proFilePath)
     : RunConfiguration(parent, QLatin1String(ANDROID_RC_ID))
     , m_proFilePath(proFilePath)
@@ -70,7 +71,7 @@ AndroidRunConfiguration::AndroidRunConfiguration(Qt4Target *parent,
     init();
 }
 
-AndroidRunConfiguration::AndroidRunConfiguration(Qt4Target *parent,
+AndroidRunConfiguration::AndroidRunConfiguration(Qt4AndroidTarget *parent,
         AndroidRunConfiguration *source)
     : RunConfiguration(parent, source)
     , m_proFilePath(source->m_proFilePath)
@@ -106,9 +107,9 @@ AndroidRunConfiguration::~AndroidRunConfiguration()
 {
 }
 
-Qt4Target *AndroidRunConfiguration::qt4Target() const
+Qt4AndroidTarget *AndroidRunConfiguration::qt4Target() const
 {
-    return static_cast<Qt4Target *>(target());
+    return static_cast<Qt4AndroidTarget *>(target());
 }
 
 Qt4BuildConfiguration *AndroidRunConfiguration::activeQt4BuildConfiguration() const

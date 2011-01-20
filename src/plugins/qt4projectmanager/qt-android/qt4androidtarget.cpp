@@ -27,7 +27,8 @@
 **
 **************************************************************************/
 
-#include "androidtemplatesmanager.h"
+#include "qt4androidtarget.h"
+#include "qt4androiddeployconfiguration.h"
 #include "androidconfigurations.h"
 
 #include "androiddeploystep.h"
@@ -66,93 +67,139 @@ namespace {
 namespace Qt4ProjectManager {
 namespace Internal {
 
-AndroidTemplatesManager *AndroidTemplatesManager::m_instance = 0;
-
-AndroidTemplatesManager *AndroidTemplatesManager::instance(QObject *parent)
+Qt4AndroidTarget::Qt4AndroidTarget(Qt4Project *parent, const QString &id) :
+    Qt4BaseTarget(parent, id),
+    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this)),
+    m_deployConfigurationFactory(new Qt4AndroidDeployConfigurationFactory(this)),
+    m_androidFilesWatcher(new QFileSystemWatcher(this))
 {
-    Q_ASSERT(!m_instance != !parent);
-    if (!m_instance)
-        m_instance = new AndroidTemplatesManager(parent);
-    return m_instance;
+    setIcon(QIcon(":/projectexplorer/images/AndroidDevice.png"));
+    connect(parent, SIGNAL(addedTarget(ProjectExplorer::Target*)),
+        this, SLOT(handleTargetAdded(ProjectExplorer::Target*)));
+
 }
 
-AndroidTemplatesManager::AndroidTemplatesManager(QObject *parent) : QObject(parent)
+Qt4AndroidTarget::~Qt4AndroidTarget()
 {
-    SessionManager * const session
-        = ProjectExplorerPlugin::instance()->session();
-    connect(session, SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
-        this, SLOT(handleActiveProjectChanged(ProjectExplorer::Project*)));
-    connect(session, SIGNAL(projectAdded(ProjectExplorer::Project*)), this,
-        SLOT(handleActiveProjectChanged(ProjectExplorer::Project*)));
-    connect(session, SIGNAL(aboutToRemoveProject(ProjectExplorer::Project*)),
-        this, SLOT(handleProjectToBeRemoved(ProjectExplorer::Project*)));
-    handleActiveProjectChanged(session->startupProject());
+
 }
 
-void AndroidTemplatesManager::handleActiveProjectChanged(ProjectExplorer::Project *project)
+Qt4BuildConfigurationFactory *Qt4AndroidTarget::buildConfigurationFactory() const
 {
-    if (!project || m_androidProjects.contains(project))
+    return m_buildConfigurationFactory;
+}
+
+ProjectExplorer::DeployConfigurationFactory *Qt4AndroidTarget::deployConfigurationFactory() const
+{
+    return m_deployConfigurationFactory;
+}
+
+QString Qt4AndroidTarget::defaultBuildDirectory() const
+{
+    //TODO why?
+#if defined(Q_OS_WIN)
+    return project()->projectDirectory();
+#endif
+    return Qt4BaseTarget::defaultBuildDirectory();
+}
+
+void Qt4AndroidTarget::createApplicationProFiles()
+{
+    removeUnconfiguredCustomExectutableRunConfigurations();
+
+    QList<Qt4ProFileNode *> profiles = qt4Project()->applicationProFiles();
+    QSet<QString> paths;
+    foreach (Qt4ProFileNode *pro, profiles)
+        paths << pro->path();
+
+    foreach (ProjectExplorer::RunConfiguration *rc, runConfigurations())
+        if (MaemoRunConfiguration *qt4rc = qobject_cast<MaemoRunConfiguration *>(rc))
+            paths.remove(qt4rc->proFilePath());
+
+    // Only add new runconfigurations if there are none.
+    foreach (const QString &path, paths)
+        addRunConfiguration(new MaemoRunConfiguration(this, path));
+
+    // Oh still none? Add a custom executable runconfiguration
+    if (runConfigurations().isEmpty()) {
+        addRunConfiguration(new ProjectExplorer::CustomExecutableRunConfiguration(this));
+    }
+}
+
+QString Qt4AndroidTarget::defaultDisplayName()
+{
+    return QApplication::translate("Qt4ProjectManager::Qt4Target", "Android", "Qt4 Android target display name");
+}
+
+void Qt4AndroidTarget::handleTargetAdded(ProjectExplorer::Target *target)
+{
+    if (target != this)
         return;
 
-    connect(project, SIGNAL(addedTarget(ProjectExplorer::Target*)),
-        this, SLOT(handleTarget(ProjectExplorer::Target*)));
-    connect(project, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)),
-        this, SLOT(handleTarget(ProjectExplorer::Target*)));
-    const QList<Target *> &targets = project->targets();
-    foreach (Target * const target, targets)
-        handleTarget(target);
-}
+    disconnect(project(), SIGNAL(addedTarget(ProjectExplorer::Target*)),
+        this, SLOT(handleTargetAdded(ProjectExplorer::Target*)));
+    connect(project(), SIGNAL(aboutToRemoveTarget(ProjectExplorer::Target*)),
+        SLOT(handleTargetToBeRemoved(ProjectExplorer::Target*)));
 
-bool AndroidTemplatesManager::handleTarget(ProjectExplorer::Target *target)
-{
+    if (!createAndroidTemplatesIfNecessary())
+        return;
 
-    if (!target
-        || target->id() != QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
-        return false;
-    if (!createAndroidTemplatesIfNecessary(target->project()))
-        return false;
-
-//    const Qt4Target * const qt4Target = qobject_cast<Qt4Target *>(target);
-//    const AndroidDeployStep * const deployStep
-//        = AndroidGlobal::buildStep<AndroidDeployStep>(qt4Target->activeDeployConfiguration());
-//    connect(deployStep->deployables().data(), SIGNAL(modelReset()), this,
-//        SLOT(handleProFileUpdated()), Qt::QueuedConnection);
-
-    Project * const project = target->project();
-    if (m_androidProjects.contains(project))
-        return true;
-
-    QFileSystemWatcher * const fsWatcher = new QFileSystemWatcher(this);
-    fsWatcher->addPath(androidDirPath(project));
-    fsWatcher->addPath(androidManifestPath(project));
-    connect(fsWatcher, SIGNAL(directoryChanged(QString)), this,
+    m_androidFilesWatcher->addPath(androidDirPath());
+    m_androidFilesWatcher->addPath(androidManifestPath());
+    connect(m_androidFilesWatcher, SIGNAL(directoryChanged(QString)), this,
         SLOT(handleAndroidDirContentsChanged()));
-    connect(fsWatcher, SIGNAL(fileChanged(QString)), this,
+    connect(m_androidFilesWatcher, SIGNAL(fileChanged(QString)), this,
         SLOT(handleAndroidDirContentsChanged()));
-    m_androidProjects.insert(project, fsWatcher);
-
-    return true;
 }
 
-QString AndroidTemplatesManager::androidDirPath(const ProjectExplorer::Project *project)
+void Qt4AndroidTarget::handleTargetToBeRemoved(ProjectExplorer::Target *target)
 {
-    return project->projectDirectory()+QLatin1Char('/')+AndroidDirName;
+    if (target != this)
+        return;
+
+// I don't think is a good idea to remove android directory
+
+//    const QString debianPath = debianDirPath();
+//    if (!QFileInfo(debianPath).exists())
+//        return;
+//    const int answer = QMessageBox::warning(0, tr("Qt Creator"),
+//        tr("Do you want to remove the packaging directory\n"
+//           "associated with the target '%1'?").arg(displayName()),
+//        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+//    if (answer == QMessageBox::No)
+//        return;
+//    QString error;
+//    if (!MaemoGlobal::removeRecursively(debianPath, error))
+//        qDebug("%s", qPrintable(error));
+//    const QString packagingPath = project()->projectDirectory()
+//        + QLatin1Char('/') + PackagingDirName;
+//    const QStringList otherContents = QDir(packagingPath).entryList(QDir::Dirs
+//        | QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot);
+//    if (otherContents.isEmpty()) {
+//        if (!MaemoGlobal::removeRecursively(packagingPath, error))
+//            qDebug("%s", qPrintable(error));
+//    }
 }
 
-QString AndroidTemplatesManager::androidManifestPath(const ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::androidDirPath()
 {
-    return androidDirPath(project)+QLatin1Char('/')+AndroidManifestName;
+    return project()->projectDirectory()+QLatin1Char('/')+AndroidDirName;
 }
 
-QString AndroidTemplatesManager::androidDefaultPropertiesPath(const ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::androidManifestPath()
 {
-    return androidDirPath(project)+QLatin1Char('/')+AndroidDefaultPropertiesName;
+    return androidDirPath()+QLatin1Char('/')+AndroidManifestName;
+}
+
+QString Qt4AndroidTarget::androidDefaultPropertiesPath()
+{
+    return androidDirPath()+QLatin1Char('/')+AndroidDefaultPropertiesName;
 }
 
 
-void AndroidTemplatesManager::updateProject(const ProjectExplorer::Project *project, const QString &targetSDK)
+void Qt4AndroidTarget::updateProject(const QString &targetSDK)
 {
-    QString androidDir=androidDirPath(project);
+    QString androidDir=androidDirPath();
     bool commentLines=targetSDK=="android-4";
     QDirIterator it(androidDir,QStringList()<<"*.java",QDir::Files, QDirIterator::Subdirectories);
     while(it.hasNext())
@@ -213,13 +260,13 @@ void AndroidTemplatesManager::updateProject(const ProjectExplorer::Project *proj
     androidProc.waitForFinished();
 }
 
-bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer::Project *project, bool forceJava)
+bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
 {
-    const Qt4Project * qt4Project = qobject_cast<Qt4Project*>(project);
+    const Qt4Project * qt4Project = qobject_cast<Qt4Project*>(project());
     if (!qt4Project)
         return false;
     QDir projectDir(project->projectDirectory());
-    QString androidPath=androidDirPath(project);
+    QString androidPath=androidDirPath();
 
     if (!forceJava && QFileInfo(androidPath).exists()
             && QFileInfo(androidManifestPath(project)).exists()
@@ -267,16 +314,16 @@ bool AndroidTemplatesManager::createAndroidTemplatesIfNecessary(ProjectExplorer:
         raiseError(tr("Not enough SDK's found.\nPlease install at least one SDK."));
         return false;
     }
-    updateProject(project, AndroidConfigurations::instance().sdkTargets().at(0));
+    updateProject(AndroidConfigurations::instance().sdkTargets().at(0));
     return true;
 }
 
-bool AndroidTemplatesManager::openAndroidManifest(ProjectExplorer::Project *project, QDomDocument & doc)
+bool Qt4AndroidTarget::openAndroidManifest(QDomDocument & doc)
 {
-    if (!createAndroidTemplatesIfNecessary(project))
+    if (!createAndroidTemplatesIfNecessary())
         return false;
 
-    QFile f(androidManifestPath(project));
+    QFile f(androidManifestPath());
     if (!f.open(QIODevice::ReadOnly))
     {
         raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath(project)));
@@ -290,12 +337,12 @@ bool AndroidTemplatesManager::openAndroidManifest(ProjectExplorer::Project *proj
     return true;
 }
 
-bool AndroidTemplatesManager::saveAndroidManifest(ProjectExplorer::Project *project, QDomDocument & doc)
+bool Qt4AndroidTarget::saveAndroidManifest(QDomDocument & doc)
 {
-    if (!createAndroidTemplatesIfNecessary(project))
+    if (!createAndroidTemplatesIfNecessary())
         return false;
 
-    QFile f(androidManifestPath(project));
+    QFile f(androidManifestPath());
     if (!f.open(QIODevice::WriteOnly))
     {
         raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath(project)));
@@ -304,102 +351,102 @@ bool AndroidTemplatesManager::saveAndroidManifest(ProjectExplorer::Project *proj
     return f.write(doc.toByteArray(4))>=0;
 }
 
-QString AndroidTemplatesManager::activityName(ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::activityName()
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return QString();
     QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
     return activityElem.attribute(QLatin1String("android:name"));
 }
 
-QString AndroidTemplatesManager::intentName(ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::intentName()
 {
-    return packageName(project)+QLatin1Char('/')+activityName(project);
+    return packageName()+QLatin1Char('/')+activityName(project);
 }
 
-QString AndroidTemplatesManager::packageName(ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::packageName()
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return QString();
     QDomElement manifestElem = doc.documentElement();
     return manifestElem.attribute(QLatin1String("package"));
 }
 
-bool AndroidTemplatesManager::setPackageName(ProjectExplorer::Project *project, const QString & name)
+bool Qt4AndroidTarget::setPackageName(const QString & name)
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return false;
     QDomElement manifestElem = doc.documentElement();
     manifestElem.setAttribute(QLatin1String("package"), name);
-    return saveAndroidManifest(project, doc);
+    return saveAndroidManifest(doc);
 }
 
-QString AndroidTemplatesManager::applicationName(ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::applicationName()
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return QString();
     QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
     return activityElem.attribute(QLatin1String("android:label"));
 }
 
-bool AndroidTemplatesManager::setApplicationName(ProjectExplorer::Project *project, const QString & name)
+bool Qt4AndroidTarget::setApplicationName(const QString & name)
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return false;
     QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
     activityElem.setAttribute(QLatin1String("android:label"), name);
-    return saveAndroidManifest(project, doc);
+    return saveAndroidManifest(doc);
 }
 
-int AndroidTemplatesManager::versionCode(ProjectExplorer::Project *project)
+int Qt4AndroidTarget::versionCode()
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return 0;
     QDomElement manifestElem = doc.documentElement();
     return manifestElem.attribute(QLatin1String("android:versionCode")).toInt();
 }
 
-bool AndroidTemplatesManager::setVersionCode(ProjectExplorer::Project *project, int version)
+bool Qt4AndroidTarget::setVersionCode(, int version)
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return false;
     QDomElement manifestElem = doc.documentElement();
     manifestElem.setAttribute(QLatin1String("android:versionCode"), version);
-    return saveAndroidManifest(project, doc);
+    return saveAndroidManifest(doc);
 }
 
 
-QString AndroidTemplatesManager::versionName(ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::versionName()
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return 0;
     QDomElement manifestElem = doc.documentElement();
     return manifestElem.attribute(QLatin1String("android:versionName"));
 }
 
-bool AndroidTemplatesManager::setVersionName(ProjectExplorer::Project *project, const QString &version)
+bool Qt4AndroidTarget::setVersionName(, const QString &version)
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return false;
     QDomElement manifestElem = doc.documentElement();
     manifestElem.setAttribute(QLatin1String("android:versionName"), version);
-    return saveAndroidManifest(project, doc);
+    return saveAndroidManifest(doc);
 }
 
-QStringList AndroidTemplatesManager::permissions(ProjectExplorer::Project *project)
+QStringList Qt4AndroidTarget::permissions()
 {
     QStringList per;
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return per;
     QDomElement permissionElem = doc.documentElement().firstChildElement("uses-permission");
     while(!permissionElem.isNull())
@@ -410,10 +457,10 @@ QStringList AndroidTemplatesManager::permissions(ProjectExplorer::Project *proje
     return per;
 }
 
-bool AndroidTemplatesManager::setPermissions(ProjectExplorer::Project *project, const QStringList & permissions)
+bool Qt4AndroidTarget::setPermissions(, const QStringList & permissions)
 {
     QDomDocument doc;
-    if (!openAndroidManifest(project, doc))
+    if (!openAndroidManifest(doc))
         return false;
     QDomElement docElement=doc.documentElement();
     QDomElement permissionElem = docElement.firstChildElement("uses-permission");
@@ -430,10 +477,10 @@ bool AndroidTemplatesManager::setPermissions(ProjectExplorer::Project *project, 
         docElement.appendChild(permissionElem);
     }
 
-    return saveAndroidManifest(project, doc);
+    return saveAndroidManifest(doc);
 }
 
-QStringList AndroidTemplatesManager::availableQtLibs(ProjectExplorer::Project *project)
+QStringList Qt4AndroidTarget::availableQtLibs()
 {
     QStringList libs;
     const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project);
@@ -447,20 +494,20 @@ QStringList AndroidTemplatesManager::availableQtLibs(ProjectExplorer::Project *p
     return libs;
 }
 
-QStringList AndroidTemplatesManager::qtLibs(ProjectExplorer::Project *project)
+QStringList Qt4AndroidTarget::qtLibs()
 {
     QStringList libs;
 
     return libs;
 }
 
-bool AndroidTemplatesManager::setQtLibs(ProjectExplorer::Project *project, const QStringList & qtLibs)
+bool Qt4AndroidTarget::setQtLibs(, const QStringList & qtLibs)
 {
 
     return true;
 }
 
-QStringList AndroidTemplatesManager::availablePrebundledLibs(ProjectExplorer::Project *project)
+QStringList Qt4AndroidTarget::availablePrebundledLibs()
 {
     QStringList libs;
     Qt4Project * qt4Project = qobject_cast<Qt4Project *>(project);
@@ -473,7 +520,7 @@ QStringList AndroidTemplatesManager::availablePrebundledLibs(ProjectExplorer::Pr
             qt4Projects<<qt4Project;
     }
 
-    foreach(qt4Project, qt4Projects)
+    foreach(qt4qt4Projects)
         foreach(Qt4ProFileNode * node, qt4Project->leafProFiles())
             if (node->projectType()== LibraryTemplate)
                 libs<<QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
@@ -481,20 +528,20 @@ QStringList AndroidTemplatesManager::availablePrebundledLibs(ProjectExplorer::Pr
     return libs;
 }
 
-QStringList AndroidTemplatesManager::prebundledLibs(ProjectExplorer::Project *project)
+QStringList Qt4AndroidTarget::prebundledLibs()
 {
     QStringList libs;
 
     return libs;
 }
 
-bool AndroidTemplatesManager::setPrebundledLibs(ProjectExplorer::Project *project, const QStringList & qtLibs)
+bool Qt4AndroidTarget::setPrebundledLibs(, const QStringList & qtLibs)
 {
 
     return true;
 }
 
-QString AndroidTemplatesManager::targetSDK(ProjectExplorer::Project *project)
+QString Qt4AndroidTarget::targetSDK()
 {
     if (!createAndroidTemplatesIfNecessary(project))
         return "android-4";
@@ -510,9 +557,9 @@ QString AndroidTemplatesManager::targetSDK(ProjectExplorer::Project *project)
     return "android-4";
 }
 
-bool AndroidTemplatesManager::setTargetSDK(ProjectExplorer::Project *project, const QString & target)
+bool Qt4AndroidTarget::setTargetSDK(, const QString & target)
 {
-    updateProject(project, target);
+    updateProject(target);
     return true;
 }
 
@@ -610,7 +657,7 @@ bool AndroidTemplatesManager::setTargetSDK(ProjectExplorer::Project *project, co
 //    }
 
 
-bool AndroidTemplatesManager::adaptControlFile(const Project *project)
+bool Qt4AndroidTarget::adaptControlFile(const Project *project)
 {
 //    QFile controlFile(controlFilePath(project));
 //    if (!controlFile.open(QIODevice::ReadWrite)) {
@@ -648,7 +695,7 @@ bool AndroidTemplatesManager::adaptControlFile(const Project *project)
     return true;
 }
 
-void AndroidTemplatesManager::adaptControlFileField(QByteArray &document,
+void Qt4AndroidTarget::adaptControlFileField(QByteArray &document,
     const QByteArray &fieldName, const QByteArray &newFieldValue)
 {
 //    QByteArray adaptedLine = fieldName + ": " + newFieldValue;
@@ -665,7 +712,7 @@ void AndroidTemplatesManager::adaptControlFileField(QByteArray &document,
 //    }
 }
 
-bool AndroidTemplatesManager::updateDesktopFiles(const Qt4Target *target)
+bool Qt4AndroidTarget::updateDesktopFiles(const Qt4Target *target)
 {
 //    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
 //    Q_ASSERT_X(qt4Target, Q_FUNC_INFO,
@@ -678,7 +725,7 @@ bool AndroidTemplatesManager::updateDesktopFiles(const Qt4Target *target)
     return success;
 }
 
-bool AndroidTemplatesManager::updateDesktopFile(const Qt4Target *target,
+bool Qt4AndroidTarget::updateDesktopFile(const Qt4Target *target,
     Qt4ProFileNode *proFileNode)
 {
 //    const QString appName = proFileNode->targetInformation().target;
@@ -765,7 +812,7 @@ bool AndroidTemplatesManager::updateDesktopFile(const Qt4Target *target,
     return true;
 }
 
-void AndroidTemplatesManager::handleProjectToBeRemoved(ProjectExplorer::Project *project)
+void Qt4AndroidTarget::handleProjectToBeRemoved()
 {
 //    AndroidProjectMap::Iterator it = m_androidProjects.find(project);
 //    if (it != m_androidProjects.end()) {
@@ -774,7 +821,7 @@ void AndroidTemplatesManager::handleProjectToBeRemoved(ProjectExplorer::Project 
 //    }
 }
 
-void AndroidTemplatesManager::handleProFileUpdated()
+void Qt4AndroidTarget::handleProFileUpdated()
 {
 //    const AndroidDeployables * const deployables
 //        = qobject_cast<AndroidDeployables *>(sender());
@@ -809,7 +856,7 @@ void AndroidTemplatesManager::handleProFileUpdated()
 //        closeParenPos - openParenPos - 1).data());
 //}
 
-//bool AndroidTemplatesManager::setVersion(const Project *project, const QString &version)
+//bool AndroidTemplatesManager::setVersion(const Project *const QString &version)
 //{
 //    QSharedPointer<QFile> changeLog
 //        = openFile(changeLogFilePath(project), QIODevice::ReadWrite, error);
@@ -831,7 +878,7 @@ void AndroidTemplatesManager::handleProFileUpdated()
 //    return true;
 //}
 
-QIcon AndroidTemplatesManager::packageManagerIcon(Project *project)
+QIcon Qt4AndroidTarget::packageManagerIcon(Project *project)
 {
 //    QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
@@ -871,7 +918,7 @@ QIcon AndroidTemplatesManager::packageManagerIcon(Project *project)
 //    return QIcon(pixmap);
 }
 
-bool AndroidTemplatesManager::setPackageManagerIcon(Project *project, const QString &iconFilePath)
+bool Qt4AndroidTarget::setPackageManagerIcon(Project *project, const QString &iconFilePath)
 {
 //    const QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);
@@ -926,12 +973,12 @@ bool AndroidTemplatesManager::setPackageManagerIcon(Project *project, const QStr
     return true;
 }
 
-void AndroidTemplatesManager::raiseError(const QString &reason)
+void Qt4AndroidTarget::raiseError(const QString &reason)
 {
     QMessageBox::critical(0, tr("Error creating Android templates"), reason);
 }
 
-void AndroidTemplatesManager::handleAndroidDirContentsChanged()
+void Qt4AndroidTarget::handleAndroidDirContentsChanged()
 {
     Project * const project
         = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
@@ -939,7 +986,7 @@ void AndroidTemplatesManager::handleAndroidDirContentsChanged()
         emit androidDirContentsChanged(project);
 }
 
-QSharedPointer<QFile> AndroidTemplatesManager::openFile(const QString &filePath,
+QSharedPointer<QFile> Qt4AndroidTarget::openFile(const QString &filePath,
     QIODevice::OpenMode mode, QString *error) const
 {
     const QString nativePath = QDir::toNativeSeparators(filePath);
@@ -953,7 +1000,7 @@ QSharedPointer<QFile> AndroidTemplatesManager::openFile(const QString &filePath,
     return file;
 }
 
-Project *AndroidTemplatesManager::findProject(const QFileSystemWatcher *fsWatcher) const
+Project *Qt4AndroidTarget::findProject(const QFileSystemWatcher *fsWatcher) const
 {
     for (AndroidProjectMap::ConstIterator it = m_androidProjects.constBegin();
         it != m_androidProjects.constEnd(); ++it) {
@@ -963,7 +1010,7 @@ Project *AndroidTemplatesManager::findProject(const QFileSystemWatcher *fsWatche
     return 0;
 }
 
-void AndroidTemplatesManager::findLine(const QByteArray &string,
+void Qt4AndroidTarget::findLine(const QByteArray &string,
     QByteArray &document, int &lineEndPos, int &valuePos)
 {
     int lineStartPos = document.indexOf(string);

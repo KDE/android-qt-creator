@@ -43,7 +43,6 @@
 #include "ui_androidpackagecreationwidget.h"
 
 #include "androidpackagecreationstep.h"
-#include "androidtemplatesmanager.h"
 #include "androidtoolchain.h"
 #include "androidconfigurations.h"
 

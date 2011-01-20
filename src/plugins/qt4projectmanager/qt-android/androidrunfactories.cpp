@@ -73,7 +73,7 @@ AndroidRunConfigurationFactory::~AndroidRunConfigurationFactory()
 bool AndroidRunConfigurationFactory::canCreate(Target *parent,
     const QString &/*id*/) const
 {
-    Qt4Target *target = qobject_cast<Qt4Target *>(parent);
+    Qt4AndroidTarget *target = qobject_cast<Qt4AndroidTarget *>(parent);
     if (!target
         || target->id() != QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID)) {
         return false;
@@ -84,7 +84,7 @@ bool AndroidRunConfigurationFactory::canCreate(Target *parent,
 bool AndroidRunConfigurationFactory::canRestore(Target *parent,
     const QVariantMap &map) const
 {
-    if (!qobject_cast<Qt4Target *>(parent))
+    if (!qobject_cast<Qt4AndroidTarget *>(parent))
         return false;
     return ProjectExplorer::idFromMap(map)
         .startsWith(QLatin1String(ANDROID_RC_ID));
@@ -99,7 +99,7 @@ bool AndroidRunConfigurationFactory::canClone(Target *parent,
 QStringList AndroidRunConfigurationFactory::availableCreationIds(Target *parent) const
 {
     QStringList ids;
-    if (Qt4Target *t = qobject_cast<Qt4Target *>(parent))
+    if (Qt4AndroidTarget *t = qobject_cast<Qt4AndroidTarget *>(parent))
     {
         if (t->id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
         {
@@ -122,7 +122,7 @@ RunConfiguration *AndroidRunConfigurationFactory::create(Target *parent,
 {
     if (!canCreate(parent, id))
         return 0;
-    Qt4Target *pqt4parent = static_cast<Qt4Target *>(parent);
+    Qt4AndroidTarget *pqt4parent = static_cast<Qt4AndroidTarget *>(parent);
     return new AndroidRunConfiguration(pqt4parent, pathFromId(id));
 
 }
@@ -132,7 +132,7 @@ RunConfiguration *AndroidRunConfigurationFactory::restore(Target *parent,
 {
     if (!canRestore(parent, map))
         return 0;
-    Qt4Target *target = static_cast<Qt4Target *>(parent);
+    Qt4AndroidTarget *target = static_cast<Qt4AndroidTarget *>(parent);
     AndroidRunConfiguration *rc = new AndroidRunConfiguration(target, QString());
     if (rc->fromMap(map))
         return rc;
@@ -148,7 +148,7 @@ RunConfiguration *AndroidRunConfigurationFactory::clone(Target *parent,
         return 0;
 
     AndroidRunConfiguration *old = static_cast<AndroidRunConfiguration *>(source);
-    return new AndroidRunConfiguration(static_cast<Qt4Target *>(parent), old);
+    return new AndroidRunConfiguration(static_cast<Qt4AndroidTarget *>(parent), old);
 }
 
 // #pragma mark -- AndroidRunControlFactory

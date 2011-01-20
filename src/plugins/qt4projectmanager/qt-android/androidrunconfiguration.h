@@ -46,7 +46,7 @@ namespace Qt4ProjectManager {
 
 class Qt4BuildConfiguration;
 class Qt4Project;
-class Qt4Target;
+class Qt4AndroidTarget;
 
 namespace Internal {
 
@@ -70,14 +70,14 @@ public:
 
     enum DebuggingType { DebugCppOnly, DebugQmlOnly, DebugCppAndQml };
 
-    AndroidRunConfiguration(Qt4Target *parent, const QString &proFilePath);
+    AndroidRunConfiguration(Qt4AndroidTarget *parent, const QString &proFilePath);
     virtual ~AndroidRunConfiguration();
 
     using ProjectExplorer::RunConfiguration::isEnabled;
     bool isEnabled(ProjectExplorer::BuildConfiguration *config) const;
     QWidget *createConfigurationWidget();
     ProjectExplorer::OutputFormatter *createOutputFormatter() const;
-    Qt4Target *qt4Target() const;
+    Qt4AndroidTarget *qt4Target() const;
     Qt4BuildConfiguration *activeQt4BuildConfiguration() const;
 
     AndroidDeployStep *deployStep() const;
@@ -120,7 +120,7 @@ signals:
     void userEnvironmentChangesChanged(const QList<Utils::EnvironmentItem> &diff);
 
 protected:
-    AndroidRunConfiguration(Qt4Target *parent, AndroidRunConfiguration *source);
+    AndroidRunConfiguration(Qt4AndroidTarget *parent, AndroidRunConfiguration *source);
     virtual bool fromMap(const QVariantMap &map);
     QString defaultDisplayName();
 

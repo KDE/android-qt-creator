@@ -51,10 +51,6 @@
 using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
 
-    if (id == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID))
-        return QApplication::translate("Qt4ProjectManager::Internal::Qt4Target", "Android", "Qt4 Android target display name");
-    if (id == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID))
-        return QIcon(QLatin1String(":/projectexplorer/images/AndroidDevice.png"));
 // -------------------------------------------------------------------------
 // Qt4BaseTargetFactory
 // -------------------------------------------------------------------------
@@ -67,7 +63,6 @@ Qt4BaseTargetFactory::Qt4BaseTargetFactory(QObject *parent) :
 
 Qt4BaseTargetFactory::~Qt4BaseTargetFactory()
 {
-
 }
 
 Qt4BaseTargetFactory *Qt4BaseTargetFactory::qt4BaseTargetFactoryForId(const QString &id)
@@ -198,10 +193,6 @@ Qt4BuildConfiguration *Qt4BaseTarget::addQt4BuildConfiguration(QString displayNa
 
 void Qt4BaseTarget::onAddedBuildConfiguration(ProjectExplorer::BuildConfiguration *bc)
 {
-    else if (id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
-        addRunConfiguration(new AndroidRunConfiguration(this, proFilePath));
-    else if (id == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
-        shortName = QLatin1String("android");
     Q_ASSERT(bc);
     Qt4BuildConfiguration *qt4bc = qobject_cast<Qt4BuildConfiguration *>(bc);
     Q_ASSERT(qt4bc);

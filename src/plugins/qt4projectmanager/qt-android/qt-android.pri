@@ -19,8 +19,10 @@ HEADERS += \
     $$PWD/androidrunner.h \
     $$PWD/androiddebugsupport.h \
     $$PWD/androiddeviceconfiglistmodel.h \
-    $$PWD/androidtemplatesmanager.h \
-    $$PWD/androiddevicesmodel.h
+    $$PWD/androiddevicesmodel.h \
+    $$PWD/qt4androiddeployconfiguration.h \
+    $$PWD/qt4androidtarget.h \
+    $$PWD/qt4androidtargetfactory.h
 
 SOURCES += \
     $$PWD/androidconfigurations.cpp \
@@ -41,8 +43,11 @@ SOURCES += \
     $$PWD/androidrunner.cpp \
     $$PWD/androiddebugsupport.cpp \
     $$PWD/androiddeviceconfiglistmodel.cpp \
-    $$PWD/androidtemplatesmanager.cpp \
-    $$PWD/androiddevicesmodel.cpp
+    $$PWD/androiddevicesmodel.cpp \
+    $$PWD/qt4androiddeployconfiguration.cpp \
+    $$PWD/qt4androidtarget.cpp \
+    $$PWD/qt4androidtargetfactory.cpp
+
 
 FORMS += \
     $$PWD/androidsettingswidget.ui \
