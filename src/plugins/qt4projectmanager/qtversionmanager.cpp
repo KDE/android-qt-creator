@@ -37,6 +37,7 @@
 #include "qt4target.h"
 #include "profilereader.h"
 
+#include "qt-maemo/maemoglobal.h"
 #include "qt-maemo/maemomanager.h"
 #include "qt-s60/s60manager.h"
 #include "qt-s60/s60projectchecker.h"
@@ -1291,8 +1292,9 @@ bool QtVersion::supportsMobileTarget() const
 {
     return supportsTargetId(Constants::S60_DEVICE_TARGET_ID) ||
            supportsTargetId(Constants::S60_EMULATOR_TARGET_ID) ||
-           supportsTargetId(Constants::MAEMO_DEVICE_TARGET_ID) ||
-            supportsTargetId(Constants::ANDROID_DEVICE_TARGET_ID) ||
+           supportsTargetId(Constants::MAEMO5_DEVICE_TARGET_ID) ||
+           supportsTargetId(Constants::HARMATTAN_DEVICE_TARGET_ID) ||
+           supportsTargetId(Constants::ANDROID_DEVICE_TARGET_ID) ||
            supportsTargetId(Constants::QT_SIMULATOR_TARGET_ID);
 }
 
@@ -1388,11 +1390,7 @@ void QtVersion::updateToolChainAndMkspec() const
                         mkspecFullPath = baseMkspecDir + "/macx-g++";
                     }
                     //resolve mkspec link
-                    QFileInfo f3(mkspecFullPath);
-                    while (f3.isSymLink()) {
-                        mkspecFullPath = f3.symLinkTarget();
-                        f3.setFile(mkspecFullPath);
-                    }
+                    mkspecFullPath = resolveLink(mkspecFullPath);
                 }
                 break;
             }
@@ -1400,11 +1398,7 @@ void QtVersion::updateToolChainAndMkspec() const
         f2.close();
     }
 #else
-    QFileInfo f2(mkspecFullPath);
-    while (f2.isSymLink()) {
-        mkspecFullPath = f2.symLinkTarget();
-        f2.setFile(mkspecFullPath);
-    }
+    mkspecFullPath =resolveLink(mkspecFullPath);
 #endif
 
 #ifdef Q_OS_WIN
@@ -1478,12 +1472,13 @@ void QtVersion::updateToolChainAndMkspec() const
             m_targetIds.insert(QLatin1String(Constants::S60_DEVICE_TARGET_ID));
 #    endif
         }
-    } else if (qt_arch.startsWith(QLatin1String("arm"))
-               && MaemoManager::instance().isValidMaemoQtVersion(this)) {
-        m_toolChains << ToolChainPtr(MaemoManager::instance().maemoToolChain(this));
-        m_targetIds.insert(QLatin1String(Constants::MAEMO_DEVICE_TARGET_ID));
-    } else if (qt_arch.startsWith(QLatin1String("arm"))
-               && AndroidManager::instance().isValidAndroidQtVersion(this)) {
+    } else if (MaemoGlobal::isValidMaemo5QtVersion(this)) {
+        m_toolChains << ToolChainPtr(MaemoManager::instance().maemo5ToolChain(this));
+        m_targetIds.insert(QLatin1String(Constants::MAEMO5_DEVICE_TARGET_ID));
+    } else if (MaemoGlobal::isValidHarmattanQtVersion(this)) {
+        m_toolChains << ToolChainPtr(MaemoManager::instance().harmattanToolChain(this));
+        m_targetIds.insert(QLatin1String(Constants::HARMATTAN_DEVICE_TARGET_ID));
+    } else if (AndroidManager::instance().isValidAndroidQtVersion(this)) {
         m_toolChains << ToolChainPtr(AndroidManager::instance().androidToolChain());
         m_targetIds.insert(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
     } else if (qmakeCXX == "cl" || qmakeCXX == "icl") {
@@ -1537,6 +1532,17 @@ void QtVersion::updateToolChainAndMkspec() const
     m_toolChainUpToDate = true;
     updateingToolChainAndMkspec = false;
 
+}
+
+QString QtVersion::resolveLink(const QString &path) const
+{
+    QFileInfo f(path);
+    int links = 16;
+    while (links-- && f.isSymLink())
+        f.setFile(f.symLinkTarget());
+    if (links <= 0)
+        return QString();
+    return f.filePath();
 }
 
 QString QtVersion::mwcDirectory() const
@@ -1635,7 +1641,8 @@ bool QtVersion::isValid() const
             && !qmakeCommand().isEmpty()
             && !displayName().isEmpty()
             && !m_notInstalled
-            && m_versionInfo.contains("QT_INSTALL_BINS");
+            && m_versionInfo.contains("QT_INSTALL_BINS")
+            && (!m_mkspecFullPath.isEmpty() || !m_toolChainUpToDate);
 }
 
 QString QtVersion::invalidReason() const
@@ -1651,6 +1658,8 @@ QString QtVersion::invalidReason() const
     if (!m_versionInfo.contains("QT_INSTALL_BINS"))
         return QCoreApplication::translate("QtVersion",
 					   "Could not determine the path to the binaries of the Qt installation, maybe the qmake path is wrong?");
+    if (m_toolChainUpToDate && m_mkspecFullPath.isEmpty())
+        return QCoreApplication::translate("QtVersion", "The default mkspec symlink is broken.");
     return QString();
 }
 
@@ -1667,8 +1676,10 @@ QString QtVersion::description() const
     else if (targets.contains(Constants::S60_DEVICE_TARGET_ID) ||
              targets.contains(Constants::S60_EMULATOR_TARGET_ID))
         envs = QCoreApplication::translate("QtVersion", "Symbian", "Qt Version is meant for Symbian");
-    else if (targets.contains(Constants::MAEMO_DEVICE_TARGET_ID))
-        envs = QCoreApplication::translate("QtVersion", "Maemo", "Qt Version is meant for Maemo");
+    else if (targets.contains(Constants::MAEMO5_DEVICE_TARGET_ID))
+        envs = QCoreApplication::translate("QtVersion", "Maemo", "Qt Version is meant for Maemo5");
+    else if (targets.contains(Constants::HARMATTAN_DEVICE_TARGET_ID))
+        envs = QCoreApplication::translate("QtVersion", "Harmattan ", "Qt Version is meant for Harmattan");
     else if (targets.contains(Constants::QT_SIMULATOR_TARGET_ID))
         envs = QCoreApplication::translate("QtVersion", "Qt Simulator", "Qt Version is meant for Qt Simulator");
     else if (targets.contains(Constants::ANDROID_DEVICE_TARGET_ID))
@@ -1763,7 +1774,8 @@ bool QtVersion::supportsBinaryDebuggingHelper() const
         case ProjectExplorer::ToolChain_MinGW:
         case ProjectExplorer::ToolChain_MSVC:
         case ProjectExplorer::ToolChain_WINCE:
-        case ProjectExplorer::ToolChain_GCC_MAEMO:
+        case ProjectExplorer::ToolChain_GCC_MAEMO5:
+        case ProjectExplorer::ToolChain_GCC_HARMATTAN:
         case ProjectExplorer::ToolChain_GCC_ANDROID:
         case ProjectExplorer::ToolChain_OTHER:
         case ProjectExplorer::ToolChain_UNKNOWN:
@@ -1844,73 +1856,7 @@ bool QtVersion::isQt64Bit() const
 #endif
 }
 
-bool QtVersion::buildDebuggingHelperLibrary(QFutureInterface<void> &future,
-                                            bool onlyQmlDump,
-                                            QString *output, QString *errorMessage)
+void QtVersion::invalidateCache()
 {
-    const QString qtInstallData = versionInfo().value("QT_INSTALL_DATA");
-    if (qtInstallData.isEmpty()) {
-        *errorMessage =
-                QCoreApplication::translate("QtVersion",
-                                            "Cannot determine the installation path for Qt version '%1'.").
-                                             arg(displayName());
-        return false;
-    }
-    Utils::Environment env = Utils::Environment::systemEnvironment();
-    addToEnvironment(env);
-
-    // TODO: the debugging helper doesn't comply to actual tool chain yet
-    QList<QSharedPointer<ProjectExplorer::ToolChain> > alltc = toolChains();
-    ProjectExplorer::ToolChain *tc = alltc.isEmpty() ? 0 : alltc.first().data();
-    if (!tc) {
-        *errorMessage = QCoreApplication::translate("QtVersion", "The Qt Version has no toolchain.");
-        return false;
-    }
-    tc->addToEnvironment(env);
-    const QString target = (tc->type() == ProjectExplorer::ToolChain_GCC_MAEMO ? QLatin1String("-unix") : QLatin1String(""));
-
-    // invalidate cache
     m_versionInfoUpToDate = false;
-
-    if (!onlyQmlDump) {
-        const QString gdbHelperDirectory = DebuggingHelperLibrary::copy(qtInstallData, errorMessage);
-        if (gdbHelperDirectory.isEmpty())
-            return false;
-        if (!DebuggingHelperLibrary::build(gdbHelperDirectory, tc->makeCommand(),
-                                           qmakeCommand(), mkspec(), env,
-                                           target, output, errorMessage))
-            return false;
-
-        future.setProgressValue(2);
-
-        if (QmlObserverTool::canBuild(this)) {
-            const QString toolDirectory = QmlObserverTool::copy(qtInstallData, errorMessage);
-            if (toolDirectory.isEmpty())
-                return false;
-            if (!QmlObserverTool::build(toolDirectory, tc->makeCommand(),
-                                        qmakeCommand(), mkspec(), env, target, output, errorMessage))
-                return false;
-        } else {
-            output->append(QCoreApplication::translate("Qt4ProjectManager::QtVersion", "Warning: Cannot build QMLObserver; Qt version must be 4.7.1 or higher."));
-        }
-        future.setProgressValue(3);
-    }
-
-    if (QmlDumpTool::canBuild(this)) {
-        const QString qmlDumpToolDirectory = QmlDumpTool::copy(qtInstallData, errorMessage);
-        if (qmlDumpToolDirectory.isEmpty())
-            return false;
-        if (!QmlDumpTool::build(qmlDumpToolDirectory, tc->makeCommand(),
-                                qmakeCommand(), mkspec(), env, target, output, errorMessage))
-            return false;
-
-    } else {
-//        output->append(QCoreApplication::translate("Qt4ProjectManager::QtVersion", "Warning: Cannot build qmldump; Qt version must be 4.7.1 or higher."));
-    }
-    future.setProgressValue(4);
-
-    // invalidate cache once more
-    m_versionInfoUpToDate = false;
-
-    return true;
 }

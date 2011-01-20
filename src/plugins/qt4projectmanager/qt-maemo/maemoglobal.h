@@ -36,12 +36,12 @@
 
 #include <utils/environment.h>
 
-#include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/deployconfiguration.h>
 
 #include <QtCore/QList>
 #include <QtCore/QSharedPointer>
+#include <QtCore/QCoreApplication>
 
 #define ASSERT_STATE_GENERIC(State, expected, actual)                         \
     MaemoGlobal::assertState<State>(expected, actual, Q_FUNC_INFO)
@@ -52,7 +52,6 @@ class QString;
 QT_END_NAMESPACE
 
 namespace Core { class SshConnection; }
-
 namespace Qt4ProjectManager {
 class QtVersion;
 namespace Internal {
@@ -60,6 +59,7 @@ class MaemoDeviceConfig;
 
 class MaemoGlobal
 {
+    Q_DECLARE_TR_FUNCTIONS(Qt4ProjectManager::Internal::MaemoGlobal)
 public:
     enum MaemoVersion { Maemo5, Maemo6 };
 
@@ -71,22 +71,24 @@ public:
         const QString m_fileName;
     };
 
+    static bool isMaemoTargetId(const QString &id);
+    static bool isValidMaemo5QtVersion(const Qt4ProjectManager::QtVersion *version);
+    static bool isValidHarmattanQtVersion(const Qt4ProjectManager::QtVersion *version);
+
     static QString homeDirOnDevice(const QString &uname);
     static QString remoteSudo();
     static QString remoteCommandPrefix(const QString &commandFilePath);
     static QString remoteEnvironment(const QList<Utils::EnvironmentItem> &list);
     static QString remoteSourceProfilesCommand();
     static QString failedToConnectToServerMessage(const QSharedPointer<Core::SshConnection> &connection,
-        const MaemoDeviceConfig &deviceConfig);
+        const QSharedPointer<const MaemoDeviceConfig> &deviceConfig);
+    static QString deviceConfigurationName(const QSharedPointer<const MaemoDeviceConfig> &devConf);
 
     static QString maddeRoot(const QtVersion *qtVersion);
     static QString targetRoot(const QtVersion *qtVersion);
     static QString targetName(const QtVersion *qtVersion);
     static QString madCommand(const QtVersion *qtVersion);
     static MaemoVersion version(const QtVersion *qtVersion);
-    static bool allowsRemoteMounts(const QtVersion *qtVersion) { return version(qtVersion) == Maemo5; }
-    static bool allowsPackagingDisabling(const QtVersion *qtVersion) { return version(qtVersion) == Maemo5; }
-    static bool allowsQmlDebugging(const QtVersion *qtVersion) { return version(qtVersion) == Maemo6; }
 
     static bool callMad(QProcess &proc, const QStringList &args,
         const QtVersion *qtVersion);
@@ -126,6 +128,8 @@ public:
     }
 
 private:
+    static bool isValidMaemoQtVersion(const Qt4ProjectManager::QtVersion *qtVersion,
+        MaemoVersion maemoVersion);
     static QString madAdminCommand(const QtVersion *qtVersion);
     static bool callMaddeShellScript(QProcess &proc, const QString &maddeRoot,
         const QString &command, const QStringList &args);

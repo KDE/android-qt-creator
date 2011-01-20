@@ -37,7 +37,7 @@
 #include "qmlproject.h"
 
 #include <coreplugin/icore.h>
-#include <projectexplorer/environmenteditmodel.h>
+#include <projectexplorer/environmentwidget.h>
 #include <projectexplorer/projectexplorer.h>
 #include <utils/debuggerlanguagechooser.h>
 #include <utils/detailswidget.h>
@@ -45,10 +45,12 @@
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 #include <qt4projectmanager/qtversionmanager.h>
 
-#include <QLineEdit>
-#include <QFormLayout>
-#include <QPushButton>
-#include <QStandardItemModel>
+#include <QtGui/QLineEdit>
+#include <QtGui/QComboBox>
+#include <QtGui/QFormLayout>
+#include <QtGui/QLabel>
+#include <QtGui/QPushButton>
+#include <QtGui/QStandardItemModel>
 
 using Core::ICore;
 using Utils::DebuggerLanguageChooser;

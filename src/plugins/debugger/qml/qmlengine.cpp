@@ -81,6 +81,8 @@
 #endif
 # define XSDEBUG(s) qDebug() << s
 
+using namespace ProjectExplorer;
+
 enum {
     MaxConnectionAttempts = 50,
     ConnectionAttemptDefaultInterval = 200
@@ -152,17 +154,16 @@ class QmlEnginePrivate
 {
 public:
     explicit QmlEnginePrivate(QmlEngine *q);
-    ~QmlEnginePrivate() { delete m_adapter; }
 
 private:
     friend class QmlEngine;
     int m_ping;
-    QmlAdapter *m_adapter;
-    ProjectExplorer::ApplicationLauncher m_applicationLauncher;
+    QmlAdapter m_adapter;
+    ApplicationLauncher m_applicationLauncher;
 };
 
 QmlEnginePrivate::QmlEnginePrivate(QmlEngine *q)
-    : m_ping(0), m_adapter(new QmlAdapter(q))
+    : m_ping(0), m_adapter(q)
 {}
 
 
@@ -198,12 +199,16 @@ void QmlEngine::setupInferior()
     if (startParameters().startMode == AttachToRemote) {
         requestRemoteSetup();
     } else {
-        connect(&d->m_applicationLauncher, SIGNAL(processExited(int)),
-                SLOT(disconnected()));
-        connect(&d->m_applicationLauncher, SIGNAL(appendMessage(QString,ProjectExplorer::OutputFormat)),
-                SLOT(appendMessage(QString,ProjectExplorer::OutputFormat)));
-        connect(&d->m_applicationLauncher, SIGNAL(bringToForegroundRequested(qint64)),
-                runControl(), SLOT(bringApplicationToForeground(qint64)));
+        connect(&d->m_applicationLauncher,
+            SIGNAL(processExited(int)),
+            SLOT(disconnected()));
+        connect(&d->m_applicationLauncher,
+            SIGNAL(appendMessage(QString,ProjectExplorer::OutputFormat)),
+            SLOT(appendMessage(QString,ProjectExplorer::OutputFormat)));
+        connect(&d->m_applicationLauncher,
+            SIGNAL(bringToForegroundRequested(qint64)),
+            runControl(),
+            SLOT(bringApplicationToForeground(qint64)));
 
         d->m_applicationLauncher.setEnvironment(startParameters().environment);
         d->m_applicationLauncher.setWorkingDirectory(startParameters().workingDirectory);
@@ -212,7 +217,7 @@ void QmlEngine::setupInferior()
     }
 }
 
-void QmlEngine::appendMessage(const QString &msg, ProjectExplorer::OutputFormat /* format */)
+void QmlEngine::appendMessage(const QString &msg, OutputFormat /* format */)
 {
     showMessage(msg, AppStuff); // FIXME: Redirect to RunControl
 }
@@ -223,7 +228,7 @@ void QmlEngine::connectionEstablished()
 
     ExtensionSystem::PluginManager *pluginManager =
         ExtensionSystem::PluginManager::instance();
-    pluginManager->addObject(d->m_adapter);
+    pluginManager->addObject(&d->m_adapter);
     pluginManager->addObject(this);
 
     showMessage(tr("QML Debugger connected."), StatusBar);
@@ -243,10 +248,9 @@ void QmlEngine::connectionStartupFailed()
 
 void QmlEngine::connectionError(QAbstractSocket::SocketError socketError)
 {
-    if (socketError ==QAbstractSocket::RemoteHostClosedError)
+    if (socketError == QAbstractSocket::RemoteHostClosedError)
         showMessage(tr("QML Debugger: Remote host closed connection."), StatusBar);
 }
-
 
 void QmlEngine::serviceConnectionError(const QString &serviceName)
 {
@@ -256,37 +260,37 @@ void QmlEngine::serviceConnectionError(const QString &serviceName)
 
 void QmlEngine::pauseConnection()
 {
-    d->m_adapter->pauseConnection();
+    d->m_adapter.pauseConnection();
 }
 
 void QmlEngine::closeConnection()
 {
-    ExtensionSystem::PluginManager *pluginManager = ExtensionSystem::PluginManager::instance();
+    ExtensionSystem::PluginManager *pluginManager =
+        ExtensionSystem::PluginManager::instance();
     if (pluginManager->allObjects().contains(this)) {
-        disconnect(d->m_adapter, SIGNAL(connectionStartupFailed()), this, SLOT(connectionStartupFailed()));
-        d->m_adapter->closeConnection();
+        disconnect(&d->m_adapter, SIGNAL(connectionStartupFailed()),
+            this, SLOT(connectionStartupFailed()));
+        d->m_adapter.closeConnection();
 
-        pluginManager->removeObject(d->m_adapter);
+        pluginManager->removeObject(&d->m_adapter);
         pluginManager->removeObject(this);
     }
 }
-
 
 void QmlEngine::runEngine()
 {
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
 
-    if (!isSlaveEngine()) {
+    if (!isSlaveEngine())
         startApplicationLauncher();
-    }
 
-    d->m_adapter->beginConnection();
+    d->m_adapter.beginConnection();
 }
 
 void QmlEngine::startApplicationLauncher()
 {
     if (!d->m_applicationLauncher.isRunning()) {
-        d->m_applicationLauncher.start(ProjectExplorer::ApplicationLauncher::Gui,
+        d->m_applicationLauncher.start(ApplicationLauncher::Gui,
                                     startParameters().executable,
                                     startParameters().processArgs);
     }
@@ -337,15 +341,15 @@ void QmlEngine::shutdownEngine()
 
 void QmlEngine::setupEngine()
 {
-    d->m_adapter->setMaxConnectionAttempts(MaxConnectionAttempts);
-    d->m_adapter->setConnectionAttemptInterval(ConnectionAttemptDefaultInterval);
-    connect(d->m_adapter, SIGNAL(connectionError(QAbstractSocket::SocketError)),
+    d->m_adapter.setMaxConnectionAttempts(MaxConnectionAttempts);
+    d->m_adapter.setConnectionAttemptInterval(ConnectionAttemptDefaultInterval);
+    connect(&d->m_adapter, SIGNAL(connectionError(QAbstractSocket::SocketError)),
         SLOT(connectionError(QAbstractSocket::SocketError)));
-    connect(d->m_adapter, SIGNAL(serviceConnectionError(QString)),
+    connect(&d->m_adapter, SIGNAL(serviceConnectionError(QString)),
         SLOT(serviceConnectionError(QString)));
-    connect(d->m_adapter, SIGNAL(connected()),
+    connect(&d->m_adapter, SIGNAL(connected()),
         SLOT(connectionEstablished()));
-    connect(d->m_adapter, SIGNAL(connectionStartupFailed()),
+    connect(&d->m_adapter, SIGNAL(connectionStartupFailed()),
         SLOT(connectionStartupFailed()));
 
     notifyEngineSetupOk();
@@ -487,7 +491,8 @@ void QmlEngine::attemptBreakpointSynchronization()
             }
             QString processedFilename = handler->fileName(id);
 #ifdef Q_OS_MACX
-            // Qt Quick Applications by default copy the qml directory to buildDir()/X.app/Contents/Resources
+            // Qt Quick Applications by default copy the qml directory
+            // to buildDir()/X.app/Contents/Resources
             const QString applicationBundleDir
                     = QFileInfo(startParameters().executable).absolutePath() + "/../..";
             processedFilename = mangleFilenamePaths(handler->fileName(id), startParameters().projectDir, applicationBundleDir + "/Contents/Resources");
@@ -670,24 +675,26 @@ void QmlEngine::messageReceived(const QByteArray &message)
     stream >> command;
 
     if (command == "STOPPED") {
+        //qDebug() << command << this << state();
         if (state() == InferiorRunOk)
             notifyInferiorSpontaneousStop();
 
-        QString logString = QString(command);
+        QString logString = QString::fromLatin1(command);
 
         StackFrames stackFrames;
         QList<WatchData> watches;
         QList<WatchData> locals;
         stream >> stackFrames >> watches >> locals;
 
-        logString += QLatin1String(" (") + QString::number(stackFrames.size()) + QLatin1String(" stack frames)");
-        logString += QLatin1String(" (") + QString::number(watches.size()) + QLatin1String(" watches)");
-        logString += QLatin1String(" (") + QString::number(locals.size()) + QLatin1String(" locals)");
+        logString += tr(" (%1 stack frames)").arg(stackFrames.size());
+        logString += tr(" (%1 watches)").arg(watches.size());
+        logString += tr(" (%1 loacals)").arg(locals.size());
 
         for (int i = 0; i != stackFrames.size(); ++i)
             stackFrames[i].level = i + 1;
 
-        gotoLocation(stackFrames.value(0));
+        if (stackFrames.size() && stackFrames.back().function == "<global>")
+            stackFrames.takeLast();
         stackHandler()->setFrames(stackFrames);
 
         watchHandler()->beginCycle();
@@ -730,8 +737,10 @@ void QmlEngine::messageReceived(const QByteArray &message)
             logString += QLatin1String(" ") + error;
             logMessage(LogReceive, logString);
 
-            QString msg =
-                tr("<p>An Uncaught Exception occured in <i>%1</i>:</p><p>%2</p>")
+            QString msg = stackFrames.isEmpty()
+                ? tr("<p>An Uncaught Exception occured:</p><p>%2</p>")
+                    .arg(Qt::escape(error))
+                : tr("<p>An Uncaught Exception occured in <i>%1</i>:</p><p>%2</p>")
                     .arg(stackFrames.value(0).file, Qt::escape(error));
             showMessageBox(QMessageBox::Information, tr("Uncaught Exception"), msg);
         } else {
@@ -767,6 +776,10 @@ void QmlEngine::messageReceived(const QByteArray &message)
 
             logMessage(LogReceive, logString);
         }
+
+        if (!stackFrames.isEmpty())
+            gotoLocation(stackFrames.value(0));
+
     } else if (command == "RESULT") {
         WatchData data;
         QByteArray iname;
@@ -905,7 +918,8 @@ QString QmlEngine::fromShadowBuildFilename(const QString &filename) const
     QString importPath = qmlImportPath();
 
 #ifdef Q_OS_MACX
-    // Qt Quick Applications by default copy the qml directory to buildDir()/X.app/Contents/Resources
+    // Qt Quick Applications by default copy the qml directory
+    // to buildDir()/X.app/Contents/Resources.
     const QString applicationBundleDir
                 = QFileInfo(startParameters().executable).absolutePath() + "/../..";
     newFilename = mangleFilenamePaths(newFilename, applicationBundleDir + "/Contents/Resources", startParameters().projectDir);

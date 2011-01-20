@@ -39,7 +39,6 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QString>
-#include <QtGui/QTextDocument>
 
 namespace Find {
 
@@ -72,6 +71,8 @@ public:
 
     virtual void defineFindScope(){}
     virtual void clearFindScope(){}
+
+    static void showWrapIndicator(QWidget *parent);
 
 signals:
     void changed();

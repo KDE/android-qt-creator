@@ -4,7 +4,7 @@ DEFINES += QT_CREATOR QT4PROJECTMANAGER_LIBRARY
 QT += network
 include(../../qtcreatorplugin.pri)
 include(qt4projectmanager_dependencies.pri)
-HEADERS += qt4deployconfiguration.h \
+HEADERS += \
     qtparser.h \
     qt4projectmanagerplugin.h \
     qt4projectmanager.h \
@@ -46,7 +46,6 @@ HEADERS += qt4deployconfiguration.h \
     qt4projectmanagerconstants.h \
     makestep.h \
     qmakestep.h \
-    qt4runconfiguration.h \
     qtmodulesinfo.h \
     qt4projectconfigwidget.h \
     projectloadwizard.h \
@@ -67,9 +66,9 @@ HEADERS += qt4deployconfiguration.h \
     qmldumptool.h \
     qmlobservertool.h \
     profilecompletion.h \
-    profilekeywords.h
+    profilekeywords.h \
+    debugginghelperbuildtask.h
 SOURCES += qt4projectmanagerplugin.cpp \
-    qt4deployconfiguration.cpp \
     qtparser.cpp \
     qt4projectmanager.cpp \
     qt4project.cpp \
@@ -109,7 +108,6 @@ SOURCES += qt4projectmanagerplugin.cpp \
     wizards/subdirsprojectwizarddialog.cpp \
     makestep.cpp \
     qmakestep.cpp \
-    qt4runconfiguration.cpp \
     qtmodulesinfo.cpp \
     qt4projectconfigwidget.cpp \
     projectloadwizard.cpp \
@@ -129,7 +127,8 @@ SOURCES += qt4projectmanagerplugin.cpp \
     qmldumptool.cpp \
     qmlobservertool.cpp \
     profilecompletion.cpp \
-    profilekeywords.cpp
+    profilekeywords.cpp \
+    debugginghelperbuildtask.cpp
 FORMS += makestep.ui \
     qmakestep.ui \
     qt4projectconfigwidget.ui \
@@ -146,11 +145,14 @@ FORMS += makestep.ui \
     librarydetailswidget.ui
 RESOURCES += qt4projectmanager.qrc \
     wizards/wizards.qrc
+
 DEFINES += PROPARSER_THREAD_SAFE PROEVALUATOR_THREAD_SAFE
 include(../../shared/proparser/proparser.pri)
 include(qt-s60/qt-s60.pri)
 include(qt-maemo/qt-maemo.pri)
+include(qt-desktop/qt-desktop.pri)
 include(qt-android/qt-android.pri)
 include(customwidgetwizard/customwidgetwizard.pri)
+
 DEFINES += QT_NO_CAST_TO_ASCII
 OTHER_FILES += Qt4ProjectManager.mimetypes.xml

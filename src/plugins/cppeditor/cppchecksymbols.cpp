@@ -343,9 +343,12 @@ bool CheckSymbols::warning(AST *ast, const QString &text)
     return false;
 }
 
-FunctionDefinitionAST *CheckSymbols::enclosingFunctionDefinition() const
+FunctionDefinitionAST *CheckSymbols::enclosingFunctionDefinition(bool skipTopOfStack) const
 {
-    for (int index = _astStack.size() - 1; index != -1; --index) {
+    int index = _astStack.size() - 1;
+    if (skipTopOfStack && !_astStack.isEmpty())
+        --index;
+    for (; index != -1; --index) {
         AST *ast = _astStack.at(index);
 
         if (FunctionDefinitionAST *funDef = ast->asFunctionDefinition())
@@ -638,7 +641,7 @@ void CheckSymbols::checkName(NameAST *ast, Scope *scope)
         if (! scope)
             scope = enclosingScope();
 
-        if (ast->asDestructorName() != 0 && scope->isClass()) {
+        if (ast->asDestructorName() != 0) {
             Class *klass = scope->asClass();
             if (hasVirtualDestructor(_context.lookupType(klass)))
                 addUse(ast, Use::VirtualMethod);
@@ -791,7 +794,9 @@ bool CheckSymbols::visit(FunctionDefinitionAST *ast)
             addUse(u);
     }
 
-    flush();
+    if (!enclosingFunctionDefinition(true))
+        flush();
+
     return false;
 }
 

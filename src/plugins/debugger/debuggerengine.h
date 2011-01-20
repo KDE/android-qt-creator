@@ -242,7 +242,11 @@ public:
 
     virtual void updateViews();
     bool isSlaveEngine() const;
+    bool isMasterEngine() const;
     DebuggerEngine *masterEngine() const;
+
+    virtual bool setupQmlStep(bool /*on*/) { return false; }
+    virtual void readyToExecuteQmlStep() {}
 
 signals:
     void stateChanged(const DebuggerState &state);
@@ -321,7 +325,7 @@ protected:
     virtual void frameUp();
     virtual void frameDown();
 
-    DebuggerRunControl *runControl() const; // FIXME: Protect.
+    DebuggerRunControl *runControl() const;
 
     static QString msgWatchpointTriggered(BreakpointId id,
         int number, quint64 address);
@@ -339,12 +343,23 @@ protected:
 
     static bool isCppBreakpoint(const Internal::BreakpointParameters &p);
 
+    bool isStateDebugging() const;
+    void setStateDebugging(bool on);
+
+    virtual void setupSlaveInferior();
+    virtual void setupSlaveEngine();
+    virtual void runSlaveEngine();
+    virtual void shutdownSlaveEngine();
+
+    virtual void slaveEngineStateChanged(DebuggerEngine *engine,
+        DebuggerState state);
+
 private:
     // Wrapper engine needs access to state of its subengines.
     friend class Internal::QmlCppEngine;
     friend class Internal::DebuggerPluginPrivate;
 
-    void setState(DebuggerState state, bool forced = false);
+    virtual void setState(DebuggerState state, bool forced = false);
 
     friend class DebuggerEnginePrivate;
     DebuggerEnginePrivate *d;

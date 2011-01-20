@@ -44,9 +44,9 @@ class RunConfiguration;
 
 namespace Qt4ProjectManager {
 class QtVersion;
-class Qt4Target;
 
 namespace Internal {
+class Qt4SymbianTarget;
 class Qt4ProFileNode;
 class S60DeployConfigurationFactory;
 class S60DeviceRunConfiguration;
@@ -57,6 +57,11 @@ class S60DeployConfiguration : public ProjectExplorer::DeployConfiguration
     friend class S60DeployConfigurationFactory;
 
 public:
+    enum CommunicationChannel {
+        CommunicationSerialConnection,
+        CommunicationTcpConnection
+    };
+
     explicit S60DeployConfiguration(ProjectExplorer::Target *parent);
     virtual ~S60DeployConfiguration();
 
@@ -65,7 +70,7 @@ public:
     ProjectExplorer::DeployConfigurationWidget *configurationWidget() const;
 
     const QtVersion *qtVersion() const;
-    Qt4Target *qt4Target() const;
+    Qt4SymbianTarget *qt4Target() const;
     ProjectExplorer::ToolChainType toolChainType() const;
 
     QString serialPortName() const;
@@ -77,16 +82,30 @@ public:
     bool silentInstall() const;
     void setSilentInstall(bool silent);
 
+    QString deviceAddress() const;
+    void setDeviceAddress(const QString &address);
+
+    void setDevicePort(const QString &port);
+    QString devicePort() const;
+
+    void setCommunicationChannel(CommunicationChannel channel);
+    S60DeployConfiguration::CommunicationChannel communicationChannel() const;
+
     QStringList signedPackages() const;
     QStringList packageFileNamesWithTargetInfo() const;
     QStringList packageTemplateFileNames() const;
     QStringList appPackageTemplateFileNames() const;
+
+    bool runSmartInstaller() const;
 
     QVariantMap toMap() const;
 
 signals:
     void targetInformationChanged();
     void serialPortNameChanged();
+    void communicationChannelChanged();
+    void deviceAddressChanged();
+    void devicePortChanged();
 
 private slots:
     void updateActiveBuildConfiguration(ProjectExplorer::BuildConfiguration *buildConfiguration);
@@ -99,7 +118,6 @@ protected:
 
 private:
     void ctor();
-    bool runSmartInstaller() const;
     bool isSigned() const;
     QString symbianPlatform() const;
     QString symbianTarget() const;
@@ -113,6 +131,9 @@ private:
 
     char m_installationDrive;
     bool m_silentInstall;
+    QString m_deviceAddress;
+    QString m_devicePort;
+    CommunicationChannel m_communicationChannel;
 };
 
 class S60DeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory

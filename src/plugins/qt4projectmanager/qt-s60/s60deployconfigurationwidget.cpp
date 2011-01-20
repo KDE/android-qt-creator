@@ -43,6 +43,7 @@
 #include <symbianutils/symbiandevicemanager.h>
 
 #include <utils/detailswidget.h>
+#include <utils/ipaddresslineedit.h>
 #include <utils/qtcassert.h>
 #include <utils/pathchooser.h>
 
@@ -59,6 +60,9 @@
 #include <QtGui/QSpacerItem>
 #include <QtGui/QMessageBox>
 #include <QtGui/QCheckBox>
+#include <QtGui/QGroupBox>
+#include <QtGui/QRadioButton>
+#include <QtGui/QValidator>
 
 Q_DECLARE_METATYPE(SymbianUtils::SymbianDevice)
 
@@ -77,7 +81,10 @@ S60DeployConfigurationWidget::S60DeployConfigurationWidget(QWidget *parent)
       m_deviceInfoDescriptionLabel(new QLabel(tr("Device:"))),
       m_deviceInfoLabel(new QLabel),
       m_installationDriveCombo(new QComboBox()),
-      m_silentInstallCheckBox(new QCheckBox(tr("Silent installation")))
+      m_silentInstallCheckBox(new QCheckBox(tr("Silent installation"))),
+      m_serialRadioButton(new QRadioButton(tr("Serial:"))),
+      m_wlanRadioButton(new QRadioButton(tr("Experimental WLAN:"))), //TODO: Remove ""Experimental" when CODA is stable and official
+      m_ipAddress(new Utils::IpAddressLineEdit)
 {
 }
 
@@ -130,23 +137,8 @@ void S60DeployConfigurationWidget::init(ProjectExplorer::DeployConfiguration *dc
     updateSerialDevices();
     connect(SymbianUtils::SymbianDeviceManager::instance(), SIGNAL(updated()),
             this, SLOT(updateSerialDevices()));
-    // Serial devices control
-    m_serialPortsCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    connect(m_serialPortsCombo, SIGNAL(activated(int)), this, SLOT(setSerialPort(int)));
-    QHBoxLayout *serialPortHBoxLayout = new QHBoxLayout;
-    serialPortHBoxLayout->addWidget(m_serialPortsCombo);
-    serialPortHBoxLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
 
-#ifndef Q_OS_WIN
-    // Update device list: on Linux only.
-    QToolButton *updateSerialDevicesButton(new QToolButton);
-    updateSerialDevicesButton->setIcon(qApp->style()->standardIcon(QStyle::SP_BrowserReload));
-    connect(updateSerialDevicesButton, SIGNAL(clicked()),
-            SymbianUtils::SymbianDeviceManager::instance(), SLOT(update()));
-    serialPortHBoxLayout->addWidget(updateSerialDevicesButton);
-#endif
-
-    formLayout->addRow(tr("Device on serial port:"), serialPortHBoxLayout);
+    formLayout->addRow(createCommunicationChannel());
 
     // Device Info with button. Widgets are enabled in above call to updateSerialDevices()
     QHBoxLayout *infoHBoxLayout = new QHBoxLayout;
@@ -161,6 +153,69 @@ void S60DeployConfigurationWidget::init(ProjectExplorer::DeployConfiguration *dc
     updateTargetInformation();
     connect(m_deployConfiguration, SIGNAL(targetInformationChanged()),
             this, SLOT(updateTargetInformation()));
+}
+
+QWidget *S60DeployConfigurationWidget::createCommunicationChannel()
+{
+    m_serialPortsCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    connect(m_serialPortsCombo, SIGNAL(activated(int)), this, SLOT(setSerialPort(int)));
+    connect(m_serialRadioButton, SIGNAL(clicked()), this, SLOT(updateCommunicationChannel()));
+    connect(m_wlanRadioButton, SIGNAL(clicked()), this, SLOT(updateCommunicationChannel()));
+    connect(m_ipAddress, SIGNAL(validAddressChanged(QString)), this, SLOT(updateWlanAddress(QString)));
+    connect(m_ipAddress, SIGNAL(invalidAddressChanged()), this, SLOT(cleanWlanAddress()));
+
+    QHBoxLayout *serialPortHBoxLayout = new QHBoxLayout;
+    serialPortHBoxLayout->addWidget(new QLabel(tr("Serial port:")));
+    serialPortHBoxLayout->addWidget(m_serialPortsCombo);
+    serialPortHBoxLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
+
+#ifndef Q_OS_WIN
+    // Update device list: on Linux only.
+    QToolButton *updateSerialDevicesButton(new QToolButton);
+    updateSerialDevicesButton->setIcon(qApp->style()->standardIcon(QStyle::SP_BrowserReload));
+    connect(updateSerialDevicesButton, SIGNAL(clicked()),
+            SymbianUtils::SymbianDeviceManager::instance(), SLOT(update()));
+    serialPortHBoxLayout->addWidget(updateSerialDevicesButton);
+#endif
+
+    QGroupBox *communicationChannelGroupBox = new QGroupBox(tr("Communication channel"));
+    QFormLayout *communicationChannelFormLayout = new QFormLayout();
+    communicationChannelFormLayout->setWidget(0, QFormLayout::LabelRole, m_serialRadioButton);
+    communicationChannelFormLayout->setWidget(1, QFormLayout::LabelRole, m_wlanRadioButton);
+
+    m_ipAddress->setMinimumWidth(30);
+    m_ipAddress->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Ignored);
+
+    if(!m_deployConfiguration->deviceAddress().isEmpty())
+        m_ipAddress->setText(QString("%1:%2")
+                         .arg(m_deployConfiguration->deviceAddress())
+                         .arg(m_deployConfiguration->devicePort()));
+
+    QHBoxLayout *wlanChannelLayout = new QHBoxLayout();
+    wlanChannelLayout->addWidget(new QLabel(tr("Address:")));
+    wlanChannelLayout->addWidget(m_ipAddress);
+    wlanChannelLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
+
+    communicationChannelFormLayout->setLayout(0, QFormLayout::FieldRole, serialPortHBoxLayout);
+    communicationChannelFormLayout->setLayout(1, QFormLayout::FieldRole, wlanChannelLayout);
+
+    switch (m_deployConfiguration->communicationChannel()) {
+    case S60DeployConfiguration::CommunicationSerialConnection:
+        m_serialRadioButton->setChecked(true);
+        m_ipAddress->setDisabled(true);
+        m_serialPortsCombo->setDisabled(false);
+        break;
+    case S60DeployConfiguration::CommunicationTcpConnection:
+        m_wlanRadioButton->setChecked(true);
+        m_ipAddress->setDisabled(false);
+        m_serialPortsCombo->setDisabled(true);
+        break;
+    default:
+        break;
+    }
+
+    communicationChannelGroupBox->setLayout(communicationChannelFormLayout);
+    return communicationChannelGroupBox;
 }
 
 void S60DeployConfigurationWidget::updateInstallationDrives()
@@ -206,6 +261,8 @@ void S60DeployConfigurationWidget::updateSerialDevices()
         const QString newPortName = device(newIndex).portName();
         m_deployConfiguration->setSerialPortName(newPortName);
     }
+    if (m_deployConfiguration->communicationChannel() != S60DeployConfiguration::CommunicationSerialConnection)
+        m_deviceInfoButton->setEnabled(false);
 }
 
 SymbianUtils::SymbianDevice S60DeployConfigurationWidget::device(int i) const
@@ -242,6 +299,45 @@ void S60DeployConfigurationWidget::setSerialPort(int index)
     m_deployConfiguration->setSerialPortName(d.portName());
     m_deviceInfoButton->setEnabled(index >= 0);
     clearDeviceInfo();
+}
+
+void S60DeployConfigurationWidget::updateCommunicationChannel()
+{
+    if (m_serialRadioButton->isChecked()) {
+        m_ipAddress->setDisabled(true);
+        m_serialPortsCombo->setDisabled(false);
+        m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationSerialConnection);
+        updateSerialDevices();
+    } else if(m_wlanRadioButton->isChecked()) {
+        QMessageBox::information(this, tr("CODA required"),
+                                 tr("You need to have CODA v4.0.14 (or newer) installed on your device "
+                                    "in order to use the WLAN functionality.")); //TODO: Remove this when CODA is stable and official
+        m_ipAddress->setDisabled(false);
+        m_serialPortsCombo->setDisabled(true);
+        m_deviceInfoButton->setEnabled(false);
+        m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationTcpConnection);
+    }
+}
+
+void S60DeployConfigurationWidget::updateWlanAddress(const QString &address)
+{
+    QStringList addressList = address.split(QLatin1String(":"), QString::SkipEmptyParts);
+    if (addressList.count() > 0) {
+        m_deployConfiguration->setDeviceAddress(addressList.at(0));
+        if (addressList.count() > 1)
+            m_deployConfiguration->setDevicePort(addressList.at(1));
+        else
+            m_deployConfiguration->setDevicePort(QString());
+    }
+}
+
+void S60DeployConfigurationWidget::cleanWlanAddress()
+{
+    if (!m_deployConfiguration->deviceAddress().isEmpty())
+        m_deployConfiguration->setDeviceAddress(QString());
+
+    if (!m_deployConfiguration->devicePort().isEmpty())
+        m_deployConfiguration->setDevicePort(QString());
 }
 
 void S60DeployConfigurationWidget::clearDeviceInfo()
@@ -290,46 +386,49 @@ void S60DeployConfigurationWidget::slotWaitingForTrkClosed()
 
 void S60DeployConfigurationWidget::updateDeviceInfo()
 {
-    QTC_ASSERT(!m_infoLauncher, return)
-    setDeviceInfoLabel(tr("Connecting..."));
-    // Do a launcher run with the ping protocol. Prompt to connect and
-    // go asynchronous afterwards to pop up launch trk box if a timeout occurs.
-    QString message;
-    const SymbianUtils::SymbianDevice commDev = currentDevice();
-    m_infoLauncher = trk::Launcher::acquireFromDeviceManager(commDev.portName(), this, &message);
-    if (!m_infoLauncher) {
-        setDeviceInfoLabel(message, true);
-        return;
-    }
-    connect(m_infoLauncher, SIGNAL(stateChanged(int)), this, SLOT(slotLauncherStateChanged(int)));
+    //TODO: No CODA device info! Implement it when it is available
+    if (m_deployConfiguration->communicationChannel() == S60DeployConfiguration::CommunicationSerialConnection) {
+        QTC_ASSERT(!m_infoLauncher, return)
+                setDeviceInfoLabel(tr("Connecting..."));
+        // Do a launcher run with the ping protocol. Prompt to connect and
+        // go asynchronous afterwards to pop up launch trk box if a timeout occurs.
+        QString message;
+        const SymbianUtils::SymbianDevice commDev = currentDevice();
+        m_infoLauncher = trk::Launcher::acquireFromDeviceManager(commDev.portName(), this, &message);
+        if (!m_infoLauncher) {
+            setDeviceInfoLabel(message, true);
+            return;
+        }
+        connect(m_infoLauncher, SIGNAL(stateChanged(int)), this, SLOT(slotLauncherStateChanged(int)));
 
-    m_infoLauncher->setSerialFrame(commDev.type() == SymbianUtils::SerialPortCommunication);
-    m_infoLauncher->setTrkServerName(commDev.portName());
+        m_infoLauncher->setSerialFrame(commDev.type() == SymbianUtils::SerialPortCommunication);
+        m_infoLauncher->setTrkServerName(commDev.portName());
 
-    // Prompt user
-    const trk::PromptStartCommunicationResult src =
-            S60RunConfigBluetoothStarter::startCommunication(m_infoLauncher->trkDevice(),
-                                                             this, &message);
-    switch (src) {
-    case trk::PromptStartCommunicationConnected:
-        break;
-    case trk::PromptStartCommunicationCanceled:
-        clearDeviceInfo();
-        m_infoLauncher->deleteLater();
-        return;
-    case trk::PromptStartCommunicationError:
-        setDeviceInfoLabel(message, true);
-        m_infoLauncher->deleteLater();
-        return;
-    };
-    if (!m_infoLauncher->startServer(&message)) {
-        setDeviceInfoLabel(message, true);
-        m_infoLauncher->deleteLater();
-        return;
-    }
-    // Wait for either timeout or results
-    m_deviceInfoButton->setEnabled(false);
-    return;
+        // Prompt user
+        const trk::PromptStartCommunicationResult src =
+                S60RunConfigBluetoothStarter::startCommunication(m_infoLauncher->trkDevice(),
+                                                                 this, &message);
+        switch (src) {
+        case trk::PromptStartCommunicationConnected:
+            break;
+        case trk::PromptStartCommunicationCanceled:
+            clearDeviceInfo();
+            m_infoLauncher->deleteLater();
+            return;
+        case trk::PromptStartCommunicationError:
+            setDeviceInfoLabel(message, true);
+            m_infoLauncher->deleteLater();
+            return;
+        };
+        if (!m_infoLauncher->startServer(&message)) {
+            setDeviceInfoLabel(message, true);
+            m_infoLauncher->deleteLater();
+            return;
+        }
+        // Wait for either timeout or results
+        m_deviceInfoButton->setEnabled(false);
+    } else
+        setDeviceInfoLabel(tr("Currently there is no information about device for CODA connection type."), true);
 }
 
 } // namespace Internal

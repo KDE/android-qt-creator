@@ -89,7 +89,8 @@ namespace Internal {
         Q_OBJECT
     public:
         SearchResultFindSupport(SearchResultTreeView *view)
-            : m_view(view)
+            : m_view(view),
+              m_incrementalWrappedState(false)
         {
         }
 
@@ -104,6 +105,7 @@ namespace Internal {
         void resetIncrementalSearch()
         {
             m_incrementalFindStart = QModelIndex();
+            m_incrementalWrappedState = false;
         }
 
         void clearResults() { }
@@ -127,33 +129,51 @@ namespace Internal {
 
         IFindSupport::Result findIncremental(const QString &txt, Find::FindFlags findFlags)
         {
-            if (!m_incrementalFindStart.isValid())
+            if (!m_incrementalFindStart.isValid()) {
                 m_incrementalFindStart = m_view->currentIndex();
+                m_incrementalWrappedState = false;
+            }
             m_view->setCurrentIndex(m_incrementalFindStart);
-            return find(txt, findFlags);
+            bool wrapped = false;
+            IFindSupport::Result result = find(txt, findFlags, &wrapped);
+            if (wrapped != m_incrementalWrappedState) {
+                m_incrementalWrappedState = wrapped;
+                showWrapIndicator(m_view);
+            }
+            return result;
         }
 
         IFindSupport::Result findStep(const QString &txt, Find::FindFlags findFlags)
         {
-            IFindSupport::Result result = find(txt, findFlags);
-            if (result == IFindSupport::Found)
+            bool wrapped = false;
+            IFindSupport::Result result = find(txt, findFlags, &wrapped);
+            if (wrapped)
+                showWrapIndicator(m_view);
+            if (result == IFindSupport::Found) {
                 m_incrementalFindStart = m_view->currentIndex();
+                m_incrementalWrappedState = false;
+            }
             return result;
         }
 
-        IFindSupport::Result find(const QString &txt, Find::FindFlags findFlags)
+        IFindSupport::Result find(const QString &txt, Find::FindFlags findFlags, bool *wrapped)
         {
+            if (wrapped)
+                *wrapped = false;
             if (txt.isEmpty())
                 return IFindSupport::NotFound;
             QModelIndex index;
             if (findFlags & Find::FindRegularExpression) {
                 bool sensitive = (findFlags & Find::FindCaseSensitively);
                 index = m_view->model()->find(QRegExp(txt, (sensitive ? Qt::CaseSensitive : Qt::CaseInsensitive)),
-                                      m_view->currentIndex(),
-                                      Find::textDocumentFlagsForFindFlags(findFlags));
+                                              m_view->currentIndex(),
+                                              Find::textDocumentFlagsForFindFlags(findFlags),
+                                              wrapped);
             } else {
-                index = m_view->model()->find(txt, m_view->currentIndex(),
-                                      Find::textDocumentFlagsForFindFlags(findFlags));
+                index = m_view->model()->find(txt,
+                                              m_view->currentIndex(),
+                                              Find::textDocumentFlagsForFindFlags(findFlags),
+                                              wrapped);
             }
             if (index.isValid()) {
                 m_view->setCurrentIndex(index);
@@ -194,6 +214,7 @@ namespace Internal {
     private:
         SearchResultTreeView *m_view;
         QModelIndex m_incrementalFindStart;
+        bool m_incrementalWrappedState;
     };
 
     struct SearchResultWindowPrivate {
@@ -332,6 +353,7 @@ SearchResultWindow::SearchResultWindow() : d(new SearchResultWindowPrivate)
     Core::Command *cmd = Core::ICore::instance()->actionManager()->registerAction(
             d->m_expandCollapseAction, "Find.ExpandAll",
             Core::Context(Core::Constants::C_GLOBAL));
+    cmd->setAttribute(Core::Command::CA_UpdateText);
     d->m_expandCollapseButton->setDefaultAction(cmd->action());
 
     d->m_replaceLabel = new QLabel(tr("Replace with:"), d->m_widget);
@@ -665,10 +687,13 @@ void SearchResultWindow::addResults(QList<SearchResultItem> &items, AddMode mode
 void SearchResultWindow::handleExpandCollapseToolButton(bool checked)
 {
     d->m_searchResultTreeView->setAutoExpandResults(checked);
-    if (checked)
+    if (checked) {
+        d->m_expandCollapseAction->setText(tr("Collapse All"));
         d->m_searchResultTreeView->expandAll();
-    else
+    } else {
+        d->m_expandCollapseAction->setText(tr("Expand All"));
         d->m_searchResultTreeView->collapseAll();
+    }
 }
 
 /*!

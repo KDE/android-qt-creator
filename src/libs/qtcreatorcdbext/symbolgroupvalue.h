@@ -70,6 +70,9 @@ class SymbolGroupValue
     explicit SymbolGroupValue(const std::string &parentError);
 
 public:
+    typedef std::pair<std::string, ULONG64> Symbol;
+    typedef std::list<Symbol> SymbolList;
+
     explicit SymbolGroupValue(SymbolGroupNode *node, const SymbolGroupValueContext &c);
     SymbolGroupValue();
 
@@ -97,6 +100,8 @@ public:
     double floatValue(double defaultValue = -999) const;
     ULONG64 pointerValue(ULONG64 defaultValue = 0) const;
     ULONG64 address() const;
+    std::string module() const;
+
     // Return allocated array of data pointed to
     unsigned char *pointerData(unsigned length) const;
     // Return data pointed to as wchar_t/std::wstring (UTF16)
@@ -114,19 +119,28 @@ public:
     static std::string addPointerType(const std::string &);
     static std::string stripArrayType(const std::string &);
     static std::string stripModuleFromType(const std::string &type);
+    static std::string moduleOfType(const std::string &type);
     // pointer type, return number of characters to strip
     static unsigned isPointerType(const std::string &);
+    // add pointer type 'Foo' -> 'Foo *', 'Foo *' -> 'Foo **'
+    static std::string pointerType(const std::string &type);
+    // Symbol Name/(Expression) of a pointed-to instance ('Foo' at 0x10') ==> '*(Foo *)0x10'
+    static std::string pointedToSymbolName(ULONG64 address, const std::string &type);
     // Resolve a type, that is, obtain its module name ('QString'->'QtCored4!QString')
     // Some operations on types (like adding symbols may fail non-deterministically
     // or be slow when the module specification is omitted).
     // If a current SymbolGroup is passed on, its module will be used for templates.
     static std::string resolveType(const std::string &type,
                                    const SymbolGroupValueContext &ctx,
-                                   const SymbolGroup *current = 0);
+                                   const std::string &currentModule = std::string());
 
-    static std::list<std::string> resolveSymbol(const char *pattern,
-                                                const SymbolGroupValueContext &c,
-                                                std::string *errorMessage = 0);
+    static std::list<std::string> resolveSymbolName(const char *pattern,
+                                                    const SymbolGroupValueContext &c,
+                                                    std::string *errorMessage = 0);
+    static SymbolList resolveSymbol(const char *pattern,
+                                    const SymbolGroupValueContext &c,
+                                    std::string *errorMessage = 0);
+
     static unsigned pointerSize();
     static unsigned intSize();
 

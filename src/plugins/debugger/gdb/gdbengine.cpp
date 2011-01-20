@@ -141,7 +141,9 @@ static bool stateAcceptsGdbCommands(DebuggerState state)
         return true;
     case DebuggerNotReady:
     case InferiorStopFailed:
+    case InferiorSetupOk:
     case EngineRunFailed:
+    case InferiorExitOk:
     case InferiorRunFailed:
     case EngineShutdownOk:
     case EngineShutdownFailed:
@@ -198,6 +200,7 @@ GdbEngine::GdbEngine(const DebuggerStartParameters &startParameters,
     m_pendingBreakpointRequests = 0;
     m_commandsDoneCallback = 0;
     m_stackNeeded = false;
+    m_preparedForQmlBreak = false;
     invalidateSourcesList();
 
     m_gdbAdapter = createAdapter();
@@ -208,6 +211,10 @@ GdbEngine::GdbEngine(const DebuggerStartParameters &startParameters,
     connect(debuggerCore()->action(AutoDerefPointers), SIGNAL(valueChanged(QVariant)),
             SLOT(reloadLocals()));
     connect(debuggerCore()->action(SortStructMembers), SIGNAL(valueChanged(QVariant)),
+            SLOT(reloadLocals()));
+    connect(debuggerCore()->action(ShowStdNamespace), SIGNAL(valueChanged(QVariant)),
+            SLOT(reloadLocals()));
+    connect(debuggerCore()->action(ShowQtNamespace), SIGNAL(valueChanged(QVariant)),
             SLOT(reloadLocals()));
     connect(debuggerCore()->action(CreateFullBacktrace), SIGNAL(triggered()),
             SLOT(createFullBacktrace()));
@@ -1160,10 +1167,14 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
 
     const int lineNumber = frame.findChild("line").data().toInt();
     QString fullName = QString::fromUtf8(frame.findChild("fullname").data());
+
     if (fullName.isEmpty())
         fullName = QString::fromUtf8(frame.findChild("file").data());
 
-    if (bkptno && frame.isValid()) {
+    const bool isSpecialQmlBreakpoint =
+        m_qmlBreakpointNumbers.keys().contains(bkptno);
+
+    if (bkptno && frame.isValid() && !isSpecialQmlBreakpoint) {
         // Use opportunity to update the breakpoint marker position.
         BreakHandler *handler = breakHandler();
         BreakpointId id = handler->findBreakpointByNumber(bkptno);
@@ -1179,7 +1190,7 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
 
     // Quickly set the location marker.
     if (lineNumber && !debuggerCore()->boolSetting(OperateByInstruction)
-            && QFileInfo(fullName).exists())
+            && QFileInfo(fullName).exists() && !isSpecialQmlBreakpoint)
         gotoLocation(Location(fullName, lineNumber));
 
     if (!m_commandsToRunOnTemporaryBreak.isEmpty()) {
@@ -1237,6 +1248,9 @@ void GdbEngine::handleStopResponse(const GdbMi &data)
         m_entryPoint.clear();
     }
 #endif
+
+    if (isSpecialQmlBreakpoint)
+        return;
 
     handleStop0(data);
 }
@@ -1717,33 +1731,34 @@ AbstractGdbAdapter *GdbEngine::createAdapter()
 {
     const DebuggerStartParameters &sp = startParameters();
     switch (sp.toolChainType) {
-        case ProjectExplorer::ToolChain_WINSCW: // S60
-        case ProjectExplorer::ToolChain_GCCE:
-        case ProjectExplorer::ToolChain_RVCT2_ARMV5:
-        case ProjectExplorer::ToolChain_RVCT2_ARMV6:
-        case ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC:
-        case ProjectExplorer::ToolChain_GCCE_GNUPOC:
-            // FIXME: 1 of 3 testing hacks.
-            if (sp.processArgs.startsWith(__("@tcf@ ")))
-                return new TcfTrkGdbAdapter(this);
+    case ProjectExplorer::ToolChain_WINSCW: // S60
+    case ProjectExplorer::ToolChain_GCCE:
+    case ProjectExplorer::ToolChain_RVCT2_ARMV5:
+    case ProjectExplorer::ToolChain_RVCT2_ARMV6:
+    case ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC:
+    case ProjectExplorer::ToolChain_GCCE_GNUPOC:
+        // FIXME: 1 of 3 testing hacks.
+        if (sp.communicationChannel == DebuggerStartParameters::CommunicationChannelTcpIp)
+            return new TcfTrkGdbAdapter(this);
+        else
             return new TrkGdbAdapter(this);
-        default:
-            break;
+    default:
+        break;
     }
 
     switch (sp.startMode) {
-        case AttachCore:
-            return new CoreGdbAdapter(this);
-        case AttachToRemote:
-            return new RemoteGdbServerAdapter(this, sp.toolChainType);
-        case StartRemoteGdb:
-            return new RemotePlainGdbAdapter(this);
-        case AttachExternal:
-            return new AttachGdbAdapter(this);
-        default:
-            if (sp.useTerminal)
-                return new TermGdbAdapter(this);
-            return new LocalPlainGdbAdapter(this);
+    case AttachCore:
+        return new CoreGdbAdapter(this);
+    case AttachToRemote:
+        return new RemoteGdbServerAdapter(this, sp.toolChainType);
+    case StartRemoteGdb:
+        return new RemotePlainGdbAdapter(this);
+    case AttachExternal:
+        return new AttachGdbAdapter(this);
+    default:
+        if (sp.useTerminal)
+            return new TermGdbAdapter(this);
+        return new LocalPlainGdbAdapter(this);
     }
 }
 
@@ -2304,6 +2319,9 @@ void GdbEngine::handleBreakList(const GdbMi &table)
     foreach (const GdbMi &bkpt, bkpts) {
         BreakpointResponse needle;
         needle.number = bkpt.findChild("number").data().toInt();
+        // FIXME: Performance.
+        if (m_qmlBreakpointNumbers.values().contains(needle.number))
+            continue;
         BreakpointId id = breakHandler()->findSimilarBreakpoint(needle);
         if (id != BreakpointId(-1)) {
             updateBreakpointDataFromOutput(id, bkpt);
@@ -2486,7 +2504,6 @@ void GdbEngine::handleInfoLine(const GdbResponse &response)
         }
     }
 }
-
 
 bool GdbEngine::stateAcceptsBreakpointChanges() const
 {
@@ -3714,26 +3731,35 @@ void GdbEngine::assignValueInDebugger(const WatchData *,
 
 void GdbEngine::watchPoint(const QPoint &pnt)
 {
-    //qDebug() << "WATCH " << pnt;
     QByteArray x = QByteArray::number(pnt.x());
     QByteArray y = QByteArray::number(pnt.y());
-    postCommand("call (void*)watchPoint(" + x + ',' + y + ')',
+    postCommand("print '" + qtNamespace() + "QApplication::widgetAt'("
+            + x + ',' + y + ')',
         NeedsStop, CB(handleWatchPoint));
 }
 
 void GdbEngine::handleWatchPoint(const GdbResponse &response)
 {
-    //qDebug() << "HANDLE WATCH POINT:" << response.toString();
     if (response.resultClass == GdbResultDone) {
-        GdbMi contents = response.data.findChild("consolestreamoutput");
         // "$5 = (void *) 0xbfa7ebfc\n"
-        QString str = _(parsePlainConsoleStream(response));
-        // "(void *) 0xbfa7ebfc"
-        QString addr = str.mid(9);
-        QByteArray ns = m_dumperHelper.qtNamespace();
-        QByteArray type = ns.isEmpty() ? "QWidget*" : ("'" + ns + "QWidget'*");
-        QString exp = _("(*(%1)%2)").arg(_(type)).arg(addr);
-        watchHandler()->watchExpression(exp);
+        const QByteArray ba = parsePlainConsoleStream(response);
+        //qDebug() << "BA: " << ba;
+        const int posWidget = ba.indexOf("QWidget");
+        const int pos0x = ba.indexOf("0x", posWidget + 7);
+        if (posWidget == -1 || pos0x == -1) {
+            showStatusMessage(tr("Cannot read widget data: %1").arg(_(ba)));
+        } else {
+            const QByteArray addr = ba.mid(pos0x);
+            if (addr.toULongLong(0, 0)) { // Non-null pointer
+                const QByteArray ns = qtNamespace();
+                const QByteArray type = ns.isEmpty() ? "QWidget*" : ("'" + ns + "QWidget'*");
+                const QString exp = _("(*(struct %1)%2)").arg(_(type)).arg(_(addr));
+                // qDebug() << posNs << posWidget << pos0x << addr << ns << type;
+                watchHandler()->watchExpression(exp);
+            } else {
+                showStatusMessage(tr("Could not find a widget."));
+            }
+        }
     }
 }
 
@@ -4496,6 +4522,37 @@ void GdbEngine::handleRemoteSetupFailed(const QString &message)
 {
     m_gdbAdapter->handleRemoteSetupFailed(message);
 }
+
+bool GdbEngine::setupQmlStep(bool on)
+{
+    QTC_ASSERT(isSlaveEngine(), return false);
+    Q_UNUSED(on);
+    postCommand("tbreak '" + qtNamespace() + "QScript::FunctionWrapper::proxyCall'\n"
+        "commands\n"
+        "set $d=(void*)((FunctionWrapper*)callee)->data->function\n"
+        "tbreak *$d\ncontinue\nend",
+        NeedsStop, CB(handleSetQmlStepBreakpoint));
+    m_preparedForQmlBreak = on;
+    return true;
+}
+
+void GdbEngine::handleSetQmlStepBreakpoint(const GdbResponse &response)
+{
+    //QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
+    if (response.resultClass == GdbResultDone) {
+        // 20^done,bkpt={number="2",type="breakpoint",disp="keep",enabled="y",
+        // addr="<PENDING>",pending="'myns::QScript::qScriptBreaker'"}
+        const GdbMi bkpt = response.data.findChild("bkpt");
+        const GdbMi number = bkpt.findChild("number");
+        const int bpnr = number.data().toInt();
+        m_qmlBreakpointNumbers[1] = bpnr;
+        //postCommand("disable " + number.data());
+        //postCommand("enable " + number.data());
+    }
+    QTC_ASSERT(masterEngine(), return);
+    masterEngine()->readyToExecuteQmlStep();
+}
+
 
 //
 // Factory

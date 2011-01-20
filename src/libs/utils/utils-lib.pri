@@ -8,6 +8,7 @@ INCLUDEPATH += $$PWD
 QT += network
 
 SOURCES += $$PWD/environment.cpp \
+    $$PWD/environmentmodel.cpp \
     $$PWD/qtcprocess.cpp \
     $$PWD/reloadpromptutils.cpp \
     $$PWD/stringutils.cpp \
@@ -53,7 +54,8 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/historycompleter.cpp \
     $$PWD/buildablehelperlibrary.cpp \
     $$PWD/annotateditemdelegate.cpp \
-    $$PWD/fileinprojectfinder.cpp
+    $$PWD/fileinprojectfinder.cpp \
+    $$PWD/ipaddresslineedit.cpp
 
 win32 {
     SOURCES += $$PWD/abstractprocess_win.cpp \
@@ -68,6 +70,7 @@ unix:!macx {
     SOURCES += $$PWD/unixutils.cpp
 }
 HEADERS += $$PWD/environment.h \
+    $$PWD/environmentmodel.h \
     $$PWD/qtcprocess.h \
     $$PWD/utils_global.h \
     $$PWD/reloadpromptutils.h \
@@ -117,7 +120,8 @@ HEADERS += $$PWD/environment.h \
     $$PWD/historycompleter.h \
     $$PWD/buildablehelperlibrary.h \
     $$PWD/annotateditemdelegate.h \
-    $$PWD/fileinprojectfinder.h
+    $$PWD/fileinprojectfinder.h \
+    $$PWD/ipaddresslineedit.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \

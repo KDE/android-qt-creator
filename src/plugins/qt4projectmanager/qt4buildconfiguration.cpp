@@ -67,9 +67,10 @@ const char * const QT_VERSION_ID_KEY("Qt4ProjectManager.Qt4BuildConfiguration.Qt
 enum { debug = 0 };
 }
 
-Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4Target *target) :
+Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4BaseTarget *target) :
     BuildConfiguration(target, QLatin1String(QT4_BC_ID)),
     m_shadowBuild(true),
+    m_isEnabled(false),
     m_qtVersionId(-1),
     m_toolChainType(-1), // toolChainType() makes sure to return the default toolchainType
     m_qmakeBuildConfiguration(0),
@@ -78,9 +79,10 @@ Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4Target *target) :
     ctor();
 }
 
-Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4Target *target, const QString &id) :
+Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4BaseTarget *target, const QString &id) :
     BuildConfiguration(target, id),
     m_shadowBuild(true),
+    m_isEnabled(false),
     m_qtVersionId(-1),
     m_toolChainType(-1), // toolChainType() makes sure to return the default toolchainType
     m_qmakeBuildConfiguration(0),
@@ -89,9 +91,10 @@ Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4Target *target, const QString &i
     ctor();
 }
 
-Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4Target *target, Qt4BuildConfiguration *source) :
+Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4BaseTarget *target, Qt4BuildConfiguration *source) :
     BuildConfiguration(target, source),
     m_shadowBuild(source->m_shadowBuild),
+    m_isEnabled(false),
     m_buildDirectory(source->m_buildDirectory),
     m_qtVersionId(source->m_qtVersionId),
     m_toolChainType(source->m_toolChainType),
@@ -205,9 +208,9 @@ void Qt4BuildConfiguration::pickValidQtVersion()
         setQtVersion(QtVersionManager::instance()->emptyVersion());
 }
 
-Qt4Target *Qt4BuildConfiguration::qt4Target() const
+Qt4BaseTarget *Qt4BuildConfiguration::qt4Target() const
 {
-    return static_cast<Qt4Target *>(target());
+    return static_cast<Qt4BaseTarget *>(target());
 }
 
 Utils::Environment Qt4BuildConfiguration::baseEnvironment() const
@@ -652,6 +655,19 @@ ProjectExplorer::IOutputParser *Qt4BuildConfiguration::createOutputParser() cons
     return 0;
 }
 
+bool Qt4BuildConfiguration::isEnabled() const
+{
+    return m_isEnabled;
+}
+
+void Qt4BuildConfiguration::setEnabled(bool enabled)
+{
+    if (m_isEnabled == enabled)
+        return;
+    m_isEnabled = enabled;
+    emit enabledChanged();
+}
+
 /*!
   \class Qt4BuildConfigurationFactory
 */
@@ -687,7 +703,7 @@ void Qt4BuildConfigurationFactory::update()
 
 QStringList Qt4BuildConfigurationFactory::availableCreationIds(ProjectExplorer::Target *parent) const
 {
-    if (!qobject_cast<Qt4Target *>(parent))
+    if (!qobject_cast<Qt4BaseTarget *>(parent))
         return QStringList();
 
     QStringList results;
@@ -709,7 +725,7 @@ QString Qt4BuildConfigurationFactory::displayNameForId(const QString &id) const
 
 bool Qt4BuildConfigurationFactory::canCreate(ProjectExplorer::Target *parent, const QString &id) const
 {
-    if (!qobject_cast<Qt4Target *>(parent))
+    if (!qobject_cast<Qt4BaseTarget *>(parent))
         return false;
     if (!m_versions.contains(id))
         return false;
@@ -730,7 +746,7 @@ BuildConfiguration *Qt4BuildConfigurationFactory::create(ProjectExplorer::Target
     QtVersion *version = QtVersionManager::instance()->version(info.versionId);
     Q_ASSERT(version);
 
-    Qt4Target *qt4Target = static_cast<Qt4Target *>(parent);
+    Qt4BaseTarget *qt4Target = static_cast<Qt4BaseTarget *>(parent);
 
     bool ok;
     QString buildConfigurationName = QInputDialog::getText(0,
@@ -757,7 +773,7 @@ BuildConfiguration *Qt4BuildConfigurationFactory::create(ProjectExplorer::Target
 
 bool Qt4BuildConfigurationFactory::canClone(ProjectExplorer::Target *parent, ProjectExplorer::BuildConfiguration *source) const
 {
-    if (!qobject_cast<Qt4Target *>(parent))
+    if (!qobject_cast<Qt4BaseTarget *>(parent))
         return false;
     Qt4BuildConfiguration *qt4bc(qobject_cast<Qt4BuildConfiguration *>(source));
     if (!qt4bc)
@@ -774,15 +790,15 @@ BuildConfiguration *Qt4BuildConfigurationFactory::clone(Target *parent, BuildCon
 {
     if (!canClone(parent, source))
         return 0;
-    Qt4Target *target(static_cast<Qt4Target *>(parent));
+    Qt4BaseTarget *target = static_cast<Qt4BaseTarget *>(parent);
     Qt4BuildConfiguration *oldbc(static_cast<Qt4BuildConfiguration *>(source));
     return new Qt4BuildConfiguration(target, oldbc);
 }
 
 bool Qt4BuildConfigurationFactory::canRestore(Target *parent, const QVariantMap &map) const
 {
-    QString id(ProjectExplorer::idFromMap(map));
-    if (!qobject_cast<Qt4Target *>(parent))
+    QString id = ProjectExplorer::idFromMap(map);
+    if (!qobject_cast<Qt4BaseTarget *>(parent))
         return false;
     return id.startsWith(QLatin1String(QT4_BC_ID_PREFIX)) ||
            id == QLatin1String(QT4_BC_ID);
@@ -792,10 +808,80 @@ BuildConfiguration *Qt4BuildConfigurationFactory::restore(Target *parent, const 
 {
     if (!canRestore(parent, map))
         return 0;
-    Qt4Target *target(static_cast<Qt4Target *>(parent));
-    Qt4BuildConfiguration *bc(new Qt4BuildConfiguration(target));
+    Qt4BaseTarget *target = static_cast<Qt4BaseTarget *>(parent);
+    Qt4BuildConfiguration *bc = new Qt4BuildConfiguration(target);
     if (bc->fromMap(map))
         return bc;
     delete bc;
     return 0;
+}
+
+void Qt4BuildConfiguration::importFromBuildDirectory()
+{
+    QString directory = buildDirectory();
+    if (!directory.isEmpty()) {
+        QString mkfile = directory;
+        if (makefile().isEmpty())
+            mkfile.append("/Makefile");
+        else
+            mkfile.append(makefile());
+
+        QString qmakePath = QtVersionManager::findQMakeBinaryFromMakefile(mkfile);
+        if (!qmakePath.isEmpty()) {
+            QtVersionManager *vm = QtVersionManager::instance();
+            QtVersion *version = vm->qtVersionForQMakeBinary(qmakePath);
+            if (!version) {
+                version = new QtVersion(qmakePath);
+                vm->addVersion(version);
+            }
+
+            QPair<QtVersion::QmakeBuildConfigs, QString> result =
+                    QtVersionManager::scanMakeFile(directory, version->defaultBuildConfig());
+            QtVersion::QmakeBuildConfigs qmakeBuildConfig = result.first;
+
+            QString aa = result.second;
+            QString parsedSpec = Qt4BuildConfiguration::extractSpecFromArguments(&aa, directory, version);
+            QString versionSpec = version->mkspec();
+            QString additionalArguments;
+            if (parsedSpec.isEmpty() || parsedSpec == versionSpec || parsedSpec == "default") {
+                // using the default spec, don't modify additional arguments
+            } else {
+                additionalArguments = "-spec " + Utils::QtcProcess::quoteArg(parsedSpec);
+            }
+            Utils::QtcProcess::addArgs(&additionalArguments, aa);
+
+            Qt4BuildConfiguration::removeQMLInspectorFromArguments(&additionalArguments);
+
+            // So we got all the information now apply it...
+            setQtVersion(version);
+
+            qmakeStep()->setUserArguments(additionalArguments);
+
+            setQMakeBuildConfiguration(qmakeBuildConfig);
+            // Adjust command line arguments, this is ugly as hell
+            // If we are switching to BuildAll we want "release" in there and no "debug"
+            // or "debug" in there and no "release"
+            // If we are switching to not BuildAl we want neither "release" nor "debug" in there
+            bool debug = qmakeBuildConfig & QtVersion::DebugBuild;
+            bool haveTag = !(qmakeBuildConfig & QtVersion::BuildAll);
+            QString makeCmdArguments = makeStep()->userArguments();
+            Utils::QtcProcess::ArgIterator ait(&makeCmdArguments);
+            while (ait.next()) {
+                if (ait.value() == QLatin1String("debug")) {
+                    if (!haveTag && debug)
+                        haveTag = true;
+                    else
+                        ait.deleteArg();
+                } else if (ait.value() == QLatin1String("release")) {
+                    if (!haveTag && !debug)
+                        haveTag = true;
+                    else
+                        ait.deleteArg();
+                }
+            }
+            if (!haveTag)
+                ait.appendArg(QLatin1String(debug ? "debug" : "release"));
+            makeStep()->setUserArguments(makeCmdArguments);
+        }
+    }
 }

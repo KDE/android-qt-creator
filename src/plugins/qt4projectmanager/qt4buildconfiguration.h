@@ -47,7 +47,7 @@ namespace Qt4ProjectManager {
 
 class QMakeStep;
 class MakeStep;
-class Qt4Target;
+class Qt4BaseTarget;
 
 namespace Internal {
 class Qt4ProFileNode;
@@ -60,10 +60,10 @@ class Qt4BuildConfiguration : public ProjectExplorer::BuildConfiguration
     friend class Internal::Qt4BuildConfigurationFactory;
 
 public:
-    explicit Qt4BuildConfiguration(Qt4Target *target);
+    explicit Qt4BuildConfiguration(Qt4BaseTarget *target);
     virtual ~Qt4BuildConfiguration();
 
-    Qt4Target *qt4Target() const;
+    Qt4BaseTarget *qt4Target() const;
 
     virtual Utils::Environment baseEnvironment() const;
 
@@ -123,6 +123,13 @@ public:
 
     ProjectExplorer::IOutputParser *createOutputParser() const;
 
+    virtual bool isEnabled() const;
+    /// \internal For Qt4Project, since that manages the parsing information
+    void setEnabled(bool enabled);
+
+public slots:
+    void importFromBuildDirectory();
+
 signals:
     /// emitted if the qt version changes (either directly, or because the default qt version changed
     /// or because the user changed the settings for the qt version
@@ -147,8 +154,8 @@ private slots:
     void emitBuildDirectoryChanged();
 
 protected:
-    Qt4BuildConfiguration(Qt4Target *target, Qt4BuildConfiguration *source);
-    Qt4BuildConfiguration(Qt4Target *target, const QString &id);
+    Qt4BuildConfiguration(Qt4BaseTarget *target, Qt4BuildConfiguration *source);
+    Qt4BuildConfiguration(Qt4BaseTarget *target, const QString &id);
     virtual bool fromMap(const QVariantMap &map);
 
 private:
@@ -157,6 +164,7 @@ private:
     QString rawBuildDirectory() const;
 
     bool m_shadowBuild;
+    bool m_isEnabled;
     QString m_buildDirectory;
     QString m_lastEmmitedBuildDirectory;
     int m_qtVersionId;

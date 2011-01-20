@@ -56,6 +56,7 @@ class Qt4BuildConfiguration;
 namespace Internal {
 class MaemoDeployStep;
 class MaemoDeployableListModel;
+class AbstractQt4MaemoTarget;
 
 class MaemoPackageCreationStep : public ProjectExplorer::BuildStep
 {
@@ -84,6 +85,7 @@ public:
 
     QString projectName() const;
     const Qt4BuildConfiguration *qt4BuildConfiguration() const;
+    AbstractQt4MaemoTarget *maemoTarget() const;
 
     static const QLatin1String DefaultVersionNumber;
 
@@ -125,6 +127,7 @@ private:
     void addSedCmdToRulesFile(QByteArray &rulesFileContent, int &insertPos,
         const QString &desktopFilePath, const QByteArray &oldString,
         const QByteArray &newString);
+    static QString replaceDots(const QString &name);
 
     static const QLatin1String CreatePackageId;
 

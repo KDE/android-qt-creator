@@ -36,17 +36,17 @@
 
 #include "maemodeployables.h"
 #include "maemodeploystep.h"
-#include "maemodeviceconfiglistmodel.h"
 #include "maemodeviceenvreader.h"
 #include "maemomanager.h"
 #include "maemoglobal.h"
 #include "maemoremotemountsmodel.h"
 #include "maemorunconfiguration.h"
 #include "maemosettingspages.h"
+#include "qt4maemotarget.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
-#include <projectexplorer/environmenteditmodel.h>
+#include <projectexplorer/environmentwidget.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4target.h>
 #include <utils/detailswidget.h>
@@ -94,7 +94,7 @@ MaemoRunConfigurationWidget::MaemoRunConfigurationWidget(
         SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
         this, SLOT(handleCurrentDeviceConfigChanged()));
     handleCurrentDeviceConfigChanged();
-    connect(m_runConfiguration->qt4Target(),
+    connect(m_runConfiguration->maemoTarget(),
         SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)),
         this, SLOT(handleBuildConfigChanged()));
 
@@ -342,16 +342,13 @@ void MaemoRunConfigurationWidget::handleBuildConfigChanged()
 
 void MaemoRunConfigurationWidget::handleToolchainChanged()
 {
-    const Qt4BuildConfiguration * const bc
-        = m_runConfiguration->activeQt4BuildConfiguration();
-    if (bc) {
-        const QtVersion * const qtVersion = bc->qtVersion();
-        const bool remoteMountsAvailable
-            = MaemoGlobal::allowsRemoteMounts(qtVersion);
+    const AbstractQt4MaemoTarget * const maemoTarget
+        = m_runConfiguration->maemoTarget();
+    if (maemoTarget) {
+        const bool remoteMountsAvailable = maemoTarget->allowsRemoteMounts();
         m_debugDetailsContainer->setVisible(remoteMountsAvailable);
         m_mountDetailsContainer->setVisible(remoteMountsAvailable);
-        const bool qmlDebuggingAvailable
-            = MaemoGlobal::allowsQmlDebugging(qtVersion);
+        const bool qmlDebuggingAvailable = maemoTarget->allowsQmlDebugging();
         m_debuggingLanguagesLabel->setVisible(qmlDebuggingAvailable);
         m_debugCppOnlyButton->setVisible(qmlDebuggingAvailable);
         m_debugQmlOnlyButton->setVisible(qmlDebuggingAvailable);
@@ -374,7 +371,7 @@ void MaemoRunConfigurationWidget::showDeviceConfigurationsDialog(const QString &
 
 void MaemoRunConfigurationWidget::handleCurrentDeviceConfigChanged()
 {
-    m_devConfLabel->setText(m_runConfiguration->deviceConfig().name);
+    m_devConfLabel->setText(MaemoGlobal::deviceConfigurationName(m_runConfiguration->deviceConfig()));
     updateMountWarning();
 }
 
@@ -534,25 +531,23 @@ void MaemoRunConfigurationWidget::updateMountWarning()
 {
     QString mountWarning;
     const MaemoPortList &portList = m_runConfiguration->freePorts();
-    if (portList.hasMore()) {
-        const int availablePortCount = portList.count();
-        const int mountDirCount
+    const int availablePortCount = portList.count();
+    const int mountDirCount
             = m_runConfiguration->remoteMounts()->validMountSpecificationCount();
-        if (mountDirCount > availablePortCount) {
-            mountWarning = tr("WARNING: You want to mount %1 directories, but "
-                "your device has only %n free ports.<br>You will not be able "
-                "to run this configuration.", 0, availablePortCount)
-            .arg(mountDirCount);
-        } else if (mountDirCount > 0) {
-            const int portsLeftByDebuggers = availablePortCount
+    if (mountDirCount > availablePortCount) {
+        mountWarning = tr("WARNING: You want to mount %1 directories, but "
+            "your device has only %n free ports.<br>You will not be able "
+            "to run this configuration.", 0, availablePortCount)
+                .arg(mountDirCount);
+    } else if (mountDirCount > 0) {
+        const int portsLeftByDebuggers = availablePortCount
                 - m_runConfiguration->portsUsedByDebuggers();
-            if (mountDirCount > portsLeftByDebuggers) {
-                mountWarning = tr("WARNING: You want to mount %1 directories, "
-                    "but only %n ports on the device will be available "
-                    "in debug mode. <br>You will not be able to debug your "
-                    "application with this configuration.", 0, portsLeftByDebuggers).
-                    arg(mountDirCount);
-            }
+        if (mountDirCount > portsLeftByDebuggers) {
+            mountWarning = tr("WARNING: You want to mount %1 directories, "
+                "but only %n ports on the device will be available "
+                "in debug mode. <br>You will not be able to debug your "
+                "application with this configuration.", 0, portsLeftByDebuggers)
+                    .arg(mountDirCount);
         }
     }
     if (mountWarning.isEmpty()) {

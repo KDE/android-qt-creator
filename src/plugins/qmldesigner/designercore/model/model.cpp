@@ -390,14 +390,14 @@ void ModelPrivate::notifyRootNodeTypeChanged(const QString &type, int majorVersi
         resetModel = true;
     }
 
+    if (nodeInstanceView())
+        nodeInstanceView()->rootNodeTypeChanged(type, majorVersion, minorVersion);
+
     foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
         view->rootNodeTypeChanged(type, majorVersion, minorVersion);
 
     }
-
-    if (nodeInstanceView())
-        nodeInstanceView()->rootNodeTypeChanged(type, majorVersion, minorVersion);
 
     if (resetModel) {
         resetModelByRewriter(description);
@@ -1564,6 +1564,11 @@ void Model::setFileUrl(const QUrl &url)
 const MetaInfo Model::metaInfo() const
 {
     return m_d->metaInfo();
+}
+
+bool Model::hasNodeMetaInfo(const QString &typeName, int majorVersion, int minorVersion)
+{
+    return NodeMetaInfo(this, typeName, majorVersion, minorVersion).isValid();
 }
 
 NodeMetaInfo Model::metaInfo(const QString &typeName, int majorVersion, int minorVersion)

@@ -221,7 +221,7 @@ class ProjectsMode : public Core::IMode
 public:
     ProjectsMode(QWidget *proWindow) : m_widget(proWindow) {}
 
-    QString displayName() const { return tr("Projects"); }
+    QString displayName() const { return QCoreApplication::translate("ProjectExplorer::ProjectsMode", "Projects"); }
     QIcon icon() const { return QIcon(QLatin1String(":/fancyactionbar/images/mode_Project.png")); }
     int priority() const { return Constants::P_MODE_SESSION; }
     QWidget *widget() { return m_widget; }
@@ -295,6 +295,10 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
             this, SLOT(invalidateProject(ProjectExplorer::Project *)));
     connect(d->m_session, SIGNAL(projectRemoved(ProjectExplorer::Project *)),
             this, SIGNAL(fileListChanged()));
+    connect(d->m_session, SIGNAL(projectAdded(ProjectExplorer::Project*)),
+            this, SLOT(projectAdded(ProjectExplorer::Project*)));
+    connect(d->m_session, SIGNAL(projectRemoved(ProjectExplorer::Project*)),
+            this, SLOT(projectRemoved(ProjectExplorer::Project*)));
     connect(d->m_session, SIGNAL(startupProjectChanged(ProjectExplorer::Project *)),
             this, SLOT(startupProjectChanged()));
     connect(d->m_session, SIGNAL(dependencyChanged(ProjectExplorer::Project*,ProjectExplorer::Project*)),
@@ -832,6 +836,7 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
         d->m_projectExplorerSettings.wrapAppOutput = s->value("ProjectExplorer/Settings/WrapAppOutput", true).toBool();
         d->m_projectExplorerSettings.useJom = s->value("ProjectExplorer/Settings/UseJom", true).toBool();
         d->m_projectExplorerSettings.autorestoreLastSession = s->value("ProjectExplorer/Settings/AutoRestoreLastSession", false).toBool();
+        d->m_projectExplorerSettings.prompToStopRunControl = s->value("ProjectExplorer/Settings/PromptToStopRunControl", false).toBool();
         d->m_projectExplorerSettings.environmentId = QUuid(s->value("ProjectExplorer/Settings/EnvironmentId").toString());
         if (d->m_projectExplorerSettings.environmentId.isNull())
             d->m_projectExplorerSettings.environmentId = QUuid::createUuid();
@@ -960,6 +965,7 @@ void ProjectExplorerPlugin::clearSession()
 
 void ProjectExplorerPlugin::extensionsInitialized()
 {
+    d->m_proWindow->extensionsInitialized();
     d->m_fileFactories = ProjectFileFactory::createFactories(&d->m_projectFilterString);
     foreach (ProjectFileFactory *pf, d->m_fileFactories) {
         d->m_profileMimeTypes += pf->mimeTypes();
@@ -988,7 +994,7 @@ ExtensionSystem::IPlugin::ShutdownFlag ProjectExplorerPlugin::aboutToShutdown()
     // Attempt to synchronously shutdown all run controls.
     // If that fails, fall back to asynchronous shutdown (Debugger run controls
     // might shutdown asynchronously).
-    if (d->m_outputPane->closeTabs(false /* No prompt any more */))
+    if (d->m_outputPane->closeTabs(OutputPane::CloseTabNoPrompt /* No prompt any more */))
         return SynchronousShutdown;
     connect(d->m_outputPane, SIGNAL(allRunControlsFinished()),
             this, SIGNAL(asynchronousShutdownFinished()));
@@ -1092,6 +1098,7 @@ void ProjectExplorerPlugin::savePersistentSettings()
         s->setValue("ProjectExplorer/Settings/WrapAppOutput", d->m_projectExplorerSettings.wrapAppOutput);
         s->setValue("ProjectExplorer/Settings/UseJom", d->m_projectExplorerSettings.useJom);
         s->setValue("ProjectExplorer/Settings/AutoRestoreLastSession", d->m_projectExplorerSettings.autorestoreLastSession);
+        s->setValue("ProjectExplorer/Settings/PromptToStopRunControl", d->m_projectExplorerSettings.prompToStopRunControl);
         s->setValue("ProjectExplorer/Settings/EnvironmentId", d->m_projectExplorerSettings.environmentId.toString());
     }
 }
@@ -1466,19 +1473,20 @@ void ProjectExplorerPlugin::updateActions()
     Project *project = startupProject();
     bool enableBuildActions = project
                               && ! (d->m_buildManager->isBuilding(project))
-                              && hasBuildSettings(project);
+                              && hasBuildSettings(project)
+                              && buildSettingsEnabled(project);
 
     bool enableBuildActionsContextMenu = d->m_currentProject
                               && ! (d->m_buildManager->isBuilding(d->m_currentProject))
-                              && hasBuildSettings(d->m_currentProject);
+                              && hasBuildSettings(d->m_currentProject)
+                              && buildSettingsEnabled(d->m_currentProject);
 
     bool hasProjects = !d->m_session->projects().isEmpty();
-    bool building = d->m_buildManager->isBuilding();
+    bool enabledSessionBuildActions = !d->m_buildManager->isBuilding()
+            && hasBuildSettings(0)
+            && buildSettingsEnabled(0);
     QString projectName = project ? project->displayName() : QString();
     QString projectNameContextMenu = d->m_currentProject ? d->m_currentProject->displayName() : QString();
-
-    if (debug)
-        qDebug() << "BuildManager::isBuilding()" << building;
 
     d->m_unloadAction->setParameter(projectNameContextMenu);
 
@@ -1502,11 +1510,11 @@ void ProjectExplorerPlugin::updateActions()
     d->m_rebuildProjectOnlyAction->setEnabled(enableBuildActions);
     d->m_cleanProjectOnlyAction->setEnabled(enableBuildActions);
 
-    d->m_clearSession->setEnabled(hasProjects && !building);
-    d->m_buildSessionAction->setEnabled(hasProjects && !building);
-    d->m_rebuildSessionAction->setEnabled(hasProjects && !building);
-    d->m_cleanSessionAction->setEnabled(hasProjects && !building);
-    d->m_cancelBuildAction->setEnabled(building);
+    d->m_clearSession->setEnabled(hasProjects && enabledSessionBuildActions);
+    d->m_buildSessionAction->setEnabled(hasProjects && enabledSessionBuildActions);
+    d->m_rebuildSessionAction->setEnabled(hasProjects && enabledSessionBuildActions);
+    d->m_cleanSessionAction->setEnabled(hasProjects && enabledSessionBuildActions);
+    d->m_cancelBuildAction->setEnabled(d->m_buildManager->isBuilding());
 
     d->m_publishAction->setEnabled(hasProjects);
 
@@ -1713,9 +1721,24 @@ bool ProjectExplorerPlugin::hasBuildSettings(Project *pro)
 {
     const QList<Project *> & projects = d->m_session->projectOrder(pro);
     foreach(Project *project, projects)
-        if (project->activeTarget()->activeBuildConfiguration())
+        if (project
+                && project->activeTarget()
+                && project->activeTarget()->activeBuildConfiguration())
             return true;
     return false;
+}
+
+bool ProjectExplorerPlugin::buildSettingsEnabled(Project *pro)
+{
+    const QList<Project *> & projects = d->m_session->projectOrder(pro);
+
+    foreach(Project *project, projects)
+        if (project
+                && project->activeTarget()
+                && project->activeTarget()->activeBuildConfiguration()
+                && !project->activeTarget()->activeBuildConfiguration()->isEnabled())
+            return false;
+    return true;
 }
 
 bool ProjectExplorerPlugin::coreAboutToClose()
@@ -1782,6 +1805,20 @@ void ProjectExplorerPlugin::runControlFinished()
     emit updateRunActions();
 }
 
+void ProjectExplorerPlugin::projectAdded(ProjectExplorer::Project *pro)
+{
+    // more specific action en and disabling ?
+    connect(pro, SIGNAL(buildConfigurationEnabledChanged()),
+            this, SLOT(updateActions()));
+}
+
+void ProjectExplorerPlugin::projectRemoved(ProjectExplorer::Project * pro)
+{
+    // more specific action en and disabling ?
+    disconnect(pro, SIGNAL(buildConfigurationEnabledChanged()),
+               this, SLOT(updateActions()));
+}
+
 void ProjectExplorerPlugin::startupProjectChanged()
 {
     static QPointer<Project> previousStartupProject = 0;
@@ -1805,8 +1842,6 @@ void ProjectExplorerPlugin::startupProjectChanged()
     }
 
     activeTargetChanged();
-
-    emit updateRunActions();
 }
 
 void ProjectExplorerPlugin::activeTargetChanged()
@@ -1874,6 +1909,15 @@ void ProjectExplorerPlugin::updateDeployActions()
                               && ! (d->m_buildManager->isBuilding(d->m_currentProject))
                               && hasDeploySettings(d->m_currentProject);
 
+    if (d->m_projectExplorerSettings.buildBeforeDeploy) {
+        if (hasBuildSettings(project)
+                && !buildSettingsEnabled(project))
+            enableDeployActions = false;
+        if (hasBuildSettings(d->m_currentProject)
+                && !buildSettingsEnabled(d->m_currentProject))
+            enableDeployActionsContextMenu = false;
+    }
+
     const QString projectName = project ? project->displayName() : QString();
     const QString projectNameContextMenu = d->m_currentProject ? d->m_currentProject->displayName() : QString();
     bool hasProjects = !d->m_session->projects().isEmpty();
@@ -1899,6 +1943,14 @@ bool ProjectExplorerPlugin::canRun(Project *project, const QString &runMode)
         !project->activeTarget()->activeRunConfiguration()) {
         return false;
     }
+
+    if (d->m_projectExplorerSettings.buildBeforeDeploy
+            && d->m_projectExplorerSettings.deployBeforeRun
+            && hasBuildSettings(project)
+            && !buildSettingsEnabled(project))
+        return false;
+
+
     RunConfiguration *activeRC = project->activeTarget()->activeRunConfiguration();
 
     bool canRun = findRunControlFactory(activeRC, runMode)

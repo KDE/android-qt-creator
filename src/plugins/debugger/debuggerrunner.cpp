@@ -227,7 +227,8 @@ static DebuggerEngineType engineForToolChain(ToolChainType toolChainType)
         case ToolChain_RVCT2_ARMV6:
         case ToolChain_RVCT_ARMV5_GNUPOC:
         case ToolChain_GCCE_GNUPOC:
-        case ToolChain_GCC_MAEMO:
+        case ToolChain_GCC_MAEMO5:
+        case ToolChain_GCC_HARMATTAN:
         case ToolChain_GCC_ANDROID:
 #ifdef WITH_LLDB
             // lldb override
@@ -470,20 +471,19 @@ void DebuggerRunControl::showMessage(const QString &msg, int channel)
     }
 }
 
-bool DebuggerRunControl::aboutToStop() const
+bool DebuggerRunControl::promptToStop(bool *optionalPrompt) const
 {
     QTC_ASSERT(isRunning(), return true;)
+
+    if (optionalPrompt && !*optionalPrompt)
+        return true;
 
     const QString question = tr("A debugging session is still in progress. "
             "Terminating the session in the current"
             " state can leave the target in an inconsistent state."
             " Would you still like to terminate it?");
-
-    const QMessageBox::StandardButton answer =
-            QMessageBox::question(debuggerCore()->mainWindow(),
-                                  tr("Close Debugging Session"), question,
-                                  QMessageBox::Yes|QMessageBox::No);
-    return answer == QMessageBox::Yes;
+    return showPromptToStopDialog(tr("Close Debugging Session"), question,
+                                  QString(), QString(), optionalPrompt);
 }
 
 RunControl::StopResult DebuggerRunControl::stop()
@@ -537,7 +537,7 @@ bool DebuggerRunControlFactory::canRun(RunConfiguration *runConfiguration, const
 
 QString DebuggerRunControlFactory::displayName() const
 {
-    return tr("Debug");
+    return DebuggerRunControl::tr("Debug");
 }
 
 // Find Qt installation by running qmake
@@ -639,7 +639,7 @@ DebuggerRunControl *DebuggerRunControlFactory::create
 
     if (!check) {
         //appendMessage(errorMessage, true);
-        Core::ICore::instance()->showWarningWithOptions(tr("Debugger"),
+        Core::ICore::instance()->showWarningWithOptions(DebuggerRunControl::tr("Debugger"),
             check.errorMessage, QString(), check.settingsCategory, check.settingsPage);
         return 0;
     }

@@ -42,6 +42,9 @@
 #include <QtCore/QMap>
 #include <QtCore/QTime>
 
+namespace Utils {
+class ConsoleProcess;
+}
 namespace Debugger {
 namespace Internal {
 
@@ -89,6 +92,7 @@ public:
     virtual void updateWatchData(const WatchData &data,
                                  const WatchUpdateFlags & flags = WatchUpdateFlags());
     virtual unsigned debuggerCapabilities() const;
+    virtual void watchPoint(const QPoint &);
     virtual void setRegisterValue(int regnr, const QString &value);
 
     virtual void executeStep();
@@ -149,14 +153,25 @@ private slots:
     void postCommandSequence(unsigned mask);
     void operateByInstructionTriggered(bool);
 
-private:
-    enum SpecialStopMode { NoSpecialStop, SpecialStopSynchronizeBreakpoints };
+    void consoleStubMessage(const QString &, bool);
+    void consoleStubProcessStarted();
+    void consoleStubExited();
 
+private:
+    enum SpecialStopMode
+    {
+        NoSpecialStop,
+        SpecialStopSynchronizeBreakpoints,
+        SpecialStopGetWidgetAt
+    };
+
+    bool startConsole(const DebuggerStartParameters &sp, QString *errorMessage);
     unsigned examineStopReason(const QByteArray &messageIn, QString *message,
-                               QString *exceptionBoxMessage) const;
+                               QString *exceptionBoxMessage);
     bool commandsPending() const;
     void handleExtensionMessage(char t, int token, const QByteArray &what, const QByteArray &message);
     bool doSetupEngine(QString *errorMessage);
+    bool launchCDB(const DebuggerStartParameters &sp, QString *errorMessage);
     void handleSessionAccessible(unsigned long cdbExState);
     void handleSessionInaccessible(unsigned long cdbExState);
     void handleSessionIdle(const QByteArray &message);
@@ -166,6 +181,7 @@ private:
     inline bool isCdbProcessRunning() const { return m_process.state() != QProcess::NotRunning; }
     bool canInterruptInferior() const;
     void syncOperateByInstruction(bool operateByInstruction);
+    void postWidgetAtCommand();
 
     // Builtin commands
     void dummyHandler(const CdbBuiltinCommandPtr &);
@@ -177,10 +193,12 @@ private:
     void handleThreads(const CdbExtensionCommandPtr &);
     void handlePid(const CdbExtensionCommandPtr &reply);
     void handleLocals(const CdbExtensionCommandPtr &reply);
+    void handleAddWatch(const CdbExtensionCommandPtr &reply);
     void handleExpandLocals(const CdbExtensionCommandPtr &reply);
     void handleRegisters(const CdbExtensionCommandPtr &reply);
     void handleModules(const CdbExtensionCommandPtr &reply);
     void handleMemory(const CdbExtensionCommandPtr &);
+    void handleWidgetAt(const CdbExtensionCommandPtr &);
 
     QString normalizeFileName(const QString &f);
     void updateLocalVariable(const QByteArray &iname);
@@ -193,6 +211,8 @@ private:
     const OptionsPtr m_options;
 
     QProcess m_process;
+    QScopedPointer<Utils::ConsoleProcess> m_consoleStub;
+    DebuggerStartMode m_effectiveStartMode;
     QByteArray m_outputBuffer;
     unsigned long m_inferiorPid;
     // Debugger accessible (expecting commands)
@@ -213,6 +233,9 @@ private:
     mutable int m_elapsedLogTime;
     QByteArray m_extensionMessageBuffer;
     bool m_sourceStepInto;
+    unsigned m_wX86BreakpointCount;
+    int m_watchPointX;
+    int m_watchPointY;
 };
 
 } // namespace Internal

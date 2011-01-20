@@ -46,7 +46,7 @@
 #include "maemodeploystep.h"
 #include "maemoglobal.h"
 #include "maemopackagecreationwidget.h"
-#include "maemotemplatesmanager.h"
+#include "qt4maemotarget.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -203,22 +203,24 @@ bool MaemoPackageCreationStep::createPackage(QProcess *buildProc)
 
     // Workaround for non-working dh_builddeb --destdir=.
     if (!QDir(buildDirectory()).isRoot()) {
-        const ProjectExplorer::Project * const project
-            = buildConfiguration()->target()->project();
+        const AbstractQt4MaemoTarget * const target = maemoTarget();
+        const ProjectExplorer::Project * const project = target->project();
         QString error;
         const QString pkgFileName = packageFileName(project,
-            MaemoTemplatesManager::instance()->version(project, &error));
+            target->projectVersion(&error));
         if (!error.isEmpty())
             raiseError(tr("Packaging failed."), error);
-        const QString changesFileName = QFileInfo(pkgFileName)
-            .completeBaseName() + QLatin1String(".changes");
+        const QString changesSourceFileName = QFileInfo(pkgFileName).completeBaseName()
+            + QLatin1String(".changes");
+        const QString changesTargetFileName = replaceDots(QFileInfo(pkgFileName).completeBaseName())
+            + QLatin1String(".changes");
         const QString packageSourceDir = buildDirectory() + QLatin1String("/../");
         const QString packageSourceFilePath
             = packageSourceDir + pkgFileName;
         const QString changesSourceFilePath
-            = packageSourceDir + changesFileName;
+            = packageSourceDir + changesSourceFileName;
         const QString changesTargetFilePath
-            = buildDirectory() + QLatin1Char('/') + changesFileName;
+            = buildDirectory() + QLatin1Char('/') + changesTargetFileName;
         QFile::remove(packageFilePath());
         QFile::remove(changesTargetFilePath);
         if (!QFile::rename(packageSourceFilePath, packageFilePath())
@@ -268,8 +270,7 @@ bool MaemoPackageCreationStep::copyDebianFiles(bool inSourceBuild)
                    .arg(debianDirPath));
         return false;
     }
-    const QString templatesDirPath = MaemoTemplatesManager::instance()
-        ->debianDirPath(buildConfiguration()->target()->project());
+    const QString templatesDirPath = maemoTarget()->debianDirPath();
     QDir templatesDir(templatesDirPath);
     const QStringList &files = templatesDir.entryList(QDir::Files);
     foreach (const QString &fileName, files) {
@@ -330,6 +331,11 @@ const Qt4BuildConfiguration *MaemoPackageCreationStep::qt4BuildConfiguration() c
     return static_cast<Qt4BuildConfiguration *>(buildConfiguration());
 }
 
+AbstractQt4MaemoTarget *MaemoPackageCreationStep::maemoTarget() const
+{
+    return qobject_cast<AbstractQt4MaemoTarget *>(buildConfiguration()->target());
+}
+
 QString MaemoPackageCreationStep::buildDirectory() const
 {
     return qt4BuildConfiguration()->buildDirectory();
@@ -365,13 +371,10 @@ bool MaemoPackageCreationStep::packagingNeeded() const
             return true;
     }
 
-    const ProjectExplorer::Project * const project = target()->project();
-    const MaemoTemplatesManager * const templatesManager
-        = MaemoTemplatesManager::instance();
-    const QString debianPath = templatesManager->debianDirPath(project);
+    const QString debianPath = maemoTarget()->debianDirPath();
     if (packageInfo.lastModified() <= QFileInfo(debianPath).lastModified())
         return true;
-    const QStringList debianFiles = templatesManager->debianFiles(project);
+    const QStringList debianFiles = maemoTarget()->debianFiles();
     foreach (const QString &debianFile, debianFiles) {
         const QString absFilePath = debianPath + QLatin1Char('/') + debianFile;
         if (packageInfo.lastModified() <= QFileInfo(absFilePath).lastModified())
@@ -407,27 +410,24 @@ QString MaemoPackageCreationStep::packageFilePath() const
     if (version.isEmpty())
         return QString();
     return buildDirectory() % '/'
-        % packageFileName(buildConfiguration()->target()->project(), version);
+        % packageFileName(buildConfiguration()->target()->project(),
+              replaceDots(version));
 }
 
 bool MaemoPackageCreationStep::isPackagingEnabled() const
 {
-    return m_packagingEnabled
-        || !MaemoGlobal::allowsPackagingDisabling(qt4BuildConfiguration()->qtVersion());
+    return m_packagingEnabled || !maemoTarget()->allowsPackagingDisabling();
 }
 
 QString MaemoPackageCreationStep::versionString(QString *error) const
 {
-    return MaemoTemplatesManager::instance()
-        ->version(buildConfiguration()->target()->project(), error);
-
+    return maemoTarget()->projectVersion(error);
 }
 
 bool MaemoPackageCreationStep::setVersionString(const QString &version,
     QString *error)
 {
-    const bool success = MaemoTemplatesManager::instance()
-        ->setVersion(buildConfiguration()->target()->project(), version, error);
+    const bool success = maemoTarget()->setProjectVersion(version, error);
     if (success)
         emit packageFilePathChanged();
     return success;
@@ -520,8 +520,11 @@ void MaemoPackageCreationStep::checkProjectName()
 QString MaemoPackageCreationStep::packageName(const ProjectExplorer::Project *project)
 {
     QString packageName = project->displayName().toLower();
-    const QRegExp legalLetter(QLatin1String("[a-z0-9+-.]"), Qt::CaseSensitive,
+
+    // We also replace dots, because OVI store chokes on them.
+    const QRegExp legalLetter(QLatin1String("[a-z0-9+-]"), Qt::CaseSensitive,
         QRegExp::WildcardUnix);
+
     for (int i = 0; i < packageName.length(); ++i) {
         if (!legalLetter.exactMatch(packageName.mid(i, 1)))
             packageName[i] = QLatin1Char('-');
@@ -636,6 +639,12 @@ void MaemoPackageCreationStep::addSedCmdToRulesFile(QByteArray &rulesFileContent
     insertPos += sedCmd.length();
     rulesFileContent.insert(insertPos, mvCmd);
     insertPos += mvCmd.length();
+}
+
+QString MaemoPackageCreationStep::replaceDots(const QString &name)
+{
+    QString adaptedName = name;
+    return adaptedName.replace(QLatin1Char('.'), QLatin1Char('_'));
 }
 
 const QLatin1String MaemoPackageCreationStep::CreatePackageId("Qt4ProjectManager.MaemoPackageCreationStep");

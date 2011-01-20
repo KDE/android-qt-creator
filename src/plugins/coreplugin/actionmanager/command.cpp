@@ -403,16 +403,6 @@ QAction *Action::action() const
     return m_action;
 }
 
-void Action::setLocations(const QList<CommandLocation> &locations)
-{
-    m_locations = locations;
-}
-
-QList<CommandLocation> Action::locations() const
-{
-    return m_locations;
-}
-
 void Action::setKeySequence(const QKeySequence &key)
 {
     CommandPrivate::setKeySequence(key);
@@ -478,6 +468,7 @@ void Action::addOverrideAction(QAction *action, const Core::Context &context, bo
         }
     }
     m_scriptableMap[action] = scriptable;
+    setCurrentContext(m_context);
 }
 
 void Action::removeOverrideAction(QAction *action)

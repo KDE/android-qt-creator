@@ -63,7 +63,6 @@ namespace ProjectExplorer {
 class ProjectPrivate {
 public:
     ProjectPrivate();
-    QSet<QString> m_supportedTargetIds;
     QList<Target *> m_targets;
     Target *m_activeTarget;
     EditorConfiguration *m_editorConfiguration;
@@ -102,41 +101,19 @@ QString Project::makeUnique(const QString &preferredName, const QStringList &use
     return tryName;
 }
 
-QSet<QString> Project::supportedTargetIds() const
-{
-    return d->m_supportedTargetIds;
-}
-
-QSet<QString> Project::possibleTargetIds() const
-{
-    QSet<QString> result(d->m_supportedTargetIds);
-    foreach (ProjectExplorer::Target *t, targets())
-        result.remove(t->id());
-
-    return result;
-}
-
-bool Project::canAddTarget(const QString &id) const
-{
-    return possibleTargetIds().contains(id);
-}
-
-void Project::setSupportedTargetIds(const QSet<QString> &ids)
-{
-    if (ids == d->m_supportedTargetIds)
-        return;
-
-    d->m_supportedTargetIds = ids;
-    emit supportedTargetIdsChanged();
-}
-
 void Project::changeEnvironment()
 {
-    Target *t(qobject_cast<Target *>(sender()));
+    Target *t = qobject_cast<Target *>(sender());
     if (t == activeTarget())
         emit environmentChanged();
 }
 
+void Project::changeBuildConfigurationEnabled()
+{
+    Target *t = qobject_cast<Target *>(sender());
+    if (t == activeTarget())
+        emit buildConfigurationEnabledChanged();
+}
 
 void Project::addTarget(Target *t)
 {
@@ -156,6 +133,8 @@ void Project::addTarget(Target *t)
     d->m_targets.push_back(t);
     connect(t, SIGNAL(environmentChanged()),
             SLOT(changeEnvironment()));
+    connect(t, SIGNAL(buildConfigurationEnabledChanged()),
+            this, SLOT(changeBuildConfigurationEnabled()));
     emit addedTarget(t);
 
     // check activeTarget:
@@ -198,6 +177,7 @@ void Project::setActiveTarget(Target *target)
         d->m_activeTarget = target;
         emit activeTargetChanged(d->m_activeTarget);
         emit environmentChanged();
+        emit buildConfigurationEnabledChanged();
     }
 }
 
@@ -280,26 +260,31 @@ bool Project::fromMap(const QVariantMap &map)
             qWarning() << key << "was not found in data.";
             return false;
         }
-       QVariantMap targetMap = map.value(key).toMap();
+        QVariantMap targetMap = map.value(key).toMap();
 
         QList<ITargetFactory *> factories =
                 ExtensionSystem::PluginManager::instance()->getObjects<ITargetFactory>();
 
         Target *t = 0;
-        foreach (ITargetFactory *factory, factories) {
-            if (factory->canRestore(this, targetMap)) {
-                t = factory->restore(this, targetMap);
-                break;
-            }
-        }
 
-        if (!t) {
-            qWarning() << "Restoration of a target failed! (Continuing)";
-            continue;
+        if (target(idFromMap(targetMap))) {
+            qWarning() << "Duplicated target id found, not restoring second target with id"<<idFromMap(targetMap)<<"(Continuing)";
+        } else {
+            foreach (ITargetFactory *factory, factories) {
+                if (factory->canRestore(this, targetMap)) {
+                    t = factory->restore(this, targetMap);
+                    break;
+                }
+            }
+
+            if (!t) {
+                qWarning() << "Restoration of a target failed! (Continuing)";
+                continue;
+            }
+            addTarget(t);
+            if (i == active)
+                setActiveTarget(t);
         }
-        addTarget(t);
-        if (i == active)
-            setActiveTarget(t);
     }
     return true;
 }

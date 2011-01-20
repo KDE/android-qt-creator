@@ -93,11 +93,14 @@ public:
 
     Target *target() const;
 
+    virtual bool isEnabled() const;
+
     Utils::AbstractMacroExpander *macroExpander() { return &m_macroExpander; }
 
 signals:
     void environmentChanged();
     void buildDirectoryChanged();
+    void enabledChanged();
 
 protected:
     BuildConfiguration(Target *target, const QString &id);
@@ -143,8 +146,5 @@ signals:
 } // namespace ProjectExplorer
 
 Q_DECLARE_METATYPE(ProjectExplorer::BuildConfiguration *)
-
-// Default directory to run custom (build) commands in.
-#define DEFAULT_WORKING_DIR "%{buildDir}"
 
 #endif // BUILDCONFIGURATION_H

@@ -30,57 +30,53 @@
 ** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
-#ifndef OBJECTTREE_H
-#define OBJECTTREE_H
 
-#include <qmljsprivateapi.h>
-#include <QtGui/QTreeWidget>
+#ifndef DEBUGGINGHELPERBUILDTASK_H
+#define DEBUGGINGHELPERBUILDTASK_H
 
-QT_BEGIN_NAMESPACE
+#include "qtversionmanager.h"
+#include <utils/environment.h>
+#include <QObject>
 
-class QTreeWidgetItem;
-
-QT_END_NAMESPACE
-
-namespace QmlJSInspector {
+namespace Qt4ProjectManager {
 namespace Internal {
 
-class QmlJSObjectTree : public QTreeWidget
-{
+class DebuggingHelperBuildTask : public QObject {
+    Q_DISABLE_COPY(DebuggingHelperBuildTask)
     Q_OBJECT
 public:
-    QmlJSObjectTree(QWidget *parent = 0);
+    enum DebuggingHelper {
+        GdbDebugging = 0x01,
+        QmlObserver = 0x02,
+        QmlDump = 0x04,
+        AllTools = GdbDebugging | QmlObserver | QmlDump
+    };
+    Q_DECLARE_FLAGS(DebuggingHelperTools, DebuggingHelper)
+
+    explicit DebuggingHelperBuildTask(QtVersion *version, DebuggingHelperTools tools = AllTools);
+    virtual ~DebuggingHelperBuildTask();
+
+    void run(QFutureInterface<void> &future);
 
 signals:
-    void currentObjectChanged(const QDeclarativeDebugObjectReference &);
-    void activated(const QDeclarativeDebugObjectReference &);
-    void expressionWatchRequested(const QDeclarativeDebugObjectReference &, const QString &);
-    void contextHelpIdChanged(const QString &contextHelpId);
-
-public slots:
-    void setCurrentObject(int debugId); // select an object in the tree
-
-protected:
-    virtual void contextMenuEvent(QContextMenuEvent *);
-
-private slots:
-    void currentItemChanged(QTreeWidgetItem *);
-    void activated(QTreeWidgetItem *);
-    void selectionChanged();
-    void goToFile();
+    void finished(int qtVersionId, const QString &output);
 
 private:
-    QTreeWidgetItem *findItemByObjectId(int debugId) const;
-    QTreeWidgetItem *findItem(QTreeWidgetItem *item, int debugId) const;
-    void buildTree(const QDeclarativeDebugObjectReference &, QTreeWidgetItem *parent);
+    bool buildDebuggingHelper(QFutureInterface<void> &future, QString *output);
 
-    QTreeWidgetItem *m_clickedItem;
-    QAction *m_addWatchAction;
-    QAction *m_goToFileAction;
-    int m_currentObjectDebugId;
+    DebuggingHelperTools m_tools;
+
+    int m_qtId;
+    QString m_qtInstallData;
+    QString m_target;
+    QString m_qmakeCommand;
+    QString m_makeCommand;
+    QString m_mkspec;
+    Utils::Environment m_environment;
+    QString m_errorMessage;
 };
 
-} // Internal
-} // QmlJSInspector
+} //namespace Internal
+} //namespace Qt4ProjectManager
 
-#endif
+#endif // DEBUGGINGHELPERBUILDTASK_H

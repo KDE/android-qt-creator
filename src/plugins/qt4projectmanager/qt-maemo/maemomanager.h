@@ -53,6 +53,7 @@ class MaemoRunConfigurationFactory;
 class MaemoDeviceConfigurationsSettingsPage;
 class MaemoQemuManager;
 class MaemoQemuSettingsPage;
+class Qt4MaemoTargetFactory;
 
 class MaemoManager : public QObject
 {
@@ -63,8 +64,8 @@ public:
     ~MaemoManager();
     static MaemoManager &instance();
 
-    bool isValidMaemoQtVersion(const Qt4ProjectManager::QtVersion *version) const;
-    ToolChain *maemoToolChain(const Qt4ProjectManager::QtVersion *version) const;
+    ToolChain *maemo5ToolChain(const Qt4ProjectManager::QtVersion *version) const;
+    ToolChain *harmattanToolChain(const Qt4ProjectManager::QtVersion *version) const;
 
     MaemoDeviceConfigurationsSettingsPage *deviceConfigurationsSettingsPage() const { return m_deviceConfigurationsSettingsPage; }
     MaemoQemuSettingsPage *qemuSettingsPage() const { return m_qemuSettingsPage; }
@@ -80,6 +81,7 @@ private:
     MaemoQemuSettingsPage *m_qemuSettingsPage;
     MaemoQemuManager *m_qemuRuntimeManager;
     MaemoPublishingWizardFactoryFremantleFree *m_publishingFactoryFremantleFree;
+    Qt4MaemoTargetFactory *m_maemoTargetFactory;
 };
 
     } // namespace Internal

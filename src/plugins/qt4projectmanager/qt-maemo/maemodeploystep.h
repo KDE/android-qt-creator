@@ -63,9 +63,9 @@ class SshRemoteProcess;
 namespace Qt4ProjectManager {
 namespace Internal {
 class MaemoRemoteMounter;
-class MaemoDeviceConfigListModel;
+class MaemoDeviceConfig;
 class MaemoPackageCreationStep;
-class MaemoToolChain;
+class AbstractMaemoToolChain;
 class MaemoUsedPortsGatherer;
 
 class MaemoDeployStep : public ProjectExplorer::BuildStep
@@ -76,8 +76,8 @@ public:
     MaemoDeployStep(ProjectExplorer::BuildStepList *bc);
 
     virtual ~MaemoDeployStep();
-    MaemoDeviceConfig deviceConfig() const;
-    MaemoDeviceConfigListModel *deviceConfigModel() const { return m_deviceConfigModel; }
+    QSharedPointer<const MaemoDeviceConfig> deviceConfig() const { return m_deviceConfig; }
+    void setDeviceConfig(int i);
     bool currentlyNeedsDeployment(const QString &host,
         const MaemoDeployable &deployable) const;
     void setDeployed(const QString &host, const MaemoDeployable &deployable);
@@ -92,6 +92,7 @@ public:
 signals:
     void done();
     void error();
+    void deviceConfigChanged();
 
 private slots:
     void start();
@@ -115,6 +116,7 @@ private slots:
     void handleDeviceInstallerErrorOutput(const QByteArray &output);
     void handlePortsGathererError(const QString &errorMsg);
     void handlePortListReady();
+    void handleDeviceConfigurationsUpdated();
 
 private:
     enum State {
@@ -140,7 +142,8 @@ private:
     void getDeployTimesFromMap(const QVariantMap &map);
     const MaemoPackageCreationStep *packagingStep() const;
     QString deployMountPoint() const;
-    const MaemoToolChain *toolChain() const;
+    const AbstractMaemoToolChain *toolChain() const;
+    const AbstractQt4MaemoTarget *maemotarget() const;
     void copyNextFileToDevice();
     void installToSysroot();
     QString uploadDir() const;
@@ -151,6 +154,7 @@ private:
     void runDpkg(const QString &packageFilePath);
     void setState(State newState);
     void unmount();
+    void setDeviceConfig(MaemoDeviceConfig::Id internalId);
 
     static const QLatin1String Id;
 
@@ -168,7 +172,8 @@ private:
     bool m_needsInstall;
     typedef QPair<MaemoDeployable, QString> DeployablePerHost;
     QHash<DeployablePerHost, QDateTime> m_lastDeployed;
-    MaemoDeviceConfigListModel *m_deviceConfigModel;
+    QSharedPointer<const MaemoDeviceConfig> m_deviceConfig;
+    QSharedPointer<const MaemoDeviceConfig> m_cachedDeviceConfig;
     MaemoUsedPortsGatherer *m_portsGatherer;
     MaemoPortList m_freePorts;
     State m_state;

@@ -198,6 +198,11 @@ ULONG64 SymbolGroupValue::address() const
     return 0;
 }
 
+std::string SymbolGroupValue::module() const
+{
+    return isValid() ? m_node->module() : std::string();
+}
+
 // Temporary iname
 static inline std::string additionalSymbolIname(const SymbolGroup *g)
 {
@@ -236,7 +241,7 @@ SymbolGroupValue SymbolGroupValue::typeCastedValue(ULONG64 address, const char *
     if (nonPointer)
         str << " *";
     str << ")(" << std::showbase << std::hex << address << ')';
-    if (SymbolGroupNode *node = sg->addSymbol(str.str(),
+    if (SymbolGroupNode *node = sg->addSymbol(module(), str.str(),
                                               additionalSymbolIname(sg),
                                               &m_errorMessage))
         return SymbolGroupValue(node, m_context);
@@ -275,6 +280,16 @@ unsigned SymbolGroupValue::isPointerType(const std::string &t)
     if (endsWith(t, " *"))
         return 2;
     return 0;
+}
+
+// add pointer type 'Foo' -> 'Foo *', 'Foo *' -> 'Foo **'
+std::string SymbolGroupValue::pointerType(const std::string &type)
+{
+    std::string rc = type;
+    if (!endsWith(type, '*'))
+        rc.push_back(' ');
+    rc.push_back('*');
+    return rc;
 }
 
 unsigned SymbolGroupValue::pointerSize()
@@ -356,6 +371,23 @@ std::string SymbolGroupValue::stripModuleFromType(const std::string &type)
     return exclPos != std::string::npos ? type.substr(exclPos + 1, type.size() - exclPos - 1) : type;
 }
 
+std::string SymbolGroupValue::moduleOfType(const std::string &type)
+{
+    const std::string::size_type exclPos = type.find('!');
+    return exclPos != std::string::npos ? type.substr(0, exclPos) : std::string();
+}
+
+// Symbol Name/(Expression) of a pointed-to instance ('Foo' at 0x10') ==> '*(Foo *)0x10'
+std::string SymbolGroupValue::pointedToSymbolName(ULONG64 address, const std::string &type)
+{
+    std::ostringstream str;
+    str << "*(" << type;
+    if (!endsWith(type, '*'))
+        str << ' ';
+    str << "*)" << std::showbase << std::hex << address;
+    return str.str();
+}
+
 /* QtInfo helper: Determine the full name of a Qt Symbol like 'qstrdup' in 'QtCored4'.
  * as 'QtCored4![namespace::]qstrdup'. In the event someone really uses a different
  * library prefix or namespaced Qt, this should be found.
@@ -370,24 +402,38 @@ static inline std::string resolveQtSymbol(const char *symbolC,
                                           const char *modulePatternC,
                                           const SymbolGroupValueContext &ctx)
 {
+    enum { debugResolveQtSymbol =  0 };
     typedef std::list<std::string> StringList;
     typedef StringList::const_iterator StringListConstIt;
 
+    if (debugResolveQtSymbol)
+        DebugPrint() << ">resolveQtSymbol" << symbolC << " def=" << defaultModuleNameC << " defModName="
+                     << defaultModuleNameC << " modPattern=" << modulePatternC;
     // First try a match with the default module name 'QtCored4!qstrdup' for speed reasons
     std::string defaultPattern = defaultModuleNameC;
     defaultPattern.push_back('!');
     defaultPattern += symbolC;
-    const StringList defaultMatches = SymbolGroupValue::resolveSymbol(defaultPattern.c_str(), ctx);
+    const StringList defaultMatches = SymbolGroupValue::resolveSymbolName(defaultPattern.c_str(), ctx);
+    if (debugResolveQtSymbol)
+        DebugPrint() << "resolveQtSymbol: defaultMatches=" << DebugSequence<StringListConstIt>(defaultMatches.begin(), defaultMatches.end());
     const SubStringPredicate modulePattern(modulePatternC);
     const StringListConstIt defaultIt = std::find_if(defaultMatches.begin(), defaultMatches.end(), modulePattern);
-    if (defaultIt !=  defaultMatches.end())
+    if (defaultIt != defaultMatches.end()) {
+        if (debugResolveQtSymbol)
+            DebugPrint() << "<resolveQtSymbol return1 " << *defaultIt;
         return *defaultIt;
+    }
     // Fail, now try a search with '*qstrdup' in all modules. This might return several matches
     // like 'QtCored4!qstrdup', 'QGuid4!qstrdup'
     const std::string wildCardPattern = std::string(1, '*') + symbolC;
-    const StringList allMatches = SymbolGroupValue::resolveSymbol(wildCardPattern.c_str(), ctx);
+    const StringList allMatches = SymbolGroupValue::resolveSymbolName(wildCardPattern.c_str(), ctx);
+    if (debugResolveQtSymbol)
+        DebugPrint() << "resolveQtSymbol: allMatches= (" << wildCardPattern << ") -> " << DebugSequence<StringListConstIt>(allMatches.begin(), allMatches.end());
     const StringListConstIt allIt = std::find_if(allMatches.begin(), allMatches.end(), modulePattern);
-    return allIt != allMatches.end() ? *allIt : std::string();
+    const std::string rc = allIt != allMatches.end() ? *allIt : std::string();
+    if (debugResolveQtSymbol)
+        DebugPrint() << "<resolveQtSymbol return2 " << rc;
+    return rc;
 }
 
 const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
@@ -470,12 +516,29 @@ std::ostream &operator<<(std::ostream &os, const QtInfo &i)
 }
 
 std::list<std::string>
+    SymbolGroupValue::resolveSymbolName(const char *pattern,
+                                    const SymbolGroupValueContext &c,
+                                    std::string *errorMessage /* = 0 */)
+{
+    // Extract the names
+    const SymbolList symbols = resolveSymbol(pattern, c, errorMessage);
+    std::list<std::string> rc;
+    if (!symbols.empty()) {
+        const SymbolList::const_iterator cend = symbols.end();
+        for (SymbolList::const_iterator it = symbols.begin(); it != cend; ++it)
+            rc.push_back(it->first);
+    }
+    return rc;
+
+}
+
+SymbolGroupValue::SymbolList
     SymbolGroupValue::resolveSymbol(const char *pattern,
                                     const SymbolGroupValueContext &c,
                                     std::string *errorMessage /* = 0 */)
 {
     enum { bufSize = 2048 };
-    std::list<std::string> rc;
+    std::list<Symbol> rc;
     if (errorMessage)
         errorMessage->clear();
     // Is it an incomplete symbol?
@@ -497,12 +560,13 @@ std::list<std::string>
         return rc;
     }
     char buf[bufSize];
+    ULONG64 offset;
     while (true) {
-        hr = c.symbols->GetNextSymbolMatch(handle, buf, bufSize - 1, 0, 0);
+        hr = c.symbols->GetNextSymbolMatch(handle, buf, bufSize - 1, 0, &offset);
         if (hr == E_NOINTERFACE)
             break;
         if (hr == S_OK)
-            rc.push_back(std::string(buf));
+            rc.push_back(Symbol(std::string(buf), offset));
     }
     c.symbols->EndSymbolMatch(handle);
     return rc;
@@ -511,7 +575,7 @@ std::list<std::string>
 // Resolve a type, that is, obtain its module name ('QString'->'QtCored4!QString')
 std::string SymbolGroupValue::resolveType(const std::string &typeIn,
                                           const SymbolGroupValueContext &ctx,
-                                          const SymbolGroup *current /* = 0 */)
+                                          const std::string &currentModule /* = "" */)
 {
     enum { BufSize = 512 };
 
@@ -523,8 +587,8 @@ std::string SymbolGroupValue::resolveType(const std::string &typeIn,
     // Use the module of the current symbol group for templates.
     // This is because resolving some template types (std::list<> has been
     // observed to result in 'QtGui4d!std::list', which subseqently fails.
-    if (current && stripped.find('<') != std::string::npos) {
-        std::string trc = current->module();
+    if (!currentModule.empty() && stripped.find('<') != std::string::npos) {
+        std::string trc = currentModule;
         trc.push_back('!');
         trc += stripped;
         return trc;
@@ -794,6 +858,9 @@ static KnownType knownClassTypeHelper(const std::string &type,
         return KT_Unknown;
     // Qt types (templates)
     if (templatePos != std::string::npos) {
+        // Do not fall for QMap<K,T>::iterator, which is actually an inner class.
+        if (endPos > templatePos && type.at(endPos - 1) != '>')
+            return KT_Unknown;
         switch (templatePos - qPos) {
         case 4:
             if (!type.compare(qPos, 4, "QSet"))
@@ -1345,7 +1412,7 @@ static inline bool dumpQWidget(const SymbolGroupValue &v, std::wostream &str, vo
         str << '(' << qwPrivateType << "*)(" << std::showbase << std::hex << v.address() << ')';
         const std::string name = str.str();
         SymbolGroupNode *qwPrivateNode
-            = v.node()->symbolGroup()->addSymbol(name, std::string(), &errorMessage);
+            = v.node()->symbolGroup()->addSymbol(v.module(), name, std::string(), &errorMessage);
         qwPrivate = SymbolGroupValue(qwPrivateNode, v.context());
     }
     const SymbolGroupValue oName = qwPrivate[unsigned(0)]["objectName"]; // QWidgetPrivate inherits QObjectPrivate
@@ -1414,8 +1481,8 @@ static inline std::string
                          const QtInfo &qtInfo,
                          const SymbolGroupValue &contextHelper)
 {
-    const std::string module = contextHelper.node()->symbolGroup()->module();
-    std::string rc = QtInfo::prependModuleAndNameSpace(containerType, module, qtInfo.nameSpace);
+    std::string rc = QtInfo::prependModuleAndNameSpace(containerType, contextHelper.module(),
+                                                       qtInfo.nameSpace);
     rc.push_back('<');
     rc += QtInfo::prependModuleAndNameSpace(innerType1, std::string(), qtInfo.nameSpace);
     if (!innerType2.empty()) {
@@ -1707,14 +1774,45 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     return rc;
 }
 
+// Dump of QByteArray: Display as an array of unsigned chars.
+static inline std::vector<AbstractSymbolGroupNode *>
+    complexDumpQByteArray(SymbolGroupNode *n, const SymbolGroupValueContext &ctx)
+{
+    std::vector<AbstractSymbolGroupNode *> rc;
+    const SymbolGroupValue ba(n, ctx);
+    int size = ba["d"]["size"].intValue();
+    ULONG64 address = ba["d"]["data"].pointerValue();
+    if (size <= 0 || !address)
+        return rc;
+    if (size > 200)
+        size = 200;
+    rc.reserve(size);
+    const std::string charType = "unsigned char";
+    std::string errorMessage;
+    SymbolGroup *sg = n->symbolGroup();
+    for (int i = 0; i < size; i++, address++) {
+        SymbolGroupNode *en = sg->addSymbol(std::string(), SymbolGroupValue::pointedToSymbolName(address, charType),
+                                            std::string(), &errorMessage);
+        if (!en) {
+            rc.clear();
+            return rc;
+        }
+        rc.push_back(ReferenceSymbolGroupNode::createArrayNode(i, en));
+    }
+    return rc;
+}
+
 std::vector<AbstractSymbolGroupNode *>
-    dumpComplexType(SymbolGroupNode *, int type, void *specialInfo,
-                    const SymbolGroupValueContext &)
+    dumpComplexType(SymbolGroupNode *n, int type, void *specialInfo,
+                    const SymbolGroupValueContext &ctx)
 {
     std::vector<AbstractSymbolGroupNode *> rc;
     if (!(type & KT_HasComplexDumper))
         return rc;
     switch (type) {
+    case KT_QByteArray:
+        rc = complexDumpQByteArray(n, ctx);
+        break;
     case KT_QWidget: // Special info by simple dumper is the QWidgetPrivate node
     case KT_QObject: // Special info by simple dumper is the QObjectPrivate node
         if (specialInfo) {

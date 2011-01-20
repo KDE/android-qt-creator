@@ -138,10 +138,7 @@ public:
     bool hasQmlObserver() const;
     Utils::Environment qmlToolsEnvironment() const;
 
-    // Builds a debugging library
-    // returns the output of the commands
-    bool buildDebuggingHelperLibrary(QFutureInterface<void> &future, bool onlyQmlDump,
-                                     QString *output, QString *errorMessage);
+    void invalidateCache();
 
     bool hasExamples() const;
     QString examplesPath() const;
@@ -189,6 +186,7 @@ private:
     void updateVersionInfo() const;
     QString findQtBinary(const QStringList &possibleName) const;
     void updateToolChainAndMkspec() const;
+    QString resolveLink(const QString &path) const;
     QString m_displayName;
     QString m_sourcePath;
     QString m_mingwDirectory;

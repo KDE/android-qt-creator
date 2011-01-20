@@ -24,10 +24,8 @@ HEADERS += \
     $$PWD/maemoglobal.h \
     $$PWD/maemosshrunner.h \
     $$PWD/maemodebugsupport.h \
-    $$PWD/maemodeviceconfiglistmodel.h \
     $$PWD/maemoremotemountsmodel.h \
     $$PWD/maemodeviceenvreader.h \
-    $$PWD/maemotemplatesmanager.h \
     $$PWD/maemomountspecification.h \
     $$PWD/maemoremotemounter.h \
     $$PWD/maemoprofilesupdatedialog.h \
@@ -45,7 +43,10 @@ HEADERS += \
     $$PWD/maemoqemuruntime.h \
     $$PWD/maemoqemuruntimeparser.h \
     $$PWD/maemoqemusettingswidget.h \
-    $$PWD/maemoqemusettings.h
+    $$PWD/maemoqemusettings.h \
+    $$PWD/qt4maemotargetfactory.h \
+    $$PWD/qt4maemotarget.h \
+    $$PWD/qt4maemodeployconfiguration.h
 
 SOURCES += \
     $$PWD/maemoconfigtestdialog.cpp \
@@ -71,10 +72,8 @@ SOURCES += \
     $$PWD/maemoglobal.cpp \
     $$PWD/maemosshrunner.cpp \
     $$PWD/maemodebugsupport.cpp \
-    $$PWD/maemodeviceconfiglistmodel.cpp \
     $$PWD/maemoremotemountsmodel.cpp \
     $$PWD/maemodeviceenvreader.cpp \
-    $$PWD/maemotemplatesmanager.cpp \
     $$PWD/maemomountspecification.cpp \
     $$PWD/maemoremotemounter.cpp \
     $$PWD/maemoprofilesupdatedialog.cpp \
@@ -91,7 +90,10 @@ SOURCES += \
     $$PWD/maemopublisherfremantlefree.cpp \
     $$PWD/maemoqemuruntimeparser.cpp \
     $$PWD/maemoqemusettingswidget.cpp \
-    $$PWD/maemoqemusettings.cpp
+    $$PWD/maemoqemusettings.cpp \
+    $$PWD/qt4maemotargetfactory.cpp \
+    $$PWD/qt4maemotarget.cpp \
+    $$PWD/qt4maemodeployconfiguration.cpp
 
 FORMS += \
     $$PWD/maemoconfigtestdialog.ui \

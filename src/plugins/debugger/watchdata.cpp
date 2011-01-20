@@ -12,8 +12,14 @@
 namespace Debugger {
 namespace Internal {
 
-enum GuessChildrenResult { HasChildren, HasNoChildren, HasPossiblyChildren };
-static QString qt_escape(const QString& plain)
+enum GuessChildrenResult
+{
+    HasChildren,
+    HasNoChildren,
+    HasPossiblyChildren
+};
+
+static QString htmlEscape(const QString &plain)
 {
     QString rich;
     rich.reserve(int(plain.length() * 1.1));
@@ -306,18 +312,7 @@ static void formatToolTipRow(QTextStream &str,
     const QString &category, const QString &value)
 {
     str << "<tr><td>" << category << "</td><td> : </td><td>"
-        << qt_escape(value) << "</td></tr>";
-}
-
-static QString typeToolTip(const WatchData &wd)
-{
-    if (wd.displayedType.isEmpty())
-        return wd.type;
-    QString rc = wd.displayedType;
-    rc += QLatin1String(" (");
-    rc += wd.type;
-    rc += QLatin1Char(')');
-    return rc;
+        << htmlEscape(value) << "</td></tr>";
 }
 
 QString WatchData::toToolTip() const
@@ -329,7 +324,8 @@ QString WatchData::toToolTip() const
     str << "<html><body><table>";
     formatToolTipRow(str, tr("Name"), name);
     formatToolTipRow(str, tr("Expression"), exp);
-    formatToolTipRow(str, tr("Type"), typeToolTip(*this));
+    formatToolTipRow(str, tr("Internal Type"), type);
+    formatToolTipRow(str, tr("Displayed Type"), displayedType);
     QString val = value;
     if (value.size() > 1000) {
         val.truncate(1000);

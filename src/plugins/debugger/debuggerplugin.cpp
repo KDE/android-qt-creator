@@ -186,6 +186,7 @@
 //                         +       +
 //                         +       ` +-+-> InferiorSetupFailed +-+-+-+-+-+->.
 //                         +                                                +
+//                  InferiorSetupOk                                         +
 //                         +                                                +
 //                  EngineRunRequested                                      +
 //                         +                                                +
@@ -238,7 +239,7 @@
 //   {notifyInferior-      +        +                                       +
 //      Exited}            +        +                                       +
 //           +             +        +                                       +
-//            +            +        +                                       +
+//     InferiorExitOk      +        +                                       +
 //             +           +        +                                       +
 //            InferiorShutdownOk InferiorShutdownFailed                     +
 //                      *          *                                        +
@@ -267,8 +268,9 @@ sg1:   EngineSetupRequested -> EngineSetupOk [ label="notifyEngineSetupOk", styl
 sg1:   EngineSetupRequested -> EngineSetupFailed [ label= "notifyEngineSetupFailed", style="dashed"];
 sg1:   EngineSetupFailed -> DebuggerFinished [ label= "RunControl::StartFailed" ];
 sg1:   EngineSetupOk -> InferiorSetupRequested [ label= "RunControl::StartSuccessful" ];
+sg1:   InferiorSetupRequested -> InferiorSetupOk [ label="notifyInferiorSetupOk", style="dashed" ];
 sg1:   InferiorSetupRequested -> InferiorSetupFailed [ label="notifyInferiorFailed", style="dashed" ];
-sg1:   InferiorSetupRequested -> EngineRunRequested [ label="notifyInferiorSetupOk", style="dashed" ];
+sg1:   InferiorSetupOk -> EngineRunRequested
 sg1:   InferiorSetupFailed -> EngineShutdownRequested
 sg1:   EngineRunRequested -> InferiorUnrunnable [ label="notifyInferiorUnrunnable", style="dashed" ];
 sg1:   EngineRunRequested -> InferiorStopOk [ label="notifyEngineRunAndInferiorStopOk", style="dashed" ];
@@ -283,9 +285,12 @@ sg1:   InferiorStopOk -> InferiorRunRequested [ label="User\nEngine::continueInf
 sg1:   InferiorRunRequested -> InferiorRunOk [ label="notifyInferiorRunOk", style="dashed"];
 sg1:   InferiorRunRequested -> InferiorRunFailed [ label="notifyInferiorRunFailed", style="dashed"];
 sg1:   InferiorRunFailed -> InferiorStopOk
+sg1:   InferiorStopOk -> InferiorShutdownRequested [ label="Close event" ];
+sg1:   InferiorUnrunnable -> InferiorShutdownRequested [ label="Close event" ];
 sg1:   InferiorShutdownRequested -> InferiorShutdownOk [ label= "Engine::shutdownInferior\nnotifyInferiorShutdownOk", style="dashed" ];
 sg1:   InferiorShutdownRequested -> InferiorShutdownFailed [ label="Engine::shutdownInferior\nnotifyInferiorShutdownFailed", style="dashed" ];
-sg1:   InferiorExited -> InferiorShutdownOk [ label="notifyInferiorExited", style="dashed"];
+sg1:   InferiorExited -> InferiorExitOk [ label="notifyInferiorExited", style="dashed"];
+sg1:   InferiorExitOk -> InferiorShutdownOk
 sg1:   InferiorShutdownOk -> EngineShutdownRequested
 sg1:   InferiorShutdownFailed -> EngineShutdownRequested
 sg1:   EngineShutdownRequested -> EngineShutdownOk [ label="Engine::shutdownEngine\nnotifyEngineShutdownOk", style="dashed" ];
@@ -2867,6 +2872,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
     cmd = am->registerAction(m_actions.interruptAction,
         Constants::INTERRUPT, globalcontext);
     cmd->setDefaultText(tr("Interrupt Debugger"));
+    cmd->setDefaultKeySequence(QKeySequence(Constants::STOP_KEY));
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 
     cmd = am->registerAction(m_actions.continueAction,
@@ -2876,7 +2882,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
 
     cmd = am->registerAction(m_actions.exitAction,
         Constants::STOP, globalcontext);
-    //cmd->setDefaultKeySequence(QKeySequence(Constants::STOP_KEY));
+    cmd->setDefaultKeySequence(QKeySequence(Constants::STOP_KEY));
     cmd->setDefaultText(tr("Stop Debugger"));
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 

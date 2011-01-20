@@ -42,6 +42,12 @@
 namespace Core {
 namespace Internal {
 
+struct Group {
+    Group(const QString &id) : id(id) {}
+    QString id;
+    QList<QObject *> items; // Command * or ActionContainer *
+};
+
 class ActionContainerPrivate : public Core::ActionContainer
 {
     Q_OBJECT
@@ -54,7 +60,7 @@ public:
     ActionContainer::OnAllDisabledBehavior onAllDisabledBehavior() const;
 
     QAction *insertLocation(const QString &group) const;
-    void appendGroup(const QString &group);
+    void appendGroup(const QString &id);
     void addAction(Command *action, const QString &group = QString());
     void addMenu(ActionContainer *menu, const QString &group = QString());
 
@@ -66,9 +72,6 @@ public:
     virtual void insertAction(QAction *before, QAction *action) = 0;
     virtual void insertMenu(QAction *before, QMenu *menu) = 0;
 
-    QList<Command *> commands() const { return m_commands; }
-    QList<ActionContainer *> subContainers() const { return m_subContainers; }
-
     virtual bool updateInternal() = 0;
 
 protected:
@@ -76,23 +79,20 @@ protected:
     bool canAddMenu(ActionContainer *menu) const;
     virtual bool canBeAddedToMenu() const = 0;
 
-    void addAction(Command *action, int pos, bool setpos);
-    void addMenu(ActionContainer *menu, int pos, bool setpos);
+    // groupId --> list of Command* and ActionContainer*
+    QList<Group> m_groups;
 
 private slots:
     void scheduleUpdate();
     void update();
+    void itemDestroyed();
 
 private:
-    QAction *beforeAction(int pos, int *prevKey) const;
-    int calcPosition(int pos, int prevKey) const;
+    QList<Group>::const_iterator findGroup(const QString &groupId) const;
+    QAction *insertLocation(QList<Group>::const_iterator group) const;
 
-    QList<int> m_groups;
     OnAllDisabledBehavior m_onAllDisabledBehavior;
     int m_id;
-    QMap<int, int> m_posmap;
-    QList<ActionContainer *> m_subContainers;
-    QList<Command *> m_commands;
     bool m_updateRequested;
 };
 
@@ -104,9 +104,6 @@ public:
     void setMenu(QMenu *menu);
     QMenu *menu() const;
 
-    void setLocation(const CommandLocation &location);
-    CommandLocation location() const;
-
     void insertAction(QAction *before, QAction *action);
     void insertMenu(QAction *before, QMenu *menu);
 
@@ -116,7 +113,6 @@ protected:
 
 private:
     QMenu *m_menu;
-    CommandLocation m_location;
 };
 
 class MenuBarActionContainer : public ActionContainerPrivate

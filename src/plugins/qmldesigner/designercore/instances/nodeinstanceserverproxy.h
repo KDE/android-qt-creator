@@ -23,7 +23,7 @@ class NodeInstanceServerProxy : public NodeInstanceServerInterface
 {
     Q_OBJECT
 public:
-    explicit NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView);
+    explicit NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView, RunModus runModus = NormalModus);
     ~NodeInstanceServerProxy();
     void createInstances(const CreateInstancesCommand &command);
     void changeFileUrl(const ChangeFileUrlCommand &command);
@@ -61,6 +61,8 @@ private:
     QWeakPointer<QProcess> m_qmlPuppetPreviewProcess;
     quint32 m_firstBlockSize;
     quint32 m_secondBlockSize;
+    RunModus m_runModus;
+    int m_synchronizeId;
 };
 
 } // namespace QmlDesigner

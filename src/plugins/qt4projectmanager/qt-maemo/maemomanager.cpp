@@ -36,14 +36,13 @@
 #include "maemoconstants.h"
 #include "maemodeploystepfactory.h"
 #include "maemodeviceconfigurations.h"
-#include "maemoglobal.h"
 #include "maemopackagecreationfactory.h"
 #include "maemopublishingwizardfactories.h"
 #include "maemoqemumanager.h"
 #include "maemorunfactories.h"
 #include "maemosettingspages.h"
-#include "maemotemplatesmanager.h"
 #include "maemotoolchain.h"
+#include "qt4maemotargetfactory.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <qt4projectmanager/qtversionmanager.h>
@@ -69,13 +68,13 @@ MaemoManager::MaemoManager()
     , m_deviceConfigurationsSettingsPage(new MaemoDeviceConfigurationsSettingsPage(this))
     , m_qemuSettingsPage(new MaemoQemuSettingsPage(this))
     , m_publishingFactoryFremantleFree(new MaemoPublishingWizardFactoryFremantleFree(this))
+    , m_maemoTargetFactory(new Qt4MaemoTargetFactory(this))
 {
     Q_ASSERT(!m_instance);
 
     m_instance = this;
     MaemoQemuManager::instance(this);
     MaemoDeviceConfigurations::instance(this);
-    MaemoTemplatesManager::instance(this);
 
     PluginManager *pluginManager = PluginManager::instance();
     pluginManager->addObject(m_runControlFactory);
@@ -85,6 +84,7 @@ MaemoManager::MaemoManager()
     pluginManager->addObject(m_deviceConfigurationsSettingsPage);
     pluginManager->addObject(m_qemuSettingsPage);
     pluginManager->addObject(m_publishingFactoryFremantleFree);
+    pluginManager->addObject(m_maemoTargetFactory);
 }
 
 MaemoManager::~MaemoManager()
@@ -98,6 +98,7 @@ MaemoManager::~MaemoManager()
     pluginManager->removeObject(m_deviceConfigurationsSettingsPage);
     pluginManager->removeObject(m_qemuSettingsPage);
     pluginManager->removeObject(m_publishingFactoryFremantleFree);
+    pluginManager->removeObject(m_maemoTargetFactory);
 
     m_instance = 0;
 }
@@ -108,30 +109,15 @@ MaemoManager &MaemoManager::instance()
     return *m_instance;
 }
 
-bool MaemoManager::isValidMaemoQtVersion(const QtVersion *version) const
+ToolChain* MaemoManager::maemo5ToolChain(const QtVersion *version) const
 {
-    QProcess madAdminProc;
-    const QStringList arguments(QLatin1String("list"));
-    if (!MaemoGlobal::callMadAdmin(madAdminProc, arguments, version))
-        return false;
-    if (!madAdminProc.waitForStarted() || !madAdminProc.waitForFinished())
-        return false;
-
-    madAdminProc.setReadChannel(QProcess::StandardOutput);
-    const QByteArray targetName = MaemoGlobal::targetName(version).toAscii();
-    while (madAdminProc.canReadLine()) {
-        const QByteArray &line = madAdminProc.readLine();
-        if (line.contains(targetName)
-            && (line.contains("(installed)") || line.contains("(default)")))
-            return true;
-    }
-    return false;
+    return new Maemo5ToolChain(version);
 }
 
-ToolChain* MaemoManager::maemoToolChain(const QtVersion *version) const
+ToolChain* MaemoManager::harmattanToolChain(const QtVersion *version) const
 {
-    return new MaemoToolChain(version);
+    return new HarmattanToolChain(version);
 }
 
-    } // namespace Internal
+} // namespace Internal
 } // namespace Qt4ProjectManager

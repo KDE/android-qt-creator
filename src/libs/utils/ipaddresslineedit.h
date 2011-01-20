@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -31,55 +31,43 @@
 **
 **************************************************************************/
 
-#ifndef ENVIRONMENTEDITMODEL_H
-#define ENVIRONMENTEDITMODEL_H
+#ifndef IPADDRESSLINEEDIT_H
+#define IPADDRESSLINEEDIT_H
 
-#include "projectexplorer_export.h"
+#include "utils_global.h"
 
-#include <QtGui/QWidget>
-
-QT_FORWARD_DECLARE_CLASS(QModelIndex)
+#include <QtGui/QLineEdit>
 
 namespace Utils {
-class Environment;
-class EnvironmentItem;
-}
 
-namespace ProjectExplorer {
-struct EnvironmentWidgetPrivate;
+class IpAddressLineEditPrivate;
 
-class PROJECTEXPLORER_EXPORT EnvironmentWidget : public QWidget
+/**
+ * A LineEdit widget that validates the IP address inserted.
+ * The valid address example is 192.168.1.12 or 192.168.1.12:8080
+ */
+
+class QTCREATOR_UTILS_EXPORT IpAddressLineEdit : public QLineEdit
 {
     Q_OBJECT
 public:
-    explicit EnvironmentWidget(QWidget *parent, QWidget *additionalDetailsWidget = 0);
-    virtual ~EnvironmentWidget();
+    explicit IpAddressLineEdit(QWidget* parent = 0);
+    virtual ~IpAddressLineEdit();
 
-    void setBaseEnvironmentText(const QString &text);
-    void setBaseEnvironment(const Utils::Environment &env);
-
-    QList<Utils::EnvironmentItem> userChanges() const;
-    void setUserChanges(const QList<Utils::EnvironmentItem> &list);
+    bool isValid() const;
 
 signals:
-    void userChangesChanged();
-    void detailsVisibleChanged(bool visible);
+    void validAddressChanged(const QString& address);
+    void invalidAddressChanged();
 
 private slots:
-    void editEnvironmentButtonClicked();
-    void addEnvironmentButtonClicked();
-    void removeEnvironmentButtonClicked();
-    void unsetEnvironmentButtonClicked();
-    void environmentCurrentIndexChanged(const QModelIndex &current);
-    void invalidateCurrentIndex();
-    void updateSummaryText();
-    void focusIndex(const QModelIndex &index);
-    void updateButtons();
+    void validateAddress(const QString &string);
 
 private:
-    QScopedPointer<EnvironmentWidgetPrivate> d;
+    IpAddressLineEditPrivate *m_d;
 };
 
-} // namespace ProjectExplorer
+} // namespace Utils
 
-#endif // ENVIRONMENTEDITMODEL_H
+
+#endif // IPADDRESSLINEEDIT_H

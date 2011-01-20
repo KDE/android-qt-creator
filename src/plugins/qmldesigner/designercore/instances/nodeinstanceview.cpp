@@ -112,9 +112,10 @@ d too.
 
 \see ~NodeInstanceView setRenderOffScreen
 */
-NodeInstanceView::NodeInstanceView(QObject *parent)
+NodeInstanceView::NodeInstanceView(QObject *parent, NodeInstanceServerInterface::RunModus runModus)
         : AbstractView(parent),
-          m_baseStatePreviewImage(QSize(100, 100), QImage::Format_ARGB32)
+          m_baseStatePreviewImage(QSize(100, 100), QImage::Format_ARGB32),
+          m_runModus(runModus)
 {
     m_baseStatePreviewImage.fill(0xFFFFFF);
 }
@@ -141,8 +142,9 @@ NodeInstanceView::~NodeInstanceView()
 void NodeInstanceView::modelAttached(Model *model)
 {
     AbstractView::modelAttached(model);
-    m_nodeInstanceServer = new NodeInstanceServerProxy(this);
-    connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(restartProcess()));
+    m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus);
+    m_lastCrashTime.start();
+    connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
     nodeInstanceServer()->createScene(createCreateSceneCommand());
 }
@@ -155,14 +157,21 @@ void NodeInstanceView::modelAboutToBeDetached(Model * model)
     AbstractView::modelAboutToBeDetached(model);
 }
 
+void NodeInstanceView::handleChrash()
+{
+    int elaspsedTimeSinceLastCrash = m_lastCrashTime.restart();
+
+    if (elaspsedTimeSinceLastCrash > 10000)
+        restartProcess();
+}
 
 void NodeInstanceView::restartProcess()
 {
     if (model()) {
         delete nodeInstanceServer();
 
-        m_nodeInstanceServer = new NodeInstanceServerProxy(this);
-        connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(restartProcess()));
+        m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus);
+        connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
         nodeInstanceServer()->createScene(createCreateSceneCommand());
     }
@@ -305,10 +314,7 @@ void NodeInstanceView::removeInstanceAndSubInstances(const ModelNode &node)
 
 void NodeInstanceView::rootNodeTypeChanged(const QString &/*type*/, int /*majorVersion*/, int /*minorVersion*/)
 {
-    nodeInstanceServer()->clearScene(createClearSceneCommand());
-    removeAllInstanceNodeRelationships();
-
-    nodeInstanceServer()->createScene(createCreateSceneCommand());
+    restartProcess();
 }
 
 void NodeInstanceView::bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags /*propertyChange*/)
@@ -917,20 +923,21 @@ void NodeInstanceView::informationChanged(const InformationChangedCommand &comma
     if (!model())
         return;
 
-    QList<ModelNode> informationChangedList;
+    QVector<ModelNode> informationChangedVector;
 
     foreach(const InformationContainer &container, command.informations()) {
         if (hasInstanceForId(container.instanceId())) {
             NodeInstance instance = instanceForId(container.instanceId());
             if (instance.isValid()) {
                 instance.setInformation(container.name(), container.information(), container.secondInformation(), container.thirdInformation());
-                informationChangedList.append(instance.modelNode());
+                if (!informationChangedVector.contains(instance.modelNode()))
+                    informationChangedVector.append(instance.modelNode());
             }
         }
     }
 
-    if (!informationChangedList.isEmpty())
-        emitCustomNotification("__instance information changed__", informationChangedList);
+    if (!informationChangedVector.isEmpty())
+        emitCustomNotification("__instance information changed__", informationChangedVector.toList());
 }
 
 QImage NodeInstanceView::statePreviewImage(const ModelNode &stateNode) const

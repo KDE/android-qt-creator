@@ -242,28 +242,19 @@ ActionManagerPrivate::ActionManagerPrivate(MainWindow *mainWnd)
   : ActionManager(mainWnd),
     m_mainWnd(mainWnd)
 {
-    UniqueIDManager *uidmgr = UniqueIDManager::instance();
-    m_defaultGroups << uidmgr->uniqueIdentifier(Constants::G_DEFAULT_ONE);
-    m_defaultGroups << uidmgr->uniqueIdentifier(Constants::G_DEFAULT_TWO);
-    m_defaultGroups << uidmgr->uniqueIdentifier(Constants::G_DEFAULT_THREE);
     m_instance = this;
-
 }
 
 ActionManagerPrivate::~ActionManagerPrivate()
 {
-    qDeleteAll(m_idCmdMap.values());
+    // first delete containers to avoid them reacting to command deletion
     qDeleteAll(m_idContainerMap.values());
+    qDeleteAll(m_idCmdMap.values());
 }
 
 ActionManagerPrivate *ActionManagerPrivate::instance()
 {
     return m_instance;
-}
-
-QList<int> ActionManagerPrivate::defaultGroups() const
-{
-    return m_defaultGroups;
 }
 
 QList<Command *> ActionManagerPrivate::commands() const
@@ -372,6 +363,7 @@ Action *ActionManagerPrivate::overridableAction(const Id &id)
         m_mainWnd->addAction(a->action());
         a->action()->setObjectName(id);
         a->action()->setShortcutContext(Qt::ApplicationShortcut);
+        a->setCurrentContext(m_context);
     }
 
     return a;
@@ -391,6 +383,7 @@ void ActionManagerPrivate::unregisterAction(QAction *action, const Id &id)
     a->removeOverrideAction(action);
     if (a->isEmpty()) {
         // clean up
+        // ActionContainers listen to the commands' destroyed signals
         m_mainWnd->removeAction(a->action());
         delete a->action();
         m_idCmdMap.remove(uid);

@@ -116,6 +116,8 @@ private: ////////// General Interface //////////
 
     virtual void executeDebuggerCommand(const QString &command);
     virtual QByteArray qtNamespace() const { return m_dumperHelper.qtNamespace(); }
+    virtual void setQtNamespace(const QByteArray &ns)
+        { return m_dumperHelper.setQtNamespace(ns); }
 
 private: ////////// General State //////////
 
@@ -547,6 +549,14 @@ private: ////////// View & Data Stuff //////////
     // For short-circuiting stack and thread list evaluation.
     bool m_stackNeeded;
     int m_currentThreadId;
+
+    //
+    // Qml
+    //
+    QHash<int, int> m_qmlBreakpointNumbers;
+    bool m_preparedForQmlBreak;
+    bool setupQmlStep(bool on);
+    void handleSetQmlStepBreakpoint(const GdbResponse &response);
 
     // HACK:
     StackFrame m_targetFrame;
