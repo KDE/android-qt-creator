@@ -70,6 +70,8 @@ public:
     QString defaultBuildDirectory() const;
     void createApplicationProFiles();
 
+    QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);
+
     static QString defaultDisplayName();
 
 

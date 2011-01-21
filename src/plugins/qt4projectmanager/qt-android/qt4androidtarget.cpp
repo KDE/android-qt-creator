@@ -128,6 +128,16 @@ void Qt4AndroidTarget::createApplicationProFiles()
     }
 }
 
+QList<ProjectExplorer::RunConfiguration *> Qt4AndroidTarget::runConfigurationsForNode(ProjectExplorer::Node *n)
+{
+    QList<ProjectExplorer::RunConfiguration *> result;
+    foreach (ProjectExplorer::RunConfiguration *rc, runConfigurations())
+        if (AndroidRunConfiguration *qt4c = qobject_cast<AndroidRunConfiguration *>(rc))
+                if (qt4c->proFilePath() == n->path())
+                    result << rc;
+    return result;
+}
+
 QString Qt4AndroidTarget::defaultDisplayName()
 {
     return QApplication::translate("Qt4ProjectManager::Qt4Target", "Android", "Qt4 Android target display name");
