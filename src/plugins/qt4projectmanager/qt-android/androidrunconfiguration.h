@@ -46,7 +46,6 @@ namespace Qt4ProjectManager {
 
 class Qt4BuildConfiguration;
 class Qt4Project;
-class Qt4AndroidTarget;
 
 namespace Internal {
 
@@ -56,6 +55,7 @@ class AndroidDeviceConfigListModel;
 class AndroidDeployStep;
 class AndroidRunConfigurationFactory;
 class AndroidToolChain;
+class Qt4AndroidTarget;
 
 class AndroidRunConfiguration : public ProjectExplorer::RunConfiguration
 {
@@ -77,7 +77,7 @@ public:
     bool isEnabled(ProjectExplorer::BuildConfiguration *config) const;
     QWidget *createConfigurationWidget();
     ProjectExplorer::OutputFormatter *createOutputFormatter() const;
-    Qt4AndroidTarget *qt4Target() const;
+    Qt4AndroidTarget *androidTarget() const;
     Qt4BuildConfiguration *activeQt4BuildConfiguration() const;
 
     AndroidDeployStep *deployStep() const;
@@ -88,6 +88,8 @@ public:
     void setArguments(const QString &args);
     AndroidConfig config() const;
     void updateFactoryState() { emit isEnabledChanged(true); }
+    QString proFilePath() const;
+
     DebuggingType debuggingType() const;
 
     const QString gdbCmd() const;

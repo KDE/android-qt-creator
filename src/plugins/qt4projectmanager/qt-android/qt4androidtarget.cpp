@@ -30,7 +30,7 @@
 #include "qt4androidtarget.h"
 #include "qt4androiddeployconfiguration.h"
 #include "androidconfigurations.h"
-
+#include "androidrunconfiguration.h"
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidpackagecreationstep.h"
@@ -39,6 +39,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/target.h>
 #include <qt4projectmanager/qt4nodes.h>
 #include <qt4projectmanager/qt4project.h>
@@ -52,6 +53,7 @@
 #include <QtGui/QPixmap>
 #include <QtCore/QProcess>
 #include <QtGui/QMessageBox>
+#include <QtGui/QApplication>
 #include <QDomDocument>
 
 #include <cctype>
@@ -113,12 +115,12 @@ void Qt4AndroidTarget::createApplicationProFiles()
         paths << pro->path();
 
     foreach (ProjectExplorer::RunConfiguration *rc, runConfigurations())
-        if (MaemoRunConfiguration *qt4rc = qobject_cast<MaemoRunConfiguration *>(rc))
+        if (AndroidRunConfiguration *qt4rc = qobject_cast<AndroidRunConfiguration *>(rc))
             paths.remove(qt4rc->proFilePath());
 
     // Only add new runconfigurations if there are none.
     foreach (const QString &path, paths)
-        addRunConfiguration(new MaemoRunConfiguration(this, path));
+        addRunConfiguration(new AndroidRunConfiguration(this, path));
 
     // Oh still none? Add a custom executable runconfiguration
     if (runConfigurations().isEmpty()) {
@@ -265,16 +267,16 @@ bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
     const Qt4Project * qt4Project = qobject_cast<Qt4Project*>(project());
     if (!qt4Project)
         return false;
-    QDir projectDir(project->projectDirectory());
+    QDir projectDir(project()->projectDirectory());
     QString androidPath=androidDirPath();
 
     if (!forceJava && QFileInfo(androidPath).exists()
-            && QFileInfo(androidManifestPath(project)).exists()
+            && QFileInfo(androidManifestPath()).exists()
             && QFileInfo(androidPath+QLatin1String("/src")).exists()
             && QFileInfo(androidPath+QLatin1String("/res")).exists())
         return true;
 
-    if (!QFileInfo(androidDirPath(project)).exists())
+    if (!QFileInfo(androidDirPath()).exists())
         if (!projectDir.mkdir(AndroidDirName) && !forceJava)
         {
             raiseError(tr("Error creating Android directory '%1'.")
@@ -326,7 +328,7 @@ bool Qt4AndroidTarget::openAndroidManifest(QDomDocument & doc)
     QFile f(androidManifestPath());
     if (!f.open(QIODevice::ReadOnly))
     {
-        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath(project)));
+        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath()));
         return false;
     }
     if (!doc.setContent(f.readAll()))
@@ -345,7 +347,7 @@ bool Qt4AndroidTarget::saveAndroidManifest(QDomDocument & doc)
     QFile f(androidManifestPath());
     if (!f.open(QIODevice::WriteOnly))
     {
-        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath(project)));
+        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath()));
         return false;
     }
     return f.write(doc.toByteArray(4))>=0;
@@ -362,7 +364,7 @@ QString Qt4AndroidTarget::activityName()
 
 QString Qt4AndroidTarget::intentName()
 {
-    return packageName()+QLatin1Char('/')+activityName(project);
+    return packageName()+QLatin1Char('/')+activityName();
 }
 
 QString Qt4AndroidTarget::packageName()
@@ -412,7 +414,7 @@ int Qt4AndroidTarget::versionCode()
     return manifestElem.attribute(QLatin1String("android:versionCode")).toInt();
 }
 
-bool Qt4AndroidTarget::setVersionCode(, int version)
+bool Qt4AndroidTarget::setVersionCode(int version)
 {
     QDomDocument doc;
     if (!openAndroidManifest(doc))
@@ -432,7 +434,7 @@ QString Qt4AndroidTarget::versionName()
     return manifestElem.attribute(QLatin1String("android:versionName"));
 }
 
-bool Qt4AndroidTarget::setVersionName(, const QString &version)
+bool Qt4AndroidTarget::setVersionName(const QString &version)
 {
     QDomDocument doc;
     if (!openAndroidManifest(doc))
@@ -457,7 +459,7 @@ QStringList Qt4AndroidTarget::permissions()
     return per;
 }
 
-bool Qt4AndroidTarget::setPermissions(, const QStringList & permissions)
+bool Qt4AndroidTarget::setPermissions(const QStringList & permissions)
 {
     QDomDocument doc;
     if (!openAndroidManifest(doc))
@@ -483,7 +485,7 @@ bool Qt4AndroidTarget::setPermissions(, const QStringList & permissions)
 QStringList Qt4AndroidTarget::availableQtLibs()
 {
     QStringList libs;
-    const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project);
+    const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
     QString libsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->sourcePath()+"/lib";
     QDirIterator libsIt(libsPath, QStringList()<<"libQt*.so");
     while(libsIt.hasNext())
@@ -501,7 +503,7 @@ QStringList Qt4AndroidTarget::qtLibs()
     return libs;
 }
 
-bool Qt4AndroidTarget::setQtLibs(, const QStringList & qtLibs)
+bool Qt4AndroidTarget::setQtLibs(const QStringList & qtLibs)
 {
 
     return true;
@@ -510,7 +512,7 @@ bool Qt4AndroidTarget::setQtLibs(, const QStringList & qtLibs)
 QStringList Qt4AndroidTarget::availablePrebundledLibs()
 {
     QStringList libs;
-    Qt4Project * qt4Project = qobject_cast<Qt4Project *>(project);
+    Qt4Project * qt4Project = qobject_cast<Qt4Project *>(project());
     QList<Qt4Project *> qt4Projects;
     qt4Projects<<qt4Project;
     foreach (ProjectExplorer::Project* pr, qt4Project->dependsOn())
@@ -520,7 +522,7 @@ QStringList Qt4AndroidTarget::availablePrebundledLibs()
             qt4Projects<<qt4Project;
     }
 
-    foreach(qt4qt4Projects)
+    foreach(Qt4Project * qt4Project, qt4Projects)
         foreach(Qt4ProFileNode * node, qt4Project->leafProFiles())
             if (node->projectType()== LibraryTemplate)
                 libs<<QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
@@ -535,7 +537,7 @@ QStringList Qt4AndroidTarget::prebundledLibs()
     return libs;
 }
 
-bool Qt4AndroidTarget::setPrebundledLibs(, const QStringList & qtLibs)
+bool Qt4AndroidTarget::setPrebundledLibs(const QStringList & qtLibs)
 {
 
     return true;
@@ -543,9 +545,9 @@ bool Qt4AndroidTarget::setPrebundledLibs(, const QStringList & qtLibs)
 
 QString Qt4AndroidTarget::targetSDK()
 {
-    if (!createAndroidTemplatesIfNecessary(project))
+    if (!createAndroidTemplatesIfNecessary())
         return "android-4";
-    QFile file(androidDefaultPropertiesPath(project));
+    QFile file(androidDefaultPropertiesPath());
     if (!file.open(QIODevice::ReadOnly))
         return "android-4";
     while(!file.atEnd())
@@ -557,328 +559,13 @@ QString Qt4AndroidTarget::targetSDK()
     return "android-4";
 }
 
-bool Qt4AndroidTarget::setTargetSDK(, const QString & target)
+bool Qt4AndroidTarget::setTargetSDK(const QString & target)
 {
     updateProject(target);
     return true;
 }
 
-
-//    QString error;
-//    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
-//    Q_ASSERT_X(qt4Target, Q_FUNC_INFO, "Target ID does not match actual type.");
-//    const Qt4BuildConfiguration * const bc
-//        = qt4Target->activeBuildConfiguration();
-//    const AndroidToolChain * const tc
-//        = dynamic_cast<AndroidToolChain *>(bc->toolChain());
-//    if (!tc) {
-//        qDebug("Android target has no Android toolchain.");
-//        return false;
-//    }
-//    if (!AndroidPackageCreationStep::preparePackagingProcess(&dh_makeProc, bc,
-//        projectDir.path() + QLatin1Char('/') + PackagingDirName, &error)) {
-//        raiseError(error);
-//        return false;
-//    }
-
-//    const QString dhMakeDebianDir = projectDir.path() + QLatin1Char('/')
-//        + PackagingDirName + QLatin1String("/debian");
-//    AndroidPackageCreationStep::removeDirectory(dhMakeDebianDir);
-//    const QString command = QLatin1String("dh_make -s -n -p ")
-//        + AndroidPackageCreationStep::packageName(project) + QLatin1Char('_')
-//        + AndroidPackageCreationStep::DefaultVersionNumber;
-//    dh_makeProc.start(AndroidPackageCreationStep::packagingCommand(tc, command));
-//    if (!dh_makeProc.waitForStarted()) {
-//        raiseError(tr("Unable to create Debian templates: dh_make failed (%1)")
-//            .arg(dh_makeProc.errorString()));
-//        return false;
-//    }
-//    dh_makeProc.write("\n"); // Needs user input.
-//    dh_makeProc.waitForFinished(-1);
-//    if (dh_makeProc.error() != QProcess::UnknownError
-//        || dh_makeProc.exitCode() != 0) {
-//        raiseError(tr("Unable to create debian templates: dh_make failed (%1)")
-//            .arg(dh_makeProc.errorString()));
-//        return false;
-//    }
-
-//    if (!QFile::rename(dhMakeDebianDir, debianDirPath(project))) {
-//        raiseError(tr("Unable to move new debian directory to '%1'.")
-//            .arg(QDir::toNativeSeparators(debianDirPath(project))));
-//        AndroidPackageCreationStep::removeDirectory(dhMakeDebianDir);
-//        return false;
-//    }
-
-//    QDir debianDir(debianDirPath(project));
-//    const QStringList &files = debianDir.entryList(QDir::Files);
-//    foreach (const QString &fileName, files) {
-//        if (fileName.endsWith(QLatin1String(".ex"), Qt::CaseInsensitive)
-//            || fileName.compare(QLatin1String("README.debian"), Qt::CaseInsensitive) == 0
-//            || fileName.compare(QLatin1String("dirs"), Qt::CaseInsensitive) == 0
-//            || fileName.compare(QLatin1String("docs"), Qt::CaseInsensitive) == 0) {
-//            debianDir.remove(fileName);
-//        }
-//    }
-
-//    return adaptRulesFile(project) && adaptControlFile(project);
-//}
-
-//bool AndroidTemplatesManager::adaptRulesFile(const Project *project)
-//{
-//    const QString rulesFilePath = debianDirPath(project) + "/rules";
-//    QFile rulesFile(rulesFilePath);
-//    if (!rulesFile.open(QIODevice::ReadWrite)) {
-//        raiseError(tr("Packaging Error: Cannot open file '%1'.")
-//                   .arg(QDir::toNativeSeparators(rulesFilePath)));
-//        return false;
-//    }
-//    QByteArray rulesContents = rulesFile.readAll();
-//    rulesContents.replace("DESTDIR", "INSTALL_ROOT");
-//    rulesContents.replace("dh_shlibdeps", "# dh_shlibdeps");
-////    rulesContents.replace("$(MAKE) clean", "# $(MAKE) clean");
-////    const Qt4Project * const qt4Project
-////        = static_cast<const Qt4Project *>(project);
-////    const QString proFileName
-////        = QFileInfo(qt4Project->rootProjectNode()->path()).fileName();
-////    rulesContents.replace("# Add here commands to configure the package.",
-////        "qmake " + proFileName.toLocal8Bit());
-
-//    // Would be the right solution, but does not work (on Windows),
-//    // because dpkg-genchanges doesn't know about it (and can't be told).
-//    // rulesContents.replace("dh_builddeb", "dh_builddeb --destdir=.");
-
-//    rulesFile.resize(0);
-//    rulesFile.write(rulesContents);
-//    rulesFile.close();
-//    if (rulesFile.error() != QFile::NoError) {
-//        raiseError(tr("Packaging Error: Cannot write file '%1'.")
-//                   .arg(QDir::toNativeSeparators(rulesFilePath)));
-//        return false;
-//    }
-
-
-bool Qt4AndroidTarget::adaptControlFile(const Project *project)
-{
-//    QFile controlFile(controlFilePath(project));
-//    if (!controlFile.open(QIODevice::ReadWrite)) {
-//        raiseError(tr("Packaging Error: Cannot open file '%1'.")
-//                   .arg(QDir::toNativeSeparators(controlFilePath(project))));
-//        return false;
-//    }
-
-//    QByteArray controlContents = controlFile.readAll();
-
-//    adaptControlFileField(controlContents, "Section", "user/hidden");
-//    adaptControlFileField(controlContents, "Priority", "optional");
-//    const int buildDependsOffset = controlContents.indexOf("Build-Depends:");
-//    if (buildDependsOffset == -1) {
-//        qDebug("Unexpected: no Build-Depends field in debian control file.");
-//    } else {
-//        int buildDependsNewlineOffset
-//            = controlContents.indexOf('\n', buildDependsOffset);
-//        if (buildDependsNewlineOffset == -1) {
-//            controlContents += '\n';
-//            buildDependsNewlineOffset = controlContents.length() - 1;
-//        }
-//        controlContents.insert(buildDependsNewlineOffset,
-//            ", libqt4-dev");
-//    }
-
-//    controlFile.resize(0);
-//    controlFile.write(controlContents);
-//    controlFile.close();
-//    if (controlFile.error() != QFile::NoError) {
-//        raiseError(tr("Packaging Error: Cannot write file '%1'.")
-//                   .arg(QDir::toNativeSeparators(controlFilePath(project))));
-//        return false;
-//    }
-    return true;
-}
-
-void Qt4AndroidTarget::adaptControlFileField(QByteArray &document,
-    const QByteArray &fieldName, const QByteArray &newFieldValue)
-{
-//    QByteArray adaptedLine = fieldName + ": " + newFieldValue;
-//    const int lineOffset = document.indexOf(fieldName + ":");
-//    if (lineOffset == -1) {
-//        document.append(adaptedLine).append('\n');
-//    } else {
-//        int newlineOffset = document.indexOf('\n', lineOffset);
-//        if (newlineOffset == -1) {
-//            newlineOffset = document.length();
-//            adaptedLine += '\n';
-//        }
-//        document.replace(lineOffset, newlineOffset - lineOffset, adaptedLine);
-//    }
-}
-
-bool Qt4AndroidTarget::updateDesktopFiles(const Qt4Target *target)
-{
-//    const Qt4Target * const qt4Target = qobject_cast<const Qt4Target *>(target);
-//    Q_ASSERT_X(qt4Target, Q_FUNC_INFO,
-//        "Impossible: Target has Android id, but could not be cast to Qt4Target.");
-//    const QList<Qt4ProFileNode *> &applicationProjects
-//        = qt4Target->qt4Project()->applicationProFiles();
-    bool success = true;
-//    foreach (Qt4ProFileNode *proFileNode, applicationProjects)
-//        success &= updateDesktopFile(qt4Target, proFileNode);
-    return success;
-}
-
-bool Qt4AndroidTarget::updateDesktopFile(const Qt4Target *target,
-    Qt4ProFileNode *proFileNode)
-{
-//    const QString appName = proFileNode->targetInformation().target;
-//    const QString desktopFilePath = QFileInfo(proFileNode->path()).path()
-//        + QLatin1Char('/') + appName + QLatin1String(".desktop");
-//    QFile desktopFile(desktopFilePath);
-//    const bool existsAlready = desktopFile.exists();
-//    if (!desktopFile.open(QIODevice::ReadWrite)) {
-//        qWarning("Failed to open '%s': %s", qPrintable(desktopFilePath),
-//            qPrintable(desktopFile.errorString()));
-//        return false;
-//    }
-
-//    const QByteArray desktopTemplate("[Desktop Entry]\nEncoding=UTF-8\n"
-//        "Version=1.0\nType=Application\nTerminal=false\nName=\nExec=\n"
-//        "Icon=\nX-Window-Icon=\nX-HildonDesk-ShowInToolbar=true\n"
-//        "X-Osso-Type=application/x-executable\n");
-//    QByteArray desktopFileContents
-//        = existsAlready ? desktopFile.readAll() : desktopTemplate;
-
-//    QString executable;
-//    const QSharedPointer<AndroidDeployables> &deployables
-//        = AndroidGlobal::buildStep<AndroidDeployStep>(target->activeDeployConfiguration())
-//            ->deployables();
-//    for (int i = 0; i < deployables->modelCount(); ++i) {
-//        const AndroidDeployableListModel * const model = deployables->modelAt(i);
-//        if (model->proFilePath() == proFileNode->path()) {
-//            executable = model->remoteExecutableFilePath();
-//            break;
-//        }
-//    }
-//    if (executable.isEmpty()) {
-//        qWarning("Strange: Project file node not managed by AndroidDeployables.");
-//    } else {
-//        int execNewLinePos, execValuePos;
-//        findLine("Exec=", desktopFileContents, execNewLinePos, execValuePos);
-//        desktopFileContents.replace(execValuePos, execNewLinePos - execValuePos,
-//            executable.toUtf8());
-//    }
-
-//    int nameNewLinePos, nameValuePos;
-//    findLine("Name=", desktopFileContents, nameNewLinePos, nameValuePos);
-//    if (nameNewLinePos == nameValuePos)
-//        desktopFileContents.insert(nameValuePos, appName.toUtf8());
-//    int iconNewLinePos, iconValuePos;
-//    findLine("Icon=", desktopFileContents, iconNewLinePos, iconValuePos);
-//    if (iconNewLinePos == iconValuePos)
-//        desktopFileContents.insert(iconValuePos, appName.toUtf8());
-
-//    desktopFile.resize(0);
-//    desktopFile.write(desktopFileContents);
-//    desktopFile.close();
-//    if (desktopFile.error() != QFile::NoError) {
-//        qWarning("Could not write '%s': %s", qPrintable(desktopFilePath),
-//            qPrintable(desktopFile.errorString()));
-//    }
-
-//    if (!existsAlready) {
-//        proFileNode->addFiles(UnknownFileType,
-//            QStringList() << desktopFilePath);
-//        QFile proFile(proFileNode->path());
-//        if (!proFile.open(QIODevice::ReadWrite)) {
-//            qWarning("Failed to open '%s': %s", qPrintable(proFileNode->path()),
-//                qPrintable(proFile.errorString()));
-//            return false;
-//        }
-//        QByteArray proFileContents = proFile.readAll();
-//        proFileContents += "\nunix:!symbian {\n"
-//            "    desktopfile.files = $${TARGET}.desktop\n"
-//            "    maemo5 {\n"
-//            "        desktopfile.path = /usr/share/applications/hildon\n"
-//            "    } else {\n"
-//            "        desktopfile.path = /usr/share/applications\n    }\n"
-//            "    INSTALLS += desktopfile\n}\n";
-//        proFile.resize(0);
-//        proFile.write(proFileContents);
-//        proFile.close();
-//        if (proFile.error() != QFile::NoError) {
-//            qWarning("Could not write '%s': %s", qPrintable(proFileNode->path()),
-//                qPrintable(proFile.errorString()));
-//            return false;
-//        }
-//    }
-    return true;
-}
-
-void Qt4AndroidTarget::handleProjectToBeRemoved()
-{
-//    AndroidProjectMap::Iterator it = m_androidProjects.find(project);
-//    if (it != m_androidProjects.end()) {
-//        delete it.value();
-//        m_androidProjects.erase(it);
-//    }
-}
-
-void Qt4AndroidTarget::handleProFileUpdated()
-{
-//    const AndroidDeployables * const deployables
-//        = qobject_cast<AndroidDeployables *>(sender());
-//    if (!deployables)
-//        return;
-//    const Target * const target = deployables->buildStep()->target();
-//    if (m_androidProjects.contains(target->project()))
-//        updateDesktopFiles(qobject_cast<const Qt4Target *>(target));
-}
-
-//QString AndroidTemplatesManager::version(const Project *project)
-//{
-//    return "1.0";
-//    QSharedPointer<QFile> changeLog
-//        = openFile(changeLogFilePath(project), QIODevice::ReadOnly, error);
-//    if (!changeLog)
-//        return QString();
-//    const QByteArray &firstLine = changeLog->readLine();
-//    const int openParenPos = firstLine.indexOf('(');
-//    if (openParenPos == -1) {
-//        *error = tr("Debian changelog file '%1' has unexpected format.")
-//                .arg(QDir::toNativeSeparators(changeLog->fileName()));
-//        return QString();
-//    }
-//    const int closeParenPos = firstLine.indexOf(')', openParenPos);
-//    if (closeParenPos == -1) {
-//        *error = tr("Debian changelog file '%1' has unexpected format.")
-//                .arg(QDir::toNativeSeparators(changeLog->fileName()));
-//        return QString();
-//    }
-//    return QString::fromUtf8(firstLine.mid(openParenPos + 1,
-//        closeParenPos - openParenPos - 1).data());
-//}
-
-//bool AndroidTemplatesManager::setVersion(const Project *const QString &version)
-//{
-//    QSharedPointer<QFile> changeLog
-//        = openFile(changeLogFilePath(project), QIODevice::ReadWrite, error);
-//    if (!changeLog)
-//        return false;
-
-//    QString content = QString::fromUtf8(changeLog->readAll());
-//    content.replace(QRegExp(QLatin1String("\\([a-zA-Z0-9_\\.]+\\)")),
-//        QLatin1Char('(') + version + QLatin1Char(')'));
-//    changeLog->resize(0);
-//    changeLog->write(content.toUtf8());
-//    changeLog->close();
-//    if (changeLog->error() != QFile::NoError) {
-//        *error = tr("Error writing Debian changelog file '%1': %2")
-//            .arg(QDir::toNativeSeparators(changeLog->fileName()),
-//                 changeLog->errorString());
-//        return false;
-//    }
-//    return true;
-//}
-
-QIcon Qt4AndroidTarget::packageManagerIcon(Project *project)
+QIcon Qt4AndroidTarget::packageManagerIcon()
 {
 //    QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
@@ -918,7 +605,7 @@ QIcon Qt4AndroidTarget::packageManagerIcon(Project *project)
 //    return QIcon(pixmap);
 }
 
-bool Qt4AndroidTarget::setPackageManagerIcon(Project *project, const QString &iconFilePath)
+bool Qt4AndroidTarget::setPackageManagerIcon(const QString &iconFilePath)
 {
 //    const QSharedPointer<QFile> controlFile
 //        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);
@@ -978,53 +665,6 @@ void Qt4AndroidTarget::raiseError(const QString &reason)
     QMessageBox::critical(0, tr("Error creating Android templates"), reason);
 }
 
-void Qt4AndroidTarget::handleAndroidDirContentsChanged()
-{
-    Project * const project
-        = findProject(qobject_cast<QFileSystemWatcher *>(sender()));
-    if (project)
-        emit androidDirContentsChanged(project);
-}
-
-QSharedPointer<QFile> Qt4AndroidTarget::openFile(const QString &filePath,
-    QIODevice::OpenMode mode, QString *error) const
-{
-    const QString nativePath = QDir::toNativeSeparators(filePath);
-    QSharedPointer<QFile> file(new QFile(filePath));
-    if (!file->exists()) {
-        *error = tr("File '%1' does not exist").arg(nativePath);
-    } else if (!file->open(mode)) {
-        *error = tr("Cannot open file '%1': %2")
-            .arg(nativePath, file->errorString());
-    }
-    return file;
-}
-
-Project *Qt4AndroidTarget::findProject(const QFileSystemWatcher *fsWatcher) const
-{
-    for (AndroidProjectMap::ConstIterator it = m_androidProjects.constBegin();
-        it != m_androidProjects.constEnd(); ++it) {
-        if (it.value() == fsWatcher)
-            return it.key();
-    }
-    return 0;
-}
-
-void Qt4AndroidTarget::findLine(const QByteArray &string,
-    QByteArray &document, int &lineEndPos, int &valuePos)
-{
-    int lineStartPos = document.indexOf(string);
-    if (lineStartPos == -1) {
-        lineStartPos = document.length();
-        document += string + '\n';
-    }
-    valuePos = lineStartPos + string.length();
-    lineEndPos = document.indexOf('\n', lineStartPos);
-    if (lineEndPos == -1) {
-        lineEndPos = document.length();
-        document += '\n';
-    }
-}
 
 } // namespace Internal
 } // namespace Qt4ProjectManager

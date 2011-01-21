@@ -45,8 +45,8 @@
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidpackagecreationwidget.h"
-#include "androidtemplatesmanager.h"
 #include "androidtoolchain.h"
+#include "qt4androidtarget.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -117,13 +117,19 @@ BuildStepConfigWidget *AndroidPackageCreationStep::createConfigWidget()
     return new AndroidPackageCreationWidget(this);
 }
 
+Qt4AndroidTarget *AndroidPackageCreationStep::androidTarget() const
+{
+    return qobject_cast<Qt4AndroidTarget *>(buildConfiguration()->target());
+}
+
+
 bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 {
     const Qt4BuildConfiguration * bc=static_cast<Qt4BuildConfiguration *>(buildConfiguration());
-
+    Qt4AndroidTarget * target=androidTarget();
     emit addOutput(tr("Copy Qt app & libs to android ..."), MessageOutput);
 
-    const QString androidDir(AndroidTemplatesManager::instance()->androidDirPath(bc->qt4Target()->qt4Project()));
+    const QString androidDir(target->androidDirPath());
     const QString androidLibPath(androidDir+QLatin1String("/libs/armeabi"));
     removeDirectory(androidLibPath);
     QDir d(androidDir);
@@ -194,11 +200,10 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 
 
     emit addOutput(tr("Creating package file ..."), MessageOutput);
-    if (!AndroidTemplatesManager::instance()->createAndroidTemplatesIfNecessary(bc->qt4Target()->qt4Project()))
+    if (!target->createAndroidTemplatesIfNecessary())
         return false;
 
-    AndroidTemplatesManager::instance()->updateProject(bc->qt4Target()->qt4Project(),
-                                                       AndroidTemplatesManager::instance()->targetSDK(bc->qt4Target()->qt4Project()));
+    target->updateProject(target->targetSDK());
 
     buildProc->setWorkingDirectory(androidDir);
 

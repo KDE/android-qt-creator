@@ -55,6 +55,7 @@ namespace Qt4ProjectManager {
 class Qt4BuildConfiguration;
 
 namespace Internal {
+class Qt4AndroidTarget;
 
 class AndroidPackageCreationStep : public ProjectExplorer::BuildStep
 {
@@ -69,6 +70,8 @@ public:
     static void stripAndroidLibs(const QStringList & files);
 
     static const QLatin1String DefaultVersionNumber;
+
+    Qt4AndroidTarget * androidTarget() const;
 
 private slots:
     void handleBuildOutput();

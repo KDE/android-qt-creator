@@ -37,6 +37,7 @@
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidrunner.h"
+#include "qt4androidtarget.h"
 
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerrunner.h>
@@ -66,13 +67,13 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     params.toolChainType = ProjectExplorer::ToolChain_GCC_ANDROID;
     params.dumperLibrary = runConfig->dumperLib();
     params.startMode = AttachToRemote;
-    params.executable = runConfig->qt4Target()->qt4Project()->rootProjectNode()->buildDir()+"/app_process";
+    params.executable = runConfig->androidTarget()->qt4Project()->rootProjectNode()->buildDir()+"/app_process";
     qDebug()<<params.executable;
     params.debuggerCommand = runConfig->gdbCmd();
     params.remoteChannel = runConfig->remoteChannel();
     params.solibSearchPath.clear();
     params.solibSearchPath.append(runConfig->activeQt4BuildConfiguration()->qtVersion()->sourcePath()+"/lib");
-    QList<Qt4ProFileNode *> nodes = runConfig->qt4Target()->qt4Project()->leafProFiles();
+    QList<Qt4ProFileNode *> nodes = runConfig->androidTarget()->qt4Project()->leafProFiles();
     foreach(Qt4ProFileNode * node, nodes)
         if (node->projectType() == ApplicationTemplate)
             params.solibSearchPath.append(node->targetInformation().buildDir);

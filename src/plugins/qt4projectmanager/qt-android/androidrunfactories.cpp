@@ -39,6 +39,7 @@
 #include "androidrunconfiguration.h"
 #include "androidruncontrol.h"
 #include "androidtoolchain.h"
+#include "qt4androidtarget.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <debugger/debuggerconstants.h>

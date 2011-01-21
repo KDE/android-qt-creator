@@ -41,6 +41,7 @@ namespace Qt4ProjectManager {
     class QtVersion;
 namespace Internal {
 
+class Qt4AndroidTargetFactory;
 class AndroidDeployStepFactory;
 class AndroidPackageCreationFactory;
 class AndroidRunControlFactory;
@@ -71,6 +72,7 @@ private:
     AndroidDeployStepFactory *m_deployStepFactory;
     AndroidSettingsPage *m_settingsPage;
     AndroidQemuManager *m_qemuRuntimeManager;
+    Qt4AndroidTargetFactory * m_androidTargetFactory;
 };
 
     } // namespace Internal

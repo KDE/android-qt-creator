@@ -36,6 +36,7 @@
 #include "androidpackagecreationstep.h"
 #include "androidrunconfiguration.h"
 #include "androidtoolchain.h"
+#include "qt4androidtarget.h"
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -207,8 +208,14 @@ bool AndroidDeployStep::deployPackage()
 {
     const Qt4BuildConfiguration * const bc
         = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
-    const QString packageName=AndroidTemplatesManager::instance()->packageName(bc->qt4Target()->qt4Project());
-    const QString targetSDK=AndroidTemplatesManager::instance()->targetSDK(bc->qt4Target()->qt4Project());
+    Qt4AndroidTarget * androidTarget = qobject_cast<Qt4AndroidTarget *>(target());
+    if (!androidTarget)
+    {
+        raiseError(tr("Cannot deploy: current target is not android."));
+        return false;
+    }
+    const QString packageName=androidTarget->packageName();
+    const QString targetSDK=androidTarget->targetSDK();
 
     writeOutput(tr("Please wait, searching for a siutable device for target:%1.").arg(targetSDK));
     m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(targetSDK.mid(targetSDK.indexOf('-')+1).toInt());
@@ -254,7 +261,7 @@ bool AndroidDeployStep::deployPackage()
         AndroidPackageCreationStep::removeDirectory(tempPath);
     }
 
-    proc.setWorkingDirectory(AndroidTemplatesManager::instance()->androidDirPath(bc->qt4Target()->qt4Project()));
+    proc.setWorkingDirectory(androidTarget->androidDirPath());
 
     writeOutput(tr("Installing package onto %1.").arg(m_deviceSerialNumber));
     runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)

@@ -35,8 +35,8 @@
 #include "androidpackagecreationfactory.h"
 #include "androidrunfactories.h"
 #include "androidsettingspage.h"
-#include "androidtemplatesmanager.h"
 #include "androidtoolchain.h"
+#include "qt4androidtargetfactory.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <qt4projectmanager/qtversionmanager.h>
@@ -60,12 +60,12 @@ AndroidManager::AndroidManager()
     , m_packageCreationFactory(new AndroidPackageCreationFactory(this))
     , m_deployStepFactory(new AndroidDeployStepFactory(this))
     , m_settingsPage(new AndroidSettingsPage(this))
+    , m_androidTargetFactory(new Qt4AndroidTargetFactory())
 {
     Q_ASSERT(!m_instance);
 
     m_instance = this;
     AndroidConfigurations::instance(this);
-    AndroidTemplatesManager::instance(this);
 
     PluginManager *pluginManager = PluginManager::instance();
     pluginManager->addObject(m_runControlFactory);
@@ -73,6 +73,7 @@ AndroidManager::AndroidManager()
     pluginManager->addObject(m_packageCreationFactory);
     pluginManager->addObject(m_deployStepFactory);
     pluginManager->addObject(m_settingsPage);
+    pluginManager->addObject(m_androidTargetFactory);
 }
 
 AndroidManager::~AndroidManager()
@@ -83,6 +84,7 @@ AndroidManager::~AndroidManager()
     pluginManager->removeObject(m_deployStepFactory);
     pluginManager->removeObject(m_packageCreationFactory);
     pluginManager->removeObject(m_settingsPage);
+    pluginManager->removeObject(m_androidTargetFactory);
 
     m_instance = 0;
 }

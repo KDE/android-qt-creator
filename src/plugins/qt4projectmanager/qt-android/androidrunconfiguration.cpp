@@ -96,7 +96,7 @@ void AndroidRunConfiguration::init()
         this, SLOT(handleDeployConfigChanged()));
     handleDeployConfigChanged();
 
-    Qt4Project *pro = qt4Target()->qt4Project();
+    Qt4Project *pro = androidTarget()->qt4Project();
     connect(pro, SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)),
             this, SLOT(proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)));
     connect(pro, SIGNAL(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *)),
@@ -107,7 +107,7 @@ AndroidRunConfiguration::~AndroidRunConfiguration()
 {
 }
 
-Qt4AndroidTarget *AndroidRunConfiguration::qt4Target() const
+Qt4AndroidTarget *AndroidRunConfiguration::androidTarget() const
 {
     return static_cast<Qt4AndroidTarget *>(target());
 }
@@ -134,7 +134,7 @@ QWidget *AndroidRunConfiguration::createConfigurationWidget()
 
 ProjectExplorer::OutputFormatter *AndroidRunConfiguration::createOutputFormatter() const
 {
-    return new QtOutputFormatter(qt4Target()->qt4Project());
+    return new QtOutputFormatter(androidTarget()->qt4Project());
 }
 
 void AndroidRunConfiguration::handleParseState(bool success)
@@ -190,7 +190,7 @@ bool AndroidRunConfiguration::fromMap(const QVariantMap &map)
     m_baseEnvironmentBase = static_cast<BaseEnvironmentBase> (map.value(AndroidBaseEnvironmentBaseKey,
         SystemEnvironmentBase).toInt());
 
-    m_validParse = qt4Target()->qt4Project()->validParse(m_proFilePath);
+    m_validParse = androidTarget()->qt4Project()->validParse(m_proFilePath);
 
     setDefaultDisplayName(defaultDisplayName());
 
@@ -251,7 +251,7 @@ const QString AndroidRunConfiguration::dumperLib() const
 
 QString AndroidRunConfiguration::localExecutableFilePath() const
 {
-    TargetInformation ti = qt4Target()->qt4Project()->rootProjectNode()
+    TargetInformation ti = androidTarget()->qt4Project()->rootProjectNode()
         ->targetInformation(m_proFilePath);
     if (!ti.valid)
         return QString();
@@ -262,6 +262,11 @@ QString AndroidRunConfiguration::localExecutableFilePath() const
 void AndroidRunConfiguration::setArguments(const QString &args)
 {
     m_arguments = args;
+}
+
+QString AndroidRunConfiguration::proFilePath() const
+{
+    return m_proFilePath;
 }
 
 AndroidRunConfiguration::DebuggingType AndroidRunConfiguration::debuggingType() const
@@ -277,6 +282,7 @@ AndroidRunConfiguration::DebuggingType AndroidRunConfiguration::debuggingType() 
 //    }
 //    return DebugQmlOnly;
 }
+
 
 int AndroidRunConfiguration::portsUsedByDebuggers() const
 {

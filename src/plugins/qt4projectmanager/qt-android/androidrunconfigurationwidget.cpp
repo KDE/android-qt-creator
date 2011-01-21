@@ -46,6 +46,7 @@
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4target.h>
 #include <utils/detailswidget.h>
+#include <projectexplorer/environmentwidget.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtGui/QComboBox>
@@ -87,9 +88,10 @@ AndroidRunConfigurationWidget::AndroidRunConfigurationWidget(
 //    connect(m_runConfiguration,
 //        SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
 //        this, SLOT(handleCurrentDeviceConfigChanged()));
-    connect(m_runConfiguration->qt4Target(),
-        SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)),
-        this, SLOT(handleBuildConfigChanged()));
+#warning ANDROID FIX
+//    connect(m_runConfiguration->qt4Target(),
+//        SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)),
+//        this, SLOT(handleBuildConfigChanged()));
 
     connect(m_runConfiguration, SIGNAL(isEnabledChanged(bool)),
             this, SLOT(runConfigurationEnabledChange(bool)));

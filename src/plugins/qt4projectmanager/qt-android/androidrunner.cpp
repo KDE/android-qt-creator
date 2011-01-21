@@ -38,7 +38,7 @@
 #include "androidconfigurations.h"
 #include "androidglobal.h"
 #include "androidrunconfiguration.h"
-#include "androidtemplatesmanager.h"
+#include "qt4androidtarget.h"
 
 
 #include <qt4projectmanager/qt4project.h>
@@ -58,7 +58,7 @@ namespace Internal {
 AndroidRunner::AndroidRunner(QObject *parent,
     AndroidRunConfiguration *runConfig, bool debugging)
     : QObject(parent),
-      m_intentName(AndroidTemplatesManager::instance()->intentName(runConfig->qt4Target()->qt4Project()))
+      m_intentName(runConfig->androidTarget()->intentName())
 {
     m_debugingMode = debugging;
     m_packageName=m_intentName.left(m_intentName.indexOf('/'));

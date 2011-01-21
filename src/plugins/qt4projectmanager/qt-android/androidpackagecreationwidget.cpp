@@ -40,11 +40,11 @@
 ****************************************************************************/
 
 #include "androidpackagecreationwidget.h"
-#include "ui_androidpackagecreationwidget.h"
-
 #include "androidpackagecreationstep.h"
 #include "androidtoolchain.h"
 #include "androidconfigurations.h"
+#include "qt4androidtarget.h"
+#include "ui_androidpackagecreationwidget.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/project.h>
@@ -137,43 +137,39 @@ void AndroidPackageCreationWidget::init()
 
 void AndroidPackageCreationWidget::initGui()
 {
-    ProjectExplorer::Project * const project
-        = m_step->buildConfiguration()->target()->project();
-    updateAndroidProjectInfo(project);
-    connect(AndroidTemplatesManager::instance(),
+    updateAndroidProjectInfo();
+    Qt4AndroidTarget * target = m_step->androidTarget();
+    connect(target,
         SIGNAL(androidDirContentsChanged(ProjectExplorer::Project*)),
         this, SLOT(updateAndroidProjectInfo(ProjectExplorer::Project*)));
+
     connect(m_ui->packageNameLineEdit, SIGNAL(editingFinished()), SLOT(setPackageName()));
     connect(m_ui->appNameLineEdit, SIGNAL(editingFinished()), SLOT(setApplicationName()));
     connect(m_ui->versionCode, SIGNAL(editingFinished()), SLOT(setVersionCode()));
     connect(m_ui->versionNameLinedit, SIGNAL(editingFinished()), SLOT(setVersionName()));
     connect(m_ui->targetSDKComboBox, SIGNAL(activated(QString)), SLOT(setTargetSDK(QString)));
-    m_qtLibsModel->setAvailableItems(AndroidTemplatesManager::instance()->availableQtLibs(project));
-    m_prebundledLibs->setAvailableItems(AndroidTemplatesManager::instance()->availablePrebundledLibs(project));
+    m_qtLibsModel->setAvailableItems(target->availableQtLibs());
+    m_prebundledLibs->setAvailableItems(target->availablePrebundledLibs());
     m_ui->qtLibsListView->setModel(m_qtLibsModel);
     m_ui->prebundledLibsListView->setModel(m_prebundledLibs);
 }
 
-void AndroidPackageCreationWidget::updateAndroidProjectInfo(ProjectExplorer::Project *project)
+void AndroidPackageCreationWidget::updateAndroidProjectInfo()
 {
-    const ProjectExplorer::Project * const ourProject
-        = m_step->buildConfiguration()->target()->project();
-
-    if (project != ourProject)
-        return;
+    Qt4AndroidTarget * target = m_step->androidTarget();
     m_ui->targetSDKComboBox->clear();
     QStringList targets=AndroidConfigurations::instance().sdkTargets();
     m_ui->targetSDKComboBox->addItems(targets);
-    m_ui->targetSDKComboBox->setCurrentIndex(targets.indexOf(AndroidTemplatesManager::instance()->targetSDK(project)));
-    m_ui->packageNameLineEdit->setText(AndroidTemplatesManager::instance()->packageName(project));
-    m_ui->appNameLineEdit->setText(AndroidTemplatesManager::instance()->applicationName(project));
+    m_ui->targetSDKComboBox->setCurrentIndex(targets.indexOf(target->targetSDK()));
+    m_ui->packageNameLineEdit->setText(target->packageName());
+    m_ui->appNameLineEdit->setText(target->applicationName());
     if (!m_ui->appNameLineEdit->text().length())
     {
-        m_ui->appNameLineEdit->setText(project->displayName());
-        AndroidTemplatesManager::instance()->setApplicationName(project, project->displayName());
+        m_ui->appNameLineEdit->setText(target->project()->displayName());
+        target->setApplicationName(target->project()->displayName());
     }
-    m_ui->versionCode->setValue(AndroidTemplatesManager::instance()->versionCode(project));
-    m_ui->versionNameLinedit->setText(AndroidTemplatesManager::instance()->versionName(project));
+    m_ui->versionCode->setValue(target->versionCode());
+    m_ui->versionNameLinedit->setText(target->versionName());
 //    QString error;
 //    const QIcon &icon
 //        = AndroidTemplatesManager::instance()->packageManagerIcon(project, &error);
@@ -187,32 +183,27 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo(ProjectExplorer::Pro
 
 void AndroidPackageCreationWidget::setPackageName()
 {
-    AndroidTemplatesManager::instance()->setPackageName(m_step->buildConfiguration()->target()->project(),
-                                                        m_ui->packageNameLineEdit->text());
+    m_step->androidTarget()->setPackageName(m_ui->packageNameLineEdit->text());
 }
 
 void AndroidPackageCreationWidget::setApplicationName()
 {
-    AndroidTemplatesManager::instance()->setApplicationName(m_step->buildConfiguration()->target()->project(),
-                                                        m_ui->appNameLineEdit->text());
+    m_step->androidTarget()->setApplicationName(m_ui->appNameLineEdit->text());
 }
 
 void AndroidPackageCreationWidget::setTargetSDK(const QString & target)
 {
-    AndroidTemplatesManager::instance()->setTargetSDK(m_step->buildConfiguration()->target()->project(),
-                                                        target);
+    m_step->androidTarget()->setTargetSDK(target);
 }
 
 void AndroidPackageCreationWidget::setVersionCode()
 {
-    AndroidTemplatesManager::instance()->setVersionCode(m_step->buildConfiguration()->target()->project(),
-                                                        m_ui->versionCode->value());
+    m_step->androidTarget()->setVersionCode(m_ui->versionCode->value());
 }
 
 void AndroidPackageCreationWidget::setVersionName()
 {
-    AndroidTemplatesManager::instance()->setVersionName(m_step->buildConfiguration()->target()->project(),
-                                                        m_ui->versionNameLinedit->text());
+    m_step->androidTarget()->setVersionName(m_ui->versionNameLinedit->text());
 }
 
 
@@ -228,8 +219,7 @@ void AndroidPackageCreationWidget::setPackageManagerIcon()
         QString(), imageFilter);
     if (!iconFileName.isEmpty()) {
         QString error;
-        if (!AndroidTemplatesManager::instance()->setPackageManagerIcon(m_step->
-            buildConfiguration()->target()->project(), iconFileName))
+        if (!m_step->androidTarget()->setPackageManagerIcon(iconFileName))
             QMessageBox::critical(this, tr("Could Not Set New Icon"), error);
     }
 }

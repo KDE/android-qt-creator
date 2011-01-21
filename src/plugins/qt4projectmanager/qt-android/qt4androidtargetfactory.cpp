@@ -100,7 +100,7 @@ Qt4BaseTarget *Qt4AndroidTargetFactory::restore(ProjectExplorer::Project *parent
         return 0;
 
     const QString id = idFromMap(map);
-    AbstractQt4MaemoTarget *target = 0;
+    Qt4AndroidTarget *target = 0;
     Qt4Project *qt4project = static_cast<Qt4Project *>(parent);
     if (id == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
         target = new Qt4AndroidTarget(qt4project, QLatin1String("transient ID"));
@@ -128,8 +128,7 @@ QString Qt4AndroidTargetFactory::defaultShadowBuildDirectory(const QString &proj
 QList<BuildConfigurationInfo> Qt4AndroidTargetFactory::availableBuildConfigurations(const QString &proFilePath)
 {
     return QList<BuildConfigurationInfo>()
-        << availableBuildConfigurations(proFilePath, QLatin1String(Constants::ANDROID5_DEVICE_TARGET_ID))
-        << availableBuildConfigurations(proFilePath, QLatin1String(Constants::HARMATTAN_DEVICE_TARGET_ID));
+        << availableBuildConfigurations(proFilePath, QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
 }
 
 QList<BuildConfigurationInfo> Qt4AndroidTargetFactory::availableBuildConfigurations(const QString &proFilePath,
@@ -174,11 +173,9 @@ Qt4BaseTarget *Qt4AndroidTargetFactory::create(ProjectExplorer::Project *parent,
     if (!canCreate(parent, id))
         return 0;
 
-    AbstractQt4MaemoTarget *target = 0;
-    if (id == QLatin1String(Constants::ANDROID5_DEVICE_TARGET_ID))
-        target = new Qt4Maemo5Target(static_cast<Qt4Project *>(parent), id);
-    else if (id == QLatin1String(Constants::HARMATTAN_DEVICE_TARGET_ID))
-        target = new Qt4HarmattanTarget(static_cast<Qt4Project *>(parent), id);
+    Qt4AndroidTarget *target = 0;
+    if (id == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
+        target = new Qt4AndroidTarget(static_cast<Qt4Project *>(parent), id);
     Q_ASSERT(target);
 
     foreach (const BuildConfigurationInfo &info, infos) {

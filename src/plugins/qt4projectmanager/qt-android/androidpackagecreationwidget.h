@@ -83,7 +83,7 @@ public:
 
 private slots:
     void initGui();
-    void updateAndroidProjectInfo(ProjectExplorer::Project *project);
+    void updateAndroidProjectInfo();
     void setPackageManagerIcon();
     void handleToolchainChanged();
 

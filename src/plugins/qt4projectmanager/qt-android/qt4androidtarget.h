@@ -55,9 +55,11 @@ class Qt4Target;
 namespace Internal {
 class Qt4ProFileNode;
 class Qt4AndroidDeployConfigurationFactory;
+class Qt4AndroidTargetFactory;
 
 class Qt4AndroidTarget  : public Qt4BaseTarget
 {
+    friend class Qt4AndroidTargetFactory;
     Q_OBJECT
 public:
     explicit Qt4AndroidTarget(Qt4Project *parent, const QString &id);
