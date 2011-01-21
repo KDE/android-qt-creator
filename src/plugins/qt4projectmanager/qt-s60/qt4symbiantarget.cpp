@@ -157,13 +157,30 @@ void Qt4SymbianTarget::createApplicationProFiles()
     }
 }
 
+QList<ProjectExplorer::RunConfiguration *> Qt4SymbianTarget::runConfigurationsForNode(ProjectExplorer::Node *n)
+{
+    QList<ProjectExplorer::RunConfiguration *> result;
+    foreach (ProjectExplorer::RunConfiguration *rc, runConfigurations()) {
+        if (id() == QLatin1String(Constants::S60_EMULATOR_TARGET_ID)) {
+            if (S60EmulatorRunConfiguration * s60rc = qobject_cast<S60EmulatorRunConfiguration *>(rc))
+                if (s60rc->proFilePath() == n->path())
+                    result << rc;
+        } else if (id() == QLatin1String(Constants::S60_DEVICE_TARGET_ID)) {
+            if (S60DeviceRunConfiguration *s60rc = qobject_cast<S60DeviceRunConfiguration *>(rc))
+                if (s60rc->proFilePath() == n->path())
+                    result << rc;
+        }
+    }
+    return result;
+}
+
 bool Qt4SymbianTarget::isSymbianConnectionAvailable(QString &tooltipText)
 {
     const S60DeployConfiguration *s60DeployConf = qobject_cast<S60DeployConfiguration *>(activeDeployConfiguration());
     if (!s60DeployConf)
         return false;
     switch (s60DeployConf->communicationChannel()) {
-    case S60DeployConfiguration::CommunicationSerialConnection: {
+    case S60DeployConfiguration::CommunicationTrkSerialConnection: {
         const SymbianUtils::SymbianDeviceManager *sdm = SymbianUtils::SymbianDeviceManager::instance();
         const int deviceIndex = sdm->findByPortName(s60DeployConf->serialPortName());
         if (deviceIndex == -1) {
@@ -179,7 +196,7 @@ bool Qt4SymbianTarget::isSymbianConnectionAvailable(QString &tooltipText)
         }
     }
     break;
-    case S60DeployConfiguration::CommunicationTcpConnection: {
+    case S60DeployConfiguration::CommunicationCodaTcpConnection: {
         if (!s60DeployConf->deviceAddress().isEmpty() && !s60DeployConf->devicePort().isEmpty()) {
             tooltipText = tr("<b>IP address:</b> %1:%2").arg(s60DeployConf->deviceAddress(), s60DeployConf->devicePort());
             return true;

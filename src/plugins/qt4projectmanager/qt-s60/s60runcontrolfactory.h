@@ -31,52 +31,35 @@
 **
 **************************************************************************/
 
-#ifndef DEBUGGINGHELPERBUILDTASK_H
-#define DEBUGGINGHELPERBUILDTASK_H
+#ifndef S60RUNCONTROLFACTORY_H
+#define S60RUNCONTROLFACTORY_H
 
-#include "qtversionmanager.h"
-#include <utils/environment.h>
-#include <QObject>
+#include <projectexplorer/runconfiguration.h>
 
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class DebuggingHelperBuildTask : public QObject {
-    Q_DISABLE_COPY(DebuggingHelperBuildTask)
-    Q_OBJECT
+class S60RunControlFactory : public ProjectExplorer::IRunControlFactory
+{
 public:
-    enum DebuggingHelper {
-        GdbDebugging = 0x01,
-        QmlObserver = 0x02,
-        QmlDump = 0x04,
-        AllTools = GdbDebugging | QmlObserver | QmlDump
-    };
-    Q_DECLARE_FLAGS(Tools, DebuggingHelper)
+    explicit S60RunControlFactory(const QString &mode,
+                                  const QString &name,
+                                  QObject *parent = 0);
 
-    explicit DebuggingHelperBuildTask(QtVersion *version, Tools tools = AllTools);
-    virtual ~DebuggingHelperBuildTask();
+    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration, const QString &mode) const;
 
-    void run(QFutureInterface<void> &future);
+    ProjectExplorer::RunControl *create(ProjectExplorer::RunConfiguration *runConfiguration, const QString &mode);
 
-signals:
-    void finished(int qtVersionId, const QString &output);
+    QString displayName() const;
+
+    QWidget *createConfigurationWidget(ProjectExplorer::RunConfiguration *runConfiguration);
 
 private:
-    bool buildDebuggingHelper(QFutureInterface<void> &future, QString *output);
-
-    Tools m_tools;
-
-    int m_qtId;
-    QString m_qtInstallData;
-    QString m_target;
-    QString m_qmakeCommand;
-    QString m_makeCommand;
-    QString m_mkspec;
-    Utils::Environment m_environment;
-    QString m_errorMessage;
+    const QString m_mode;
+    const QString m_name;
 };
 
-} //namespace Internal
-} //namespace Qt4ProjectManager
+} // namespace Internal
+} // namespace Qt4ProjectExplorer
 
-#endif // DEBUGGINGHELPERBUILDTASK_H
+#endif // S60RUNCONTROLFACTORY_H

@@ -86,6 +86,7 @@
 #endif
 
 #include <QtCore/QtPlugin>
+#include <QtGui/QMenu>
 
 using namespace Qt4ProjectManager::Internal;
 using namespace Qt4ProjectManager;
