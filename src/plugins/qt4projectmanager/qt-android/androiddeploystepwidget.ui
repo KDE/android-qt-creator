@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>478</width>
+    <width>532</width>
     <height>132</height>
    </rect>
   </property>
@@ -21,12 +21,12 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QCheckBox" name="deployQtLibs">
+    <widget class="QRadioButton" name="devicesQtLibs">
      <property name="toolTip">
-      <string/>
+      <string>Use devices qt libs</string>
      </property>
      <property name="text">
-      <string>Deploy qt libs to device if needed</string>
+      <string>Use devices qt libs</string>
      </property>
      <property name="checked">
       <bool>true</bool>
@@ -34,17 +34,53 @@
     </widget>
    </item>
    <item>
-    <widget class="QCheckBox" name="forceDeploy">
+    <widget class="QRadioButton" name="deployQtLibs">
      <property name="toolTip">
-      <string/>
+      <string>Push local qt libs to device.
+You must have Qt libs compiled for that platform</string>
      </property>
      <property name="text">
-      <string>Force qt libs deployment</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
+      <string>Deploy local qt libs</string>
      </property>
     </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QRadioButton" name="installQASI">
+       <property name="toolTip">
+        <string>Choose and install Qt Android smart installer.
+This option is usefull when you want to try your applications on devices where you don't have Android Market. </string>
+       </property>
+       <property name="text">
+        <string>Install Qt Android smart installer</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="chooseButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Choose apk</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
    <item>
     <spacer name="verticalSpacer">
@@ -54,7 +90,7 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>40</height>
+       <height>41</height>
       </size>
      </property>
     </spacer>
@@ -62,5 +98,22 @@
   </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>installQASI</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chooseButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>119</x>
+     <y>68</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>272</x>
+     <y>64</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

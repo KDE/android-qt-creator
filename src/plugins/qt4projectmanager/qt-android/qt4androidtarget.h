@@ -84,6 +84,9 @@ public:
     QString applicationName();
     bool setApplicationName(const QString & name);
 
+    QString targetApplication();
+    bool setTargetApplication(const QString & name);
+
     QString targetSDK();
     bool setTargetSDK(const QString & target);
 
@@ -112,15 +115,13 @@ public:
     QString androidManifestPath();
     QString androidDefaultPropertiesPath();
 
-
 public slots:
     bool createAndroidTemplatesIfNecessary(bool forceJava=false);
     void updateProject(const QString &targetSDK);
 
 signals:
     void androidDirContentsChanged();
-    void changeLogChanged();
-    void controlChanged();
+
 
 private slots:
     void handleTargetAdded(ProjectExplorer::Target *target);

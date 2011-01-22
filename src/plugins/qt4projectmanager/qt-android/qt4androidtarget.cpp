@@ -70,10 +70,10 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 Qt4AndroidTarget::Qt4AndroidTarget(Qt4Project *parent, const QString &id) :
-    Qt4BaseTarget(parent, id),
-    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this)),
-    m_deployConfigurationFactory(new Qt4AndroidDeployConfigurationFactory(this)),
-    m_androidFilesWatcher(new QFileSystemWatcher(this))
+    Qt4BaseTarget(parent, id)
+  , m_androidFilesWatcher(new QFileSystemWatcher(this))
+  , m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this))
+  , m_deployConfigurationFactory(new Qt4AndroidDeployConfigurationFactory(this))
 {
     setIcon(QIcon(":/projectexplorer/images/AndroidDevice.png"));
     connect(parent, SIGNAL(addedTarget(ProjectExplorer::Target*)),
@@ -159,9 +159,9 @@ void Qt4AndroidTarget::handleTargetAdded(ProjectExplorer::Target *target)
     m_androidFilesWatcher->addPath(androidDirPath());
     m_androidFilesWatcher->addPath(androidManifestPath());
     connect(m_androidFilesWatcher, SIGNAL(directoryChanged(QString)), this,
-        SLOT(handleAndroidDirContentsChanged()));
+        SIGNAL(androidDirContentsChanged()));
     connect(m_androidFilesWatcher, SIGNAL(fileChanged(QString)), this,
-        SLOT(handleAndroidDirContentsChanged()));
+        SIGNAL(androidDirContentsChanged()));
 }
 
 void Qt4AndroidTarget::handleTargetToBeRemoved(ProjectExplorer::Target *target)
@@ -401,8 +401,7 @@ QString Qt4AndroidTarget::applicationName()
     QDomDocument doc;
     if (!openAndroidManifest(doc))
         return QString();
-    QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
-    return activityElem.attribute(QLatin1String("android:label"));
+    return doc.documentElement().firstChildElement("application").attribute(QLatin1String("android:label"));
 }
 
 bool Qt4AndroidTarget::setApplicationName(const QString & name)
@@ -410,10 +409,23 @@ bool Qt4AndroidTarget::setApplicationName(const QString & name)
     QDomDocument doc;
     if (!openAndroidManifest(doc))
         return false;
-    QDomElement activityElem = doc.documentElement().firstChildElement("application").firstChildElement("activity");
-    activityElem.setAttribute(QLatin1String("android:label"), name);
+    doc.documentElement().firstChildElement("application").setAttribute(QLatin1String("android:label"), name);
+    doc.documentElement().firstChildElement("application").firstChildElement("activity")
+            .setAttribute(QLatin1String("android:label"), name);
     return saveAndroidManifest(doc);
 }
+
+QString Qt4AndroidTarget::targetApplication()
+{
+    QString app;
+    return app;
+}
+
+bool Qt4AndroidTarget::setTargetApplication(const QString & name)
+{
+    return false;
+}
+
 
 int Qt4AndroidTarget::versionCode()
 {
@@ -478,7 +490,7 @@ bool Qt4AndroidTarget::setPermissions(const QStringList & permissions)
     QDomElement permissionElem = docElement.firstChildElement("uses-permission");
     while(!permissionElem.isNull())
     {
-        doc.removeChild(permissionElem);
+        docElement.removeChild(permissionElem);
         permissionElem = docElement.firstChildElement("uses-permission");
     }
 
@@ -501,7 +513,7 @@ QStringList Qt4AndroidTarget::availableQtLibs()
     while(libsIt.hasNext())
     {
         libsIt.next();
-        libs<<libsIt.fileName().mid(5,libsIt.fileName().indexOf('.')-5);
+        libs<<libsIt.fileName().mid(3,libsIt.fileName().indexOf('.')-3);
     }
     return libs;
 }

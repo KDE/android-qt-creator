@@ -10,6 +10,7 @@
 #include <utils/qtcassert.h>
 
 #include <QtGui/QMessageBox>
+#include <QtGui/QFileDialog>
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -20,8 +21,10 @@ AndroidDeployStepWidget::AndroidDeployStepWidget(AndroidDeployStep *step) :
     m_step(step)
 {
     ui->setupUi(this);
-    connect(ui->deployQtLibs, SIGNAL(toggled(bool)), m_step, SLOT(setDeployQtLibs(bool)));
-    connect(ui->forceDeploy, SIGNAL(toggled(bool)), m_step, SLOT(setForceDeploy(bool)));
+    connect(m_step, SIGNAL(resetDelopyAction()), SLOT(resetAction()));
+    connect(ui->devicesQtLibs, SIGNAL(clicked()), SLOT(resetAction()));
+    connect(ui->deployQtLibs, SIGNAL(clicked()), SLOT(setDeployLocalQtLibs()));
+    connect(ui->chooseButton, SIGNAL(clicked()), SLOT(setQASIPackagePath()));
 }
 
 AndroidDeployStepWidget::~AndroidDeployStepWidget()
@@ -31,8 +34,15 @@ AndroidDeployStepWidget::~AndroidDeployStepWidget()
 
 void AndroidDeployStepWidget::init()
 {
-    ui->deployQtLibs->setChecked(m_step->deployQtLibs());
-    ui->forceDeploy->setChecked(m_step->forceDeploy());
+    switch(m_step->deployAction())
+    {
+        case AndroidDeployStep::DeployLocal:
+            ui->deployQtLibs->setChecked(true);
+            break;
+        default:
+            ui->devicesQtLibs->setChecked(true);
+            break;
+    }
 }
 
 QString AndroidDeployStepWidget::displayName() const
@@ -46,6 +56,23 @@ QString AndroidDeployStepWidget::summaryText() const
     return displayName();
 }
 
+void AndroidDeployStepWidget::resetAction()
+{
+    ui->devicesQtLibs->setChecked(true);
+    m_step->setDeployAction(AndroidDeployStep::NoDeploy);
+}
+
+void AndroidDeployStepWidget::setDeployLocalQtLibs()
+{
+    m_step->setDeployAction(AndroidDeployStep::DeployLocal);
+}
+
+void AndroidDeployStepWidget::setQASIPackagePath()
+{
+    QString packagePath = QFileDialog::getOpenFileName(this, tr("Qt Android smart installer"), QDir::homePath(), QString("*.apk"));
+    if (packagePath.length())
+        m_step->setDeployQASIPackagePath(packagePath);
+}
 
 } // namespace Internal
 } // namespace Qt4ProjectManager

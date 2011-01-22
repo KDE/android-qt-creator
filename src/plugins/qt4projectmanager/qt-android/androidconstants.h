@@ -66,10 +66,6 @@ static const QLatin1String AndroidExportedLocalDirsKey(ANDROID_PREFIX ".Exported
 static const QLatin1String AndroidBaseEnvironmentBaseKey(ANDROID_PREFIX ".BaseEnvironmentBase");
 static const QLatin1String AndroidUserEnvironmentChangesKey(ANDROID_PREFIX ".UserEnvironmentChanges");
 static const QLatin1String AndroidUseRemoteGdbKey(ANDROID_PREFIX ".UseRemoteGdb");
-// deploy keys
-static const QLatin1String AndroidDeployQtLibsKey(ANDROID_PREFIX ".DeployQtLibs");
-static const QLatin1String AndroidForceDeployKey(ANDROID_PREFIX ".ForceDeploy");
-// deploy keys
 
 } // namespace Internal
 

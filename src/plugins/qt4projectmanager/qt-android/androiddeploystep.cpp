@@ -83,8 +83,7 @@ void AndroidDeployStep::ctor()
 {
     //: AndroidDeployStep default display name
     setDefaultDisplayName(tr("Deploy to Android device"));
-    m_deployQtLibs = true;
-    m_forceDeploy = false;
+    m_deployAction = NoDeploy;
 }
 
 bool AndroidDeployStep::init()
@@ -102,31 +101,28 @@ BuildStepConfigWidget *AndroidDeployStep::createConfigWidget()
     return new AndroidDeployStepWidget(this);
 }
 
-bool AndroidDeployStep::deployQtLibs()
+AndroidDeployStep::AndroidDeployAction AndroidDeployStep::deployAction()
 {
-    return m_deployQtLibs;
+    return m_deployAction;
 }
 
-void AndroidDeployStep::setDeployQtLibs(bool deploy)
+void AndroidDeployStep::setDeployAction(AndroidDeployStep::AndroidDeployAction deploy)
 {
-    m_deployQtLibs=deploy;
+    m_deployAction = deploy;
 }
 
-bool AndroidDeployStep::forceDeploy()
+void AndroidDeployStep::setDeployQASIPackagePath(const QString & package)
 {
-    return m_forceDeploy;
+    m_QASIPackagePath = package;
+    m_deployAction = InstallQASI;
 }
 
-void AndroidDeployStep::setForceDeploy(bool force)
-{
-    m_forceDeploy=force;
-}
 
 QVariantMap AndroidDeployStep::toMap() const
 {
     QVariantMap map(BuildStep::toMap());
-    map.insert(AndroidDeployQtLibsKey, m_deployQtLibs);
-    map.insert(AndroidForceDeployKey, m_forceDeploy);
+//    map.insert(AndroidDeployQtLibsKey, m_deployQtLibs);
+//    map.insert(AndroidForceDeployKey, m_forceDeploy);
     return map;
 }
 
@@ -134,8 +130,8 @@ bool AndroidDeployStep::fromMap(const QVariantMap &map)
 {
     if (!BuildStep::fromMap(map))
         return false;
-    m_deployQtLibs = map.value(AndroidDeployQtLibsKey, m_deployQtLibs).toBool();
-    m_forceDeploy = map.value(AndroidForceDeployKey, m_forceDeploy).toBool();
+//    m_deployQtLibs = map.value(AndroidDeployQtLibsKey, m_deployQtLibs).toBool();
+//    m_forceDeploy = map.value(AndroidForceDeployKey, m_forceDeploy).toBool();
     return true;
 }
 
@@ -232,22 +228,12 @@ bool AndroidDeployStep::deployPackage()
     connect(&proc, SIGNAL(readyReadStandardError()), this,
         SLOT(handleBuildOutput()));
 
-    bool deployQtLibs=m_forceDeploy;
-    if (!deployQtLibs) // check is deploy is needed
-    {
-        writeOutput(tr("Checking if qt libs deploy is needed"));
-        deployQtLibs = !runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                                   +" shell ls /data/local/qt/lib");
-    }
-    else
+    if (m_deployAction == DeployLocal)
     {
         writeOutput(tr("Clean old qt libs"));
         runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
                    +" shell rm -r /data/local/qt");
-    }
 
-    if (deployQtLibs)
-    {
         writeOutput(tr("Deploy qt libs ... it may take some time, please wait"));
         const QString tempPath=QDir::tempPath()+"/android_qt_libs_"+packageName;
         AndroidPackageCreationStep::removeDirectory(tempPath);
@@ -259,8 +245,19 @@ bool AndroidDeployStep::deployPackage()
         runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
                    +QString(" push %1 /data/local/qt").arg(tempPath));
         AndroidPackageCreationStep::removeDirectory(tempPath);
+        emit (resetDelopyAction());
     }
 
+    if (m_deployAction == InstallQASI)
+    {
+        if (!runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                   +QString(" install ") +m_QASIPackagePath))
+        {
+            raiseError(tr("Qt Android smart installer instalation failed"));
+            return false;
+        }
+        emit (resetDelopyAction());
+    }
     proc.setWorkingDirectory(androidTarget->androidDirPath());
 
     writeOutput(tr("Installing package onto %1.").arg(m_deviceSerialNumber));
@@ -269,7 +266,10 @@ bool AndroidDeployStep::deployPackage()
                +packageName);
 
     if (!runCommand(&proc, AndroidConfigurations::instance().antToolPath()+QLatin1String(" install")))
+    {
         raiseError(tr("Package instalation failed"));
+        return false;
+    }
 
     if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
     {

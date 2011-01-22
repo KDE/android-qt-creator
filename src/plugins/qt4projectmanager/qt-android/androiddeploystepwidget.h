@@ -21,6 +21,11 @@ public:
     AndroidDeployStepWidget(AndroidDeployStep *step);
     ~AndroidDeployStepWidget();
 
+private slots:
+    void resetAction();
+    void setDeployLocalQtLibs();
+    void setQASIPackagePath();
+
 private:
 
     virtual void init();

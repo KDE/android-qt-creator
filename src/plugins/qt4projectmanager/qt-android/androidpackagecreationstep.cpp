@@ -127,7 +127,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 {
     const Qt4BuildConfiguration * bc=static_cast<Qt4BuildConfiguration *>(buildConfiguration());
     Qt4AndroidTarget * target=androidTarget();
-    emit addOutput(tr("Copy Qt app & libs to android ..."), MessageOutput);
+    emit addOutput(tr("Copy Qt app & libs to android package ..."), MessageOutput);
 
     const QString androidDir(target->androidDirPath());
     const QString androidLibPath(androidDir+QLatin1String("/libs/armeabi"));

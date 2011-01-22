@@ -56,6 +56,15 @@ class AndroidDeployStep : public ProjectExplorer::BuildStep
 {
     Q_OBJECT
     friend class AndroidDeployStepFactory;
+
+public:
+    enum AndroidDeployAction
+    {
+        NoDeploy,
+        DeployLocal,
+        InstallQASI
+    };
+
 public:
     AndroidDeployStep(ProjectExplorer::BuildStepList *bc);
 
@@ -63,16 +72,16 @@ public:
 
     QString deviceSerialNumber();
 
-    bool deployQtLibs();
-    bool forceDeploy();
+    AndroidDeployAction deployAction();
 
 public slots:
-    void setDeployQtLibs(bool deploy);
-    void setForceDeploy(bool force);
+    void setDeployAction(AndroidDeployAction deploy);
+    void setDeployQASIPackagePath(const QString & package);
 
 signals:
     void done();
     void error();
+    void resetDelopyAction();
 
 private slots:
     bool deployPackage();
@@ -97,8 +106,8 @@ private:
 
 private:
     QString m_deviceSerialNumber;
-    bool m_deployQtLibs;
-    bool m_forceDeploy;
+    QString m_QASIPackagePath;
+    AndroidDeployAction m_deployAction;
 
     static const QLatin1String Id;
 };

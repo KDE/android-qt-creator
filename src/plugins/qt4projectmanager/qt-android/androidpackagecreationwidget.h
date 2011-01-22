@@ -61,7 +61,7 @@ public:
     CheckModel(QObject * parent = 0 );
     void setAvailableItems(const QStringList & items);
     void setCheckedItems(const QStringList & items);
-    QStringList checkedItems();
+    const QStringList & checkedItems();
     QVariant data(const QModelIndex &index, int role) const;
     bool setData(const QModelIndex &index, const QVariant &value, int role);
     int rowCount(const QModelIndex &parent) const;
@@ -69,6 +69,25 @@ public:
 private:
     QStringList m_availableItems;
     QStringList m_checkedItems;
+};
+
+class PermissionsModel: public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    PermissionsModel(QObject * parent = 0 );
+    void setPermissions(const QStringList & permissions);
+    const QStringList & permissions();
+    QModelIndex addPermission(const QString & permission);
+    bool updatePermission(QModelIndex index,const QString & permission);
+    void removePermission(int index);
+    QVariant data(const QModelIndex &index, int role) const;
+
+protected:
+    int rowCount(const QModelIndex &parent) const;
+
+private:
+    QStringList m_permissions;
 };
 
 class AndroidPackageCreationWidget : public ProjectExplorer::BuildStepConfigWidget
@@ -81,6 +100,9 @@ public:
     virtual QString summaryText() const;
     virtual QString displayName() const;
 
+private:
+    void setEnabledSaveDiscardButtons(bool enabled);
+
 private slots:
     void initGui();
     void updateAndroidProjectInfo();
@@ -92,12 +114,21 @@ private slots:
     void setTargetSDK(const QString & target);
     void setVersionCode();
     void setVersionName();
+    void setTarget(const QString & target);
+
+    void permissionActivated(QModelIndex index);
+    void addPermission();
+    void updatePermission();
+    void removePermission();
+    void savePermissionsButton();
+    void discardPermissionsButton();
 
 private:
     AndroidPackageCreationStep * const m_step;
     Ui::AndroidPackageCreationWidget * const m_ui;
     CheckModel * m_qtLibsModel;
     CheckModel * m_prebundledLibs;
+    PermissionsModel * m_permissionsModel;
 };
 
 } // namespace Internal
