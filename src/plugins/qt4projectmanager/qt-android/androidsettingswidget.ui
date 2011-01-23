@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>705</width>
-    <height>266</height>
+    <height>373</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Android Configuration</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
+  <layout class="QGridLayout" name="gridLayout_2">
    <item row="0" column="0">
     <widget class="QLabel" name="SDKLocationLabel">
      <property name="text">
@@ -87,18 +87,67 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="1">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
+   <item row="4" column="0" colspan="3">
+    <widget class="QFrame" name="frame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
      </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>127</height>
-      </size>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
      </property>
-    </spacer>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="AVDManagerLabel">
+        <property name="text">
+         <string>AVD Manager</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" rowspan="4">
+       <widget class="QListView" name="AVDListView"/>
+      </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="AVDAddPushButton">
+        <property name="text">
+         <string>Add</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QPushButton" name="AVDRemovePushButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Remove</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QPushButton" name="AVDStartPushButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>129</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
    </item>
   </layout>
  </widget>
@@ -216,6 +265,70 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>AVDListView</sender>
+   <signal>activated(QModelIndex)</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>avdActivated(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>310</x>
+     <y>253</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>186</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>AVDAddPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>addAVD()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>653</x>
+     <y>157</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>186</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>AVDRemovePushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>removeAVD()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>653</x>
+     <y>185</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>186</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>AVDStartPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>startAVD()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>653</x>
+     <y>213</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>186</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>SDKLocationEditingFinished()</slot>
@@ -225,5 +338,9 @@
   <slot>AntLocationEditingFinished()</slot>
   <slot>browseAntLocation()</slot>
   <slot>toolchainVersionIndexChanged(QString)</slot>
+  <slot>addAVD()</slot>
+  <slot>removeAVD()</slot>
+  <slot>startAVD()</slot>
+  <slot>avdActivated(QModelIndex)</slot>
  </slots>
 </ui>

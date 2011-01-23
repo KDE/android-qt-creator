@@ -44,6 +44,7 @@
 
 QT_BEGIN_NAMESPACE
 class QLineEdit;
+class QModelIndex;
 
 class Ui_AndroidSettingsWidget;
 QT_END_NAMESPACE
@@ -69,6 +70,10 @@ private slots:
     void browseNDKLocation();
     void browseAntLocation();
     void toolchainVersionIndexChanged(QString);
+    void addAVD();
+    void removeAVD();
+    void startAVD();
+    void avdActivated(const QModelIndex & index);
 
 
 private:

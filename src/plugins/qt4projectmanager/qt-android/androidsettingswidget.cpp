@@ -47,6 +47,7 @@
 #include <QtGui/QFileDialog>
 #include <QtGui/QMessageBox>
 #include <QtGui/QIntValidator>
+#include <QtCore/QModelIndex>
 
 #if defined(_WIN32)
 #define EXE_SUFFIX ".exe"
@@ -211,6 +212,29 @@ void AndroidSettingsWidget::browseAntLocation()
         return;
     m_ui->AntLocationLineEdit->setText(file);
     AntLocationEditingFinished();
+}
+
+void AndroidSettingsWidget::addAVD()
+{
+    // TODO
+}
+
+void AndroidSettingsWidget::removeAVD()
+{
+    // TODO
+
+}
+
+void AndroidSettingsWidget::startAVD()
+{
+    // TODO
+
+}
+
+void AndroidSettingsWidget::avdActivated(const QModelIndex & index)
+{
+    m_ui->AVDRemovePushButton->setEnabled(index.isValid());
+    m_ui->AVDStartPushButton->setEnabled(index.isValid());
 }
 
 } // namespace Internal
