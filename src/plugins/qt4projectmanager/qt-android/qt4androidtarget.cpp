@@ -224,7 +224,6 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK)
     while(it.hasNext())
     {
         it.next();
-        qDebug()<<"Parsing:"<<it.filePath();
         QFile file(it.filePath());
         if (!file.open(QIODevice::ReadWrite))
             continue;
