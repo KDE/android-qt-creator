@@ -45,6 +45,12 @@
 #include <QtCore/QProcess>
 #include <QDebug>
 
+#if defined(_WIN32)
+#include <iostream>
+#include <windows.h>
+#define sleep(_n) Sleep(1000 * (_n))
+#endif
+
 namespace Qt4ProjectManager {
 namespace Internal {
 
