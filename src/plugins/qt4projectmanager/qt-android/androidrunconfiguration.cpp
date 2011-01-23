@@ -141,17 +141,14 @@ void AndroidRunConfiguration::handleParseState(bool success)
 {
     bool enabled = isEnabled();
     m_validParse = success;
-    if (enabled != isEnabled()) {
-        qDebug()<<"Emitting isEnabledChanged()"<<!enabled;
+    if (enabled != isEnabled())
         emit isEnabledChanged(!enabled);
-    }
 }
 
 void AndroidRunConfiguration::proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro)
 {
     if (m_proFilePath != pro->path())
         return;
-    qDebug()<<"proFileInvalidated";
     handleParseState(false);
 }
 

@@ -61,6 +61,13 @@ class Qt4AndroidTarget  : public Qt4BaseTarget
 {
     friend class Qt4AndroidTargetFactory;
     Q_OBJECT
+    enum AndroidIconType
+    {
+        HighDPI,
+        MediumDPI,
+        LowDPI
+    };
+
 public:
     explicit Qt4AndroidTarget(Qt4Project *parent, const QString &id);
     virtual ~Qt4AndroidTarget();
@@ -84,6 +91,7 @@ public:
     QString applicationName();
     bool setApplicationName(const QString & name);
 
+    QStringList availableTargetApplications();
     QString targetApplication();
     bool setTargetApplication(const QString & name);
 
@@ -107,12 +115,18 @@ public:
     QStringList prebundledLibs();
     bool setPrebundledLibs(const QStringList & qtLibs);
 
+    QIcon highDpiIcon();
+    bool setHighDpiIcon(const QString &iconFilePath);
 
-    QIcon packageManagerIcon();
-    bool setPackageManagerIcon(const QString &iconFilePath);
+    QIcon mediumDpiIcon();
+    bool setMediumDpiIcon(const QString &iconFilePath);
+
+    QIcon lowDpiIcon();
+    bool setLowDpiIcon(const QString &iconFilePath);
 
     QString androidDirPath();
     QString androidManifestPath();
+    QString androidLibsPath();
     QString androidDefaultPropertiesPath();
 
 public slots:
@@ -131,6 +145,14 @@ private:
     void raiseError(const QString &reason);
     bool openAndroidManifest(QDomDocument & doc);
     bool saveAndroidManifest(QDomDocument & doc);
+    bool openLibsXml(QDomDocument & doc);
+    bool saveLibsXml(QDomDocument & doc);
+
+    QIcon androidIcon(AndroidIconType type);
+    bool setAndroidIcon(AndroidIconType type, const QString &iconFileName);
+
+    QStringList libsXml(const QString & tag);
+    bool setLibsXml(const QStringList & qtLibs, const QString & tag);
 
 
     QFileSystemWatcher * const m_androidFilesWatcher;

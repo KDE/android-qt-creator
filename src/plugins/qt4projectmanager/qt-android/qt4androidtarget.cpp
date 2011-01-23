@@ -63,6 +63,7 @@ using namespace ProjectExplorer;
 namespace {
     const QLatin1String AndroidDirName("android");
     const QLatin1String AndroidManifestName("AndroidManifest.xml");
+    const QLatin1String AndroidLibsFileName("/res/values/libs.xml");
     const QLatin1String AndroidDefaultPropertiesName("default.properties");
 } // anonymous namespace
 
@@ -75,10 +76,11 @@ Qt4AndroidTarget::Qt4AndroidTarget(Qt4Project *parent, const QString &id) :
   , m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this))
   , m_deployConfigurationFactory(new Qt4AndroidDeployConfigurationFactory(this))
 {
+    setDisplayName(defaultDisplayName());
+    setDefaultDisplayName(defaultDisplayName());
     setIcon(QIcon(":/projectexplorer/images/AndroidDevice.png"));
     connect(parent, SIGNAL(addedTarget(ProjectExplorer::Target*)),
         this, SLOT(handleTargetAdded(ProjectExplorer::Target*)));
-
 }
 
 Qt4AndroidTarget::~Qt4AndroidTarget()
@@ -203,6 +205,11 @@ QString Qt4AndroidTarget::androidManifestPath()
     return androidDirPath()+QLatin1Char('/')+AndroidManifestName;
 }
 
+QString Qt4AndroidTarget::androidLibsPath()
+{
+    return androidDirPath()+AndroidLibsFileName;
+}
+
 QString Qt4AndroidTarget::androidDefaultPropertiesPath()
 {
     return androidDirPath()+QLatin1Char('/')+AndroidDefaultPropertiesName;
@@ -275,7 +282,7 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK)
 bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
 {
     const Qt4Project * qt4Project = qobject_cast<Qt4Project*>(project());
-    if (!qt4Project)
+    if (!qt4Project || !qt4Project->rootProjectNode())
         return false;
     QDir projectDir(project()->projectDirectory());
     QString androidPath=androidDirPath();
@@ -363,6 +370,39 @@ bool Qt4AndroidTarget::saveAndroidManifest(QDomDocument & doc)
     return f.write(doc.toByteArray(4))>=0;
 }
 
+bool Qt4AndroidTarget::openLibsXml(QDomDocument & doc)
+{
+    if (!createAndroidTemplatesIfNecessary())
+        return false;
+
+    QFile f(androidLibsPath());
+    if (!f.open(QIODevice::ReadOnly))
+    {
+        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidLibsPath()));
+        return false;
+    }
+    if (!doc.setContent(f.readAll()))
+    {
+        raiseError(tr("Not enough SDK's found.\nPlease install at least one SDK."));
+        return false;
+    }
+    return true;
+}
+
+bool Qt4AndroidTarget::saveLibsXml(QDomDocument & doc)
+{
+    if (!createAndroidTemplatesIfNecessary())
+        return false;
+
+    QFile f(androidLibsPath());
+    if (!f.open(QIODevice::WriteOnly))
+    {
+        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidLibsPath()));
+        return false;
+    }
+    return f.write(doc.toByteArray(4))>=0;
+}
+
 QString Qt4AndroidTarget::activityName()
 {
     QDomDocument doc;
@@ -415,17 +455,58 @@ bool Qt4AndroidTarget::setApplicationName(const QString & name)
     return saveAndroidManifest(doc);
 }
 
+
+QStringList Qt4AndroidTarget::availableTargetApplications()
+{
+    QStringList apps;
+    Qt4Project * qt4Project = qobject_cast<Qt4Project *>(project());
+    foreach(Qt4ProFileNode * proFile, qt4Project->applicationProFiles())
+    {
+        if (proFile->projectType()== ApplicationTemplate)
+        {
+            if(proFile->targetInformation().target.startsWith(QLatin1String("lib"))
+                    && proFile->targetInformation().target.endsWith(QLatin1String(".so")))
+                apps<<proFile->targetInformation().target.mid(3, proFile->targetInformation().target.lastIndexOf(QChar('.'))-3);
+            else
+                apps<<proFile->targetInformation().target;
+        }
+    }
+    apps.sort();
+    return apps;
+}
+
 QString Qt4AndroidTarget::targetApplication()
 {
-    QString app;
-    return app;
+    QDomDocument doc;
+    if (!openAndroidManifest(doc))
+        return QString();
+    QDomElement metadataElem =doc.documentElement().firstChildElement("application").firstChildElement("activity").firstChildElement("meta-data");
+    while(!metadataElem.isNull())
+    {
+        if (metadataElem.attribute("android:name") == "android.app.lib_name")
+            return metadataElem.attribute("android:value");
+        metadataElem = metadataElem.nextSiblingElement("meta-data");
+    }
+    return QString();
 }
 
 bool Qt4AndroidTarget::setTargetApplication(const QString & name)
 {
+    QDomDocument doc;
+    if (!openAndroidManifest(doc))
+        return false;
+    QDomElement metadataElem =doc.documentElement().firstChildElement("application").firstChildElement("activity").firstChildElement("meta-data");
+    while(!metadataElem.isNull())
+    {
+        if (metadataElem.attribute("android:name") == "android.app.lib_name")
+        {
+            metadataElem.setAttribute(QLatin1String("android:value"), name);
+            return saveAndroidManifest(doc);
+        }
+        metadataElem = metadataElem.nextSiblingElement("meta-data");
+    }
     return false;
 }
-
 
 int Qt4AndroidTarget::versionCode()
 {
@@ -515,20 +596,100 @@ QStringList Qt4AndroidTarget::availableQtLibs()
         libsIt.next();
         libs<<libsIt.fileName().mid(3,libsIt.fileName().indexOf('.')-3);
     }
+    libs.sort();
     return libs;
+}
+
+QIcon Qt4AndroidTarget::androidIcon(AndroidIconType type)
+{
+    switch(type)
+    {
+    case HighDPI:
+        return QIcon(androidDirPath()+QString("/res/drawable-hdpi/icon.png"));
+    case MediumDPI:
+        return QIcon(androidDirPath()+QString("/res/drawable-mdpi/icon.png"));
+    case LowDPI:
+        return QIcon(androidDirPath()+QString("/res/drawable-ldpi/icon.png"));
+    }
+    return QIcon();
+}
+
+bool Qt4AndroidTarget::setAndroidIcon(AndroidIconType type, const QString &iconFileName)
+{
+    switch(type)
+    {
+    case HighDPI:
+        QFile::remove(androidDirPath()+QString("/res/drawable-hdpi/icon.png"));
+        return QFile::copy(iconFileName, androidDirPath()+QString("/res/drawable-hdpi/icon.png"));
+    case MediumDPI:
+        QFile::remove(androidDirPath()+QString("/res/drawable-mdpi/icon.png"));
+        return QFile::copy(iconFileName, androidDirPath()+QString("/res/drawable-mdpi/icon.png"));
+    case LowDPI:
+        QFile::remove(androidDirPath()+QString("/res/drawable-ldpi/icon.png"));
+        return QFile::copy(iconFileName, androidDirPath()+QString("/res/drawable-ldpi/icon.png"));
+    }
+    return false;
+}
+
+QStringList Qt4AndroidTarget::libsXml(const QString & tag)
+{
+    QStringList libs;
+    QDomDocument doc;
+    if (!openLibsXml(doc))
+        return libs;
+    QDomElement arrayElem = doc.documentElement().firstChildElement("array");
+    while(!arrayElem.isNull())
+    {
+        if (arrayElem.attribute(QLatin1String("name")) == tag)
+        {
+            arrayElem = arrayElem.firstChildElement("item");
+            while(!arrayElem.isNull())
+            {
+                libs<<arrayElem.text();
+                arrayElem = arrayElem.nextSiblingElement("item");
+            }
+            return libs;
+        }
+        arrayElem = arrayElem.nextSiblingElement("array");
+    }
+    return libs;
+}
+
+bool Qt4AndroidTarget::setLibsXml(const QStringList & libs, const QString & tag)
+{
+    QDomDocument doc;
+    if (!openLibsXml(doc))
+        return false;
+    QDomElement arrayElem = doc.documentElement().firstChildElement("array");
+    while(!arrayElem.isNull())
+    {
+        if (arrayElem.attribute(QLatin1String("name")) == tag)
+        {
+            doc.documentElement().removeChild(arrayElem);
+            arrayElem = doc.createElement("array");
+            arrayElem.setAttribute(QLatin1String("name"), tag);
+            foreach(QString lib, libs)
+            {
+                QDomElement item=doc.createElement("item");
+                item.appendChild(doc.createTextNode(lib));
+                arrayElem.appendChild(item);
+            }
+            doc.documentElement().appendChild(arrayElem);
+            return saveLibsXml(doc);
+        }
+        arrayElem = arrayElem.nextSiblingElement("array");
+    }
+    return false;
 }
 
 QStringList Qt4AndroidTarget::qtLibs()
 {
-    QStringList libs;
-
-    return libs;
+    return libsXml("qt_libs");
 }
 
-bool Qt4AndroidTarget::setQtLibs(const QStringList & qtLibs)
+bool Qt4AndroidTarget::setQtLibs(const QStringList & libs)
 {
-
-    return true;
+    return setLibsXml(libs, "qt_libs");
 }
 
 QStringList Qt4AndroidTarget::availablePrebundledLibs()
@@ -554,15 +715,43 @@ QStringList Qt4AndroidTarget::availablePrebundledLibs()
 
 QStringList Qt4AndroidTarget::prebundledLibs()
 {
-    QStringList libs;
-
-    return libs;
+    return libsXml("bundled_libs");
 }
 
-bool Qt4AndroidTarget::setPrebundledLibs(const QStringList & qtLibs)
+bool Qt4AndroidTarget::setPrebundledLibs(const QStringList & libs)
 {
 
-    return true;
+    return setLibsXml(libs, "bundled_libs");
+}
+
+QIcon Qt4AndroidTarget::highDpiIcon()
+{
+    return androidIcon(HighDPI);
+}
+
+bool Qt4AndroidTarget::setHighDpiIcon(const QString &iconFilePath)
+{
+    return setAndroidIcon(HighDPI, iconFilePath);
+}
+
+QIcon Qt4AndroidTarget::mediumDpiIcon()
+{
+    return androidIcon(MediumDPI);
+}
+
+bool Qt4AndroidTarget::setMediumDpiIcon(const QString &iconFilePath)
+{
+    return setAndroidIcon(MediumDPI, iconFilePath);
+}
+
+QIcon Qt4AndroidTarget::lowDpiIcon()
+{
+    return androidIcon(LowDPI);
+}
+
+bool Qt4AndroidTarget::setLowDpiIcon(const QString &iconFilePath)
+{
+    return setAndroidIcon(LowDPI, iconFilePath);
 }
 
 QString Qt4AndroidTarget::targetSDK()
@@ -584,101 +773,6 @@ QString Qt4AndroidTarget::targetSDK()
 bool Qt4AndroidTarget::setTargetSDK(const QString & target)
 {
     updateProject(target);
-    return true;
-}
-
-QIcon Qt4AndroidTarget::packageManagerIcon()
-{
-//    QSharedPointer<QFile> controlFile
-//        = openFile(controlFilePath(project), QIODevice::ReadOnly, error);
-//    if (!controlFile)
-        return QIcon();
-
-//    bool iconFieldFound = false;
-//    QByteArray currentLine;
-//    while (!iconFieldFound && !controlFile->atEnd()) {
-//        currentLine = controlFile->readLine();
-//        iconFieldFound = currentLine.startsWith(IconFieldName);
-//    }
-//    if (!iconFieldFound)
-//        return QIcon();
-
-//    int pos = IconFieldName.length();
-//    currentLine = currentLine.trimmed();
-//    QByteArray base64Icon;
-//    do {
-//        while (pos < currentLine.length())
-//            base64Icon += currentLine.at(pos++);
-//        do
-//            currentLine = controlFile->readLine();
-//        while (currentLine.startsWith('#'));
-//        if (currentLine.isEmpty() || !isspace(currentLine.at(0)))
-//            break;
-//        currentLine = currentLine.trimmed();
-//        if (currentLine.isEmpty())
-//            break;
-//        pos = 0;
-//    } while (true);
-//    QPixmap pixmap;
-//    if (!pixmap.loadFromData(QByteArray::fromBase64(base64Icon))) {
-//        *error = tr("Invalid icon data in Debian control file.");
-//        return QIcon();
-//    }
-//    return QIcon(pixmap);
-}
-
-bool Qt4AndroidTarget::setPackageManagerIcon(const QString &iconFilePath)
-{
-//    const QSharedPointer<QFile> controlFile
-//        = openFile(controlFilePath(project), QIODevice::ReadWrite, error);
-//    if (!controlFile)
-//        return false;
-//    const QPixmap pixmap(iconFilePath);
-//    if (pixmap.isNull()) {
-//        *error = tr("Could not read image file '%1'.").arg(iconFilePath);
-//        return false;
-//    }
-
-//    QByteArray iconAsBase64;
-//    QBuffer buffer(&iconAsBase64);
-//    buffer.open(QIODevice::WriteOnly);
-//    if (!pixmap.scaled(48, 48).save(&buffer,
-//        QFileInfo(iconFilePath).suffix().toAscii())) {
-//        *error = tr("Could not export image file '%1'.").arg(iconFilePath);
-//        return false;
-//    }
-//    buffer.close();
-//    iconAsBase64 = iconAsBase64.toBase64();
-//    QByteArray contents = controlFile->readAll();
-//    const int iconFieldPos = contents.startsWith(IconFieldName)
-//        ? 0 : contents.indexOf('\n' + IconFieldName);
-//    if (iconFieldPos == -1) {
-//        if (!contents.endsWith('\n'))
-//            contents += '\n';
-//        contents.append(IconFieldName).append(' ').append(iconAsBase64)
-//            .append('\n');
-//    } else {
-//        const int oldIconStartPos
-//            = (iconFieldPos != 0) + iconFieldPos + IconFieldName.length();
-//        int nextEolPos = contents.indexOf('\n', oldIconStartPos);
-//        while (nextEolPos != -1 && nextEolPos != contents.length() - 1
-//            && contents.at(nextEolPos + 1) != '\n'
-//            && (contents.at(nextEolPos + 1) == '#'
-//                || std::isspace(contents.at(nextEolPos + 1))))
-//            nextEolPos = contents.indexOf('\n', nextEolPos + 1);
-//        if (nextEolPos == -1)
-//            nextEolPos = contents.length();
-//        contents.replace(oldIconStartPos, nextEolPos - oldIconStartPos,
-//            ' ' + iconAsBase64);
-//    }
-//    controlFile->resize(0);
-//    controlFile->write(contents);
-//    if (controlFile->error() != QFile::NoError) {
-//        *error = tr("Error writing file '%1': %2")
-//            .arg(QDir::toNativeSeparators(controlFile->fileName()),
-//                controlFile->errorString());
-//        return false;
-//    }
     return true;
 }
 

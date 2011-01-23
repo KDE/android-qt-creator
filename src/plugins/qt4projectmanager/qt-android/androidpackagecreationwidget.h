@@ -63,8 +63,11 @@ public:
     void setCheckedItems(const QStringList & items);
     const QStringList & checkedItems();
     QVariant data(const QModelIndex &index, int role) const;
-    bool setData(const QModelIndex &index, const QVariant &value, int role);
+    void swap(int index1, int index2);
     int rowCount(const QModelIndex &parent) const;
+
+protected:
+    bool setData(const QModelIndex &index, const QVariant &value, int role);
     Qt::ItemFlags flags(const QModelIndex &index) const;
 private:
     QStringList m_availableItems;
@@ -106,8 +109,6 @@ private:
 private slots:
     void initGui();
     void updateAndroidProjectInfo();
-    void setPackageManagerIcon();
-    void handleToolchainChanged();
 
     void setPackageName();
     void setApplicationName();
@@ -115,6 +116,16 @@ private slots:
     void setVersionCode();
     void setVersionName();
     void setTarget(const QString & target);
+
+    void setQtLibs(QModelIndex,QModelIndex);
+    void setPrebundledLibs(QModelIndex,QModelIndex);
+    void prebundledLibSelected(const QModelIndex & index);
+    void prebundledLibMoveUp();
+    void prebundledLibMoveDown();
+
+    void setHDPIIcon();
+    void setMDPIIcon();
+    void setLDPIIcon();
 
     void permissionActivated(QModelIndex index);
     void addPermission();

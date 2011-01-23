@@ -99,6 +99,24 @@ QVariant CheckModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
+void CheckModel::swap(int index1, int index2)
+{
+    // HACK prevent qt (4.7.1) crash
+    if (index1<index2)
+        qSwap(index1, index2);
+    // HACK
+
+    beginMoveRows(QModelIndex(), index1, index1, QModelIndex(), index2);
+    const QString & item1 = m_availableItems[index1];
+    const QString & item2 = m_availableItems[index2];
+    m_availableItems.swap(index1, index2);
+    index1 = m_checkedItems.indexOf(item1);
+    index2 = m_checkedItems.indexOf(item2);
+    if (index1>-1 && index2>-1)
+        m_checkedItems.swap(index1, index2);
+    endMoveRows();
+}
+
 bool CheckModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     if (role != Qt::CheckStateRole || !index.isValid())
@@ -221,10 +239,16 @@ void AndroidPackageCreationWidget::initGui()
     connect(m_ui->savePermissionsButton, SIGNAL(clicked()), SLOT(savePermissionsButton()));
     connect(m_ui->discardPermissionsButton, SIGNAL(clicked()), SLOT(discardPermissionsButton()));
     connect(m_ui->targetComboBox, SIGNAL(activated(QString)), SLOT(setTarget(QString)));
+    connect(m_qtLibsModel, SIGNAL(dataChanged(QModelIndex,QModelIndex)), SLOT(setQtLibs(QModelIndex,QModelIndex)));
+    connect(m_prebundledLibs, SIGNAL(dataChanged(QModelIndex,QModelIndex)), SLOT(setPrebundledLibs(QModelIndex,QModelIndex)));
+    connect(m_ui->prebundledLibsListView, SIGNAL(activated(QModelIndex)), SLOT(prebundledLibSelected(QModelIndex)));
+    connect(m_ui->upPushButton, SIGNAL(clicked()), SLOT(prebundledLibMoveUp()));
+    connect(m_ui->downPushButton, SIGNAL(clicked()), SLOT(prebundledLibMoveDown()));
 
-    m_qtLibsModel->setAvailableItems(target->availableQtLibs());
-    m_prebundledLibs->setAvailableItems(target->availablePrebundledLibs());
-    m_permissionsModel->setPermissions(target->permissions());
+    connect(m_ui->hIconButton, SIGNAL(clicked()), SLOT(setHDPIIcon()));
+    connect(m_ui->mIconButton, SIGNAL(clicked()), SLOT(setMDPIIcon()));
+    connect(m_ui->lIconButton, SIGNAL(clicked()), SLOT(setLDPIIcon()));
+
     m_ui->qtLibsListView->setModel(m_qtLibsModel);
     m_ui->prebundledLibsListView->setModel(m_prebundledLibs);
     m_ui->permissionsListView->setModel(m_permissionsModel);
@@ -241,20 +265,32 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
     m_ui->appNameLineEdit->setText(target->applicationName());
     if (!m_ui->appNameLineEdit->text().length())
     {
-        m_ui->appNameLineEdit->setText(target->project()->displayName());
-        target->setApplicationName(target->project()->displayName());
+        QString applicationName = target->project()->displayName();
+        if (applicationName.length())
+            applicationName[0]=applicationName[0].toUpper();
+        m_ui->appNameLineEdit->setText(applicationName);
+        target->setApplicationName(applicationName);
     }
     m_ui->versionCode->setValue(target->versionCode());
     m_ui->versionNameLinedit->setText(target->versionName());
-//    QString error;
-//    const QIcon &icon
-//        = AndroidTemplatesManager::instance()->packageManagerIcon(project, &error);
-//    if (!error.isEmpty()) {
-//        QMessageBox::critical(this, tr("Could not read icon"), error);
-//    } else {
-//        m_ui->packageManagerIconButton->setIcon(icon);
-//        m_ui->packageManagerIconButton->setIconSize(m_ui->packageManagerIconButton->size());
-//    }
+
+    m_qtLibsModel->setAvailableItems(target->availableQtLibs());
+    m_qtLibsModel->setCheckedItems(target->qtLibs());
+    m_prebundledLibs->setAvailableItems(target->availablePrebundledLibs());
+    m_prebundledLibs->setCheckedItems(target->prebundledLibs());
+
+    m_permissionsModel->setPermissions(target->permissions());
+    m_ui->removePermissionButton->setEnabled(m_permissionsModel->permissions().size());
+
+    targets=target->availableTargetApplications();
+    m_ui->targetComboBox->clear();
+    m_ui->targetComboBox->addItems(targets);
+    m_ui->targetComboBox->setCurrentIndex(targets.indexOf(target->targetApplication()));
+    if (-1 == m_ui->targetComboBox->currentIndex() && targets.count())
+        m_ui->targetComboBox->setCurrentIndex(0);
+    m_ui->hIconButton->setIcon(target->highDpiIcon());
+    m_ui->mIconButton->setIcon(target->mediumDpiIcon());
+    m_ui->lIconButton->setIcon(target->lowDpiIcon());
 }
 
 void AndroidPackageCreationWidget::setPackageName()
@@ -287,6 +323,68 @@ void AndroidPackageCreationWidget::setTarget(const QString & target)
     m_step->androidTarget()->setTargetApplication(target);
 }
 
+void AndroidPackageCreationWidget::setQtLibs(QModelIndex,QModelIndex)
+{
+    m_step->androidTarget()->setQtLibs(m_qtLibsModel->checkedItems());
+}
+
+void AndroidPackageCreationWidget::setPrebundledLibs(QModelIndex,QModelIndex)
+{
+    m_step->androidTarget()->setPrebundledLibs(m_prebundledLibs->checkedItems());
+}
+
+void AndroidPackageCreationWidget::prebundledLibSelected(const QModelIndex & index)
+{
+    m_ui->upPushButton->setEnabled(false);
+    m_ui->downPushButton->setEnabled(false);
+    if (!index.isValid())
+        return;
+    if (index.row()>0)
+        m_ui->upPushButton->setEnabled(true);
+    if (index.row()<m_prebundledLibs->rowCount(QModelIndex())-1)
+        m_ui->downPushButton->setEnabled(true);
+}
+
+void AndroidPackageCreationWidget::prebundledLibMoveUp()
+{
+    const QModelIndex & index = m_ui->prebundledLibsListView->currentIndex();
+    if (index.isValid())
+        m_prebundledLibs->swap(index.row(), index.row()-1);
+}
+
+void AndroidPackageCreationWidget::prebundledLibMoveDown()
+{
+    const QModelIndex & index = m_ui->prebundledLibsListView->currentIndex();
+    if (index.isValid())
+        m_prebundledLibs->swap(index.row(), index.row()+1);
+}
+
+void AndroidPackageCreationWidget::setHDPIIcon()
+{
+    QString file = QFileDialog::getOpenFileName(this, tr("Choose High DPI Icon"), QDir::homePath(), tr("png images (*.png)"));
+    if (!file.length())
+        return;
+    m_step->androidTarget()->setHighDpiIcon(file);
+    m_ui->hIconButton->setIcon(m_step->androidTarget()->highDpiIcon());
+}
+
+void AndroidPackageCreationWidget::setMDPIIcon()
+{
+    QString file = QFileDialog::getOpenFileName(this, tr("Choose Medium DPI Icon"), QDir::homePath(), tr("png images (*.png)"));
+    if (!file.length())
+        return;
+    m_step->androidTarget()->setMediumDpiIcon(file);
+    m_ui->mIconButton->setIcon(m_step->androidTarget()->mediumDpiIcon());
+}
+
+void AndroidPackageCreationWidget::setLDPIIcon()
+{
+    QString file = QFileDialog::getOpenFileName(this, tr("Choose Low DPI Icon"), QDir::homePath(), tr("png images (*.png)"));
+    if (!file.length())
+        return;
+    m_step->androidTarget()->setLowDpiIcon(file);
+    m_ui->lIconButton->setIcon(m_step->androidTarget()->lowDpiIcon());
+}
 
 void AndroidPackageCreationWidget::permissionActivated(QModelIndex index)
 {
@@ -301,6 +399,7 @@ void AndroidPackageCreationWidget::addPermission()
     m_ui->permissionsListView->setCurrentIndex(m_permissionsModel->addPermission(emptyPerrmission));
     m_ui->permissionsComboBox->lineEdit()->setText(emptyPerrmission);
     m_ui->permissionsComboBox->setFocus();
+    m_ui->removePermissionButton->setEnabled(m_permissionsModel->permissions().size());
 }
 
 void AndroidPackageCreationWidget::updatePermission()
@@ -315,6 +414,7 @@ void AndroidPackageCreationWidget::removePermission()
     setEnabledSaveDiscardButtons(true);
     if (m_ui->permissionsListView->currentIndex().isValid())
         m_permissionsModel->removePermission(m_ui->permissionsListView->currentIndex().row());
+    m_ui->removePermissionButton->setEnabled(m_permissionsModel->permissions().size());
 }
 
 void AndroidPackageCreationWidget::savePermissionsButton()
@@ -327,6 +427,8 @@ void AndroidPackageCreationWidget::discardPermissionsButton()
 {
     setEnabledSaveDiscardButtons(false);
     m_permissionsModel->setPermissions(m_step->androidTarget()->permissions());
+    m_ui->permissionsComboBox->setCurrentIndex(-1);
+    m_ui->removePermissionButton->setEnabled(m_permissionsModel->permissions().size());
 }
 
 void AndroidPackageCreationWidget::setEnabledSaveDiscardButtons(bool enabled)
@@ -335,34 +437,6 @@ void AndroidPackageCreationWidget::setEnabledSaveDiscardButtons(bool enabled)
         m_ui->permissionsListView->setFocus();
     m_ui->savePermissionsButton->setEnabled(enabled);
     m_ui->discardPermissionsButton->setEnabled(enabled);
-}
-
-void AndroidPackageCreationWidget::setPackageManagerIcon()
-{
-    QString imageFilter = tr("Images") + QLatin1String("( ");
-    const QList<QByteArray> &imageTypes = QImageReader::supportedImageFormats();
-    foreach (const QByteArray &imageType, imageTypes)
-        imageFilter += "*." + QString::fromAscii(imageType) + QLatin1Char(' ');
-    imageFilter += QLatin1Char(')');
-    const QString iconFileName = QFileDialog::getOpenFileName(this,
-        tr("Choose Image (will be scaled to 48x48 pixels if necessary)"),
-        QString(), imageFilter);
-    if (!iconFileName.isEmpty()) {
-        QString error;
-        if (!m_step->androidTarget()->setPackageManagerIcon(iconFileName))
-            QMessageBox::critical(this, tr("Could Not Set New Icon"), error);
-    }
-}
-
-void AndroidPackageCreationWidget::handleToolchainChanged()
-{
-//    if (!m_step->androidToolChain())
-//        return;
-#warning FIXME Android
-//    m_ui->skipCheckBox
-//        ->setVisible(m_step->androidToolChain()->allowsPackagingDisabling());
-//    m_ui->skipCheckBox->setChecked(!m_step->isPackagingEnabled());
-    emit updateSummary();
 }
 
 QString AndroidPackageCreationWidget::summaryText() const
@@ -374,28 +448,6 @@ QString AndroidPackageCreationWidget::displayName() const
 {
     return m_step->displayName();
 }
-
-//void AndroidPackageCreationWidget::handleSkipButtonToggled(bool checked)
-//{
-//    m_ui->major->setEnabled(!checked);
-//    m_ui->minor->setEnabled(!checked);
-//    m_ui->debianFilesComboBox->setEnabled(!checked);
-//    m_ui->editDebianFileButton->setEnabled(!checked);
-//    m_step->setPackagingEnabled(!checked);
-//    emit updateSummary();
-//}
-
-
-
-//void AndroidPackageCreationWidget::editDebianFile()
-//{
-////    const QString debianFilePath = AndroidTemplatesManager::instance()
-////        ->debianDirPath(m_step->buildConfiguration()->target()->project())
-////        + QLatin1Char('/') + m_ui->debianFilesComboBox->currentText();
-////    Core::EditorManager::instance()->openEditor(debianFilePath,
-////                                                QString(),
-////                                                Core::EditorManager::ModeSwitch);
-//}
 
 } // namespace Internal
 } // namespace Qt4ProjectManager

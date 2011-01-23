@@ -1026,6 +1026,10 @@ QVariantMap Version1Handler::update(Project *project, const QVariantMap &map)
                                      QCoreApplication::translate("Qt4ProjectManager::Internal::Qt4Target",
                                                                  "Symbian Device",
                                                                  "Qt4 Symbian Device target display name"))
+        << TargetDescription(QString::fromLatin1("Qt4ProjectManager.Target.AndroidDeviceTarget"),
+                                     QCoreApplication::translate("Qt4ProjectManager::Internal::Qt4Target",
+                                                                 "Android",
+                                                                 "Qt4 Android target display name"))
         << TargetDescription(QString::fromLatin1("Qt4ProjectManager.Target.MaemoEmulatorTarget"),
                                      QCoreApplication::translate("Qt4ProjectManager::Internal::Qt4Target",
                                                                  "Maemo Emulator",
