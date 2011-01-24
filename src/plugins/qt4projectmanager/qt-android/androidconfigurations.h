@@ -100,8 +100,11 @@ public:
     QString gdbPath();
     QString stripPath();
     QString getDeployDeviceSerialNumber(int apiLevel=-1);
-    QString createAVD(int apiLevel);
+    bool createAVD();
+    bool createAVD(const QString & target, const QString & name, int sdcardSize );
+    bool removeAVD(const QString & name);
     QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
+    QVector<AndroidDevice> androidVirtualDevices();
 signals:
     void updated();
 

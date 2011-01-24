@@ -216,7 +216,7 @@ void AndroidSettingsWidget::browseAntLocation()
 
 void AndroidSettingsWidget::addAVD()
 {
-    // TODO
+    AndroidConfigurations::instance().createAVD();
 }
 
 void AndroidSettingsWidget::removeAVD()

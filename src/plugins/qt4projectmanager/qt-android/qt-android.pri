@@ -52,6 +52,7 @@ SOURCES += \
 FORMS += \
     $$PWD/androidsettingswidget.ui \
     $$PWD/androidpackagecreationwidget.ui \
-    $$PWD/androiddeploystepwidget.ui
+    $$PWD/androiddeploystepwidget.ui \
+    $$PWD/addnewavddialog.ui
 
 #RESOURCES += $$PWD/qt-android.qrc

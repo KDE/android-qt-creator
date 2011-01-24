@@ -34,15 +34,17 @@
 
 #include "androidconfigurations.h"
 #include "androidconstants.h"
+#include "ui_addnewavddialog.h"
 
 #include <coreplugin/icore.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QSettings>
 #include <QtCore/QStringBuilder>
-#include <QtGui/QDesktopServices>
 #include <QtCore/QStringList>
 #include <QtCore/QProcess>
+#include <QtGui/QStringListModel>
+#include <QtGui/QDesktopServices>
 #include <QDebug>
 
 #if defined(_WIN32)
@@ -96,8 +98,21 @@ void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
 
 QStringList AndroidConfigurations::sdkTargets()
 {
-#warning TODO run android list targets and take targets fron the output
-    return QStringList()<<"android-4"<<"android-5"<<"android-8"<<"android-9";
+    QStringList targets;
+    QProcess proc;
+    proc.start(QString("%1 list target").arg(androidToolPath())); // list avaialbe AVDs
+    if (!proc.waitForFinished(-1))
+        return targets;
+    QList<QByteArray> avds=proc.readAll().trimmed().split('\n');
+    for (int i=0;i<avds.size();i++)
+    {
+        QString line=avds[i];
+        int index = line.indexOf("\"android-");
+        if (-1 == index)
+            continue;
+        targets.push_back(line.mid(index+1, line.length()-index-2));
+    }
+    return targets;
 }
 
 QStringList AndroidConfigurations::ndkToolchainVersions()
@@ -179,22 +194,49 @@ QVector<AndroidDevice> AndroidConfigurations::connectedDevices(int apiLevel)
     return devices;
 }
 
-QString AndroidConfigurations::createAVD(int apiLevel)
+bool AndroidConfigurations::createAVD()
 {
-#warning TODO ANDROID use "android create avd" command
-    return QString();
+    QRegExp rx("\\S+");
+    QRegExpValidator v(rx, 0);
+    QDialog d;
+    Ui::AddNewAVDDialog avdDialog;
+    avdDialog.setupUi(&d);
+    QStringListModel model(sdkTargets());
+    avdDialog.targetComboBox->setModel(&model);
+    avdDialog.nameLineEdit->setValidator(&v);
+    if (d.exec()!=QDialog::Accepted)
+        return false;
+    return createAVD(avdDialog.targetComboBox->currentText(), avdDialog.nameLineEdit->text(), avdDialog.sizeSpinBox->value());
 }
 
-QString AndroidConfigurations::startAVD(int apiLevel)
+bool AndroidConfigurations::createAVD(const QString & target, const QString & name, int sdcardSize )
 {
-    QProcess * m_avdProcess = new QProcess(this);
-    connect(m_avdProcess, SIGNAL(finished(int)), m_avdProcess, SLOT(deleteLater()));
+    QProcess proc;
+    proc.start(QString("%1 create avd -t %2 -n %3 -c %4M").arg(androidToolPath()).arg(target).arg(name).arg(sdcardSize));
+    if (!proc.waitForStarted())
+        return false;
+    proc.write(QByteArray("no\n"));
+    if (!proc.waitForFinished(-1))
+        return false;
+    return !proc.exitCode();
+}
 
+bool AndroidConfigurations::removeAVD(const QString & name)
+{
+    QProcess proc;
+    proc.start(QString("%1 delete avd -n %2").arg(androidToolPath()).arg(name)); // list avaialbe AVDs
+    if (!proc.waitForFinished(-1))
+        return false;
+    return !proc.exitCode();
+}
+
+QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
+{
     QVector<AndroidDevice> devices;
     QProcess proc;
     proc.start(QString("%1 list avd").arg(androidToolPath())); // list avaialbe AVDs
     if (!proc.waitForFinished(-1))
-        return QString();
+        return devices;
     QList<QByteArray> avds=proc.readAll().trimmed().split('\n');
     avds.removeFirst();
     AndroidDevice dev;
@@ -204,7 +246,7 @@ QString AndroidConfigurations::startAVD(int apiLevel)
         if (!line.contains("Name:"))
             continue;
 
-        dev.serialNumber=line.mid(line.indexOf(':')+2).trimmed();// device.left(device.indexOf('\t')).trimmed();
+        dev.serialNumber=line.mid(line.indexOf(':')+2).trimmed();
         ++i;
         for(;i<avds.size();++i)
         {
@@ -215,12 +257,20 @@ QString AndroidConfigurations::startAVD(int apiLevel)
             break;
         }
         ++i;
-        if (dev.sdk>=apiLevel)
-            devices.push_back(dev);
+        devices.push_back(dev);
     }
     qSort(devices.begin(), devices.end(), androidDevicesLessThan);
 
+    return devices;
+}
+
+QString AndroidConfigurations::startAVD(int apiLevel)
+{
+    QProcess * m_avdProcess = new QProcess(this);
+    connect(m_avdProcess, SIGNAL(finished(int)), m_avdProcess, SLOT(deleteLater()));
+
     QString avdName;
+    QVector<AndroidDevice> devices=androidVirtualDevices();
     foreach(AndroidDevice device, devices)
         if (device.sdk>=apiLevel) // take first emulator how supports this package
         {
@@ -230,7 +280,7 @@ QString AndroidConfigurations::startAVD(int apiLevel)
 
     // if no emulators found try to create one
     if (!avdName.length())
-        avdName=createAVD(apiLevel);
+        avdName=createAVD();
 
     if (!avdName.length())// stop here if no emulators found
         return avdName;
@@ -241,6 +291,7 @@ QString AndroidConfigurations::startAVD(int apiLevel)
         return QString();
 
     // wait until the emulator is online
+    QProcess proc;
     proc.start(adbToolPath()+ QLatin1String(" -e wait-for-device"));
     if (!proc.waitForFinished(-1))
         return QString();
