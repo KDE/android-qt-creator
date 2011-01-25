@@ -507,6 +507,31 @@ bool Qt4AndroidTarget::setTargetApplication(const QString & name)
     return false;
 }
 
+QString Qt4AndroidTarget::targetApplicationPath()
+{
+    QString selectedApp=targetApplication();
+    if (!selectedApp.length())
+        return QString();
+    Qt4Project * qt4Project = qobject_cast<Qt4Project *>(project());
+    foreach(Qt4ProFileNode * proFile, qt4Project->applicationProFiles())
+    {
+        if (proFile->projectType()== ApplicationTemplate)
+        {
+            if(proFile->targetInformation().target.startsWith(QLatin1String("lib"))
+                    && proFile->targetInformation().target.endsWith(QLatin1String(".so")))
+            {
+                if (proFile->targetInformation().target.mid(3, proFile->targetInformation().target.lastIndexOf(QChar('.'))-3)
+                        ==selectedApp)
+                    return proFile->targetInformation().buildDir+"/"+proFile->targetInformation().target;
+            }
+            else
+                if (proFile->targetInformation().target == selectedApp)
+                    return proFile->targetInformation().buildDir+"/lib"+proFile->targetInformation().target+".so";
+        }
+    }
+    return QString();
+}
+
 int Qt4AndroidTarget::versionCode()
 {
     QDomDocument doc;

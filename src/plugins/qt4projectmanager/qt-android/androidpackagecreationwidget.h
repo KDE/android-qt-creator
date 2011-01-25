@@ -134,6 +134,8 @@ private slots:
     void savePermissionsButton();
     void discardPermissionsButton();
 
+    void readElfInfo();
+
 private:
     AndroidPackageCreationStep * const m_step;
     Ui::AndroidPackageCreationWidget * const m_ui;

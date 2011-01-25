@@ -94,6 +94,7 @@ public:
     QStringList availableTargetApplications();
     QString targetApplication();
     bool setTargetApplication(const QString & name);
+    QString targetApplicationPath();
 
     QString targetSDK();
     bool setTargetSDK(const QString & target);

@@ -941,8 +941,18 @@ p, li { white-space: pre-wrap; }
       <attribute name="title">
        <string>Libraries</string>
       </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout_5">
-       <item>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0" colspan="2">
+        <widget class="QPushButton" name="readInfoPushButton">
+         <property name="toolTip">
+          <string>Automatically check required Qt libraries from compiled application</string>
+         </property>
+         <property name="text">
+          <string>Read information from application (must be compiled)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
         <widget class="QFrame" name="frame">
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
@@ -967,7 +977,7 @@ p, li { white-space: pre-wrap; }
          </layout>
         </widget>
        </item>
-       <item>
+       <item row="1" column="1">
         <widget class="QFrame" name="frame_2">
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>

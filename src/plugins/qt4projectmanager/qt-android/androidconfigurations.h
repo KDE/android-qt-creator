@@ -99,6 +99,7 @@ public:
     QString gdbServerPath();
     QString gdbPath();
     QString stripPath();
+    QString readelfPath();
     QString getDeployDeviceSerialNumber(int apiLevel=-1);
     bool createAVD();
     bool createAVD(const QString & target, const QString & name, int sdcardSize );

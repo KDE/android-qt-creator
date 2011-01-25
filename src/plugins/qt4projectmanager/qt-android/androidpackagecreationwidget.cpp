@@ -53,6 +53,8 @@
 #include <utils/qtcassert.h>
 
 #include <QtCore/QTimer>
+#include <QtCore/QProcess>
+
 #include <QtGui/QFileDialog>
 #include <QtGui/QImageReader>
 #include <QtGui/QMessageBox>
@@ -244,6 +246,7 @@ void AndroidPackageCreationWidget::initGui()
     connect(m_ui->prebundledLibsListView, SIGNAL(activated(QModelIndex)), SLOT(prebundledLibSelected(QModelIndex)));
     connect(m_ui->upPushButton, SIGNAL(clicked()), SLOT(prebundledLibMoveUp()));
     connect(m_ui->downPushButton, SIGNAL(clicked()), SLOT(prebundledLibMoveDown()));
+    connect(m_ui->readInfoPushButton, SIGNAL(clicked()), SLOT(readElfInfo()));
 
     connect(m_ui->hIconButton, SIGNAL(clicked()), SLOT(setHDPIIcon()));
     connect(m_ui->mIconButton, SIGNAL(clicked()), SLOT(setMDPIIcon()));
@@ -429,6 +432,54 @@ void AndroidPackageCreationWidget::discardPermissionsButton()
     m_permissionsModel->setPermissions(m_step->androidTarget()->permissions());
     m_ui->permissionsComboBox->setCurrentIndex(-1);
     m_ui->removePermissionButton->setEnabled(m_permissionsModel->permissions().size());
+}
+
+void AndroidPackageCreationWidget::readElfInfo()
+{
+    QProcess readelfProc;
+    QString appPath=m_step->androidTarget()->targetApplicationPath();
+    if (!QFile::exists(appPath))
+    {
+        QMessageBox::critical(this, tr("Can't find read elf informations"),
+                              tr("Can't find '%1'.\n"
+                                 "Please be sure your appication is"
+                                 " successfully build and is selected in Appplication tab ('Run option') ").arg(appPath) );
+        return;
+    }
+    readelfProc.start(QString("%1 -d -W %2")
+                      .arg(AndroidConfigurations::instance().readelfPath())
+                      .arg(appPath));
+    if (!readelfProc.waitForFinished(-1))
+        return;
+    QStringList libs;
+    QList<QByteArray> lines=readelfProc.readAll().trimmed().split('\n');
+    foreach(QByteArray line, lines)
+    {
+        if (line.contains("(NEEDED)") && line.contains("Shared library:") )
+        {
+            const int pos=line.lastIndexOf('[')+1;
+            libs<<line.mid(pos,line.length()-pos-1);
+        }
+    }
+    libs.sort();
+    QStringList checkedLibs = m_qtLibsModel->checkedItems();
+    foreach(const QString & qtLib, m_step->androidTarget()->availableQtLibs())
+    {
+        if (libs.contains("lib"+qtLib+".so") && !checkedLibs.contains(qtLib))
+            checkedLibs<<qtLib;
+    }
+    checkedLibs.sort();
+    m_step->androidTarget()->setQtLibs(checkedLibs);
+    m_qtLibsModel->setCheckedItems(checkedLibs);
+
+    checkedLibs = m_prebundledLibs->checkedItems();
+    foreach(const QString & qtLib, m_step->androidTarget()->availableQtLibs())
+    {
+        if (libs.contains(qtLib) && !checkedLibs.contains(qtLib))
+            checkedLibs<<qtLib;
+    }
+    m_step->androidTarget()->setPrebundledLibs(checkedLibs);
+    m_prebundledLibs->setCheckedItems(checkedLibs);
 }
 
 void AndroidPackageCreationWidget::setEnabledSaveDiscardButtons(bool enabled)
