@@ -177,13 +177,23 @@ void NodeInstanceView::restartProcess()
     }
 }
 
-/*! \brief Notifing the view that a node was created.
-  A NodeInstance will be created for the new created ModelNode.
-\param createdNode New created ModelNode.
-*/
+bool isSkippedNode(const ModelNode &node)
+{
+    static QStringList skipList =  QStringList() << "Qt/ListModel" << "QtQuick/ListModel";
+
+    if (skipList.contains(node.type()))
+        return true;
+
+    return false;
+}
+
 void NodeInstanceView::nodeCreated(const ModelNode &createdNode)
 {
     NodeInstance instance = loadNode(createdNode);
+
+    if (isSkippedNode(createdNode))
+        return;
+
     nodeInstanceServer()->createInstances(createCreateInstancesCommand(QList<NodeInstance>() << instance));
     nodeInstanceServer()->changePropertyValues(createChangeValueCommand(createdNode.variantProperties()));
     nodeInstanceServer()->completeComponent(createComponentCompleteCommand(QList<NodeInstance>() << instance));
@@ -351,15 +361,8 @@ void NodeInstanceView::variantPropertiesChanged(const QList<VariantProperty>& pr
 
 void NodeInstanceView::nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags /*propertyChange*/)
 {
-    nodeInstanceServer()->reparentInstances(createReparentInstancesCommand(node, newPropertyParent, oldPropertyParent));
-//    NodeInstance nodeInstance(instanceForNode(node));
-//    NodeInstance oldParentInstance;
-//    if (hasInstanceForNode(oldPropertyParent.parentModelNode()))
-//        oldParentInstance = instanceForNode(oldPropertyParent.parentModelNode());
-//    NodeInstance newParentInstance;
-//    if (hasInstanceForNode(newPropertyParent.parentModelNode()))
-//        newParentInstance = instanceForNode(newPropertyParent.parentModelNode());
-//    nodeInstance.reparent(oldParentInstance, oldPropertyParent.name(), newParentInstance, newPropertyParent.name());
+    if (!isSkippedNode(node))
+        nodeInstanceServer()->reparentInstances(createReparentInstancesCommand(node, newPropertyParent, oldPropertyParent));
 }
 
 void NodeInstanceView::nodeAboutToBeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
@@ -369,10 +372,6 @@ void NodeInstanceView::nodeAboutToBeReparented(const ModelNode &/*node*/, const 
 
 void NodeInstanceView::fileUrlChanged(const QUrl &/*oldUrl*/, const QUrl &newUrl)
 {
-    // TODO: We have to probably reload everything, so that images etc are updated!!!
-    //engine()->setBaseUrl(model()->fileUrl());
-
-    //TODO reload the whole scene
     nodeInstanceServer()->changeFileUrl(createChangeFileUrlCommand(newUrl));
 }
 
@@ -625,14 +624,31 @@ QRectF NodeInstanceView::sceneRect() const
     return QRectF();
 }
 
+QList<ModelNode> filterNodesForSkipItems(const QList<ModelNode> &nodeList)
+{
+    QList<ModelNode> filteredNodeList;
+    foreach(const ModelNode &node, nodeList) {
+        if (isSkippedNode(node))
+            continue;
+
+        filteredNodeList.append(node);
+    }
+
+    return filteredNodeList;
+}
+
 CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
 {
     QList<ModelNode> nodeList = allModelNodes();
     QList<NodeInstance> instanceList;
 
-    foreach (const ModelNode &node, nodeList)
-        instanceList.append(loadNode(node));
+    foreach (const ModelNode &node, nodeList) {
+        NodeInstance instance = loadNode(node);
+        if (!isSkippedNode(node))
+            instanceList.append(instance);
+    }
 
+    nodeList = filterNodesForSkipItems(nodeList);
 
     QList<VariantProperty> variantPropertyList;
     QList<BindingProperty> bindingPropertyList;

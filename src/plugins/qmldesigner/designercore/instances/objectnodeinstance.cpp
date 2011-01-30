@@ -742,11 +742,9 @@ void tweakObjects(QObject *object)
 QObject *createComponent(const QString &componentPath, QDeclarativeContext *context)
 {
     QDeclarativeComponent component(context->engine(), QUrl::fromLocalFile(componentPath));
-    QDeclarativeContext *newContext =  new QDeclarativeContext(context);
-    QObject *object = component.beginCreate(newContext);
+    QObject *object = component.beginCreate(context);
     tweakObjects(object);
     component.completeCreate();
-    newContext->setParent(object);
 
     return object;
 }
@@ -756,7 +754,11 @@ QObject *createPrimitive(const QString &typeName, int majorNumber, int minorNumb
     QObject *object = 0;
     QDeclarativeType *type = QDeclarativeMetaType::qmlType(typeName.toUtf8(), majorNumber, minorNumber);
     if (type)  {
-        object = type->create();
+        if (type->typeName() == "QDeclarativeComponent") {
+            object = new QDeclarativeComponent(context->engine(), 0);
+        } else  {
+            object = type->create();
+        }
     } else {
         qWarning() << "QuickDesigner: Cannot create an object of type"
                    << QString("%1 %2,%3").arg(typeName).arg(majorNumber).arg(minorNumber)
@@ -862,7 +864,7 @@ QStringList propertyNameForWritableProperties(QObject *object, const QString &ba
     for (int index = 0; index < metaObject->propertyCount(); ++index) {
         QMetaProperty metaProperty = metaObject->property(index);
         QDeclarativeProperty declarativeProperty(object, QLatin1String(metaProperty.name()));
-        if (declarativeProperty.isValid() && declarativeProperty.isWritable() && declarativeProperty.propertyTypeCategory() == QDeclarativeProperty::Object) {
+        if (declarativeProperty.isValid() && !declarativeProperty.isWritable() && declarativeProperty.propertyTypeCategory() == QDeclarativeProperty::Object) {
             if (declarativeProperty.name() != "parent") {
                 QObject *childObject = QDeclarativeMetaType::toQObject(declarativeProperty.read());
                 if (childObject)

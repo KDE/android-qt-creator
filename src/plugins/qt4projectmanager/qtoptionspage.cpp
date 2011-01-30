@@ -484,7 +484,7 @@ void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
         bool canBuildQmlObserver = QmlObserverTool::canBuild(version);
 
         bool hasGdbHelper = !version->debuggingHelperLibrary().isEmpty();
-        bool hasQmlDumper = !version->qmlDumpTool().isEmpty();
+        bool hasQmlDumper = version->hasQmlDump();
         bool hasQmlObserver = !version->qmlObserverTool().isEmpty();
 
         // get names of tools from labels
@@ -498,9 +498,9 @@ void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
 
         QString status;
         if (helperNames.isEmpty()) {
-            status = tr("Helper Tools: None available");
+            status = tr("Helpers: None available");
         } else {
-            status = tr("Helper Tools: %1 are available.", "%1 is list of tool names").arg(
+            status = tr("Helper(s): %1.", "%1 is list of tool names", helperNames.size()).arg(
                         helperNames.join(tr(", ", "Separator used to join names of helper tools.")));
         }
 
@@ -509,27 +509,39 @@ void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
         // Set detailed labels
         m_debuggingHelperUi->gdbHelperStatus->setText(hasGdbHelper
                                                 ? version->debuggingHelperLibrary()
-                                                : QLatin1String("-"));
+                                                : tr("<i>Not yet built.</i>"));
 
-        if (canBuildQmlDumper) {
-            m_debuggingHelperUi->qmlDumpStatus->setText(hasQmlDumper
-                                                        ? version->qmlDumpTool()
-                                                         : QLatin1String("-"));
-            m_debuggingHelperUi->qmlDumpBuildButton->setEnabled(true);
+        QString qmlDumpStatusText;
+        if (hasQmlDumper) {
+            qmlDumpStatusText = version->qmlDumpTool(false);
+            const QString debugQmlDumpPath = version->qmlDumpTool(true);
+            if (qmlDumpStatusText != debugQmlDumpPath) {
+                if (!qmlDumpStatusText.isEmpty())
+                    qmlDumpStatusText += QLatin1String("\n");
+                qmlDumpStatusText += debugQmlDumpPath;
+            }
         } else {
-            m_debuggingHelperUi->qmlDumpStatus->setText(tr("<i>Cannot be compiled.</i>"));
-            m_debuggingHelperUi->qmlDumpBuildButton->setEnabled(false);
+            if (canBuildQmlDumper) {
+                qmlDumpStatusText = tr("<i>Not yet built.</i>");
+            } else {
+                qmlDumpStatusText = tr("<i>Cannot be compiled.</i>");
+            }
         }
+        m_debuggingHelperUi->qmlDumpStatus->setText(qmlDumpStatusText);
+        m_debuggingHelperUi->qmlDumpBuildButton->setEnabled(canBuildQmlDumper);
 
-        if (canBuildQmlObserver) {
-            m_debuggingHelperUi->qmlObserverStatus->setText(hasQmlObserver
-                                                    ? version->qmlObserverTool()
-                                                    : QLatin1String("-"));
-            m_debuggingHelperUi->qmlObserverBuildButton->setEnabled(true);
-        } else {
-            m_debuggingHelperUi->qmlDumpStatus->setText(tr("<i>Cannot be compiled.</i>"));
-            m_debuggingHelperUi->qmlObserverBuildButton->setEnabled(false);
+        QString qmlObserverStatusText;
+        if (hasQmlObserver) {
+            qmlObserverStatusText = version->qmlObserverTool();
+        }  else {
+            if (canBuildQmlObserver) {
+                qmlObserverStatusText = tr("<i>Not yet built.</i>");
+            } else {
+                qmlObserverStatusText = tr("<i>Cannot be compiled.</i>");
+            }
         }
+        m_debuggingHelperUi->qmlObserverStatus->setText(qmlObserverStatusText);
+        m_debuggingHelperUi->qmlObserverBuildButton->setEnabled(canBuildQmlObserver);
 
         const QTreeWidgetItem *currentItem = m_ui->qtdirList->currentItem();
         const bool hasLog = currentItem && !currentItem->data(0, BuildLogRole).toString().isEmpty();

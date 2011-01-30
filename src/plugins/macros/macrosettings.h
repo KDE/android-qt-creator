@@ -34,7 +34,6 @@
 #ifndef MACROSPLUGIN_MACROSETTINGS_H
 #define MACROSPLUGIN_MACROSETTINGS_H
 
-#include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtCore/QMap>
 #include <QtCore/QVariant>
@@ -58,7 +57,7 @@ public:
 
     QString defaultDirectory;
     QStringList directories;
-    QMap<QString, QVariant> shortcutIds;
+    QMap<QString, QVariant> shortcuts;
     bool showSaveDialog;
 };
 

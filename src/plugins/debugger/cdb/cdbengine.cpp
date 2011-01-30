@@ -440,9 +440,11 @@ void CdbEngine::setToolTipExpression(const QPoint &mousePos, TextEditor::ITextEd
     if (!(exp.at(0).isLetter() || exp.at(0) == QLatin1Char('_')))
         return;
     const QByteArray iname = QByteArray(localsPrefixC) + exp.toAscii();
-    if (const WatchData *data = watchHandler()->findItem(iname)) {
-        QToolTip::hideText();
-        QToolTip::showText(mousePos, data->toToolTip());
+    const QModelIndex index = watchHandler()->itemIndex(iname);
+    if (index.isValid()) {
+        showDebuggerToolTip(mousePos, watchHandler()->modelForIName(iname), index.row());
+    } else {
+        hideDebuggerToolTip();
     }
 }
 
@@ -659,6 +661,8 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
 
     m_outputBuffer.clear();
     m_process.setEnvironment(mergeEnvironment(sp.environment.toStringList(), extensionFi.absolutePath()));
+    if (!sp.workingDirectory.isEmpty())
+        m_process.setWorkingDirectory(sp.workingDirectory);
 
 #ifdef Q_OS_WIN
     if (!nativeArguments.isEmpty()) // Appends
@@ -927,9 +931,9 @@ unsigned CdbEngine::debuggerCapabilities() const
 
 void CdbEngine::executeStep()
 {
-    postCommand(QByteArray("t"), 0); // Step into-> t (trace)
     if (!m_operateByInstruction)
         m_sourceStepInto = true; // See explanation at handleStackTrace().
+    postCommand(QByteArray("t"), 0); // Step into-> t (trace)
     STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorRunRequested")
     notifyInferiorRunRequested();
 }
@@ -1088,6 +1092,15 @@ void CdbEngine::assignValueInDebugger(const WatchData *w, const QString &expr, c
     updateLocals();
 }
 
+void CdbEngine::parseThreads(const GdbMi &data, int forceCurrentThreadId /* = -1 */)
+{
+    int currentThreadId;
+    Threads threads = ThreadsHandler::parseGdbmiThreads(data, &currentThreadId);
+    threadsHandler()->setThreads(threads);
+    threadsHandler()->setCurrentThreadId(forceCurrentThreadId >= 0 ?
+                                         forceCurrentThreadId : currentThreadId);
+}
+
 void CdbEngine::handleThreads(const CdbExtensionCommandPtr &reply)
 {
     if (debug)
@@ -1095,10 +1108,7 @@ void CdbEngine::handleThreads(const CdbExtensionCommandPtr &reply)
     if (reply->success) {
         GdbMi data;
         data.fromString(reply->reply);
-        int currentThreadId;
-        Threads threads = ThreadsHandler::parseGdbmiThreads(data, &currentThreadId);
-        threadsHandler()->setThreads(threads);
-        threadsHandler()->setCurrentThreadId(currentThreadId);
+        parseThreads(data);
         // Continue sequence
         postCommandSequence(reply->commandSequence);
     } else {
@@ -1561,22 +1571,20 @@ enum StopActionFlags
     // Report options
     StopReportLog = 0x1,
     StopReportStatusMessage = 0x2,
-    StopReportParseError = 0x2,
-    StopShowExceptionMessageBox = 0x4,
+    StopReportParseError = 0x4,
+    StopShowExceptionMessageBox = 0x8,
     // Notify stop or just continue
-    StopNotifyStop = 0x8,
-    StopIgnoreContinue = 0x10,
+    StopNotifyStop = 0x10,
+    StopIgnoreContinue = 0x20,
     // Hit on break in artificial stop thread (created by DebugBreak()).
-    StopInArtificialThread = 0x20
+    StopInArtificialThread = 0x40
 };
 
-unsigned CdbEngine::examineStopReason(const QByteArray &messageIn,
+unsigned CdbEngine::examineStopReason(const GdbMi &stopReason,
                                       QString *message,
                                       QString *exceptionBoxMessage)
 {
     // Report stop reason (GDBMI)
-    GdbMi stopReason;
-    stopReason.fromString(messageIn);
     if (debug)
         qDebug("%s", stopReason.toString(true, 4).constData());
     const QByteArray reason = stopReason.findChild("reason").data();
@@ -1683,7 +1691,10 @@ void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
     // Further examine stop and report to user
     QString message;
     QString exceptionBoxMessage;
-    const unsigned stopFlags = examineStopReason(messageBA, &message, &exceptionBoxMessage);
+    GdbMi stopReason;
+    stopReason.fromString(messageBA);
+    int forcedThreadId = -1;
+    const unsigned stopFlags = examineStopReason(stopReason, &message, &exceptionBoxMessage);
     // Do the non-blocking log reporting
     if (stopFlags & StopReportLog)
         showMessage(message, LogMisc);
@@ -1705,17 +1716,37 @@ void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
             STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSpontaneousStop")
             notifyInferiorSpontaneousStop();
         }
+        const bool sourceStepInto = m_sourceStepInto;
+        m_sourceStepInto = false;
         // Start sequence to get all relevant data.
         if (stopFlags & StopInArtificialThread) {
             showMessage(tr("Switching to main thread..."), LogMisc);
             postCommand("~0 s", 0);
+            forcedThreadId = 0;
+            // Re-fetch stack again.
+            postCommandSequence(CommandListStack);
+        } else {
+            const GdbMi stack = stopReason.findChild("stack");
+            if (stack.isValid()) {
+                if (parseStackTrace(stack, sourceStepInto) & ParseStackStepInto) {
+                    executeStep(); // Hit on a frame while step into, see parseStackTrace().
+                    return;
+                }
+            } else {
+                showMessage(QString::fromAscii(stopReason.findChild("stackerror").data()), LogError);
+            }
         }
-        unsigned sequence = CommandListStack|CommandListThreads;
+        const GdbMi threads = stopReason.findChild("threads");
+        if (threads.isValid()) {
+            parseThreads(threads, forcedThreadId);
+        } else {
+            showMessage(QString::fromAscii(stopReason.findChild("threaderror").data()), LogError);
+        }
+        // Fire off remaining commands asynchronously
         if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_REGISTER)))
-            sequence |= CommandListRegisters;
+            postCommandSequence(CommandListRegisters);
         if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_MODULES)))
-            sequence |= CommandListModules;
-        postCommandSequence(sequence);
+            postCommandSequence(CommandListModules);
     }
     // After the sequence has been sent off and CDB is pondering the commands,
     // pop up a message box for exceptions.
@@ -2174,13 +2205,8 @@ QString CdbEngine::normalizeFileName(const QString &f)
 
 // Parse frame from GDBMI. Duplicate of the gdb code, but that
 // has more processing.
-static StackFrames parseFrames(const QByteArray &data)
+static StackFrames parseFrames(const GdbMi &gdbmi)
 {
-    GdbMi gdbmi;
-    gdbmi.fromString(data);
-    if (!gdbmi.isValid())
-        return StackFrames();
-
     StackFrames rc;
     const int count = gdbmi.childCount();
     rc.reserve(count);
@@ -2202,38 +2228,43 @@ static StackFrames parseFrames(const QByteArray &data)
     return rc;
 }
 
-void CdbEngine::handleStackTrace(const CdbExtensionCommandPtr &command)
+unsigned CdbEngine::parseStackTrace(const GdbMi &data, bool sourceStepInto)
 {
     // Parse frames, find current. Special handling for step into:
     // When stepping into on an actual function (source mode) by executing 't', an assembler
     // frame pointing at the jmp instruction is hit (noticeable by top function being
     // 'ILT+'). If that is the case, execute another 't' to step into the actual function.    .
     // Note that executing 't 2' does not work since it steps 2 instructions on a non-call code line.
-    const bool sourceStepInto = m_sourceStepInto;
-    m_sourceStepInto = false;
-    if (command->success) {
-        int current = -1;
-        StackFrames frames = parseFrames(command->reply);
-        const int count = frames.size();
-        for (int i = 0; i < count; i++) {
-            const bool hasFile = !frames.at(i).file.isEmpty();
-            // jmp-frame hit by step into, do another 't' and abort sequence.
-            if (!hasFile && i == 0 && sourceStepInto && frames.at(i).function.contains(QLatin1String("ILT+"))) {
-                showMessage(QString::fromAscii("Step into: Call instruction hit, performing additional step..."), LogMisc);
-                executeStep();
-                return;
-            }
-            if (hasFile) {
-                frames[i].file = QDir::cleanPath(normalizeFileName(frames.at(i).file));
-                if (current == -1 && frames[i].usable)
-                    current = i;
-            }
+    int current = -1;
+    StackFrames frames = parseFrames(data);
+    const int count = frames.size();
+    for (int i = 0; i < count; i++) {
+        const bool hasFile = !frames.at(i).file.isEmpty();
+        // jmp-frame hit by step into, do another 't' and abort sequence.
+        if (!hasFile && i == 0 && sourceStepInto && frames.at(i).function.contains(QLatin1String("ILT+"))) {
+            showMessage(QString::fromAscii("Step into: Call instruction hit, performing additional step..."), LogMisc);
+            return ParseStackStepInto;
         }
-        if (count && current == -1) // No usable frame, use assembly.
-            current = 0;
-        // Set
-        stackHandler()->setFrames(frames);
-        activateFrame(current);
+        if (hasFile) {
+            frames[i].file = QDir::cleanPath(normalizeFileName(frames.at(i).file));
+            if (current == -1 && frames[i].usable)
+                current = i;
+        }
+    }
+    if (count && current == -1) // No usable frame, use assembly.
+        current = 0;
+    // Set
+    stackHandler()->setFrames(frames);
+    activateFrame(current);
+    return 0;
+}
+
+void CdbEngine::handleStackTrace(const CdbExtensionCommandPtr &command)
+{
+    if (command->success) {
+        GdbMi data;
+        data.fromString(command->reply);
+        parseStackTrace(data, false);
         postCommandSequence(command->commandSequence);
     } else {
         showMessage(command->errorMessage, LogError);

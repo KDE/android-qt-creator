@@ -46,9 +46,9 @@
 #include <qt4projectmanager/qtversionmanager.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 
-#include <QTextStream>
-#include <QDeclarativeComponent>
-#include <QtDebug>
+#include <QtCore/QTextStream>
+#include <QtDeclarative/QDeclarativeComponent>
+#include <QtCore/QtDebug>
 
 namespace QmlProjectManager {
 
@@ -134,7 +134,7 @@ void QmlProject::refresh(RefreshOptions options)
     QmlJS::ModelManagerInterface::ProjectInfo pinfo(this);
     pinfo.sourceFiles = files();
     pinfo.importPaths = importPaths();
-    Qt4ProjectManager::QmlDumpTool::pathAndEnvironment(this, &pinfo.qmlDumpPath, &pinfo.qmlDumpEnvironment);
+    Qt4ProjectManager::QmlDumpTool::pathAndEnvironment(this, false, &pinfo.qmlDumpPath, &pinfo.qmlDumpEnvironment);
     m_modelManager->updateProjectInfo(pinfo);
 }
 

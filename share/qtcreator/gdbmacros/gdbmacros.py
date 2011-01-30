@@ -19,6 +19,18 @@ def qdump__QBasicAtomicInt(d, item):
     d.putNumChild(0)
 
 
+def qdump__QBasicAtomicPointer(d, item):
+    innerType = templateArgument(item.value.type.unqualified(), 0)
+    d.putType(item.value.type)
+    p = cleanAddress(item.value["_q_value"])
+    d.putValue(p)
+    d.putPointerValue(item.value.address)
+    d.putNumChild(p)
+    if d.isExpanded(item):
+        with Children(d):
+           d.putItem(item.value["_q_value"])
+
+
 def qdump__QByteArray(d, item):
     d.putByteArrayValue(item.value)
 
@@ -1948,7 +1960,7 @@ def qdump__QWeakPointer(d, item):
         return
     weakref = d_ptr["weakref"]["_q_value"]
     strongref = d_ptr["strongref"]["_q_value"]
-    check(0 < int(strongref))
+    check(int(strongref) >= -1)
     check(int(strongref) <= int(weakref))
     check(int(weakref) <= 10*1000*1000)
 

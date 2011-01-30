@@ -584,7 +584,9 @@ void Qt4Project::updateQmlJSCodeModel()
     foreach (Qt4ProFileNode *node, proFiles) {
         projectInfo.importPaths.append(node->variableValue(QmlImportPathVar));
     }
+    bool preferDebugDump = false;
     if (activeTarget() && activeTarget()->activeBuildConfiguration()) {
+        preferDebugDump = activeTarget()->activeBuildConfiguration()->qmakeBuildConfiguration() & QtVersion::DebugBuild;
         const QtVersion *qtVersion = activeTarget()->activeBuildConfiguration()->qtVersion();
         if (qtVersion->isValid()) {
             const QString qtVersionImportPath = qtVersion->versionInfo().value("QT_INSTALL_IMPORTS");
@@ -592,7 +594,7 @@ void Qt4Project::updateQmlJSCodeModel()
                 projectInfo.importPaths += qtVersionImportPath;
         }
     }
-    QmlDumpTool::pathAndEnvironment(this, &projectInfo.qmlDumpPath, &projectInfo.qmlDumpEnvironment);
+    QmlDumpTool::pathAndEnvironment(this, preferDebugDump, &projectInfo.qmlDumpPath, &projectInfo.qmlDumpEnvironment);
     projectInfo.importPaths.removeDuplicates();
 
     modelManager->updateProjectInfo(projectInfo);
@@ -969,15 +971,13 @@ QList<BuildConfigWidget*> Qt4Project::subConfigWidgets()
     return subWidgets;
 }
 
-void Qt4Project::collectLeafProFiles(QList<Qt4ProFileNode *> &list, Qt4ProFileNode *node)
+void Qt4Project::collectAllfProFiles(QList<Qt4ProFileNode *> &list, Qt4ProFileNode *node)
 {
-    if (node->projectType() != Internal::SubDirsTemplate) {
-        list.append(node);
-    }
+    list.append(node);
     foreach (ProjectNode *n, node->subProjectNodes()) {
         Qt4ProFileNode *qt4ProFileNode = qobject_cast<Qt4ProFileNode *>(n);
         if (qt4ProFileNode)
-            collectLeafProFiles(list, qt4ProFileNode);
+            collectAllfProFiles(list, qt4ProFileNode);
     }
 }
 
@@ -995,12 +995,12 @@ void Qt4Project::collectApplicationProFiles(QList<Qt4ProFileNode *> &list, Qt4Pr
     }
 }
 
-QList<Qt4ProFileNode *> Qt4Project::leafProFiles() const
+QList<Qt4ProFileNode *> Qt4Project::allProFiles() const
 {
     QList<Qt4ProFileNode *> list;
     if (!rootProjectNode())
         return list;
-    collectLeafProFiles(list, rootProjectNode());
+    collectAllfProFiles(list, rootProjectNode());
     return list;
 }
 

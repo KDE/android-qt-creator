@@ -248,6 +248,8 @@ public:
     virtual bool setupQmlStep(bool /*on*/) { return false; }
     virtual void readyToExecuteQmlStep() {}
 
+    virtual bool canDisplayTooltip() const { return state() == InferiorStopOk; }
+
 signals:
     void stateChanged(const DebuggerState &state);
     void updateViewsRequested();
@@ -358,6 +360,7 @@ private:
     // Wrapper engine needs access to state of its subengines.
     friend class Internal::QmlCppEngine;
     friend class Internal::DebuggerPluginPrivate;
+    friend class QmlAdapter;
 
     virtual void setState(DebuggerState state, bool forced = false);
 

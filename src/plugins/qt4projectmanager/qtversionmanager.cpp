@@ -702,9 +702,9 @@ QtVersion::reportIssues(const QString &proFile, const QString &buildDir)
 {
     QList<ProjectExplorer::Task> results;
 
-    QString tmpBuildDir = buildDir;
-    if (!buildDir.endsWith(QChar('/')))
-        tmpBuildDir.append(QChar('/'));
+    QString tmpBuildDir = QDir(buildDir).absolutePath();
+    if (!tmpBuildDir.endsWith(QLatin1Char('/')))
+        tmpBuildDir.append(QLatin1Char('/'));
 
     if (!isValid()) {
         //: %1: Reason for being invalid
@@ -724,9 +724,8 @@ QtVersion::reportIssues(const QString &proFile, const QString &buildDir)
     }
 
     QString sourcePath = QFileInfo(proFile).absolutePath();
-    if (!sourcePath.endsWith(QChar('/')))
-        sourcePath.append(QChar('/'));
-
+    if (!sourcePath.endsWith(QLatin1Char('/')))
+        sourcePath.append(QLatin1Char('/'));
     if ((tmpBuildDir.startsWith(sourcePath)) && (tmpBuildDir != sourcePath)) {
         const QString msg = QCoreApplication::translate("Qt4ProjectManager::QtVersion",
                                                         "Qmake does not support build directories below the source directory.");
@@ -1161,7 +1160,7 @@ void QtVersion::updateVersionInfo() const
 
         if (!qtInstallData.isEmpty()) {
             m_hasDebuggingHelper = !DebuggingHelperLibrary::debuggingHelperLibraryByInstallData(qtInstallData).isEmpty();
-            m_hasQmlDump = !QmlDumpTool::toolByInstallData(qtInstallData).isEmpty();
+            m_hasQmlDump = !QmlDumpTool::toolByInstallData(qtInstallData, false).isEmpty() || !QmlDumpTool::toolByInstallData(qtInstallData, true).isEmpty();
             m_hasQmlObserver = !QmlObserverTool::toolByInstallData(qtInstallData).isEmpty();
         }
     }
@@ -1741,12 +1740,12 @@ QString QtVersion::debuggingHelperLibrary() const
     return DebuggingHelperLibrary::debuggingHelperLibraryByInstallData(qtInstallData);
 }
 
-QString QtVersion::qmlDumpTool() const
+QString QtVersion::qmlDumpTool(bool debugVersion) const
 {
     QString qtInstallData = versionInfo().value("QT_INSTALL_DATA");
     if (qtInstallData.isEmpty())
         return QString();
-    return QmlDumpTool::toolByInstallData(qtInstallData);
+    return QmlDumpTool::toolByInstallData(qtInstallData, debugVersion);
 }
 
 QString QtVersion::qmlObserverTool() const

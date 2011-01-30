@@ -35,12 +35,13 @@
 #define MACROSPLUGIN_MACRO_H
 
 #include "macros_global.h"
-#include "macroevent.h"
 
 #include <QtCore/QList>
 #include <QtCore/QString>
 
 namespace Macros {
+
+class MacroEvent;
 
 class MACROS_EXPORT Macro
 {
@@ -50,7 +51,7 @@ public:
     ~Macro();
     Macro& operator=(const Macro& other);
 
-    void load(QString fileName = QString::null);
+    void load(QString fileName = QString());
     void loadHeader(const QString &fileName);
     void save(const QString &fileName);
 
@@ -63,9 +64,6 @@ public:
 
     void append(const MacroEvent &event);
     const QList<MacroEvent> &events() const;
-
-    void setShortcutId(int id);
-    int shortcutId() const;
 
     bool isWritable() const;
 

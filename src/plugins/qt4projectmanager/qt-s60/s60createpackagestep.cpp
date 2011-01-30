@@ -60,8 +60,8 @@
 #include <QtCore/QTimer>
 #include <QtCore/QCryptographicHash>
 
-#include <QSettings>
-#include <QMessageBox>
+#include <QtCore/QSettings>
+#include <QtGui/QMessageBox>
 
 using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
@@ -181,7 +181,7 @@ bool S60CreatePackageStep::init()
 {
     Qt4Project *pro = qobject_cast<Qt4Project *>(buildConfiguration()->target()->project());
 
-    QList<Qt4ProFileNode *> nodes = pro->leafProFiles();
+    QList<Qt4ProFileNode *> nodes = pro->allProFiles();
 
     m_workingDirectories.clear();
     QStringList projectCapabilities;
@@ -627,7 +627,7 @@ void S60CreatePackageStep::checkForCancel()
 
 QString S60CreatePackageStep::generateKeyId(const QString &keyPath) const
 {
-    if (keyPath.isNull())
+    if (keyPath.isEmpty())
         return QString();
 
     QFile file(keyPath);

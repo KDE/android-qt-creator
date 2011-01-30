@@ -32,6 +32,7 @@
 **************************************************************************/
 
 #include "macro.h"
+#include "macroevent.h"
 
 #include <coreplugin/coreconstants.h>
 
@@ -60,12 +61,10 @@ public:
     QString version;
     QString fileName;
     QList<MacroEvent> events;
-    int shortcutId;
 };
 
 Macro::MacroPrivate::MacroPrivate() :
-    version(Core::Constants::IDE_VERSION_LONG),
-    shortcutId(-1)
+    version(Core::Constants::IDE_VERSION_LONG)
 {
 }
 
@@ -85,7 +84,6 @@ Macro::Macro(const Macro &other):
     d->version = other.d->version;
     d->fileName = other.d->fileName;
     d->events = other.d->events;
-    d->shortcutId = other.d->shortcutId;
 }
 
 Macro::~Macro()
@@ -101,7 +99,6 @@ Macro& Macro::operator=(const Macro &other)
     d->version = other.d->version;
     d->fileName = other.d->fileName;
     d->events = other.d->events;
-    d->shortcutId = other.d->shortcutId;
     return *this;
 }
 
@@ -189,16 +186,6 @@ const QString &Macro::fileName() const
 const QList<MacroEvent> &Macro::events() const
 {
     return d->events;
-}
-
-void Macro::setShortcutId(int id)
-{
-    d->shortcutId = id;
-}
-
-int Macro::shortcutId() const
-{
-    return d->shortcutId;
 }
 
 bool Macro::isWritable() const

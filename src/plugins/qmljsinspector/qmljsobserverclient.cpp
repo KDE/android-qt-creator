@@ -43,7 +43,7 @@
 #include "qmljsclientproxy.h"
 #include "qmljsinspectorconstants.h"
 
-#include <QColor>
+#include <QtGui/QColor>
 
 namespace QmlJSInspector {
 namespace Internal {
@@ -376,7 +376,7 @@ void QmlJSObserverClient::showAppOnTop(bool showOnTop)
     QDataStream ds(&message, QIODevice::WriteOnly);
 
     QByteArray cmd = "SHOW_APP_ON_TOP";
-    ds << showOnTop;
+    ds << cmd << showOnTop;
 
     log(LogSend, QString("%1 %2").arg(QString(cmd), showOnTop ? "true" : "false"));
 

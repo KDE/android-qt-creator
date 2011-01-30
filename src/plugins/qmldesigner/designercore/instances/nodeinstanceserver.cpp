@@ -8,9 +8,14 @@
 #include <QFileSystemWatcher>
 #include <QUrl>
 #include <QSet>
+#include <QDir>
 #include <QVariant>
 #include <QMetaType>
 #include <QDeclarativeComponent>
+#include <QDeclarativeContext>
+#include <private/qlistmodelinterface_p.h>
+#include <QAbstractAnimation>
+#include <private/qabstractanimation_p.h>
 
 #include "servernodeinstance.h"
 #include "childrenchangeeventfilter.h"
@@ -53,9 +58,9 @@ NodeInstanceServer::NodeInstanceServer(NodeInstanceClientInterface *nodeInstance
     m_timer(0),
     m_renderTimerInterval(16),
     m_slowRenderTimer(false),
-    m_slowRenderTimerInterval(1000)
+    m_slowRenderTimerInterval(200)
 {
-    m_importList.append("import Qt 4.7");
+    m_importList.append("import Qt 4.7\n");
     connect(m_childrenChangeEventFilter.data(), SIGNAL(childrenChanged(QObject*)), this, SLOT(emitParentChanged(QObject*)));
 }
 
@@ -298,6 +303,8 @@ void NodeInstanceServer::addImports(const QVector<AddImportContainer> &container
         if (!container.alias().isEmpty())
             importStatement += " as " + container.alias();
 
+        importStatement.append("\n");
+
         if (!m_importList.contains(importStatement))
             m_importList.append(importStatement);
 
@@ -310,7 +317,7 @@ void NodeInstanceServer::addImports(const QVector<AddImportContainer> &container
     QDeclarativeComponent importComponent(engine(), 0);
     QString componentString;
     foreach(const QString &importStatement, m_importList)
-        componentString += QString("%1\n").arg(importStatement);
+        componentString += QString("%1").arg(importStatement);
 
     componentString += QString("Item {}\n");
 
@@ -396,6 +403,15 @@ void NodeInstanceServer::removeAllInstanceRelationships()
     m_objectInstanceHash.clear();
 }
 
+QFileSystemWatcher *NodeInstanceServer::dummydataFileSystemWatcher()
+{
+    if (m_dummdataFileSystemWatcher.isNull()) {
+        m_dummdataFileSystemWatcher = new QFileSystemWatcher(this);
+        connect(m_dummdataFileSystemWatcher.data(), SIGNAL(fileChanged(QString)), this, SLOT(refreshDummyData(QString)));
+    }
+
+    return m_dummdataFileSystemWatcher.data();
+}
 
 QFileSystemWatcher *NodeInstanceServer::fileSystemWatcher()
 {
@@ -438,6 +454,13 @@ void NodeInstanceServer::refreshLocalFileProperty(const QString &path)
             }
         }
     }
+}
+
+void NodeInstanceServer::refreshDummyData(const QString &path)
+{
+    engine()->clearComponentCache();
+    loadDummyDataFile(QFileInfo(path));
+    startRenderTimer();
 }
 
 void NodeInstanceServer::addChangedProperty(const InstancePropertyPair &property)
@@ -819,6 +842,8 @@ void NodeInstanceServer::initializeDeclarativeView()
 #ifdef Q_WS_MAC
     m_declarativeView->setAttribute(Qt::WA_DontShowOnScreen, true);
 #endif
+    QUnifiedTimer::instance()->setSlowdownFactor(1000000.);
+    QUnifiedTimer::instance()->setSlowModeEnabled(true);
 }
 
 QImage NodeInstanceServer::renderPreviewImage()
@@ -843,10 +868,64 @@ QImage NodeInstanceServer::renderPreviewImage()
     return image;
 }
 
+void NodeInstanceServer::loadDummyDataFile(const QFileInfo& qmlFileInfo)
+{
+    QDeclarativeComponent component(engine(), qmlFileInfo.filePath());
+    QObject *dummyData = component.create();
+    if(component.isError()) {
+        QList<QDeclarativeError> errors = component.errors();
+        foreach (const QDeclarativeError &error, errors) {
+            qWarning() << error;
+        }
+    }
+
+    QVariant oldDummyDataObject = m_declarativeView->rootContext()->contextProperty(qmlFileInfo.completeBaseName());
+
+    if (dummyData) {
+        qWarning() << "Loaded dummy data:" << qmlFileInfo.filePath();
+        m_declarativeView->rootContext()->setContextProperty(qmlFileInfo.completeBaseName(), dummyData);
+        dummyData->setParent(this);
+    }
+
+    if (!oldDummyDataObject.isNull())
+        delete oldDummyDataObject.value<QObject*>();
+
+    if (!dummydataFileSystemWatcher()->files().contains(qmlFileInfo.filePath()))
+        dummydataFileSystemWatcher()->addPath(qmlFileInfo.filePath());
+}
+
+void NodeInstanceServer::loadDummyDataFiles(const QString& directory)
+{
+    QDir dir(directory, "*.qml");
+    QList<QFileInfo> filePathList = dir.entryInfoList();
+    foreach (const QFileInfo &qmlFileInfo, filePathList)
+        loadDummyDataFile(qmlFileInfo);
+}
+
+QStringList dummyDataDirectories(const QString& directoryPath)
+{
+    QStringList dummyDataDirectoryList;
+    QDir directory(directoryPath);
+    while(true) {
+        if (directory.isRoot() || !directory.exists())
+            return dummyDataDirectoryList;
+
+        if (directory.exists("dummydata"))
+            dummyDataDirectoryList.prepend(directory.absoluteFilePath("dummydata"));
+
+        directory.cdUp();
+    }
+}
+
 QList<ServerNodeInstance> NodeInstanceServer::setupScene(const CreateSceneCommand &command)
 {
-    if (!command.fileUrl().isEmpty())
+    if (!command.fileUrl().isEmpty()) {
         engine()->setBaseUrl(command.fileUrl());
+        m_fileUrl = command.fileUrl();
+        QStringList dummyDataDirectoryList = dummyDataDirectories(QFileInfo(command.fileUrl().toLocalFile()).path());
+        foreach(const QString &dummyDataDirectory, dummyDataDirectoryList)
+            loadDummyDataFiles(dummyDataDirectory);
+    }
 
     addImports(command.imports());
 

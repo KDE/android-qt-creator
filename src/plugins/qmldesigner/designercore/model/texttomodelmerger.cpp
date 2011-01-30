@@ -219,6 +219,11 @@ static inline QVariant convertDynamicPropertyValueToVariant(const QString &astVa
     }
 }
 
+static bool isComponentType(const QString &type)
+{
+    return  type == QLatin1String("Component") || type == QLatin1String("Qt/Component") || type == QLatin1String("QtQuick/Component");
+}
+
 } // anonymous namespace
 
 namespace QmlDesigner {
@@ -775,8 +780,12 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
 
     if (!defaultPropertyItems.isEmpty()) {
         if (defaultPropertyName.isEmpty()) {
-            if (modelNode.type() != QLatin1String("Qt/Component"))
+            if (!isComponentType(modelNode.type())) {
                 qWarning() << "No default property for node type" << modelNode.type() << ", ignoring child items.";
+            } else {
+                setupComponent(modelNode);
+                modelPropertyNames.remove(QLatin1String("__component_data"));
+            }
         } else {
             AbstractProperty modelProperty = modelNode.property(defaultPropertyName);
             if (modelProperty.isNodeListProperty()) {
@@ -992,7 +1001,7 @@ void TextToModelMerger::syncNodeListProperty(NodeListProperty &modelListProperty
         QString name;
         if (UiObjectDefinition *definition = cast<UiObjectDefinition *>(arrayMember))
             name = flatten(definition->qualifiedTypeNameId);
-        if (name == QLatin1String("Qt/Component"))
+        if (isComponentType(name))
             setupComponent(newNode);
     }
 
@@ -1319,7 +1328,7 @@ void ModelAmender::idsDiffer(ModelNode &modelNode, const QString &qmlId)
 
 void TextToModelMerger::setupComponent(const ModelNode &node)
 {
-    Q_ASSERT(node.type() == QLatin1String("Qt/Component"));
+    Q_ASSERT(isComponentType(node.type()));
 
     QString componentText = m_rewriterView->extractText(QList<ModelNode>() << node).value(node);
 
@@ -1341,7 +1350,11 @@ void TextToModelMerger::setupComponent(const ModelNode &node)
         result = componentText; //implicit component
     }
 
-    node.variantProperty("__component_data") = result;
+    if (node.hasVariantProperty("__component_data")
+            && node.variantProperty("__component_data").value().toString() == result)
+        return;
+
+    node.variantProperty("__component_data").setValue(result);
 }
 
 QString TextToModelMerger::textAt(const Document::Ptr &doc,

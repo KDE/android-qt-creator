@@ -69,7 +69,7 @@ const QString AbstractMobileApp::ProFileComment(QLatin1String("#"));
 const QString AbstractMobileApp::DeploymentPriFileName(QLatin1String("deployment.pri"));
 const QString AbstractMobileApp::FileChecksum(QLatin1String("checksum"));
 const QString AbstractMobileApp::FileStubVersion(QLatin1String("version"));
-const int AbstractMobileApp::StubVersion = 2;
+const int AbstractMobileApp::StubVersion = 3;
 
 AbstractMobileApp::AbstractMobileApp()
     : m_orientation(ScreenOrientationAuto), m_networkEnabled(false)
@@ -402,8 +402,10 @@ int AbstractMobileApp::makeStubVersion(int minor)
 
 QString AbstractMobileApp::outputPathBase() const
 {
-    return m_projectPath.absoluteFilePath() + QLatin1Char('/')
-        + projectName() + QLatin1Char('/');
+    QString path = m_projectPath.absoluteFilePath();
+    if (!path.endsWith(QLatin1Char('/')))
+            path.append(QLatin1Char('/'));
+    return path + projectName() + QLatin1Char('/');
 }
 
 void AbstractMobileApp::insertParameter(QString &line, const QString &parameter)

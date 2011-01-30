@@ -33,15 +33,17 @@
 
 #include "debuggertooltip.h"
 
+#include <utils/qtcassert.h>
+
 #include <QtCore/QtDebug>
 #include <QtCore/QPointer>
 
 #include <QtGui/QApplication>
 #include <QtGui/QDesktopWidget>
 #include <QtGui/QHeaderView>
-#include <QtGui/QKeyEvent>
 #include <QtGui/QScrollBar>
 #include <QtGui/QTreeView>
+#include <QtGui/QSortFilterProxyModel>
 
 namespace Debugger {
 namespace Internal {
@@ -53,7 +55,6 @@ class ToolTipWidget : public QTreeView
 public:
     ToolTipWidget(QWidget *parent);
 
-    bool eventFilter(QObject *ob, QEvent *ev);
     QSize sizeHint() const { return m_size; }
 
     void done();
@@ -86,36 +87,6 @@ ToolTipWidget::ToolTipWidget(QWidget *parent)
         Qt::QueuedConnection);
     connect(this, SIGNAL(expanded(QModelIndex)), this, SLOT(computeSize()),
         Qt::QueuedConnection);
-
-    qApp->installEventFilter(this);
-}
-
-bool ToolTipWidget::eventFilter(QObject *ob, QEvent *ev)
-{
-    Q_UNUSED(ob)
-    switch (ev->type()) {
-    case QEvent::ShortcutOverride:
-        if (static_cast<QKeyEvent *>(ev)->key() == Qt::Key_Escape)
-            return true;
-        break;
-    case QEvent::KeyPress:
-        if (static_cast<QKeyEvent *>(ev)->key() == Qt::Key_Escape)
-            return true;
-        break;
-    case QEvent::KeyRelease:
-        if (static_cast<QKeyEvent *>(ev)->key() == Qt::Key_Escape) {
-            done();
-            return true;
-        }
-        break;
-    case QEvent::WindowDeactivate:
-    case QEvent::FocusOut:
-        done();
-        break;
-    default:
-        break;
-    }
-    return false;
 }
 
 int ToolTipWidget::computeHeight(const QModelIndex &index) const
@@ -168,7 +139,6 @@ void ToolTipWidget::computeSize()
 
 void ToolTipWidget::done()
 {
-    qApp->removeEventFilter(this);
     deleteLater();
 }
 
@@ -177,6 +147,9 @@ void ToolTipWidget::run(const QPoint &point, const QModelIndex &index)
     QAbstractItemModel *model = const_cast<QAbstractItemModel *>(index.model());
     move(point);
     setModel(model);
+    // Track changes in filter models.
+    connect(model, SIGNAL(rowsInserted(QModelIndex,int,int)),
+            this, SLOT(computeSize()), Qt::QueuedConnection);
     computeSize();
     setRootIsDecorated(model->hasChildren(index));
 }
@@ -199,6 +172,40 @@ void showDebuggerToolTip(const QPoint &point, const QModelIndex &index)
         theToolTipWidget->done();
         theToolTipWidget = 0;
     }
+}
+
+// Model for tooltips filtering a local variable using the locals model.
+class ToolTipRowFilterModel : public QSortFilterProxyModel
+{
+public:
+    // Index points the variable to be filtered.
+    explicit ToolTipRowFilterModel(QAbstractItemModel *model, int row, QObject *parent = 0);
+    virtual bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const;
+
+private:
+    const int m_row;
+};
+
+ToolTipRowFilterModel::ToolTipRowFilterModel(QAbstractItemModel *model, int row, QObject *parent) :
+    QSortFilterProxyModel(parent), m_row(row)
+{
+    setSourceModel(model);
+}
+
+bool ToolTipRowFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
+{
+    // Match on row for top level, else pass through.
+    return sourceParent.isValid() || sourceRow == m_row;
+}
+
+// Show tooltip filtering a row of a source model.
+void showDebuggerToolTip(const QPoint &point, QAbstractItemModel *model, int row)
+{
+    // Create a filter model parented on the widget to display column
+    ToolTipRowFilterModel *filterModel = new ToolTipRowFilterModel(model, row);
+    showDebuggerToolTip(point, filterModel->index(0, 0));
+    QTC_ASSERT(theToolTipWidget, return; )
+    filterModel->setParent(theToolTipWidget);
 }
 
 void hideDebuggerToolTip(int delay)
