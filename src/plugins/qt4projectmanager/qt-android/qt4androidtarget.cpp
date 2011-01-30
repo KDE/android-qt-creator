@@ -730,7 +730,7 @@ QStringList Qt4AndroidTarget::availablePrebundledLibs()
     }
 
     foreach(Qt4Project * qt4Project, qt4Projects)
-        foreach(Qt4ProFileNode * node, qt4Project->leafProFiles())
+        foreach(Qt4ProFileNode * node, qt4Project->allProFiles())
             if (node->projectType()== LibraryTemplate)
                 libs<<QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
 

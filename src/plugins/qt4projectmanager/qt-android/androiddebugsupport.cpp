@@ -73,7 +73,7 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     params.remoteChannel = runConfig->remoteChannel();
     params.solibSearchPath.clear();
     params.solibSearchPath.append(runConfig->activeQt4BuildConfiguration()->qtVersion()->sourcePath()+"/lib");
-    QList<Qt4ProFileNode *> nodes = runConfig->androidTarget()->qt4Project()->leafProFiles();
+    QList<Qt4ProFileNode *> nodes = runConfig->androidTarget()->qt4Project()->allProFiles();
     foreach(Qt4ProFileNode * node, nodes)
         if (node->projectType() == ApplicationTemplate)
             params.solibSearchPath.append(node->targetInformation().buildDir);

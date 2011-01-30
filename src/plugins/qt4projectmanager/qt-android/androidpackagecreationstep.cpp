@@ -136,7 +136,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     d.mkpath(androidLibPath);
 
     QStringList stripFiles;
-    QList<Qt4ProFileNode *> nodes = bc->qt4Target()->qt4Project()->leafProFiles();
+    QList<Qt4ProFileNode *> nodes = bc->qt4Target()->qt4Project()->allProFiles();
     foreach(Qt4ProFileNode * node, nodes)
     {
         QString fileName;

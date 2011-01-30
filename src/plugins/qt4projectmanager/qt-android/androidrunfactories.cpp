@@ -104,7 +104,7 @@ QStringList AndroidRunConfigurationFactory::availableCreationIds(Target *parent)
     {
         if (t->id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
         {
-            QList<Qt4ProFileNode *> nodes = t->qt4Project()->leafProFiles();
+            QList<Qt4ProFileNode *> nodes = t->qt4Project()->allProFiles();
             foreach(Qt4ProFileNode * node, nodes)
                 if (node->projectType() == ApplicationTemplate || node->projectType() == LibraryTemplate)
                     ids<<node->targetInformation().target;
