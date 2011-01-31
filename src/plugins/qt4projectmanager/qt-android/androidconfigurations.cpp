@@ -269,20 +269,24 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
     return devices;
 }
 
-QString AndroidConfigurations::startAVD(int apiLevel)
+QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
 {
-    QProcess * m_avdProcess = new QProcess(this);
+    QProcess * m_avdProcess = new QProcess();
+    connect(this, SIGNAL(destroyed()), m_avdProcess, SLOT(deleteLater()));
     connect(m_avdProcess, SIGNAL(finished(int)), m_avdProcess, SLOT(deleteLater()));
 
-    QString avdName;
-    QVector<AndroidDevice> devices=androidVirtualDevices();
-    foreach(AndroidDevice device, devices)
-        if (device.sdk>=apiLevel) // take first emulator how supports this package
-        {
-            avdName=device.serialNumber;
-            break;
-        }
-
+    QString avdName = name;
+    QVector<AndroidDevice> devices;
+    if (!avdName.length())
+    {
+        devices=androidVirtualDevices();
+        foreach(AndroidDevice device, devices)
+            if (device.sdk>=apiLevel) // take first emulator how supports this package
+            {
+                avdName=device.serialNumber;
+                break;
+            }
+    }
     // if no emulators found try to create one
     if (!avdName.length())
         avdName=createAVD();
@@ -304,7 +308,7 @@ QString AndroidConfigurations::startAVD(int apiLevel)
     sleep(5);// wait for pm to start
 
     // get connected devices
-    devices =connectedDevices(apiLevel);
+    devices = connectedDevices(apiLevel);
     foreach(AndroidDevice device, devices)
         if (device.sdk==apiLevel)
             return device.serialNumber;

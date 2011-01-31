@@ -41,6 +41,7 @@
 #include <QtCore/QSharedPointer>
 #include <QtCore/QString>
 #include <QtGui/QWidget>
+#include <QtCore/QAbstractTableModel>
 
 QT_BEGIN_NAMESPACE
 class QLineEdit;
@@ -51,6 +52,23 @@ QT_END_NAMESPACE
 
 namespace Qt4ProjectManager {
 namespace Internal {
+
+class AVDModel: public QAbstractTableModel
+{
+    Q_OBJECT
+public:
+    void setAvdList(QVector<AndroidDevice> list);
+    QString avdName(const QModelIndex & index);
+
+protected:
+    QVariant data( const QModelIndex & index, int role = Qt::DisplayRole) const;
+    QVariant headerData ( int section, Qt::Orientation orientation, int role = Qt::DisplayRole ) const;
+    int rowCount ( const QModelIndex & parent = QModelIndex() ) const;
+    int columnCount ( const QModelIndex & parent = QModelIndex() ) const;
+
+private:
+    QVector<AndroidDevice> m_list;
+};
 
 class AndroidSettingsWidget : public QWidget
 {
@@ -73,7 +91,7 @@ private slots:
     void addAVD();
     void removeAVD();
     void startAVD();
-    void avdActivated(const QModelIndex & index);
+    void avdActivated(QModelIndex);
 
 
 private:
@@ -84,6 +102,7 @@ private:
 
     Ui_AndroidSettingsWidget *m_ui;
     AndroidConfig m_androidConfig;
+    AVDModel m_AVDModel;
     bool m_saveSettingsRequested;
 };
 

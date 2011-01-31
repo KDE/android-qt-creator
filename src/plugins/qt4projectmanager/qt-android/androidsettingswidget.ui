@@ -104,7 +104,20 @@
        </widget>
       </item>
       <item row="1" column="0" rowspan="4">
-       <widget class="QListView" name="AVDListView"/>
+       <widget class="QTableView" name="AVDTableView">
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SingleSelection</enum>
+        </property>
+        <property name="selectionBehavior">
+         <enum>QAbstractItemView::SelectRows</enum>
+        </property>
+        <property name="textElideMode">
+         <enum>Qt::ElideMiddle</enum>
+        </property>
+        <attribute name="verticalHeaderVisible">
+         <bool>false</bool>
+        </attribute>
+       </widget>
       </item>
       <item row="1" column="1">
        <widget class="QPushButton" name="AVDAddPushButton">
@@ -266,22 +279,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>AVDListView</sender>
-   <signal>activated(QModelIndex)</signal>
-   <receiver>AndroidSettingsWidget</receiver>
-   <slot>avdActivated(QModelIndex)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>310</x>
-     <y>253</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>352</x>
-     <y>186</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>AVDAddPushButton</sender>
    <signal>clicked()</signal>
    <receiver>AndroidSettingsWidget</receiver>
@@ -322,6 +319,38 @@
     <hint type="sourcelabel">
      <x>653</x>
      <y>213</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>186</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>AVDTableView</sender>
+   <signal>activated(QModelIndex)</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>avdActivated(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>309</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>352</x>
+     <y>186</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>AVDTableView</sender>
+   <signal>clicked(QModelIndex)</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>avdActivated(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>309</x>
+     <y>260</y>
     </hint>
     <hint type="destinationlabel">
      <x>352</x>

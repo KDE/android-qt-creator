@@ -60,6 +60,57 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 
+void AVDModel::setAvdList(QVector<AndroidDevice> list)
+{
+    m_list= list;
+    reset();
+}
+
+QString AVDModel::avdName(const QModelIndex & index)
+{
+    return m_list[index.row()].serialNumber;
+}
+
+QVariant AVDModel::data( const QModelIndex & index, int role) const
+{
+    if (role != Qt::DisplayRole || !index.isValid())
+        return QVariant();
+    switch (index.column())
+    {
+        case 0:
+            return m_list[index.row()].serialNumber;
+        case 1:
+            return QString("android-%1").arg(m_list[index.row()].sdk);
+    }
+    return QVariant();
+}
+
+QVariant AVDModel::headerData ( int section, Qt::Orientation orientation, int role ) const
+{
+    if (orientation == Qt::Horizontal &&  role == Qt::DisplayRole)
+    {
+        switch (section)
+        {
+            case 0:
+                return tr("AVD Name");
+            case 1:
+                return tr("AVD Target");
+        }
+    }
+    return  QAbstractItemModel::headerData(section, orientation, role );
+}
+
+int AVDModel::rowCount ( const QModelIndex & /*parent*/) const
+{
+    return m_list.size();
+}
+
+int AVDModel::columnCount ( const QModelIndex & /*parent*/) const
+{
+    return 2;
+}
+
+
 AndroidSettingsWidget::AndroidSettingsWidget(QWidget *parent)
     : QWidget(parent),
       m_ui(new Ui_AndroidSettingsWidget),
@@ -103,6 +154,10 @@ void AndroidSettingsWidget::initGui()
     else
         m_androidConfig.NDKLocation="";
     m_ui->AntLocationLineEdit->setText(m_androidConfig.AntLocation);
+    m_ui->AVDTableView->setModel(&m_AVDModel);
+    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
+    m_ui->AVDTableView->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+    m_ui->AVDTableView->horizontalHeader()->setResizeMode(1, QHeaderView::ResizeToContents);
 }
 
 void AndroidSettingsWidget::saveSettings()
@@ -217,21 +272,21 @@ void AndroidSettingsWidget::browseAntLocation()
 void AndroidSettingsWidget::addAVD()
 {
     AndroidConfigurations::instance().createAVD();
+    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
 }
 
 void AndroidSettingsWidget::removeAVD()
 {
-    // TODO
-
+    AndroidConfigurations::instance().removeAVD(m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
+    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
 }
 
 void AndroidSettingsWidget::startAVD()
 {
-    // TODO
-
+    AndroidConfigurations::instance().startAVD(-1, m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
 }
 
-void AndroidSettingsWidget::avdActivated(const QModelIndex & index)
+void AndroidSettingsWidget::avdActivated(QModelIndex index)
 {
     m_ui->AVDRemovePushButton->setEnabled(index.isValid());
     m_ui->AVDStartPushButton->setEnabled(index.isValid());

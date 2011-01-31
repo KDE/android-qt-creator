@@ -106,6 +106,7 @@ public:
     bool removeAVD(const QString & name);
     QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
     QVector<AndroidDevice> androidVirtualDevices();
+    QString startAVD(int apiLevel, const QString & name = QString());
 signals:
     void updated();
 
@@ -114,7 +115,6 @@ private:
     void load();
     void save();
 
-    QString startAVD(int apiLevel);
     int getSDKVersion(const QString & device);
 
 private:
