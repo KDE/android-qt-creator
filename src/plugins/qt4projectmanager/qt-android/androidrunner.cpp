@@ -157,7 +157,7 @@ void AndroidRunner::start()
         adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" forward tcp:%1 localfilesystem:/data/data/%2/debug-socket").arg(5039).arg(m_packageName));
         if (!adbStarProc.waitForFinished(-1))
         {
-            emit remoteProcessFinished(tr("Failed to forward debugging posts"));
+            emit remoteProcessFinished(tr("Failed to forward debugging ports"));
             return;
         }
         debugString=QString("-e native_debug true -e gdbserver_socket \"+debug-socket\"");

@@ -18,9 +18,9 @@ QVariant AndroidDevicesModel::data( const QModelIndex & index, int role ) const
     if (index.internalId()<0)
     {
         if (index.row()==0)
-                return tr("Android connected devices");
+                return tr("Connected Android devices");
         else
-                return tr("Android virtual Devices");
+                return tr("Virtual Android Devices");
     }
     if (index.internalId() == 0) // real devices
         return QVariant();

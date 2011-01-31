@@ -303,7 +303,7 @@ bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
     QList<QtVersion*> versions=QtVersionManager::instance()->versionsForTargetId(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
     if (!versions.size())
     {
-        raiseError(tr("Not enough Qt for Android SDKs found.\nPlease install at least one SDK."));
+        raiseError(tr("No Qt for Android SDKs were found.\nPlease install at least one SDK."));
         return false;
     }
 
@@ -329,7 +329,7 @@ bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
     QStringList sdks=AndroidConfigurations::instance().sdkTargets();
     if (!sdks.size())
     {
-        raiseError(tr("Not enough SDK's found.\nPlease install at least one SDK."));
+        raiseError(tr("No Qt for Android SDKs were found.\nPlease install at least one SDK."));
         return false;
     }
     updateProject(AndroidConfigurations::instance().sdkTargets().at(0));
@@ -349,7 +349,7 @@ bool Qt4AndroidTarget::openAndroidManifest(QDomDocument & doc)
     }
     if (!doc.setContent(f.readAll()))
     {
-        raiseError(tr("Not enough SDK's found.\nPlease install at least one SDK."));
+        raiseError(tr("Can't parse AndroidManifest.xml file '%1'").arg(androidManifestPath()));
         return false;
     }
     return true;
@@ -377,12 +377,12 @@ bool Qt4AndroidTarget::openLibsXml(QDomDocument & doc)
     QFile f(androidLibsPath());
     if (!f.open(QIODevice::ReadOnly))
     {
-        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidLibsPath()));
+        raiseError(tr("Can't open Android Libs xml file '%1'").arg(androidLibsPath()));
         return false;
     }
     if (!doc.setContent(f.readAll()))
     {
-        raiseError(tr("Not enough SDK's found.\nPlease install at least one SDK."));
+        raiseError(tr("Can't parse Android Libs xml file '%1'").arg(androidLibsPath()));
         return false;
     }
     return true;
@@ -396,7 +396,7 @@ bool Qt4AndroidTarget::saveLibsXml(QDomDocument & doc)
     QFile f(androidLibsPath());
     if (!f.open(QIODevice::WriteOnly))
     {
-        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidLibsPath()));
+        raiseError(tr("Can't open Android Libs xml file '%1'").arg(androidLibsPath()));
         return false;
     }
     return f.write(doc.toByteArray(4))>=0;

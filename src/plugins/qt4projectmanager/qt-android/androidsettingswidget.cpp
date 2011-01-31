@@ -186,7 +186,7 @@ bool AndroidSettingsWidget::checkNDK(const QString & location)
         return false;
     if (!QFile::exists(location+QLatin1String("/platforms")) || !QFile::exists(location+QLatin1String("/toolchains")) || !QFile::exists(location+QLatin1String("/sources/cxx-stl")) )
     {
-        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android NDK top folder'").arg(location));
+        QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android NDK top folder").arg(location));
         return false;
     }
     m_ui->toolchainVersionComboBox->setEnabled(true);

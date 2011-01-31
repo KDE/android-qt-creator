@@ -218,7 +218,7 @@ bool AndroidDeployStep::deployPackage()
     if (!m_deviceSerialNumber.length())
     {
         m_deviceSerialNumber.clear();
-        raiseError(tr("Cannot deploy: no devices, emulators found for your package."));
+        raiseError(tr("Cannot deploy: no devices or emulators found for your package."));
         return false;
     }
 
@@ -234,7 +234,7 @@ bool AndroidDeployStep::deployPackage()
         runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
                    +" shell rm -r /data/local/qt");
 
-        writeOutput(tr("Deploy qt libs ... it may take some time, please wait"));
+        writeOutput(tr("Deploy qt libs ... this may take some time, please wait"));
         const QString tempPath=QDir::tempPath()+"/android_qt_libs_"+packageName;
         AndroidPackageCreationStep::removeDirectory(tempPath);
         QStringList stripFiles;
@@ -273,7 +273,7 @@ bool AndroidDeployStep::deployPackage()
 
     if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
     {
-        writeOutput(tr("Pulling necessary files to debug"));
+        writeOutput(tr("Pulling files necessary for debugging"));
         runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
                                            +QString(" pull /system/bin/app_process %1/app_process")
                                             .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));

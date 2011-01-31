@@ -50,7 +50,7 @@ You must have Qt libs compiled for that platform</string>
       <widget class="QRadioButton" name="installQASI">
        <property name="toolTip">
         <string>Choose and install Qt Android smart installer.
-This option is usefull when you want to try your applications on devices where you don't have Android Market. </string>
+This option is useful when you want to try your application on devices which don't have Android Market.</string>
        </property>
        <property name="text">
         <string>Install Qt Android smart installer</string>

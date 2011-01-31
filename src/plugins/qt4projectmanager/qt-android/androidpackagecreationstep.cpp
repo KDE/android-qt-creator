@@ -127,7 +127,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 {
     const Qt4BuildConfiguration * bc=static_cast<Qt4BuildConfiguration *>(buildConfiguration());
     Qt4AndroidTarget * target=androidTarget();
-    emit addOutput(tr("Copy Qt app & libs to android package ..."), MessageOutput);
+    emit addOutput(tr("Copy Qt app & libs to Android package ..."), MessageOutput);
 
     const QString androidDir(target->androidDirPath());
     const QString androidLibPath(androidDir+QLatin1String("/libs/armeabi"));
@@ -154,7 +154,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
                     if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
                                 node->targetInformation().buildDir+QLatin1Char('/')+androidFileName))
                     {
-                        raiseError(tr("Cant copy '%1' from '%2' to '%3'").arg(fileName)
+                        raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
                                    .arg(node->targetInformation().buildDir)
                                    .arg(node->targetInformation().buildDir));
                         return false;
@@ -172,7 +172,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
         if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
                     androidLibPath+QLatin1Char('/')+androidFileName))
         {
-            raiseError(tr("Cant copy '%1' from '%2' to '%3'").arg(fileName)
+            raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
                        .arg(node->targetInformation().buildDir)
                        .arg(androidLibPath));
             return false;
@@ -189,7 +189,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
             if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(),
                              androidLibPath+QLatin1String("/gdbserver")))
             {
-                raiseError(tr("Cant copy gdbserver from '%1' to '%2'").arg(AndroidConfigurations::instance().gdbServerPath())
+                raiseError(tr("Can't copy gdbserver from '%1' to '%2'").arg(AndroidConfigurations::instance().gdbServerPath())
                            .arg(androidLibPath+QLatin1String("/gdbserver")));
                 return false;
             }
@@ -252,7 +252,7 @@ bool AndroidPackageCreationStep::removeDirectory(const QString &dirPath)
 bool AndroidPackageCreationStep::runCommand(QProcess *buildProc,
     const QString &command)
 {
-    emit addOutput(tr("Package Creation: Running command '%1'.").arg(command), BuildStep::MessageOutput);
+    emit addOutput(tr("Package Creation: Running command '%1'").arg(command), BuildStep::MessageOutput);
     buildProc->start(command);
     if (!buildProc->waitForStarted()) {
         raiseError(tr("Packaging failed."),

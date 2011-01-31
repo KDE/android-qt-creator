@@ -50,7 +50,7 @@ ProjectExplorer::DeployConfiguration *Qt4AndroidDeployConfigurationFactory::crea
     if (!dc)
         return 0;
     if (parent->id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
-        dc->setDefaultDisplayName(tr("Deploy to android device"));
+        dc->setDefaultDisplayName(tr("Deploy to Android device"));
     dc->stepList()->insertStep(0, new AndroidPackageCreationStep(dc->stepList()));
     dc->stepList()->insertStep(1, new AndroidDeployStep(dc->stepList()));
     return dc;

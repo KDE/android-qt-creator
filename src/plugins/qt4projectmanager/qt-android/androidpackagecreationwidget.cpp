@@ -440,10 +440,10 @@ void AndroidPackageCreationWidget::readElfInfo()
     QString appPath=m_step->androidTarget()->targetApplicationPath();
     if (!QFile::exists(appPath))
     {
-        QMessageBox::critical(this, tr("Can't find read elf informations"),
+        QMessageBox::critical(this, tr("Can't find read elf information"),
                               tr("Can't find '%1'.\n"
-                                 "Please be sure your appication is"
-                                 " successfully build and is selected in Appplication tab ('Run option') ").arg(appPath) );
+                                 "Please make sure your appication "
+                                 " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
         return;
     }
     readelfProc.start(QString("%1 -d -W %2")
