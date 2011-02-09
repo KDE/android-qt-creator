@@ -73,6 +73,39 @@ void DesignDocumentControllerView::instancesCompleted(const QVector<ModelNode> &
 {
 
 }
+void DesignDocumentControllerView::instanceInformationsChange(const QVector<ModelNode> &/*nodeList*/)
+{
+
+}
+
+void DesignDocumentControllerView::instancesRenderImageChanged(const QVector<ModelNode> &/*nodeList*/)
+{
+
+}
+
+void DesignDocumentControllerView::instancesPreviewImageChanged(const QVector<ModelNode> &/*nodeList*/)
+{
+
+}
+
+void DesignDocumentControllerView::instancesChildrenChanged(const QVector<ModelNode> &/*nodeList*/)
+{
+
+}
+
+
+void DesignDocumentControllerView::rewriterBeginTransaction()
+{
+
+}
+
+void DesignDocumentControllerView::rewriterEndTransaction()
+{
+}
+
+void DesignDocumentControllerView::actualStateChanged(const ModelNode &/*node*/)
+{
+}
 
 static QStringList arrayToStringList(const QByteArray &byteArray)
 {

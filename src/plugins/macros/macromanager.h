@@ -49,7 +49,6 @@ class Macro;
 class IMacroHandler;
 
 namespace Internal {
-    class MacroSettings;
     class MacroOptionsWidget;
 }
 
@@ -62,15 +61,17 @@ public:
 
     static MacroManager *instance();
 
-    const Internal::MacroSettings &settings() const;
     const QMap<QString, Macro *> &macros() const;
 
     void registerMacroHandler(IMacroHandler *handler);
+
+    QString macrosDirectory() const;
 
 public slots:
     void startMacro();
     void endMacro();
     void executeLastMacro();
+    void saveLastMacro();
     bool executeMacro(const QString &name);
 
 protected:
@@ -78,11 +79,6 @@ protected:
 
     void deleteMacro(const QString &name);
     void changeMacro(const QString &name, const QString &description);
-    void appendDirectory(const QString &directory);
-    void removeDirectory(const QString &directory);
-    void setDefaultDirectory(const QString &directory);
-    void showSaveDialog(bool value);
-    void saveSettings();
 
 private:
     static MacroManager *m_instance;

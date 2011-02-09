@@ -38,20 +38,41 @@
 #include "storagesettings.h"
 #include "tabsettings.h"
 #include "syntaxhighlighter.h"
+#include "texteditorconstants.h"
 
+#include <QtCore/QStringList>
 #include <QtCore/QFile>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 #include <QtCore/QTextStream>
 #include <QtCore/QTextCodec>
+#include <QtCore/QFutureInterface>
 #include <QtGui/QMainWindow>
 #include <QtGui/QSyntaxHighlighter>
 #include <QtGui/QApplication>
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/progressmanager/progressmanager.h>
 #include <utils/qtcassert.h>
 #include <utils/reloadpromptutils.h>
+
+namespace {
+bool verifyDecodingError(const QString &text,
+                         QTextCodec *codec,
+                         const char *data,
+                         const int dataSize,
+                         const bool possibleHeader)
+{
+    QByteArray verifyBuf = codec->fromUnicode(text); // slow
+    // the minSize trick lets us ignore unicode headers
+    int minSize = qMin(verifyBuf.size(), dataSize);
+    return (minSize < dataSize - (possibleHeader? 4 : 0)
+            || memcmp(verifyBuf.constData() + verifyBuf.size() - minSize,
+                      data + dataSize - minSize,
+                      minSize));
+}
+}
 
 namespace TextEditor {
 namespace Internal {
@@ -178,10 +199,12 @@ public:
     bool m_fileHasUtf8Bom;
 
     bool m_fileIsReadOnly;
-    bool m_isBinaryData;
     bool m_hasDecodingError;
     QByteArray m_decodingErrorSample;
+    static const int kChunkSize;
 };
+
+const int BaseTextDocumentPrivate::kChunkSize = 65536;
 
 BaseTextDocumentPrivate::BaseTextDocumentPrivate(BaseTextDocument *q) :
     m_document(new QTextDocument(q)),
@@ -191,7 +214,6 @@ BaseTextDocumentPrivate::BaseTextDocumentPrivate(BaseTextDocument *q) :
     m_codec(Core::EditorManager::instance()->defaultTextEncoding()),
     m_fileHasUtf8Bom(false),
     m_fileIsReadOnly(false),
-    m_isBinaryData(false),
     m_hasDecodingError(false)
 {
 }
@@ -278,14 +300,9 @@ SyntaxHighlighter *BaseTextDocument::syntaxHighlighter() const
     return d->m_highlighter;
 }
 
-bool BaseTextDocument::isBinaryData() const
-{
-    return d->m_isBinaryData;
-}
-
 bool BaseTextDocument::hasDecodingError() const
 {
-    return d->m_hasDecodingError || d->m_isBinaryData;
+    return d->m_hasDecodingError;
 }
 
 QTextCodec *BaseTextDocument::codec() const
@@ -359,7 +376,6 @@ bool BaseTextDocument::save(const QString &fileName)
     emit titleChanged(fi.fileName());
     emit changed();
 
-    d->m_isBinaryData = false;
     d->m_hasDecodingError = false;
     d->m_decodingErrorSample.clear();
 
@@ -376,7 +392,7 @@ void BaseTextDocument::rename(const QString &newName)
 
 bool BaseTextDocument::isReadOnly() const
 {
-    if (d->m_isBinaryData || d->m_hasDecodingError)
+    if (d->m_hasDecodingError)
         return true;
     if (d->m_fileName.isEmpty()) //have no corresponding file, so editing is ok
         return false;
@@ -438,20 +454,43 @@ bool BaseTextDocument::open(const QString &fileName)
 
         d->m_codec = codec;
 
-#if 0 // should work, but does not, Qt bug with "system" codec
-        QTextDecoder *decoder = d->m_codec->makeDecoder();
-        QString text = decoder->toUnicode(buf);
-        d->m_hasDecodingError = (decoder->hasFailure());
-        delete decoder;
-#else
-        QString text = d->m_codec->toUnicode(buf);
-        QByteArray verifyBuf = d->m_codec->fromUnicode(text); // slow
-        // the minSize trick lets us ignore unicode headers
-        int minSize = qMin(verifyBuf.size(), buf.size());
-        d->m_hasDecodingError = (minSize < buf.size()- 4
-                              || memcmp(verifyBuf.constData() + verifyBuf.size() - minSize,
-                                        buf.constData() + buf.size() - minSize, minSize));
-#endif
+        // An alternative to the code below would be creating a decoder from the codec,
+        // but failure detection doesn't seem be working reliably.
+        QStringList content;
+        if (bytesRead <= BaseTextDocumentPrivate::kChunkSize) {
+            QString text = d->m_codec->toUnicode(buf);
+            d->m_hasDecodingError = verifyDecodingError(
+                text, d->m_codec, buf.constData(), bytesRead, true);
+            content.append(text);
+        } else {
+            // Avoid large allocation of contiguous memory.
+            QTextCodec::ConverterState state;
+            int offset = 0;
+            while (offset < bytesRead) {
+                int currentSize = qMin(BaseTextDocumentPrivate::kChunkSize, bytesRead - offset);
+                QString text = d->m_codec->toUnicode(buf.constData() + offset, currentSize, &state);
+                if (state.remainingChars) {
+                    if (currentSize < BaseTextDocumentPrivate::kChunkSize && !d->m_hasDecodingError)
+                        d->m_hasDecodingError = true;
+
+                    // Process until the end of the current multi-byte character. Remaining might
+                    // actually contain more than needed so try one-be-one.
+                    while (state.remainingChars) {
+                        text.append(d->m_codec->toUnicode(
+                            buf.constData() + offset + currentSize, 1, &state));
+                        ++currentSize;
+                    }
+                }
+
+                if (!d->m_hasDecodingError) {
+                    d->m_hasDecodingError = verifyDecodingError(
+                        text, d->m_codec, buf.constData() + offset, currentSize, offset == 0);
+                }
+
+                offset += currentSize;
+                content.append(text);
+            }
+        }
 
         if (d->m_hasDecodingError) {
             int p = buf.indexOf('\n', 16384);
@@ -462,22 +501,42 @@ bool BaseTextDocument::open(const QString &fileName)
         } else {
             d->m_decodingErrorSample.clear();
         }
+        buf.clear();
 
-        int lf = text.indexOf('\n');
-        if (lf > 0 && text.at(lf-1) == QLatin1Char('\r')) {
-            d->m_lineTerminatorMode = BaseTextDocumentPrivate::CRLFLineTerminator;
-        } else if (lf >= 0) {
-            d->m_lineTerminatorMode = BaseTextDocumentPrivate::LFLineTerminator;
-        } else {
-            d->m_lineTerminatorMode = BaseTextDocumentPrivate::NativeLineTerminator;
+        foreach (const QString &text, content) {
+            int lf = text.indexOf('\n');
+            if (lf >= 0) {
+                if (lf > 0 && text.at(lf-1) == QLatin1Char('\r')) {
+                    d->m_lineTerminatorMode = BaseTextDocumentPrivate::CRLFLineTerminator;
+                } else {
+                    d->m_lineTerminatorMode = BaseTextDocumentPrivate::LFLineTerminator;
+                }
+                break;
+            }
         }
 
         d->m_document->setModified(false);
-        if (d->m_isBinaryData)
-            d->m_document->setHtml(tr("<em>Binary data</em>"));
-        else
-            d->m_document->setPlainText(text);
-        BaseTextDocumentLayout *documentLayout = qobject_cast<BaseTextDocumentLayout*>(d->m_document->documentLayout());
+        const int chunks = content.size();
+        if (chunks == 1) {
+            d->m_document->setPlainText(content.at(0));
+        } else {
+            QFutureInterface<void> interface;
+            interface.setProgressRange(0, chunks);
+            Core::ICore::instance()->progressManager()->addTask(
+                interface.future(), tr("Opening file"), Constants::TASK_OPEN_FILE);
+            interface.reportStarted();
+            d->m_document->setUndoRedoEnabled(false);
+            QTextCursor c(d->m_document);
+            for (int i = 0; i < chunks; ++i) {
+                c.insertText(content.at(i));
+                interface.setProgressValue(i + 1);
+                QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+            }
+            d->m_document->setUndoRedoEnabled(true);
+            interface.reportFinished();
+        }
+        BaseTextDocumentLayout *documentLayout =
+            qobject_cast<BaseTextDocumentLayout*>(d->m_document->documentLayout());
         QTC_ASSERT(documentLayout, return true);
         documentLayout->lastSaveRevision = d->m_document->revision();
         d->m_document->setModified(false);

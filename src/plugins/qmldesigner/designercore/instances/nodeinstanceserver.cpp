@@ -219,9 +219,15 @@ void NodeInstanceServer::clearScene(const ClearSceneCommand &/*command*/)
 
 void NodeInstanceServer::removeInstances(const RemoveInstancesCommand &command)
 {
+    if (activeStateInstance().isValid())
+        activeStateInstance().deactivateState();
+
     foreach(qint32 instanceId, command.instanceIds()) {
         removeInstanceRelationsip(instanceId);
     }
+
+    if (activeStateInstance().isValid())
+        activeStateInstance().activateState();
 
     startRenderTimer();
 }
@@ -1021,7 +1027,7 @@ void NodeInstanceServer::findItemChangesAndSendChangeCommands()
             if (!parentChangedSet.isEmpty())
                 sendChildrenChangedCommand(parentChangedSet.toList());
 
-            if (!m_dirtyInstanceSet.isEmpty() && nodeInstanceClient()->bytesToWrite() < 100000) {
+            if (!m_dirtyInstanceSet.isEmpty() && nodeInstanceClient()->bytesToWrite() < 10000) {
                 nodeInstanceClient()->pixmapChanged(createPixmapChangedCommand(m_dirtyInstanceSet.toList()));
                 m_dirtyInstanceSet.clear();
             }

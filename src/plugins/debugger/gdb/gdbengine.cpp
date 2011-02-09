@@ -44,7 +44,7 @@
 #include "remotegdbserveradapter.h"
 #include "remoteplaingdbadapter.h"
 #include "trkgdbadapter.h"
-#include "tcftrkgdbadapter.h"
+#include "codagdbadapter.h"
 
 #include "debuggeractions.h"
 #include "debuggerconstants.h"
@@ -642,9 +642,14 @@ void GdbEngine::readGdbStandardOutput()
 void GdbEngine::interruptInferior()
 {
     QTC_ASSERT(state() == InferiorStopRequested, qDebug() << state(); return);
-    showStatusMessage(tr("Stop requested..."), 5000);
-    showMessage(_("TRYING TO INTERRUPT INFERIOR"));
-    m_gdbAdapter->interruptInferior();
+
+    if (debuggerCore()->boolSetting(TargetAsync)) {
+        postCommand("-exec-interrupt");
+    } else {
+        showStatusMessage(tr("Stop requested..."), 5000);
+        showMessage(_("TRYING TO INTERRUPT INFERIOR"));
+        m_gdbAdapter->interruptInferior();
+    }
 }
 
 void GdbEngine::interruptInferiorTemporarily()
@@ -1778,7 +1783,7 @@ int GdbEngine::currentFrame() const
 QString msgNoBinaryForToolChain(int tc)
 {
     using namespace ProjectExplorer;
-    return GdbEngine::tr("There is no gdb binary available for '%1'")
+    return GdbEngine::tr("There is no gdb binary available for '%1'.")
         .arg(ToolChain::toolChainName(ToolChainType(tc)));
 }
 
@@ -1793,7 +1798,7 @@ AbstractGdbAdapter *GdbEngine::createAdapter()
     case ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC:
     case ProjectExplorer::ToolChain_GCCE_GNUPOC:
         if (sp.debugClient == DebuggerStartParameters::DebugClientCoda)
-            return new TcfTrkGdbAdapter(this);
+            return new CodaGdbAdapter(this);
         else
             return new TrkGdbAdapter(this);
     default:
@@ -1842,6 +1847,7 @@ unsigned GdbEngine::debuggerCapabilities() const
         | ReloadModuleCapability
         | ReloadModuleSymbolsCapability
         | BreakOnThrowAndCatchCapability
+        | BreakConditionCapability
         | ReturnFromFunctionCapability
         | CreateFullBacktraceCapability
         | WatchpointCapability
@@ -2448,7 +2454,9 @@ void GdbEngine::handleBreakIgnore(const GdbResponse &response)
     //else if (msg.contains(__("Will ignore next")))
     //    response.ignoreCount = data->ignoreCount;
     // FIXME: this assumes it is doing the right thing...
-    br.ignoreCount = handler->ignoreCount(id);
+    const BreakpointParameters &parameters = handler->breakpointData(id);
+    br.ignoreCount = parameters.ignoreCount;
+    br.command = parameters.command;
     handler->setResponse(id, br);
     changeBreakpoint(id); // Maybe there's more to do.
 }
@@ -2640,6 +2648,19 @@ void GdbEngine::changeBreakpoint(BreakpointId id)
             CB(handleBreakThreadSpec), id);
         return;
     }
+    if (data.command != response.command) {
+        QByteArray breakCommand = "-break-commands " + bpnr;
+        foreach (const QString &command, data.command.split(QLatin1String("\\n"))) {
+            if (!command.isEmpty()) {
+                breakCommand.append(" \"");
+                breakCommand.append(command.toLatin1());
+                breakCommand.append('"');
+            }
+        }
+        postCommand(breakCommand, NeedsStop | RebuildBreakpointModel,
+                    CB(handleBreakIgnore), id);
+        return;
+    }
     if (!data.conditionsMatch(response.condition)) {
         postCommand("condition " + bpnr + ' '  + data.condition,
             NeedsStop | RebuildBreakpointModel,
@@ -2695,6 +2716,7 @@ void GdbEngine::loadSymbols(const QString &moduleName)
     // FIXME: gdb does not understand quoted names here (tested with 6.8)
     postCommand("sharedlibrary " + dotEscape(moduleName.toLocal8Bit()));
     reloadModulesInternal();
+    reloadBreakListInternal();
     reloadStack(true);
     updateLocals();
 }
@@ -2703,6 +2725,7 @@ void GdbEngine::loadAllSymbols()
 {
     postCommand("sharedlibrary .*");
     reloadModulesInternal();
+    reloadBreakListInternal();
     reloadStack(true);
     updateLocals();
 }
@@ -2726,6 +2749,7 @@ void GdbEngine::loadSymbolsForStack()
     }
     if (needUpdate) {
         reloadModulesInternal();
+        reloadBreakListInternal();
         reloadStack(true);
         updateLocals();
     }
@@ -2815,10 +2839,6 @@ void GdbEngine::reloadModulesInternal()
 {
     m_modulesListOutdated = false;
     postCommand("info shared", NeedsStop, CB(handleModulesList));
-#if 0
-    if (m_gdbVersion < 70000 && !m_isMacGdb)
-        postCommand("set stop-on-solib-events 1");
-#endif
 }
 
 void GdbEngine::handleModulesList(const GdbResponse &response)
@@ -4157,18 +4177,20 @@ void GdbEngine::handleFetchDisassemblerByCli(const GdbResponse &response)
 // Starting up & shutting down
 //
 
-bool GdbEngine::startGdb(const QStringList &args, const QString &gdb, const QString &settingsIdHint)
+bool GdbEngine::startGdb(const QStringList &args, const QString &gdb,
+    const QString &settingsIdHint)
 {
     gdbProc()->disconnect(); // From any previous runs
 
+    const DebuggerStartParameters &sp = startParameters();
     m_gdb = QString::fromLocal8Bit(qgetenv("QTC_DEBUGGER_PATH"));
-    if (m_gdb.isEmpty() && startParameters().startMode != StartRemoteGdb)
-        m_gdb = debuggerCore()->gdbBinaryForToolChain(startParameters().toolChainType);
+    if (m_gdb.isEmpty() && sp.startMode != StartRemoteGdb)
+        m_gdb = debuggerCore()->gdbBinaryForToolChain(sp.toolChainType);
     if (m_gdb.isEmpty())
         m_gdb = gdb;
     if (m_gdb.isEmpty()) {
         handleAdapterStartFailed(
-            msgNoBinaryForToolChain(startParameters().toolChainType),
+            msgNoBinaryForToolChain(sp.toolChainType),
             GdbOptionsPage::settingsId());
         return false;
     }
@@ -4300,6 +4322,11 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &gdb, const QStr
     postCommand("set width 0");
     postCommand("set height 0");
     postCommand("set auto-solib-add on");
+
+    if (debuggerCore()->boolSetting(TargetAsync)) {
+        postCommand("set target-async on");
+        postCommand("set non-stop on");
+    }
 
     if (false && m_isMacGdb) {
         // FIXME: m_isMacGdb is only known after handleShowVersion!

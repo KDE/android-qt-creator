@@ -5,6 +5,10 @@
 #include <QtCore/QString>
 #include <QtCore/QMutex>
 
+QT_BEGIN_NAMESPACE
+class QWaitCondition;
+QT_END_NAMESPACE
+
 #include "symbianutils_global.h"
 
 namespace SymbianUtils {
@@ -43,12 +47,14 @@ private:
     mutable QMutex lock;
     QList<QByteArray> pendingWrites;
     bool emittingBytesWritten;
+    QWaitCondition* waiterForBytesWritten;
     VirtualSerialDevicePrivate *d;
 
 // Platform-specific stuff
 #ifdef Q_OS_WIN
 private:
     qint64 writeNextBuffer(QMutexLocker &locker);
+    void doWriteCompleted(QMutexLocker &locker);
 private slots:
     void writeCompleted();
     void commEventOccurred();

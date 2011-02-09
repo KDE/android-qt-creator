@@ -50,6 +50,14 @@ enum { winExceptionCppException = 0xe06d7363,
        winExceptionAppInitFailed = 0xc0000143
 };
 
+/*!
+    \class IDebugEventCallbacks
+
+    Event handler wrapping the original IDebugEventCallbacks
+    to catch and store exceptions (report crashes as stop reasons).
+    \ingroup qtcreatorcdbext
+*/
+
 EventCallback::EventCallback(IDebugEventCallbacks *wrapped) :
     m_wrapped(wrapped)
 {
@@ -107,16 +115,14 @@ STDMETHODIMP EventCallback::Breakpoint(THIS_ __in PDEBUG_BREAKPOINT b)
     typedef ExtensionContext::StopReasonMap StopReasonMap;
     typedef ExtensionContext::StopReasonMap::value_type StopReasonMapValue;
 
-    ULONG id = 0;
+    ULONG uId = 0;
     ULONG64 address = 0;
-    b->GetId(&id);
-    b->GetOffset(&address);
-
     StopReasonMap stopReason;
-    stopReason.insert(StopReasonMapValue(std::string("breakpointId"), toString(id)));
-    if (address)
+    if (SUCCEEDED(b->GetId(&uId)))
+        stopReason.insert(StopReasonMapValue(std::string("breakpointId"), toString(uId)));
+    if (SUCCEEDED(b->GetOffset(&address)))
         stopReason.insert(StopReasonMapValue(std::string("breakpointAddress"), toString(address)));
-    ExtensionContext::instance().setStopReason(stopReason, "breakpoint");
+    ExtensionContext::instance().setStopReason(stopReason, ExtensionContext::breakPointStopReasonC);
     return m_wrapped ? m_wrapped->Breakpoint(b) : S_OK;
 }
 

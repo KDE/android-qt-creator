@@ -126,9 +126,9 @@ void QmlCppEnginePrivate::qmlStackChanged()
 QmlCppEngine::QmlCppEngine(const DebuggerStartParameters &sp)
     : DebuggerEngine(sp), d(new QmlCppEnginePrivate(this, sp))
 {
-    //setStateDebugging(true);
-    //m_cppEngine->setStateDebugging(true);
-    //m_qmlEngine->setStateDebugging(true);
+//    setStateDebugging(true);
+//    d->m_cppEngine->setStateDebugging(true);
+//    d->m_qmlEngine->setStateDebugging(true);
 }
 
 QmlCppEngine::~QmlCppEngine()
@@ -171,6 +171,7 @@ void QmlCppEngine::activateFrame(int index)
         d->m_qmlEngine->activateFrame(index - d->m_stackBoundary);
     else
         d->m_cppEngine->activateFrame(index);
+    stackHandler()->setCurrentIndex(index);
 }
 
 void QmlCppEngine::reloadModules()
@@ -369,16 +370,6 @@ void QmlCppEngine::executeDebuggerCommand(const QString &command)
     d->m_cppEngine->executeDebuggerCommand(command);
 }
 
-void QmlCppEngine::frameUp()
-{
-    d->m_activeEngine->frameUp();
-}
-
-void QmlCppEngine::frameDown()
-{
-    d->m_activeEngine->frameDown();
-}
-
 /////////////////////////////////////////////////////////
 
 void QmlCppEngine::setupEngine()
@@ -482,7 +473,10 @@ void QmlCppEngine::slaveEngineStateChanged
         break;
 
     case InferiorSetupFailed:
-        notifyInferiorSetupFailed();
+        if (otherEngine->state() == InferiorRunOk)
+            otherEngine->quitDebugger();
+        else
+            notifyInferiorSetupFailed();
         break;
 
     case InferiorSetupOk:
@@ -497,7 +491,10 @@ void QmlCppEngine::slaveEngineStateChanged
         break;
 
     case EngineRunFailed:
-        notifyEngineRunFailed();
+        if (otherEngine->state() == InferiorRunOk)
+            otherEngine->quitDebugger();
+        else
+            notifyEngineRunFailed();
         break;
 
 
@@ -512,7 +509,7 @@ void QmlCppEngine::slaveEngineStateChanged
         if (state() == EngineRunRequested) {
             if (otherEngine->state() == InferiorRunOk)
                 notifyEngineRunAndInferiorRunOk();
-            else if (otherEngine->state() == InferiorRunOk)
+            else if (otherEngine->state() == InferiorStopOk)
                 notifyEngineRunAndInferiorStopOk();
             else
                 EDEBUG("... WAITING FOR OTHER INFERIOR RUN");
@@ -553,6 +550,8 @@ void QmlCppEngine::slaveEngineStateChanged
             } else if (state() == InferiorStopRequested) {
                 EDEBUG("... AN INFERIOR STOPPED EXPECTEDLY");
                 notifyInferiorStopOk();
+            } else if (state() == EngineRunRequested) {
+                EDEBUG("... AN INFERIOR FAILED STARTUP, OTHER STOPPED EXPECTEDLY");
             } else {
                 EDEBUG("... AN INFERIOR STOPPED SPONTANEOUSLY");
                 notifyInferiorSpontaneousStop();
@@ -581,6 +580,12 @@ void QmlCppEngine::slaveEngineStateChanged
             otherEngine->quitDebugger();
         } else if (otherEngine->state() == InferiorStopOk) {
             otherEngine->quitDebugger();
+        } else if (otherEngine->state() == EngineRunFailed) {
+            EDEBUG("... INFERIOR STOPPED, OTHER ENGINE FAILED");
+            notifyEngineRunFailed();
+        } else if (otherEngine->state() == InferiorSetupFailed) {
+            EDEBUG("... INFERIOR STOPPED, OTHER INFERIOR FAILED");
+            notifyInferiorSetupFailed();
         }
         break;
 

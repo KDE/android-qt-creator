@@ -189,7 +189,7 @@ BreakpointId BreakHandler::findBreakpointByAddress(quint64 address) const
 {
     ConstIterator it = m_storage.constBegin(), et = m_storage.constEnd();
     for ( ; it != et; ++it)
-        if (it->data.address == address)
+        if (it->data.address == address || it->response.address == address)
             return it.key();
     return BreakpointId();
 }
@@ -241,6 +241,7 @@ bool BreakHandler::hasWatchpointAt(quint64 address) const
 
 void BreakHandler::saveBreakpoints()
 {
+    const QString one = _("1");
     //qDebug() << "SAVING BREAKPOINTS...";
     QTC_ASSERT(debuggerCore(), return);
     QList<QVariant> list;
@@ -268,11 +269,15 @@ void BreakHandler::saveBreakpoints()
         if (data.threadSpec >= 0)
             map.insert(_("threadspec"), data.threadSpec);
         if (!data.enabled)
-            map.insert(_("disabled"), _("1"));
+            map.insert(_("disabled"), one);
         if (data.useFullPath)
-            map.insert(_("usefullpath"), _("1"));
+            map.insert(_("usefullpath"), one);
         if (data.tracepoint)
-            map.insert(_("tracepoint"), _("1"));
+            map.insert(_("tracepoint"), one);
+        if (!data.module.isEmpty())
+            map.insert(_("module"), data.module);
+        if (!data.command.isEmpty())
+            map.insert(_("command"), data.command);
         list.append(map);
     }
     debuggerCore()->setSessionValue("Breakpoints", list);
@@ -322,6 +327,12 @@ void BreakHandler::loadBreakpoints()
         v = map.value(_("type"));
         if (v.isValid() && v.toInt() != UnknownType)
             data.type = BreakpointType(v.toInt());
+        v = map.value(_("module"));
+        if (v.isValid())
+            data.module = v.toString();
+        v = map.value(_("command"));
+        if (v.isValid())
+            data.command = v.toString();
         appendBreakpoint(data);
     }
     //qDebug() << "LOADED BREAKPOINTS" << this << list.size();
@@ -523,10 +534,18 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
                 return displayFromThreadSpec(data.threadSpec);
             break;
     }
-    if (role == Qt::ToolTipRole)
-        return debuggerCore()->boolSetting(UseToolTipsInBreakpointsView)
-                ? QVariant(it->toToolTip()) : QVariant();
-
+    switch (role) {
+    case Qt::ToolTipRole:
+        if (debuggerCore()->boolSetting(UseToolTipsInBreakpointsView))
+                return QVariant(it->toToolTip());
+        break;
+    case EngineCapabilitiesRole:  {
+        const unsigned caps = it.value().engine ?
+                              it.value().engine->debuggerCapabilities() :
+                              unsigned(AllDebuggerCapabilities);
+        return QVariant(caps);
+    }
+    }
     return QVariant();
 }
 
@@ -826,9 +845,15 @@ void BreakHandler::appendBreakpoint(const BreakpointParameters &data)
     item.data = data;
     item.response.fileName = data.fileName;
     item.response.lineNumber = data.lineNumber;
+
+    const int row = m_storage.size();
+    beginInsertRows(QModelIndex(), row, row);
     m_storage.insert(id, item);
+    endInsertRows();
+
     updateMarker(id);
     scheduleSynchronization();
+
 }
 
 void BreakHandler::saveSessionData()
@@ -974,12 +999,22 @@ bool BreakHandler::needsChange(BreakpointId id) const
     return it->needsChange();
 }
 
-void BreakHandler::setResponse(BreakpointId id, const BreakpointResponse &data)
+void BreakHandler::setResponse(BreakpointId id, const BreakpointResponse &response, bool takeOver)
 {
     Iterator it = m_storage.find(id);
     QTC_ASSERT(it != m_storage.end(), return);
-    it->response = data;
-    it->destroyMarker();
+    BreakpointItem &item = it.value();
+    item.response = response;
+    item.destroyMarker();
+    // Take over corrected values from response
+    if (takeOver) {
+        if (item.data.type == BreakpointByFileAndLine
+            && response.correctedLineNumber > 0)
+            item.data.lineNumber = response.correctedLineNumber;
+        if ((item.data.type == BreakpointByFileAndLine || item.data.type == BreakpointByFunction)
+            && !response.module.isEmpty())
+            item.data.module = response.module;
+    }
     updateMarker(id);
 }
 
@@ -1080,6 +1115,8 @@ bool BreakHandler::BreakpointItem::needsChange() const
         return true;
     if (data.threadSpec != response.threadSpec)
         return true;
+    if (data.command != response.command)
+        return true;
     return false;
 }
 
@@ -1143,19 +1180,25 @@ QString BreakHandler::BreakpointItem::toToolTip() const
     str << "<html><body><table>"
         //<< "<tr><td>" << tr("Id:") << "</td><td>" << m_id << "</td></tr>"
         << "<tr><td>" << tr("State:")
-        << "</td><td>" << state << "   (" << stateToString(state) << ")</td></tr>"
-        << "<tr><td>" << tr("Engine:")
-        << "</td><td>" << (engine ? engine->objectName() : "0") << "</td></tr>"
-        << "<tr><td>" << tr("Breakpoint Number:")
-        << "</td><td>" << response.number << "</td></tr>"
-        << "<tr><td>" << tr("Breakpoint Type:")
-        << "</td><td>" << t << "</td></tr>"
-        << "<tr><td>" << tr("Extra Information:")
-        << "</td><td>" << response.extra << "</td></tr>"
-        << "<tr><td>" << tr("Pending:")
-        << "</td><td>" << (response.pending ? "True" : "False") << "</td></tr>"
-        << "<tr><td>" << tr("Marker File:")
-        << "</td><td>" << markerFileName() << "</td></tr>"
+        << "</td><td>" << (data.enabled ? tr("Enabled") : tr("Disabled"));
+    if (response.pending)
+        str << tr(", pending");
+    str << ", " << state << "   (" << stateToString(state) << ")</td></tr>";
+    if (engine) {
+        str << "<tr><td>" << tr("Engine:")
+        << "</td><td>" << engine->objectName() << "</td></tr>";
+    }
+    if (!response.pending) {
+        str << "<tr><td>" << tr("Breakpoint Number:")
+            << "</td><td>" << response.number << "</td></tr>";
+    }
+    str << "<tr><td>" << tr("Breakpoint Type:")
+        << "</td><td>" << t << "</td></tr>";
+    if (!response.extra.isEmpty()) {
+        str << "<tr><td>" << tr("Extra Information:")
+            << "</td><td>" << response.extra << "</td></tr>";    }
+    str << "<tr><td>" << tr("Marker File:")
+        << "</td><td>" << QDir::toNativeSeparators(markerFileName()) << "</td></tr>"
         << "<tr><td>" << tr("Marker Line:")
         << "</td><td>" << markerLineNumber() << "</td></tr>"
         << "</table><br><hr><table>"
@@ -1163,12 +1206,15 @@ QString BreakHandler::BreakpointItem::toToolTip() const
         << "</th><th>" << tr("Requested")
         << "</th><th>" << tr("Obtained") << "</th></tr>"
         << "<tr><td>" << tr("Internal Number:")
-        << "</td><td>&mdash;</td><td>" << response.number << "</td></tr>"
-        << "<tr><td>" << tr("Function Name:")
+        << "</td><td>&mdash;</td><td>" << response.number << "</td></tr>";
+    if (data.type == BreakpointByFunction) {
+        str << "<tr><td>" << tr("Function Name:")
         << "</td><td>" << data.functionName
         << "</td><td>" << response.functionName
-        << "</td></tr>"
-        << "<tr><td>" << tr("File Name:")
+        << "</td></tr>";
+    }
+    if (data.type == BreakpointByFileAndLine) {
+    str << "<tr><td>" << tr("File Name:")
         << "</td><td>" << QDir::toNativeSeparators(data.fileName)
         << "</td><td>" << QDir::toNativeSeparators(response.fileName)
         << "</td></tr>"
@@ -1177,34 +1223,51 @@ QString BreakHandler::BreakpointItem::toToolTip() const
         << "</td><td>" << response.lineNumber << "</td></tr>"
         << "<tr><td>" << tr("Corrected Line Number:")
         << "</td><td>-"
-        << "</td><td>" << response.correctedLineNumber << "</td></tr>"
-        << "<tr><td>" << tr("Breakpoint Address:")
+        << "</td><td>" << response.correctedLineNumber << "</td></tr>";
+    }
+    if (data.type == BreakpointByFunction || data.type == BreakpointByFileAndLine) {
+        str << "<tr><td>" << tr("Module:")
+            << "</td><td>" << data.module
+            << "</td><td>" << response.module
+            << "</td></tr>";
+    }
+    str << "<tr><td>" << tr("Breakpoint Address:")
         << "</td><td>";
     formatAddress(str, data.address);
     str << "</td><td>";
     formatAddress(str, response.address);
-    //str <<  "</td></tr>"
-    //    << "<tr><td>" << tr("Corrected Line Number:")
-    //    << "</td><td>-</td><td>";
-    //if (response.bpCorrectedLineNumber > 0)
-    //    str << response.bpCorrectedLineNumber;
-    //else
-    //    str << '-';
-    str << "</td></tr>"
-        << "<tr><td>" << tr("Condition:")
-        << "</td><td>" << data.condition
-        << "</td><td>" << response.condition << "</td></tr>"
-        << "<tr><td>" << tr("Ignore Count:") << "</td><td>";
-    if (data.ignoreCount)
-        str << data.ignoreCount;
-    str << "</td><td>";
-    if (response.ignoreCount)
-        str << response.ignoreCount;
-    str << "</td></tr>"
-        << "<tr><td>" << tr("Thread Specification:")
-        << "</td><td>" << data.threadSpec
-        << "</td><td>" << response.threadSpec << "</td></tr>"
-        << "</table></body></html>";
+    if (!data.command.isEmpty() || !response.command.isEmpty()) {
+        str << "</td></tr>"
+            << "<tr><td>" << tr("Command:")
+            << "</td><td>" << data.command
+            << "</td><td>" << response.command<< "</td></tr>";
+    }
+    if (!data.condition.isEmpty() || !response.condition.isEmpty()) {
+        str << "</td></tr>"
+            << "<tr><td>" << tr("Condition:")
+            << "</td><td>" << data.condition
+            << "</td><td>" << response.condition << "</td></tr>";
+    }
+    if (data.ignoreCount || response.ignoreCount) {
+        str << "<tr><td>" << tr("Ignore Count:") << "</td><td>";
+        if (data.ignoreCount)
+            str << data.ignoreCount;
+        str << "</td><td>";
+        if (response.ignoreCount)
+            str << response.ignoreCount;
+    }
+    if (data.threadSpec >= 0 || response.threadSpec >= 0) {
+        str << "</td></tr>"
+            << "<tr><td>" << tr("Thread Specification:")
+            << "</td><td>";
+        if (data.threadSpec >= 0)
+            str << data.threadSpec;
+        str << "</td><td>";
+        if (response.threadSpec >= 0)
+            str << response.threadSpec;
+        str << "</td></tr>";
+    }
+    str  << "</table></body></html>";
     return rc;
 }
 

@@ -46,7 +46,10 @@ HEADERS += \
     $$PWD/maemoqemusettings.h \
     $$PWD/qt4maemotargetfactory.h \
     $$PWD/qt4maemotarget.h \
-    $$PWD/qt4maemodeployconfiguration.h
+    $$PWD/qt4maemodeployconfiguration.h \
+    $$PWD/maemodeviceconfigwizard.h \
+    $$PWD/maemokeydeployer.h \
+    $$PWD/maemopertargetdeviceconfigurationlistmodel.h
 
 SOURCES += \
     $$PWD/maemoconfigtestdialog.cpp \
@@ -93,7 +96,10 @@ SOURCES += \
     $$PWD/maemoqemusettings.cpp \
     $$PWD/qt4maemotargetfactory.cpp \
     $$PWD/qt4maemotarget.cpp \
-    $$PWD/qt4maemodeployconfiguration.cpp
+    $$PWD/qt4maemodeployconfiguration.cpp \
+    $$PWD/maemodeviceconfigwizard.cpp \
+    $$PWD/maemokeydeployer.cpp \
+    $$PWD/maemopertargetdeviceconfigurationlistmodel.cpp
 
 FORMS += \
     $$PWD/maemoconfigtestdialog.ui \
@@ -107,6 +113,11 @@ FORMS += \
     $$PWD/maemopublishingfileselectiondialog.ui \
     $$PWD/maemopublishinguploadsettingspagefremantlefree.ui \
     $$PWD/maemopublishingresultpagefremantlefree.ui \
-    $$PWD/maemoqemusettingswidget.ui
+    $$PWD/maemoqemusettingswidget.ui \
+    $$PWD/maemodeviceconfigwizardstartpage.ui \
+    $$PWD/maemodeviceconfigwizardpreviouskeysetupcheckpage.ui \
+    $$PWD/maemodeviceconfigwizardreusekeyscheckpage.ui \
+    $$PWD/maemodeviceconfigwizardkeycreationpage.ui \
+    $$PWD/maemodeviceconfigwizardkeydeploymentpage.ui
 
 RESOURCES += $$PWD/qt-maemo.qrc

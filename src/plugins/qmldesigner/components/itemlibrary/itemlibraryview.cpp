@@ -128,6 +128,35 @@ void ItemLibraryView::instancesCompleted(const QVector<ModelNode> &)
 
 }
 
+void ItemLibraryView::instanceInformationsChange(const QVector<ModelNode> &/*nodeList*/)
+{
+}
+
+void ItemLibraryView::instancesRenderImageChanged(const QVector<ModelNode> &/*nodeList*/)
+{
+}
+
+void ItemLibraryView::instancesPreviewImageChanged(const QVector<ModelNode> &/*nodeList*/)
+{
+}
+
+void ItemLibraryView::instancesChildrenChanged(const QVector<ModelNode> &/*nodeList*/)
+{
+
+}
+
+void ItemLibraryView::rewriterBeginTransaction()
+{
+}
+
+void ItemLibraryView::rewriterEndTransaction()
+{
+}
+
+void ItemLibraryView::actualStateChanged(const ModelNode &/*node*/)
+{
+}
+
 void ItemLibraryView::updateImports()
 {
     m_widget->updateModel();

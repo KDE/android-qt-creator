@@ -35,6 +35,7 @@
 #define DEBUGGER_CDBENGINE_H
 
 #include "debuggerengine.h"
+#include "breakpoint.h"
 
 #include <QtCore/QSharedPointer>
 #include <QtCore/QProcess>
@@ -68,7 +69,8 @@ public:
         CommandListStack = 0x1,
         CommandListThreads = 0x2,
         CommandListRegisters = 0x4,
-        CommandListModules = 0x8
+        CommandListModules = 0x8,
+        CommandListBreakPoints = 0x10
     };
 
     typedef QSharedPointer<CdbBuiltinCommand> CdbBuiltinCommandPtr;
@@ -159,6 +161,8 @@ private slots:
     void consoleStubExited();
 
 private:
+    typedef QHash<BreakpointId, BreakpointResponse> PendingBreakPointMap;
+
     enum SpecialStopMode
     {
         NoSpecialStop,
@@ -172,6 +176,7 @@ private:
 
 
     bool startConsole(const DebuggerStartParameters &sp, QString *errorMessage);
+    void init();
     unsigned examineStopReason(const GdbMi &stopReason, QString *message,
                                QString *exceptionBoxMessage);
     bool commandsPending() const;
@@ -205,6 +210,8 @@ private:
     void handleModules(const CdbExtensionCommandPtr &reply);
     void handleMemory(const CdbExtensionCommandPtr &);
     void handleWidgetAt(const CdbExtensionCommandPtr &);
+    void handleBreakPoints(const CdbExtensionCommandPtr &);
+    void handleBreakPoints(const GdbMi &value);
 
     QString normalizeFileName(const QString &f);
     void updateLocalVariable(const QByteArray &iname);
@@ -223,17 +230,16 @@ private:
     DebuggerStartMode m_effectiveStartMode;
     QByteArray m_outputBuffer;
     unsigned long m_inferiorPid;
-    // Debugger accessible (expecting commands)
+    //! Debugger accessible (expecting commands)
     bool m_accessible;
     SpecialStopMode m_specialStopMode;
     int m_nextCommandToken;
-    int m_nextBreakpointNumber;
     QList<CdbBuiltinCommandPtr> m_builtinCommandQueue;
-    int m_currentBuiltinCommandIndex; // Current command whose output is recorded.
+    int m_currentBuiltinCommandIndex; //!< Current command whose output is recorded.
     QList<CdbExtensionCommandPtr> m_extensionCommandQueue;
     QMap<QString, QString> m_normalizedFileCache;
-    const QByteArray m_extensionCommandPrefixBA; // Library name used as prefix
-    bool m_operateByInstructionPending; // Creator operate by instruction action changed.
+    const QByteArray m_extensionCommandPrefixBA; //!< Library name used as prefix
+    bool m_operateByInstructionPending; //!< Creator operate by instruction action changed.
     bool m_operateByInstruction;
     bool m_notifyEngineShutdownOnTermination;
     bool m_hasDebuggee;
@@ -244,6 +250,9 @@ private:
     unsigned m_wX86BreakpointCount;
     int m_watchPointX;
     int m_watchPointY;
+    PendingBreakPointMap m_pendingBreakpointMap;
+    QHash<QString, QString> m_fileNameModuleHash;
+    bool m_ignoreCdbOutput;
 };
 
 } // namespace Internal

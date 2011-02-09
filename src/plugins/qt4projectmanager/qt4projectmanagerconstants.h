@@ -99,13 +99,19 @@ const char * const QTVERSION_SETTINGS_PAGE_NAME = QT_TRANSLATE_NOOP("Qt4ProjectM
 // C++ wizard categories
 const char * const QT_APP_WIZARD_CATEGORY = "F.QtApplicationProjects";
 const char * const QT_APP_WIZARD_TR_SCOPE = "Qt4ProjectManager";
-const char * const QT_APP_WIZARD_TR_CATEGORY = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Qt QWidget Project");
+const char * const QT_APP_WIZARD_TR_CATEGORY = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Qt Widget Project");
 
 // QML wizard categories
 const char * const QML_WIZARD_CATEGORY = "C.Projects"; // (before Qt)
 const char * const QML_WIZARD_TR_SCOPE = "QmlProjectManager";
 const char * const QML_WIZARD_TR_CATEGORY = QT_TRANSLATE_NOOP("QmlProjectManager", "Qt Quick Project");
 const char * const QML_WIZARD_ICON = ":/qmlproject/images/qml_wizard.png";
+
+// Html5 wizard categories
+const char * const HTML5_WIZARD_CATEGORY = "I.Projects"; // (after Qt)
+const char * const HTML5_WIZARD_TR_SCOPE = QT_APP_WIZARD_TR_SCOPE;
+const char * const HTML5_WIZARD_TR_CATEGORY = QT_TRANSLATE_NOOP("ProjectExplorer", "Other Project");
+const char * const HTML5_WIZARD_ICON = ":/qmlproject/images/qml_wizard.png";
 
 // Tasks
 const char * const PROFILE_EVALUATE = "Qt4ProjectManager.ProFileEvaluate";
@@ -119,13 +125,14 @@ const char * const S60_EMULATOR_TARGET_ID   = "Qt4ProjectManager.Target.S60Emula
 const char * const S60_DEVICE_TARGET_ID     = "Qt4ProjectManager.Target.S60DeviceTarget";
 const char * const MAEMO5_DEVICE_TARGET_ID = "Qt4ProjectManager.Target.MaemoDeviceTarget";
 const char * const HARMATTAN_DEVICE_TARGET_ID = "Qt4ProjectManager.Target.HarmattanDeviceTarget";
+const char * const MEEGO_DEVICE_TARGET_ID = "Qt4ProjectManager.Target.MeegoDeviceTarget";
 const char * const QT_SIMULATOR_TARGET_ID   = "Qt4ProjectManager.Target.QtSimulatorTarget";
 const char * const ANDROID_DEVICE_TARGET_ID = "Qt4ProjectManager.Target.AndroidDeviceTarget";
 
 // ICONS
 const char * const ICON_QT_PROJECT = ":/qt4projectmanager/images/qt_project.png";
 const char * const ICON_WINDOW = ":/qt4projectmanager/images/window.png";
-const char * const ICON_QML_STANDALONE = ":/wizards/images/qml_standalone.png";
+const char * const ICON_QTQUICK_APP = ":/wizards/images/qtquickapp.png";
 
 // Env variables
 const char * const QMAKEVAR_QMLJSDEBUGGER_PATH = "QMLJSDEBUGGER_PATH";

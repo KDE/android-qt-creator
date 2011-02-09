@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nicolas Arnaud-Cormos.
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -31,40 +31,38 @@
 **
 **************************************************************************/
 
-#ifndef MACROSPLUGIN_MACROSETTINGS_H
-#define MACROSPLUGIN_MACROSETTINGS_H
+#ifndef HTML5APPWIZARD_H
+#define HTML5APPWIZARD_H
 
-#include <QtCore/QStringList>
-#include <QtCore/QMap>
-#include <QtCore/QVariant>
+#include "abstractmobileappwizard.h"
 
-QT_BEGIN_NAMESPACE
-class QSettings;
-QT_END_NAMESPACE
-
-namespace Macros {
+namespace Qt4ProjectManager {
 namespace Internal {
 
-class MacroSettings
+class Html5AppWizard : public AbstractMobileAppWizard
 {
+    Q_OBJECT
+
 public:
-    MacroSettings();
+    Html5AppWizard();
+    virtual ~Html5AppWizard();
 
-    void toSettings(QSettings *s) const;
-    void fromSettings(QSettings *s);
+private:
+    static Core::BaseFileWizardParameters parameters();
 
-    bool equals(const MacroSettings &ms) const;
+    virtual AbstractMobileApp *app() const;
+    virtual AbstractMobileAppWizardDialog *wizardDialog() const;
+    virtual AbstractMobileAppWizardDialog *createWizardDialogInternal(QWidget *parent) const;
+    virtual void projectPathChanged(const QString &path) const;
+    virtual void prepareGenerateFiles(const QWizard *wizard,
+        QString *errorMessage) const;
+    virtual bool postGenerateFilesInternal(const Core::GeneratedFiles &l,
+        QString *errorMessage);
 
-    QString defaultDirectory;
-    QStringList directories;
-    QMap<QString, QVariant> shortcuts;
-    bool showSaveDialog;
+    class Html5AppWizardPrivate *m_d;
 };
 
-inline bool operator==(const MacroSettings &m1, const MacroSettings &m2) { return m1.equals(m2); }
-inline bool operator!=(const MacroSettings &m1, const MacroSettings &m2) { return !m1.equals(m2); }
-
 } // namespace Internal
-} // namespace Macros
+} // namespace Qt4ProjectManager
 
-#endif // MACROSPLUGIN_MACROSETTINGS_H
+#endif // HTML5APPWIZARD_H

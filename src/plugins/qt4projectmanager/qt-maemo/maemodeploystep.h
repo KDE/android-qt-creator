@@ -77,6 +77,7 @@ public:
 
     virtual ~MaemoDeployStep();
     QSharedPointer<const MaemoDeviceConfig> deviceConfig() const { return m_deviceConfig; }
+    const AbstractQt4MaemoTarget *maemotarget() const;
     void setDeviceConfig(int i);
     bool currentlyNeedsDeployment(const QString &host,
         const MaemoDeployable &deployable) const;
@@ -143,7 +144,6 @@ private:
     const MaemoPackageCreationStep *packagingStep() const;
     QString deployMountPoint() const;
     const AbstractMaemoToolChain *toolChain() const;
-    const AbstractQt4MaemoTarget *maemotarget() const;
     void copyNextFileToDevice();
     void installToSysroot();
     QString uploadDir() const;
@@ -151,7 +151,7 @@ private:
     void unmountOldDirs();
     void setupMount();
     void prepareSftpConnection();
-    void runDpkg(const QString &packageFilePath);
+    void runPackageInstaller(const QString &packageFilePath);
     void setState(State newState);
     void unmount();
     void setDeviceConfig(MaemoDeviceConfig::Id internalId);
@@ -176,6 +176,7 @@ private:
     QSharedPointer<const MaemoDeviceConfig> m_cachedDeviceConfig;
     MaemoUsedPortsGatherer *m_portsGatherer;
     MaemoPortList m_freePorts;
+    QByteArray m_installerStderr;
     State m_state;
 };
 

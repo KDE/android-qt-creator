@@ -53,8 +53,9 @@ enum ToolChainType
     ToolChain_RVCT4_ARMV5 = 12,
     ToolChain_RVCT4_ARMV6 = 13,
     ToolChain_GCC_HARMATTAN = 14,
-    ToolChain_GCC_ANDROID = 15,
-    ToolChain_LAST_VALID = 15,
+    ToolChain_GCC_MEEGO = 15,
+    ToolChain_GCC_ANDROID = 16,
+    ToolChain_LAST_VALID = 16,
     ToolChain_OTHER = 200,
     ToolChain_UNKNOWN = 201,
     ToolChain_INVALID = 202

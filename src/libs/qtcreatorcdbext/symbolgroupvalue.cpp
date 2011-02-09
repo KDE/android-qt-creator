@@ -41,6 +41,24 @@
 
 typedef std::vector<int>::size_type VectorIndexType;
 
+/*! \struct SymbolGroupValueContext
+    \brief Structure to pass all IDebug interfaces required for SymbolGroupValue
+    \ingroup qtcreatorcdbext */
+
+/*! \class SymbolGroupValue
+
+    Flyweight tied to a SymbolGroupNode
+    providing a convenient operator[] (name, index) and value
+    getters for notation of dumpers.
+    Inaccessible members return a SymbolGroupValue in state 'invalid'.
+    Example:
+    \code
+    SymbolGroupValue container(symbolGroupNode, symbolGroupValueContext);
+    if (SymbolGroupValue sizeV = container["d"]["size"])
+      int size = sizeV.intValue()
+    \endcode
+    etc. \ingroup qtcreatorcdbext */
+
 unsigned SymbolGroupValue::verbose = 0;
 
 SymbolGroupValue::SymbolGroupValue(const std::string &parentError) :
@@ -436,6 +454,12 @@ static inline std::string resolveQtSymbol(const char *symbolC,
     return rc;
 }
 
+/*! \struct QtInfo
+
+    Qt Information determined on demand: Namespace, modules and basic class
+    names containing the module for fast lookup.
+    \ingroup qtcreatorcdbext */
+
 const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
 {
     static const char qtCoreDefaultModule[] = "QtCored4";
@@ -600,20 +624,10 @@ std::string SymbolGroupValue::resolveType(const std::string &typeIn,
     const ULONG typeSize = Ioctl(IG_GET_TYPE_SIZE, &symParameters, symParameters.size);
     if (!typeSize || !symParameters.ModBase) // Failed?
         return stripped;
-    ULONG index = 0;
-    ULONG64 base = 0;
-    // Convert module base address to module index
-    HRESULT hr = ctx.symbols->GetModuleByOffset(symParameters.ModBase, 0, &index, &base);
-    if (FAILED(hr))
+    const std::string module = moduleNameByOffset(ctx.symbols, symParameters.ModBase);
+    if (module.empty())
         return stripped;
-    // Obtain module name
-    char buf[BufSize];
-    buf[0] = '\0';
-    hr = ctx.symbols->GetModuleNameString(DEBUG_MODNAME_MODULE, index, base, buf, BufSize, 0);
-    if (FAILED(hr))
-        return stripped;
-
-    std::string rc = buf;
+    std::string rc = module;
     rc.push_back('!');
     rc += stripped;
     return rc;

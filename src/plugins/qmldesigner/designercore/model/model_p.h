@@ -149,6 +149,14 @@ public:
     void notifyCustomNotification(const AbstractView *senderView, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data);
     void notifyInstancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void notifyInstancesCompleted(const QVector<ModelNode> &nodeList);
+    void notifyInstancesInformationsChange(const QVector<ModelNode> &nodeList);
+    void notifyInstancesRenderImageChanged(const QVector<ModelNode> &nodeList);
+    void notifyInstancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
+    void notifyInstancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void notifyActualStateChanged(const ModelNode &node);
+
+    void notifyRewriterBeginTransaction();
+    void notifyRewriterEndTransaction();
 
 
     void setSelectedNodes(const QList<InternalNodePointer> &selectedNodeList);

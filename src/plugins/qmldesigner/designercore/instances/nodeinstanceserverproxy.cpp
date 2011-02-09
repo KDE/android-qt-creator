@@ -61,17 +61,20 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
 #endif
    applicationPath += "/qmlpuppet";
 
-   m_qmlPuppetEditorProcess = new QProcess(this);
+   m_qmlPuppetEditorProcess = new QProcess;
    connect(m_qmlPuppetEditorProcess.data(), SIGNAL(finished(int,QProcess::ExitStatus)), this, SLOT(processFinished(int,QProcess::ExitStatus)));
    connect(QCoreApplication::instance(), SIGNAL(aboutToQuit()), m_qmlPuppetEditorProcess.data(), SLOT(kill()));
-   m_qmlPuppetEditorProcess->setProcessChannelMode(QProcess::ForwardedChannels);
+   bool fowardQmlpuppetOutput = !qgetenv("FORWARD_QMLPUPPET_OUTPUT").isEmpty();
+   if (fowardQmlpuppetOutput)
+       m_qmlPuppetEditorProcess->setProcessChannelMode(QProcess::ForwardedChannels);
    m_qmlPuppetEditorProcess->start(applicationPath, QStringList() << socketToken << "editormode" << "-graphicssystem raster");
 
    if (runModus == NormalModus) {
-       m_qmlPuppetPreviewProcess = new QProcess(this);
+       m_qmlPuppetPreviewProcess = new QProcess;
        connect(m_qmlPuppetPreviewProcess.data(), SIGNAL(finished(int,QProcess::ExitStatus)), this, SLOT(processFinished(int,QProcess::ExitStatus)));
        connect(QCoreApplication::instance(), SIGNAL(aboutToQuit()), m_qmlPuppetPreviewProcess.data(), SLOT(kill()));
-       m_qmlPuppetPreviewProcess->setProcessChannelMode(QProcess::ForwardedChannels);
+       if (fowardQmlpuppetOutput)
+           m_qmlPuppetPreviewProcess->setProcessChannelMode(QProcess::ForwardedChannels);
        m_qmlPuppetPreviewProcess->start(applicationPath, QStringList() << socketToken << "previewmode" << "-graphicssystem raster");
    }
 
@@ -79,8 +82,11 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
 
    m_qmlPuppetEditorProcess->waitForStarted();
 
+   connect(m_qmlPuppetEditorProcess.data(), SIGNAL(finished(int)), m_qmlPuppetEditorProcess.data(),SLOT(deleteLater()));
+
    if (runModus == NormalModus) {
        m_qmlPuppetPreviewProcess->waitForStarted();
+       connect(m_qmlPuppetPreviewProcess.data(), SIGNAL(finished(int)), m_qmlPuppetPreviewProcess.data(),SLOT(deleteLater()));
    }
 
    if (!m_localServer->hasPendingConnections())
@@ -102,6 +108,8 @@ NodeInstanceServerProxy::NodeInstanceServerProxy(NodeInstanceView *nodeInstanceV
 
 NodeInstanceServerProxy::~NodeInstanceServerProxy()
 {
+    disconnect(this, SLOT(processFinished(int,QProcess::ExitStatus)));
+
     if (m_firstSocket)
         m_firstSocket->close();
 
@@ -109,15 +117,11 @@ NodeInstanceServerProxy::~NodeInstanceServerProxy()
         m_secondSocket->close();
 
 
-    if (m_qmlPuppetEditorProcess) {
-        m_qmlPuppetEditorProcess->blockSignals(true);
+    if (m_qmlPuppetEditorProcess)
         m_qmlPuppetEditorProcess->kill();
-    }
 
-    if (m_qmlPuppetPreviewProcess) {
-        m_qmlPuppetPreviewProcess->blockSignals(true);
+    if (m_qmlPuppetPreviewProcess)
         m_qmlPuppetPreviewProcess->kill();
-    }
 }
 
 void NodeInstanceServerProxy::dispatchCommand(const QVariant &command)
