@@ -34,15 +34,29 @@
     </widget>
    </item>
    <item>
-    <widget class="QRadioButton" name="deployQtLibs">
-     <property name="toolTip">
-      <string>Push local qt libs to device.
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QRadioButton" name="deployQtLibs">
+       <property name="toolTip">
+        <string>Push local qt libs to device.
 You must have Qt libs compiled for that platform</string>
-     </property>
-     <property name="text">
-      <string>Deploy local qt libs</string>
-     </property>
-    </widget>
+       </property>
+       <property name="text">
+        <string>Deploy local qt libs</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="useLocalQtLibs">
+       <property name="toolTip">
+        <string>Check this option to force the application to use local qt libs instead of system libs.</string>
+       </property>
+       <property name="text">
+        <string>Use local qt libs</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
@@ -112,6 +126,22 @@ This option is useful when you want to try your application on devices which don
     <hint type="destinationlabel">
      <x>272</x>
      <y>64</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>deployQtLibs</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>useLocalQtLibs</receiver>
+   <slot>setChecked(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>138</x>
+     <y>43</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>343</x>
+     <y>44</y>
     </hint>
    </hints>
   </connection>

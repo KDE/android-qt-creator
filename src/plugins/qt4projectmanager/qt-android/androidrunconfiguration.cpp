@@ -236,7 +236,7 @@ const QString AndroidRunConfiguration::arguments() const
 const QString AndroidRunConfiguration::remoteChannel()
 {
 #warning FIXME Android
-    return QString(":5039");
+    return QString("tcp:5039");
 }
 
 const QString AndroidRunConfiguration::dumperLib() const

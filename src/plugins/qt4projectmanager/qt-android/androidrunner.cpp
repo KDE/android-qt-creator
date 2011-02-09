@@ -65,9 +65,10 @@ AndroidRunner::AndroidRunner(QObject *parent,
     : QObject(parent),
       m_intentName(runConfig->androidTarget()->intentName())
 {
+    m_runConfig = runConfig;
     m_debugingMode = debugging;
     m_packageName=m_intentName.left(m_intentName.indexOf('/'));
-    m_deviceSerialNumber = runConfig->deployStep()->deviceSerialNumber();
+    m_deviceSerialNumber = m_runConfig->deployStep()->deviceSerialNumber();
     m_processPID = -1;
     m_gdbserverPID = -1;
     m_exitStatus = 0;
@@ -149,21 +150,23 @@ void AndroidRunner::start()
     m_processPID = -1;
     m_exitStatus = 0;
     killPID(); // kill any process with this name
-    QString debugString;
+    QString extraParams;
     QProcess adbStarProc;
     if (m_debugingMode)
     {
-        qDebug()<<QString(" forward tcp:%1 localfilesystem:/data/data/%2/debug-socket").arg(5039).arg(m_packageName);
-        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" forward tcp:%1 localfilesystem:/data/data/%2/debug-socket").arg(5039).arg(m_packageName));
+        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" forward %1 localfilesystem:/data/data/%2/debug-socket").arg(m_runConfig->remoteChannel()).arg(m_packageName));
         if (!adbStarProc.waitForFinished(-1))
         {
             emit remoteProcessFinished(tr("Failed to forward debugging ports"));
             return;
         }
-        debugString=QString("-e native_debug true -e gdbserver_socket \"+debug-socket\"");
+        extraParams="-e native_debug true -e gdbserver_socket \"+debug-socket\"";
     }
 
-    adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell am start -n %1 %2").arg(m_intentName).arg(debugString));
+    if (m_runConfig->deployStep()->useLocalQtLibs())
+        extraParams+=" -e use_local_qt_libs true";
+
+    adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell am start -n %1 %2").arg(m_intentName).arg(extraParams));
     if (!adbStarProc.waitForFinished(-1))
     {
         emit remoteProcessFinished(tr("Unable to start '%1'").arg(m_packageName));
@@ -194,6 +197,7 @@ void AndroidRunner::start()
     m_exitStatus = 0;
     m_checkPIDTimer.start(5000); // check if the application is alive every 5 seconds
     m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" logcat"));
+#warning FIXME Android m_gdbServerPort(5039)
     emit remoteProcessStarted(5039);
 }
 

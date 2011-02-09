@@ -129,10 +129,12 @@ public:
     QString androidManifestPath();
     QString androidLibsPath();
     QString androidDefaultPropertiesPath();
+    QString androidSrcPath();
+    QString apkPath();
 
 public slots:
     bool createAndroidTemplatesIfNecessary(bool forceJava=false);
-    void updateProject(const QString &targetSDK);
+    void updateProject(const QString &targetSDK, const QString &name=QString());
 
 signals:
     void androidDirContentsChanged();

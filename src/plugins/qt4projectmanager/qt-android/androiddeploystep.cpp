@@ -84,6 +84,7 @@ void AndroidDeployStep::ctor()
     //: AndroidDeployStep default display name
     setDefaultDisplayName(tr("Deploy to Android device"));
     m_deployAction = NoDeploy;
+    m_useLocalQtLibs = false;
 }
 
 bool AndroidDeployStep::init()
@@ -106,6 +107,11 @@ AndroidDeployStep::AndroidDeployAction AndroidDeployStep::deployAction()
     return m_deployAction;
 }
 
+bool AndroidDeployStep::useLocalQtLibs()
+{
+    return m_useLocalQtLibs;
+}
+
 void AndroidDeployStep::setDeployAction(AndroidDeployStep::AndroidDeployAction deploy)
 {
     m_deployAction = deploy;
@@ -117,6 +123,10 @@ void AndroidDeployStep::setDeployQASIPackagePath(const QString & package)
     m_deployAction = InstallQASI;
 }
 
+void AndroidDeployStep::setUseLocalQtLibs(bool useLocal)
+{
+    m_useLocalQtLibs=useLocal;
+}
 
 QVariantMap AndroidDeployStep::toMap() const
 {
@@ -265,7 +275,7 @@ bool AndroidDeployStep::deployPackage()
                +QLatin1String(" uninstall ")
                +packageName);
 
-    if (!runCommand(&proc, AndroidConfigurations::instance().antToolPath()+QLatin1String(" install")))
+    if (!runCommand(&proc, AndroidConfigurations::instance().adbToolPath()+QString(" install %1").arg(androidTarget->apkPath())))
     {
         raiseError(tr("Package instalation failed"));
         return false;

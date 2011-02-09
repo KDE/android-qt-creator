@@ -290,7 +290,10 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
     m_ui->targetComboBox->addItems(targets);
     m_ui->targetComboBox->setCurrentIndex(targets.indexOf(target->targetApplication()));
     if (-1 == m_ui->targetComboBox->currentIndex() && targets.count())
+    {
         m_ui->targetComboBox->setCurrentIndex(0);
+        m_step->androidTarget()->setTargetApplication(m_ui->targetComboBox->currentText());
+    }
     m_ui->hIconButton->setIcon(target->highDpiIcon());
     m_ui->mIconButton->setIcon(target->mediumDpiIcon());
     m_ui->lIconButton->setIcon(target->lowDpiIcon());

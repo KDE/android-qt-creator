@@ -160,6 +160,7 @@ void Qt4AndroidTarget::handleTargetAdded(ProjectExplorer::Target *target)
 
     m_androidFilesWatcher->addPath(androidDirPath());
     m_androidFilesWatcher->addPath(androidManifestPath());
+    m_androidFilesWatcher->addPath(androidSrcPath());
     connect(m_androidFilesWatcher, SIGNAL(directoryChanged(QString)), this,
         SIGNAL(androidDirContentsChanged()));
     connect(m_androidFilesWatcher, SIGNAL(fileChanged(QString)), this,
@@ -215,8 +216,18 @@ QString Qt4AndroidTarget::androidDefaultPropertiesPath()
     return androidDirPath()+QLatin1Char('/')+AndroidDefaultPropertiesName;
 }
 
+QString Qt4AndroidTarget::androidSrcPath()
+{
+    return androidDirPath()+QLatin1String("/src");
+}
 
-void Qt4AndroidTarget::updateProject(const QString &targetSDK)
+
+QString Qt4AndroidTarget::apkPath()
+{
+    return project()->projectDirectory()+QLatin1Char('/')+AndroidDirName+QString("/bin/%1-debug.apk").arg(applicationName());
+}
+
+void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &name)
 {
     QString androidDir=androidDirPath();
     bool commentLines=targetSDK=="android-4";
@@ -274,6 +285,8 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK)
     params<<"update"<<"project"<<"-p"<<androidDir;
     if (targetSDK.length())
         params<<"-t"<<targetSDK;
+    if (name.length())
+        params<<"-n"<<name;
     androidProc.start(AndroidConfigurations::instance().androidToolPath(), params);
     androidProc.waitForFinished();
 }
@@ -451,6 +464,7 @@ bool Qt4AndroidTarget::setApplicationName(const QString & name)
     doc.documentElement().firstChildElement("application").setAttribute(QLatin1String("android:label"), name);
     doc.documentElement().firstChildElement("application").firstChildElement("activity")
             .setAttribute(QLatin1String("android:label"), name);
+    updateProject(targetSDK(), name);
     return saveAndroidManifest(doc);
 }
 
