@@ -25,6 +25,7 @@ AndroidDeployStepWidget::AndroidDeployStepWidget(AndroidDeployStep *step) :
     connect(ui->devicesQtLibs, SIGNAL(clicked()), SLOT(resetAction()));
     connect(ui->deployQtLibs, SIGNAL(clicked()), SLOT(setDeployLocalQtLibs()));
     connect(ui->chooseButton, SIGNAL(clicked()), SLOT(setQASIPackagePath()));
+    connect(ui->useLocalQtLibs, SIGNAL(stateChanged(int)), SLOT(useLocalQtLibsStateChanged(int)));
 }
 
 AndroidDeployStepWidget::~AndroidDeployStepWidget()
@@ -34,6 +35,7 @@ AndroidDeployStepWidget::~AndroidDeployStepWidget()
 
 void AndroidDeployStepWidget::init()
 {
+    ui->useLocalQtLibs->setChecked(m_step->useLocalQtLibs());
     switch(m_step->deployAction())
     {
         case AndroidDeployStep::DeployLocal:
@@ -72,6 +74,11 @@ void AndroidDeployStepWidget::setQASIPackagePath()
     QString packagePath = QFileDialog::getOpenFileName(this, tr("Qt Android smart installer"), QDir::homePath(), tr("Android package (*.apk)"));
     if (packagePath.length())
         m_step->setDeployQASIPackagePath(packagePath);
+}
+
+void AndroidDeployStepWidget::useLocalQtLibsStateChanged(int state)
+{
+    m_step->setUseLocalQtLibs(state == Qt::Checked);
 }
 
 } // namespace Internal

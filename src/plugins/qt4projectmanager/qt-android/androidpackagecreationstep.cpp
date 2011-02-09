@@ -220,7 +220,6 @@ void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files)
     QProcess stripProcess;
     foreach(QString file, files)
     {
-        qDebug()<<AndroidConfigurations::instance().stripPath()+" --strip-unneeded "+file;
         stripProcess.start(AndroidConfigurations::instance().stripPath()+" --strip-unneeded "+file);
         stripProcess.waitForFinished();
     }

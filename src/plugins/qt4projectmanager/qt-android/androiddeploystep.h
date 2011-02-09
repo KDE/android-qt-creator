@@ -73,10 +73,12 @@ public:
     QString deviceSerialNumber();
 
     AndroidDeployAction deployAction();
+    bool useLocalQtLibs();
 
 public slots:
     void setDeployAction(AndroidDeployAction deploy);
     void setDeployQASIPackagePath(const QString & package);
+    void setUseLocalQtLibs(bool useLocal);
 
 signals:
     void done();
@@ -108,6 +110,7 @@ private:
     QString m_deviceSerialNumber;
     QString m_QASIPackagePath;
     AndroidDeployAction m_deployAction;
+    bool m_useLocalQtLibs;
 
     static const QLatin1String Id;
 };

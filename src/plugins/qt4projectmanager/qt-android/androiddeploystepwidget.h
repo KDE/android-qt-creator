@@ -25,6 +25,7 @@ private slots:
     void resetAction();
     void setDeployLocalQtLibs();
     void setQASIPackagePath();
+    void useLocalQtLibsStateChanged(int);
 
 private:
 

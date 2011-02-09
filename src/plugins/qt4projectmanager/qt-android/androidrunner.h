@@ -89,6 +89,7 @@ private:
     qint64 m_processPID;
     qint64 m_gdbserverPID;
     QTimer m_checkPIDTimer;
+    AndroidRunConfiguration *m_runConfig;
 };
 
 } // namespace Internal
