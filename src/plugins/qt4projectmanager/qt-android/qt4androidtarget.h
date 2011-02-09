@@ -128,6 +128,7 @@ public:
     QString androidDirPath();
     QString androidManifestPath();
     QString androidLibsPath();
+    QString androidStringsPath();
     QString androidDefaultPropertiesPath();
     QString androidSrcPath();
     QString apkPath();
@@ -146,6 +147,8 @@ private slots:
 
 private:
     void raiseError(const QString &reason);
+    bool openXmlFile(QDomDocument & doc, const QString & fileName);
+    bool saveXmlFile(QDomDocument & doc, const QString & fileName);
     bool openAndroidManifest(QDomDocument & doc);
     bool saveAndroidManifest(QDomDocument & doc);
     bool openLibsXml(QDomDocument & doc);

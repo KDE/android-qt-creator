@@ -64,6 +64,7 @@ namespace {
     const QLatin1String AndroidDirName("android");
     const QLatin1String AndroidManifestName("AndroidManifest.xml");
     const QLatin1String AndroidLibsFileName("/res/values/libs.xml");
+    const QLatin1String AndroidStringsFileName("/res/values/strings.xml");
     const QLatin1String AndroidDefaultPropertiesName("default.properties");
 } // anonymous namespace
 
@@ -211,6 +212,11 @@ QString Qt4AndroidTarget::androidLibsPath()
     return androidDirPath()+AndroidLibsFileName;
 }
 
+QString Qt4AndroidTarget::androidStringsPath()
+{
+    return androidDirPath()+AndroidStringsFileName;
+}
+
 QString Qt4AndroidTarget::androidDefaultPropertiesPath()
 {
     return androidDirPath()+QLatin1Char('/')+AndroidDefaultPropertiesName;
@@ -349,70 +355,57 @@ bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
     return true;
 }
 
-bool Qt4AndroidTarget::openAndroidManifest(QDomDocument & doc)
+bool Qt4AndroidTarget::openXmlFile(QDomDocument & doc, const QString & fileName)
 {
     if (!createAndroidTemplatesIfNecessary())
         return false;
 
-    QFile f(androidManifestPath());
+    QFile f(fileName);
     if (!f.open(QIODevice::ReadOnly))
     {
-        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath()));
+        raiseError(tr("Can't open '%1'").arg(fileName));
         return false;
     }
     if (!doc.setContent(f.readAll()))
     {
-        raiseError(tr("Can't parse AndroidManifest.xml file '%1'").arg(androidManifestPath()));
+        raiseError(tr("Can't parse '%1'").arg(fileName));
         return false;
     }
     return true;
+}
+
+bool Qt4AndroidTarget::saveXmlFile(QDomDocument & doc, const QString & fileName)
+{
+    if (!createAndroidTemplatesIfNecessary())
+        return false;
+
+    QFile f(fileName);
+    if (!f.open(QIODevice::WriteOnly))
+    {
+        raiseError(tr("Can't open '%1'").arg(fileName));
+        return false;
+    }
+    return f.write(doc.toByteArray(4))>=0;
+}
+
+bool Qt4AndroidTarget::openAndroidManifest(QDomDocument & doc)
+{
+    return openXmlFile(doc, androidManifestPath());
 }
 
 bool Qt4AndroidTarget::saveAndroidManifest(QDomDocument & doc)
 {
-    if (!createAndroidTemplatesIfNecessary())
-        return false;
-
-    QFile f(androidManifestPath());
-    if (!f.open(QIODevice::WriteOnly))
-    {
-        raiseError(tr("Can't open AndroidManifest.xml file '%1'").arg(androidManifestPath()));
-        return false;
-    }
-    return f.write(doc.toByteArray(4))>=0;
+    return saveXmlFile(doc, androidManifestPath());
 }
 
 bool Qt4AndroidTarget::openLibsXml(QDomDocument & doc)
 {
-    if (!createAndroidTemplatesIfNecessary())
-        return false;
-
-    QFile f(androidLibsPath());
-    if (!f.open(QIODevice::ReadOnly))
-    {
-        raiseError(tr("Can't open Android Libs xml file '%1'").arg(androidLibsPath()));
-        return false;
-    }
-    if (!doc.setContent(f.readAll()))
-    {
-        raiseError(tr("Can't parse Android Libs xml file '%1'").arg(androidLibsPath()));
-        return false;
-    }
-    return true;
+    return openXmlFile(doc, androidLibsPath());
 }
 
 bool Qt4AndroidTarget::saveLibsXml(QDomDocument & doc)
 {
-    if (!createAndroidTemplatesIfNecessary())
-        return false;
-
-    QFile f(androidLibsPath());
-    if (!f.open(QIODevice::WriteOnly))
-    {
-        raiseError(tr("Can't open Android Libs xml file '%1'").arg(androidLibsPath()));
-        return false;
-    }
-    return f.write(doc.toByteArray(4))>=0;
+    return saveXmlFile(doc, androidLibsPath());
 }
 
 QString Qt4AndroidTarget::activityName()
@@ -451,23 +444,37 @@ bool Qt4AndroidTarget::setPackageName(const QString & name)
 QString Qt4AndroidTarget::applicationName()
 {
     QDomDocument doc;
-    if (!openAndroidManifest(doc))
+    if (!openXmlFile(doc, androidStringsPath()))
         return QString();
-    return doc.documentElement().firstChildElement("application").attribute(QLatin1String("android:label"));
+    QDomElement metadataElem =doc.documentElement().firstChildElement("string");
+    while(!metadataElem.isNull())
+    {
+        if (metadataElem.attribute("name") == "app_name")
+            return metadataElem.text();
+        metadataElem = metadataElem.nextSiblingElement("string");
+    }
+    return QString();
 }
 
 bool Qt4AndroidTarget::setApplicationName(const QString & name)
 {
     QDomDocument doc;
-    if (!openAndroidManifest(doc))
+    if (!openXmlFile(doc, androidStringsPath()))
         return false;
-    doc.documentElement().firstChildElement("application").setAttribute(QLatin1String("android:label"), name);
-    doc.documentElement().firstChildElement("application").firstChildElement("activity")
-            .setAttribute(QLatin1String("android:label"), name);
+    QDomElement metadataElem =doc.documentElement().firstChildElement("string");
+    while(!metadataElem.isNull())
+    {
+        if (metadataElem.attribute("name") == "app_name")
+        {
+            metadataElem.removeChild(metadataElem.firstChild());
+            metadataElem.appendChild(doc.createTextNode(name));
+            break;
+        }
+        metadataElem = metadataElem.nextSiblingElement("string");
+    }
     updateProject(targetSDK(), name);
-    return saveAndroidManifest(doc);
+    return saveXmlFile(doc, androidStringsPath());
 }
-
 
 QStringList Qt4AndroidTarget::availableTargetApplications()
 {
