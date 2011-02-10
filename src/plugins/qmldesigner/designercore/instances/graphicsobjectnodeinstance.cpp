@@ -219,7 +219,7 @@ QImage GraphicsObjectNodeInstance::renderImage() const
     foreach(QGraphicsItem *graphicsItem, graphicsObject()->childItems())
         paintRecursively(graphicsItem, &painter);
 
-    return image;
+    return image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
 }
 
 void GraphicsObjectNodeInstance::paintRecursively(QGraphicsItem *graphicsItem, QPainter *painter) const

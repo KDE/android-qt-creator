@@ -229,6 +229,7 @@ static DebuggerEngineType engineForToolChain(ToolChainType toolChainType)
         case ToolChain_GCCE_GNUPOC:
         case ToolChain_GCC_MAEMO5:
         case ToolChain_GCC_HARMATTAN:
+        case ToolChain_GCC_MEEGO:
         case ToolChain_GCC_ANDROID:
 #ifdef WITH_LLDB
             // lldb override
@@ -403,7 +404,7 @@ DEBUGGER_EXPORT ConfigurationCheck checkDebugConfiguration(ToolChainType toolCha
     case ToolChain_RVCT2_ARMV6:
         if (debuggerCore()->gdbBinaryForToolChain(toolChain).isEmpty()) {
             result.errorMessage = msgNoBinaryForToolChain(toolChain);
-            result.errorMessage += msgEngineNotAvailable("Gdb");
+            result.errorMessage += QLatin1Char(' ') + msgEngineNotAvailable("Gdb");
             result.settingsPage = GdbOptionsPage::settingsId();
         }
         break;
@@ -596,6 +597,12 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
         if (runConfiguration->target()->activeBuildConfiguration())
             sp.projectBuildDir = runConfiguration->target()
                 ->activeBuildConfiguration()->buildDirectory();
+
+        // Makes sure that all bindings go through the JavaScript engine, so that
+        // breakpoints are actually hit!
+        if (!sp.environment.hasKey(QLatin1String("QML_DISABLE_OPTIMIZER"))) {
+            sp.environment.set(QLatin1String("QML_DISABLE_OPTIMIZER"), QLatin1String("1"));
+        }
 
         Utils::QtcProcess::addArg(&sp.processArgs, QLatin1String("-qmljsdebugger=port:")
                                   + QString::number(sp.qmlServerPort));

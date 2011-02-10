@@ -45,6 +45,9 @@ using ProjectExplorer::DebuggingHelperLibrary;
 
 DebuggingHelperBuildTask::DebuggingHelperBuildTask(QtVersion *version, Tools tools)
 {
+    // allow type to be used in queued connections.
+    qRegisterMetaType<DebuggingHelperBuildTask::Tools>("DebuggingHelperBuildTask::Tools");
+
     //
     // Extract all information we need from version, such that we don't depend on the existence
     // of the version pointer while compiling
@@ -82,7 +85,8 @@ DebuggingHelperBuildTask::DebuggingHelperBuildTask(QtVersion *version, Tools too
     tc->addToEnvironment(m_environment);
 
     if (tc->type() == ProjectExplorer::ToolChain_GCC_MAEMO5
-            || tc->type() == ProjectExplorer::ToolChain_GCC_HARMATTAN) {
+            || tc->type() == ProjectExplorer::ToolChain_GCC_HARMATTAN
+            || tc->type() == ProjectExplorer::ToolChain_GCC_MEEGO) {
         m_target = QLatin1String("-unix");
     }
 
@@ -121,10 +125,10 @@ void DebuggingHelperBuildTask::run(QFutureInterface<void> &future)
         success = buildDebuggingHelper(future, &output);
 
     if (success) {
-        emit finished(m_qtId, output);
+        emit finished(m_qtId, m_tools, output);
     } else {
         qWarning("%s", qPrintable(m_errorMessage));
-        emit finished(m_qtId, m_errorMessage);
+        emit finished(m_qtId, m_tools, m_errorMessage);
     }
 
     deleteLater();

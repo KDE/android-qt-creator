@@ -47,22 +47,12 @@ namespace Internal {
 
 AbstractGeneratedFileInfo::AbstractGeneratedFileInfo()
     : fileType(ExtendedFile)
+    , currentVersion(-1)
     , version(-1)
     , dataChecksum(0)
     , statedChecksum(0)
 {
 }
-
-bool AbstractGeneratedFileInfo::isUpToDate() const
-{
-    return !isOutdated() && !wasModified();
-}
-
-bool AbstractGeneratedFileInfo::wasModified() const
-{
-    return dataChecksum != statedChecksum;
-}
-
 
 const QString AbstractMobileApp::CFileComment(QLatin1String("//"));
 const QString AbstractMobileApp::ProFileComment(QLatin1String("#"));
@@ -72,7 +62,8 @@ const QString AbstractMobileApp::FileStubVersion(QLatin1String("version"));
 const int AbstractMobileApp::StubVersion = 3;
 
 AbstractMobileApp::AbstractMobileApp()
-    : m_orientation(ScreenOrientationAuto), m_networkEnabled(false)
+    : m_orientation(ScreenOrientationAuto)
+    , m_networkEnabled(true)
 {
 }
 
@@ -258,19 +249,38 @@ QByteArray AbstractMobileApp::generateProFile(QString *errorMessage) const
     QTextStream out(&proFileContent, QIODevice::WriteOnly);
 
     QString valueOnNextLine;
-    bool uncommentNextLine = false;
+    bool commentOutNextLine = false;
     QString line;
     while (!(line = in.readLine()).isNull()) {
         if (line.contains(QLatin1String("# TARGETUID3"))) {
             valueOnNextLine = symbianTargetUid();
-        } else if (line.contains(QLatin1String("# ORIENTATIONLOCK"))
-            && orientation() == ScreenOrientationAuto) {
-            uncommentNextLine = true;
         } else if (line.contains(QLatin1String("# NETWORKACCESS"))
             && !networkEnabled()) {
-            uncommentNextLine = true;
+            commentOutNextLine = true;
+        } else if (line.contains(QLatin1String("# DEPLOYMENTFOLDERS"))) {
+            // Eat lines
+            QString nextLine;
+            while (!(nextLine = in.readLine()).isNull()
+                && !nextLine.contains(QLatin1String("# DEPLOYMENTFOLDERS_END")))
+            { }
+            if (nextLine.isNull())
+                continue;
+
+            int foldersCount = 0;
+            QStringList folders;
+            foreach (const DeploymentFolder &folder, deploymentFolders()) {
+                foldersCount++;
+                const QString folderName =
+                    QString::fromLatin1("folder_%1").arg(foldersCount, 2, 10, QLatin1Char('0'));
+                out << folderName << ".source = " << folder.first << endl;
+                if (!folder.second.isEmpty())
+                    out << folderName << ".target = " << folder.second << endl;
+                folders.append(folderName);
+            }
+            if (foldersCount > 0)
+                out << "DEPLOYMENTFOLDERS = " << folders.join(QLatin1String(" ")) << endl;
         } else {
-            handleCurrentProFileTemplateLine(line, in, out, uncommentNextLine);
+            handleCurrentProFileTemplateLine(line, in, out, commentOutNextLine);
         }
 
         // Remove all marker comments
@@ -285,9 +295,9 @@ QByteArray AbstractMobileApp::generateProFile(QString *errorMessage) const
             continue;
         }
 
-        if (uncommentNextLine) {
+        if (commentOutNextLine) {
             out << comment << line << endl;
-            uncommentNextLine = false;
+            commentOutNextLine = false;
             continue;
         }
         out << line << endl;
@@ -298,9 +308,57 @@ QByteArray AbstractMobileApp::generateProFile(QString *errorMessage) const
     return proFileContent;
 }
 
+QList<AbstractGeneratedFileInfo> AbstractMobileApp::fileUpdates(const QString &mainProFile) const
+{
+    QList<AbstractGeneratedFileInfo> result;
+    foreach (const AbstractGeneratedFileInfo &file, updateableFiles(mainProFile)) {
+        AbstractGeneratedFileInfo newFile = file;
+        QFile readFile(newFile.fileInfo.absoluteFilePath());
+        if (!readFile.open(QIODevice::ReadOnly))
+           continue;
+        const QString firstLine = readFile.readLine();
+        const QStringList elements = firstLine.split(QLatin1Char(' '));
+        if (elements.count() != 5 || elements.at(1) != FileChecksum
+                || elements.at(3) != FileStubVersion)
+            continue;
+        const QString versionString = elements.at(4);
+        newFile.version = versionString.startsWith(QLatin1String("0x"))
+            ? versionString.toInt(0, 16) : 0;
+        newFile.statedChecksum = elements.at(2).toUShort(0, 16);
+        QByteArray data = readFile.readAll();
+        data.replace('\x0D', "");
+        data.replace('\x0A', "");
+        newFile.dataChecksum = qChecksum(data.constData(), data.length());
+        if (newFile.dataChecksum != newFile.statedChecksum
+                || newFile.version < newFile.currentVersion)
+            result.append(newFile);
+    }
+    return result;
+}
+
+
+bool AbstractMobileApp::updateFiles(const QList<AbstractGeneratedFileInfo> &list, QString &error) const
+{
+    error.clear();
+    foreach (const AbstractGeneratedFileInfo &info, list) {
+        const QByteArray data = generateFile(info.fileType, &error);
+        if (!error.isEmpty())
+            return false;
+        QFile file(info.fileInfo.absoluteFilePath());
+        if (!file.open(QIODevice::WriteOnly) || file.write(data) == -1) {
+            error = QCoreApplication::translate(
+                        "Qt4ProjectManager::Internal::QtQuickApp",
+                        "Could not write file '%1'.").
+                    arg(QDir::toNativeSeparators(info.fileInfo.canonicalFilePath()));
+            return false;
+        }
+    }
+    return true;
+}
+
 #ifndef CREATORLESSTEST
-// The definition of QmlStandaloneApp::templatesRoot() for
-// CREATORLESSTEST is in tests/manual/qmlstandalone/main.cpp
+// The definition of QtQuickApp::templatesRoot() for
+// CREATORLESSTEST is in tests/manual/appwizards/helpers.cpp
 QString AbstractMobileApp::templatesRoot()
 {
     return Core::ICore::instance()->resourcePath()

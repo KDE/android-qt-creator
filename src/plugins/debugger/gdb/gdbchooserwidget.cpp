@@ -82,6 +82,7 @@ static QList<int> allGdbToolChains()
 #endif
        << ProjectExplorer::ToolChain_GCC_MAEMO5
        << ProjectExplorer::ToolChain_GCC_HARMATTAN
+       << ProjectExplorer::ToolChain_GCC_MEEGO
        << ProjectExplorer::ToolChain_GCC_ANDROID
 #ifdef Q_OS_UNIX
        << ProjectExplorer::ToolChain_GCCE_GNUPOC
@@ -466,6 +467,7 @@ ToolChainSelectorWidget::ToolChainSelectorWidget(QWidget *parent) :
             break;
         case ProjectExplorer::ToolChain_GCC_MAEMO5:
         case ProjectExplorer::ToolChain_GCC_HARMATTAN:
+        case ProjectExplorer::ToolChain_GCC_MEEGO:
             maemoLayout->addWidget(createToolChainCheckBox(tc));
             break;
         case ProjectExplorer::ToolChain_GCC_ANDROID:

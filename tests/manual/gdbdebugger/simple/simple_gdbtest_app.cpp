@@ -406,6 +406,14 @@ void testQByteArray()
     ba += 2;
 }
 
+int testQByteArray2()
+{
+    QByteArray ba;
+    for (int i = 256; --i >= 0; )
+        ba.append(char(i));
+    return ba.size();
+}
+
 static void throwit1()
 {
     throw 14;
@@ -1498,6 +1506,11 @@ void testTypeFormats()
     // Windows: Select UTF-16 in "Change Format for Type" in L&W context menu.
     // Other: Select UCS-6 in "Change Format for Type" in L&W context menu.
     const wchar_t *w = L"aöa";
+    QString u;
+    if (sizeof(wchar_t) == 4)
+        u = QString::fromUcs4((uint *)w);
+    else
+        u = QString::fromUtf16((ushort *)w);
 
     // Make sure to undo "Change Format".
     int dummy = 1;
@@ -1996,7 +2009,7 @@ void testTypedef()
     ++k;
     ++t1;
     ++t2;
-};
+}
 
 void testConditional(const QString &str)
 {
@@ -2017,9 +2030,45 @@ void testChar()
     strcat(s,"\""); // add a quote
 }
 
+struct Tx
+{
+    Tx() { data = new char[20](); data[0] = '1'; }
+
+    char *GetStringPtr() const
+    {
+        return data;
+    }
+
+    char *data;
+};
+
+struct Ty
+{
+    void doit()
+    {
+        int i = 1;
+        i = 2;
+        i = 2;
+        i = 2;
+        i = 2;
+    }
+
+    Tx m_buffer;
+};
+
 void testStuff()
 {
+    Ty x;
+    x.doit();
+    char *s = x.m_buffer.GetStringPtr();
+}
+
+void testStuff3()
+{
+    typedef unsigned char byte;
+    byte f = '2';
     testConditional("foo");
+    testConditional(fooxx());
     testConditional("bar");
     testConditional("zzz");
     Foo *f1 = new Foo(1);
@@ -2201,6 +2250,7 @@ int main(int argc, char *argv[])
     testArray();
     testCatchThrow();
     testQByteArray();
+    testQByteArray2();
 
     testStdDeque();
     testStdList();

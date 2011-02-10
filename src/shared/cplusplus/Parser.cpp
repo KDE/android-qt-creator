@@ -134,7 +134,7 @@ enum {
     Multiplicative  = 13,
     PointerToMember = 14
 };
-} // end of namespace Precedece
+} // namespace Precedece
 
 inline int precedence(int tokenKind, bool templateArguments)
 {
@@ -564,6 +564,12 @@ bool Parser::parseTranslationUnit(TranslationUnitAST *&node)
             error(start_declaration, "expected a declaration");
             rewind(start_declaration + 1);
             skipUntilDeclaration();
+        }
+
+
+        if (TopLevelDeclarationProcessor *processor = _control->topLevelDeclarationProcessor()) {
+            if (processor->processDeclaration(declaration))
+                break;
         }
 
         _templateArgumentList.clear();
@@ -6032,3 +6038,4 @@ void Parser::fatal(unsigned index, const char *format, ...)
     va_end(ap);
     va_end(args);
 }
+

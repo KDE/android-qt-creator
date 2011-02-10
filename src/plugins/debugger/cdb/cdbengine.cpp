@@ -97,42 +97,60 @@ enum { debugBreakpoints = 0 };
 #  define STATE_DEBUG(state, func, line, notifyFunc)
 #endif
 
-/* CdbEngine version 2: Run the CDB process on pipes and parse its output.
- * The engine relies on a CDB extension Qt Creator provides as an extension
- * library (32/64bit), which is loaded into cdb.exe. It serves to:
- * - Notify the engine about the state of the debugging session:
- *   + idle: (hooked up with .idle_cmd) debuggee stopped
- *   + accessible: Debuggee stopped, cdb.exe accepts commands
- *   + inaccessible: Debuggee runs, no way to post commands
- *   + session active/inactive: Lost debuggee, terminating.
- * - Hook up with output/event callbacks and produce formatted output to be able
- *   to catch application output and exceptions.
- * - Provide some extension commands that produce output in a standardized (GDBMI)
- *   format that ends up in handleExtensionMessage().
- *   + pid     Return debuggee pid for interrupting.
- *   + locals  Print locals from SymbolGroup
- *   + expandLocals Expand locals in symbol group
- *   + registers, modules, threads
- * Commands can be posted by calling:
- * 1) postCommand(): Does not expect a reply
- * 2) postBuiltinCommand(): Run a builtin-command producing free-format, multiline output
- *    that is captured by enclosing it in special tokens using the 'echo' command and
- *    then invokes a callback with a CdbBuiltinCommand structure.
- * 3) postExtensionCommand(): Run a command provided by the extension producing
- *    one-line output and invoke a callback with a CdbExtensionCommand structure
- *    (output is potentially split up in chunks).
- *
- * Startup sequence:
- * [Console: The console stub launches the process. On process startup,
- *           launchCDB() is called with AttachExternal.
- * setupEngine() calls launchCDB() with the startparameters. The debuggee
- * runs into the initial breakpoint (session idle). EngineSetupOk is
- * notified (inferior still stopped). setupInferior() is then called
- * which does breakpoint synchronization and issues the extension 'pid'
- * command to obtain the inferior pid. handlePid() notifies notifyInferiorSetupOk.
- * runEngine() is then called which issues 'g' to continue the inferior.
- * Shutdown mostly uses notifyEngineSpontaneousShutdown() as cdb just quits
- * when the inferior exits (except attach modes).  */
+/*!
+    \class Debugger::Internal::CdbEngine
+
+    Cdb engine version 2: Run the CDB process on pipes and parse its output.
+    The engine relies on a CDB extension Qt Creator provides as an extension
+    library (32/64bit), which is loaded into cdb.exe. It serves to:
+
+    \list
+    \o Notify the engine about the state of the debugging session:
+        \list
+        \o idle: (hooked up with .idle_cmd) debuggee stopped
+        \o accessible: Debuggee stopped, cdb.exe accepts commands
+        \o inaccessible: Debuggee runs, no way to post commands
+        \o session active/inactive: Lost debuggee, terminating.
+        \endlist
+    \o Hook up with output/event callbacks and produce formatted output to be able
+       to catch application output and exceptions.
+    \o Provide some extension commands that produce output in a standardized (GDBMI)
+      format that ends up in handleExtensionMessage(), for example:
+      \list
+      \o pid     Return debuggee pid for interrupting.
+      \o locals  Print locals from SymbolGroup
+      \o expandLocals Expand locals in symbol group
+      \o registers, modules, threads
+      \endlist
+   \endlist
+
+   Debugger commands can be posted by calling:
+
+   \list
+
+    \o postCommand(): Does not expect a reply
+    \o postBuiltinCommand(): Run a builtin-command producing free-format, multiline output
+       that is captured by enclosing it in special tokens using the 'echo' command and
+       then invokes a callback with a CdbBuiltinCommand structure.
+    \o postExtensionCommand(): Run a command provided by the extension producing
+       one-line output and invoke a callback with a CdbExtensionCommand structure
+       (output is potentially split up in chunks).
+    \endlist
+
+
+    Startup sequence:
+    [Console: The console stub launches the process. On process startup,
+              launchCDB() is called with AttachExternal].
+    setupEngine() calls launchCDB() with the startparameters. The debuggee
+    runs into the initial breakpoint (session idle). EngineSetupOk is
+    notified (inferior still stopped). setupInferior() is then called
+    which does breakpoint synchronization and issues the extension 'pid'
+    command to obtain the inferior pid (which also hooks up the output callbacks).
+     handlePid() notifies notifyInferiorSetupOk.
+    runEngine() is then called which issues 'g' to continue the inferior.
+    Shutdown mostly uses notifyEngineSpontaneousShutdown() as cdb just quits
+    when the inferior exits (except attach modes).
+*/
 
 using namespace ProjectExplorer;
 
@@ -141,10 +159,12 @@ namespace Internal {
 
 static const char localsPrefixC[] = "local.";
 
-struct MemoryViewCookie {
+struct MemoryViewCookie
+{
     explicit MemoryViewCookie(MemoryAgent *a = 0, QObject *e = 0,
                               quint64 addr = 0, quint64 l = 0) :
-        agent(a), editorToken(e), address(addr), length(l) {}
+        agent(a), editorToken(e), address(addr), length(l)
+    {}
 
     MemoryAgent *agent;
     QObject *editorToken;
@@ -152,7 +172,8 @@ struct MemoryViewCookie {
     quint64 length;
 };
 
-struct SourceLocationCookie {
+struct SourceLocationCookie
+{
     explicit SourceLocationCookie(const QString &f = QString(), int l = 0) :
              fileName(f), lineNumber(l) {}
 
@@ -170,10 +191,13 @@ namespace Debugger {
 namespace Internal {
 
 static inline bool isConsole(const DebuggerStartParameters &sp)
-{ return (sp.startMode == StartInternal || sp.startMode == StartExternal) && sp.useTerminal; }
+{
+    return (sp.startMode == StartInternal || sp.startMode == StartExternal)
+        && sp.useTerminal;
+}
 
-static QMessageBox
-    *nonModalMessageBox(QMessageBox::Icon icon, const QString &title, const QString &text)
+static QMessageBox *
+nonModalMessageBox(QMessageBox::Icon icon, const QString &title, const QString &text)
 {
     QMessageBox *mb = new QMessageBox(icon, title, text, QMessageBox::Ok,
                                       debuggerCore()->mainWindow());
@@ -220,7 +244,8 @@ struct CdbBuiltinCommand : public CdbCommandBase
     CdbBuiltinCommand(const QByteArray  &cmd, int token, unsigned flags,
                       CommandHandler h,
                       unsigned nc, const QVariant &cookie) :
-        CdbCommandBase(cmd, token, flags, nc, cookie), handler(h) {}
+        CdbCommandBase(cmd, token, flags, nc, cookie), handler(h)
+    {}
 
 
     QByteArray joinedReply() const;
@@ -373,7 +398,6 @@ CdbEngine::CdbEngine(const DebuggerStartParameters &sp,
     m_accessible(false),
     m_specialStopMode(NoSpecialStop),
     m_nextCommandToken(0),
-    m_nextBreakpointNumber(1),
     m_currentBuiltinCommandIndex(-1),
     m_extensionCommandPrefixBA("!"QT_CREATOR_CDB_EXT"."),
     m_operateByInstructionPending(true),
@@ -384,7 +408,8 @@ CdbEngine::CdbEngine(const DebuggerStartParameters &sp,
     m_sourceStepInto(false),
     m_wX86BreakpointCount(0),
     m_watchPointX(0),
-    m_watchPointY(0)
+    m_watchPointY(0),
+    m_ignoreCdbOutput(false)
 {
     Utils::SavedAction *assemblerAction = theAssemblerAction();
     m_operateByInstructionPending = assemblerAction->isChecked();
@@ -395,6 +420,31 @@ CdbEngine::CdbEngine(const DebuggerStartParameters &sp,
     connect(&m_process, SIGNAL(error(QProcess::ProcessError)), this, SLOT(processError()));
     connect(&m_process, SIGNAL(readyReadStandardOutput()), this, SLOT(readyReadStandardOut()));
     connect(&m_process, SIGNAL(readyReadStandardError()), this, SLOT(readyReadStandardOut()));
+}
+
+void CdbEngine::init()
+{
+    m_effectiveStartMode = NoStartMode;
+    m_inferiorPid = 0;
+    m_accessible = false;
+    m_specialStopMode = NoSpecialStop;
+    m_nextCommandToken  = 0;
+    m_currentBuiltinCommandIndex = -1;
+    m_operateByInstructionPending = true;
+    m_operateByInstruction = true; // Default CDB setting
+    m_notifyEngineShutdownOnTermination = false;
+    m_hasDebuggee = false;
+    m_sourceStepInto = false;
+    m_wX86BreakpointCount = 0;
+    m_watchPointX = m_watchPointY = 0;
+    m_ignoreCdbOutput = false;
+
+    m_outputBuffer.clear();
+    m_builtinCommandQueue.clear();
+    m_extensionCommandQueue.clear();
+    m_extensionMessageBuffer.clear();
+    m_pendingBreakpointMap.clear();
+    QTC_ASSERT(m_process.state() != QProcess::Running, Utils::SynchronousProcess::stopProcess(m_process); )
 }
 
 CdbEngine::~CdbEngine()
@@ -568,7 +618,9 @@ void CdbEngine::setupEngine()
                                                          &(m_options->symbolPaths)))
         m_options->toSettings(Core::ICore::instance()->settings());
 
-    m_logTime.start();
+    init();
+    if (!m_logTime.elapsed())
+        m_logTime.start();
     QString errorMessage;
     // Console: Launch the stub with the suspended application and attach to it
     // CDB in theory has a command line option '-2' that launches a
@@ -731,11 +783,6 @@ void CdbEngine::shutdownInferior()
         notifyInferiorShutdownOk();
         return;
     }
-    if (!canInterruptInferior() || commandsPending()) {
-        STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorShutdownFailed")
-        notifyInferiorShutdownFailed();
-        return;
-    }
 
     if (m_accessible) {
         if (m_effectiveStartMode == AttachExternal || m_effectiveStartMode == AttachCrashedExternal)
@@ -743,6 +790,19 @@ void CdbEngine::shutdownInferior()
         STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorShutdownOk")
         notifyInferiorShutdownOk();
     } else {
+        // A command got stuck.
+        if (commandsPending()) {
+            showMessage(QLatin1String("Cannot shut down inferior due to pending commands."), LogWarning);
+            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorShutdownFailed")
+            notifyInferiorShutdownFailed();
+            return;
+        }
+        if (!canInterruptInferior()) {
+            showMessage(QLatin1String("Cannot interrupt the inferior."), LogWarning);
+            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorShutdownFailed")
+            notifyInferiorShutdownFailed();
+            return;
+        }
         interruptInferior(); // Calls us again
     }
 }
@@ -770,8 +830,7 @@ void CdbEngine::shutdownEngine()
     }
 
     // No longer trigger anything from messages
-    disconnect(&m_process, SIGNAL(readyReadStandardOutput()), this, 0);
-    disconnect(&m_process, SIGNAL(readyReadStandardError()), this, 0);
+    m_ignoreCdbOutput = true;
     // Go for kill if there are commands pending.
     if (m_accessible && !commandsPending()) {
         // detach: Wait for debugger to finish.
@@ -926,7 +985,8 @@ unsigned CdbEngine::debuggerCapabilities() const
 {
     return DisassemblerCapability | RegisterCapability | ShowMemoryCapability
            |WatchpointCapability|JumpToLineCapability|AddWatcherCapability
-           |BreakOnThrowAndCatchCapability; // Sort-of: Can break on throw().
+           |BreakOnThrowAndCatchCapability // Sort-of: Can break on throw().
+           |BreakModuleCapability;
 }
 
 void CdbEngine::executeStep()
@@ -976,11 +1036,13 @@ void CdbEngine::doContinueInferior()
 
 bool CdbEngine::canInterruptInferior() const
 {
-    return m_effectiveStartMode != AttachToRemote;
+    return m_effectiveStartMode != AttachToRemote && m_inferiorPid;
 }
 
 void CdbEngine::interruptInferior()
 {
+    if (debug)
+        qDebug() << "CdbEngine::interruptInferior()" << stateName(state());
     if (canInterruptInferior()) {
         doInterruptInferior(NoSpecialStop);
     } else {
@@ -1000,9 +1062,10 @@ void CdbEngine::doInterruptInferior(SpecialStopMode sm)
     const SpecialStopMode oldSpecialMode = m_specialStopMode;
     m_specialStopMode = sm;
     QString errorMessage;
+    showMessage(QString::fromLatin1("Interrupting process %1...").arg(m_inferiorPid), LogMisc);
     if (!winDebugBreakProcess(m_inferiorPid, &errorMessage)) {
         m_specialStopMode = oldSpecialMode;
-        showMessage(errorMessage, LogError);
+        showMessage(QString::fromLatin1("Cannot interrupt process %1: %2").arg(m_inferiorPid).arg(errorMessage), LogError);
     }
 #else
     Q_UNUSED(sm)
@@ -1015,7 +1078,7 @@ void CdbEngine::executeRunToLine(const QString &fileName, int lineNumber)
     BreakpointParameters bp(BreakpointByFileAndLine);
     bp.fileName = fileName;
     bp.lineNumber = lineNumber;
-    postCommand(cdbAddBreakpointCommand(bp, true), 0);
+    postCommand(cdbAddBreakpointCommand(bp, BreakpointId(-1), true), 0);
     continueInferior();
 }
 
@@ -1025,7 +1088,7 @@ void CdbEngine::executeRunToFunction(const QString &functionName)
     BreakpointParameters bp(BreakpointByFunction);
     bp.functionName = functionName;
 
-    postCommand(cdbAddBreakpointCommand(bp, true), 0);
+    postCommand(cdbAddBreakpointCommand(bp, BreakpointId(-1), true), 0);
     continueInferior();
 }
 
@@ -1577,7 +1640,8 @@ enum StopActionFlags
     StopNotifyStop = 0x10,
     StopIgnoreContinue = 0x20,
     // Hit on break in artificial stop thread (created by DebugBreak()).
-    StopInArtificialThread = 0x40
+    StopInArtificialThread = 0x40,
+    StopShutdownInProgress = 0x80 // Shutdown in progress
 };
 
 unsigned CdbEngine::examineStopReason(const GdbMi &stopReason,
@@ -1585,29 +1649,42 @@ unsigned CdbEngine::examineStopReason(const GdbMi &stopReason,
                                       QString *exceptionBoxMessage)
 {
     // Report stop reason (GDBMI)
+    unsigned rc  = 0;
+    if (targetState() == DebuggerFinished)
+        rc |= StopShutdownInProgress;
     if (debug)
         qDebug("%s", stopReason.toString(true, 4).constData());
     const QByteArray reason = stopReason.findChild("reason").data();
     if (reason.isEmpty()) {
         *message = tr("Malformed stop response received.");
-        return StopReportParseError|StopNotifyStop;
+        rc |= StopReportParseError|StopNotifyStop;
+        return rc;
     }
     // Additional stop messages occurring for debuggee function calls (widgetAt, etc). Just log.
     if (state() == InferiorStopOk) {
         *message = QString::fromLatin1("Ignored stop notification from function call (%1).").
                     arg(QString::fromAscii(reason));
-        return StopReportLog;
+        rc |= StopReportLog;
+        return rc;
     }
     const int threadId = stopReason.findChild("threadId").data().toInt();
     if (reason == "breakpoint") {
-        const int number = stopReason.findChild("breakpointId").data().toInt();
-        const BreakpointId id = breakHandler()->findBreakpointByNumber(number);
+        // Note: Internal breakpoints (run to line) are reported with id=0.
+        BreakpointId id = 0;
+        int number = 0;
+        const GdbMi breakpointIdG = stopReason.findChild("breakpointId");
+        if (breakpointIdG.isValid()) {
+            id = breakpointIdG.data().toULongLong();
+            if (id)
+                number = breakHandler()->response(id).number;
+        }
         if (id && breakHandler()->type(id) == Watchpoint) {
             *message = msgWatchpointTriggered(id, number, breakHandler()->address(id), QString::number(threadId));
         } else {
             *message = msgBreakpointTriggered(id, number, QString::number(threadId));
         }
-        return StopReportStatusMessage|StopNotifyStop;
+        rc |= StopReportStatusMessage|StopNotifyStop;
+        return rc;
     }
     if (reason == "exception") {
         WinException exception;
@@ -1623,19 +1700,21 @@ unsigned CdbEngine::examineStopReason(const GdbMi &stopReason,
         if (exception.exceptionCode == winExceptionWX86Breakpoint) {
             if (m_wX86BreakpointCount++) {
                 *message = tr("Interrupted (%1)").arg(description);
-                return StopReportStatusMessage|StopNotifyStop;
+                rc |= StopReportStatusMessage|StopNotifyStop;
             } else {
                 *message = description;
-                return StopIgnoreContinue|StopReportLog;
+                rc |= StopIgnoreContinue|StopReportLog;
             }
+            return rc;
         }
         if (exception.exceptionCode == winExceptionCtrlPressed) {
             // Detect interruption by pressing Ctrl in a console and force a switch to thread 0.
             *message = msgInterrupted();
-            return StopReportStatusMessage|StopNotifyStop|StopInArtificialThread;
+            rc |= StopReportStatusMessage|StopNotifyStop|StopInArtificialThread;
+            return rc;
         }
         if (isDebuggerWinException(exception.exceptionCode)) {
-            unsigned rc = StopReportStatusMessage|StopNotifyStop;
+            rc |= StopReportStatusMessage|StopNotifyStop;
             // Detect interruption by DebugBreak() and force a switch to thread 0.
             if (exception.function == "ntdll!DbgBreakPoint")
                 rc |= StopInArtificialThread;
@@ -1645,10 +1724,12 @@ unsigned CdbEngine::examineStopReason(const GdbMi &stopReason,
 #endif
         *exceptionBoxMessage = msgStoppedByException(description, QString::number(threadId));
         *message = description;
-        return StopShowExceptionMessageBox|StopReportStatusMessage|StopNotifyStop;
+        rc |= StopShowExceptionMessageBox|StopReportStatusMessage|StopNotifyStop;
+        return rc;
     }
     *message = msgStopped(QLatin1String(reason));
-    return StopReportStatusMessage|StopNotifyStop;
+    rc |= StopReportStatusMessage|StopNotifyStop;
+    return rc;
 }
 
 void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
@@ -1716,6 +1797,11 @@ void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
             STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSpontaneousStop")
             notifyInferiorSpontaneousStop();
         }
+        // Prevent further commands from being sent if shutdown is in progress
+        if (stopFlags & StopShutdownInProgress) {
+            showMessage(QString::fromLatin1("Shutdown request detected..."));
+            return;
+        }
         const bool sourceStepInto = m_sourceStepInto;
         m_sourceStepInto = false;
         // Start sequence to get all relevant data.
@@ -1743,6 +1829,8 @@ void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
             showMessage(QString::fromAscii(stopReason.findChild("threaderror").data()), LogError);
         }
         // Fire off remaining commands asynchronously
+        if (!m_pendingBreakpointMap.isEmpty())
+            postCommandSequence(CommandListBreakPoints);
         if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_REGISTER)))
             postCommandSequence(CommandListRegisters);
         if (debuggerCore()->isDockVisible(QLatin1String(Constants::DOCKWIDGET_MODULES)))
@@ -2023,6 +2111,8 @@ void CdbEngine::parseOutputLine(QByteArray line)
 
 void CdbEngine::readyReadStandardOut()
 {
+    if (m_ignoreCdbOutput)
+        return;
     m_outputBuffer += m_process.readAllStandardOutput();
     // Split into lines and parse line by line.
     while (true) {
@@ -2062,33 +2152,6 @@ static QByteArray multiBreakpointCommand(const char *cmdC, const Breakpoints &bp
 }
 #endif
 
-// Figure out what kind of changes are required to synchronize
-enum BreakPointSyncType {
-    BreakpointsUnchanged, BreakpointsAdded, BreakpointsRemovedChanged
-};
-
-static inline BreakPointSyncType breakPointSyncType(const BreakHandler *handler,
-                                                    const BreakpointIds ids)
-{
-    bool added = false;
-    foreach (BreakpointId id, ids) {
-        const BreakpointState state = handler->state(id);
-        if (debugBreakpoints > 1)
-            qDebug("    Checking on breakpoint %llu, state %d\n", id, state);
-        switch (state) {
-        case BreakpointInsertRequested:
-            added = true;
-            break;
-        case BreakpointChangeRequested:
-        case BreakpointRemoveRequested:
-            return BreakpointsRemovedChanged;
-        default:
-            break;
-        }
-    }
-    return added ? BreakpointsAdded : BreakpointsUnchanged;
-}
-
 bool CdbEngine::stateAcceptsBreakpointChanges() const
 {
     switch (state()) {
@@ -2117,13 +2180,33 @@ void CdbEngine::attemptBreakpointSynchronization()
         if (acceptsBreakpoint(id))
             handler->setEngine(id, this);
 
-    // Find out if there is a need to synchronize again
+    // Quick check: is there a need to change something? - Populate module cache
+    bool changed = false;
     const BreakpointIds ids = handler->engineBreakpointIds(this);
-    const BreakPointSyncType syncType = breakPointSyncType(handler, ids);
+    foreach (BreakpointId id, ids) {
+        switch (handler->state(id)) {
+        case BreakpointInsertRequested:
+        case BreakpointRemoveRequested:
+        case BreakpointChangeRequested:
+            changed = true;
+            break;
+        case BreakpointInserted: {
+            // Collect the new modules matching the files.
+            // In the future, that information should be obtained from the build system.
+            const BreakpointParameters &data = handler->breakpointData(id);
+            if (data.type == BreakpointByFileAndLine && !data.module.isEmpty())
+                m_fileNameModuleHash.insert(data.fileName, data.module);
+        }
+        break;
+        default:
+            break;
+        }
+    }
+
     if (debugBreakpoints)
-        qDebug("attemptBreakpointSynchronizationI %dms accessible=%d, %s %d breakpoints, syncType=%d",
-               elapsedLogTime(), m_accessible, stateName(state()), ids.size(), syncType);
-    if (syncType == BreakpointsUnchanged)
+        qDebug("attemptBreakpointSynchronizationI %dms accessible=%d, %s %d breakpoints, changed=%d",
+               elapsedLogTime(), m_accessible, stateName(state()), ids.size(), changed);
+    if (!changed)
         return;
 
     if (!m_accessible) {
@@ -2132,55 +2215,64 @@ void CdbEngine::attemptBreakpointSynchronization()
             doInterruptInferior(SpecialStopSynchronizeBreakpoints);
         return;
     }
-
-    // If there are changes/removals, delete all breakpoints and re-insert
-    // all enabled breakpoints. This is the simplest
-    // way to apply changes since CDB ids shift when removing breakpoints and there is no
-    // easy way to re-match them.
-
-    if (syncType == BreakpointsRemovedChanged) { // Need to clear out all?
-        postCommand("bc *", 0);
-        m_nextBreakpointNumber = 0;
-    }
-
+    // Add/Change breakpoints and store pending ones in map, since
+    // Breakhandler::setResponse() on pending breakpoints clears the pending flag.
+    // handleBreakPoints will the complete that information and set it on the break handler.
+    bool addedChanged = false;
     foreach (BreakpointId id, ids) {
+        BreakpointParameters parameters = handler->breakpointData(id);
         BreakpointResponse response;
-        const BreakpointParameters &p = handler->breakpointData(id);
-        response.fromParameters(p);
+        response.fromParameters(parameters);
+        // If we encountered that file and have a module for it: Add it.
+        if (parameters.type == BreakpointByFileAndLine && parameters.module.isEmpty()) {
+            const QHash<QString, QString>::const_iterator it = m_fileNameModuleHash.constFind(parameters.fileName);
+            if (it != m_fileNameModuleHash.constEnd())
+                parameters.module = it.value();
+        }
         switch (handler->state(id)) {
         case BreakpointInsertRequested:
-            response.number = m_nextBreakpointNumber++;
-            postCommand(cdbAddBreakpointCommand(p, false, response.number), 0);
+            postCommand(cdbAddBreakpointCommand(parameters, id, false), 0);
+            if (!parameters.enabled)
+                postCommand("bd " + QByteArray::number(id), 0);
             handler->notifyBreakpointInsertProceeding(id);
             handler->notifyBreakpointInsertOk(id);
-            handler->setResponse(id, response);
+            m_pendingBreakpointMap.insert(id, response);
+            addedChanged = true;
+            if (debugBreakpoints)
+                qDebug("Adding %llu %s\n", id, qPrintable(response.toString()));
             break;
         case BreakpointChangeRequested:
-            // Skip disabled breakpoints, else add.
             handler->notifyBreakpointChangeProceeding(id);
-            if (p.enabled) {
-                response.number = m_nextBreakpointNumber++;
-                postCommand(cdbAddBreakpointCommand(p, false, response.number), 0);
-                handler->notifyBreakpointChangeOk(id);
+            if (parameters.enabled != handler->response(id).enabled) {
+                // Change enabled/disabled breakpoints without triggering update.
+                postCommand((parameters.enabled ? "be " : "bd ") + QByteArray::number(id), 0);
+                response.pending = false;
+                response.enabled = parameters.enabled;
                 handler->setResponse(id, response);
+            } else {
+                // Delete and re-add, triggering update
+                addedChanged = true;
+                postCommand("bc " + QByteArray::number(id), 0);
+                postCommand(cdbAddBreakpointCommand(parameters, id, false), 0);
+                m_pendingBreakpointMap.insert(id, response);
             }
+            handler->notifyBreakpointChangeOk(id);
+            if (debugBreakpoints)
+                qDebug("Changing %llu %s\n", id, qPrintable(response.toString()));
             break;
         case BreakpointRemoveRequested:
+            postCommand("bc " + QByteArray::number(id), 0);
             handler->notifyBreakpointRemoveProceeding(id);
             handler->notifyBreakpointRemoveOk(id);
-            break;
-        case BreakpointInserted:
-            // Existing breakpoints were deleted due to change/removal, re-set
-            if (syncType == BreakpointsRemovedChanged) {
-                response.number = m_nextBreakpointNumber++;;
-                postCommand(cdbAddBreakpointCommand(p, false, response.number), 0);
-                handler->setResponse(id, response);
-            }
+            m_pendingBreakpointMap.remove(id);
             break;
         default:
             break;
         }
     }
+    // List breakpoints and send responses
+    if (addedChanged)
+        postCommandSequence(CommandListBreakPoints);
 }
 
 QString CdbEngine::normalizeFileName(const QString &f)
@@ -2301,6 +2393,11 @@ void CdbEngine::postCommandSequence(unsigned mask)
         postExtensionCommand("modules", QByteArray(), 0, &CdbEngine::handleModules, mask & ~CommandListModules);
         return;
     }
+    if (mask & CommandListBreakPoints) {
+        postExtensionCommand("breakpoints", QByteArray("-v"), 0,
+                             &CdbEngine::handleBreakPoints, mask & ~CommandListBreakPoints);
+        return;
+    }
 }
 
 void CdbEngine::handleWidgetAt(const CdbExtensionCommandPtr &reply)
@@ -2333,6 +2430,81 @@ void CdbEngine::handleWidgetAt(const CdbExtensionCommandPtr &reply)
     if (!success)
         showMessage(message, LogWarning);
     m_watchPointX = m_watchPointY = 0;
+}
+
+static inline void formatCdbBreakPointResponse(BreakpointId id, const BreakpointResponse &r,
+                                                  QTextStream &str)
+{
+    str << "Obtained breakpoint " << id << " (#" << r.number << ')';
+    if (r.pending) {
+        str << ", pending";
+    } else {
+        str.setIntegerBase(16);
+        str << ", at 0x" << r.address;
+        str.setIntegerBase(10);
+    }
+    if (!r.enabled)
+        str << ", disabled";
+    if (!r.module.isEmpty())
+        str << ", module: '" << r.module << '\'';
+    str << '\n';
+}
+
+void CdbEngine::handleBreakPoints(const CdbExtensionCommandPtr &reply)
+{
+    if (debugBreakpoints)
+        qDebug("CdbEngine::handleBreakPoints: sucess=%d: %s", reply->success, reply->reply.constData());
+    if (!reply->success) {
+        showMessage(QString::fromAscii(reply->errorMessage), LogError);
+        return;
+    }
+    GdbMi value;
+    value.fromString(reply->reply);
+    if (value.type() != GdbMi::List) {
+        showMessage(QString::fromAscii("Unabled to parse breakpoints reply"), LogError);
+        return;
+    }
+    handleBreakPoints(value);
+}
+
+void CdbEngine::handleBreakPoints(const GdbMi &value)
+{
+    // Report all obtained parameters back. Note that not all parameters are reported
+    // back, so, match by id and complete
+    if (debugBreakpoints)
+        qDebug("\nCdbEngine::handleBreakPoints with %d", value.childCount());
+    QString message;
+    QTextStream str(&message);
+    BreakHandler *handler = breakHandler();
+    foreach (const GdbMi &breakPointG, value.children()) {
+        BreakpointResponse reportedResponse;
+        const BreakpointId id = parseBreakPoint(breakPointG, &reportedResponse);
+        if (debugBreakpoints)
+            qDebug("  Parsed %llu: pending=%d %s\n", id, reportedResponse.pending,
+                   qPrintable(reportedResponse.toString()));
+
+        if (!reportedResponse.pending) {
+            const PendingBreakPointMap::iterator it = m_pendingBreakpointMap.find(id);
+            if (it != m_pendingBreakpointMap.end()) {
+                // Complete the response and set on handler.
+                BreakpointResponse &currentResponse = it.value();
+                currentResponse.number = reportedResponse.number;
+                currentResponse.address = reportedResponse.address;
+                currentResponse.module = reportedResponse.module;
+                currentResponse.pending = reportedResponse.pending;
+                currentResponse.enabled = reportedResponse.enabled;
+                formatCdbBreakPointResponse(id, currentResponse, str);
+                handler->setResponse(id, currentResponse);
+                m_pendingBreakpointMap.erase(it);
+            }
+        } // not pending reported
+    } // foreach
+    if (m_pendingBreakpointMap.empty()) {
+        str << QLatin1String("All breakpoints have been resolved.\n");
+    } else {
+        str << QString::fromLatin1("%1 breakpoint(s) pending...\n").arg(m_pendingBreakpointMap.size());
+    }
+    showMessage(message, LogMisc);
 }
 
 void CdbEngine::watchPoint(const QPoint &p)

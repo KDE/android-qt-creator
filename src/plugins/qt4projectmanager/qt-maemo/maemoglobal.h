@@ -61,7 +61,8 @@ class MaemoGlobal
 {
     Q_DECLARE_TR_FUNCTIONS(Qt4ProjectManager::Internal::MaemoGlobal)
 public:
-    enum MaemoVersion { Maemo5, Maemo6 };
+    enum MaemoVersion { Maemo5, Maemo6, Meego };
+    enum PackagingSystem { Dpkg, Rpm };
 
     class FileUpdate {
     public:
@@ -74,6 +75,7 @@ public:
     static bool isMaemoTargetId(const QString &id);
     static bool isValidMaemo5QtVersion(const Qt4ProjectManager::QtVersion *version);
     static bool isValidHarmattanQtVersion(const Qt4ProjectManager::QtVersion *version);
+    static bool isValidMeegoQtVersion(const Qt4ProjectManager::QtVersion *version);
 
     static QString homeDirOnDevice(const QString &uname);
     static QString remoteSudo();
@@ -89,11 +91,16 @@ public:
     static QString targetName(const QtVersion *qtVersion);
     static QString madCommand(const QtVersion *qtVersion);
     static MaemoVersion version(const QtVersion *qtVersion);
+    static QString architecture(const QtVersion *version);
 
     static bool callMad(QProcess &proc, const QStringList &args,
-        const QtVersion *qtVersion);
+        const QtVersion *qtVersion, bool useTarget);
     static bool callMadAdmin(QProcess &proc, const QStringList &args,
-        const QtVersion *qtVersion);
+        const QtVersion *qtVersion, bool useTarget);
+
+    static QString maemoVersionToString(MaemoVersion version);
+
+    static PackagingSystem packagingSystem(MaemoVersion maemoVersion);
 
     static bool removeRecursively(const QString &filePath, QString &error);
 
@@ -131,8 +138,9 @@ private:
     static bool isValidMaemoQtVersion(const Qt4ProjectManager::QtVersion *qtVersion,
         MaemoVersion maemoVersion);
     static QString madAdminCommand(const QtVersion *qtVersion);
-    static bool callMaddeShellScript(QProcess &proc, const QString &maddeRoot,
-        const QString &command, const QStringList &args);
+    static bool callMaddeShellScript(QProcess &proc, const QtVersion *qtVersion,
+        const QString &command, const QStringList &args, bool useTarget);
+    static QStringList targetArgs(const QtVersion *qtVersion, bool useTarget);
 };
 
 } // namespace Internal

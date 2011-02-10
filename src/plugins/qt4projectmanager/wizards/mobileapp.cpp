@@ -86,12 +86,12 @@ bool MobileApp::adaptCurrentMainCppTemplateLine(QString &line) const
 
 void MobileApp::handleCurrentProFileTemplateLine(const QString &line,
     QTextStream &proFileTemplate, QTextStream &proFile,
-    bool &uncommentNextLine) const
+    bool &commentOutNextLine) const
 {
     Q_UNUSED(line);
     Q_UNUSED(proFileTemplate);
     Q_UNUSED(proFile);
-    Q_UNUSED(uncommentNextLine);
+    Q_UNUSED(commentOutNextLine);
 }
 
 Core::GeneratedFiles MobileApp::generateFiles(QString *errorMessage) const
@@ -141,6 +141,18 @@ QString MobileApp::mainWindowClassName() const
 }
 
 int MobileApp::stubVersionMinor() const { return StubVersion; }
+
+QList<AbstractGeneratedFileInfo> MobileApp::updateableFiles(const QString &mainProFile) const
+{
+    Q_UNUSED(mainProFile)
+    return QList<AbstractGeneratedFileInfo>(); // Nothing to update, here
+}
+
+QList<DeploymentFolder> MobileApp::deploymentFolders() const
+{
+    QList<DeploymentFolder> result;
+    return result;
+}
 
 const int MobileApp::StubVersion = 2;
 

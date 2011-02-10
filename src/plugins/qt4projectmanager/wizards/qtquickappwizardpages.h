@@ -31,38 +31,31 @@
 **
 **************************************************************************/
 
-#ifndef QMLSTANDALONEAPPWIZARD_H
-#define QMLSTANDALONEAPPWIZARD_H
+#ifndef QTQUICKAPPWIZARDPAGES_H
+#define QTQUICKAPPWIZARDPAGES_H
 
-#include "abstractmobileappwizard.h"
+#include <QtGui/QWizardPage>
 
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class QmlStandaloneAppWizard : public AbstractMobileAppWizard
+class QtQuickAppWizardSourcesPage : public QWizardPage
 {
     Q_OBJECT
+    Q_DISABLE_COPY(QtQuickAppWizardSourcesPage)
 
 public:
-    QmlStandaloneAppWizard();
-    virtual ~QmlStandaloneAppWizard();
+    explicit QtQuickAppWizardSourcesPage(QWidget *parent = 0);
+    virtual ~QtQuickAppWizardSourcesPage();
+
+    QString mainQmlFile() const;
+    virtual bool isComplete() const;
 
 private:
-    static Core::BaseFileWizardParameters parameters();
-
-    virtual AbstractMobileApp *app() const;
-    virtual AbstractMobileAppWizardDialog *wizardDialog() const;
-    virtual AbstractMobileAppWizardDialog *createWizardDialogInternal(QWidget *parent) const;
-    virtual void projectPathChanged(const QString &path) const;
-    virtual void prepareGenerateFiles(const QWizard *wizard,
-        QString *errorMessage) const;
-    virtual bool postGenerateFilesInternal(const Core::GeneratedFiles &l,
-        QString *errorMessage);
-
-    class QmlStandaloneAppWizardPrivate *m_d;
+    class QtQuickAppWizardSourcesPagePrivate *m_d;
 };
 
-} // end of namespace Internal
-} // end of namespace Qt4ProjectManager
+} // namespace Internal
+} // namespace Qt4ProjectManager
 
-#endif // QMLSTANDALONEAPPWIZARD_H
+#endif // QTQUICKAPPWIZARDPAGES_H

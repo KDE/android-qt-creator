@@ -112,6 +112,13 @@ public:
 
     void emitInstancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void emitInstancesCompleted(const QVector<ModelNode> &nodeList);
+    void emitInstanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void emitInstancesRenderImageChanged(const QVector<ModelNode> &nodeList);
+    void emitInstancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
+    void emitInstancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void emitRewriterBeginTransaction();
+    void emitRewriterEndTransaction();
+    void emitActualStateChanged(const ModelNode &node);
 
     virtual void modelAttached(Model *model);
     virtual void modelAboutToBeDetached(Model *model);
@@ -130,7 +137,15 @@ public:
 
     virtual void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList) = 0;
     virtual void instancesCompleted(const QVector<ModelNode> &completedNodeList) = 0;
+    virtual void instanceInformationsChange(const QVector<ModelNode> &nodeList) = 0;
+    virtual void instancesRenderImageChanged(const QVector<ModelNode> &nodeList) = 0;
+    virtual void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList) = 0;
+    virtual void instancesChildrenChanged(const QVector<ModelNode> &nodeList) = 0;
 
+    virtual void rewriterBeginTransaction() = 0;
+    virtual void rewriterEndTransaction() = 0;
+
+    virtual void actualStateChanged(const ModelNode &node) = 0; // base state is a invalid model node
 
     virtual void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
                                       const QList<ModelNode> &lastSelectedNodeList) = 0;

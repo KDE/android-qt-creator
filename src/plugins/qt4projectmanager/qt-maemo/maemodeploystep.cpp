@@ -37,6 +37,8 @@
 #include "maemodeploystepwidget.h"
 #include "maemoglobal.h"
 #include "maemopackagecreationstep.h"
+#include "maemopertargetdeviceconfigurationlistmodel.h"
+#include "maemoqemumanager.h"
 #include "maemoremotemounter.h"
 #include "maemorunconfiguration.h"
 #include "maemotoolchain.h"
@@ -94,6 +96,8 @@ void MaemoDeployStep::ctor()
         setDefaultDisplayName(tr("Deploy to Maemo5 device"));
     else if (target()->id() == QLatin1String(Constants::HARMATTAN_DEVICE_TARGET_ID))
         setDefaultDisplayName(tr("Deploy to Harmattan device"));
+    else if (target()->id() == QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID))
+        setDefaultDisplayName(tr("Deploy to Meego device"));
 
     // A MaemoDeployables object is only dependent on the active build
     // configuration and therefore can (and should) be shared among all
@@ -111,7 +115,7 @@ void MaemoDeployStep::ctor()
     }
 
     m_state = Inactive;
-    m_deviceConfig = MaemoDeviceConfigurations::instance()->defaultDeviceConfig();
+    m_deviceConfig = maemotarget()->deviceConfigurationsModel()->defaultDeviceConfig();
     m_needsInstall = false;
     m_sysrootInstaller = new QProcess(this);
     connect(m_sysrootInstaller, SIGNAL(finished(int,QProcess::ExitStatus)),
@@ -134,7 +138,7 @@ void MaemoDeployStep::ctor()
         SLOT(handlePortsGathererError(QString)));
     connect(m_portsGatherer, SIGNAL(portListReady()), this,
         SLOT(handlePortListReady()));
-    connect(MaemoDeviceConfigurations::instance(), SIGNAL(updated()),
+    connect(maemotarget()->deviceConfigurationsModel(), SIGNAL(updated()),
         SLOT(handleDeviceConfigurationsUpdated()));
 }
 
@@ -306,17 +310,13 @@ void MaemoDeployStep::handleDeviceConfigurationsUpdated()
 
 void MaemoDeployStep::setDeviceConfig(MaemoDeviceConfig::Id internalId)
 {
-    const MaemoDeviceConfigurations * const devConfs
-        = MaemoDeviceConfigurations::instance();
-    m_deviceConfig = devConfs->find(internalId);
-    if (!m_deviceConfig)
-        m_deviceConfig = devConfs->defaultDeviceConfig();
+    m_deviceConfig = maemotarget()->deviceConfigurationsModel()->find(internalId);
     emit deviceConfigChanged();
 }
 
 void MaemoDeployStep::setDeviceConfig(int i)
 {
-    m_deviceConfig = MaemoDeviceConfigurations::instance()->deviceAt(i);
+    m_deviceConfig = maemotarget()->deviceConfigurationsModel()->deviceAt(i);
     emit deviceConfigChanged();
 }
 
@@ -338,6 +338,7 @@ void MaemoDeployStep::start()
     Q_ASSERT(!m_currentDeviceDeployAction);
     Q_ASSERT(!m_needsInstall);
     Q_ASSERT(m_filesToCopy.isEmpty());
+    m_installerStderr.clear();
     const MaemoPackageCreationStep * const pStep = packagingStep();
     const QString hostName = m_cachedDeviceConfig->sshParameters().host;
     if (pStep->isPackagingEnabled()) {
@@ -354,6 +355,18 @@ void MaemoDeployStep::start()
     }
 
     if (m_needsInstall || !m_filesToCopy.isEmpty()) {
+        if (m_cachedDeviceConfig->type() == MaemoDeviceConfig::Simulator
+                && !MaemoQemuManager::instance().qemuIsRunning()) {
+            MaemoQemuManager::instance().startRuntime();
+            raiseError(tr("Deployment failed: Qemu was not running. "
+                "It has now been started up for you, but it will take "
+                "a bit of time until it is ready."));
+            m_needsInstall = false;
+            m_filesToCopy.clear();
+            emit done();
+            return;
+        }
+
         if (m_deployToSysroot)
             installToSysroot();
         else
@@ -438,7 +451,7 @@ void MaemoDeployStep::handleSftpJobFinished(Core::SftpJobId,
             .arg(filePathNative));
         const QString remoteFilePath
             = uploadDir() + QLatin1Char('/') + QFileInfo(filePathNative).fileName();
-        runDpkg(remoteFilePath);
+        runPackageInstaller(remoteFilePath);
     }
 }
 
@@ -457,7 +470,7 @@ void MaemoDeployStep::handleMounted()
         if (m_needsInstall) {
             const QString remoteFilePath = deployMountPoint() + QLatin1Char('/')
                 + QFileInfo(packagingStep()->packageFilePath()).fileName();
-            runDpkg(remoteFilePath);
+            runPackageInstaller(remoteFilePath);
         } else {
             setState(CopyingFile);
             copyNextFileToDevice();
@@ -611,10 +624,13 @@ void MaemoDeployStep::installToSysroot()
         const Qt4BuildConfiguration * const bc
             = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
         const QtVersion * const qtVersion = bc->qtVersion();
-        const QStringList args = QStringList() << QLatin1String("-t")
-            << MaemoGlobal::targetName(qtVersion) << QLatin1String("xdpkg")
-            << QLatin1String("-i") << packagingStep()->packageFilePath();
-        MaemoGlobal::callMadAdmin(*m_sysrootInstaller, args, qtVersion);
+        const QString command = QLatin1String(
+            packagingStep()->debBasedMaemoTarget() ? "xdpkg" : "xrpm");
+        QStringList args = QStringList() << command << QLatin1String("-i");
+        if (packagingStep()->debBasedMaemoTarget())
+            args << QLatin1String("--no-force-downgrade");
+        args << packagingStep()->packageFilePath();
+        MaemoGlobal::callMadAdmin(*m_sysrootInstaller, args, qtVersion, true);
         if (!m_sysrootInstaller->waitForStarted()) {
             writeOutput(tr("Installation to sysroot failed, continuing anyway."),
                 ErrorMessageOutput);
@@ -701,15 +717,17 @@ void MaemoDeployStep::unmountOldDirs()
     unmount();
 }
 
-void MaemoDeployStep::runDpkg(const QString &packageFilePath)
+void MaemoDeployStep::runPackageInstaller(const QString &packageFilePath)
 {
     ASSERT_STATE(QList<State>() << Mounting << Uploading);
     const bool removeAfterInstall = m_state == Uploading;
     setState(InstallingToDevice);
 
     writeOutput(tr("Installing package to device..."));
-    QByteArray cmd = MaemoGlobal::remoteSudo().toUtf8() + " dpkg -i "
-        + packageFilePath.toUtf8();
+    const QByteArray installCommand = packagingStep()->debBasedMaemoTarget()
+        ? "dpkg -i --no-force-downgrade" : "rpm -Uhv";
+    QByteArray cmd = MaemoGlobal::remoteSudo().toUtf8() + ' '
+        + installCommand + ' ' + packageFilePath.toUtf8();
     if (removeAfterInstall)
         cmd += " && (rm " + packageFilePath.toUtf8() + " || :)";
     m_deviceInstaller = m_connection->createRemoteProcess(cmd);
@@ -871,6 +889,9 @@ void MaemoDeployStep::handleInstallationFinished(int exitStatus)
         if (exitStatus != SshRemoteProcess::ExitedNormally
             || m_deviceInstaller->exitCode() != 0) {
             raiseError(tr("Installing package failed."));
+        } else if (m_installerStderr.contains("Will not downgrade")) {
+            raiseError(tr("Installation failed: "
+                "You tried to downgrade a package, which is not allowed."));
         } else {
             m_needsInstall = false;
             setDeployed(m_connection->connectionParameters().host,
@@ -962,6 +983,7 @@ void MaemoDeployStep::handleDeviceInstallerErrorOutput(const QByteArray &output)
     switch (m_state) {
     case InstallingToDevice:
     case StopRequested:
+        m_installerStderr += output;
         writeOutput(QString::fromUtf8(output), ErrorOutput);
         break;
     default:

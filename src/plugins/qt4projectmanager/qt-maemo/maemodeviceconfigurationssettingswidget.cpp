@@ -37,14 +37,15 @@
 #include "ui_maemodeviceconfigurationssettingswidget.h"
 
 #include "maemoconfigtestdialog.h"
+#include "maemodeviceconfigwizard.h"
 #include "maemodeviceconfigurations.h"
+#include "maemokeydeployer.h"
 #include "maemoremoteprocessesdialog.h"
 #include "maemosshconfigdialog.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/ssh/sshremoteprocessrunner.h>
 
-#include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QRegExp>
 #include <QtCore/QSettings>
@@ -102,9 +103,14 @@ MaemoDeviceConfigurationsSettingsWidget::MaemoDeviceConfigurationsSettingsWidget
       m_ui(new Ui_MaemoDeviceConfigurationsSettingsWidget),
       m_devConfigs(MaemoDeviceConfigurations::cloneInstance()),
       m_nameValidator(new NameValidator(m_devConfigs.data(), this)),
+      m_keyDeployer(new MaemoKeyDeployer(this)),
       m_saveSettingsRequested(false)
 {
     initGui();
+    connect(m_keyDeployer, SIGNAL(error(QString)), this,
+        SLOT(handleDeploymentError(QString)), Qt::QueuedConnection);
+    connect(m_keyDeployer, SIGNAL(finishedSuccessfully()),
+        SLOT(handleDeploymentSuccess()));
 }
 
 MaemoDeviceConfigurationsSettingsWidget::~MaemoDeviceConfigurationsSettingsWidget()
@@ -126,9 +132,8 @@ QString MaemoDeviceConfigurationsSettingsWidget::searchKeywords() const
         << ' ' << m_ui->passwordButton->text()
         << ' ' << m_ui->authTypeLabel->text()
         << ' ' << m_ui->connectionTimeoutLabel->text()
-        << ' ' << m_ui->deviceButton->text()
-        << ' ' << m_ui->simulatorButton->text()
         << ' ' << m_ui->deviceTypeLabel->text()
+        << ' ' << m_ui->deviceTypeValueLabel->text()
         << ' ' << m_ui->deviceNameLabel->text()
         << ' ' << m_ui->hostNameLabel->text()
         << ' ' << m_ui->keyLabel->text()
@@ -170,20 +175,13 @@ void MaemoDeviceConfigurationsSettingsWidget::initGui()
 
 void MaemoDeviceConfigurationsSettingsWidget::addConfig()
 {
-    const QString prefix = tr("New Device Configuration %1", "Standard "
-        "Configuration name with number");
-    int suffix = 1;
-    QString newName;
-    bool isUnique = false;
-    do {
-        newName = prefix.arg(QString::number(suffix++));
-        isUnique = !m_devConfigs->hasConfig(newName);
-    } while (!isUnique);
-
-    m_devConfigs->addConfiguration(newName, MaemoDeviceConfig::Physical);
-    m_ui->removeConfigButton->setEnabled(true);
-    m_ui->configurationComboBox->setCurrentIndex(m_ui->configurationComboBox->count()-1);
-    m_ui->configurationComboBox->setFocus();
+    MaemoDeviceConfigWizard wizard(m_devConfigs.data(), this);
+    if (wizard.exec() == QDialog::Accepted) {
+        wizard.createDeviceConfig();
+        m_ui->removeConfigButton->setEnabled(true);
+        m_ui->configurationComboBox->setCurrentIndex(m_ui->configurationComboBox->count()-1);
+        testConfig();
+    }
 }
 
 void MaemoDeviceConfigurationsSettingsWidget::deleteConfig()
@@ -197,11 +195,12 @@ void MaemoDeviceConfigurationsSettingsWidget::displayCurrent()
 {
     const MaemoDeviceConfig::ConstPtr &current = currentConfig();
     m_ui->defaultDeviceButton->setEnabled(!current->isDefault());
+    m_ui->osTypeValueLabel->setText(MaemoGlobal::maemoVersionToString(current->osVersion()));
     const SshConnectionParameters &sshParams = current->sshParameters();
     if (current->type() == MaemoDeviceConfig::Physical)
-        m_ui->deviceButton->setChecked(true);
+        m_ui->deviceTypeValueLabel->setText(tr("Physical Device"));
     else
-        m_ui->simulatorButton->setChecked(true);
+        m_ui->deviceTypeValueLabel->setText(tr("Emulator (Qemu)"));
     if (sshParams.authType == Core::SshConnectionParameters::AuthByPwd)
         m_ui->passwordButton->setChecked(true);
     else
@@ -256,15 +255,6 @@ void MaemoDeviceConfigurationsSettingsWidget::configNameEditingFinished()
     const QString &newName = m_ui->nameLineEdit->text();
     m_devConfigs->setConfigurationName(currentIndex(), newName);
     m_nameValidator->setDisplayName(newName);
-}
-
-void MaemoDeviceConfigurationsSettingsWidget::deviceTypeChanged()
-{
-    const MaemoDeviceConfig::DeviceType devType
-        = m_ui->deviceButton->isChecked()
-            ? MaemoDeviceConfig::Physical : MaemoDeviceConfig::Simulator;
-    m_devConfigs->setDeviceType(currentIndex(), devType);
-    fillInValues();
 }
 
 void MaemoDeviceConfigurationsSettingsWidget::authenticationTypeChanged()
@@ -350,7 +340,7 @@ void MaemoDeviceConfigurationsSettingsWidget::showGenerateSshKeyDialog()
 
 void MaemoDeviceConfigurationsSettingsWidget::showRemoteProcesses()
 {
-    MaemoRemoteProcessesDialog dlg(currentConfig()->sshParameters(), this);
+    MaemoRemoteProcessesDialog dlg(currentConfig(), this);
     dlg.exec();
 }
 
@@ -373,9 +363,6 @@ void MaemoDeviceConfigurationsSettingsWidget::setPrivateKey(const QString &path)
 
 void MaemoDeviceConfigurationsSettingsWidget::deployKey()
 {
-    if (m_keyDeployer)
-        return;
-
     const SshConnectionParameters sshParams = currentConfig()->sshParameters();
     const QString &dir = QFileInfo(sshParams.privateKeyFile).path();
     QString publicKeyFileName = QFileDialog::getOpenFileName(this,
@@ -384,71 +371,29 @@ void MaemoDeviceConfigurationsSettingsWidget::deployKey()
     if (publicKeyFileName.isEmpty())
         return;
 
-    QFile keyFile(publicKeyFileName);
-    QByteArray key;
-    const bool keyFileAccessible = keyFile.open(QIODevice::ReadOnly);
-    if (keyFileAccessible)
-        key = keyFile.readAll();
-    if (!keyFileAccessible || keyFile.error() != QFile::NoError) {
-        QMessageBox::critical(this, tr("Deployment Failed"),
-            tr("Could not read public key file '%1'.").arg(publicKeyFileName));
-        return;
-    }
-
     disconnect(m_ui->deployKeyButton, 0, this, 0);
     m_ui->deployKeyButton->setText(tr("Stop Deploying"));
     connect(m_ui->deployKeyButton, SIGNAL(clicked()), this,
-        SLOT(stopDeploying()));
-
-    m_keyDeployer = SshRemoteProcessRunner::create(sshParams);
-    connect(m_keyDeployer.data(), SIGNAL(connectionError(Core::SshError)), this,
-        SLOT(handleConnectionFailure()));
-    connect(m_keyDeployer.data(), SIGNAL(processClosed(int)), this,
-        SLOT(handleKeyUploadFinished(int)));
-    const QByteArray command = "test -d .ssh "
-        "|| mkdir .ssh && chmod 0700 .ssh && echo '"
-        + key + "' >> .ssh/authorized_keys";
-    m_keyDeployer->run(command);
+        SLOT(finishDeployment()));
+    m_keyDeployer->deployPublicKey(sshParams, publicKeyFileName);
 }
 
-void MaemoDeviceConfigurationsSettingsWidget::handleConnectionFailure()
+void MaemoDeviceConfigurationsSettingsWidget::handleDeploymentError(const QString &errorMsg)
 {
-    if (!m_keyDeployer)
-        return;
-
-    QMessageBox::critical(this, tr("Deployment Failed"),
-        tr("Could not connect to host: %1")
-            .arg(m_keyDeployer->connection()->errorString()));
-    stopDeploying();
+    QMessageBox::critical(this, tr("Deployment Failed"), errorMsg);
+    finishDeployment();
 }
 
-void MaemoDeviceConfigurationsSettingsWidget::handleKeyUploadFinished(int exitStatus)
+void MaemoDeviceConfigurationsSettingsWidget::handleDeploymentSuccess()
 {
-    Q_ASSERT(exitStatus == SshRemoteProcess::FailedToStart
-        || exitStatus == SshRemoteProcess::KilledBySignal
-        || exitStatus == SshRemoteProcess::ExitedNormally);
-
-    if (!m_keyDeployer)
-        return;
-
-    if (exitStatus == SshRemoteProcess::ExitedNormally
-        && m_keyDeployer->process()->exitCode() == 0) {
-        QMessageBox::information(this, tr("Deployment Succeeded"),
-            tr("Key was successfully deployed."));
-    } else {
-        QMessageBox::critical(this, tr("Deployment Failed"),
-            tr("Key deployment failed: %1.")
-                .arg(m_keyDeployer->process()->errorString()));
-    }
-    stopDeploying();
+    QMessageBox::information(this, tr("Deployment Succeeded"),
+        tr("Key was successfully deployed."));
+    finishDeployment();
 }
 
-void MaemoDeviceConfigurationsSettingsWidget::stopDeploying()
+void MaemoDeviceConfigurationsSettingsWidget::finishDeployment()
 {
-    if (m_keyDeployer) {
-        disconnect(m_keyDeployer.data(), 0, this, 0);
-        m_keyDeployer = SshRemoteProcessRunner::Ptr();
-    }
+    m_keyDeployer->stopDeployment();
     m_ui->deployKeyButton->disconnect();
     m_ui->deployKeyButton->setText(tr("Deploy Public Key ..."));
     connect(m_ui->deployKeyButton, SIGNAL(clicked()), this, SLOT(deployKey()));
@@ -456,7 +401,7 @@ void MaemoDeviceConfigurationsSettingsWidget::stopDeploying()
 
 void MaemoDeviceConfigurationsSettingsWidget::currentConfigChanged(int index)
 {
-    stopDeploying();
+    finishDeployment();
     if (index == -1) {
         m_ui->removeConfigButton->setEnabled(false);
         m_ui->testConfigButton->setEnabled(false);

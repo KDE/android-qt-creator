@@ -1,20 +1,19 @@
-/**************************************************************************
+/****************************************************************************
 **
-** This file is part of Qt Creator
-**
-** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
-**
+** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
+** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** No Commercial Usage
+** This file is part of Qt Creator.
 **
+** $QT_BEGIN_LICENSE:LGPL$
+** No Commercial Usage
 ** This file contains pre-release code and may not be distributed.
 ** You may use this file in accordance with the terms and conditions
 ** contained in the Technology Preview License Agreement accompanying
 ** this package.
 **
 ** GNU Lesser General Public License Usage
-**
 ** Alternatively, this file may be used under the terms of the GNU Lesser
 ** General Public License version 2.1 as published by the Free Software
 ** Foundation and appearing in the file LICENSE.LGPL included in the
@@ -29,34 +28,36 @@
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
 **
-**************************************************************************/
+** $QT_END_LICENSE$
+**
+****************************************************************************/
+#ifndef MAEMODEVICECONFIGWIZARD_H
+#define MAEMODEVICECONFIGWIZARD_H
 
-#ifndef QMLSTANDALONEAPPWIZARDPAGES_H
-#define QMLSTANDALONEAPPWIZARDPAGES_H
-
-#include <QtGui/QWizardPage>
-#include "qmlstandaloneapp.h"
+#include <QtCore/QScopedPointer>
+#include <QtGui/QWizard>
 
 namespace Qt4ProjectManager {
 namespace Internal {
+class MaemoDeviceConfig;
+class MaemoDeviceConfigurations;
+struct MaemoDeviceConfigWizardPrivate;
 
-class QmlStandaloneAppWizardSourcesPage : public QWizardPage
+class MaemoDeviceConfigWizard : public QWizard
 {
     Q_OBJECT
-    Q_DISABLE_COPY(QmlStandaloneAppWizardSourcesPage)
-
 public:
-    explicit QmlStandaloneAppWizardSourcesPage(QWidget *parent = 0);
-    virtual ~QmlStandaloneAppWizardSourcesPage();
-
-    QString mainQmlFile() const;
-    virtual bool isComplete() const;
+    explicit MaemoDeviceConfigWizard(MaemoDeviceConfigurations *devConfigs,
+        QWidget *parent = 0);
+    ~MaemoDeviceConfigWizard();
+    void createDeviceConfig();
+    virtual int nextId() const;
 
 private:
-    class QmlStandaloneAppWizardSourcesPagePrivate *m_d;
+    const QScopedPointer<MaemoDeviceConfigWizardPrivate> d;
 };
 
-} // end of namespace Internal
-} // end of namespace Qt4ProjectManager
+} // namespace Internal
+} // namespace Qt4ProjectManager
 
-#endif // QMLSTANDALONEAPPWIZARDPAGES_H
+#endif // MAEMODEVICECONFIGWIZARD_H

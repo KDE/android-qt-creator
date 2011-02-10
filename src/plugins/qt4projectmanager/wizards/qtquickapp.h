@@ -31,8 +31,8 @@
 **
 **************************************************************************/
 
-#ifndef QMLSTANDALONEAPP_H
-#define QMLSTANDALONEAPP_H
+#ifndef QTQUICKAPP_H
+#define QTQUICKAPP_H
 
 #include "abstractmobileapp.h"
 
@@ -42,7 +42,7 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class QmlStandaloneApp;
+class QtQuickApp;
 
 struct QmlModule
 {
@@ -57,13 +57,13 @@ struct QmlModule
     };
 
     QmlModule(const QString &name, const QFileInfo &rootDir, const QFileInfo &qmldir,
-              bool isExternal, QmlStandaloneApp *qmlStandaloneApp);
+              bool isExternal, QtQuickApp *qtQuickApp);
     QString path(Path path) const;
     const QString uri;              // "com.foo.bar"
     const QFileInfo rootDir;        // Location of "com/"
     const QFileInfo qmldir;         // 'qmldir' file.
     const bool isExternal;          // Either external or inside a source paths
-    const QmlStandaloneApp *qmlStandaloneApp;
+    const QtQuickApp *qtQuickApp;
     QHash<QString, struct QmlCppPlugin*> cppPlugins;   // Just as info. No ownership.
 };
 
@@ -77,7 +77,7 @@ struct QmlCppPlugin
     const QFileInfo proFile;        // .pro file for the plugin
 };
 
-struct QmlAppGeneratedFileInfo : public AbstractGeneratedFileInfo
+struct QtQuickAppGeneratedFileInfo : public AbstractGeneratedFileInfo
 {
     enum ExtendedFileType {
         MainQmlFile = ExtendedFile,
@@ -86,11 +86,10 @@ struct QmlAppGeneratedFileInfo : public AbstractGeneratedFileInfo
         AppViewerHFile
     };
 
-    QmlAppGeneratedFileInfo() : AbstractGeneratedFileInfo() {}
-    virtual bool isOutdated() const;
+    QtQuickAppGeneratedFileInfo() : AbstractGeneratedFileInfo() {}
 };
 
-class QmlStandaloneApp : public AbstractMobileApp
+class QtQuickApp : public AbstractMobileApp
 {
 public:
     enum ExtendedFileType {
@@ -108,8 +107,8 @@ public:
         ModulesDir
     };
 
-    QmlStandaloneApp();
-    virtual ~QmlStandaloneApp();
+    QtQuickApp();
+    virtual ~QtQuickApp();
 
     void setMainQmlFile(const QString &qmlFile);
     QString mainQmlFile() const;
@@ -122,8 +121,6 @@ public:
 #endif // CREATORLESSTEST
     bool useExistingMainQml() const;
     const QList<QmlModule*> modules() const;
-    static QList<QmlAppGeneratedFileInfo> fileUpdates(const QString &mainProFile);
-    static bool updateFiles(const QList<QmlAppGeneratedFileInfo> &list, QString &error);
 
     static const int StubVersion;
 
@@ -137,7 +134,9 @@ private:
     virtual bool adaptCurrentMainCppTemplateLine(QString &line) const;
     virtual void handleCurrentProFileTemplateLine(const QString &line,
         QTextStream &proFileTemplate, QTextStream &proFile,
-        bool &uncommentNextLine) const;
+        bool &commentOutNextLine) const;
+    QList<AbstractGeneratedFileInfo> updateableFiles(const QString &mainProFile) const;
+    QList<DeploymentFolder> deploymentFolders() const;
 
     bool addExternalModule(const QString &uri, const QFileInfo &dir,
                            const QFileInfo &contentDir);
@@ -151,7 +150,7 @@ private:
     QList <QmlCppPlugin*> m_cppPlugins;
 };
 
-} // end of namespace Internal
-} // end of namespace Qt4ProjectManager
+} // namespace Internal
+} // namespace Qt4ProjectManager
 
-#endif // QMLSTANDALONEAPP_H
+#endif // QTQUICKAPP_H

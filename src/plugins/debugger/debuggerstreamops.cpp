@@ -186,6 +186,8 @@ QDataStream &operator<<(QDataStream &stream, const BreakpointParameters &s)
     stream << s.functionName;
     stream << s.useFullPath;
     stream << s.tracepoint;
+    stream << s.module;
+    stream << s.command;
     return stream;
 }
 
@@ -203,6 +205,8 @@ QDataStream &operator>>(QDataStream &stream, BreakpointParameters &s)
     stream >> str; s.functionName = str;
     stream >> b; s.useFullPath = b;
     stream >> b; s.tracepoint = b;
+    stream >> str ; s.module = str;
+    stream >> str ; s.command = str;
     return stream;
 }
 

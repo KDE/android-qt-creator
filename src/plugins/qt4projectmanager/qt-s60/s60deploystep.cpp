@@ -37,8 +37,9 @@
 #include "s60deployconfiguration.h"
 #include "s60devicerunconfiguration.h"
 #include "s60runconfigbluetoothstarter.h"
-#include "tcftrkdevice.h"
+#include "codadevice.h"
 #include "trkruncontrol.h"
+#include "codaruncontrol.h"
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/buildsteplist.h>
@@ -48,7 +49,6 @@
 
 #include <symbianutils/launcher.h>
 #include <symbianutils/symbiandevicemanager.h>
-#include <symbianutils/virtualserialdevice.h>
 #include <utils/qtcassert.h>
 
 #include <QtGui/QMessageBox>
@@ -66,7 +66,7 @@
 using namespace ProjectExplorer;
 using namespace Qt4ProjectManager::Internal;
 
-enum {debug = 0};
+enum { debug = 0 };
 
 static const quint64  DEFAULT_CHUNK_SIZE = 40000;
 
@@ -108,7 +108,6 @@ S60DeployStep::S60DeployStep(ProjectExplorer::BuildStepList *bc,
     m_releaseDeviceAfterLauncherFinish(bs->m_releaseDeviceAfterLauncherFinish),
     m_handleDeviceRemoval(bs->m_handleDeviceRemoval),
     m_launcher(0),
-    m_trkDevice(0),
     m_eventLoop(0),
     m_state(StateUninit),
     m_putWriteOk(false),
@@ -116,7 +115,8 @@ S60DeployStep::S60DeployStep(ProjectExplorer::BuildStepList *bc,
     m_putChunkSize(DEFAULT_CHUNK_SIZE),
     m_currentFileIndex(0),
     m_channel(bs->m_channel),
-    m_deployCanceled(false)
+    m_deployCanceled(false),
+    m_copyProgress(0)
 {
     ctor();
 }
@@ -126,7 +126,6 @@ S60DeployStep::S60DeployStep(ProjectExplorer::BuildStepList *bc):
     m_releaseDeviceAfterLauncherFinish(true),
     m_handleDeviceRemoval(true),
     m_launcher(0),
-    m_trkDevice(0),
     m_eventLoop(0),
     m_state(StateUninit),
     m_putWriteOk(false),
@@ -134,7 +133,8 @@ S60DeployStep::S60DeployStep(ProjectExplorer::BuildStepList *bc):
     m_putChunkSize(DEFAULT_CHUNK_SIZE),
     m_currentFileIndex(0),
     m_channel(S60DeployConfiguration::CommunicationTrkSerialConnection),
-    m_deployCanceled(false)
+    m_deployCanceled(false),
+    m_copyProgress(0)
 {
     ctor();
 }
@@ -149,7 +149,6 @@ S60DeployStep::~S60DeployStep()
 {
     delete m_timer;
     delete m_launcher;
-    delete m_trkDevice;
     delete m_eventLoop;
 }
 
@@ -200,6 +199,10 @@ bool S60DeployStep::init()
             appendMessage(message, true);
             return true;
         }
+
+        if (debug)
+            m_launcher->setVerbose(debug);
+
         // Prompt the user to start up the Bluetooth connection
         const trk::PromptStartCommunicationResult src =
                 S60RunConfigBluetoothStarter::startCommunication(m_launcher->trkDevice(),
@@ -281,15 +284,14 @@ void S60DeployStep::start()
             || m_channel == S60DeployConfiguration::CommunicationCodaSerialConnection);
     bool trkClient = m_channel == S60DeployConfiguration::CommunicationTrkSerialConnection;
 
-    if (serialConnection && m_serialPortName.isEmpty()
+    if ((serialConnection && m_serialPortName.isEmpty())
             || (trkClient && !m_launcher)) {
         errorMessage = tr("No device is connected. Please connect a device and try again.");
         reportError(errorMessage);
         return;
     }
     if (!trkClient) {
-        QTC_ASSERT(!m_trkDevice, return);
-        m_trkDevice = new tcftrk::TcfTrkDevice;
+        QTC_ASSERT(!m_codaDevice.data(), return);
         if (m_address.isEmpty() && !serialConnection) {
             errorMessage = tr("No address for a device has been defined. Please define an address and try again.");
             reportError(errorMessage);
@@ -313,9 +315,9 @@ void S60DeployStep::stop()
         if (m_launcher)
             m_launcher->terminate();
     } else {
-        if (m_trkDevice) {
-            delete m_trkDevice;
-            m_trkDevice = 0;
+        if (m_codaDevice) {
+            disconnect(m_codaDevice.data(), 0, this, 0);
+            SymbianUtils::SymbianDeviceManager::instance()->releaseTcfPort(m_codaDevice);
         }
     }
     emit finished(false);
@@ -337,11 +339,12 @@ void S60DeployStep::setupConnections()
         connect(m_launcher, SIGNAL(canNotInstall(QString,QString)), this, SLOT(installFailed(QString,QString)));
         connect(m_launcher, SIGNAL(installingFinished()), this, SLOT(printInstallingFinished()));
         connect(m_launcher, SIGNAL(stateChanged(int)), this, SLOT(slotLauncherStateChanged(int)));
+        connect(m_launcher, SIGNAL(copyProgress(int)), this, SLOT(setCopyProgress(int)));
     } else {
-        connect(m_trkDevice, SIGNAL(error(QString)), this, SLOT(slotError(QString)));
-        connect(m_trkDevice, SIGNAL(logMessage(QString)), this, SLOT(slotTrkLogMessage(QString)));
-        connect(m_trkDevice, SIGNAL(tcfEvent(tcftrk::TcfTrkEvent)), this, SLOT(slotTcftrkEvent(tcftrk::TcfTrkEvent)), Qt::DirectConnection);
-        connect(m_trkDevice, SIGNAL(serialPong(QString)), this, SLOT(slotSerialPong(QString)));
+        connect(m_codaDevice.data(), SIGNAL(error(QString)), this, SLOT(slotError(QString)));
+        connect(m_codaDevice.data(), SIGNAL(logMessage(QString)), this, SLOT(slotTrkLogMessage(QString)));
+        connect(m_codaDevice.data(), SIGNAL(tcfEvent(Coda::CodaEvent)), this, SLOT(slotCodaEvent(Coda::CodaEvent)), Qt::DirectConnection);
+        connect(m_codaDevice.data(), SIGNAL(serialPong(QString)), this, SLOT(slotSerialPong(QString)));
         connect(this, SIGNAL(manualInstallation()), this, SLOT(showManualInstallationInfo()));
     }
 }
@@ -350,13 +353,14 @@ void S60DeployStep::startDeployment()
 {
     if (m_channel == S60DeployConfiguration::CommunicationTrkSerialConnection) {
         QTC_ASSERT(m_launcher, return);
-    } else {
-        QTC_ASSERT(m_trkDevice, return);
     }
+    QTC_ASSERT(!m_codaDevice.data(), return);
 
-    setupConnections();
+    // We need to defer setupConnections() in the case of CommunicationCodaSerialConnection
+    //setupConnections();
 
     if (m_channel == S60DeployConfiguration::CommunicationTrkSerialConnection) {
+        setupConnections();
         QStringList copyDst;
         foreach (const QString &signedPackage, m_signedPackages)
             copyDst << QString::fromLatin1("%1:\\Data\\%2").arg(m_installationDrive).arg(QFileInfo(signedPackage).fileName());
@@ -379,26 +383,30 @@ void S60DeployStep::startDeployment()
             stop();
         }
     } else if (m_channel == S60DeployConfiguration::CommunicationCodaSerialConnection) {
-        const QSharedPointer<SymbianUtils::VirtualSerialDevice> serialDevice(new SymbianUtils::VirtualSerialDevice(m_serialPortName));
         appendMessage(tr("Deploying application to '%1'...").arg(m_serialPortFriendlyName), false);
-        m_trkDevice->setSerialFrame(true);
-        m_trkDevice->setDevice(serialDevice);
-        bool ok = serialDevice->open(QIODevice::ReadWrite);
+        m_codaDevice = SymbianUtils::SymbianDeviceManager::instance()->getTcfPort(m_serialPortName);
+        bool ok = m_codaDevice && m_codaDevice->device()->isOpen();
         if (!ok) {
-            reportError(tr("Couldn't open serial device: %1").arg(serialDevice->errorString()));
+            QString deviceError = tr("No such port");
+            if (m_codaDevice)
+                deviceError = m_codaDevice->device()->errorString();
+            reportError(tr("Couldn't open serial device: %1").arg(deviceError));
             stop();
             return;
         }
+        setupConnections();
         m_state = StateConnecting;
-        m_trkDevice->sendSerialPing(false);
+        m_codaDevice->sendSerialPing(false);
     } else {
-        const QSharedPointer<QTcpSocket> tcfTrkSocket(new QTcpSocket);
-        m_trkDevice->setDevice(tcfTrkSocket);
-        tcfTrkSocket->connectToHost(m_address, m_port);
+        m_codaDevice = QSharedPointer<Coda::CodaDevice>(new Coda::CodaDevice);
+        setupConnections();
+        const QSharedPointer<QTcpSocket> codaSocket(new QTcpSocket);
+        m_codaDevice->setDevice(codaSocket);
+        codaSocket->connectToHost(m_address, m_port);
         m_state = StateConnecting;
         appendMessage(tr("Connecting to %1:%2...").arg(m_address).arg(m_port), false);
-        QTimer::singleShot(4000, this, SLOT(checkForTimeout()));
     }
+    QTimer::singleShot(4000, this, SLOT(checkForTimeout()));
 }
 
 void S60DeployStep::run(QFutureInterface<bool> &fi)
@@ -407,6 +415,8 @@ void S60DeployStep::run(QFutureInterface<bool> &fi)
     m_deployResult = true;
     m_deployCanceled = false;
     disconnect(this);
+
+    m_futureInterface->setProgressRange(0, 100*m_signedPackages.count());
 
     if (m_channel == S60DeployConfiguration::CommunicationTrkSerialConnection) {
         connect(this, SIGNAL(finished(bool)), this, SLOT(launcherFinished(bool)));
@@ -418,6 +428,8 @@ void S60DeployStep::run(QFutureInterface<bool> &fi)
         connect(this, SIGNAL(allFilesInstalled()), this, SIGNAL(finished()), Qt::DirectConnection);
     }
 
+    connect(this, SIGNAL(copyProgressChanged(int)), this, SLOT(updateProgress(int)));
+
     start();
     m_timer = new QTimer();
     connect(m_timer, SIGNAL(timeout()), this, SLOT(checkForCancel()), Qt::DirectConnection);
@@ -428,8 +440,10 @@ void S60DeployStep::run(QFutureInterface<bool> &fi)
     delete m_timer;
     m_timer = 0;
 
-    delete m_trkDevice;
-    m_trkDevice = 0;
+    if (m_codaDevice) {
+        disconnect(m_codaDevice.data(), 0, this, 0);
+        SymbianUtils::SymbianDeviceManager::instance()->releaseTcfPort(m_codaDevice);
+    }
 
     delete m_eventLoop;
     m_eventLoop = 0;
@@ -444,7 +458,7 @@ void S60DeployStep::slotError(const QString &error)
 
 void S60DeployStep::slotTrkLogMessage(const QString &log)
 {
-    if (debug)
+    if (debug > 1)
         qDebug() << "CODA log:" << log;
 }
 
@@ -454,15 +468,15 @@ void S60DeployStep::slotSerialPong(const QString &message)
         qDebug() << "CODA serial pong:" << message;
 }
 
-void S60DeployStep::slotTcftrkEvent (const tcftrk::TcfTrkEvent &event)
+void S60DeployStep::slotCodaEvent (const Coda::CodaEvent &event)
 {
     if (debug)
         qDebug() << "CODA event:" << "Type:" << event.type() << "Message:" << event.toString();
 
     switch (event.type()) {
-    case tcftrk::TcfTrkEvent::LocatorHello: {// Commands accepted now
+    case Coda::CodaEvent::LocatorHello: {// Commands accepted now
         m_state = StateConnected;
-        emit tcpConnected();
+        emit codaConnected();
         startTransferring();
         break;
     }
@@ -479,14 +493,14 @@ void S60DeployStep::initFileSending()
     QTC_ASSERT(m_currentFileIndex >= 0, return);
 
     const unsigned flags =
-            tcftrk::TcfTrkDevice::FileSystem_TCF_O_WRITE
-            |tcftrk::TcfTrkDevice::FileSystem_TCF_O_CREAT
-            |tcftrk::TcfTrkDevice::FileSystem_TCF_O_TRUNC;
+            Coda::CodaDevice::FileSystem_TCF_O_WRITE
+            |Coda::CodaDevice::FileSystem_TCF_O_CREAT
+            |Coda::CodaDevice::FileSystem_TCF_O_TRUNC;
     m_putWriteOk = false;
 
     QString packageName(QFileInfo(m_signedPackages.at(m_currentFileIndex)).fileName());
     QString remoteFileLocation = QString::fromLatin1("%1:\\Data\\%2").arg(m_installationDrive).arg(packageName);
-    m_trkDevice->sendFileSystemOpenCommand(tcftrk::TcfTrkCallback(this, &S60DeployStep::handleFileSystemOpen),
+    m_codaDevice->sendFileSystemOpenCommand(Coda::CodaCallback(this, &S60DeployStep::handleFileSystemOpen),
                                            remoteFileLocation.toAscii(), flags);
     appendMessage(tr("Copying \"%1\"...").arg(packageName), false);
 }
@@ -499,11 +513,11 @@ void S60DeployStep::initFileInstallation()
     QString packageName(QFileInfo(m_signedPackages.at(m_currentFileIndex)).fileName());
     QString remoteFileLocation = QString::fromLatin1("%1:\\Data\\%2").arg(m_installationDrive).arg(packageName);
     if (m_silentInstall) {
-        m_trkDevice->sendSymbianInstallSilentInstallCommand(tcftrk::TcfTrkCallback(this, &S60DeployStep::handleSymbianInstall),
+        m_codaDevice->sendSymbianInstallSilentInstallCommand(Coda::CodaCallback(this, &S60DeployStep::handleSymbianInstall),
                                                             remoteFileLocation.toAscii(), QString::fromLatin1("%1:").arg(m_installationDrive).toAscii());
         appendMessage(tr("Installing package \"%1\" on drive %2:...").arg(packageName).arg(m_installationDrive), false);
     } else {
-        m_trkDevice->sendSymbianInstallUIInstallCommand(tcftrk::TcfTrkCallback(this, &S60DeployStep::handleSymbianInstall),
+        m_codaDevice->sendSymbianInstallUIInstallCommand(Coda::CodaCallback(this, &S60DeployStep::handleSymbianInstall),
                                                         remoteFileLocation.toAscii());
         appendMessage(tr("Please continue the installation on your device."), false);
         emit manualInstallation();
@@ -524,9 +538,9 @@ void S60DeployStep::startInstalling()
     m_state = StateInstalling;
 }
 
-void S60DeployStep::handleFileSystemOpen(const tcftrk::TcfTrkCommandResult &result)
+void S60DeployStep::handleFileSystemOpen(const Coda::CodaCommandResult &result)
 {
-    if (result.type != tcftrk::TcfTrkCommandResult::SuccessReply) {
+    if (result.type != Coda::CodaCommandResult::SuccessReply) {
         reportError(tr("Open remote file failed: %1").arg(result.errorString()));
         return;
     }
@@ -546,9 +560,9 @@ void S60DeployStep::handleFileSystemOpen(const tcftrk::TcfTrkCommandResult &resu
     putSendNextChunk();
 }
 
-void S60DeployStep::handleSymbianInstall(const tcftrk::TcfTrkCommandResult &result)
+void S60DeployStep::handleSymbianInstall(const Coda::CodaCommandResult &result)
 {
-    if (result.type == tcftrk::TcfTrkCommandResult::SuccessReply) {
+    if (result.type == Coda::CodaCommandResult::SuccessReply) {
         appendMessage(tr("Installation has finished"), false);
         if (++m_currentFileIndex >= m_signedPackages.count())
             emit allFilesInstalled();
@@ -564,27 +578,30 @@ void S60DeployStep::putSendNextChunk()
     // Read and send off next chunk
     const quint64 pos = m_putFile->pos();
     const QByteArray data = m_putFile->read(m_putChunkSize);
+    const quint64 size = m_putFile->size();
     if (data.isEmpty()) {
         m_putWriteOk = true;
         closeRemoteFile();
+        setCopyProgress(100);
     } else {
         m_putLastChunkSize = data.size();
-        if (debug)
+        if (debug > 1)
             qDebug("Writing %llu bytes to remote file '%s' at %llu\n",
                    m_putLastChunkSize,
                    m_remoteFileHandle.constData(), pos);
-        m_trkDevice->sendFileSystemWriteCommand(tcftrk::TcfTrkCallback(this, &S60DeployStep::handleFileSystemWrite),
+        m_codaDevice->sendFileSystemWriteCommand(Coda::CodaCallback(this, &S60DeployStep::handleFileSystemWrite),
                                                 m_remoteFileHandle, data, unsigned(pos));
+        setCopyProgress((100*(m_putLastChunkSize+pos))/size);
     }
 }
 
 void S60DeployStep::closeRemoteFile()
 {
-    m_trkDevice->sendFileSystemCloseCommand(tcftrk::TcfTrkCallback(this, &S60DeployStep::handleFileSystemClose),
+    m_codaDevice->sendFileSystemCloseCommand(Coda::CodaCallback(this, &S60DeployStep::handleFileSystemClose),
                                             m_remoteFileHandle);
 }
 
-void S60DeployStep::handleFileSystemWrite(const tcftrk::TcfTrkCommandResult &result)
+void S60DeployStep::handleFileSystemWrite(const Coda::CodaCommandResult &result)
 {
     // Close remote file even if copy fails
     m_putWriteOk = result;
@@ -600,9 +617,9 @@ void S60DeployStep::handleFileSystemWrite(const tcftrk::TcfTrkCommandResult &res
     }
 }
 
-void S60DeployStep::handleFileSystemClose(const tcftrk::TcfTrkCommandResult &result)
+void S60DeployStep::handleFileSystemClose(const Coda::CodaCommandResult &result)
 {
-    if (result.type == tcftrk::TcfTrkCommandResult::SuccessReply) {
+    if (result.type == Coda::CodaCommandResult::SuccessReply) {
         if (debug)
             qDebug("File closed.\n");
         if (++m_currentFileIndex >= m_signedPackages.count())
@@ -619,14 +636,8 @@ void S60DeployStep::checkForTimeout()
     if (m_state != StateConnecting)
         return;
 
-    const QString title  = tr("Waiting for CODA");
-    const QString text = tr("Qt Creator is waiting for the CODA application to connect. "
-                            "Please make sure the application is running on "
-                            "your mobile phone and the right IP address and port are "
-                            "configured in the project settings.");
-    QMessageBox *mb = new QMessageBox(QMessageBox::Information, title, text,
-                                      QMessageBox::Cancel, Core::ICore::instance()->mainWindow());
-    connect(this, SIGNAL(tcpConnected()), mb, SLOT(close()));
+    QMessageBox *mb = CodaRunControl::createCodaWaitingMessageBox(Core::ICore::instance()->mainWindow());
+    connect(this, SIGNAL(codaConnected()), mb, SLOT(close()));
     connect(this, SIGNAL(finished()), mb, SLOT(close()));
     connect(this, SIGNAL(finishNow()), mb, SLOT(close()));
     connect(mb, SIGNAL(finished(int)), this, SLOT(slotWaitingForTckTrkClosed(int)));
@@ -732,6 +743,8 @@ void S60DeployStep::checkForCancel()
 void S60DeployStep::launcherFinished(bool success)
 {
     m_deployResult = success;
+    if(m_deployResult && m_futureInterface)
+        m_futureInterface->setProgressValue(m_futureInterface->progressMaximum());
     if (m_releaseDeviceAfterLauncherFinish && m_launcher) {
         m_handleDeviceRemoval = false;
         trk::Launcher::releaseToDeviceManager(m_launcher);
@@ -746,6 +759,8 @@ void S60DeployStep::launcherFinished(bool success)
 void S60DeployStep::deploymentFinished(bool success)
 {
     m_deployResult = success;
+    if(m_deployResult && m_futureInterface)
+        m_futureInterface->setProgressValue(m_futureInterface->progressMaximum());
     if (m_eventLoop)
         m_eventLoop->exit();
 }
@@ -754,6 +769,32 @@ void S60DeployStep::deviceRemoved(const SymbianUtils::SymbianDevice &d)
 {
     if (m_handleDeviceRemoval && d.portName() == m_serialPortName)
         reportError(tr("The device '%1' has been disconnected").arg(d.friendlyName()));
+}
+
+void S60DeployStep::setCopyProgress(int progress)
+{
+    if (progress < 0)
+        progress = 0;
+    else if (progress > 100)
+        progress = 100;
+    if (copyProgress() == progress)
+        return;
+    m_copyProgress = progress;
+    emit copyProgressChanged(m_copyProgress);
+}
+
+int S60DeployStep::copyProgress() const
+{
+    return m_copyProgress;
+}
+
+void S60DeployStep::updateProgress(int progress)
+{
+    //This would show the percentage on the Compile output
+    //appendMessage(tr("Copy percentage: %1%").arg((m_currentFileIndex*100 + progress) /m_signedPackages.count()), false);
+    int copyProgress = ((m_currentFileIndex*100 + progress) /m_signedPackages.count());
+    int entireProgress = copyProgress * 0.8; //the copy progress is just 80% of the whole deployment progress
+    m_futureInterface->setProgressValueAndText(entireProgress, tr("Copy percentage: %1%").arg(copyProgress));
 }
 
 // #pragma mark -- S60DeployStepWidget

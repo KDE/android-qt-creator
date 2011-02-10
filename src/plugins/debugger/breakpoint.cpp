@@ -45,6 +45,12 @@ namespace Internal {
 //
 //////////////////////////////////////////////////////////////////
 
+/*!
+    \class Debugger::Internal::BreakpointParameters
+
+    Data type holding the parameters of a breakpoint.
+*/
+
 BreakpointParameters::BreakpointParameters(BreakpointType t)
   : type(t), enabled(true), useFullPath(false),
     ignoreCount(0), lineNumber(0), address(0), threadSpec(-1),
@@ -63,7 +69,9 @@ bool BreakpointParameters::equals(const BreakpointParameters &rhs) const
         && address == rhs.address
         && threadSpec == rhs.threadSpec
         && functionName == rhs.functionName
-        && tracepoint == rhs.tracepoint;
+        && tracepoint == rhs.tracepoint
+        && module == rhs.module
+        && command == rhs.command;
 }
 
 bool BreakpointParameters::conditionsMatch(const QByteArray &other) const
@@ -88,15 +96,23 @@ QString BreakpointParameters::toString() const
     ts << " FunctionName: " << functionName;
     ts << " UseFullPath: " << useFullPath;
     ts << " Tracepoint: " << tracepoint;
+    ts << " Module: " << module;
+    ts << " Command: " << command;
     return result;
 }
 
+//////////////////////////////////////////////////////////////////
+//
+// BreakpointResponse
+//
+//////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////
-//
-// BreakpointParameters
-//
-//////////////////////////////////////////////////////////////////
+/*!
+    \class Debugger::Internal::BreakpointResponse
+
+    This is what debuggers produce in response to the attempt to
+    insert a breakpoint. The data might differ from the requested bits.
+*/
 
 BreakpointResponse::BreakpointResponse()
     : number(0), pending(true), multiple(false), correctedLineNumber(0)

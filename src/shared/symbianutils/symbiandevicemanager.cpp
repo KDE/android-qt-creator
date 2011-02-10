@@ -33,7 +33,11 @@
 
 #include "symbiandevicemanager.h"
 #include "trkdevice.h"
+#include "codadevice.h"
+#include "virtualserialdevice.h"
 
+#include <QtCore/QCoreApplication>
+#include <QtCore/QEvent>
 #include <QtCore/QSettings>
 #include <QtCore/QStringList>
 #include <QtCore/QFileInfo>
@@ -42,6 +46,8 @@
 #include <QtCore/QSharedData>
 #include <QtCore/QScopedPointer>
 #include <QtCore/QSignalMapper>
+#include <QtCore/QThread>
+#include <QtCore/QWaitCondition>
 
 namespace SymbianUtils {
 
@@ -58,7 +64,7 @@ public:
     SymbianDeviceData();
     ~SymbianDeviceData();
 
-    inline bool isOpen() const { return !device.isNull() && device->isOpen(); }
+    bool isOpen() const;
     void forcedClose();
 
     QString portName;
@@ -69,6 +75,7 @@ public:
 
     DeviceCommunicationType type;
     QSharedPointer<trk::TrkDevice> device;
+    QSharedPointer<Coda::CodaDevice> codaDevice;
     bool deviceAcquired;
 };
 
@@ -76,6 +83,15 @@ SymbianDeviceData::SymbianDeviceData() :
         type(SerialPortCommunication),
         deviceAcquired(false)
 {
+}
+
+bool SymbianDeviceData::isOpen() const
+{
+    if (device)
+        return device->isOpen();
+    if (codaDevice)
+        return codaDevice->device()->isOpen();
+    return false;
 }
 
 SymbianDeviceData::~SymbianDeviceData()
@@ -93,7 +109,10 @@ void SymbianDeviceData::forcedClose()
         if (deviceAcquired)
             qWarning("Device on '%s' unplugged while an operation is in progress.",
                      qPrintable(portName));
-        device->close();
+        if (device)
+            device->close();
+        else
+            codaDevice->device()->close();
     }
 }
 
@@ -247,17 +266,34 @@ SYMBIANUTILS_EXPORT QDebug operator<<(QDebug d, const SymbianDevice &cd)
 
 // ------------- SymbianDeviceManagerPrivate
 struct SymbianDeviceManagerPrivate {
-    SymbianDeviceManagerPrivate() : m_initialized(false), m_destroyReleaseMapper(0) {}
+    SymbianDeviceManagerPrivate() : m_initialized(false) /*, m_destroyReleaseMapper(0),*/ {}
 
     bool m_initialized;
     SymbianDeviceManager::SymbianDeviceList m_devices;
-    QSignalMapper *m_destroyReleaseMapper;
+    //QSignalMapper *m_destroyReleaseMapper;
+    // The following 2 variables are needed to manage requests for a TCF port not coming from the main thread
+    int m_constructTcfPortEventType;
+    QMutex m_tcfPortWaitMutex;
 };
+
+class QConstructTcfPortEvent : public QEvent
+{
+public:
+    QConstructTcfPortEvent(QEvent::Type eventId, const QString &portName, CodaDevicePtr *device, QWaitCondition *waiter) :
+        QEvent(eventId), m_portName(portName), m_device(device), m_waiter(waiter)
+       {}
+
+    QString m_portName;
+    CodaDevicePtr* m_device;
+    QWaitCondition *m_waiter;
+};
+
 
 SymbianDeviceManager::SymbianDeviceManager(QObject *parent) :
     QObject(parent),
     d(new SymbianDeviceManagerPrivate)
 {
+    d->m_constructTcfPortEventType = QEvent::registerEventType();
 }
 
 SymbianDeviceManager::~SymbianDeviceManager()
@@ -318,6 +354,75 @@ SymbianDeviceManager::TrkDevicePtr
     return rc;
 }
 
+CodaDevicePtr SymbianDeviceManager::getTcfPort(const QString &port)
+{
+    ensureInitialized();
+    const int idx = findByPortName(port);
+    if (idx == -1) {
+        qWarning("Attempt to acquire device '%s' that does not exist.", qPrintable(port));
+        if (debug)
+            qDebug() << *this;
+        return CodaDevicePtr();
+    }
+    SymbianDevice& device = d->m_devices[idx];
+    if (device.m_data->device) {
+        qWarning("Attempting to open a port '%s' that is configured for TRK!", qPrintable(port));
+        return CodaDevicePtr();
+    }
+    CodaDevicePtr& devicePtr = device.m_data->codaDevice;
+    if (devicePtr.isNull() || !devicePtr->device()->isOpen()) {
+        // Check we instanciate in the correct thread - we can't afford to create the CodaDevice (and more specifically, open the VirtualSerialDevice) in a thread that isn't guaranteed to be long-lived.
+        // Therefore, if we're not in SymbianDeviceManager's thread, rejig things so it's opened in the main thread
+        if (QThread::currentThread() != thread()) {
+            // SymbianDeviceManager is owned by the current thread
+            d->m_tcfPortWaitMutex.lock();
+            QWaitCondition waiter;
+            QCoreApplication::postEvent(this, new QConstructTcfPortEvent((QEvent::Type)d->m_constructTcfPortEventType, port, &devicePtr, &waiter));
+            waiter.wait(&d->m_tcfPortWaitMutex);
+            // When the wait returns (due to the wakeAll in SymbianDeviceManager::customEvent), the CodaDevice will be fully set up
+            d->m_tcfPortWaitMutex.unlock();
+        } else {
+            // We're in the main thread, just set it up directly
+            constructTcfPort(devicePtr, port);
+        }
+    // We still carry on in the case we failed to open so the client can access the IODevice's errorString()
+    }
+    return devicePtr;
+}
+
+void SymbianDeviceManager::constructTcfPort(CodaDevicePtr& device, const QString& portName)
+{
+    QMutexLocker locker(&d->m_tcfPortWaitMutex);
+    if (device.isNull()) {
+        device = QSharedPointer<Coda::CodaDevice>(new Coda::CodaDevice);
+        const QSharedPointer<SymbianUtils::VirtualSerialDevice> serialDevice(new SymbianUtils::VirtualSerialDevice(portName));
+        device->setSerialFrame(true);
+        device->setDevice(serialDevice);
+    }
+    if (!device->device()->isOpen()) {
+        bool ok = device->device().staticCast<SymbianUtils::VirtualSerialDevice>()->open(QIODevice::ReadWrite);
+        if (!ok && debug) {
+            qDebug("SymbianDeviceManager: Failed to open port %s", qPrintable(portName));
+        }
+    }
+}
+
+void SymbianDeviceManager::customEvent(QEvent *event)
+{
+    if (event->type() == d->m_constructTcfPortEventType) {
+        QConstructTcfPortEvent* constructEvent = static_cast<QConstructTcfPortEvent*>(event);
+        constructTcfPort(*constructEvent->m_device, constructEvent->m_portName);
+        constructEvent->m_waiter->wakeAll(); // Should only ever be one thing waiting on this
+    }
+}
+
+void SymbianDeviceManager::releaseTcfPort(CodaDevicePtr &aPort)
+{
+    if (aPort)
+        aPort.clear();
+    //TODO close the port after a timeer if last reference?
+}
+
 void SymbianDeviceManager::update()
 {
     update(true);
@@ -328,11 +433,10 @@ void SymbianDeviceManager::releaseDevice(const QString &port)
     const int idx = findByPortName(port);
     if (debug)
         qDebug() << "SymbianDeviceManager::releaseDevice" << port << idx << sender();
-    if (idx != -1) {
+    if (idx != -1)
         d->m_devices[idx].releaseDevice();
-    } else {
+    else
         qWarning("Attempt to release non-existing device %s.", qPrintable(port));
-    }
 }
 
 void SymbianDeviceManager::setAdditionalInformation(const QString &port, const QString &ai)

@@ -35,6 +35,7 @@
 #define ABSTRACTMOBILEAPP_H
 
 #include <QtCore/QFileInfo>
+#include <QtCore/QPair>
 
 #ifndef CREATORLESSTEST
 #include <coreplugin/basefilewizard.h>
@@ -48,7 +49,6 @@ namespace Internal {
 struct AbstractGeneratedFileInfo
 {
     enum FileType {
-        MainQmlFile,
         MainCppFile,
         AppProFile,
         DeploymentPriFile,
@@ -60,16 +60,15 @@ struct AbstractGeneratedFileInfo
 
     AbstractGeneratedFileInfo();
 
-    bool isUpToDate() const;
-    bool wasModified() const;
-    virtual bool isOutdated() const=0;
-
     int fileType;
     QFileInfo fileInfo;
-    int version;
-    quint16 dataChecksum;
-    quint16 statedChecksum;
+    int currentVersion; // Current version of the template file in Creator
+    int version; // The version in the file header
+    quint16 dataChecksum; // The calculated checksum
+    quint16 statedChecksum; // The checksum in the file header
 };
+
+typedef QPair<QString, QString> DeploymentFolder; // QPair<.source, .target>
 
 class AbstractMobileApp : public QObject
 {
@@ -125,6 +124,8 @@ public:
 
     static QString symbianUidForPath(const QString &path);
     static int makeStubVersion(int minor);
+    QList<AbstractGeneratedFileInfo> fileUpdates(const QString &mainProFile) const;
+    bool updateFiles(const QList<AbstractGeneratedFileInfo> &list, QString &error) const;
 
     static const QString DeploymentPriFileName;
 protected:
@@ -163,7 +164,9 @@ private:
     virtual bool adaptCurrentMainCppTemplateLine(QString &line) const=0;
     virtual void handleCurrentProFileTemplateLine(const QString &line,
         QTextStream &proFileTemplate, QTextStream &proFile,
-        bool &uncommentNextLine) const=0;
+        bool &commentOutNextLine) const = 0;
+    virtual QList<AbstractGeneratedFileInfo> updateableFiles(const QString &mainProFile) const = 0;
+    virtual QList<DeploymentFolder> deploymentFolders() const = 0;
 
     QString m_projectName;
     QFileInfo m_projectPath;
@@ -174,7 +177,7 @@ private:
     bool m_networkEnabled;
 };
 
-} // end of namespace Internal
-} // end of namespace Qt4ProjectManager
+} // namespace Internal
+} // namespace Qt4ProjectManager
 
 #endif // ABSTRACTMOBILEAPP_H

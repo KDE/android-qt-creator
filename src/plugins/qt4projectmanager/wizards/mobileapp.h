@@ -79,10 +79,12 @@ private:
     virtual bool adaptCurrentMainCppTemplateLine(QString &line) const;
     virtual void handleCurrentProFileTemplateLine(const QString &line,
         QTextStream &proFileTemplate, QTextStream &proFile,
-        bool &uncommentNextLine) const;
+        bool &commentOutNextLine) const;
+    QList<AbstractGeneratedFileInfo> updateableFiles(const QString &mainProFile) const;
+    QList<DeploymentFolder> deploymentFolders() const;
 };
 
-} // end of namespace Internal
-} // end of namespace Qt4ProjectManager
+} // namespace Internal
+} // namespace Qt4ProjectManager
 
 #endif // MOBILEAPP_H
