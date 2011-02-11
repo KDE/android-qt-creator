@@ -73,6 +73,7 @@ class Reference;
 class ColorValue;
 class AnchorLineValue;
 class TypeEnvironment;
+class AttachedTypeEnvironment;
 
 typedef QList<const Value *> ValueList;
 
@@ -304,6 +305,7 @@ public:
     QSharedPointer<const QmlComponentChain> qmlComponentScope;
     QList<const ObjectValue *> qmlScopeObjects;
     const TypeEnvironment *qmlTypes;
+    const AttachedTypeEnvironment *qmlAttachedTypes;
     QList<const ObjectValue *> jsScopes;
 
     // rebuilds the flat list of all scopes
@@ -420,9 +422,11 @@ private:
 
 private:
     Engine *_engine;
-    const Value *_prototype;
     QHash<QString, const Value *> _members;
     QString _className;
+
+protected:
+    const Value *_prototype;
 };
 
 class QMLJS_EXPORT PrototypeIterator
@@ -443,6 +447,8 @@ private:
     const Context *m_context;
 };
 
+// A ObjectValue based on a FakeMetaObject.
+// May only have other QmlObjectValues as ancestors.
 class QMLJS_EXPORT QmlObjectValue: public ObjectValue
 {
 public:
@@ -454,9 +460,17 @@ public:
     virtual void processMembers(MemberProcessor *processor) const;
     const Value *propertyValue(const LanguageUtils::FakeMetaProperty &prop) const;
 
+    using ObjectValue::prototype;
+    const QmlObjectValue *prototype() const;
+
+    const QmlObjectValue *attachedType() const;
+    void setAttachedType(QmlObjectValue *value);
+
+    LanguageUtils::FakeMetaObject::ConstPtr metaObject() const;
+
     QString packageName() const;
-    QString nameInPackage(const QString &packageName) const;
     LanguageUtils::ComponentVersion version() const;
+
     QString defaultPropertyName() const;
     QString propertyType(const QString &propertyName) const;
     bool isListProperty(const QString &name) const;
@@ -475,6 +489,7 @@ protected:
     bool isDerivedFrom(LanguageUtils::FakeMetaObject::ConstPtr base) const;
 
 private:
+    QmlObjectValue *_attachedType;
     LanguageUtils::FakeMetaObject::ConstPtr _metaObject;
     const QString _packageName;
     const LanguageUtils::ComponentVersion _componentVersion;
@@ -585,24 +600,27 @@ class QMLJS_EXPORT CppQmlTypesLoader
 {
 public:
     /** \return an empty list when successful, error messages otherwise. */
-    static QStringList load(const QFileInfoList &xmlFiles);
-    static QList<LanguageUtils::FakeMetaObject::ConstPtr> builtinObjects;
+    static QStringList loadQmlTypes(const QFileInfoList &xmlFiles);
+    static QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> builtinObjects;
 
     // parses the xml string and fills the newObjects map
-    static QString parseQmlTypeXml(const QByteArray &xml,
-                                   QMap<QString, LanguageUtils::FakeMetaObject::Ptr> *newObjects);
-private:
-    static void setSuperClasses(QMap<QString, LanguageUtils::FakeMetaObject::Ptr> *newObjects);
+    static QString parseQmlTypeDescriptions(const QByteArray &xml,
+                                   QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *newObjects);
 };
 
 class QMLJS_EXPORT CppQmlTypes
 {
 public:
-    void load(Interpreter::Engine *interpreter, const QList<LanguageUtils::FakeMetaObject::ConstPtr> &objects);
+    // package name for objects that should be always available
+    static const QLatin1String defaultPackage;
+    // package name for objects with their raw cpp name
+    static const QLatin1String cppPackage;
+
+    template <typename T>
+    void load(Interpreter::Engine *interpreter, const T &objects);
 
     QList<Interpreter::QmlObjectValue *> typesForImport(const QString &prefix, LanguageUtils::ComponentVersion version) const;
-    Interpreter::QmlObjectValue *typeForImport(const QString &qualifiedName,
-                                               LanguageUtils::ComponentVersion version = LanguageUtils::ComponentVersion()) const;
+    Interpreter::QmlObjectValue *typeByCppName(const QString &cppName) const;
 
     bool hasPackage(const QString &package) const;
 
@@ -610,14 +628,16 @@ public:
     { return _typesByFullyQualifiedName; }
 
     static QString qualifiedName(const QString &package, const QString &type, LanguageUtils::ComponentVersion version);
-    QmlObjectValue *typeByQualifiedName(const QString &name) const;
+    QmlObjectValue *typeByQualifiedName(const QString &fullyQualifiedName) const;
     QmlObjectValue *typeByQualifiedName(const QString &package, const QString &type,
                                         LanguageUtils::ComponentVersion version) const;
 
 private:
-    QmlObjectValue *getOrCreate(const QString &package, const QString &cppName,
-                                LanguageUtils::FakeMetaObject::ConstPtr metaObject,
-                                Engine *engine, bool *created);
+    QmlObjectValue *makeObject(Engine *engine,
+                               LanguageUtils::FakeMetaObject::ConstPtr metaObject,
+                               const LanguageUtils::FakeMetaObject::Export &exp);
+    void setPrototypes(QmlObjectValue *object);
+    QmlObjectValue *getOrCreate(const QString &package, const QString &cppName);
 
 
     QHash<QString, QList<QmlObjectValue *> > _typesByPackage;
@@ -1016,6 +1036,19 @@ public:
 
     void addImport(const ObjectValue *import, const ImportInfo &info);
     ImportInfo importInfo(const QString &name, const Context *context) const;
+};
+
+class QMLJS_EXPORT AttachedTypeEnvironment: public ObjectValue
+{
+    const TypeEnvironment *_typeEnvironment;
+
+public:
+    AttachedTypeEnvironment(const TypeEnvironment *typeEnv);
+
+    virtual const Value *lookupMember(const QString &name, const Context *context,
+                                      const ObjectValue **foundInObject = 0,
+                                      bool examinePrototypes = true) const;
+    virtual void processMembers(MemberProcessor *processor) const;
 };
 
 } } // namespace QmlJS::Interpreter

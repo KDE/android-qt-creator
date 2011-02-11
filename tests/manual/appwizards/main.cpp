@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
     {
         QtQuickApp sAppImport01;
         sAppImport01.setProjectPath(projectPath);
-        sAppImport01.setProjectName(QLatin1String("imported_scenario_01"));
-        sAppImport01.setMainQmlFile(QLatin1String("../appwizards/qmlimportscenario_01/myqmlapp.qml"));
+        sAppImport01.setProjectName(QLatin1String("qml_imported_scenario_01"));
+        sAppImport01.setMainQml(QtQuickApp::ModeImport, QLatin1String("../appwizards/qmlimportscenario_01/myqmlapp.qml"));
         if (!sAppImport01.generateFiles(&errorMessage))
             return 1;
     }
@@ -64,8 +64,8 @@ int main(int argc, char *argv[])
         const QString rootPath = QLatin1String("../appwizards/qmlimportscenario_02/");
         QtQuickApp sAppImport02;
         sAppImport02.setProjectPath(projectPath);
-        sAppImport02.setProjectName(QLatin1String("imported_scenario_02"));
-        sAppImport02.setMainQmlFile(rootPath + QLatin1String("subfolder1/myqmlapp.qml"));
+        sAppImport02.setProjectName(QLatin1String("qml_imported_scenario_02"));
+        sAppImport02.setMainQml(QtQuickApp::ModeImport, rootPath + QLatin1String("subfolder1/myqmlapp.qml"));
         QStringList moduleNames;
         moduleNames.append(QLatin1String("no.trolltech.QmlModule01"));
         moduleNames.append(QLatin1String("com.nokia.QmlModule02"));
@@ -84,6 +84,27 @@ int main(int argc, char *argv[])
         Html5App sAppNew;
         sAppNew.setProjectPath(projectPath);
         sAppNew.setProjectName(QLatin1String("new_html5_app"));
+        qDebug() << sAppNew.path(Html5App::MainHtml);
+        if (!sAppNew.generateFiles(&errorMessage))
+           return 1;
+    }
+
+    {
+        Html5App sAppNew;
+        sAppNew.setProjectPath(projectPath);
+        sAppNew.setProjectName(QLatin1String("html5_imported_scenario_01"));
+        sAppNew.setMainHtml(Html5App::ModeImport, QLatin1String("../appwizards/htmlimportscenario_01/themainhtml.html"));
+        qDebug() << sAppNew.path(Html5App::MainHtml);
+        if (!sAppNew.generateFiles(&errorMessage))
+           return 1;
+    }
+
+    {
+        Html5App sAppNew;
+        sAppNew.setProjectPath(projectPath);
+        sAppNew.setProjectName(QLatin1String("html5_url"));
+        sAppNew.setMainHtml(Html5App::ModeUrl, QLatin1String("http://www.jqtouch.com/preview/demos/main/"));
+        qDebug() << sAppNew.path(Html5App::MainHtml);
         if (!sAppNew.generateFiles(&errorMessage))
            return 1;
     }

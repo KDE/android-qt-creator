@@ -34,7 +34,7 @@
 #ifndef BOUNDINGRECTHIGHLIGHTER_H
 #define BOUNDINGRECTHIGHLIGHTER_H
 
-#include "layeritem.h"
+#include "livelayeritem.h"
 
 #include <QtCore/QObject>
 #include <QtCore/QWeakPointer>
@@ -50,7 +50,7 @@ namespace QmlJSDebugger {
 class QDeclarativeViewObserver;
 class BoundingBox;
 
-class BoundingRectHighlighter : public LayerItem
+class BoundingRectHighlighter : public LiveLayerItem
 {
     Q_OBJECT
 public:

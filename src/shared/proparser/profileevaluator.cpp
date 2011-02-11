@@ -1137,6 +1137,9 @@ ProFileEvaluator::Private::VisitReturn ProFileEvaluator::Private::visitProFile(
         ProFile *pro, ProFileEvaluatorHandler::EvalFileType type,
         ProFileEvaluator::LoadFlags flags)
 {
+    if (!m_cumulative && !pro->isOk())
+        return ReturnFalse;
+
     m_handler->aboutToEval(currentProFile(), pro, type);
     m_profileStack.push(pro);
     if (flags & LoadPreFiles) {
@@ -3230,7 +3233,7 @@ ProFileEvaluator::TemplateType ProFileEvaluator::templateType() const
 
 bool ProFileEvaluator::accept(ProFile *pro, LoadFlags flags)
 {
-    return d->visitProFile(pro, ProFileEvaluatorHandler::EvalProjectFile, flags);
+    return d->visitProFile(pro, ProFileEvaluatorHandler::EvalProjectFile, flags) == Private::ReturnTrue;
 }
 
 QString ProFileEvaluator::propertyValue(const QString &name) const

@@ -31,8 +31,8 @@
 **
 **************************************************************************/
 
-#ifndef SINGLESELECTIONMANIPULATOR_H
-#define SINGLESELECTIONMANIPULATOR_H
+#ifndef LIVESINGLESELECTIONMANIPULATOR_H
+#define LIVESINGLESELECTIONMANIPULATOR_H
 
 #include <QtCore/QPointF>
 #include <QtCore/QList>
@@ -43,10 +43,10 @@ namespace QmlJSDebugger {
 
 class QDeclarativeViewObserver;
 
-class SingleSelectionManipulator
+class LiveSingleSelectionManipulator
 {
 public:
-    SingleSelectionManipulator(QDeclarativeViewObserver *editorView);
+    LiveSingleSelectionManipulator(QDeclarativeViewObserver *editorView);
 
     enum SelectionType {
         ReplaceSelection,
@@ -76,6 +76,6 @@ private:
     bool m_isActive;
 };
 
-}
+} // namespace QmlJSDebugger
 
-#endif // SINGLESELECTIONMANIPULATOR_H
+#endif // LIVESINGLESELECTIONMANIPULATOR_H

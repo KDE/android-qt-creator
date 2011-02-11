@@ -55,16 +55,17 @@ PluginDumper::PluginDumper(ModelManager *modelManager)
     connect(m_pluginWatcher, SIGNAL(fileChanged(QString)), SLOT(pluginChanged(QString)));
 }
 
-void PluginDumper::loadPluginTypes(const QString &libraryPath, const QString &importPath, const QString &importUri)
+void PluginDumper::loadPluginTypes(const QString &libraryPath, const QString &importPath, const QString &importUri, const QString &importVersion)
 {
     // move to the owning thread
     metaObject()->invokeMethod(this, "onLoadPluginTypes",
                                Q_ARG(QString, libraryPath),
                                Q_ARG(QString, importPath),
-                               Q_ARG(QString, importUri));
+                               Q_ARG(QString, importUri),
+                               Q_ARG(QString, importVersion));
 }
 
-void PluginDumper::onLoadPluginTypes(const QString &libraryPath, const QString &importPath, const QString &importUri)
+void PluginDumper::onLoadPluginTypes(const QString &libraryPath, const QString &importPath, const QString &importUri, const QString &importVersion)
 {
     const QString canonicalLibraryPath = QDir::cleanPath(libraryPath);
     if (m_runningQmldumps.values().contains(canonicalLibraryPath))
@@ -87,6 +88,7 @@ void PluginDumper::onLoadPluginTypes(const QString &libraryPath, const QString &
     plugin.qmldirPath = canonicalLibraryPath;
     plugin.importPath = importPath;
     plugin.importUri = importUri;
+    plugin.importVersion = importVersion;
 
     // watch plugin libraries
     foreach (const QmlDirParser::Plugin &plugin, snapshot.libraryInfo(canonicalLibraryPath).plugins()) {
@@ -96,8 +98,8 @@ void PluginDumper::onLoadPluginTypes(const QString &libraryPath, const QString &
     }
 
     // watch library xml file
-    if (plugin.hasPredumpedXmlFile()) {
-        const QString &path = plugin.predumpedXmlFilePath();
+    if (plugin.hasPredumpedQmlTypesFile()) {
+        const QString &path = plugin.predumpedQmlTypesFilePath();
         m_pluginWatcher->addFile(path);
         m_libraryToPluginIndex.insert(path, index);
     }
@@ -134,19 +136,14 @@ static QString qmldumpFailedMessage(const QString &error)
                             ).arg(firstLines);
 }
 
-static QList<FakeMetaObject::ConstPtr> parseHelper(const QByteArray &xml, QString *error)
+static QList<FakeMetaObject::ConstPtr> parseHelper(const QByteArray &qmlTypeDescriptions, QString *error)
 {
     QList<FakeMetaObject::ConstPtr> ret;
-    QMap<QString, FakeMetaObject::Ptr> newObjects;
-    *error = Interpreter::CppQmlTypesLoader::parseQmlTypeXml(xml, &newObjects);
+    QHash<QString, FakeMetaObject::ConstPtr> newObjects;
+    *error = Interpreter::CppQmlTypesLoader::parseQmlTypeDescriptions(qmlTypeDescriptions, &newObjects);
 
     if (error->isEmpty()) {
-        // convert from QList<T *> to QList<const T *>
-        QMapIterator<QString, FakeMetaObject::Ptr> it(newObjects);
-        while (it.hasNext()) {
-            it.next();
-            ret.append(it.value());
-        }
+        ret = newObjects.values();
     }
     return ret;
 }
@@ -178,8 +175,9 @@ void PluginDumper::qmlPluginTypeDumpDone(int exitCode)
 
     if (exitCode == 0 && error.isEmpty()) {
         libraryInfo.setMetaObjects(objectsList);
-        if (libraryPath.isEmpty())
-            Interpreter::CppQmlTypesLoader::builtinObjects.append(objectsList);
+// ### disabled code path for running qmldump to get Qt's builtins
+//        if (libraryPath.isEmpty())
+//            Interpreter::CppQmlTypesLoader::builtinObjects.append(objectsList);
         libraryInfo.setDumpStatus(LibraryInfo::DumpDone);
     }
 
@@ -220,26 +218,26 @@ void PluginDumper::pluginChanged(const QString &pluginLibrary)
 
 void PluginDumper::dump(const Plugin &plugin)
 {
-    if (plugin.hasPredumpedXmlFile()) {
+    if (plugin.hasPredumpedQmlTypesFile()) {
         const Snapshot snapshot = m_modelManager->snapshot();
         LibraryInfo libraryInfo = snapshot.libraryInfo(plugin.qmldirPath);
         if (!libraryInfo.isValid())
             return;
 
-        const QString &path = plugin.predumpedXmlFilePath();
-        QFile libraryXmlFile(path);
-        if (!libraryXmlFile.open(QFile::ReadOnly | QFile::Text)) {
+        const QString &path = plugin.predumpedQmlTypesFilePath();
+        QFile libraryQmlTypesFile(path);
+        if (!libraryQmlTypesFile.open(QFile::ReadOnly | QFile::Text)) {
             libraryInfo.setDumpStatus(LibraryInfo::DumpError,
                                       tr("Could not open file '%1' for reading.").arg(path));
             m_modelManager->updateLibraryInfo(plugin.qmldirPath, libraryInfo);
             return;
         }
 
-        const QByteArray xml = libraryXmlFile.readAll();
-        libraryXmlFile.close();
+        const QByteArray qmlTypeDescriptions = libraryQmlTypesFile.readAll();
+        libraryQmlTypesFile.close();
 
         QString error;
-        const QList<FakeMetaObject::ConstPtr> objectsList = parseHelper(xml, &error);
+        const QList<FakeMetaObject::ConstPtr> objectsList = parseHelper(qmlTypeDescriptions, &error);
 
         if (error.isEmpty()) {
             libraryInfo.setMetaObjects(objectsList);
@@ -276,8 +274,10 @@ void PluginDumper::dump(const Plugin &plugin)
     connect(process, SIGNAL(finished(int)), SLOT(qmlPluginTypeDumpDone(int)));
     connect(process, SIGNAL(error(QProcess::ProcessError)), SLOT(qmlPluginTypeDumpError(QProcess::ProcessError)));
     QStringList args;
-    args << plugin.importPath;
+    args << QLatin1String("--notrelocatable"); // ### temporary until relocatable libraries work
     args << plugin.importUri;
+    args << plugin.importVersion;
+    args << plugin.importPath;
     process->start(info.qmlDumpPath, args);
     m_runningQmldumps.insert(process, plugin.qmldirPath);
 }
@@ -390,12 +390,12 @@ QString PluginDumper::resolvePlugin(const QDir &qmldirPath, const QString &qmldi
 #endif
 }
 
-bool PluginDumper::Plugin::hasPredumpedXmlFile() const
+bool PluginDumper::Plugin::hasPredumpedQmlTypesFile() const
 {
-    return QFileInfo(predumpedXmlFilePath()).isFile();
+    return QFileInfo(predumpedQmlTypesFilePath()).isFile();
 }
 
-QString PluginDumper::Plugin::predumpedXmlFilePath() const
+QString PluginDumper::Plugin::predumpedQmlTypesFilePath() const
 {
-    return QString("%1%2library.xml").arg(qmldirPath, QDir::separator());
+    return QString("%1%2plugins.qmltypes").arg(qmldirPath, QDir::separator());
 }

@@ -4,12 +4,13 @@
 #include <QSharedPointer>
 #include <QMetaProperty>
 #include <qnumeric.h>
+#include <QtDebug>
 
 namespace QmlDesigner {
 namespace Internal {
 
 NodeInstanceMetaObject::NodeInstanceMetaObject(const ObjectNodeInstance::Pointer &nodeInstance, QDeclarativeEngine *engine)
-    : QDeclarativeOpenMetaObject(nodeInstance->object(), new QDeclarativeOpenMetaObjectType(nodeInstance->object()->metaObject(), engine)),
+    : QDeclarativeOpenMetaObject(nodeInstance->object(), new QDeclarativeOpenMetaObjectType(nodeInstance->object()->metaObject(), engine), true),
     m_nodeInstance(nodeInstance),
     m_context(nodeInstance->isRootNodeInstance() ? nodeInstance->context() : 0)
 {
@@ -17,7 +18,7 @@ NodeInstanceMetaObject::NodeInstanceMetaObject(const ObjectNodeInstance::Pointer
 }
 
 NodeInstanceMetaObject::NodeInstanceMetaObject(const ObjectNodeInstancePointer &nodeInstance, QObject *object, const QString &prefix, QDeclarativeEngine *engine)
-    : QDeclarativeOpenMetaObject(object, new QDeclarativeOpenMetaObjectType(object->metaObject(), engine)),
+    : QDeclarativeOpenMetaObject(object, new QDeclarativeOpenMetaObjectType(object->metaObject(), engine), true),
     m_nodeInstance(nodeInstance),
     m_prefix(prefix)
 {
@@ -26,7 +27,8 @@ NodeInstanceMetaObject::NodeInstanceMetaObject(const ObjectNodeInstancePointer &
 
 void NodeInstanceMetaObject::createNewProperty(const QString &name)
 {
-    createProperty(name.toLatin1(), 0);
+    int id = createProperty(name.toLatin1(), 0);
+    Q_ASSERT(id >= 0);
 }
 
 int NodeInstanceMetaObject::metaCall(QMetaObject::Call call, int id, void **a)
@@ -59,10 +61,26 @@ int NodeInstanceMetaObject::metaCall(QMetaObject::Call call, int id, void **a)
         oldValue = property(id).read(m_nodeInstance->object());
     }
 
-    if (parent() && id < parent()->propertyOffset())
+    ObjectNodeInstance::Pointer objectNodeInstance = m_nodeInstance.toStrongRef();
+
+    if (parent() && id < parent()->propertyOffset()) {
         metaCallReturnValue = parent()->metaCall(call, id, a);
-    else
+    } else {
         metaCallReturnValue = QDeclarativeOpenMetaObject::metaCall(call, id, a);
+    }
+
+    if ((call == QMetaObject::WriteProperty || call == QMetaObject::ReadProperty) && metaCallReturnValue < 0) {
+        if (objectNodeInstance
+                && objectNodeInstance->nodeInstanceServer()
+                && objectNodeInstance->nodeInstanceServer()->dummyContextObject()
+                && !(objectNodeInstance && !objectNodeInstance->isRootNodeInstance() && property(id).name() == QLatin1String("parent"))) {
+
+            QObject *contextDummyObject = objectNodeInstance->nodeInstanceServer()->dummyContextObject();
+            int properyIndex = contextDummyObject->metaObject()->indexOfProperty(property(id).name());
+            if (properyIndex >= 0)
+                metaCallReturnValue = contextDummyObject->qt_metacall(call, properyIndex, a);
+        }
+    }
 
     if (metaCallReturnValue >= 0
             && call == QMetaObject::WriteProperty

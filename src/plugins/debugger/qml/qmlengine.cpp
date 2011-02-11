@@ -270,13 +270,14 @@ bool QmlEngine::canDisplayTooltip() const
 
 void QmlEngine::closeConnection()
 {
+    disconnect(&d->m_adapter, SIGNAL(connectionStartupFailed()),
+        this, SLOT(connectionStartupFailed()));
+    d->m_adapter.closeConnection();
+
     ExtensionSystem::PluginManager *pluginManager =
         ExtensionSystem::PluginManager::instance();
-    if (pluginManager->allObjects().contains(this)) {
-        disconnect(&d->m_adapter, SIGNAL(connectionStartupFailed()),
-            this, SLOT(connectionStartupFailed()));
-        d->m_adapter.closeConnection();
 
+    if (pluginManager->allObjects().contains(this)) {
         pluginManager->removeObject(&d->m_adapter);
         pluginManager->removeObject(this);
     }
@@ -295,6 +296,7 @@ void QmlEngine::runEngine()
 void QmlEngine::startApplicationLauncher()
 {
     if (!d->m_applicationLauncher.isRunning()) {
+        appendMessage(tr("Starting %1 %2").arg(QDir::toNativeSeparators(startParameters().executable), startParameters().processArgs), NormalMessageFormat);
         d->m_applicationLauncher.start(ApplicationLauncher::Gui,
                                     startParameters().executable,
                                     startParameters().processArgs);
@@ -346,6 +348,7 @@ void QmlEngine::shutdownEngine()
 
 void QmlEngine::setupEngine()
 {
+    d->m_ping = 0;
     d->m_adapter.setMaxConnectionAttempts(MaxConnectionAttempts);
     d->m_adapter.setConnectionAttemptInterval(ConnectionAttemptDefaultInterval);
     connect(&d->m_adapter, SIGNAL(connectionError(QAbstractSocket::SocketError)),

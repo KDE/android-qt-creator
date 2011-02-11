@@ -371,8 +371,6 @@ void ObjectNodeInstance::reparent(const ObjectNodeInstance::Pointer &oldParentIn
         m_parentProperty = newParentProperty;
         addToNewProperty(object(), newParentInstance->object(), newParentProperty);
     }
-
-    refreshBindings(context()->engine()->rootContext());
 }
 
 void ObjectNodeInstance::setPropertyVariant(const QString &name, const QVariant &value)
@@ -421,7 +419,7 @@ void ObjectNodeInstance::setPropertyBinding(const QString &name, const QString &
             oldBinding->destroy();
         binding->update();
         if (binding->hasError())
-            qDebug() <<" ObjectNodeInstance.setPropertyBinding has Error: " << object() << name << expression;
+            qDebug() <<" ObjectNodeInstance.setPropertyBinding has Error: " << object() << name << expression << binding->error().toString();
     } else {
         qWarning() << "ObjectNodeInstance.setPropertyBinding: Cannot set binding for property" << name << ": property is unknown for type";
     }
@@ -825,12 +823,10 @@ void ObjectNodeInstance::updateAnchors()
 
 QDeclarativeContext *ObjectNodeInstance::context() const
 {
-    QDeclarativeContext *context = QDeclarativeEngine::contextForObject(object());
-    if (context)
-        return context;
-    else if (nodeInstanceServer())
-        return nodeInstanceServer()->engine()->rootContext();
+    if (nodeInstanceServer())
+        return nodeInstanceServer()->context();
 
+    qWarning() << "Error: No NodeInstanceServer";
     return 0;
 }
 
@@ -887,7 +883,7 @@ void ObjectNodeInstance::populateResetValueHash()
     QStringList propertyNameList = propertyNameForWritableProperties(object());
 
     foreach(const QString &propertyName, propertyNameList) {
-        QDeclarativeProperty property(object(), propertyName, context());
+        QDeclarativeProperty property(object(), propertyName, QDeclarativeEngine::contextForObject(object()));
         if (property.isWritable())
             m_resetValueHash.insert(propertyName, property.read());
     }
@@ -968,17 +964,6 @@ void ObjectNodeInstance::createDynamicProperty(const QString &name, const QStrin
     }
 
     m_metaObject->createNewProperty(name);
-}
-
-/**
-  Force all bindings in this or a sub context to be re-evaluated.
-  */
-void ObjectNodeInstance::refreshBindings(QDeclarativeContext *context)
-{
-    // TODO: Maybe do this via a timer to prevent update flooding
-
-    static int i = 0;
-    context->setContextProperty(QString("__dummy_%1").arg(i++), true);
 }
 
 bool ObjectNodeInstance::updateStateVariant(const ObjectNodeInstance::Pointer &/*target*/, const QString &/*propertyName*/, const QVariant &/*value*/)

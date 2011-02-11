@@ -48,6 +48,7 @@
 #include <formeditorgraphicsview.h>
 #include <formeditorscene.h>
 #include <formeditorview.h>
+#include <lineeditaction.h>
 
 namespace QmlDesigner {
 
@@ -133,6 +134,17 @@ FormEditorWidget::FormEditorWidget(FormEditorView *view)
     addAction(m_selectOnlyContentItemsAction.data());
     upperActions.append(m_selectOnlyContentItemsAction.data());
 
+    m_rootWidthAction = new LineEditAction("width", this);
+    connect(m_rootWidthAction.data(), SIGNAL(textChanged(QString)), this, SLOT(changeRootItemWidth(QString)));
+    addAction(m_rootWidthAction.data());
+    upperActions.append(m_rootWidthAction.data());
+
+    m_rootHeightAction =  new LineEditAction("height", this);
+    connect(m_rootHeightAction.data(), SIGNAL(textChanged(QString)), this, SLOT(changeRootItemHeight(QString)));
+    addAction(m_rootHeightAction.data());
+    upperActions.append(m_rootHeightAction.data());
+
+    m_snappingAndAnchoringAction = layoutActionGroup->addAction("Toogle Snapping And Anchoring (Press Key R)");
 
     m_toolBox = new ToolBox(this);
     fillLayout->addWidget(m_toolBox.data());
@@ -169,6 +181,28 @@ void FormEditorWidget::changeTransformTool(bool checked)
         m_formEditorView->changeToTransformTools();
 }
 
+void FormEditorWidget::changeRootItemWidth(const QString &widthText)
+{
+    bool canConvert;
+    int width = widthText.toInt(&canConvert);
+    if (canConvert) {
+        m_formEditorView->rootModelNode().setAuxiliaryData("width", width);
+    } else {
+        m_formEditorView->rootModelNode().setAuxiliaryData("width", QVariant());
+    }
+}
+
+void FormEditorWidget::changeRootItemHeight(const QString &heighText)
+{
+    bool canConvert;
+    int height = heighText.toInt(&canConvert);
+    if (canConvert) {
+        m_formEditorView->rootModelNode().setAuxiliaryData("height", height);
+    } else {
+        m_formEditorView->rootModelNode().setAuxiliaryData("height", QVariant());
+    }
+}
+
 void FormEditorWidget::changeAnchorTool(bool checked)
 {
     if (checked && m_formEditorView->currentState().isBaseState())
@@ -189,6 +223,25 @@ void FormEditorWidget::wheelEvent(QWheelEvent *event)
         QWidget::wheelEvent(event);
     }
 
+}
+
+void FormEditorWidget::updateActions()
+{
+    if (m_formEditorView->model() && m_formEditorView->rootModelNode().isValid()) {
+        if (m_formEditorView->rootModelNode().hasAuxiliaryData("width") && m_formEditorView->rootModelNode().auxiliaryData("width").isValid()) {
+            m_rootWidthAction->setLineEditText(m_formEditorView->rootModelNode().auxiliaryData("width").toString());
+        } else {
+            m_rootWidthAction->clearLineEditText();
+        }
+        if (m_formEditorView->rootModelNode().hasAuxiliaryData("height") && m_formEditorView->rootModelNode().auxiliaryData("height").isValid()) {
+            m_rootHeightAction->setLineEditText(m_formEditorView->rootModelNode().auxiliaryData("height").toString());
+        } else {
+            m_rootHeightAction->clearLineEditText();
+        }
+    } else {
+        m_rootWidthAction->clearLineEditText();
+        m_rootHeightAction->clearLineEditText();
+    }
 }
 
 ZoomAction *FormEditorWidget::zoomAction() const

@@ -40,11 +40,6 @@
 
 #include "qt4projectmanagerconstants.h"
 
-#include <projectexplorer/baseprojectwizarddialog.h>
-#include <projectexplorer/customwizard/customwizard.h>
-#include <projectexplorer/projectexplorer.h>
-#include <coreplugin/editormanager/editormanager.h>
-
 #include <QtCore/QCoreApplication>
 #include <QtGui/QIcon>
 
@@ -144,20 +139,17 @@ void QtQuickAppWizard::prepareGenerateFiles(const QWizard *w,
 {
     Q_UNUSED(errorMessage)
     const QtQuickAppWizardDialog *wizard = qobject_cast<const QtQuickAppWizardDialog*>(w);
-    const QString mainQmlFile = wizard->m_qmlSourcesPage->mainQmlFile();
-    m_d->app->setMainQmlFile(mainQmlFile);
+    if (wizard->m_qmlSourcesPage->mainQmlMode() == QtQuickApp::ModeGenerate) {
+        m_d->app->setMainQml(QtQuickApp::ModeGenerate);
+    } else {
+        const QString mainQmlFile = wizard->m_qmlSourcesPage->mainQmlFile();
+        m_d->app->setMainQml(QtQuickApp::ModeImport, mainQmlFile);
+    }
 }
 
-bool QtQuickAppWizard::postGenerateFilesInternal(const Core::GeneratedFiles &l,
-    QString *errorMessage)
+QString QtQuickAppWizard::fileToOpenPostGeneration() const
 {
-    const bool success = ProjectExplorer::CustomProjectWizard::postGenerateOpen(l, errorMessage);
-    if (success && !m_d->app->mainQmlFile().isEmpty()) {
-        ProjectExplorer::ProjectExplorerPlugin::instance()->setCurrentFile(0, m_d->app->mainQmlFile());
-        Core::EditorManager::instance()->openEditor(m_d->app->mainQmlFile(),
-                                                    QString(), Core::EditorManager::ModeSwitch);
-    }
-    return success;
+    return m_d->app->path(QtQuickApp::MainQml);
 }
 
 AbstractMobileApp *QtQuickAppWizard::app() const

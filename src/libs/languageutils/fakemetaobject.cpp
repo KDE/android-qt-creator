@@ -35,12 +35,18 @@
 
 using namespace LanguageUtils;
 
+FakeMetaEnum::FakeMetaEnum()
+{}
+
 FakeMetaEnum::FakeMetaEnum(const QString &name)
     : m_name(name)
 {}
 
 QString FakeMetaEnum::name() const
 { return m_name; }
+
+void FakeMetaEnum::setName(const QString &name)
+{ m_name = name; }
 
 void FakeMetaEnum::addKey(const QString &key, int value)
 { m_keys.append(key); m_values.append(value); }
@@ -61,8 +67,19 @@ FakeMetaMethod::FakeMetaMethod(const QString &name, const QString &returnType)
     , m_methodAccess(FakeMetaMethod::Public)
 {}
 
+FakeMetaMethod::FakeMetaMethod()
+    : m_methodTy(FakeMetaMethod::Method)
+    , m_methodAccess(FakeMetaMethod::Public)
+{}
+
 QString FakeMetaMethod::methodName() const
 { return m_name; }
+
+void FakeMetaMethod::setMethodName(const QString &name)
+{ m_name = name; }
+
+void FakeMetaMethod::setReturnType(const QString &type)
+{ m_returnType = type; }
 
 QStringList FakeMetaMethod::parameterNames() const
 { return m_paramNames; }
@@ -104,9 +121,13 @@ bool FakeMetaProperty::isPointer() const
 
 
 FakeMetaObject::FakeMetaObject()
-    : m_super(0)
 {
 }
+
+QString FakeMetaObject::className() const
+{ return m_className; }
+void FakeMetaObject::setClassName(const QString &name)
+{ m_className = name; }
 
 void FakeMetaObject::addExport(const QString &name, const QString &package, ComponentVersion version)
 {
@@ -114,24 +135,26 @@ void FakeMetaObject::addExport(const QString &name, const QString &package, Comp
     exp.type = name;
     exp.package = package;
     exp.version = version;
-    exp.packageNameVersion = QString::fromLatin1("%1.%2 %3.%4").arg(
+    exp.packageNameVersion = QString::fromLatin1("%1/%2 %3").arg(
                 package, name,
-                QString::number(version.majorVersion()),
-                QString::number(version.minorVersion()));
+                version.toString());
     m_exports.append(exp);
 }
 QList<FakeMetaObject::Export> FakeMetaObject::exports() const
 { return m_exports; }
+FakeMetaObject::Export FakeMetaObject::exportInPackage(const QString &package) const
+{
+    foreach (const Export &exp, m_exports) {
+        if (exp.package == package)
+            return exp;
+    }
+    return Export();
+}
 
 void FakeMetaObject::setSuperclassName(const QString &superclass)
 { m_superName = superclass; }
 QString FakeMetaObject::superclassName() const
 { return m_superName; }
-
-void FakeMetaObject::setSuperclass(ConstPtr superClass)
-{ m_super = superClass; }
-FakeMetaObject::ConstPtr FakeMetaObject::superClass() const
-{ return m_super; }
 
 void FakeMetaObject::addEnum(const FakeMetaEnum &fakeEnum)
 { m_enumNameToIndex.insert(fakeEnum.name(), m_enums.size()); m_enums.append(fakeEnum); }
@@ -166,6 +189,13 @@ FakeMetaMethod FakeMetaObject::method(int index) const
 
 QString FakeMetaObject::defaultPropertyName() const
 { return m_defaultPropertyName; }
-
-void FakeMetaObject::setDefaultPropertyName(const QString defaultPropertyName)
+void FakeMetaObject::setDefaultPropertyName(const QString &defaultPropertyName)
 { m_defaultPropertyName = defaultPropertyName; }
+
+QString FakeMetaObject::attachedTypeName() const
+{ return m_attachedTypeName; }
+void FakeMetaObject::setAttachedTypeName(const QString &name)
+{ m_attachedTypeName = name; }
+
+bool FakeMetaObject::Export::isValid() const
+{ return !type.isEmpty(); }

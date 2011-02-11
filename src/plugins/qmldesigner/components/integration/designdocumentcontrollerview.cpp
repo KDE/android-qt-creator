@@ -107,6 +107,11 @@ void DesignDocumentControllerView::actualStateChanged(const ModelNode &/*node*/)
 {
 }
 
+void DesignDocumentControllerView::importsChanged(const QList<Import> &/*addedImports*/, const QList<Import> &/*removedImports*/)
+{
+
+}
+
 static QStringList arrayToStringList(const QByteArray &byteArray)
 {
     QString str(QString::fromLatin1(byteArray));
@@ -179,7 +184,7 @@ void DesignDocumentControllerView::fromText(QString text)
     QString imports;
     foreach (Import import, model()->imports())
         imports += import.toString() + ";\n";
-    qDebug() << imports;
+
     textEdit.setPlainText(imports + text);
     NotIndentingTextEditModifier modifier(&textEdit);
 

@@ -903,6 +903,7 @@ void BaseTextEditor::copyLineDown()
     copyLineUpDown(false);
 }
 
+// @todo: Potential reuse of some code around the following functions...
 void BaseTextEditor::copyLineUpDown(bool up)
 {
     QTextCursor cursor = textCursor();
@@ -915,7 +916,8 @@ void BaseTextEditor::copyLineUpDown(bool up)
         move.setPosition(cursor.selectionStart());
         move.movePosition(QTextCursor::StartOfBlock);
         move.setPosition(cursor.selectionEnd(), QTextCursor::KeepAnchor);
-        move.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        move.movePosition(move.atBlockStart() ? QTextCursor::Left: QTextCursor::EndOfBlock,
+                          QTextCursor::KeepAnchor);
     } else {
         move.movePosition(QTextCursor::StartOfBlock);
         move.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
@@ -1038,7 +1040,8 @@ void BaseTextEditor::moveLineUpDown(bool up)
         move.setPosition(cursor.selectionStart());
         move.movePosition(QTextCursor::StartOfBlock);
         move.setPosition(cursor.selectionEnd(), QTextCursor::KeepAnchor);
-        move.movePosition(move.atBlockStart() ? QTextCursor::Left: QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        move.movePosition(move.atBlockStart() ? QTextCursor::Left: QTextCursor::EndOfBlock,
+                          QTextCursor::KeepAnchor);
     } else {
         move.movePosition(QTextCursor::StartOfBlock);
         move.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
@@ -1051,7 +1054,8 @@ void BaseTextEditor::moveLineUpDown(bool up)
 
     foreach (const RefactorMarker &marker, d->m_refactorOverlay->markers()) {
         //test if marker is part of the selection to be moved
-        if ((move.selectionStart() <= marker.cursor.position()) && (move.selectionEnd() >= marker.cursor.position())) {
+        if ((move.selectionStart() <= marker.cursor.position())
+                && (move.selectionEnd() >= marker.cursor.position())) {
             affectedMarkers.append(marker);
             //remember the offset of markers in text
             int offset = marker.cursor.position() - move.selectionStart();
@@ -4329,21 +4333,20 @@ const DisplaySettings &BaseTextEditor::displaySettings() const
 
 void BaseTextEditor::indentOrUnindent(bool doIndent)
 {
+    const TextEditor::TabSettings &tabSettings = d->m_document->tabSettings();
+
     QTextCursor cursor = textCursor();
     maybeClearSomeExtraSelections(cursor);
     cursor.beginEditBlock();
 
-    int pos = cursor.position();
-    const TextEditor::TabSettings &tabSettings = d->m_document->tabSettings();
-
-    QTextDocument *doc = document();
-
     if (cursor.hasSelection()) {
         // Indent or unindent the selected lines
+        int pos = cursor.position();
         int anchor = cursor.anchor();
         int start = qMin(anchor, pos);
         int end = qMax(anchor, pos);
 
+        QTextDocument *doc = document();
         QTextBlock startBlock = doc->findBlock(start);
         QTextBlock endBlock = doc->findBlock(end-1).next();
 
@@ -4359,6 +4362,7 @@ void BaseTextEditor::indentOrUnindent(bool doIndent)
             cursor.setPosition(block.position() + indentPosition, QTextCursor::KeepAnchor);
             cursor.removeSelectedText();
         }
+        cursor.endEditBlock();
     } else {
         // Indent or unindent at cursor position
         QTextBlock block = cursor.block();
@@ -4371,10 +4375,9 @@ void BaseTextEditor::indentOrUnindent(bool doIndent)
         cursor.setPosition(block.position() + indentPosition - spaces, QTextCursor::KeepAnchor);
         cursor.removeSelectedText();
         cursor.insertText(tabSettings.indentationString(startColumn, targetColumn, block));
+        cursor.endEditBlock();
         setTextCursor(cursor);
     }
-
-    cursor.endEditBlock();
 }
 
 void BaseTextEditor::handleHomeKey(bool anchor)

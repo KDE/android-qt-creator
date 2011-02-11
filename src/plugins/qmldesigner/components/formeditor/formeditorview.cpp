@@ -115,6 +115,8 @@ void FormEditorView::modelAttached(Model *model)
 
     if (rootQmlObjectNode().toQmlItemNode().isValid())
         setupFormEditorItemTree(rootQmlObjectNode().toQmlItemNode());
+
+    m_formEditorWidget->updateActions();
 }
 
 
@@ -144,16 +146,12 @@ void FormEditorView::modelAboutToBeDetached(Model *model)
     m_anchorTool->clear();
     m_dragTool->clear();
     m_scene->clearFormEditorItems();
+    m_formEditorWidget->updateActions();
 
     QmlModelView::modelAboutToBeDetached(model);
 }
 
-void FormEditorView::importAdded(const Import &)
-{
-    reset();
-}
-
-void FormEditorView::importRemoved(const Import &)
+void FormEditorView::importsChanged(const QList<Import> &/*addedImports*/, const QList<Import> &/*removedImports*/)
 {
     reset();
 }

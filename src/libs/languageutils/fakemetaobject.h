@@ -51,9 +51,11 @@ class LANGUAGEUTILS_EXPORT FakeMetaEnum {
     QList<int> m_values;
 
 public:
-    FakeMetaEnum(const QString &name);
+    FakeMetaEnum();
+    explicit FakeMetaEnum(const QString &name);
 
     QString name() const;
+    void setName(const QString &name);
 
     void addKey(const QString &key, int value);
     QString key(int index) const;
@@ -76,9 +78,14 @@ public:
     };
 
 public:
-    FakeMetaMethod(const QString &name, const QString &returnType = QString());
+    FakeMetaMethod();
+    explicit FakeMetaMethod(const QString &name, const QString &returnType = QString());
 
     QString methodName() const;
+    void setMethodName(const QString &name);
+
+    void setReturnType(const QString &type);
+
     QStringList parameterNames() const;
     QStringList parameterTypes() const;
     void addParameter(const QString &name, const QString &type);
@@ -122,17 +129,19 @@ public:
     typedef QSharedPointer<FakeMetaObject> Ptr;
     typedef QSharedPointer<const FakeMetaObject> ConstPtr;
 
-    class Export {
+    class LANGUAGEUTILS_EXPORT Export {
     public:
         QString package;
         QString type;
         ComponentVersion version;
         QString packageNameVersion;
+
+        bool isValid() const;
     };
 
 private:
+    QString m_className;
     QList<Export> m_exports;
-    ConstPtr m_super;
     QString m_superName;
     QList<FakeMetaEnum> m_enums;
     QHash<QString, int> m_enumNameToIndex;
@@ -140,17 +149,20 @@ private:
     QHash<QString, int> m_propNameToIdx;
     QList<FakeMetaMethod> m_methods;
     QString m_defaultPropertyName;
+    QString m_attachedTypeName;
 
 public:
     FakeMetaObject();
 
+    QString className() const;
+    void setClassName(const QString &name);
+
     void addExport(const QString &name, const QString &package, ComponentVersion version);
     QList<Export> exports() const;
+    Export exportInPackage(const QString &package) const;
 
     void setSuperclassName(const QString &superclass);
     QString superclassName() const;
-    void setSuperclass(ConstPtr superClass);
-    ConstPtr superClass() const;
 
     void addEnum(const FakeMetaEnum &fakeEnum);
     int enumeratorCount() const;
@@ -170,7 +182,10 @@ public:
     FakeMetaMethod method(int index) const;
 
     QString defaultPropertyName() const;
-    void setDefaultPropertyName(const QString defaultPropertyName);
+    void setDefaultPropertyName(const QString &defaultPropertyName);
+
+    QString attachedTypeName() const;
+    void setAttachedTypeName(const QString &name);
 };
 
 } // namespace LanguageUtils

@@ -34,7 +34,7 @@
 #ifndef SUBCOMPONENTEDITORTOOL_H
 #define SUBCOMPONENTEDITORTOOL_H
 
-#include "abstractformeditortool.h"
+#include "abstractliveedittool.h"
 #include <QtCore/QStack>
 #include <QtCore/QStringList>
 
@@ -46,7 +46,7 @@ namespace QmlJSDebugger {
 
 class SubcomponentMaskLayerItem;
 
-class SubcomponentEditorTool : public AbstractFormEditorTool
+class SubcomponentEditorTool : public AbstractLiveEditTool
 {
     Q_OBJECT
 

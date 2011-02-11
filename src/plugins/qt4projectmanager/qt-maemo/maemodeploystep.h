@@ -61,6 +61,7 @@ class SshRemoteProcess;
 }
 
 namespace Qt4ProjectManager {
+class Qt4BuildConfiguration;
 namespace Internal {
 class MaemoRemoteMounter;
 class MaemoDeviceConfig;
@@ -84,6 +85,7 @@ public:
     void setDeployed(const QString &host, const MaemoDeployable &deployable);
     QSharedPointer<MaemoDeployables> deployables() const { return m_deployables; }
     QSharedPointer<Core::SshConnection> sshConnection() const { return m_connection; }
+    MaemoPortList freePorts() const;
 
     bool isDeployToSysrootEnabled() const { return m_deployToSysroot; }
     void setDeployToSysrootEnabled(bool deploy) { m_deployToSysroot = deploy; }
@@ -155,6 +157,7 @@ private:
     void setState(State newState);
     void unmount();
     void setDeviceConfig(MaemoDeviceConfig::Id internalId);
+    const Qt4BuildConfiguration *qt4BuildConfiguration() const;
 
     static const QLatin1String Id;
 
@@ -178,6 +181,7 @@ private:
     MaemoPortList m_freePorts;
     QByteArray m_installerStderr;
     State m_state;
+    bool m_hasError;
 };
 
 class MaemoDeployEventHandler : public QObject

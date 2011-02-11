@@ -139,6 +139,17 @@ NodeInstanceView::~NodeInstanceView()
   For every ModelNode in the model a NodeInstance will be created.
 \param model Model to which the view is attached
 */
+
+bool isSkippedNode(const ModelNode &node)
+{
+    static QStringList skipList =  QStringList() << "Qt/ListModel" << "QtQuick/ListModel";
+
+    if (skipList.contains(node.type()))
+        return true;
+
+    return false;
+}
+
 void NodeInstanceView::modelAttached(Model *model)
 {
     AbstractView::modelAttached(model);
@@ -146,7 +157,8 @@ void NodeInstanceView::modelAttached(Model *model)
     m_lastCrashTime.start();
     connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
-    nodeInstanceServer()->createScene(createCreateSceneCommand());
+    if (!isSkippedNode(rootModelNode()))
+        nodeInstanceServer()->createScene(createCreateSceneCommand());
 }
 
 void NodeInstanceView::modelAboutToBeDetached(Model * model)
@@ -154,6 +166,11 @@ void NodeInstanceView::modelAboutToBeDetached(Model * model)
     removeAllInstanceNodeRelationships();
     nodeInstanceServer()->clearScene(createClearSceneCommand());
     delete nodeInstanceServer();
+    m_statePreviewImage.clear();
+    m_baseStatePreviewImage = QImage();
+    removeAllInstanceNodeRelationships();
+    m_activeStateInstance = NodeInstance();
+    m_rootNodeInstance = NodeInstance();
     AbstractView::modelAboutToBeDetached(model);
 }
 
@@ -165,6 +182,8 @@ void NodeInstanceView::handleChrash()
         restartProcess();
 }
 
+
+
 void NodeInstanceView::restartProcess()
 {
     if (model()) {
@@ -173,18 +192,9 @@ void NodeInstanceView::restartProcess()
         m_nodeInstanceServer = new NodeInstanceServerProxy(this, m_runModus);
         connect(m_nodeInstanceServer.data(), SIGNAL(processCrashed()), this, SLOT(handleChrash()));
 
-        nodeInstanceServer()->createScene(createCreateSceneCommand());
+        if (!isSkippedNode(rootModelNode()))
+            nodeInstanceServer()->createScene(createCreateSceneCommand());
     }
-}
-
-bool isSkippedNode(const ModelNode &node)
-{
-    static QStringList skipList =  QStringList() << "Qt/ListModel" << "QtQuick/ListModel";
-
-    if (skipList.contains(node.type()))
-        return true;
-
-    return false;
 }
 
 void NodeInstanceView::nodeCreated(const ModelNode &createdNode)
@@ -433,12 +443,7 @@ void NodeInstanceView::instancesCompleted(const QVector<ModelNode> &/*completedN
 {
 }
 
-void NodeInstanceView::importAdded(const Import & import)
-{
-    nodeInstanceServer()->addImport(createImportCommand(import));
-}
-
-void NodeInstanceView::importRemoved(const Import &/*import*/)
+void NodeInstanceView::importsChanged(const QList<Import> &/*addedImports*/, const QList<Import> &/*removedImports*/)
 {
     restartProcess();
 }
@@ -463,6 +468,30 @@ void NodeInstanceView::instancesChildrenChanged(const QVector<ModelNode> &/*node
 
 }
 
+void NodeInstanceView::auxiliaryDataChanged(const ModelNode &node, const QString &name, const QVariant &data)
+{
+    if (node.isRootNode() && (name == "width" || name == "height")) {
+        if (hasInstanceForNode(node)) {
+            NodeInstance instance = instanceForNode(node);
+            QVariant value = data;
+            if (value.isValid()) {
+                PropertyValueContainer container(instance.instanceId(), name, value, QString());
+                ChangeValuesCommand changeValueCommand(QVector<PropertyValueContainer>() << container);
+                nodeInstanceServer()->changePropertyValues(changeValueCommand);
+            } else {
+                if (node.hasVariantProperty(name)) {
+                    PropertyValueContainer container(instance.instanceId(), name, node.variantProperty(name).value(), QString());
+                    ChangeValuesCommand changeValueCommand(QVector<PropertyValueContainer>() << container);
+                    nodeInstanceServer()->changePropertyValues(changeValueCommand);
+                } else if (node.hasBindingProperty(name)) {
+                    PropertyBindingContainer container(instance.instanceId(), name, node.bindingProperty(name).expression(), QString());
+                    ChangeBindingsCommand changeValueCommand(QVector<PropertyBindingContainer>() << container);
+                    nodeInstanceServer()->changePropertyBindings(changeValueCommand);
+                }
+            }
+        }
+    }
+}
 
 void NodeInstanceView::rewriterBeginTransaction()
 {
@@ -722,8 +751,15 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
     foreach(const VariantProperty &property, variantPropertyList) {
         ModelNode node = property.parentModelNode();
         if (node.isValid() && hasInstanceForNode(node)) {
+            QVariant value = property.value();
+            if (node.isRootNode()
+                    && (property.name() == "width" || property.name() == "height")
+                    && node.hasAuxiliaryData(property.name())
+                    && node.auxiliaryData(property.name()).isValid())
+                value = node.auxiliaryData(property.name());
+
             NodeInstance instance = instanceForNode(node);
-            PropertyValueContainer container(instance.instanceId(), property.name(), property.value(), property.dynamicTypeName());
+            PropertyValueContainer container(instance.instanceId(), property.name(), value, property.dynamicTypeName());
             valueContainerList.append(container);
         }
     }
@@ -732,6 +768,12 @@ CreateSceneCommand NodeInstanceView::createCreateSceneCommand()
     foreach(const BindingProperty &property, bindingPropertyList) {
         ModelNode node = property.parentModelNode();
         if (node.isValid() && hasInstanceForNode(node)) {
+            if (node.isRootNode()
+                    && (property.name() == "width" || property.name() == "height")
+                    && node.hasAuxiliaryData(property.name())
+                    && node.auxiliaryData(property.name()).isValid())
+                continue;
+
             NodeInstance instance = instanceForNode(node);
             PropertyBindingContainer container(instance.instanceId(), property.name(), property.expression(), property.dynamicTypeName());
             bindingContainerList.append(container);

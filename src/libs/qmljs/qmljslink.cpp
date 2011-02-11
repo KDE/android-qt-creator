@@ -174,7 +174,7 @@ void Link::populateImportedTypes(TypeEnvironment *typeEnv, Document::Ptr doc)
         return;
 
     // implicit imports: the <default> package is always available
-    const QLatin1String defaultPackage("<default>");
+    const QString defaultPackage = CppQmlTypes::defaultPackage;
     if (engine()->cppQmlTypes().hasPackage(defaultPackage)) {
         ImportInfo info(ImportInfo::LibraryImport, defaultPackage);
         ObjectValue *import = d->importCache.value(ImportCacheKey(info));
@@ -291,7 +291,8 @@ ObjectValue *Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo
             if (libraryInfo.dumpStatus() == LibraryInfo::DumpNotStartedOrRunning) {
                 ModelManagerInterface *modelManager = ModelManagerInterface::instance();
                 if (modelManager)
-                    modelManager->loadPluginTypes(libraryPath, importPath, packageName);
+                    modelManager->loadPluginTypes(libraryPath, importPath,
+                                                  packageName, version.toString());
                 warning(doc, locationFromRange(importInfo.ast()->firstSourceLocation(),
                                                importInfo.ast()->lastSourceLocation()),
                         tr("Library contains C++ plugins, type dump is in progress."));

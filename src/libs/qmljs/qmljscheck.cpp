@@ -170,7 +170,7 @@ public:
                 } else {
                     QString fileName = url.toLocalFile();
                     if (!fileName.isEmpty()) {
-                        if (url.isRelative()) {
+                        if (QFileInfo(fileName).isRelative()) {
                             fileName.prepend(QDir::separator());
                             fileName.prepend(_doc->path());
                         }
@@ -826,7 +826,7 @@ const Value *Check::checkScopeObjectMember(const UiQualifiedId *id)
     bool isAttachedProperty = false;
     if (! propertyName.isEmpty() && propertyName[0].isUpper()) {
         isAttachedProperty = true;
-        if (const ObjectValue *qmlTypes = _context.scopeChain().qmlTypes)
+        if (const ObjectValue *qmlTypes = _context.scopeChain().qmlAttachedTypes)
             scopeObjects += qmlTypes;
     }
 

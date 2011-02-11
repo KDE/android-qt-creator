@@ -15,6 +15,7 @@ class QDeclarativeView;
 class QDeclarativeEngine;
 class QGraphicsObject;
 class QFileInfo;
+class QDeclarativeComponent;
 QT_END_NAMESPACE
 
 namespace QmlDesigner {
@@ -63,6 +64,7 @@ public:
     bool hasInstanceForObject(QObject *object) const;
 
     QDeclarativeEngine *engine() const;
+    QDeclarativeContext *context() const;
 
     void removeAllInstanceRelationships();
 
@@ -83,6 +85,7 @@ public:
     void notifyPropertyChange(qint32 instanceid, const QString &propertyName);
 
     QStringList imports() const;
+    QObject *dummyContextObject() const;
 
 public slots:
     void refreshLocalFileProperty(const QString &path);
@@ -132,10 +135,17 @@ protected:
     QList<ServerNodeInstance> setupScene(const CreateSceneCommand &command);
     void loadDummyDataFiles(const QString& directory);
     void loadDummyDataFile(const QFileInfo& fileInfo);
+    void loadDummyContextObjectFile(const QFileInfo& fileInfo);
     QImage renderPreviewImage();
 
     void setTimerId(int timerId);
     int timerId() const;
+
+    QDeclarativeView *delcarativeView() const;
+    const QVector<InstancePropertyPair> changedPropertyList() const;
+    void clearChangedPropertyList();
+
+    void refreshBindings();
 
 private:
     ServerNodeInstance m_rootNodeInstance;
@@ -155,8 +165,10 @@ private:
     int m_slowRenderTimerInterval;
     QVector<InstancePropertyPair> m_changedPropertyList;
     QStringList m_importList;
-    QSet<ServerNodeInstance> m_dirtyInstanceSet;
     QList<ServerNodeInstance> m_completedComponentList;
+    QWeakPointer<QObject> m_dummyContextObject;
+    QWeakPointer<QDeclarativeComponent> m_importComponent;
+    QWeakPointer<QObject> m_importComponentObject;
 };
 
 }
