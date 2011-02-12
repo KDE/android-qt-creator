@@ -154,7 +154,7 @@ void AndroidRunner::start()
     QProcess adbStarProc;
     if (m_debugingMode)
     {
-        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" forward %1 localfilesystem:/data/data/%2/debug-socket").arg(m_runConfig->remoteChannel()).arg(m_packageName));
+        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" forward tcp%1 localfilesystem:/data/data/%2/debug-socket").arg(m_runConfig->remoteChannel()).arg(m_packageName));
         if (!adbStarProc.waitForFinished(-1))
         {
             emit remoteProcessFinished(tr("Failed to forward debugging ports"));
@@ -195,7 +195,7 @@ void AndroidRunner::start()
     }
 
     m_exitStatus = 0;
-    m_checkPIDTimer.start(5000); // check if the application is alive every 5 seconds
+    m_checkPIDTimer.start(1000); // check if the application is alive every 1 seconds
     m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" logcat"));
 #warning FIXME Android m_gdbServerPort(5039)
     emit remoteProcessStarted(5039);
