@@ -55,7 +55,7 @@ public:
         DebuggerEngine *masterEngine);
     ~QmlEngine();
 
-    void handleRemoteSetupDone(int port);
+    void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
     void handleRemoteSetupFailed(const QString &message);
 
     void gotoLocation(const Location &location);
@@ -65,9 +65,6 @@ public:
 public slots:
     void messageReceived(const QByteArray &message);
     void disconnected();
-
-signals:
-    void remoteStartupRequested();
 
 private:
     // DebuggerEngine implementation.
@@ -85,7 +82,7 @@ private:
     void shutdownEngine();
 
     void setToolTipExpression(const QPoint &mousePos,
-        TextEditor::ITextEditor *editor, int cursorPos);
+        TextEditor::ITextEditor *editor, const DebuggerToolTipContext &);
 
     void continueInferior();
     void interruptInferior();
