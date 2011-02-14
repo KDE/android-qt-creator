@@ -295,7 +295,7 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
         return avdName;
 
     // start the emulator
-    m_avdProcess->start(emulatorToolPath()+QLatin1String(" -avd ")+avdName);
+    m_avdProcess->start(emulatorToolPath()+QLatin1String(" -partition-size 1024 -avd ")+avdName);
     if (!m_avdProcess->waitForStarted(-1))
         return QString();
 

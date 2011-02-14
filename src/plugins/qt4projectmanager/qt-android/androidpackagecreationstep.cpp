@@ -183,7 +183,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     emit addOutput(tr("Stripping libraries, please wait"), BuildStep::MessageOutput);
     stripAndroidLibs(stripFiles);
 
-    QString build;
+    QString build=QLatin1String(" debug");
     if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
     {
             if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(),
@@ -193,11 +193,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
                            .arg(androidLibPath+QLatin1String("/gdbserver")));
                 return false;
             }
-            build=QLatin1String(" debug");
     }
-    else
-        build=QLatin1String(" release");
-
 
     emit addOutput(tr("Creating package file ..."), MessageOutput);
     if (!target->createAndroidTemplatesIfNecessary())

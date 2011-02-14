@@ -63,8 +63,6 @@ void AndroidToolChain::addToEnvironment(Utils::Environment &env)
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.left(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')));
     env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_VERSION")
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.mid(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')+1));
-    env.set(QLatin1String("ANDROID_PLATFORM")
-                     ,QLatin1String("android-4"));
 }
 
 QString AndroidToolChain::makeCommand() const

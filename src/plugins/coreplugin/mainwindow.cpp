@@ -165,7 +165,7 @@ MainWindow::MainWindow() :
 {
     OutputPaneManager::create();
 
-    setWindowTitle(tr("Qt Creator"));
+    setWindowTitle(tr("Necessitas Qt Creator"));
 #ifndef Q_WS_MAC
     QApplication::setWindowIcon(QIcon(QLatin1String(Constants::ICON_QTLOGO_128)));
 #endif

@@ -82,8 +82,8 @@ AndroidRunConfigurationWidget::AndroidRunConfigurationWidget(
     setLayout(mainLayout);
     addGenericWidgets(mainLayout);
     mainLayout->addSpacing(20);
-    addDebuggingWidgets(mainLayout);
-    addMountWidgets(mainLayout);
+//    addDebuggingWidgets(mainLayout);
+//    addMountWidgets(mainLayout);
 //    addEnvironmentWidgets(mainLayout);
 //    connect(m_runConfiguration,
 //        SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),

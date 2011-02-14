@@ -160,10 +160,16 @@ void AndroidSettingsWidget::initGui()
     m_ui->AVDTableView->horizontalHeader()->setResizeMode(1, QHeaderView::ResizeToContents);
 }
 
-void AndroidSettingsWidget::saveSettings()
+void AndroidSettingsWidget::saveSettings(bool saveNow)
 {
     // We must defer this step because of a stupid bug on MacOS. See QTCREATORBUG-1675.
-    m_saveSettingsRequested = true;
+    if (saveNow)
+    {
+        AndroidConfigurations::instance().setConfig(m_androidConfig);
+        m_saveSettingsRequested = false;
+    }
+    else
+        m_saveSettingsRequested = true;
 }
 
 
@@ -199,9 +205,14 @@ void AndroidSettingsWidget::SDKLocationEditingFinished()
 {
     QString location=m_ui->SDKLocationLineEdit->text();
     if (!checkSDK(location))
+    {
+        m_ui->AVDManagerFrame->setEnabled(false);
         return;
+    }
     m_androidConfig.SDKLocation = location;
-    saveSettings();
+    saveSettings(true);
+    m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
+    m_ui->AVDManagerFrame->setEnabled(true);
 }
 
 void AndroidSettingsWidget::NDKLocationEditingFinished()

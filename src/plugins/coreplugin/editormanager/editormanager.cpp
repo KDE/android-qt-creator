@@ -1538,7 +1538,7 @@ void EditorManager::makeCurrentEditorWritable()
 
 void EditorManager::updateWindowTitle()
 {
-    QString windowTitle = tr("Qt Creator");
+    QString windowTitle = tr("Necessitas Qt Creator");
     if (!m_d->m_titleAddition.isEmpty()) {
         windowTitle.prepend(m_d->m_titleAddition + " - ");
     }

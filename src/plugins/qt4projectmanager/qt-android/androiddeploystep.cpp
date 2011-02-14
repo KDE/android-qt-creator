@@ -275,7 +275,7 @@ bool AndroidDeployStep::deployPackage()
                +QLatin1String(" uninstall ")
                +packageName);
 
-    if (!runCommand(&proc, AndroidConfigurations::instance().adbToolPath()+QString(" install %1").arg(androidTarget->apkPath())))
+    if (!runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" install %1").arg(androidTarget->apkPath())))
     {
         raiseError(tr("Package instalation failed"));
         return false;

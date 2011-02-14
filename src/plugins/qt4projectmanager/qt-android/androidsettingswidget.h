@@ -77,7 +77,7 @@ public:
     AndroidSettingsWidget(QWidget *parent);
     ~AndroidSettingsWidget();
 
-    void saveSettings();
+    void saveSettings(bool saveNow = false);
     QString searchKeywords() const;
 
 private slots:

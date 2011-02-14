@@ -61,7 +61,7 @@
 
 enum { OptionIndent = 4, DescriptionIndent = 34 };
 
-static const char *appNameC = "Qt Creator";
+static const char *appNameC = "Necessitas Qt Creator";
 static const char *corePluginNameC = "Core";
 static const char *fixedOptionsC =
 " [OPTION]... [FILE]...\n"
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
             QCoreApplication::applicationDirPath()+QLatin1String(SHARE_PATH));
     // plugin manager takes control of this settings object
     QSettings *settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,
-                                 QLatin1String("Nokia"), QLatin1String("QtCreator"));
+                                 QLatin1String("eu.licentia.necessitas"), QLatin1String("NecessitasQtCreator"));
 
     ExtensionSystem::PluginManager pluginManager;
     pluginManager.setFileExtension(QLatin1String("pluginspec"));
