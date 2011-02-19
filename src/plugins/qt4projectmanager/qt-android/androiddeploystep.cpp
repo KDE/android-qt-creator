@@ -261,7 +261,7 @@ bool AndroidDeployStep::deployPackage()
     if (m_deployAction == InstallQASI)
     {
         if (!runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                   +QString(" install ") +m_QASIPackagePath))
+                   +QString(" install -r ") +m_QASIPackagePath))
         {
             raiseError(tr("Qt Android smart installer instalation failed"));
             return false;

@@ -270,7 +270,7 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
     {
         QString applicationName = target->project()->displayName();
         target->setPackageName(target->packageName()+"."+applicationName);
-        m_ui->packageNameLineEdit->setText(target->packageName()+"."+applicationName);
+        m_ui->packageNameLineEdit->setText(target->packageName());
         if (applicationName.length())
             applicationName[0]=applicationName[0].toUpper();
         m_ui->appNameLineEdit->setText(applicationName);
