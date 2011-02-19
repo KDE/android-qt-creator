@@ -106,12 +106,13 @@ private slots:
     void updateCurrentS60SDKDirectory();
     void updateCurrentGcceDirectory();
     void updateCurrentSbsV2Directory();
-    void updateDebuggingHelperInfo(const QtVersion *version = 0);
+    void updateDebuggingHelperUi();
     void msvcVersionChanged();
     void buildDebuggingHelper(DebuggingHelperBuildTask::Tools tools
                               = DebuggingHelperBuildTask::AllTools);
     void buildGdbHelper();
     void buildQmlDump();
+    void buildQmlDebuggingLibrary();
     void buildQmlObserver();
     void slotShowDebuggingBuildLog();
     void debuggingHelperBuildFinished(int qtVersionId, DebuggingHelperBuildTask::Tools tools, const QString &output);

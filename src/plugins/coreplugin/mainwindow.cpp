@@ -38,10 +38,13 @@
 #include "coreimpl.h"
 #include "coreconstants.h"
 #include "editormanager.h"
+#include "externaltool.h"
+#include "toolsettings.h"
 #include "fancytabwidget.h"
 #include "filemanager.h"
 #include "generalsettings.h"
 #include "helpmanager.h"
+#include "ieditor.h"
 #include "ifilefactory.h"
 #include "messagemanager.h"
 #include "modemanager.h"
@@ -54,7 +57,7 @@
 #include "progressview.h"
 #include "shortcutsettings.h"
 #include "vcsmanager.h"
-#include "ieditor.h"
+#include "variablechooser.h"
 
 #include "scriptmanager_p.h"
 #include "settingsdialog.h"
@@ -132,6 +135,7 @@ MainWindow::MainWindow() :
     m_printer(0),
     m_actionManager(new ActionManagerPrivate(this)),
     m_editorManager(0),
+    m_externalToolManager(0),
     m_fileManager(new FileManager(this)),
     m_progressManager(new ProgressManagerPrivate()),
     m_scriptManager(new ScriptManagerPrivate(this)),
@@ -147,6 +151,7 @@ MainWindow::MainWindow() :
     m_activeContext(0),
     m_generalSettings(new GeneralSettings),
     m_shortcutSettings(new ShortcutSettings),
+    m_toolSettings(new ToolSettings),
     m_systemEditor(new SystemEditor),
     m_focusToEditor(0),
     m_newAction(0),
@@ -205,6 +210,7 @@ MainWindow::MainWindow() :
     m_messageManager = new MessageManager;
     m_editorManager = new EditorManager(m_coreImpl, this);
     m_editorManager->hide();
+    m_externalToolManager = new ExternalToolManager(m_coreImpl);
     setCentralWidget(m_modeStack);
 
     connect(QApplication::instance(), SIGNAL(focusChanged(QWidget*,QWidget*)),
@@ -249,13 +255,18 @@ MainWindow::~MainWindow()
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
     pm->removeObject(m_shortcutSettings);
     pm->removeObject(m_generalSettings);
+    pm->removeObject(m_toolSettings);
     pm->removeObject(m_systemEditor);
+    delete m_externalToolManager;
+    m_externalToolManager = 0;
     delete m_messageManager;
     m_messageManager = 0;
     delete m_shortcutSettings;
     m_shortcutSettings = 0;
     delete m_generalSettings;
     m_generalSettings = 0;
+    delete m_toolSettings;
+    m_toolSettings = 0;
     delete m_systemEditor;
     m_systemEditor = 0;
     delete m_settings;
@@ -313,6 +324,7 @@ bool MainWindow::init(QString *errorMessage)
 
     pm->addObject(m_generalSettings);
     pm->addObject(m_shortcutSettings);
+    pm->addObject(m_toolSettings);
     pm->addObject(m_systemEditor);
 
 
@@ -560,10 +572,6 @@ void MainWindow::registerDefaultActions()
     cmd = createSeparator(am, this, QLatin1String("QtCreator.Edit.Sep.Advanced"), globalContext);
     medit->addAction(cmd, Constants::G_EDIT_ADVANCED);
 
-    // Tools menu separators
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.Tools.Sep.Options"), globalContext);
-    mtools->addAction(cmd, Constants::G_DEFAULT_THREE);
-
     // Return to editor shortcut: Note this requires Qt to fix up
     // handling of shortcut overrides in menus, item views, combos....
     m_focusToEditor = new QShortcut(this);
@@ -707,13 +715,16 @@ void MainWindow::registerDefaultActions()
     tmpaction->setEnabled(false);
 
     // Options Action
+    mtools->appendGroup(Constants::G_TOOLS_OPTIONS);
+    cmd = createSeparator(am, this, QLatin1String("QtCreator.Tools.Sep.Options"), globalContext);
+    mtools->addAction(cmd, Constants::G_TOOLS_OPTIONS);
     m_optionsAction = new QAction(tr("&Options..."), this);
     cmd = am->registerAction(m_optionsAction, Constants::OPTIONS, globalContext);
 #ifdef Q_WS_MAC
     cmd->setDefaultKeySequence(QKeySequence("Ctrl+,"));
     cmd->action()->setMenuRole(QAction::PreferencesRole);
 #endif
-    mtools->addAction(cmd, Constants::G_DEFAULT_THREE);
+    mtools->addAction(cmd, Constants::G_TOOLS_OPTIONS);
     connect(m_optionsAction, SIGNAL(triggered()), this, SLOT(showOptionsDialog()));
 
 #ifdef Q_WS_MAC

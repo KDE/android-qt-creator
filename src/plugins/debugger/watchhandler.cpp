@@ -79,6 +79,7 @@ static int generationCounter = 0;
 
 QHash<QByteArray, int> WatchHandler::m_watcherNames;
 QHash<QByteArray, int> WatchHandler::m_typeFormats;
+int WatchHandler::m_unprintableBase = 0;
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -601,43 +602,69 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
     const WatchItem &data = *item;
 
     switch (role) {
-        case  LocalsEditTypeRole:
+        case LocalsEditTypeRole:
             return QVariant(editType(data));
-       case LocalsIntegerBaseRole:
+
+        case LocalsIntegerBaseRole:
             if (isPointerType(data.type)) // Pointers using 0x-convention
                 return QVariant(16);
             return QVariant(formatToIntegerBase(itemFormat(data)));
-        case Qt::EditRole:
+
+        case Qt::EditRole: {
             switch (idx.column()) {
-            case 0:
-                return QVariant(expression(item));
-            case 1:
-                return editValue(data);
-            case 2:
-                // FIXME:: To be tested: Can debuggers handle those?
-                if (!data.displayedType.isEmpty())
-                    return data.displayedType;
-                return QString::fromUtf8(data.type);
-            default: break;
-            } // switch editrole column
+                case 0:
+                    return QVariant(expression(item));
+                case 1:
+                    return editValue(data);
+                case 2:
+                    // FIXME:: To be tested: Can debuggers handle those?
+                    if (!data.displayedType.isEmpty())
+                        return data.displayedType;
+                    return QString::fromUtf8(data.type);
+                default:
+                    break;
+            }
+        }
+
         case Qt::DisplayRole: {
             const QByteArray ns = engine()->qtNamespace();
+            QString result;
             switch (idx.column()) {
                 case 0:
                     if (data.name.isEmpty())
-                        return tr("<Edit>");
-                    if (data.name == QLatin1String("*") && item->parent)
-                        return QVariant(QLatin1Char('*') + item->parent->name);
-                    return removeInitialNamespace(data.name, ns);
+                        result = tr("<Edit>");
+                    else if (data.name == QLatin1String("*") && item->parent)
+                        result = QLatin1Char('*') + item->parent->name;
+                    else
+                        result = removeInitialNamespace(data.name, ns);
+                    break;
                 case 1:
-                    return removeInitialNamespace(truncateValue(
+                    result = removeInitialNamespace(truncateValue(
                             formattedValue(data, itemFormat(data))), ns);
+                    break;
                 case 2:
-                    return removeNamespaces(displayType(data), ns);
+                    result = removeNamespaces(displayType(data), ns);
+                    break;
                 default:
                     break;
-            }  // switch editrole column
+            }
+            if (WatchHandler::m_unprintableBase == 0)
+                return result;
+            QString encoded;
+            foreach (const QChar c, result) {
+                if (c.isPrint()) {
+                    encoded += c;
+                } else if (WatchHandler::m_unprintableBase == 8) {
+                    encoded += QString("\\%1")
+                        .arg(c.unicode(), 3, 8, QLatin1Char('0'));
+                } else {
+                    encoded += QString("\\u%1")
+                        .arg(c.unicode(), 4, 16, QLatin1Char('0'));
+                }
+            }
+            return encoded;
         }
+
         case Qt::ToolTipRole:
             return debuggerCore()->boolSetting(UseToolTipsInLocalsView)
                 ? data.toToolTip() : QVariant();
@@ -646,13 +673,15 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
             static const QVariant red(QColor(200, 0, 0));
             static const QVariant gray(QColor(140, 140, 140));
             switch (idx.column()) {
-                case 1: return !data.valueEnabled ? gray : data.changed ? red : QVariant();
+                case 1: return !data.valueEnabled ? gray
+                            : data.changed ? red : QVariant();
             }
             break;
         }
 
         case LocalsExpressionRole:
             return QVariant(expression(item));
+
         case LocalsINameRole:
             return data.iname;
 
@@ -766,10 +795,11 @@ Qt::ItemFlags WatchModel::flags(const QModelIndex &idx) const
     if (!idx.isValid())
         return Qt::ItemFlags();
 
-    // enabled, editable, selectable, checkable, and can be used both as the
+    // Enabled, editable, selectable, checkable, and can be used both as the
     // source of a drag and drop operation and as a drop target.
 
-    static const Qt::ItemFlags notEditable = Qt::ItemIsSelectable| Qt::ItemIsEnabled;
+    static const Qt::ItemFlags notEditable
+        = /* Qt::ItemIsSelectable | */ Qt::ItemIsEnabled;
     static const Qt::ItemFlags editable = notEditable | Qt::ItemIsEditable;
 
     // Disable editing if debuggee is positively running.
@@ -1083,11 +1113,11 @@ WatchHandler::WatchHandler(DebuggerEngine *engine)
     m_tooltips = new WatchModel(this, TooltipsWatch);
 
     connect(debuggerCore()->action(ShowStdNamespace),
-        SIGNAL(triggered()), this, SLOT(emitAllChanged()));
+        SIGNAL(triggered()), SLOT(emitAllChanged()));
     connect(debuggerCore()->action(ShowQtNamespace),
-        SIGNAL(triggered()), this, SLOT(emitAllChanged()));
+        SIGNAL(triggered()), SLOT(emitAllChanged()));
     connect(debuggerCore()->action(SortStructMembers),
-        SIGNAL(triggered()), this, SLOT(emitAllChanged()));
+        SIGNAL(triggered()), SLOT(emitAllChanged()));
 }
 
 void WatchHandler::beginCycle(bool fullCycle)

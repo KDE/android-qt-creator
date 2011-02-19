@@ -36,7 +36,6 @@
 
 #include "qmljsprivateapi.h"
 
-#include <debugger/debuggerconstants.h>
 #include <qmlprojectmanager/qmlprojectrunconfiguration.h>
 #include <utils/fileinprojectfinder.h>
 
@@ -46,21 +45,23 @@
 #include <QtGui/QAction>
 #include <QtCore/QObject>
 
+QT_FORWARD_DECLARE_CLASS(QLineEdit)
+
 namespace ProjectExplorer {
-    class Project;
-    class Environment;
+class Project;
+class Environment;
 }
 
 namespace TextEditor {
-    class ITextEditor;
+class ITextEditor;
 }
 
 namespace Core {
-    class IContext;
+class IContext;
 }
 
 namespace QmlJS {
-    class ModelManagerInterface;
+class ModelManagerInterface;
 }
 
 namespace QmlJSInspector {
@@ -158,6 +159,7 @@ private:
     bool m_listeningToEditorManager;
     QmlInspectorToolBar *m_toolBar;
     ContextCrumblePath *m_crumblePath;
+    QLineEdit *m_filterExp;
     QmlJSPropertyInspector *m_propertyInspector;
 
     InspectorSettings *m_settings;

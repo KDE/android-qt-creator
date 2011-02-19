@@ -54,6 +54,7 @@
 #define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
 
 using namespace Core;
+using namespace Utils;
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -65,7 +66,7 @@ MaemoPublisherFremantleFree::MaemoPublisherFremantleFree(const ProjectExplorer::
     m_state(Inactive),
     m_sshParams(SshConnectionParameters::DefaultProxy)
 {
-    m_sshParams.authType = SshConnectionParameters::AuthByKey;
+    m_sshParams.authorizationType = SshConnectionParameters::AuthorizationByKey;
     m_sshParams.timeout = 30;
     m_sshParams.port = 22;
     m_process = new QProcess(this);
@@ -95,7 +96,7 @@ void MaemoPublisherFremantleFree::setSshParams(const QString &hostName,
 {
     Q_ASSERT(m_doUpload);
     m_sshParams.host = hostName;
-    m_sshParams.uname = userName;
+    m_sshParams.userName = userName;
     m_sshParams.privateKeyFile = keyFile;
     m_remoteDir = remoteDir;
 }
@@ -371,7 +372,7 @@ void MaemoPublisherFremantleFree::uploadPackage()
     m_uploader = SshRemoteProcessRunner::create(m_sshParams);
     connect(m_uploader.data(), SIGNAL(processStarted()),
         SLOT(handleScpStarted()));
-    connect(m_uploader.data(), SIGNAL(connectionError(Core::SshError)),
+    connect(m_uploader.data(), SIGNAL(connectionError(Utils::SshError)),
         SLOT(handleConnectionError()));
     connect(m_uploader.data(), SIGNAL(processClosed(int)),
         SLOT(handleUploadJobFinished(int)));

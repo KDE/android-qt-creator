@@ -76,6 +76,8 @@ private slots:
     void invokeCompletion();
     void invokeQuickFix();
     void updateSearchResultsFont(const TextEditor::FontSettings &);
+    void updateVariable(const QString &variable);
+    void updateCurrentSelection(const QString &text);
 
 private:
     static TextEditorPlugin *m_instance;

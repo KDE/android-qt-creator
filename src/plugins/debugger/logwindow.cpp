@@ -42,6 +42,8 @@
 
 #include <QtGui/QHBoxLayout>
 #include <QtGui/QVBoxLayout>
+#include <QtGui/QLabel>
+#include <QtGui/QLineEdit>
 #include <QtGui/QKeyEvent>
 #include <QtGui/QMenu>
 #include <QtGui/QSpacerItem>
@@ -201,9 +203,6 @@ public:
         QMenu *menu = createStandardContextMenu();
         menu->addAction(m_clearContentsAction);
         menu->addAction(m_saveContentsAction); // X11 clipboard is unreliable for long texts
-        addContextActions(menu);
-        debuggerCore()->action(ExecuteCommand)->setData(textCursor().block().text());
-        menu->addAction(debuggerCore()->action(ExecuteCommand));
         menu->addAction(debuggerCore()->action(LogTimeStamps));
         menu->addAction(debuggerCore()->action(VerboseLog));
         menu->addSeparator();
@@ -212,7 +211,6 @@ public:
         delete menu;
     }
 
-    virtual void addContextActions(QMenu *) {}
 
 private slots:
     void saveContents();
@@ -252,7 +250,7 @@ private:
     void keyPressEvent(QKeyEvent *ev)
     {
         if (ev->modifiers() == Qt::ControlModifier && ev->key() == Qt::Key_Return)
-            debuggerCore()->action(ExecuteCommand)->trigger(textCursor().block().text());
+            debuggerCore()->executeDebuggerCommand(textCursor().block().text());
         else if (ev->modifiers() == Qt::ControlModifier && ev->key() == Qt::Key_R)
             emit clearContentsRequested();
         else
@@ -276,11 +274,6 @@ private:
             n = 10 * n + c.unicode() - '0';
         }
         emit commandSelected(n);
-    }
-
-    void addContextActions(QMenu *menu)
-    {
-       menu->addAction(debuggerCore()->action(ExecuteCommand));
     }
 
     void focusInEvent(QFocusEvent *ev)
@@ -349,20 +342,41 @@ LogWindow::LogWindow(QWidget *parent)
     setWindowTitle(tr("Debugger Log"));
     setObjectName("Log");
 
-    QSplitter *m_splitter = new  Core::MiniSplitter(Qt::Horizontal);
+    QSplitter *m_splitter = new Core::MiniSplitter(Qt::Horizontal);
     m_splitter->setParent(this);
-    // mixed input/output
+
+    // Mixed input/output.
     m_combinedText = new CombinedPane(this);
     m_combinedText->setReadOnly(true);
     m_combinedText->setReadOnly(false);
-    m_combinedText->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+    m_combinedText->setSizePolicy(QSizePolicy::MinimumExpanding,
+        QSizePolicy::MinimumExpanding);
 
-    // input only
+    // Input only.
     m_inputText = new InputPane(this);
     m_inputText->setReadOnly(false);
-    m_inputText->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+    m_inputText->setSizePolicy(QSizePolicy::MinimumExpanding,
+        QSizePolicy::MinimumExpanding);
 
-    m_splitter->addWidget(m_inputText);
+    m_commandLabel = new QLabel(tr("Command:"), this);
+    m_commandEdit = new QLineEdit(this);
+    m_commandEdit->setFrame(false);
+    QHBoxLayout *commandBox = new QHBoxLayout;
+    commandBox->addWidget(m_commandLabel);
+    commandBox->addWidget(m_commandEdit);
+    commandBox->setMargin(2);
+    commandBox->setSpacing(6);
+
+    QVBoxLayout *leftBox = new QVBoxLayout;
+    leftBox->addWidget(m_inputText);
+    leftBox->addItem(commandBox);
+    leftBox->setMargin(0);
+    leftBox->setSpacing(0);
+
+    QWidget *leftDummy = new QWidget;
+    leftDummy->setLayout(leftBox);
+
+    m_splitter->addWidget(leftDummy);
     m_splitter->addWidget(m_combinedText);
     m_splitter->setStretchFactor(0, 1);
     m_splitter->setStretchFactor(1, 3);
@@ -383,9 +397,16 @@ LogWindow::LogWindow(QWidget *parent)
     aggregate->add(new Find::BaseTextFind(m_inputText));
 
     connect(m_inputText, SIGNAL(statusMessageRequested(QString,int)),
-       this, SIGNAL(statusMessageRequested(QString,int)));
+        SIGNAL(statusMessageRequested(QString,int)));
     connect(m_inputText, SIGNAL(commandSelected(int)),
-       m_combinedText, SLOT(gotoResult(int)));
+        m_combinedText, SLOT(gotoResult(int)));
+    connect(m_commandEdit, SIGNAL(returnPressed()),
+        SLOT(sendCommand()));
+}
+
+void LogWindow::sendCommand()
+{
+    debuggerCore()->executeDebuggerCommand(m_commandEdit->text());
 }
 
 void LogWindow::showOutput(int channel, const QString &output)

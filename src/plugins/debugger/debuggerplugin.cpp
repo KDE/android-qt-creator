@@ -391,7 +391,6 @@ const char * const BREAK_AT_MAIN            = "Debugger.BreakAtMain";
 // Don't add '1' to the string as it shows up in the shortcut dialog.
 const char * const ADD_TO_WATCH1            = "Debugger.AddToWatch";
 const char * const ADD_TO_WATCH2            = "Debugger.AddToWatch2";
-const char * const OPERATE_BY_INSTRUCTION   = "Debugger.OperateByInstruction";
 const char * const FRAME_UP                 = "Debugger.FrameUp";
 const char * const FRAME_DOWN               = "Debugger.FrameDown";
 
@@ -479,9 +478,9 @@ public:
     void runEngine() {}
     void shutdownEngine() {}
     void shutdownInferior() {}
-    void executeDebuggerCommand(const QString &) {}
     unsigned debuggerCapabilities() const { return 0; }
     bool acceptsBreakpoint(BreakpointId) const { return false; }
+    bool acceptsDebuggerCommands() const { return false; }
 };
 
 static DebuggerEngine *dummyEngine()
@@ -722,16 +721,6 @@ bool DebuggingHelperOptionPage::matches(const QString &s) const
 //
 ///////////////////////////////////////////////////////////////////////
 
-static bool isDebuggable(IEditor *editor)
-{
-    // Only blacklist Qml. Whitelisting would fail on C++ code in files
-    // with strange names, more harm would be done this way.
-    //   IFile *file = editor->file();
-    //   return !(file && file->mimeType() == "application/x-qml");
-    // Nowadays, even Qml is debuggable.
-    return editor;
-}
-
 class ContextData
 {
 public:
@@ -872,8 +861,6 @@ public slots:
     void updateBreakMenuItem(Core::IEditor *editor);
     void setBusyCursor(bool busy);
     void requestMark(TextEditor::ITextEditor *editor, int lineNumber);
-    void showToolTip(TextEditor::ITextEditor *editor,
-        const QPoint &pnt, int pos, bool *handled);
     void requestContextMenu(TextEditor::ITextEditor *editor,
         int lineNumber, QMenu *menu);
 
@@ -949,7 +936,7 @@ public slots:
     void aboutToUnloadSession();
     void aboutToSaveSession();
 
-    void executeDebuggerCommand();
+    void executeDebuggerCommand(const QString &command);
     void scriptExpressionEntered(const QString &expression);
     void coreShutdown();
 
@@ -1356,7 +1343,7 @@ bool DebuggerPluginPrivate::parseArgument(QStringList::const_iterator &it,
             sp.executable = it->section('@', 1, 1);
             if (sp.remoteChannel.isEmpty()) {
                 *errorMessage = DebuggerPlugin::tr("The parameter '%1' of option "
-                    "'%2' does not match the pattern <server:port>@<exe>@<arch>.")
+                    "'%2' does not match the pattern <server:port>@<executable>@<architecture>.")
                         .arg(*it, option);
                 return false;
             }
@@ -1711,13 +1698,13 @@ void DebuggerPluginPrivate::startRemoteEngine()
         return;
 
     sp.connParams.host = dlg.host();
-    sp.connParams.uname = dlg.username();
-    sp.connParams.pwd = dlg.password();
+    sp.connParams.userName = dlg.username();
+    sp.connParams.password = dlg.password();
 
     sp.connParams.timeout = 5;
-    sp.connParams.authType = SshConnectionParameters::AuthByPwd;
+    sp.connParams.authorizationType = Utils::SshConnectionParameters::AuthorizationByPassword;
     sp.connParams.port = 22;
-    sp.connParams.proxyType = SshConnectionParameters::NoProxy;
+    sp.connParams.proxyType = Utils::SshConnectionParameters::NoProxy;
 
     sp.executable = dlg.inferiorPath();
     sp.serverStartScript = dlg.enginePath();
@@ -1777,7 +1764,7 @@ void DebuggerPluginPrivate::runScheduled()
 
 void DebuggerPluginPrivate::editorOpened(IEditor *editor)
 {
-    if (!isDebuggable(editor))
+    if (!isEditorDebuggable(editor))
         return;
     ITextEditor *textEditor = qobject_cast<ITextEditor *>(editor);
     if (!textEditor)
@@ -1785,9 +1772,6 @@ void DebuggerPluginPrivate::editorOpened(IEditor *editor)
     connect(textEditor,
         SIGNAL(markRequested(TextEditor::ITextEditor*,int)),
         SLOT(requestMark(TextEditor::ITextEditor*,int)));
-    connect(editor,
-        SIGNAL(tooltipOverrideRequested(TextEditor::ITextEditor*,QPoint,int,bool*)),
-        SLOT(showToolTip(TextEditor::ITextEditor*,QPoint,int,bool*)));
     connect(textEditor,
         SIGNAL(markContextMenuRequested(TextEditor::ITextEditor*,int,QMenu*)),
         SLOT(requestContextMenu(TextEditor::ITextEditor*,int,QMenu*)));
@@ -1802,7 +1786,7 @@ void DebuggerPluginPrivate::updateBreakMenuItem(Core::IEditor *editor)
 void DebuggerPluginPrivate::requestContextMenu(ITextEditor *editor,
     int lineNumber, QMenu *menu)
 {
-    if (!isDebuggable(editor))
+    if (!isEditorDebuggable(editor))
         return;
 
     ContextData args;
@@ -1945,26 +1929,6 @@ void DebuggerPluginPrivate::requestMark(ITextEditor *editor, int lineNumber)
         toggleBreakpointByAddress(address);
     } else if (editor->file()) {
         toggleBreakpointByFileAndLine(editor->file()->fileName(), lineNumber);
-    }
-}
-
-void DebuggerPluginPrivate::showToolTip(ITextEditor *editor,
-    const QPoint &point, int pos, bool *handled)
-{
-    if (!isDebuggable(editor))
-        return;
-    if (!boolSetting(UseToolTipsInMainEditor))
-        return;
-    if (!currentEngine())
-        return;
-    if (!currentEngine()->canDisplayTooltip())
-        return;
-    QTC_ASSERT(handled, return);
-
-    const DebuggerToolTipContext context = DebuggerToolTipContext::fromEditor(editor, pos);
-    if (context.isValid()) {
-        *handled = true;
-        currentEngine()->setToolTipExpression(point, editor, context);
     }
 }
 
@@ -2131,7 +2095,6 @@ void DebuggerPluginPrivate::setInitialState()
 
     action(AutoDerefPointers)->setEnabled(true);
     action(ExpandStack)->setEnabled(false);
-    action(ExecuteCommand)->setEnabled(false);
 
     m_scriptConsoleWindow->setEnabled(false);
 }
@@ -2218,11 +2181,7 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
 
     m_startExternalAction->setEnabled(true);
     m_attachExternalAction->setEnabled(true);
-#ifdef Q_OS_WIN
-    m_attachCoreAction->setEnabled(false);
-#else
     m_attachCoreAction->setEnabled(true);
-#endif
     m_startRemoteAction->setEnabled(true);
 
     const bool isCore = engine->startParameters().startMode == AttachCore;
@@ -2263,7 +2222,6 @@ void DebuggerPluginPrivate::updateState(DebuggerEngine *engine)
     action(AutoDerefPointers)->setEnabled(canDeref);
     action(AutoDerefPointers)->setEnabled(true);
     action(ExpandStack)->setEnabled(actionsEnabled);
-    action(ExecuteCommand)->setEnabled(state == InferiorStopOk);
 
     const bool notbusy = state == InferiorStopOk
         || state == DebuggerNotReady
@@ -2379,10 +2337,12 @@ void DebuggerPluginPrivate::aboutToSaveSession()
     m_breakHandler->saveSessionData();
 }
 
-void DebuggerPluginPrivate::executeDebuggerCommand()
+void DebuggerPluginPrivate::executeDebuggerCommand(const QString &command)
 {
-    if (QAction *action = qobject_cast<QAction *>(sender()))
-        currentEngine()->executeDebuggerCommand(action->data().toString());
+    if (currentEngine()->acceptsDebuggerCommands())
+        currentEngine()->executeDebuggerCommand(command);
+    else
+        showStatusMessage(tr("User commands are not accepted in the current state."));
 }
 
 void DebuggerPluginPrivate::showStatusMessage(const QString &msg0, int timeout)
@@ -2757,9 +2717,6 @@ void DebuggerPluginPrivate::extensionsInitialized()
 
     connect(&m_statusTimer, SIGNAL(timeout()), SLOT(clearStatusMessage()));
 
-    connect(action(ExecuteCommand), SIGNAL(triggered()),
-        SLOT(executeDebuggerCommand()));
-
     ActionContainer *debugMenu =
         am->actionContainer(ProjectExplorer::Constants::M_DEBUG);
 
@@ -3129,7 +3086,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
     hbox->addSpacerItem(new QSpacerItem(4, 0));
     hbox->addWidget(m_statusLabel, 10);
 
-    m_mainWindow->setToolbar(CppLanguage, toolbarContainer);
+    m_mainWindow->setToolBar(CppLanguage, toolbarContainer);
 
     connect(action(EnableReverseDebugging),
         SIGNAL(valueChanged(QVariant)),
@@ -3277,6 +3234,11 @@ bool DebuggerPlugin::isActiveDebugLanguage(int language)
 DebuggerMainWindow *DebuggerPlugin::mainWindow()
 {
     return theDebuggerCore->m_mainWindow;
+}
+
+QAction *DebuggerPlugin::visibleDebugAction()
+{
+    return theDebuggerCore->m_visibleDebugAction;
 }
 
 QWidget *DebugMode::widget()

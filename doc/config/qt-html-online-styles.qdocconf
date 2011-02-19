@@ -2,7 +2,7 @@
 # specified relative to the template directory and will be copied into
 # subdirectories of the output directory.
 
-HTML.templatedir = $QT_SOURCE_TREE/doc/src/template
+HTML.templatedir = $SRCDIR/templates
 
 HTML.stylesheets = style/narrow.css \
                    style/style.css \
@@ -39,7 +39,8 @@ extraimages.HTML        = qt-logo.png \
                           page.png \
                           page_bg.png \
                           sprites-combined.png \
-                          spinner.gif
+                          spinner.gif \
+                          qtcreator-screenshots.png
     
 # Include the style sheets and scripts used.
 

@@ -6,12 +6,12 @@
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -124,12 +128,10 @@ QList<BuildConfigurationInfo> Qt4DesktopTargetFactory::availableBuildConfigurati
         if (!version->isValid())
             continue;
         QtVersion::QmakeBuildConfigs config = version->defaultBuildConfig();
-        bool buildAll = version->defaultBuildConfig() & QtVersion::BuildAll;
 
         QString dir = defaultShadowBuildDirectory(Qt4Project::defaultTopLevelBuildDirectory(proFilePath), Constants::DESKTOP_TARGET_ID);
         infos.append(BuildConfigurationInfo(version, config, QString(), dir));
-        if (buildAll)
-            infos.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
+        infos.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
     }
     return infos;
 }
@@ -144,12 +146,11 @@ Qt4BaseTarget *Qt4DesktopTargetFactory::create(ProjectExplorer::Project *parent,
         return 0;
 
     QtVersion *qtVersion = knownVersions.first();
-    bool buildAll = qtVersion->isValid() && (qtVersion->defaultBuildConfig() & QtVersion::BuildAll);
-    QtVersion::QmakeBuildConfigs config = buildAll ? QtVersion::BuildAll : QtVersion::QmakeBuildConfig(0);
+    QtVersion::QmakeBuildConfigs config = qtVersion->defaultBuildConfig();
 
     QList<BuildConfigurationInfo> infos;
-    infos.append(BuildConfigurationInfo(qtVersion, config | QtVersion::DebugBuild, QString(), QString()));
     infos.append(BuildConfigurationInfo(qtVersion, config, QString(), QString()));
+    infos.append(BuildConfigurationInfo(qtVersion, config ^ QtVersion::DebugBuild, QString(), QString()));
 
     return create(parent, id, infos);
 }
@@ -160,15 +161,10 @@ Qt4BaseTarget *Qt4DesktopTargetFactory::create(ProjectExplorer::Project *parent,
         return 0;
     Qt4DesktopTarget *t = new Qt4DesktopTarget(static_cast<Qt4Project *>(parent), id);
 
-    foreach (const BuildConfigurationInfo &info, infos) {
-        QString displayName = info.version->displayName() + QLatin1Char(' ');
-        displayName += (info.buildConfig & QtVersion::DebugBuild) ? tr("Debug") : tr("Release");
-        t->addQt4BuildConfiguration(displayName,
-                                    info.version,
-                                    info.buildConfig,
-                                    info.additionalArguments,
-                                    info.directory);
-    }
+    foreach (const BuildConfigurationInfo &info, infos)
+        t->addQt4BuildConfiguration(msgBuildConfigurationName(info),
+                                    info.version, info.buildConfig,
+                                    info.additionalArguments, info.directory);
 
     t->addDeployConfiguration(t->deployConfigurationFactory()->create(t, ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
 

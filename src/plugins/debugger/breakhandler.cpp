@@ -56,6 +56,34 @@
 namespace Debugger {
 namespace Internal {
 
+static QString stateToString(BreakpointState state)
+{
+    switch (state) {
+        case BreakpointNew:
+            return BreakHandler::tr("New");
+        case BreakpointInsertRequested:
+            return BreakHandler::tr("Insertion requested");
+        case BreakpointInsertProceeding:
+            return BreakHandler::tr("Insertion proceeding");
+        case BreakpointChangeRequested:
+            return BreakHandler::tr("Change requested");
+        case BreakpointChangeProceeding:
+            return BreakHandler::tr("Change proceeding");
+        case BreakpointInserted:
+            return BreakHandler::tr("Breakpoint inserted");
+        case BreakpointRemoveRequested:
+            return BreakHandler::tr("Removal requested");
+        case BreakpointRemoveProceeding:
+            return BreakHandler::tr("Removal proceeding");
+        case BreakpointDead:
+            return BreakHandler::tr("Dead");
+        default:
+            break;
+    }
+    //: Invalid breakpoint state.
+    return BreakHandler::tr("<invalid state>");
+}
+
 BreakHandler::BreakHandler()
   : m_syncTimerId(-1)
 {}
@@ -270,8 +298,8 @@ void BreakHandler::saveBreakpoints()
             map.insert(_("threadspec"), data.threadSpec);
         if (!data.enabled)
             map.insert(_("disabled"), one);
-        if (data.useFullPath)
-            map.insert(_("usefullpath"), one);
+        if (data.pathUsage != BreakpointPathUsageEngineDefault)
+            map.insert(_("usefullpath"), QString::number(data.pathUsage));
         if (data.tracepoint)
             map.insert(_("tracepoint"), one);
         if (!data.module.isEmpty())
@@ -320,7 +348,7 @@ void BreakHandler::loadBreakpoints()
             data.enabled = !v.toInt();
         v = map.value(_("usefullpath"));
         if (v.isValid())
-            data.useFullPath = bool(v.toInt());
+            data.pathUsage = static_cast<BreakpointPathUsage>(v.toInt());
         v = map.value(_("tracepoint"));
         if (v.isValid())
             data.tracepoint = bool(v.toInt());
@@ -458,6 +486,12 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
                     return response.functionName;
                 if (!data.functionName.isEmpty())
                     return data.functionName;
+                if (data.type == BreakpointAtMain)
+                    return tr("Breakpoint at \"main\"");
+                if (data.type == BreakpointAtCatch)
+                    return tr("Break when catching exceptions");
+                if (data.type == BreakpointAtThrow)
+                    return tr("Break when throwing exceptions");
                 return empty;
             }
             break;
@@ -579,7 +613,7 @@ void BreakHandler::setter(BreakpointId id, const type &value) \
     SETTER(type, getter, setter)
 
 
-PROPERTY(bool, useFullPath, setUseFullPath)
+PROPERTY(BreakpointPathUsage, pathUsage, setPathUsage)
 PROPERTY(QString, fileName, setFileName)
 PROPERTY(QString, functionName, setFunctionName)
 PROPERTY(BreakpointType, type, setType)
@@ -605,9 +639,11 @@ void BreakHandler::setEnabled(BreakpointId id, bool on)
         return;
     it->data.enabled = on;
     it->destroyMarker();
-    it->state = BreakpointChangeRequested;
     updateMarker(id);
-    scheduleSynchronization();
+    if (it->engine) {
+        it->state = BreakpointChangeRequested;
+        scheduleSynchronization();
+    }
 }
 
 bool BreakHandler::isTracepoint(BreakpointId id) const
@@ -625,9 +661,12 @@ void BreakHandler::setTracepoint(BreakpointId id, bool on)
         return;
     it->data.tracepoint = on;
     it->destroyMarker();
-    it->state = BreakpointChangeRequested;
+
     updateMarker(id);
-    scheduleSynchronization();
+    if (it->engine) {
+        it->state = BreakpointChangeRequested;
+        scheduleSynchronization();
+    }
 }
 
 void BreakHandler::setMarkerFileAndLine(BreakpointId id,
@@ -820,15 +859,20 @@ void BreakHandler::removeBreakpoint(BreakpointId id)
 {
     Iterator it = m_storage.find(id);
     QTC_ASSERT(it != m_storage.end(), return);
-    if (it->state == BreakpointInserted) {
+    switch (it->state) {
+    case BreakpointInserted:
         setState(id, BreakpointRemoveRequested);
         scheduleSynchronization();
-    } else if (it->state == BreakpointNew) {
+        break;
+    case BreakpointNew:
         it->state = BreakpointDead;
         cleanupBreakpoint(id);
-    } else {
-        qDebug() << "CANNOT REMOVE IN STATE " << it->state;
+        break;
+    default:
+        qWarning("Warning: Cannot remove breakpoint %llu in state '%s'.",
+               id, qPrintable(stateToString(it->state)));
         it->state = BreakpointRemoveRequested;
+        break;
     }
 }
 
@@ -1025,7 +1069,7 @@ void BreakHandler::setBreakpointData(BreakpointId id, const BreakpointParameters
     if (data == it->data)
         return;
     it->data = data;
-    if (it->needsChange() && it->state != BreakpointNew) {
+    if (it->needsChange() && it->engine && it->state != BreakpointNew) {
         setState(id, BreakpointChangeRequested);
         scheduleSynchronization();
     } else {
@@ -1086,22 +1130,6 @@ static void formatAddress(QTextStream &str, quint64 address)
         str.setIntegerBase(16);
         str << address;
         str.setIntegerBase(10);
-    }
-}
-
-static QString stateToString(BreakpointState state)
-{
-    switch (state) {
-        case BreakpointNew: return "New";
-        case BreakpointInsertRequested: return "Insertion requested";
-        case BreakpointInsertProceeding: return "Insertion proceeding";
-        case BreakpointChangeRequested: return "Change requested";
-        case BreakpointChangeProceeding: return "Change proceeding";
-        case BreakpointInserted: return "Breakpoint inserted";
-        case BreakpointRemoveRequested: return "Removal requested";
-        case BreakpointRemoveProceeding: return "Removal proceeding";
-        case BreakpointDead: return "Dead";
-        default: return "<invalid state>";
     }
 }
 

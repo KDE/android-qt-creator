@@ -47,9 +47,10 @@ class DebuggingHelperBuildTask : public QObject {
 public:
     enum DebuggingHelper {
         GdbDebugging = 0x01,
-        QmlObserver = 0x02,
-        QmlDump = 0x04,
-        AllTools = GdbDebugging | QmlObserver | QmlDump
+        QmlDebugging = 0x02,
+        QmlObserver = 0x04,
+        QmlDump = 0x08,
+        AllTools = GdbDebugging | QmlDebugging | QmlObserver | QmlDump
     };
     Q_DECLARE_FLAGS(Tools, DebuggingHelper)
 
@@ -78,5 +79,7 @@ private:
 
 } //namespace Internal
 } //namespace Qt4ProjectManager
+
+Q_DECLARE_METATYPE(Qt4ProjectManager::Internal::DebuggingHelperBuildTask::Tools)
 
 #endif // DEBUGGINGHELPERBUILDTASK_H

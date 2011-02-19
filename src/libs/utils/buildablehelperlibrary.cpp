@@ -255,7 +255,8 @@ bool BuildableHelperLibrary::buildHelper(const QString &helperName, const QStrin
                                          const QString &directory, const QString &makeCommand,
                                          const QString &qmakeCommand, const QString &mkspec,
                                          const Utils::Environment &env, const QString &targetMode,
-                                         QString *output, QString *errorMessage)
+                                         const QStringList &qmakeArguments, QString *output,
+                                         QString *errorMessage)
 {
     const QChar newline = QLatin1Char('\n');
     // Setup process
@@ -265,7 +266,7 @@ bool BuildableHelperLibrary::buildHelper(const QString &helperName, const QStrin
     proc.setProcessChannelMode(QProcess::MergedChannels);
 
     output->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
-                                          "Building helper library '%1' in %2\n").arg(helperName, directory));
+                                          "Building helper '%1' in %2\n").arg(helperName, directory));
     output->append(newline);
 
     const QString makeFullPath = env.searchInPath(makeCommand);
@@ -281,16 +282,19 @@ bool BuildableHelperLibrary::buildHelper(const QString &helperName, const QStrin
         if (!runBuildProcess(proc, makeFullPath, QStringList(cleanTarget), 30000, true, output, errorMessage))
             return false;
     }
-    output->append(newline);
-    output->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary", "Running %1 ...\n").arg(qmakeCommand));
-
-    QStringList qMakeArgs;
+    QStringList qmakeArgs;
     if (!targetMode.isEmpty())
-        qMakeArgs << targetMode;
+        qmakeArgs << targetMode;
     if (!mkspec.isEmpty())
-        qMakeArgs << QLatin1String("-spec") << mkspec;
-    qMakeArgs << proFilename;
-    if (!runBuildProcess(proc, qmakeCommand, qMakeArgs, 30000, false, output, errorMessage))
+        qmakeArgs << QLatin1String("-spec") << mkspec;
+    qmakeArgs << proFilename;
+    qmakeArgs << qmakeArguments;
+
+    output->append(newline);
+    output->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary", "Running %1 %2 ...\n").arg(qmakeCommand,
+                                                                                                                     qmakeArgs.join(" ")));
+
+    if (!runBuildProcess(proc, qmakeCommand, qmakeArgs, 30000, false, output, errorMessage))
         return false;
     output->append(newline);
     if (makeFullPath.isEmpty()) {
@@ -318,11 +322,19 @@ bool BuildableHelperLibrary::getHelperFileInfoFor(const QStringList &validBinary
     return false;
 }
 
-QString BuildableHelperLibrary::byInstallDataHelper(const QString &mainFilename,
+QString BuildableHelperLibrary::byInstallDataHelper(const QString &sourcePath,
+                                                    const QStringList &sourceFileNames,
                                                     const QStringList &installDirectories,
                                                     const QStringList &validBinaryFilenames)
 {
-    QDateTime sourcesModified = QFileInfo(mainFilename).lastModified();
+    // find the latest change to the sources
+    QDateTime sourcesModified;
+    foreach (const QString &sourceFileName, sourceFileNames) {
+        const QDateTime fileModified = QFileInfo(sourcePath + sourceFileName).lastModified();
+        if (fileModified.isValid() && (!sourcesModified.isValid() || fileModified > sourcesModified))
+            sourcesModified = fileModified;
+    }
+
     // We pretend that the lastmodified of gdbmacros.cpp is 5 minutes before what the file system says
     // Because afer a installation from the package the modified dates of gdbmacros.cpp
     // and the actual library are close to each other, but not deterministic in one direction

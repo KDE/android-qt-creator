@@ -63,7 +63,7 @@ public:
     static bool build(const QString &directory, const QString &makeCommand,
                        const QString &qmakeCommand, const QString &mkspec,
                        const Utils::Environment &env, const QString &targetMode,
-                       QString *output,  QString *errorMessage);
+                       const QStringList &qmakeArguments, QString *output,  QString *errorMessage);
 
     // Copy the source files to a target location and return the chosen target location.
     static QString copy(const QString &qtInstallData, QString *errorMessage);
@@ -71,7 +71,8 @@ public:
 private:
     static QStringList recursiveFileList(const QDir &dir, const QString &prefix = QString());
     static QStringList installDirectories(const QString &qtInstallData);
-
+    static QString sourcePath();
+    static QStringList sourceFileNames();
 };
 
 } // namespace

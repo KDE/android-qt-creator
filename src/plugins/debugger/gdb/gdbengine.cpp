@@ -1062,17 +1062,19 @@ void GdbEngine::handleResultRecord(GdbResponse *response)
         m_commandTimer.stop();
 }
 
+bool GdbEngine::acceptsDebuggerCommands() const
+{
+    return state() == InferiorStopOk
+        || state() == InferiorUnrunnable;
+}
+
 void GdbEngine::executeDebuggerCommand(const QString &command)
 {
-    if (state() == DebuggerNotReady) {
-        showMessage(_("GDB PROCESS NOT RUNNING, PLAIN CMD IGNORED: ") + command);
-        return;
-    }
-
+    QTC_ASSERT(acceptsDebuggerCommands(), /**/);
     m_gdbAdapter->write(command.toLatin1() + "\r\n");
 }
 
-// Called from CoreAdapter and AttachAdapter
+// This is called from CoreAdapter and AttachAdapter.
 void GdbEngine::updateAll()
 {
     if (hasPython())
@@ -2249,7 +2251,7 @@ QByteArray GdbEngine::breakpointLocation(BreakpointId id)
     if (data.type == BreakpointByAddress)
         return addressSpec(data.address);
 
-    const QString fileName = data.useFullPath
+    const QString fileName = data.pathUsage == BreakpointUseFullPath
         ? data.fileName : breakLocation(data.fileName);
     // The argument is simply a C-quoted version of the argument to the
     // non-MI "break" command, including the "original" quoting it wants.
@@ -3417,13 +3419,13 @@ void GdbEngine::clearToolTip()
     m_toolTipContext.reset();
 }
 
-void GdbEngine::setToolTipExpression(const QPoint &mousePos,
+bool GdbEngine::setToolTipExpression(const QPoint &mousePos,
     TextEditor::ITextEditor *editor, const DebuggerToolTipContext &contextIn)
 {
     if (state() != InferiorStopOk || !isCppEditor(editor)) {
         //qDebug() << "SUPPRESSING DEBUGGER TOOLTIP, INFERIOR NOT STOPPED "
         // " OR NOT A CPPEDITOR";
-        return;
+        return false;
     }
 
     DebuggerToolTipContext context = contextIn;
@@ -3432,7 +3434,7 @@ void GdbEngine::setToolTipExpression(const QPoint &mousePos,
     if (DebuggerToolTipManager::debug())
         qDebug() << "GdbEngine::setToolTipExpression1 " << exp << context;
     if (exp.isEmpty())
-        return;
+        return false;
 
     // Extract the first identifier, everything else is considered
     // too dangerous.
@@ -3453,10 +3455,10 @@ void GdbEngine::setToolTipExpression(const QPoint &mousePos,
     exp = exp.mid(pos1, pos2 - pos1);
 
     if (exp.isEmpty() || exp.startsWith(_c('#')) || !hasLetterOrNumber(exp) || isKeyWord(exp))
-        return;
+        return false;
 
     if (exp.startsWith(_c('"')) && exp.endsWith(_c('"')))
-        return;
+        return false;
 
     if (exp.startsWith(__("++")) || exp.startsWith(__("--")))
         exp = exp.mid(2);
@@ -3465,14 +3467,14 @@ void GdbEngine::setToolTipExpression(const QPoint &mousePos,
         exp = exp.mid(2);
 
     if (exp.startsWith(_c('<')) || exp.startsWith(_c('[')))
-        return;
+        return false;
 
     if (hasSideEffects(exp) || exp.isEmpty())
-        return;
+        return false;
 
     if (!m_toolTipContext.isNull() && m_toolTipContext->expression == exp) {
         showToolTip();
-        return;
+        return true;
     }
 
     m_toolTipContext.reset(new GdbToolTipContext(context));
@@ -3483,7 +3485,7 @@ void GdbEngine::setToolTipExpression(const QPoint &mousePos,
 
     if (isSynchronous()) {
         updateLocals(QVariant());
-        return;
+        return true;
     }
 
     WatchData toolTip;
@@ -3492,6 +3494,7 @@ void GdbEngine::setToolTipExpression(const QPoint &mousePos,
     toolTip.iname = tooltipIName(exp);
     watchHandler()->removeData(toolTip.iname);
     watchHandler()->insertData(toolTip);
+    return true;
 }
 
 
@@ -4097,6 +4100,12 @@ DisassemblerLines GdbEngine::parseCliDisassembler(const GdbMi &output)
                 }
                 line.replace(pos1, pos2 - pos1, "");
             }
+            if (pos3 - pos2 == 1)
+                line.insert(pos2 + 1, "000");
+            if (pos3 - pos2 == 2)
+                line.insert(pos2 + 1, "00");
+            if (pos3 - pos2 == 3)
+                line.insert(pos2 + 1, "0");
             dlines.appendLine(DisassemblerLine(_(line)));
             continue;
         }
@@ -4256,7 +4265,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &gdb,
         showStatusMessage(_("%1 cannot find python").arg(nativeGdb));
         const QString msg = tr("The gdb installed at %1 cannot "
            "find a valid python installation in its %2 subdirectory.\n"
-           "You may set the PYTHONPATH to your installation.")
+           "You may set the environment variable PYTHONPATH to point to your installation.")
                 .arg(nativeGdb).arg(winPythonVersion);
         handleAdapterStartFailed(msg, settingsIdHint);
         return false;

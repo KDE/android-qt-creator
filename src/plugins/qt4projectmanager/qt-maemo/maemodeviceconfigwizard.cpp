@@ -41,7 +41,7 @@
 #include "maemodeviceconfigurations.h"
 #include "maemokeydeployer.h"
 
-#include <coreplugin/ssh/sshkeygenerator.h>
+#include <utils/ssh/sshkeygenerator.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFile>
@@ -108,8 +108,8 @@ public:
 
     QString hostName() const
     {
-        return deviceType() == MaemoDeviceConfig::Simulator
-            ? MaemoDeviceConfig::defaultHost(MaemoDeviceConfig::Simulator)
+        return deviceType() == MaemoDeviceConfig::Emulator
+            ? MaemoDeviceConfig::defaultHost(MaemoDeviceConfig::Emulator)
             : m_ui->hostNameLineEdit->text().trimmed();
     }
 
@@ -123,7 +123,7 @@ public:
     MaemoDeviceConfig::DeviceType deviceType() const
     {
         return m_ui->hwButton->isChecked()
-            ? MaemoDeviceConfig::Physical : MaemoDeviceConfig::Simulator;
+            ? MaemoDeviceConfig::Physical : MaemoDeviceConfig::Emulator;
     }
 
 private slots:
@@ -301,7 +301,7 @@ private:
         QDir parentDir = QDir(dirPath + QLatin1String("/.."));
         if ((!dir.exists() && !parentDir.mkdir(dir.dirName()))
                 || !QFileInfo(dirPath).isWritable()) {
-            QMessageBox::critical(this, tr("Can't Create Keys"),
+            QMessageBox::critical(this, tr("Cannot Create Keys"),
                 tr("You have not entered a writable directory."));
             return;
         }
@@ -309,10 +309,10 @@ private:
         m_ui->keyDirPathChooser->setEnabled(false);
         m_ui->createKeysButton->setEnabled(false);
         m_ui->statusLabel->setText(tr("Creating keys ... "));
-        Core::SshKeyGenerator keyGenerator;
-        if (!keyGenerator.generateKeys(Core::SshKeyGenerator::Rsa,
-             Core::SshKeyGenerator::OpenSsl, 1024)) {
-            QMessageBox::critical(this, tr("Can't Create Keys"),
+        Utils::SshKeyGenerator keyGenerator;
+        if (!keyGenerator.generateKeys(Utils::SshKeyGenerator::Rsa,
+             Utils::SshKeyGenerator::OpenSsl, 1024)) {
+            QMessageBox::critical(this, tr("Cannot Create Keys"),
                 tr("Key creation failed: %1").arg(keyGenerator.error()));
             enableInput();
             return;
@@ -324,7 +324,7 @@ private:
             return;
         }
 
-        m_ui->statusLabel->setText(m_ui->statusLabel->text() + tr("Done!"));
+        m_ui->statusLabel->setText(m_ui->statusLabel->text() + tr("Done."));
         m_isComplete = true;
         emit completeChanged();
     }
@@ -337,7 +337,7 @@ private:
             file.write(data);
         if (!canOpen || file.error() != QFile::NoError) {
             QMessageBox::critical(this, tr("Could Not Save File"),
-                tr("Failed to save key file %1: %1").arg(filePath, file.errorString()));
+                tr("Failed to save key file %1: %2").arg(filePath, file.errorString()));
             return false;
         }
         return true;
@@ -402,17 +402,17 @@ private:
 
     Q_SLOT void deployKey()
     {
-        using namespace Core;
+        using namespace Utils;
         m_ui->deviceAddressLineEdit->setEnabled(false);
         m_ui->passwordLineEdit->setEnabled(false);
         m_ui->deployButton->setEnabled(false);
-        Core::SshConnectionParameters sshParams(SshConnectionParameters::NoProxy);
-        sshParams.authType = SshConnectionParameters::AuthByPwd;
+        Utils::SshConnectionParameters sshParams(SshConnectionParameters::NoProxy);
+        sshParams.authorizationType = SshConnectionParameters::AuthorizationByPassword;
         sshParams.host = hostAddress();
         sshParams.port = MaemoDeviceConfig::defaultSshPort(MaemoDeviceConfig::Physical);
-        sshParams.pwd = password();
+        sshParams.password = password();
         sshParams.timeout = 30;
-        sshParams.uname = MaemoDeviceConfig::defaultUser(m_wizardData.maemoVersion);
+        sshParams.userName = MaemoDeviceConfig::defaultUser(m_wizardData.maemoVersion);
         m_ui->statusLabel->setText(tr("Deploying... "));
         m_keyDeployer->deployPublicKey(sshParams, m_wizardData.publicKeyFilePath);
     }
@@ -428,7 +428,7 @@ private:
         QMessageBox::information(this, tr("Key Deployment Success"),
             tr("The key was successfully deployed. You may now close "
                "the \"Mad Developer\" application and continue."));
-        m_ui->statusLabel->setText(m_ui->statusLabel->text() + tr("Done!"));
+        m_ui->statusLabel->setText(m_ui->statusLabel->text() + tr("Done."));
         m_isComplete = true;
         emit completeChanged();
     }
@@ -475,7 +475,7 @@ public:
             "created and a test procedure will be run to check whether "
             "Qt Creator can connect to the device and to provide some "
             "information about its features.");
-        if (m_wizardData.deviceType == MaemoDeviceConfig::Simulator) {
+        if (m_wizardData.deviceType == MaemoDeviceConfig::Emulator) {
             infoText += QLatin1Char('\n')
                 + tr("Please make sure that Qemu is running, otherwise "
                      "the test will fail.");
@@ -562,7 +562,7 @@ int MaemoDeviceConfigWizard::nextId() const
         d->wizardData.deviceType = d->startPage.deviceType();
         d->wizardData.hostName = d->startPage.hostName();
 
-        if (d->wizardData.deviceType == MaemoDeviceConfig::Simulator) {
+        if (d->wizardData.deviceType == MaemoDeviceConfig::Emulator) {
             return FinalPageId;
         } else {
             return PreviousKeySetupCheckPageId;
