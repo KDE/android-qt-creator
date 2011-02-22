@@ -299,18 +299,11 @@ bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
             return false;
         }
 
-    QList<QtVersion*> versions=QtVersionManager::instance()->versionsForTargetId(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
-    if (!versions.size())
-    {
-        raiseError(tr("No Qt for Android SDKs were found.\nPlease install at least one SDK."));
-        return false;
-    }
-
     if (forceJava)
         AndroidPackageCreationStep::removeDirectory(AndroidDirName+QLatin1String("/src"));
 
     QStringList androidFiles;
-    QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
+    QDirIterator it(qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_PREFIX"]+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
     int pos=it.path().size();
     while(it.hasNext())
     {
@@ -614,7 +607,7 @@ QStringList Qt4AndroidTarget::availableQtLibs()
 {
     QStringList libs;
     const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
-    QString libsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->sourcePath()+"/lib";
+    QString libsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"];
     QDirIterator libsIt(libsPath, QStringList()<<"libQt*.so");
     while(libsIt.hasNext())
     {
