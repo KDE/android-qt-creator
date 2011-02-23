@@ -39,12 +39,12 @@
 #include "maemoglobal.h"
 #include "maemousedportsgatherer.h"
 
-#include <coreplugin/ssh/sshremoteprocessrunner.h>
+#include <utils/ssh/sshremoteprocessrunner.h>
 
 #include <QtGui/QPalette>
 #include <QtGui/QPushButton>
 
-using namespace Core;
+using namespace Utils;
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -81,13 +81,13 @@ void MaemoConfigTestDialog::startConfigTest()
         return;
 
     m_currentTest = GeneralTest;
-    const QString testingText = m_config->type() == MaemoDeviceConfig::Simulator
+    const QString testingText = m_config->type() == MaemoDeviceConfig::Emulator
         ? tr("Testing configuration. This may take a while.")
         : tr("Testing configuration...");
     m_ui->testResultEdit->setPlainText(testingText);
     m_closeButton->setText(tr("Stop Test"));
     m_testProcessRunner = SshRemoteProcessRunner::create(m_config->sshParameters());
-    connect(m_testProcessRunner.data(), SIGNAL(connectionError(Core::SshError)),
+    connect(m_testProcessRunner.data(), SIGNAL(connectionError(Utils::SshError)),
         this, SLOT(handleConnectionError()));
     connect(m_testProcessRunner.data(), SIGNAL(processClosed(int)), this,
         SLOT(handleTestProcessFinished(int)));
@@ -110,7 +110,7 @@ void MaemoConfigTestDialog::handleConnectionError()
         return;
     QString output = tr("Could not connect to host: %1")
         .arg(m_testProcessRunner->connection()->errorString());
-    if (m_config->type() == MaemoDeviceConfig::Simulator)
+    if (m_config->type() == MaemoDeviceConfig::Emulator)
         output += tr("\nDid you start Qemu?");
     m_ui->testResultEdit->setPlainText(output);
     stopConfigTest();

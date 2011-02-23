@@ -50,6 +50,7 @@
 #include <coreplugin/uniqueidmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
+#include <coreplugin/variablemanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/session.h>
@@ -74,6 +75,8 @@ using ProjectExplorer::SourceType;
 using ProjectExplorer::FormType;
 using ProjectExplorer::ResourceType;
 using ProjectExplorer::UnknownFileType;
+
+static const char * const kInstallBins = "CurrentProject:QT_INSTALL_BINS";
 
 // Known file types of a Qt 4 project
 static const char* qt4FileTypes[] = {
@@ -132,6 +135,12 @@ void Qt4Manager::init()
 
     connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
             this, SLOT(editorChanged(Core::IEditor*)));
+
+    Core::VariableManager *vm = Core::VariableManager::instance();
+    vm->registerVariable(QLatin1String(kInstallBins),
+        tr("Full path to the bin/ install directory of the current project's Qt version."));
+    connect(vm, SIGNAL(variableUpdateRequested(QString)),
+            this, SLOT(updateVariable(QString)));
 }
 
 void Qt4Manager::editorChanged(Core::IEditor *editor)
@@ -173,6 +182,20 @@ void Qt4Manager::editorAboutToClose(Core::IEditor *editor)
     }
 }
 
+void Qt4Manager::updateVariable(const QString &variable)
+{
+    if (variable == QLatin1String(kInstallBins)) {
+        Qt4Project *qt4pro = qobject_cast<Qt4Project *>(projectExplorer()->currentProject());
+        if (!qt4pro) {
+            Core::VariableManager::instance()->remove(QLatin1String(kInstallBins));
+            return;
+        }
+        QString value = qt4pro->activeTarget()->activeBuildConfiguration()
+                ->qtVersion()->versionInfo().value(QLatin1String(kInstallBins));
+        Core::VariableManager::instance()->insert(QLatin1String(kInstallBins), value);
+    }
+}
+
 void Qt4Manager::uiEditorContentsChanged()
 {
     // cast sender, get filename
@@ -200,7 +223,7 @@ static void updateBoilerPlateCodeFiles(const AbstractMobileApp *app, const QStri
     const QList<AbstractGeneratedFileInfo> updates =
             app->fileUpdates(proFile);
     if (!updates.empty()) {
-        const QString title = Qt4Manager::tr("Update of generated files");
+        const QString title = Qt4Manager::tr("Update of Generated Files");
         QStringList fileNames;
         foreach (const AbstractGeneratedFileInfo &info, updates)
             fileNames.append(QDir::toNativeSeparators(info.fileInfo.fileName()));
@@ -371,3 +394,4 @@ QString Qt4Manager::fileTypeId(ProjectExplorer::FileType type)
     }
     return QString();
 }
+

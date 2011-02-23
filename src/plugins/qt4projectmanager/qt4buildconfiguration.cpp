@@ -563,7 +563,7 @@ bool Qt4BuildConfiguration::compareToImportFrom(const QString &makefile)
 void Qt4BuildConfiguration::removeQMLInspectorFromArguments(QString *args)
 {
     for (Utils::QtcProcess::ArgIterator ait(args); ait.next(); )
-        if (ait.value().startsWith(QLatin1String(Constants::QMAKEVAR_QMLJSDEBUGGER_PATH)))
+        if (ait.value().contains(QLatin1String(Constants::QMAKEVAR_QMLJSDEBUGGER_PATH)))
             ait.deleteArg();
 }
 
@@ -759,11 +759,13 @@ BuildConfiguration *Qt4BuildConfigurationFactory::create(ProjectExplorer::Target
     if (!ok || buildConfigurationName.isEmpty())
         return 0;
 
+    //: Debug build configuration. We recommend not translating it.
     qt4Target->addQt4BuildConfiguration(tr("%1 Debug").arg(buildConfigurationName),
                                         version,
                                         (version->defaultBuildConfig() | QtVersion::DebugBuild),
                                         QString(), QString());
     BuildConfiguration *bc =
+    //: Release build configuration. We recommend not translating it.
     qt4Target->addQt4BuildConfiguration(tr("%1 Release").arg(buildConfigurationName),
                                         version,
                                         (version->defaultBuildConfig() & ~QtVersion::DebugBuild),

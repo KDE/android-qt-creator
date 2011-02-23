@@ -52,6 +52,7 @@
 
 #include <utils/qtcassert.h>
 #include <utils/styledbar.h>
+#include <utils/stylehelper.h>
 
 #include <coreplugin/icontext.h>
 #include <coreplugin/findplaceholder.h>
@@ -94,6 +95,7 @@
 #include <QtGui/QAction>
 #include <QtGui/QLineEdit>
 #include <QtGui/QLabel>
+#include <QtGui/QPainter>
 #include <QtGui/QSpinBox>
 #include <QtGui/QMessageBox>
 #include <QtGui/QTextBlock>
@@ -114,6 +116,24 @@ enum {
     ConnectionAttemptSimultaneousInterval = 500
 };
 
+/**
+ * A widget that has the base color.
+ */
+class StyledBackground : public QWidget
+{
+public:
+    explicit StyledBackground(QWidget *parent = 0)
+        : QWidget(parent)
+    {}
+
+protected:
+    void paintEvent(QPaintEvent *e)
+    {
+        QPainter p(this);
+        p.fillRect(e->rect(), Utils::StyleHelper::baseColor());
+    }
+};
+
 InspectorUi *InspectorUi::m_instance = 0;
 
 QmlJS::ModelManagerInterface *modelManager()
@@ -126,6 +146,7 @@ InspectorUi::InspectorUi(QObject *parent)
     , m_listeningToEditorManager(false)
     , m_toolBar(0)
     , m_crumblePath(0)
+    , m_filterExp(0)
     , m_propertyInspector(0)
     , m_settings(new InspectorSettings(this))
     , m_clientProxy(0)
@@ -514,7 +535,7 @@ inline QDeclarativeDebugObjectReference findParentRecursive( int goalDebugId,
 
 void InspectorUi::selectItems(const QList<QDeclarativeDebugObjectReference> &objectReferences)
 {
-    foreach (const QDeclarativeDebugObjectReference &objref, objectReferences)
+    foreach (const QDeclarativeDebugObjectReference &objref, objectReferences) {
         if (objref.debugId() != -1) {
             // select only the first valid element of the list
 
@@ -527,6 +548,7 @@ void InspectorUi::selectItems(const QList<QDeclarativeDebugObjectReference> &obj
             gotoObjectReferenceDefinition(objref);
             return;
         }
+    }
 }
 
 inline QString displayName(const QDeclarativeDebugObjectReference &obj)
@@ -666,8 +688,7 @@ void InspectorUi::gotoObjectReferenceDefinition(const QDeclarativeDebugObjectRef
 
     if (textEditor) {
         QDeclarativeDebugObjectReference ref = objectReferenceForLocation(fileName);
-        if (ref.debugId() != obj.debugId())
-        {
+        if (ref.debugId() != obj.debugId()) {
             m_selectionCallbackExpected = true;
             editorManager->addCurrentPositionToNavigationHistory();
             textEditor->gotoLine(source.lineNumber());
@@ -692,8 +713,11 @@ bool InspectorUi::addQuotesForData(const QVariant &value) const
 
 void InspectorUi::setupDockWidgets()
 {
+    Debugger::DebuggerMainWindow *mw = Debugger::DebuggerPlugin::mainWindow();
+
     m_toolBar->createActions(Core::Context(Debugger::Constants::C_QMLDEBUGGER));
     m_toolBar->setObjectName("QmlInspectorToolbar");
+    mw->setToolBar(Debugger::QmlLanguage, m_toolBar->widget());
 
     m_crumblePath = new ContextCrumblePath;
     m_crumblePath->setObjectName("QmlContextPath");
@@ -706,16 +730,26 @@ void InspectorUi::setupDockWidgets()
     observerWidget->setWindowTitle(tr("QML Observer"));
     observerWidget->setObjectName(Debugger::Constants::DOCKWIDGET_QML_INSPECTOR);
 
+    QWidget *pathAndFilterWidget = new StyledBackground;
+    pathAndFilterWidget->setMaximumHeight(m_crumblePath->height());
+
+    m_filterExp = new QLineEdit;
+    m_filterExp->setPlaceholderText(tr("Filter properties"));
+    m_filterExp->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+
+    QHBoxLayout *pathAndFilterLayout = new QHBoxLayout(pathAndFilterWidget);
+    pathAndFilterLayout->setMargin(0);
+    pathAndFilterLayout->setSpacing(0);
+    pathAndFilterLayout->addWidget(m_crumblePath);
+    pathAndFilterLayout->addWidget(m_filterExp);
+
     QVBoxLayout *wlay = new QVBoxLayout(observerWidget);
     wlay->setMargin(0);
     wlay->setSpacing(0);
     observerWidget->setLayout(wlay);
-    wlay->addWidget(m_toolBar->widget());
-    wlay->addWidget(m_crumblePath);
+    wlay->addWidget(pathAndFilterWidget);
     wlay->addWidget(m_propertyInspector);
 
-
-    Debugger::DebuggerMainWindow *mw = Debugger::DebuggerPlugin::mainWindow();
     QDockWidget *dock = mw->createDockWidget(Debugger::QmlLanguage, observerWidget);
     dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
     dock->setTitleBarWidget(new QWidget(dock));
@@ -723,7 +757,7 @@ void InspectorUi::setupDockWidgets()
 
 void InspectorUi::crumblePathElementClicked(int debugId)
 {
-    QList <int> l;
+    QList<int> l;
     l << debugId;
     selectItems(l);
 }
@@ -859,7 +893,7 @@ void InspectorUi::connectSignals()
     connect(m_toolBar, SIGNAL(showAppOnTopSelected(bool)),
             m_clientProxy, SLOT(showAppOnTop(bool)));
 
-    connect(m_toolBar, SIGNAL(filterTextChanged(QString)),
+    connect(m_filterExp, SIGNAL(textChanged(QString)),
             m_propertyInspector, SLOT(filterBy(QString)));
 }
 

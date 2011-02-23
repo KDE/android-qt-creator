@@ -1,19 +1,20 @@
-/****************************************************************************
+/**************************************************************************
 **
-** Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
-** All rights reserved.
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** This file is part of the Qt Creator.
-**
-** $QT_BEGIN_LICENSE:LGPL$
 ** No Commercial Usage
+**
 ** This file contains pre-release code and may not be distributed.
 ** You may use this file in accordance with the terms and conditions
 ** contained in the Technology Preview License Agreement accompanying
 ** this package.
 **
 ** GNU Lesser General Public License Usage
+**
 ** Alternatively, this file may be used under the terms of the GNU Lesser
 ** General Public License version 2.1 as published by the Free Software
 ** Foundation and appearing in the file LICENSE.LGPL included in the
@@ -28,16 +29,14 @@
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
 **
-** $QT_END_LICENSE$
-**
-****************************************************************************/
+**************************************************************************/
 
 #ifndef MAEMODEVICECONFIGURATIONS_H
 #define MAEMODEVICECONFIGURATIONS_H
 
 #include "maemoglobal.h"
 
-#include <coreplugin/ssh/sshconnection.h>
+#include <utils/ssh/sshconnection.h>
 
 #include <QtCore/QAbstractListModel>
 #include <QtCore/QList>
@@ -74,10 +73,10 @@ class MaemoDeviceConfig
 public:
     typedef QSharedPointer<const MaemoDeviceConfig> ConstPtr;
     typedef quint64 Id;
-    enum DeviceType { Physical, Simulator };
+    enum DeviceType { Physical, Emulator };
 
     MaemoPortList freePorts() const;
-    Core::SshConnectionParameters sshParameters() const { return m_sshParameters; }
+    Utils::SshConnectionParameters sshParameters() const { return m_sshParameters; }
     QString name() const { return m_name; }
     MaemoGlobal::MaemoVersion osVersion() const { return m_osVersion; }
     DeviceType type() const { return m_type; }
@@ -98,7 +97,7 @@ private:
     typedef QSharedPointer<MaemoDeviceConfig> Ptr;
 
     MaemoDeviceConfig(const QString &name, MaemoGlobal::MaemoVersion osVersion,
-        DeviceType type, const Core::SshConnectionParameters &sshParams,
+        DeviceType type, const Utils::SshConnectionParameters &sshParams,
         Id &nextId);
     MaemoDeviceConfig(const QSettings &settings, Id &nextId);
     MaemoDeviceConfig(const ConstPtr &other);
@@ -117,7 +116,7 @@ private:
     void save(QSettings &settings) const;
     QString defaultPortsSpec(DeviceType type) const;
 
-    Core::SshConnectionParameters m_sshParameters;
+    Utils::SshConnectionParameters m_sshParameters;
     QString m_name;
     MaemoGlobal::MaemoVersion m_osVersion;
     DeviceType m_type;
@@ -154,7 +153,7 @@ public:
         MaemoGlobal::MaemoVersion osVersion);
     void removeConfiguration(int index);
     void setConfigurationName(int i, const QString &name);
-    void setSshParameters(int i, const Core::SshConnectionParameters &params);
+    void setSshParameters(int i, const Utils::SshConnectionParameters &params);
     void setPortsSpec(int i, const QString &portsSpec);
     void setDefaultDevice(int index);
 

@@ -91,6 +91,7 @@ const char * const M_FILE_RECENTFILES    = "QtCreator.Menu.File.RecentFiles";
 const char * const M_EDIT                = "QtCreator.Menu.Edit";
 const char * const M_EDIT_ADVANCED       = "QtCreator.Menu.Edit.Advanced";
 const char * const M_TOOLS               = "QtCreator.Menu.Tools";
+const char * const M_TOOLS_EXTERNAL      = "QtCreator.Menu.Tools.External";
 const char * const M_WINDOW              = "QtCreator.Menu.Window";
 const char * const M_WINDOW_PANES        = "QtCreator.Menu.Window.Panes";
 const char * const M_WINDOW_VIEWS        = "QtCreator.Menu.Window.Views";
@@ -201,6 +202,8 @@ const char * const G_EDIT_COLLAPSING     = "QtCreator.Group.Edit.Collapsing";
 const char * const G_EDIT_BLOCKS         = "QtCreator.Group.Edit.Blocks";
 const char * const G_EDIT_FONT           = "QtCreator.Group.Edit.Font";
 const char * const G_EDIT_EDITOR         = "QtCreator.Group.Edit.Editor";
+
+const char * const G_TOOLS_OPTIONS       = "QtCreator.Group.Tools.Options";
 
 // window menu groups
 const char * const G_WINDOW_SIZE         = "QtCreator.Group.Window.Size";

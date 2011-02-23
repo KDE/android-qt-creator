@@ -100,6 +100,7 @@
 #include <coreplugin/basefilewizard.h>
 #include <coreplugin/vcsmanager.h>
 #include <coreplugin/iversioncontrol.h>
+#include <coreplugin/variablemanager.h>
 #include <welcome/welcomemode.h>
 #include <extensionsystem/pluginmanager.h>
 #include <find/searchresultwindow.h>
@@ -127,6 +128,9 @@ Q_DECLARE_METATYPE(Core::IExternalEditor*)
 namespace {
 bool debug = false;
 }
+
+static const char * const kCurrentProjectPath = "CurrentProject:Path";
+static const char * const kCurrentProjectFilePath = "CurrentProject:FilePath";
 
 namespace ProjectExplorer {
 
@@ -898,6 +902,14 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
 
     updateWelcomePage();
 
+    Core::VariableManager *vm = Core::VariableManager::instance();
+    vm->registerVariable(QLatin1String(kCurrentProjectFilePath),
+        tr("Full path of the current project's main file, including file name."));
+    vm->registerVariable(QLatin1String(kCurrentProjectPath),
+        tr("Full path of the current project's main file, excluding file name."));
+    connect(vm, SIGNAL(variableUpdateRequested(QString)),
+            this, SLOT(updateVariable(QString)));
+
     return true;
 }
 
@@ -992,6 +1004,25 @@ void ProjectExplorerPlugin::loadCustomWizards()
         firstTime = false;
         foreach(Core::IWizard *cpw, ProjectExplorer::CustomWizard::createWizards())
             addAutoReleasedObject(cpw);
+    }
+}
+
+void ProjectExplorerPlugin::updateVariable(const QString &variable)
+{
+    if (variable == QLatin1String(kCurrentProjectFilePath)) {
+        if (currentProject() && currentProject()->file()) {
+            Core::VariableManager::instance()->insert(variable,
+                                                      currentProject()->file()->fileName());
+        } else {
+            Core::VariableManager::instance()->remove(variable);
+        }
+    } else if (variable == QLatin1String(kCurrentProjectPath)) {
+        if (currentProject() && currentProject()->file()) {
+            Core::VariableManager::instance()->insert(variable,
+                                                      QFileInfo(currentProject()->file()->fileName()).filePath());
+        } else {
+            Core::VariableManager::instance()->remove(variable);
+        }
     }
 }
 
@@ -1252,10 +1283,10 @@ void ProjectExplorerPlugin::currentModeChanged(Core::IMode *mode, Core::IMode *o
 void ProjectExplorerPlugin::determineSessionToRestoreAtStartup()
 {
     QStringList arguments = ExtensionSystem::PluginManager::instance()->arguments();
-    if (arguments.contains("-lastsession")
-            || d->m_projectExplorerSettings.autorestoreLastSession) {
+    // Process command line arguments first:
+    if (arguments.contains("-lastsession"))
         d->m_sessionToRestoreAtStartup = d->m_session->lastSession();
-    } else {
+    if (d->m_sessionToRestoreAtStartup.isNull()) {
         QStringList sessions = d->m_session->sessions();
         // We have command line arguments, try to find a session in them
         // Default to no session loading
@@ -1267,6 +1298,10 @@ void ProjectExplorerPlugin::determineSessionToRestoreAtStartup()
             }
         }
     }
+    // Handle settings only after command line arguments:
+    if (d->m_sessionToRestoreAtStartup.isNull()
+        && d->m_projectExplorerSettings.autorestoreLastSession)
+        d->m_sessionToRestoreAtStartup = d->m_session->lastSession();
 
     if (!d->m_sessionToRestoreAtStartup.isNull())
         Core::ICore::instance()->modeManager()->activateMode(Core::Constants::MODE_EDIT);

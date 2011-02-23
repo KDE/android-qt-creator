@@ -115,6 +115,7 @@ private: ////////// General Interface //////////
     virtual void shutdownInferior();
     virtual void notifyInferiorSetupFailed();
 
+    virtual bool acceptsDebuggerCommands() const;
     virtual void executeDebuggerCommand(const QString &command);
     virtual QByteArray qtNamespace() const { return m_dumperHelper.qtNamespace(); }
     virtual void setQtNamespace(const QByteArray &ns)
@@ -475,7 +476,7 @@ private: ////////// View & Data Stuff //////////
     //
     // Watch specific stuff
     //
-    virtual void setToolTipExpression(const QPoint &mousePos,
+    virtual bool setToolTipExpression(const QPoint &mousePos,
         TextEditor::ITextEditor *editor, const DebuggerToolTipContext &);
     virtual void assignValueInDebugger(const WatchData *data,
         const QString &expr, const QVariant &value);

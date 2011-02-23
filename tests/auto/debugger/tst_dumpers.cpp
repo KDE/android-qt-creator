@@ -1,3 +1,36 @@
+/**************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (qt-info@nokia.com)
+**
+** No Commercial Usage
+**
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
+**
+** GNU Lesser General Public License Usage
+**
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
+**
+**************************************************************************/
+
 #define private public // Give us access to private 'backward' member of QMapNode.
 #    include <QtCore/QMap>
 #undef private
@@ -189,7 +222,9 @@ private slots:
     void dumpQVariant_invalid();
     void dumpQVariant_QString();
     void dumpQVariant_QStringList();
+#ifndef Q_CC_MSVC
     void dumpStdVector();
+#endif // !Q_CC_MSVC
     void dumpQWeakPointer();
     void initTestCase();
 
@@ -520,12 +555,6 @@ const QByteArray createExp(const void *ptr,
 }
 
 // Helper functions.
-
-#ifdef Q_CC_MSVC
-#  define MAP_NODE_TYPE_END ">"
-#else
-#  define MAP_NODE_TYPE_END " >"
-#endif
 
 template <typename T> static const char *typeToString()
 {
@@ -1566,12 +1595,12 @@ template <typename K, typename V>
             char *addr = reinterpret_cast<char *>(&(*it)) + backwardOffset;
             expected.append("addr='").append(ptrToBa(addr)).
                 append("',type='"NS"QMapNode<").append(keyTypeStr).append(",").
-                append(valTypeStr).append(MAP_NODE_TYPE_END).append("'");
+                    append(valTypeStr).append(" >").append("'");
 #else
             expected.append("type='"NS"QMapData::Node<").append(keyTypeStr).
-                append(",").append(valTypeStr).append(MAP_NODE_TYPE_END).
+                append(",").append(valTypeStr).append(" >").
                 append("',exp='*('"NS"QMapData::Node<").append(keyTypeStr).
-                append(",").append(valTypeStr).append(MAP_NODE_TYPE_END).
+                append(",").append(valTypeStr).append(" >").
                 append(" >'*)").append(ptrToBa(&(*it))).append("'");
 #endif
         }
@@ -2307,6 +2336,8 @@ void tst_Dumpers::dumpQVariant_QStringList()
         &v, NS"QVariant", true);
 }
 
+#ifndef Q_CC_MSVC
+
 void tst_Dumpers::dumpStdVector()
 {
     std::vector<std::list<int> *> vector;
@@ -2331,6 +2362,8 @@ void tst_Dumpers::dumpStdVector()
     vector.push_back(new std::list<int>(list));
     vector.push_back(0);
 }
+
+#endif // !Q_CC_MSVC
 
 void tst_Dumpers::dumpQTextCodecHelper(QTextCodec *codec)
 {
@@ -2441,7 +2474,7 @@ void tst_Dumpers::initTestCase()
     VERIFY_OFFSETOF(eventFilters);
     VERIFY_OFFSETOF(currentChildBeingDeleted);
     VERIFY_OFFSETOF(connectedSignals);
-    VERIFY_OFFSETOF(deleteWatch);
+    //VERIFY_OFFSETOF(deleteWatch);
 #ifdef QT3_SUPPORT
 #if QT_VERSION < 0x040600
     VERIFY_OFFSETOF(pendingChildInsertedEvents);

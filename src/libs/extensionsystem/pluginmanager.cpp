@@ -48,6 +48,7 @@
 #include <QtCore/QTime>
 #include <QtCore/QWriteLocker>
 #include <QtCore/QtDebug>
+#include <QtCore/QTimer>
 
 #ifdef WITH_TESTS
 #include <QTest>
@@ -640,6 +641,8 @@ void PluginManager::startTests()
         }
         QTest::qExec(pluginSpec->plugin(), methods);
     }
+    if(!d->testSpecs.isEmpty())
+        QTimer::singleShot(1, QCoreApplication::instance(), SLOT(quit()));
 #endif
 }
 

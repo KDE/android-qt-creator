@@ -55,8 +55,8 @@ public:
     QVariant dataForIndex(int index) const;
 
 public slots:
-    void pushElement(const QString &title, const QVariant data = QVariant());
-    void addChild(const QString &title, const QVariant data = QVariant());
+    void pushElement(const QString &title, const QVariant &data = QVariant());
+    void addChild(const QString &title, const QVariant &data = QVariant());
     void popElement();
     void clear();
 
@@ -65,7 +65,6 @@ signals:
 
 protected:
     void resizeEvent(QResizeEvent *);
-    void paintEvent(QPaintEvent *);
 
 private slots:
     void mapClickToIndex();

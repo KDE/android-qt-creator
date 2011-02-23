@@ -41,6 +41,7 @@
 #include "debuggerengine.h"
 #include "watchdelegatewidgets.h"
 #include "watchhandler.h"
+#include "debuggertooltipmanager.h"
 
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
@@ -50,12 +51,14 @@
 #include <QtCore/QMetaProperty>
 #include <QtCore/QVariant>
 
+#include <QtGui/QApplication>
+#include <QtGui/QClipboard>
 #include <QtGui/QContextMenuEvent>
 #include <QtGui/QHeaderView>
 #include <QtGui/QItemDelegate>
 #include <QtGui/QMenu>
+#include <QtGui/QPainter>
 #include <QtGui/QResizeEvent>
-
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -92,12 +95,18 @@ public:
                 break;
             }
             WatchLineEdit *edit = WatchLineEdit::create(type, parent);
-            if (IntegerWatchLineEdit *intEdit = qobject_cast<IntegerWatchLineEdit *>(edit))
+            edit->setFrame(false);
+            IntegerWatchLineEdit *intEdit
+                = qobject_cast<IntegerWatchLineEdit *>(edit);
+            if (intEdit)
                 intEdit->setBase(index.data(LocalsIntegerBaseRole).toInt());
             return edit;
         }
-        // Standard line edits for the rest
-        return new QLineEdit(parent);
+
+        // Standard line edits for the rest.
+        QLineEdit *lineEdit = new QLineEdit(parent);
+        lineEdit->setFrame(false);
+        return lineEdit;
     }
 
     void setModelData(QWidget *editor, QAbstractItemModel *model,
@@ -277,14 +286,31 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
         mi0.data(LocalsIndividualFormatRole).toInt();
     const int effectiveIndividualFormat =
         individualFormat == -1 ? typeFormat : individualFormat;
+    const int unprintableBase = handler->unprintableBase();
 
     QMenu formatMenu;
     QList<QAction *> typeFormatActions;
     QList<QAction *> individualFormatActions;
     QAction *clearTypeFormatAction = 0;
     QAction *clearIndividualFormatAction = 0;
+    QAction *showUnprintableUnicode = 0;
+    QAction *showUnprintableOctal = 0;
+    QAction *showUnprintableHexadecimal = 0;
     formatMenu.setTitle(tr("Change Display Format..."));
-    if (idx.isValid() && !alternativeFormats.isEmpty()) {
+    if (true /*idx.isValid() && !alternativeFormats.isEmpty() */) {
+        showUnprintableUnicode =
+            formatMenu.addAction(tr("Treat All Characters as Printable"));
+        showUnprintableUnicode->setCheckable(true);
+        showUnprintableUnicode->setChecked(unprintableBase == 0);
+        showUnprintableOctal =
+            formatMenu.addAction(tr("Show Unprintable Characters as Octal"));
+        showUnprintableOctal->setCheckable(true);
+        showUnprintableOctal->setChecked(unprintableBase == 8);
+        showUnprintableHexadecimal =
+            formatMenu.addAction(tr("Show Unprintable Characters as Hexadecimal"));
+        showUnprintableHexadecimal->setCheckable(true);
+        showUnprintableHexadecimal->setChecked(unprintableBase == 16);
+        formatMenu.addSeparator();
         QAction *dummy = formatMenu.addAction(
             tr("Change Display for Type \"%1\"").arg(type));
         dummy->setEnabled(false);
@@ -421,6 +447,8 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
         memoryMenu.setEnabled(false);
     }
 
+    QAction *actCopy = new QAction(tr("Copy Contents to Clipboard"), &menu);
+
     menu.addAction(actInsertNewWatchItem);
     menu.addAction(actSelectWidgetToWatch);
     menu.addMenu(&formatMenu);
@@ -428,6 +456,7 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     menu.addAction(actSetWatchpointAtVariableAddress);
     if (actSetWatchpointAtPointerValue)
         menu.addAction(actSetWatchpointAtPointerValue);
+    menu.addAction(actCopy );
     menu.addSeparator();
 
     menu.addAction(debuggerCore()->action(UseDebuggingHelpers));
@@ -485,6 +514,13 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
         watchExpression(exp);
     } else if (act == actRemoveWatchExpression) {
         removeWatchExpression(exp);
+    } else if (act == actCopy ) {
+        const QString clipboardText = DebuggerTreeViewToolTipWidget::treeModelClipboardContents(model());
+        QClipboard *clipboard = QApplication::clipboard();
+#ifdef Q_WS_X11
+        clipboard->setText(clipboardText, QClipboard::Selection);
+#endif
+        clipboard->setText(clipboardText, QClipboard::Clipboard);
     } else if (act == actRemoveWatches) {
         currentEngine()->watchHandler()->clearWatches();
     } else if (act == actClearCodeModelSnapshot) {
@@ -496,6 +532,12 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     } else if (act == actShowInEditor) {
         QString contents = handler->editorContents();
         debuggerCore()->openTextEditor(tr("Locals & Watchers"), contents);
+    } else if (act == showUnprintableUnicode) {
+        handler->setUnprintableBase(0);
+    } else if (act == showUnprintableOctal) {
+        handler->setUnprintableBase(8);
+    } else if (act == showUnprintableHexadecimal) {
+        handler->setUnprintableBase(16);
     } else {
         for (int i = 0; i != typeFormatActions.size(); ++i) {
             if (act == typeFormatActions.at(i))

@@ -57,6 +57,8 @@
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
 
+#include <coreplugin/helpmanager.h>
+
 #include <QtCore/QDateTime>
 #include <QtCore/QDebug>
 #include <QtCore/QDir>
@@ -82,11 +84,6 @@
 # define XSDEBUG(s) qDebug() << s
 
 using namespace ProjectExplorer;
-
-enum {
-    MaxConnectionAttempts = 50,
-    ConnectionAttemptDefaultInterval = 200
-};
 
 namespace Debugger {
 namespace Internal {
@@ -239,11 +236,28 @@ void QmlEngine::connectionEstablished()
 
 void QmlEngine::connectionStartupFailed()
 {
-    QMessageBox::critical(0, tr("Failed to connect to debugger"),
-        tr("Could not connect to QML debugger server at %1:%2.")
-        .arg(startParameters().qmlServerAddress)
-        .arg(startParameters().qmlServerPort));
-    notifyEngineRunFailed();
+    QMessageBox::Button button =
+            QMessageBox::critical(0, tr("Failed to connect to QML debugger"),
+                                  tr("Qt Creator could not connect to the in-process debugger at %1:%2.\n"
+                                     "Do you want to retry?")
+                                  .arg(startParameters().qmlServerAddress)
+                                  .arg(startParameters().qmlServerPort),
+                                  QMessageBox::Retry | QMessageBox::Cancel | QMessageBox::Help,
+                                  QMessageBox::Retry);
+
+    switch (button) {
+    case QMessageBox::Retry: {
+        d->m_adapter.beginConnection();
+        break;
+    }
+    case QMessageBox::Help: {
+        Core::HelpManager *helpManager = Core::HelpManager::instance();
+        helpManager->handleHelpRequest("qthelp://com.nokia.qtcreator/doc/creator-debugging-qml.html");
+    }
+    default:
+        notifyEngineRunFailed();
+        break;
+    }
 }
 
 void QmlEngine::connectionError(QAbstractSocket::SocketError socketError)
@@ -256,11 +270,6 @@ void QmlEngine::serviceConnectionError(const QString &serviceName)
 {
     showMessage(tr("QML Debugger: Could not connect to service '%1'.")
         .arg(serviceName), StatusBar);
-}
-
-void QmlEngine::pauseConnection()
-{
-    d->m_adapter.pauseConnection();
 }
 
 bool QmlEngine::canDisplayTooltip() const
@@ -350,8 +359,6 @@ void QmlEngine::shutdownEngine()
 void QmlEngine::setupEngine()
 {
     d->m_ping = 0;
-    d->m_adapter.setMaxConnectionAttempts(MaxConnectionAttempts);
-    d->m_adapter.setConnectionAttemptInterval(ConnectionAttemptDefaultInterval);
     connect(&d->m_adapter, SIGNAL(connectionError(QAbstractSocket::SocketError)),
         SLOT(connectionError(QAbstractSocket::SocketError)));
     connect(&d->m_adapter, SIGNAL(serviceConnectionError(QString)),
@@ -564,12 +571,13 @@ void QmlEngine::requestModuleSymbols(const QString &moduleName)
 //
 //////////////////////////////////////////////////////////////////////
 
-void QmlEngine::setToolTipExpression(const QPoint &mousePos,
+bool QmlEngine::setToolTipExpression(const QPoint &mousePos,
     TextEditor::ITextEditor *editor, const DebuggerToolTipContext &ctx)
 {
     // This is processed by QML inspector, which has dependencies to 
     // the qml js editor. Makes life easier.
     emit tooltipRequested(mousePos, editor, ctx.position);
+    return true;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -695,9 +703,8 @@ void QmlEngine::messageReceived(const QByteArray &message)
         QList<WatchData> locals;
         stream >> stackFrames >> watches >> locals;
 
-        logString += tr(" (%1 stack frames)").arg(stackFrames.size());
-        logString += tr(" (%1 watches)").arg(watches.size());
-        logString += tr(" (%1 loacals)").arg(locals.size());
+        logString += QString::fromLatin1(" (%1 stack frames) (%2 watches)  (%3 locals)").
+                     arg(stackFrames.size()).arg(watches.size()).arg(locals.size());
 
         for (int i = 0; i != stackFrames.size(); ++i)
             stackFrames[i].level = i + 1;
