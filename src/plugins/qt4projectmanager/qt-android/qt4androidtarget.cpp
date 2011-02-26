@@ -216,6 +216,15 @@ QString Qt4AndroidTarget::apkPath()
 void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &name)
 {
     QString androidDir=androidDirPath();
+
+    // clean previous build
+    QProcess androidProc;
+    androidProc.setWorkingDirectory(androidDir);
+    androidProc.start(AndroidConfigurations::instance().antToolPath(), QStringList()<<"clean");
+    if (!androidProc.waitForFinished())
+        androidProc.terminate();
+    // clean previous build
+
     bool commentLines=targetSDK=="android-4";
     QDirIterator it(androidDir,QStringList()<<"*.java",QDir::Files, QDirIterator::Subdirectories);
     while(it.hasNext())
@@ -266,7 +275,6 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &na
         file.close();
     }
 
-    QProcess androidProc;
     QStringList params;
     params<<"update"<<"project"<<"-p"<<androidDir;
     if (targetSDK.length())
