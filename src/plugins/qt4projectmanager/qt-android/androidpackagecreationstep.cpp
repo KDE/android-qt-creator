@@ -167,7 +167,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     if (!target->createAndroidTemplatesIfNecessary())
         return false;
 
-    target->updateProject(target->targetSDK());
+    target->updateProject(target->targetSDK(), target->applicationName());
 
     buildProc->setWorkingDirectory(androidDir);
 
