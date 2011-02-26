@@ -116,12 +116,12 @@ bool CodaRunControl::setupLauncher()
 
     if (m_serialPort.length()) {
         // We get the port from SymbianDeviceManager
-        appendMessage(tr("Connecting to '%2'...").arg(m_serialPort), NormalMessageFormat);
+        appendMessage(tr("Connecting to '%1'...").arg(m_serialPort), NormalMessageFormat);
         m_codaDevice = SymbianUtils::SymbianDeviceManager::instance()->getTcfPort(m_serialPort);
 
         bool ok = m_codaDevice && m_codaDevice->device()->isOpen();
         if (!ok) {
-            appendMessage(tr("Couldn't open serial device: %1").arg(m_codaDevice->device()->errorString()), ErrorMessageFormat);
+            appendMessage(tr("Could not open serial device: %1").arg(m_codaDevice->device()->errorString()), ErrorMessageFormat);
             return false;
         }
         connect(SymbianUtils::SymbianDeviceManager::instance(), SIGNAL(deviceRemoved(const SymbianUtils::SymbianDevice)),

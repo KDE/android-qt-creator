@@ -34,21 +34,21 @@
 #ifndef QMLINSPECTORTOOLBAR_H
 #define QMLINSPECTORTOOLBAR_H
 
+#include <debugger/debuggerconstants.h>
+
 #include <QtCore/QObject>
 #include <QtGui/QIcon>
 
 QT_FORWARD_DECLARE_CLASS(QAction)
 QT_FORWARD_DECLARE_CLASS(QColor)
 QT_FORWARD_DECLARE_CLASS(QToolButton)
-QT_FORWARD_DECLARE_CLASS(QLineEdit)
 
 namespace Core {
-    class Context;
+class Context;
 }
 
 namespace Utils {
-    class StyledBar;
-    class FilterLineEdit;
+class StyledBar;
 }
 
 namespace QmlJSInspector {
@@ -60,6 +60,7 @@ namespace Internal {
 class QmlInspectorToolBar : public QObject
 {
     Q_OBJECT
+
 public:
     enum DesignTool {
         NoTool = 0,
@@ -99,7 +100,6 @@ signals:
 
     void showAppOnTopSelected(bool isChecked);
     void animationSpeedChanged(qreal slowdownFactor = 1.0f);
-    void filterTextChanged(const QString &);
 
 private slots:
     void activateDesignModeOnClick();
@@ -121,7 +121,11 @@ private slots:
     void updatePlayAction();
     void updatePauseAction();
 
+    void activeDebugLanguagesChanged(Debugger::DebuggerLanguages languages);
+
 private:
+    QToolButton *m_operateByInstructionButton;
+
     QAction *m_fromQmlAction;
     QAction *m_observerModeAction;
     QAction *m_playAction;
@@ -141,8 +145,6 @@ private:
     QToolButton *m_playButton;
     QIcon m_playIcon;
     QIcon m_pauseIcon;
-
-    QLineEdit *m_filterExp;
 
     ToolBarColorBox *m_colorBox;
 

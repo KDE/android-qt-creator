@@ -1239,9 +1239,10 @@ DebuggerRunControl *DebuggerEngine::runControl() const
     return d->runControl();
 }
 
-void DebuggerEngine::setToolTipExpression
+bool DebuggerEngine::setToolTipExpression
     (const QPoint &, TextEditor::ITextEditor *, const DebuggerToolTipContext &)
 {
+    return false;
 }
 
 void DebuggerEngine::updateWatchData(const WatchData &, const WatchUpdateFlags &)
@@ -1424,7 +1425,8 @@ void DebuggerEngine::detachDebugger()
 
 void DebuggerEngine::exitDebugger()
 {
-    QTC_ASSERT(d->m_state == InferiorStopOk, qDebug() << d->m_state);
+    QTC_ASSERT(d->m_state == InferiorStopOk || d->m_state == InferiorUnrunnable,
+            qDebug() << d->m_state);
     d->queueShutdownInferior();
 }
 
@@ -1474,6 +1476,7 @@ void DebuggerEngine::executeJumpToLine(const QString &, int)
 
 void DebuggerEngine::executeDebuggerCommand(const QString &)
 {
+    showStatusMessage(tr("This debugger cannot handle user input."));
 }
 
 BreakHandler *DebuggerEngine::breakHandler() const

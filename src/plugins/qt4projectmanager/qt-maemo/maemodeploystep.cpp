@@ -45,9 +45,9 @@
 #include "maemousedportsgatherer.h"
 #include "qt4maemotarget.h"
 
-#include <coreplugin/ssh/sftpchannel.h>
-#include <coreplugin/ssh/sshconnection.h>
-#include <coreplugin/ssh/sshremoteprocess.h>
+#include <utils/ssh/sftpchannel.h>
+#include <utils/ssh/sshconnection.h>
+#include <utils/ssh/sshremoteprocess.h>
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -66,6 +66,7 @@
 #define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
 
 using namespace Core;
+using namespace Utils;
 using namespace ProjectExplorer;
 
 namespace Qt4ProjectManager {
@@ -285,7 +286,7 @@ void MaemoDeployStep::stop()
 
 QString MaemoDeployStep::uploadDir() const
 {
-    return MaemoGlobal::homeDirOnDevice(m_connection->connectionParameters().uname);
+    return MaemoGlobal::homeDirOnDevice(m_connection->connectionParameters().userName);
 }
 
 bool MaemoDeployStep::currentlyNeedsDeployment(const QString &host,
@@ -357,7 +358,7 @@ void MaemoDeployStep::start()
     }
 
     if (m_needsInstall || !m_filesToCopy.isEmpty()) {
-        if (m_cachedDeviceConfig->type() == MaemoDeviceConfig::Simulator
+        if (m_cachedDeviceConfig->type() == MaemoDeviceConfig::Emulator
                 && !MaemoQemuManager::instance().qemuIsRunning()) {
             MaemoQemuManager::instance().startRuntime();
             raiseError(tr("Deployment failed: Qemu was not running. "
@@ -436,7 +437,7 @@ void MaemoDeployStep::handleSftpChannelInitializationFailed(const QString &error
     }
 }
 
-void MaemoDeployStep::handleSftpJobFinished(Core::SftpJobId,
+void MaemoDeployStep::handleSftpJobFinished(Utils::SftpJobId,
     const QString &error)
 {
     ASSERT_STATE(QList<State>() << Uploading << StopRequested);
@@ -612,8 +613,8 @@ void MaemoDeployStep::prepareSftpConnection()
         SLOT(handleSftpChannelInitialized()));
     connect(m_uploader.data(), SIGNAL(initializationFailed(QString)), this,
         SLOT(handleSftpChannelInitializationFailed(QString)));
-    connect(m_uploader.data(), SIGNAL(finished(Core::SftpJobId, QString)),
-        this, SLOT(handleSftpJobFinished(Core::SftpJobId, QString)));
+    connect(m_uploader.data(), SIGNAL(finished(Utils::SftpJobId, QString)),
+        this, SLOT(handleSftpJobFinished(Utils::SftpJobId, QString)));
     connect(m_uploader.data(), SIGNAL(closed()), this,
         SLOT(handleSftpChannelClosed()));
     m_uploader->initialize();
@@ -695,7 +696,7 @@ void MaemoDeployStep::connectToDevice()
         m_connection = SshConnection::create();
     connect(m_connection.data(), SIGNAL(connected()), this,
         SLOT(handleConnected()));
-    connect(m_connection.data(), SIGNAL(error(Core::SshError)), this,
+    connect(m_connection.data(), SIGNAL(error(Utils::SshError)), this,
         SLOT(handleConnectionFailure()));
     if (canReUse) {
         handleConnected();
@@ -834,7 +835,7 @@ void MaemoDeployStep::handleCopyProcessFinished(int exitStatus)
 
 QString MaemoDeployStep::deployMountPoint() const
 {
-    return MaemoGlobal::homeDirOnDevice(m_cachedDeviceConfig->sshParameters().uname)
+    return MaemoGlobal::homeDirOnDevice(m_cachedDeviceConfig->sshParameters().userName)
         + QLatin1String("/deployMountPoint_") + packagingStep()->projectName();
 }
 
@@ -997,7 +998,7 @@ MaemoPortList MaemoDeployStep::freePorts() const
         = m_cachedDeviceConfig ? m_cachedDeviceConfig : m_deviceConfig;
     if (!devConf)
         return MaemoPortList();
-    if (devConf->type() == MaemoDeviceConfig::Simulator && qt4bc) {
+    if (devConf->type() == MaemoDeviceConfig::Emulator && qt4bc) {
         MaemoQemuRuntime rt;
         const int id = qt4bc->qtVersion()->uniqueId();
         if (MaemoQemuManager::instance().runtimeForQtVersion(id, &rt))

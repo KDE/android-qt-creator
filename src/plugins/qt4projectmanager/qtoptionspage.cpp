@@ -41,6 +41,7 @@
 #include "qtversionmanager.h"
 #include "qmldumptool.h"
 #include "qmlobservertool.h"
+#include "qmldebugginglibrary.h"
 #include "debugginghelperbuildtask.h"
 
 #include <projectexplorer/debugginghelper.h>
@@ -232,6 +233,8 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent, QList<QtVersion *> ver
             this, SLOT(buildGdbHelper()));
     connect(m_debuggingHelperUi->qmlDumpBuildButton, SIGNAL(clicked()),
             this, SLOT(buildQmlDump()));
+    connect(m_debuggingHelperUi->qmlDebuggingLibBuildButton, SIGNAL(clicked()),
+            this, SLOT(buildQmlDebuggingLibrary()));
     connect(m_debuggingHelperUi->qmlObserverBuildButton, SIGNAL(clicked()),
             this, SLOT(buildQmlObserver()));
 
@@ -297,8 +300,11 @@ void QtOptionsPageWidget::debuggingHelperBuildFinished(int qtVersionId, Debuggin
 
     // Update item view
     QTreeWidgetItem *item = treeItemForIndex(index);
-    QTC_ASSERT(item, return)
-    item->setData(0, BuildRunningRole, QVariant(false));
+    QTC_ASSERT(item, return);
+    DebuggingHelperBuildTask::Tools buildFlags
+            = item->data(0, BuildRunningRole).value<DebuggingHelperBuildTask::Tools>();
+    buildFlags &= ~tools;
+    item->setData(0, BuildRunningRole,  QVariant::fromValue(buildFlags));
     item->setData(0, BuildLogRole, output);
 
     QSharedPointerQtVersion qtVersion = m_versions.at(index);
@@ -306,6 +312,8 @@ void QtOptionsPageWidget::debuggingHelperBuildFinished(int qtVersionId, Debuggin
     bool success = true;
     if (tools & DebuggingHelperBuildTask::GdbDebugging)
         success &= qtVersion->hasDebuggingHelper();
+    if (tools & DebuggingHelperBuildTask::QmlDebugging)
+        success &= qtVersion->hasQmlDebuggingLibrary();
     if (tools & DebuggingHelperBuildTask::QmlDump)
         success &= qtVersion->hasQmlDump();
     if (tools & DebuggingHelperBuildTask::QmlObserver)
@@ -313,7 +321,7 @@ void QtOptionsPageWidget::debuggingHelperBuildFinished(int qtVersionId, Debuggin
 
     // Update bottom control if the selection is still the same
     if (index == currentIndex()) {
-        updateDebuggingHelperInfo(m_versions.at(index).data());
+        updateDebuggingHelperUi();
     }
     if (!success)
         showDebuggingBuildLog(item);
@@ -328,13 +336,16 @@ void QtOptionsPageWidget::buildDebuggingHelper(DebuggingHelperBuildTask::Tools t
     QTreeWidgetItem *item = treeItemForIndex(index);
     QTC_ASSERT(item, return);
 
-    item->setData(0, BuildRunningRole, QVariant(true));
+    DebuggingHelperBuildTask::Tools buildFlags
+            = item->data(0, BuildRunningRole).value<DebuggingHelperBuildTask::Tools>();
+    buildFlags |= tools;
+    item->setData(0, BuildRunningRole, QVariant::fromValue(buildFlags));
 
     QtVersion *version = m_versions.at(index).data();
     if (!version)
         return;
 
-    updateDebuggingHelperInfo(version);
+    updateDebuggingHelperUi();
 
     // Run a debugging helper build task in the background.
     DebuggingHelperBuildTask *buildTask = new DebuggingHelperBuildTask(version, tools);
@@ -357,9 +368,17 @@ void QtOptionsPageWidget::buildQmlDump()
     buildDebuggingHelper(DebuggingHelperBuildTask::QmlDump);
 }
 
+void QtOptionsPageWidget::buildQmlDebuggingLibrary()
+{
+    buildDebuggingHelper(DebuggingHelperBuildTask::QmlDebugging);
+}
+
 void QtOptionsPageWidget::buildQmlObserver()
 {
-    buildDebuggingHelper(DebuggingHelperBuildTask::QmlObserver);
+    DebuggingHelperBuildTask::Tools qmlDbgTools =
+            DebuggingHelperBuildTask::QmlObserver;
+    qmlDbgTools |= DebuggingHelperBuildTask::QmlDebugging;
+    buildDebuggingHelper(qmlDbgTools);
 }
 
 // Non-modal dialog
@@ -439,9 +458,13 @@ void QtOptionsPageWidget::removeQtDir()
 }
 
 // Format html table tooltip about helpers
-static inline QString msgHtmlHelperToolTip(const QString &gdbHelperPath, const QString &qmlDumpPath, const QString &qmlObserverPath)
+static inline QString msgHtmlHelperToolTip(const QString &gdbHelperPath,
+                                           const QString &qmlJsDebugLibPath,
+                                           const QString &qmlDumpPath,
+                                           const QString &qmlObserverPath)
 {
     QFileInfo gdbHelperFI(gdbHelperPath);
+    QFileInfo qmlJsDebugLibFi(qmlJsDebugLibPath);
     QFileInfo qmlDumpFI(qmlDumpPath);
     QFileInfo qmlObserverFI(qmlObserverPath);
 
@@ -453,19 +476,26 @@ static inline QString msgHtmlHelperToolTip(const QString &gdbHelperPath, const Q
                                    "<tr><td>File:</td><td><pre>%1</pre></td></tr>"
                                    "<tr><td>Last&nbsp;modified:</td><td>%2</td></tr>"
                                    "<tr><td>Size:</td><td>%3 Bytes</td></tr>"
-                                   "<tr><td colspan=\"2\"><b>QML type dumper</b></td></tr>"
+                                   "<tr><td colspan=\"2\"><b>QML debugging library</b></td></tr>"
                                    "<tr><td>File:</td><td><pre>%4</pre></td></tr>"
                                    "<tr><td>Last&nbsp;modified:</td><td>%5</td></tr>"
                                    "<tr><td>Size:</td><td>%6 Bytes</td></tr>"
-                                   "<tr><td colspan=\"2\"><b>QML observer</b></td></tr>"
+                                   "<tr><td colspan=\"2\"><b>QML type dumper</b></td></tr>"
                                    "<tr><td>File:</td><td><pre>%7</pre></td></tr>"
                                    "<tr><td>Last&nbsp;modified:</td><td>%8</td></tr>"
                                    "<tr><td>Size:</td><td>%9 Bytes</td></tr>"
+                                   "<tr><td colspan=\"2\"><b>QML observer</b></td></tr>"
+                                   "<tr><td>File:</td><td><pre>%10</pre></td></tr>"
+                                   "<tr><td>Last&nbsp;modified:</td><td>%11</td></tr>"
+                                   "<tr><td>Size:</td><td>%12 Bytes</td></tr>"
                                    "</table></body></html>"
                                    ).
                       arg(gdbHelperPath.isEmpty() ? notFound : QDir::toNativeSeparators(gdbHelperFI.absoluteFilePath())).
                       arg(gdbHelperFI.lastModified().toString(Qt::SystemLocaleLongDate)).
                       arg(gdbHelperFI.size()).
+                      arg(qmlJsDebugLibPath.isEmpty() ? notFound : QDir::toNativeSeparators(qmlJsDebugLibFi.absoluteFilePath())).
+                      arg(qmlJsDebugLibFi.lastModified().toString(Qt::SystemLocaleLongDate)).
+                      arg(qmlJsDebugLibFi.size()).
                       arg(qmlDumpPath.isEmpty() ? notFound : QDir::toNativeSeparators(qmlDumpFI.absoluteFilePath())).
                       arg(qmlDumpFI.lastModified().toString(Qt::SystemLocaleLongDate)).
                       arg(qmlDumpFI.size()).
@@ -474,24 +504,36 @@ static inline QString msgHtmlHelperToolTip(const QString &gdbHelperPath, const Q
                       arg(qmlObserverFI.size());
 }
 
-void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
+void QtOptionsPageWidget::updateDebuggingHelperUi()
 {
-    if (!version) {
-        QTreeWidgetItem *currentItem = m_ui->qtdirList->currentItem();
-        int currentItemIndex = indexForTreeItem(currentItem);
-        if (currentItemIndex >= 0)
-            version = m_versions.at(currentItemIndex).data();
-    }
+    QtVersion *version = currentVersion();
+    const QTreeWidgetItem *currentItem = m_ui->qtdirList->currentItem();
 
     if (!version || !version->supportsBinaryDebuggingHelper()) {
         m_ui->debuggingHelperWidget->setVisible(false);
     } else {
         bool canBuildQmlDumper = QmlDumpTool::canBuild(version);
+        bool canBuildQmlDebuggingLib = QmlDebuggingLibrary::canBuild(version);
         bool canBuildQmlObserver = QmlObserverTool::canBuild(version);
 
         bool hasGdbHelper = !version->debuggingHelperLibrary().isEmpty();
         bool hasQmlDumper = version->hasQmlDump();
+        bool hasQmlDebuggingLib = version->hasQmlDebuggingLibrary();
         bool hasQmlObserver = !version->qmlObserverTool().isEmpty();
+
+        bool isBuildingGdbHelper = false;
+        bool isBuildingQmlDumper = false;
+        bool isBuildingQmlDebuggingLib = false;
+        bool isBuildingQmlObserver = false;
+
+        if (currentItem) {
+            DebuggingHelperBuildTask::Tools buildingTools
+                    = currentItem->data(0, BuildRunningRole).value<DebuggingHelperBuildTask::Tools>();
+            isBuildingGdbHelper = buildingTools & DebuggingHelperBuildTask::GdbDebugging;
+            isBuildingQmlDumper = buildingTools & DebuggingHelperBuildTask::QmlDump;
+            isBuildingQmlDebuggingLib = buildingTools & DebuggingHelperBuildTask::QmlDebugging;
+            isBuildingQmlObserver = buildingTools & DebuggingHelperBuildTask::QmlObserver;
+        }
 
         // get names of tools from labels
         QStringList helperNames;
@@ -499,6 +541,8 @@ void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
             helperNames << m_debuggingHelperUi->gdbHelperLabel->text().remove(':');
         if (hasQmlDumper)
             helperNames << m_debuggingHelperUi->qmlDumpLabel->text().remove(':');
+        if (hasQmlDebuggingLib)
+            helperNames << m_debuggingHelperUi->qmlDebuggingLibLabel->text().remove(':');
         if (hasQmlObserver)
             helperNames << m_debuggingHelperUi->qmlObserverLabel->text().remove(':');
 
@@ -506,28 +550,32 @@ void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
         if (helperNames.isEmpty()) {
             status = tr("Helpers: None available");
         } else {
-            status = tr("Helper(s): %1.", "%1 is list of tool names", helperNames.size()).arg(
-                        helperNames.join(tr(", ", "Separator used to join names of helper tools.")));
+            //: %1 is list of tool names.
+            status = tr("Helpers: %1.").arg(helperNames.join(QLatin1String(", ")));
         }
 
         m_ui->debuggingHelperWidget->setSummaryText(status);
 
-        // Set detailed labels
+        QString gdbHelperText;
+        Qt::TextInteractionFlags gdbHelperTextFlags = Qt::NoTextInteraction;
         if (hasGdbHelper) {
-            m_debuggingHelperUi->gdbHelperStatus->setText(version->debuggingHelperLibrary());
-            m_debuggingHelperUi->gdbHelperStatus->setTextInteractionFlags(Qt::TextSelectableByMouse);
+            gdbHelperText = QDir::toNativeSeparators(version->debuggingHelperLibrary());
+            gdbHelperTextFlags = Qt::TextSelectableByMouse;
         } else {
-            m_debuggingHelperUi->gdbHelperStatus->setText(tr("<i>Not yet built.</i>"));
-            m_debuggingHelperUi->gdbHelperStatus->setTextInteractionFlags(Qt::NoTextInteraction);
+            gdbHelperText =  tr("<i>Not yet built.</i>");
         }
+        m_debuggingHelperUi->gdbHelperStatus->setText(gdbHelperText);
+        m_debuggingHelperUi->gdbHelperStatus->setTextInteractionFlags(gdbHelperTextFlags);
+        m_debuggingHelperUi->gdbHelperBuildButton->setEnabled(!isBuildingGdbHelper);
 
         QString qmlDumpStatusText;
         Qt::TextInteractionFlags qmlDumpStatusTextFlags = Qt::NoTextInteraction;
         if (hasQmlDumper) {
-            qmlDumpStatusText = version->qmlDumpTool(false);
-            const QString debugQmlDumpPath = version->qmlDumpTool(true);
+            qmlDumpStatusText = QDir::toNativeSeparators(version->qmlDumpTool(false));
+            const QString debugQmlDumpPath = QDir::toNativeSeparators(version->qmlDumpTool(true));
             if (qmlDumpStatusText != debugQmlDumpPath) {
-                if (!qmlDumpStatusText.isEmpty())
+                if (!qmlDumpStatusText.isEmpty()
+                        && !debugQmlDumpPath.isEmpty())
                     qmlDumpStatusText += QLatin1String("\n");
                 qmlDumpStatusText += debugQmlDumpPath;
             }
@@ -541,12 +589,41 @@ void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
         }
         m_debuggingHelperUi->qmlDumpStatus->setText(qmlDumpStatusText);
         m_debuggingHelperUi->qmlDumpStatus->setTextInteractionFlags(qmlDumpStatusTextFlags);
-        m_debuggingHelperUi->qmlDumpBuildButton->setEnabled(canBuildQmlDumper);
+        m_debuggingHelperUi->qmlDumpBuildButton->setEnabled(canBuildQmlDumper & !isBuildingQmlDumper);
+
+        QString qmlDebuggingLibStatusText;
+        Qt::TextInteractionFlags qmlDebuggingLibStatusTextFlags = Qt::NoTextInteraction;
+        if (hasQmlDebuggingLib) {
+            qmlDebuggingLibStatusText = QDir::toNativeSeparators(
+                        version->qmlDebuggingHelperLibrary(false));
+            const QString debugPath = QDir::toNativeSeparators(
+                        version->qmlDebuggingHelperLibrary(true));
+
+            if (qmlDebuggingLibStatusText != debugPath) {
+                if (!qmlDebuggingLibStatusText.isEmpty()
+                        && !debugPath.isEmpty()) {
+                    qmlDebuggingLibStatusText += QLatin1String("\n");
+                }
+                qmlDebuggingLibStatusText += debugPath;
+            }
+            qmlDebuggingLibStatusTextFlags = Qt::TextSelectableByMouse;
+        }  else {
+            if (canBuildQmlDebuggingLib) {
+                qmlDebuggingLibStatusText = tr("<i>Not yet built.</i>");
+            } else {
+                qmlDebuggingLibStatusText = tr("<i>Cannot be compiled.</i>");
+            }
+        }
+        m_debuggingHelperUi->qmlDebuggingLibStatus->setText(qmlDebuggingLibStatusText);
+        m_debuggingHelperUi->qmlDebuggingLibStatus->setTextInteractionFlags(qmlDebuggingLibStatusTextFlags);
+        m_debuggingHelperUi->qmlDebuggingLibBuildButton->setEnabled(canBuildQmlDebuggingLib
+                                                                    && !isBuildingQmlDebuggingLib);
+
 
         QString qmlObserverStatusText;
         Qt::TextInteractionFlags qmlObserverStatusTextFlags = Qt::NoTextInteraction;
         if (hasQmlObserver) {
-            qmlObserverStatusText = version->qmlObserverTool();
+            qmlObserverStatusText = QDir::toNativeSeparators(version->qmlObserverTool());
             qmlObserverStatusTextFlags = Qt::TextSelectableByMouse;
         }  else {
             if (canBuildQmlObserver) {
@@ -557,12 +634,16 @@ void QtOptionsPageWidget::updateDebuggingHelperInfo(const QtVersion *version)
         }
         m_debuggingHelperUi->qmlObserverStatus->setText(qmlObserverStatusText);
         m_debuggingHelperUi->qmlObserverStatus->setTextInteractionFlags(qmlObserverStatusTextFlags);
-        m_debuggingHelperUi->qmlObserverBuildButton->setEnabled(canBuildQmlObserver);
+        m_debuggingHelperUi->qmlObserverBuildButton->setEnabled(canBuildQmlObserver
+                                                                & !isBuildingQmlObserver);
 
-        const QTreeWidgetItem *currentItem = m_ui->qtdirList->currentItem();
         const bool hasLog = currentItem && !currentItem->data(0, BuildLogRole).toString().isEmpty();
-
         m_debuggingHelperUi->showLogButton->setEnabled(hasLog);
+
+        m_debuggingHelperUi->rebuildButton->setEnabled(!isBuildingGdbHelper
+                                                       && !isBuildingQmlDumper
+                                                       && !isBuildingQmlDebuggingLib
+                                                       && !isBuildingQmlObserver);
 
         m_ui->debuggingHelperWidget->setVisible(true);
     }
@@ -584,7 +665,7 @@ void QtOptionsPageWidget::updateState()
     m_versionUi->s60SDKPath->setEnabled(s60SDKPathEnabled);
     m_versionUi->gccePath->setEnabled(enabled);
 
-    updateDebuggingHelperInfo(version);
+    updateDebuggingHelperUi();
 }
 
 void QtOptionsPageWidget::makeMingwVisible(bool visible)
@@ -814,7 +895,7 @@ void QtOptionsPageWidget::updateCurrentQMakeLocation()
     currentItem->setText(1, QDir::toNativeSeparators(version->qmakeCommand()));
     showEnvironmentPage(currentItem);
 
-    updateDebuggingHelperInfo(version);
+    updateDebuggingHelperUi();
 
     if (m_versionUi->nameEdit->text().isEmpty() || m_versionUi->nameEdit->text() == m_specifyNameString) {
         QString name = ProjectExplorer::DebuggingHelperLibrary::qtVersionForQMake(version->qmakeCommand());

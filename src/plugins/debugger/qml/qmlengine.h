@@ -59,7 +59,6 @@ public:
     void handleRemoteSetupFailed(const QString &message);
 
     void gotoLocation(const Location &location);
-    void pauseConnection();
     bool canDisplayTooltip() const;
 
 public slots:
@@ -81,7 +80,7 @@ private:
     void shutdownInferior();
     void shutdownEngine();
 
-    void setToolTipExpression(const QPoint &mousePos,
+    bool setToolTipExpression(const QPoint &mousePos,
         TextEditor::ITextEditor *editor, const DebuggerToolTipContext &);
 
     void continueInferior();

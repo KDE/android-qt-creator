@@ -39,6 +39,37 @@ DATA_DIRS = \
     generic-highlighter \
     glsl
 
+# files that are to be unconditionally "deployed" to the build dir from src/share to share
+defineReplace(stripSrcResourceDir) {
+    win32 {
+        !contains(1, ^.:.*):1 = $$OUT_PWD/$$1
+    } else {
+        !contains(1, ^/.*):1 = $$OUT_PWD/$$1
+    }
+    out = $$cleanPath($$1)
+    out ~= s|^$$re_escape($$IDE_SOURCE_TREE/src/share/qtcreator/)||$$i_flag
+    return($$out)
+}
+DATA_FILES_SRC = \
+    externaltools/lrelease.xml \
+    externaltools/lupdate.xml
+unix:DATA_FILES_SRC += externaltools/sort.xml
+linux-*:DATA_FILES_SRC += externaltools/vi.xml
+macx:DATA_FILES_SRC += externaltools/vi_mac.xml
+win32:DATA_FILES_SRC += externaltools/notepad_win.xml
+win32:DATA_FILES_SRC ~= s|\\\\|/|g
+for(file, DATA_FILES_SRC):DATA_FILES += $$IDE_SOURCE_TREE/src/share/qtcreator/$$file
+macx:OTHER_FILES += $$DATA_FILES
+unconditionalCopy2build.input = DATA_FILES
+unconditionalCopy2build.output = $$IDE_DATA_PATH/${QMAKE_FUNC_FILE_IN_stripSrcResourceDir}
+isEmpty(vcproj):unconditionalCopy2build.variable_out = PRE_TARGETDEPS
+win32:unconditionalCopy2build.commands = $$QMAKE_COPY \"${QMAKE_FILE_IN}\" \"${QMAKE_FILE_OUT}\"
+unix:unconditionalCopy2build.commands = $$QMAKE_COPY ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT}
+unconditionalCopy2build.name = COPY ${QMAKE_FILE_IN}
+unconditionalCopy2build.CONFIG += no_link
+QMAKE_EXTRA_COMPILERS += unconditionalCopy2build
+
+# conditionally deployed data
 !isEmpty(copydata) {
 
     for(data_dir, DATA_DIRS) {
@@ -56,15 +87,6 @@ DATA_DIRS = \
     copy2build.name = COPY ${QMAKE_FILE_IN}
     copy2build.CONFIG += no_link
     QMAKE_EXTRA_COMPILERS += copy2build
-
-    macx {
-        run_in_term.target = $$IDE_DATA_PATH/runInTerminal.command
-        run_in_term.depends = $$PWD/runInTerminal.command
-        run_in_term.commands = $$QMAKE_COPY \"$<\" \"$@\"
-        QMAKE_EXTRA_TARGETS += run_in_term
-        PRE_TARGETDEPS += $$run_in_term.target
-        QMAKE_CLEAN += $$run_in_term.target
-    }
 }
 
 !macx {

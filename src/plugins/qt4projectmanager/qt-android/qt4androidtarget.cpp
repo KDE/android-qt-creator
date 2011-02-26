@@ -1,31 +1,11 @@
-/**************************************************************************
-**
-** This file is part of Qt Creator
-**
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
-**
-** Contact: Nokia Corporation (qt-info@nokia.com)
-**
-** Commercial Usage
-**
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
-**
-** GNU Lesser General Public License Usage
-**
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at qt-sales@nokia.com.
-**
-**************************************************************************/
+/*
+I BogDan Vatra < bog_dan_ro@yahoo.com >, the copyright holder of this work,
+hereby release it into the public domain. This applies worldwide.
+
+In case this is not legally possible, I grant any entity the right to use
+this work for any purpose, without any conditions, unless such conditions
+are required by law.
+*/
 
 #include "qt4androidtarget.h"
 #include "qt4androiddeployconfiguration.h"
@@ -319,18 +299,11 @@ bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
             return false;
         }
 
-    QList<QtVersion*> versions=QtVersionManager::instance()->versionsForTargetId(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
-    if (!versions.size())
-    {
-        raiseError(tr("No Qt for Android SDKs were found.\nPlease install at least one SDK."));
-        return false;
-    }
-
     if (forceJava)
         AndroidPackageCreationStep::removeDirectory(AndroidDirName+QLatin1String("/src"));
 
     QStringList androidFiles;
-    QDirIterator it(versions[0]->sourcePath()+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
+    QDirIterator it(qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_PREFIX"]+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
     int pos=it.path().size();
     while(it.hasNext())
     {
@@ -634,7 +607,7 @@ QStringList Qt4AndroidTarget::availableQtLibs()
 {
     QStringList libs;
     const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
-    QString libsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->sourcePath()+"/lib";
+    QString libsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"];
     QDirIterator libsIt(libsPath, QStringList()<<"libQt*.so");
     while(libsIt.hasNext())
     {

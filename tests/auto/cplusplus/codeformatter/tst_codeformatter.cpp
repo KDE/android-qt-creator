@@ -1,3 +1,36 @@
+/**************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (qt-info@nokia.com)
+**
+** No Commercial Usage
+**
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
+**
+** GNU Lesser General Public License Usage
+**
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
+**
+**************************************************************************/
+
 #include <QtTest>
 #include <QObject>
 #include <QList>
@@ -133,14 +166,10 @@ void checkIndent(QList<Line> data, int style = 0)
         if (l.expectedIndent != -1) {
             int indent, padding;
             formatter.indentFor(b, &indent, &padding);
-            if (indent != l.expectedIndent) {
-                QFAIL(QString("Wrong indent in line %1 with text '%2', expected indent %3, got %4").arg(
-                        QString::number(i+1), l.line, QString::number(l.expectedIndent), QString::number(indent)).toLatin1().constData());
-            }
-            if (padding != l.expectedPadding) {
-                QFAIL(QString("Wrong padding in line %1 with text '%2', expected padding %3, got %4").arg(
-                        QString::number(i+1), l.line, QString::number(l.expectedPadding), QString::number(padding)).toLatin1().constData());
-            }
+            QVERIFY2(indent == l.expectedIndent, qPrintable(QString("Wrong indent in line %1 with text '%2', expected indent %3, got %4")
+                                                            .arg(QString::number(i+1), l.line, QString::number(l.expectedIndent), QString::number(indent))));
+            QVERIFY2(padding == l.expectedPadding, qPrintable(QString("Wrong padding in line %1 with text '%2', expected padding %3, got %4")
+                                                              .arg(QString::number(i+1), l.line, QString::number(l.expectedPadding), QString::number(padding))));
         }
         formatter.updateLineStateChange(b);
         ++i;

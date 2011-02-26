@@ -61,8 +61,9 @@ public:
     explicit CrumblePathButton(const QString &title, QWidget *parent = 0);
     void setSegmentType(int type);
     void select(bool s);
-    void setData(QVariant data);
+    void setData(const QVariant &data);
     QVariant data() const;
+
 protected:
     void paintEvent(QPaintEvent *);
     void mouseMoveEvent(QMouseEvent *e);
@@ -96,8 +97,8 @@ CrumblePathButton::CrumblePathButton(const QString &title, QWidget *parent)
 {
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
     setToolTip(title);
-    setMinimumHeight(24);
-    setMaximumHeight(24);
+    setMinimumHeight(25);
+    setMaximumHeight(25);
     setMouseTracking(true);
     m_textPos.setX(18);
     m_textPos.setY(height());
@@ -148,7 +149,9 @@ void CrumblePathButton::paintEvent(QPaintEvent *)
     p.drawText(QRectF(m_textPos.x(), 4, geom.width(), geom.height()), textToDraw);
 
     if (menu()) {
-        p.drawImage(geom.width() - m_triangleIcon.width() - 6, geom.center().y() - m_triangleIcon.height()/2, m_triangleIcon);
+        p.drawImage(geom.width() - m_triangleIcon.width() - 6,
+                    geom.center().y() - m_triangleIcon.height() / 2,
+                    m_triangleIcon);
     }
 }
 
@@ -203,7 +206,7 @@ void CrumblePathButton::setSegmentType(int type)
     m_textPos.setX(useLeftPadding ? 18 : 4);
 }
 
-void CrumblePathButton::setData(QVariant data)
+void CrumblePathButton::setData(const QVariant &data)
 {
     m_data = data;
 }
@@ -215,18 +218,16 @@ QVariant CrumblePathButton::data() const
 
 ///////////////////////////////////////////////////////////////////////////////
 
-struct CrumblePathPrivate {
+struct CrumblePathPrivate
+{
     explicit CrumblePathPrivate(CrumblePath *q);
 
-    QColor m_baseColor;
     QList<CrumblePathButton*> m_buttons;
-    QWidget *m_background;
 };
 
-CrumblePathPrivate::CrumblePathPrivate(CrumblePath *q) :
-    m_baseColor(StyleHelper::baseColor()),
-    m_background(new QWidget(q))
+CrumblePathPrivate::CrumblePathPrivate(CrumblePath *q)
 {
+    Q_UNUSED(q)
 }
 
 //
@@ -237,10 +238,7 @@ CrumblePath::CrumblePath(QWidget *parent) :
 {
     setMinimumHeight(25);
     setMaximumHeight(25);
-    setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
-
-    setBackgroundStyle();
-    d->m_background->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred);
+    setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
 }
 
 CrumblePath::~CrumblePath()
@@ -251,23 +249,18 @@ CrumblePath::~CrumblePath()
 
 void CrumblePath::selectIndex(int index)
 {
-    if ((index > -1) && (index < d->m_buttons.length()))
+    if (index > -1 && index < d->m_buttons.length())
         d->m_buttons[index]->select(true);
 }
 
 QVariant CrumblePath::dataForIndex(int index) const
 {
-    if ((index > -1) && (index < d->m_buttons.length()))
+    if (index > -1 && index < d->m_buttons.length())
         return d->m_buttons[index]->data();
     return QVariant();
 }
 
-void CrumblePath::setBackgroundStyle()
-{
-    d->m_background->setStyleSheet("QWidget { background-color:" + d->m_baseColor.name() + ";}");
-}
-
-void CrumblePath::pushElement(const QString &title, const QVariant data)
+void CrumblePath::pushElement(const QString &title, const QVariant &data)
 {
     CrumblePathButton *newButton = new CrumblePathButton(title, this);
     newButton->hide();
@@ -288,9 +281,9 @@ void CrumblePath::pushElement(const QString &title, const QVariant data)
     resizeButtons();
 }
 
-void CrumblePath::addChild(const QString &title, const QVariant data)
+void CrumblePath::addChild(const QString &title, const QVariant &data)
 {
-    QTC_ASSERT(d->m_buttons.count()>0,return);
+    QTC_ASSERT(d->m_buttons.count() > 0,return);
 
     QPushButton *lastButton = d->m_buttons.last();
 
@@ -323,9 +316,8 @@ void CrumblePath::popElement()
 
 void CrumblePath::clear()
 {
-    while (!d->m_buttons.isEmpty()) {
+    while (!d->m_buttons.isEmpty())
         popElement();
-    }
 }
 
 void CrumblePath::resizeEvent(QResizeEvent *)
@@ -338,16 +330,16 @@ void CrumblePath::resizeButtons()
     int totalWidthLeft = width();
 
     if (d->m_buttons.length() >= 1) {
-        QPoint nextElementPosition(0,0);
+        QPoint nextElementPosition(0, 0);
 
-        d->m_buttons[0]->raise();
+        d->m_buttons.first()->raise();
         // rearrange all items so that the first item is on top (added last).
 
         // compute relative sizes
-        QList <int> sizes;
+        QList<int> sizes;
         int totalSize = 0;
-        for(int i = 0; i < d->m_buttons.length() ; ++i) {
-            CrumblePathButton *button = d->m_buttons[i];
+        for (int i = 0; i < d->m_buttons.length() ; ++i) {
+            CrumblePathButton *button = d->m_buttons.at(i);
 
             QFontMetrics fm(button->font());
             int originalSize = ArrowBorderSize + fm.width(button->text()) + ArrowBorderSize + 12;
@@ -356,14 +348,13 @@ void CrumblePath::resizeButtons()
         }
 
         for (int i = 0; i < d->m_buttons.length() ; ++i) {
-            CrumblePathButton *button = d->m_buttons[i];
+            CrumblePathButton *button = d->m_buttons.at(i);
 
-            int candidateSize = (sizes[i]*totalWidthLeft)/totalSize;
+            int candidateSize = (sizes.at(i) * totalWidthLeft) / totalSize;
             if (candidateSize < ArrowBorderSize)
                 candidateSize = ArrowBorderSize;
-            if (candidateSize > sizes[i]*1.3)
-                candidateSize = sizes[i]*1.3;
-
+            if (candidateSize > sizes.at(i) * 1.3)
+                candidateSize = sizes.at(i) * 1.3;
 
             button->setMinimumWidth(candidateSize);
             button->setMaximumWidth(candidateSize);
@@ -375,32 +366,16 @@ void CrumblePath::resizeButtons()
             if (i > 0)
                 button->stackUnder(d->m_buttons[i - 1]);
         }
-
     }
-
-    d->m_background->setGeometry(0,0, width(), height());
-    d->m_background->update();
 }
 
 void CrumblePath::mapClickToIndex()
 {
     QObject *element = sender();
-    if (QString("QAction") == element->metaObject()->className()) {
+    if (QString("QAction") == element->metaObject()->className())
         emit elementClicked(static_cast<QAction *>(element)->data().toInt());
-    } else
-        if (QString("QPushButton") == element->metaObject()->className()) {
-            emit elementClicked(static_cast<CrumblePathButton *>(element)->data().toInt());
-        }
-}
-
-void CrumblePath::paintEvent(QPaintEvent *event)
-{
-    if (StyleHelper::baseColor() != d->m_baseColor) {
-        d->m_baseColor = StyleHelper::baseColor();
-        setBackgroundStyle();
-    }
-
-    QWidget::paintEvent(event);
+    else if (QString("QPushButton") == element->metaObject()->className())
+        emit elementClicked(static_cast<CrumblePathButton *>(element)->data().toInt());
 }
 
 } // namespace Utils
