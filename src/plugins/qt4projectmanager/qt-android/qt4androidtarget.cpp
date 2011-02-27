@@ -453,7 +453,6 @@ bool Qt4AndroidTarget::setApplicationName(const QString & name)
         }
         metadataElem = metadataElem.nextSiblingElement("string");
     }
-    updateProject(targetSDK(), name);
     return saveXmlFile(doc, androidStringsPath());
 }
 
@@ -798,7 +797,7 @@ QString Qt4AndroidTarget::targetSDK()
 
 bool Qt4AndroidTarget::setTargetSDK(const QString & target)
 {
-    updateProject(target);
+    updateProject(target, applicationName());
     return true;
 }
 

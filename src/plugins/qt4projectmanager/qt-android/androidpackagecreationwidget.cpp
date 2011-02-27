@@ -31,6 +31,23 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 const QLatin1String emptyPerrmission("< type or choose a permission >");
+const QLatin1String packageNameRegExp("^([a-z_]{1}[a-z0-9_]+(\\.[a-zA-Z_]{1}[a-zA-Z0-9_]*)*)$");
+
+QString cleanPackageName(QString packageName)
+{
+    const QRegExp legalChars(QLatin1String("[a-zA-Z0-9_\\.]"));
+
+    for (int i = 0; i < packageName.length(); ++i)
+        if (!legalChars.exactMatch(packageName.mid(i, 1)))
+            packageName[i] = QLatin1Char('_');
+
+    return packageName;
+}
+
+bool checkPackageName(const QString & packageName)
+{
+    return QRegExp(packageNameRegExp).exactMatch(packageName);
+}
 
 ///////////////////////////// CheckModel /////////////////////////////
 CheckModel::CheckModel(QObject * parent ):QAbstractListModel ( parent )
@@ -196,7 +213,7 @@ void AndroidPackageCreationWidget::initGui()
     connect(target,
         SIGNAL(androidDirContentsChanged()),
         this, SLOT(updateAndroidProjectInfo()));
-
+    m_ui->packageNameLineEdit->setValidator(new QRegExpValidator(QRegExp(packageNameRegExp), this));
     connect(m_ui->packageNameLineEdit, SIGNAL(editingFinished()), SLOT(setPackageName()));
     connect(m_ui->appNameLineEdit, SIGNAL(editingFinished()), SLOT(setApplicationName()));
     connect(m_ui->versionCode, SIGNAL(editingFinished()), SLOT(setVersionCode()));
@@ -237,7 +254,7 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
     if (!m_ui->appNameLineEdit->text().length())
     {
         QString applicationName = target->project()->displayName();
-        target->setPackageName(target->packageName()+"."+applicationName);
+        target->setPackageName(cleanPackageName(target->packageName()+"."+applicationName));
         m_ui->packageNameLineEdit->setText(target->packageName());
         if (applicationName.length())
             applicationName[0]=applicationName[0].toUpper();
@@ -271,7 +288,16 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
 
 void AndroidPackageCreationWidget::setPackageName()
 {
-    m_step->androidTarget()->setPackageName(m_ui->packageNameLineEdit->text());
+    const QString packageName= m_ui->packageNameLineEdit->text();
+    if (!checkPackageName(packageName))
+    {
+        QMessageBox::critical(this, tr("Invalid package name")
+                              , tr("The package name '%1' is not valid.\nPlease choose a valid package name for your application (e.g. \"org.example.myapplication\").").arg(packageName));
+        m_ui->packageNameLineEdit->selectAll();
+        m_ui->packageNameLineEdit->setFocus();
+        return;
+    }
+    m_step->androidTarget()->setPackageName(packageName);
 }
 
 void AndroidPackageCreationWidget::setApplicationName()
