@@ -449,7 +449,10 @@ void AndroidPackageCreationWidget::readElfInfo()
                       .arg(AndroidConfigurations::instance().readelfPath())
                       .arg(appPath));
     if (!readelfProc.waitForFinished(-1))
+    {
+        readelfProc.terminate();
         return;
+    }
     QStringList libs;
     QList<QByteArray> lines=readelfProc.readAll().trimmed().split('\n');
     foreach(QByteArray line, lines)

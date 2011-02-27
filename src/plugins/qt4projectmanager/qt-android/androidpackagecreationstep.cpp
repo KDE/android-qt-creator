@@ -185,7 +185,8 @@ void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files)
     foreach(QString file, files)
     {
         stripProcess.start(AndroidConfigurations::instance().stripPath()+" --strip-unneeded "+file);
-        stripProcess.waitForFinished();
+        if (!stripProcess.waitForFinished(-1))
+            stripProcess.terminate();
     }
 }
 

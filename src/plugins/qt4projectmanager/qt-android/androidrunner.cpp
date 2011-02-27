@@ -60,7 +60,10 @@ void AndroidRunner::checkPID()
     QProcess psProc;
     psProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" shell ps"));
     if (!psProc.waitForFinished(-1))
+    {
+        psProc.terminate();
         return;
+    }
     qint64 pid=-1;
     QList<QByteArray> procs= psProc.readAll().split('\n');
     foreach(QByteArray proc, procs)
@@ -110,12 +113,14 @@ void AndroidRunner::killPID()
         if (-1 != m_processPID)
         {
             m_killProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell kill -9 %1").arg(m_processPID));
-            m_killProcess.waitForFinished(-1);
+            if (!m_killProcess.waitForFinished(-1))
+                m_killProcess.terminate();
         }
         if (-1 != m_gdbserverPID)
         {
             m_killProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell kill -9 %1").arg(m_gdbserverPID));
-            m_killProcess.waitForFinished(-1);
+            if (!m_killProcess.waitForFinished(-1))
+                m_killProcess.terminate();
         }
     }while(-1 != m_processPID || m_gdbserverPID != -1);
 }
@@ -144,6 +149,7 @@ void AndroidRunner::start()
     adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell am start -n %1 %2").arg(m_intentName).arg(extraParams));
     if (!adbStarProc.waitForFinished(-1))
     {
+        adbStarProc.terminate();
         emit remoteProcessFinished(tr("Unable to start '%1'").arg(m_packageName));
         return;
     }

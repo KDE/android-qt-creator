@@ -221,7 +221,7 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &na
     QProcess androidProc;
     androidProc.setWorkingDirectory(androidDir);
     androidProc.start(AndroidConfigurations::instance().antToolPath(), QStringList()<<"clean");
-    if (!androidProc.waitForFinished())
+    if (!androidProc.waitForFinished(-1))
         androidProc.terminate();
     // clean previous build
 
@@ -282,7 +282,8 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &na
     if (name.length())
         params<<"-n"<<name;
     androidProc.start(AndroidConfigurations::instance().androidToolPath(), params);
-    androidProc.waitForFinished();
+    if (!androidProc.waitForFinished(-1))
+        androidProc.terminate();
 }
 
 bool Qt4AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)

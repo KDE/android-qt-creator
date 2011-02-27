@@ -77,7 +77,10 @@ QStringList AndroidConfigurations::sdkTargets()
     QProcess proc;
     proc.start(QString("%1 list target").arg(androidToolPath())); // list avaialbe AVDs
     if (!proc.waitForFinished(-1))
+    {
+        proc.terminate();
         return targets;
+    }
     QList<QByteArray> avds=proc.readAll().trimmed().split('\n');
     for (int i=0;i<avds.size();i++)
     {
@@ -158,7 +161,10 @@ QVector<AndroidDevice> AndroidConfigurations::connectedDevices(int apiLevel)
     QProcess adbProc;
     adbProc.start(QString("%1 devices").arg(adbToolPath()));
     if (!adbProc.waitForFinished(-1))
+    {
+        adbProc.terminate();
         return devices;
+    }
     QList<QByteArray> adbDevs=adbProc.readAll().trimmed().split('\n');
     adbDevs.removeFirst();
     AndroidDevice dev;
@@ -197,7 +203,10 @@ bool AndroidConfigurations::createAVD(const QString & target, const QString & na
         return false;
     proc.write(QByteArray("no\n"));
     if (!proc.waitForFinished(-1))
+    {
+        proc.terminate();
         return false;
+    }
     return !proc.exitCode();
 }
 
@@ -206,7 +215,10 @@ bool AndroidConfigurations::removeAVD(const QString & name)
     QProcess proc;
     proc.start(QString("%1 delete avd -n %2").arg(androidToolPath()).arg(name)); // list avaialbe AVDs
     if (!proc.waitForFinished(-1))
+    {
+        proc.terminate();
         return false;
+    }
     return !proc.exitCode();
 }
 
@@ -216,7 +228,10 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
     QProcess proc;
     proc.start(QString("%1 list avd").arg(androidToolPath())); // list avaialbe AVDs
     if (!proc.waitForFinished(-1))
+    {
+        proc.terminate();
         return devices;
+    }
     QList<QByteArray> avds=proc.readAll().trimmed().split('\n');
     avds.removeFirst();
     AndroidDevice dev;
@@ -278,9 +293,19 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
     QProcess proc;
     proc.start(adbToolPath()+ QLatin1String(" -e wait-for-device"));
     if (!proc.waitForFinished(-1))
+    {
+        proc.terminate();
         return QString();
-
+    }
     sleep(5);// wait for pm to start
+
+    // workaround for stupid adb bug
+    proc.start(adbToolPath()+ QLatin1String(" devices"));
+    if (!proc.waitForFinished(-1))
+    {
+        proc.terminate();
+        return QString();
+    }
 
     // get connected devices
     devices = connectedDevices(apiLevel);
@@ -296,7 +321,10 @@ int AndroidConfigurations::getSDKVersion(const QString & device)
     QProcess adbProc;
     adbProc.start(QString("%1 shell getprop ro.build.version.sdk").arg(adbToolPath(device)));
     if (!adbProc.waitForFinished(-1))
+    {
+        adbProc.terminate();
         return -1;
+    }
     return adbProc.readAll().trimmed().toInt();
 }
 
