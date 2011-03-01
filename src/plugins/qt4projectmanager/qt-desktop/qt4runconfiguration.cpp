@@ -49,9 +49,11 @@
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/variablemanager.h>
 #include <coreplugin/ifile.h>
+#include <coreplugin/helpmanager.h>
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/environmentwidget.h>
 #include <projectexplorer/persistentsettings.h>
+#include <projectexplorer/toolchain.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 #include <utils/pathchooser.h>
@@ -214,7 +216,7 @@ Qt4RunConfigurationWidget::Qt4RunConfigurationWidget(Qt4RunConfiguration *qt4Run
     m_workingDirectoryEdit = new Utils::PathChooser(this);
     m_workingDirectoryEdit->setPath(m_qt4RunConfiguration->baseWorkingDirectory());
     m_workingDirectoryEdit->setBaseDirectory(m_qt4RunConfiguration->target()->project()->projectDirectory());
-    m_workingDirectoryEdit->setExpectedKind(Utils::PathChooser::Directory);
+    m_workingDirectoryEdit->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_workingDirectoryEdit->setEnvironment(m_qt4RunConfiguration->environment());
     m_workingDirectoryEdit->setPromptDialogTitle(tr("Select Working Directory"));
 
@@ -306,6 +308,8 @@ Qt4RunConfigurationWidget::Qt4RunConfigurationWidget(Qt4RunConfiguration *qt4Run
             this, SLOT(useQmlDebuggerToggled(bool)));
     connect(m_debuggerLanguageChooser, SIGNAL(qmlDebugServerPortChanged(uint)),
             this, SLOT(qmlDebugServerPortChanged(uint)));
+    connect(m_debuggerLanguageChooser, SIGNAL(openHelpUrl(QString)),
+            Core::HelpManager::instance(), SLOT(handleHelpRequest(QString)));
 
     connect(m_environmentWidget, SIGNAL(userChangesChanged()),
             this, SLOT(userChangesEdited()));
@@ -602,7 +606,7 @@ Utils::Environment Qt4RunConfiguration::baseEnvironment() const
     // dirs to the path
     const Qt4ProFileNode *node = qt4Target()->qt4Project()->rootProjectNode()->findProFileFor(m_proFilePath);
     if (node)
-        foreach(const QString dir, node->variableValue(LibDirectoriesVar))
+        foreach(const QString &dir, node->variableValue(LibDirectoriesVar))
             env.prependOrSetPath(dir);
 #endif
     return env;
@@ -660,7 +664,7 @@ QString Qt4RunConfiguration::dumperLibrary() const
 {
     QtVersion *version = qt4Target()->activeBuildConfiguration()->qtVersion();
     if (version)
-        return version->debuggingHelperLibrary();
+        return version->gdbDebuggingHelperLibrary();
     return QString();
 }
 
@@ -693,11 +697,6 @@ void Qt4RunConfiguration::setBaseEnvironmentBase(BaseEnvironmentBase env)
 Qt4RunConfiguration::BaseEnvironmentBase Qt4RunConfiguration::baseEnvironmentBase() const
 {
     return m_baseEnvironmentBase;
-}
-ProjectExplorer::ToolChainType Qt4RunConfiguration::toolChainType() const
-{
-    Qt4BuildConfiguration *qt4bc = qt4Target()->activeBuildConfiguration();
-    return qt4bc->toolChainType();
 }
 
 ProjectExplorer::OutputFormatter *Qt4RunConfiguration::createOutputFormatter() const

@@ -161,11 +161,11 @@ void ObjectNodeInstance::initializePropertyWatcher(const ObjectNodeInstance::Poi
 
 void ObjectNodeInstance::setId(const QString &id)
 {
-    if (!m_id.isEmpty()) {
+    if (!m_id.isEmpty() && context()) {
         context()->engine()->rootContext()->setContextProperty(m_id, 0);
     }
 
-    if (!id.isEmpty()) {
+    if (!id.isEmpty() && context()) {
         context()->engine()->rootContext()->setContextProperty(id, object()); // will also force refresh of all bindings
     }
 
@@ -744,6 +744,8 @@ QObject *createComponent(const QString &componentPath, QDeclarativeContext *cont
     tweakObjects(object);
     component.completeCreate();
 
+    Q_ASSERT(QDeclarativeEngine::contextForObject(object));
+
     return object;
 }
 
@@ -767,6 +769,8 @@ QObject *createPrimitive(const QString &typeName, int majorNumber, int minorNumb
 
     if (object && context)
         QDeclarativeEngine::setContextForObject(object, context);
+
+    Q_ASSERT(QDeclarativeEngine::contextForObject(object));
 
     return object;
 }

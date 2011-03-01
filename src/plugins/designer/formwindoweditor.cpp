@@ -62,31 +62,31 @@ struct FormWindowEditorPrivate
     explicit FormWindowEditorPrivate(Internal::DesignerXmlEditor *editor,
                                      QDesignerFormWindowInterface *form);
 
-    TextEditor::PlainTextEditorEditable m_textEditable;
+    TextEditor::PlainTextEditor m_textEditor;
     Internal::FormWindowFile m_file;
     Core::Context m_context;
 };
 
 FormWindowEditorPrivate::FormWindowEditorPrivate(Internal::DesignerXmlEditor *editor,
                                                  QDesignerFormWindowInterface *form) :
-    m_textEditable(editor), m_file(form)
+    m_textEditor(editor), m_file(form)
 {
 }
 
 FormWindowEditor::FormWindowEditor(Internal::DesignerXmlEditor *editor,
-                                                     QDesignerFormWindowInterface *form,
-                                                     QObject *parent) :
+                                   QDesignerFormWindowInterface *form,
+                                   QObject *parent) :
     Core::IEditor(parent),
     d(new FormWindowEditorPrivate(editor, form))
 {
     d->m_context.add(Designer::Constants::K_DESIGNER_XML_EDITOR_ID);
     d->m_context.add(Designer::Constants::C_DESIGNER_XML_EDITOR);
     connect(form, SIGNAL(changed()), this, SIGNAL(changed()));
-    // Revert to saved/load externally modified files
-    connect(&(d->m_file), SIGNAL(reload(QString)), this, SLOT(slotOpen(QString)));
+    // Revert to saved/load externally modified files.
+    connect(&d->m_file, SIGNAL(reload(QString)), this, SLOT(slotOpen(QString)));
     // Force update of open editors model.
-    connect(&(d->m_file), SIGNAL(saved()), this, SIGNAL(changed()));
-    connect(&(d->m_file), SIGNAL(changed()), this, SIGNAL(changed()));
+    connect(&d->m_file, SIGNAL(saved()), this, SIGNAL(changed()));
+    connect(&d->m_file, SIGNAL(changed()), this, SIGNAL(changed()));
     connect(this, SIGNAL(changed()), this, SLOT(configureXmlEditor()));
 }
 
@@ -185,17 +185,17 @@ void FormWindowEditor::syncXmlEditor()
 
 void FormWindowEditor::configureXmlEditor() const
 {
-    TextEditor::PlainTextEditor *editor =
-            qobject_cast<TextEditor::PlainTextEditor *>(d->m_textEditable.editor());
-    if (editor)
-        editor->configure(Core::ICore::instance()->mimeDatabase()->findByFile(
+    TextEditor::PlainTextEditorWidget *widget =
+            qobject_cast<TextEditor::PlainTextEditorWidget *>(d->m_textEditor.widget());
+    if (widget)
+        widget->configure(Core::ICore::instance()->mimeDatabase()->findByFile(
                 d->m_file.fileName()));
 }
 
 void FormWindowEditor::syncXmlEditor(const QString &contents)
 {
-    d->m_textEditable.editor()->setPlainText(contents);
-    d->m_textEditable.editor()->setReadOnly(true);
+    d->m_textEditor.editorWidget()->setPlainText(contents);
+    d->m_textEditor.editorWidget()->setReadOnly(true);
 }
 
 Core::IFile *FormWindowEditor::file()
@@ -210,12 +210,12 @@ QString FormWindowEditor::id() const
 
 QString FormWindowEditor::displayName() const
 {
-    return d->m_textEditable.displayName();
+    return d->m_textEditor.displayName();
 }
 
 void FormWindowEditor::setDisplayName(const QString &title)
 {
-    d->m_textEditable.setDisplayName(title);
+    d->m_textEditor.setDisplayName(title);
     emit changed();
 }
 
@@ -231,12 +231,12 @@ Core::IEditor *FormWindowEditor::duplicate(QWidget *)
 
 QByteArray FormWindowEditor::saveState() const
 {
-    return d->m_textEditable.saveState();
+    return d->m_textEditor.saveState();
 }
 
 bool FormWindowEditor::restoreState(const QByteArray &state)
 {
-    return d->m_textEditable.restoreState(state);
+    return d->m_textEditor.restoreState(state);
 }
 
 Core::Context FormWindowEditor::context() const
@@ -246,7 +246,7 @@ Core::Context FormWindowEditor::context() const
 
 QWidget *FormWindowEditor::widget()
 {
-    return d->m_textEditable.widget();
+    return d->m_textEditor.widget();
 }
 
 bool FormWindowEditor::isTemporary() const
@@ -268,12 +268,12 @@ QString FormWindowEditor::contents() const
 
 TextEditor::BaseTextDocument *FormWindowEditor::textDocument()
 {
-    return qobject_cast<TextEditor::BaseTextDocument*>(d->m_textEditable.file());
+    return qobject_cast<TextEditor::BaseTextDocument*>(d->m_textEditor.file());
 }
 
-TextEditor::PlainTextEditorEditable *FormWindowEditor::textEditable()
+TextEditor::PlainTextEditor *FormWindowEditor::textEditor()
 {
-    return &d->m_textEditable;
+    return &d->m_textEditor;
 }
 
 QString FormWindowEditor::preferredModeType() const

@@ -37,6 +37,7 @@
 #include <projectexplorer/runconfiguration.h>
 
 namespace Debugger {
+class DebuggerEngine;
 namespace Internal {
 
 class DebuggerRunControlFactory
@@ -57,9 +58,14 @@ public:
     RunControl *create(RunConfiguration *runConfiguration, const QString &mode);
     bool canRun(RunConfiguration *runConfiguration, const QString &mode) const;
 
+    static DebuggerEngine *createEngine(DebuggerEngineType et,
+                                        const DebuggerStartParameters &sp,
+                                        DebuggerEngine *masterEngine,
+                                        QString *errorMessage);
+
 private:
     QString displayName() const;
-    QWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
+    ProjectExplorer::RunConfigWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
 
     const unsigned m_enabledEngines;
 };

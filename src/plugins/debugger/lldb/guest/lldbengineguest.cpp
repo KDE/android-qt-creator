@@ -285,13 +285,12 @@ void LldbEngineGuest::interruptInferior()
     updateThreads();
 }
 
-void LldbEngineGuest::executeRunToLine(const QString &fileName, int lineNumber)
+void LldbEngineGuest::executeRunToLine(const ContextData &data);
 {
     DEBUG_FUNC_ENTER;
 
     // TODO
-    Q_UNUSED(fileName);
-    Q_UNUSED(lineNumber);
+    Q_UNUSED(data);
 }
 
 void LldbEngineGuest::executeRunToFunction(const QString &functionName)
@@ -301,13 +300,12 @@ void LldbEngineGuest::executeRunToFunction(const QString &functionName)
     // TODO
     Q_UNUSED(functionName);
 }
-void LldbEngineGuest::executeJumpToLine(const QString &fileName, int lineNumber)
+void LldbEngineGuest::executeJumpToLine(const ContextData &data);
 {
     DEBUG_FUNC_ENTER;
 
     // TODO
-    Q_UNUSED(fileName);
-    Q_UNUSED(lineNumber);
+    Q_UNUSED(data);
 }
 
 void LldbEngineGuest::activateFrame(qint64 token)
@@ -352,7 +350,7 @@ void LldbEngineGuest::requestUpdateWatchData(const Internal::WatchData &data,
 void LldbEngineGuest::getWatchDataR(lldb::SBValue v, int level,
         const QByteArray &p_iname, QList<WatchData> &wd)
 {
-    QByteArray iname = p_iname + "." + QByteArray(v.GetName());
+    QByteArray iname = p_iname + '.' + QByteArray(v.GetName());
     m_localesCache.insert(QString::fromLocal8Bit(iname), v);
 
 #if defined(HAVE_LLDB_PRIVATE)
@@ -586,7 +584,7 @@ void LldbEngineGuest::updateThreads()
         ThreadData thread;
         thread.id = t.GetThreadID();
         thread.targetId = QString::number(t.GetThreadID());
-        thread.core = QString();
+        thread.core.clear();
         thread.state = QString::number(t.GetStopReason());
 
         switch (t.GetStopReason()) {

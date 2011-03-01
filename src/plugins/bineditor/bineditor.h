@@ -66,16 +66,11 @@ public:
     BinEditor(QWidget *parent = 0);
     ~BinEditor();
 
-    void setData(const QByteArray &data);
-    QByteArray data() const;
-
-    inline int dataSize() const { return m_size; }
     quint64 baseAddress() const { return m_baseAddr; }
 
-    inline bool inLazyMode() const { return m_inLazyMode; }
-    Q_INVOKABLE void setLazyData(quint64 startAddr, int range, int blockSize = 4096);
-    inline int lazyDataBlockSize() const { return m_blockSize; }
-    Q_INVOKABLE void addLazyData(quint64 block, const QByteArray &data);
+    Q_INVOKABLE void setSizes(quint64 startAddr, int range, int blockSize = 4096);
+    int dataBlockSize() const { return m_blockSize; }
+    Q_INVOKABLE void addData(quint64 block, const QByteArray &data);
     Q_INVOKABLE void setNewWindowRequestAllowed();
     Q_INVOKABLE void updateContents();
     bool save(const QString &oldFileName, const QString &newFileName);
@@ -107,8 +102,8 @@ public:
     void undo();
     void redo();
 
-    Core::IEditor *editorInterface() const { return m_ieditor; }
-    void setEditorInterface(Core::IEditor *ieditor) { m_ieditor = ieditor; }
+    Core::IEditor *editor() const { return m_ieditor; }
+    void setEditor(Core::IEditor *ieditor) { m_ieditor = ieditor; }
 
     bool hasSelection() const { return m_cursorPosition != m_anchorPosition; }
     int selectionStart() const { return qMin(m_anchorPosition, m_cursorPosition); }
@@ -120,6 +115,8 @@ public:
     bool isRedoAvailable() const { return m_redoStack.size(); }
 
     QString addressString(quint64 address);
+
+    bool isMemoryView() const; // Is a debugger memory view without file?
 
     static const int SearchStride = 1024 * 1024;
 
@@ -136,11 +133,12 @@ Q_SIGNALS:
     void copyAvailable(bool);
     void cursorPositionChanged(int position);
 
-    void lazyDataRequested(Core::IEditor *editor, quint64 block, bool synchronous);
+    void dataRequested(Core::IEditor *editor, quint64 block);
     void newWindowRequested(quint64 address);
     void newRangeRequested(Core::IEditor *, quint64 address);
     void startOfFileRequested(Core::IEditor *);
     void endOfFileRequested(Core::IEditor *);
+    void dataChanged(Core::IEditor *, quint64 address, const QByteArray &data);
 
 protected:
     void scrollContentsBy(int dx, int dy);
@@ -158,13 +156,12 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event);
 
 private:
-    bool m_inLazyMode;
-    QByteArray m_data;
-    QMap<int, QByteArray> m_lazyData;
-    QMap<int, QByteArray> m_oldLazyData;
+    typedef QMap<int, QByteArray> BlockMap;
+    BlockMap m_data;
+    BlockMap m_oldData;
     int m_blockSize;
-    QMap<int, QByteArray> m_modifiedData;
-    mutable QSet<int> m_lazyRequests;
+    BlockMap m_modifiedData;
+    mutable QSet<int> m_requests;
     QByteArray m_emptyBlock;
     QByteArray m_lowerBlock;
     int m_size;
@@ -172,7 +169,7 @@ private:
     int dataIndexOf(const QByteArray &pattern, int from, bool caseSensitive = true) const;
     int dataLastIndexOf(const QByteArray &pattern, int from, bool caseSensitive = true) const;
 
-    bool requestDataAt(int pos, bool synchronous = false) const;
+    bool requestDataAt(int pos) const;
     bool requestOldDataAt(int pos) const;
     char dataAt(int pos, bool old = false) const;
     char oldDataAt(int pos) const;

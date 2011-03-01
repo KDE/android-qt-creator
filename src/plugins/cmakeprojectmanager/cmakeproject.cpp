@@ -43,6 +43,7 @@
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/headerpath.h>
 #include <projectexplorer/buildenvironmentwidget.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/buildmanager.h>
@@ -169,7 +170,6 @@ void CMakeProject::changeActiveBuildConfiguration(ProjectExplorer::BuildConfigur
                                     mode,
                                     cmakebc->environment());
         copw.exec();
-        cmakebc->setMsvcVersion(copw.msvcVersion());
     }
     // reparse
     parseCMakeLists();
@@ -281,6 +281,9 @@ bool CMakeProject::parseCMakeLists()
 
     //qDebug()<<"Updating CodeModel";
     createUiCodeModelSupport();
+
+    if (!activeBC->toolChain())
+        return true;
 
     QStringList allIncludePaths;
     QStringList allFrameworkPaths;
@@ -527,9 +530,9 @@ bool CMakeProject::fromMap(const QVariantMap &map)
 
         CMakeBuildConfiguration *bc =
                 static_cast<CMakeBuildConfiguration *>(t->buildConfigurations().at(0));
-        bc->setMsvcVersion(copw.msvcVersion());
         if (!copw.buildDirectory().isEmpty())
             bc->setBuildDirectory(copw.buildDirectory());
+        bc->setToolChain(copw.toolChain());
 
         addTarget(t);
     } else {
@@ -554,7 +557,7 @@ bool CMakeProject::fromMap(const QVariantMap &map)
                                         activeBC->environment());
             if (copw.exec() != QDialog::Accepted)
                 return false;
-            activeBC->setMsvcVersion(copw.msvcVersion());
+            activeBC->setToolChain(copw.toolChain());
         }
     }
 

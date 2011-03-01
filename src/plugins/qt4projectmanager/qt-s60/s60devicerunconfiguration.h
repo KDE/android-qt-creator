@@ -36,7 +36,6 @@
 
 #include <debugger/debuggerrunner.h>
 #include <projectexplorer/runconfiguration.h>
-#include <projectexplorer/toolchaintype.h>
 
 #include <QtCore/QFutureInterface>
 #include <QtCore/QScopedPointer>
@@ -79,8 +78,6 @@ public:
 
     QString projectFilePath() const;
 
-    ProjectExplorer::ToolChainType toolChainType() const;
-
     QString targetName() const;
     QString localExecutableFileName() const;
     quint32 executableUid() const;
@@ -103,9 +100,8 @@ private slots:
     void proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode *pro, bool success);
 
 private:
-    ProjectExplorer::ToolChainType toolChainType(ProjectExplorer::BuildConfiguration *configuration) const;
     void ctor();
-    void handleParserState(bool sucess);
+    void handleParserState(bool success);
 
     QString m_proFilePath;
     QString m_commandLineArguments;
@@ -140,9 +136,21 @@ class S60DeviceDebugRunControl : public Debugger::DebuggerRunControl
     Q_OBJECT
 public:
     explicit S60DeviceDebugRunControl(S60DeviceRunConfiguration *runConfiguration,
-                                      const QString &mode);
+                                      const Debugger::DebuggerStartParameters &sp,
+                                      const QPair<Debugger::DebuggerEngineType, Debugger::DebuggerEngineType> &masterSlaveEngineTypes);
     virtual void start();
     virtual bool promptToStop(bool *optionalPrompt = 0) const;
+};
+
+class S60DeviceDebugRunControlFactory : public ProjectExplorer::IRunControlFactory
+{
+public:
+    explicit S60DeviceDebugRunControlFactory(QObject *parent = 0);
+    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration, const QString &mode) const;
+
+    ProjectExplorer::RunControl* create(ProjectExplorer::RunConfiguration *runConfiguration, const QString &mode);
+    QString displayName() const;
+    ProjectExplorer::RunConfigWidget *createConfigurationWidget(ProjectExplorer::RunConfiguration * /*runConfiguration */);
 };
 
 } // namespace Internal

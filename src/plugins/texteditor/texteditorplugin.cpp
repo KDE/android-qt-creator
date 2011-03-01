@@ -33,6 +33,7 @@
 
 #include "texteditorplugin.h"
 
+#include "completionsupport.h"
 #include "findinfiles.h"
 #include "findincurrentfile.h"
 #include "fontsettings.h"
@@ -204,7 +205,7 @@ void TextEditorPlugin::extensionsInitialized()
             this, SLOT(updateCurrentSelection(QString)));
 }
 
-void TextEditorPlugin::initializeEditor(PlainTextEditor *editor)
+void TextEditorPlugin::initializeEditor(PlainTextEditorWidget *editor)
 {
     // common actions
     m_editorFactory->actionHandler()->setupActions(editor);
@@ -217,7 +218,7 @@ void TextEditorPlugin::invokeCompletion()
     Core::IEditor *iface = Core::EditorManager::instance()->currentEditor();
     ITextEditor *editor = qobject_cast<ITextEditor *>(iface);
     if (editor)
-        editor->triggerCompletions();
+        CompletionSupport::instance()->complete(editor, SemanticCompletion, true);
 }
 
 void TextEditorPlugin::invokeQuickFix()
@@ -225,7 +226,7 @@ void TextEditorPlugin::invokeQuickFix()
     Core::IEditor *iface = Core::EditorManager::instance()->currentEditor();
     ITextEditor *editor = qobject_cast<ITextEditor *>(iface);
     if (editor)
-        editor->triggerQuickFix();
+        CompletionSupport::instance()->complete(editor, QuickFixCompletion, true);
 }
 
 void TextEditorPlugin::updateSearchResultsFont(const FontSettings &settings)
@@ -271,17 +272,17 @@ void TextEditorPlugin::updateVariable(const QString &variable)
 void TextEditorPlugin::updateCurrentSelection(const QString &text)
 {
     Core::IEditor *iface = Core::EditorManager::instance()->currentEditor();
-    ITextEditable *editor = qobject_cast<ITextEditable *>(iface);
+    ITextEditor *editor = qobject_cast<ITextEditor *>(iface);
     if (editor) {
         int pos = editor->position();
         int anchor = editor->position(ITextEditor::Anchor);
+        if (anchor < 0) // no selection
+            anchor = pos;
         int selectionLength = anchor-pos;
         if (selectionLength < 0)
             selectionLength = -selectionLength;
-        if (selectionLength == 0)
-            return;
         int start = qMin(pos, anchor);
-        editor->setCurPos(start);
+        editor->setCursorPosition(start);
         editor->replace(selectionLength, text);
     }
 }

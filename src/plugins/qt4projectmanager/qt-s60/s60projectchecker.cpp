@@ -47,11 +47,11 @@ QList<ProjectExplorer::Task>
 S60ProjectChecker::reportIssues(const QString &proFile, const QtVersion *version)
 {
     QList<ProjectExplorer::Task> results;
-    const QString epocRootDir = QDir(Internal::S60Manager::instance()->deviceForQtVersion(version).epocRoot).absolutePath();
+    const QString epocRootDir = version->systemRoot();
     QFileInfo cppheader(epocRootDir + QLatin1String("/epoc32/include/stdapis/string.h"));
 #if defined (Q_OS_WIN)
     // Report an error if project- and epoc directory are on different drives:
-    if (!epocRootDir.startsWith(proFile.left(3), Qt::CaseInsensitive)) {
+    if (!epocRootDir.startsWith(proFile.left(3), Qt::CaseInsensitive) && !version->isBuildWithSymbianSbsV2()) {
         results.append(Task(Task::Error,
                             QCoreApplication::translate("ProjectExplorer::Internal::S60ProjectChecker",
                                                         "The Symbian SDK and the project sources must reside on the same drive."),
@@ -86,7 +86,7 @@ S60ProjectChecker::reportIssues(const QString &proFile, const QtVersion *version
                                                         "in the project path '%1'.").arg(projectPath),
                             QString(), -1, ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM));
     }
-    if (projectName.contains(QRegExp("[^a-zA-Z0-9.]"))) {
+    if (projectName.contains(QRegExp("[^a-zA-Z0-9.-]"))) {
         results.append(Task(Task::Warning,
                             QCoreApplication::translate("ProjectExplorer::Internal::S60ProjectChecker",
                                                         "The Symbian toolchain does not handle special "

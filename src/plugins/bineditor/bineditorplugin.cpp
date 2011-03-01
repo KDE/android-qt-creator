@@ -39,6 +39,8 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QDebug>
 #include <QtCore/QRegExp>
+#include <QtCore/QVariant>
+
 #include <QtGui/QMenu>
 #include <QtGui/QAction>
 #include <QtGui/QMainWindow>
@@ -60,6 +62,7 @@
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorsettings.h>
 #include <utils/reloadpromptutils.h>
+#include <utils/qtcassert.h>
 
 using namespace BINEditor;
 using namespace BINEditor::Internal;
@@ -179,11 +182,10 @@ class BinEditorFile : public Core::IFile
     Q_OBJECT
 public:
     BinEditorFile(BinEditor *parent) :
-        Core::IFile(parent),
-        m_mimeType(QLatin1String(BINEditor::Constants::C_BINEDITOR_MIMETYPE))
+        Core::IFile(parent)
     {
         m_editor = parent;
-        connect(m_editor, SIGNAL(lazyDataRequested(Core::IEditor *, quint64, bool)),
+        connect(m_editor, SIGNAL(dataRequested(Core::IEditor*,quint64)),
             this, SLOT(provideData(Core::IEditor *, quint64)));
         connect(m_editor, SIGNAL(newRangeRequested(Core::IEditor*,quint64)),
             this, SLOT(provideNewRange(Core::IEditor*,quint64)));
@@ -194,15 +196,16 @@ public:
     }
     ~BinEditorFile() {}
 
-    virtual QString mimeType() const { return m_mimeType; }
+    QString mimeType() const {
+        return QLatin1String(Constants::C_BINEDITOR_MIMETYPE);
+    }
 
     bool save(const QString &fileName = QString()) {
         const QString fileNameToUse
             = fileName.isEmpty() ? m_fileName : fileName;
         if (m_editor->save(m_fileName, fileNameToUse)) {
             m_fileName = fileNameToUse;
-            m_editor->editorInterface()->
-                setDisplayName(QFileInfo(fileNameToUse).fileName());
+            m_editor->editor()->setDisplayName(QFileInfo(fileNameToUse).fileName());
             emit changed();
             return true;
         } else {
@@ -212,7 +215,7 @@ public:
 
     void rename(const QString &newName) {
         m_fileName = newName;
-        m_editor->editorInterface()->setDisplayName(QFileInfo(fileName()).fileName());
+        m_editor->editor()->setDisplayName(QFileInfo(fileName()).fileName());
         emit changed();
     }
 
@@ -221,13 +224,8 @@ public:
         if (offset < static_cast<quint64>(file.size())
             && file.open(QIODevice::ReadOnly)) {
             m_fileName = fileName;
-            qint64 maxRange = 64 * 1024 * 1024;
-            if (file.size() <= maxRange)
-                m_editor->setData(file.readAll());
-            else
-                m_editor->setLazyData(offset, maxRange);
-            m_editor->editorInterface()->
-                setDisplayName(QFileInfo(fileName).fileName());
+            m_editor->setSizes(offset, file.size(), true);
+            m_editor->editor()->setDisplayName(QFileInfo(fileName).fileName());
             file.close();
             return true;
         }
@@ -236,15 +234,17 @@ public:
 
 private slots:
     void provideData(Core::IEditor *, quint64 block) {
+        if (m_fileName.isEmpty())
+            return;
         QFile file(m_fileName);
         if (file.open(QIODevice::ReadOnly)) {
-            int blockSize = m_editor->lazyDataBlockSize();
+            int blockSize = m_editor->dataBlockSize();
             file.seek(block * blockSize);
             QByteArray data = file.read(blockSize);
             const int dataSize = data.size();
             if (dataSize != blockSize)
                 data += QByteArray(blockSize - dataSize, 0);
-            m_editor->addLazyData(block, data);
+            m_editor->addData(block, data);
             file.close();
         }
     }
@@ -267,19 +267,17 @@ public:
         m_fileName = filename;
     }
 
-    QString fileName() const {
-        return m_fileName;
-    }
+    QString fileName() const { return m_fileName; }
 
     QString defaultPath() const { return QString(); }
-    QString suggestedFileName() const { return QString(); }
-    QString fileFilter() const { return QString(); }
-    QString fileExtension() const { return QString(); }
 
-    bool isModified() const {
-        return m_editor->isModified();
-    }
+    QString suggestedFileName() const { return QString(); }
+
+    bool isModified() const { return m_editor->isMemoryView() ? false : m_editor->isModified(); }
+
     bool isReadOnly() const {
+        if (m_editor->isMemoryView())
+            return false;
         const QFileInfo fi(m_fileName);
         return !fi.isWritable();
     }
@@ -310,7 +308,6 @@ public:
     }
 
 private:
-    const QString m_mimeType;
     BinEditor *m_editor;
     QString m_fileName;
 };
@@ -359,7 +356,7 @@ public:
     Core::Context context() const { return m_context; }
 
     bool createNew(const QString & /* contents */ = QString()) {
-        m_editor->setData(QByteArray());
+        m_editor->clear();
         m_file->setFilename(QString());
         return true;
     }
@@ -379,7 +376,7 @@ public:
 
     QWidget *toolBar() { return m_toolBar; }
 
-    bool isTemporary() const { return false; }
+    bool isTemporary() const { return m_editor->isMemoryView(); }
 
 private slots:
     void updateCursorPosition(int position) {
@@ -402,11 +399,10 @@ private:
 
 
 
-
 ///////////////////////////////// BinEditorFactory //////////////////////////////////
 
 BinEditorFactory::BinEditorFactory(BinEditorPlugin *owner) :
-    m_mimeTypes(QLatin1String(BINEditor::Constants::C_BINEDITOR_MIMETYPE)),
+    m_mimeTypes(QLatin1String(Constants::C_BINEDITOR_MIMETYPE)),
     m_owner(owner)
 {
 }
@@ -432,7 +428,7 @@ Core::IEditor *BinEditorFactory::createEditor(QWidget *parent)
 {
     BinEditor *editor = new BinEditor(parent);
     m_owner->initializeEditor(editor);
-    return editor->editorInterface();
+    return editor->editor();
 }
 
 QStringList BinEditorFactory::mimeTypes() const
@@ -475,7 +471,7 @@ void BinEditorPlugin::initializeEditor(BinEditor *editor)
 {
     BinEditorInterface *editorInterface = new BinEditorInterface(editor);
     QObject::connect(editor, SIGNAL(modificationChanged(bool)), editorInterface, SIGNAL(changed()));
-    editor->setEditorInterface(editorInterface);
+    editor->setEditor(editorInterface);
 
     m_context.add(Constants::C_BINEDITOR);
     if (!m_undoAction) {

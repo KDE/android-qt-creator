@@ -40,6 +40,8 @@
 #include "qdeclarativeviewobserver.h"
 #include "qdeclarativeobserverservice.h"
 
+QT_FORWARD_DECLARE_CLASS(QSettings)
+
 namespace QmlJSDebugger {
 
 class JSDebuggerAgent;
@@ -50,7 +52,7 @@ class ColorPickerTool;
 class LiveLayerItem;
 class BoundingRectHighlighter;
 class SubcomponentEditorTool;
-class QmlToolbar;
+class QmlToolBar;
 class CrumblePath;
 class AbstractLiveEditTool;
 
@@ -91,12 +93,14 @@ public:
     bool executionPaused;
     qreal slowdownFactor;
 
-    QmlToolbar *toolbar;
+    QmlToolBar *toolBar;
+    QWidget *toolBox;
+    QSettings *settings;
 
     void setViewport(QWidget *widget);
 
     void clearEditorItems();
-    void createToolbar();
+    void createToolBox();
     void changeToSelectTool();
     QList<QGraphicsItem*> filterForCurrentContext(QList<QGraphicsItem*> &itemlist) const;
     QList<QGraphicsItem*> filterForSelection(QList<QGraphicsItem*> &itemlist) const;
@@ -124,6 +128,8 @@ public:
     void enterContext(QGraphicsItem *itemToEnter);
 
 public slots:
+    void _q_setToolBoxVisible(bool visible);
+
     void _q_reloadView();
     void _q_onStatusChanged(QDeclarativeView::Status status);
     void _q_onCurrentObjectsChanged(QList<QObject*> objects);

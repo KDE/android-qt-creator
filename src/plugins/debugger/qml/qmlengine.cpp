@@ -57,6 +57,7 @@
 #include <utils/environment.h>
 #include <utils/qtcassert.h>
 
+#include <coreplugin/icore.h>
 #include <coreplugin/helpmanager.h>
 
 #include <QtCore/QDateTime>
@@ -216,7 +217,7 @@ void QmlEngine::setupInferior()
 
 void QmlEngine::appendMessage(const QString &msg, OutputFormat /* format */)
 {
-    showMessage(msg, AppStuff); // FIXME: Redirect to RunControl
+    showMessage(msg, AppOutput); // FIXME: Redirect to RunControl
 }
 
 void QmlEngine::connectionEstablished()
@@ -236,16 +237,25 @@ void QmlEngine::connectionEstablished()
 
 void QmlEngine::connectionStartupFailed()
 {
-    QMessageBox::Button button =
-            QMessageBox::critical(0, tr("Failed to connect to QML debugger"),
-                                  tr("Qt Creator could not connect to the in-process debugger at %1:%2.\n"
-                                     "Do you want to retry?")
-                                  .arg(startParameters().qmlServerAddress)
-                                  .arg(startParameters().qmlServerPort),
-                                  QMessageBox::Retry | QMessageBox::Cancel | QMessageBox::Help,
-                                  QMessageBox::Retry);
+    Core::ICore * const core = Core::ICore::instance();
+    QMessageBox *infoBox = new QMessageBox(core->mainWindow());
+    infoBox->setIcon(QMessageBox::Critical);
+    infoBox->setWindowTitle(tr("Qt Creator"));
+    infoBox->setText(tr("Could not connect to the in-process QML debugger.\n"
+                        "Do you want to retry?"));
+    infoBox->setStandardButtons(QMessageBox::Retry | QMessageBox::Cancel | QMessageBox::Help);
+    infoBox->setDefaultButton(QMessageBox::Retry);
+    infoBox->setModal(true);
 
-    switch (button) {
+    connect(infoBox, SIGNAL(finished(int)),
+            this, SLOT(retryMessageBoxFinished(int)));
+
+    infoBox->show();
+}
+
+void QmlEngine::retryMessageBoxFinished(int result)
+{
+    switch (result) {
     case QMessageBox::Retry: {
         d->m_adapter.beginConnection();
         break;
@@ -253,6 +263,7 @@ void QmlEngine::connectionStartupFailed()
     case QMessageBox::Help: {
         Core::HelpManager *helpManager = Core::HelpManager::instance();
         helpManager->handleHelpRequest("qthelp://com.nokia.qtcreator/doc/creator-debugging-qml.html");
+        // fall through
     }
     default:
         notifyEngineRunFailed();
@@ -277,6 +288,71 @@ bool QmlEngine::canDisplayTooltip() const
     return state() == InferiorRunOk || state() == InferiorStopOk;
 }
 
+void QmlEngine::filterApplicationMessage(const QString &msg, int /*channel*/)
+{
+    static QString qddserver = QLatin1String("QDeclarativeDebugServer: ");
+    //: Must be the same translation as the one in WinGuiProcess
+    static QString cannotRetrieve = tr("Cannot retrieve debugging output!");
+
+    int index = msg.indexOf(qddserver);
+    if (index != -1) {
+        QString status = msg;
+        status.remove(0, index + qddserver.length()); // chop of 'QDeclarativeDebugServer: '
+
+        static QString waitingForConnection = QLatin1String("Waiting for connection on port");
+        static QString unableToListen = QLatin1String("Unable to listen on port");
+        static QString debuggingNotEnabled = QLatin1String("Ignoring \"-qmljsdebugger=port:");
+        static QString connectionEstablished = QLatin1String("Connection established");
+
+        QString errorMessage;
+        if (status.startsWith(waitingForConnection)) {
+            d->m_adapter.beginConnection();
+        } else if (status.startsWith(unableToListen)) {
+            //: Error message shown after 'Could not connect ... debugger:"
+            errorMessage = tr("The port seems to be in use.");
+        } else if (status.startsWith(debuggingNotEnabled)) {
+            //: Error message shown after 'Could not connect ... debugger:"
+            errorMessage = tr("The application is not set up for QML/JS debugging.");
+        } else if (status.startsWith(connectionEstablished)) {
+            // nothing to do
+        } else {
+            qWarning() << "Unknown QDeclarativeDebugServer status message: " << status;
+        }
+
+        if (!errorMessage.isEmpty()) {
+            notifyEngineRunFailed();
+
+            Core::ICore * const core = Core::ICore::instance();
+            QMessageBox *infoBox = new QMessageBox(core->mainWindow());
+            infoBox->setIcon(QMessageBox::Critical);
+            infoBox->setWindowTitle(tr("Qt Creator"));
+            //: %3 is detailed error message
+            infoBox->setText(tr("Could not connect to the in-process QML debugger:\n"
+                                "%3")
+                             .arg(errorMessage));
+            infoBox->setStandardButtons(QMessageBox::Ok | QMessageBox::Help);
+            infoBox->setDefaultButton(QMessageBox::Ok);
+            infoBox->setModal(true);
+
+            connect(infoBox, SIGNAL(finished(int)),
+                    this, SLOT(wrongSetupMessageBoxFinished(int)));
+
+            infoBox->show();
+        }
+    } else if (msg.contains(cannotRetrieve)) {
+        // we won't get debugging output, so just try to connect ...
+        d->m_adapter.beginConnection();
+    }
+}
+
+void QmlEngine::showMessage(const QString &msg, int channel, int timeout) const
+{
+    if (channel == AppOutput || channel == AppError) {
+        const_cast<QmlEngine*>(this)->filterApplicationMessage(msg, channel);
+    }
+    DebuggerEngine::showMessage(msg, channel, timeout);
+}
+
 void QmlEngine::closeConnection()
 {
     disconnect(&d->m_adapter, SIGNAL(connectionStartupFailed()),
@@ -298,8 +374,6 @@ void QmlEngine::runEngine()
 
     if (!isSlaveEngine())
         startApplicationLauncher();
-
-    d->m_adapter.beginConnection();
 }
 
 void QmlEngine::startApplicationLauncher()
@@ -449,10 +523,9 @@ void QmlEngine::executeNextI()
     SDEBUG("QmlEngine::executeNextI()");
 }
 
-void QmlEngine::executeRunToLine(const QString &fileName, int lineNumber)
+void QmlEngine::executeRunToLine(const ContextData &data)
 {
-    Q_UNUSED(fileName)
-    Q_UNUSED(lineNumber)
+    Q_UNUSED(data)
     SDEBUG("FIXME:  QmlEngine::executeRunToLine()");
 }
 
@@ -462,10 +535,9 @@ void QmlEngine::executeRunToFunction(const QString &functionName)
     XSDEBUG("FIXME:  QmlEngine::executeRunToFunction()");
 }
 
-void QmlEngine::executeJumpToLine(const QString &fileName, int lineNumber)
+void QmlEngine::executeJumpToLine(const ContextData &data)
 {
-    Q_UNUSED(fileName)
-    Q_UNUSED(lineNumber)
+    Q_UNUSED(data)
     XSDEBUG("FIXME:  QmlEngine::executeJumpToLine()");
 }
 
@@ -754,9 +826,9 @@ void QmlEngine::messageReceived(const QByteArray &message)
             logMessage(LogReceive, logString);
 
             QString msg = stackFrames.isEmpty()
-                ? tr("<p>An Uncaught Exception occured:</p><p>%2</p>")
+                ? tr("<p>An Uncaught Exception occurred:</p><p>%2</p>")
                     .arg(Qt::escape(error))
-                : tr("<p>An Uncaught Exception occured in <i>%1</i>:</p><p>%2</p>")
+                : tr("<p>An Uncaught Exception occurred in <i>%1</i>:</p><p>%2</p>")
                     .arg(stackFrames.value(0).file, Qt::escape(error));
             showMessageBox(QMessageBox::Information, tr("Uncaught Exception"), msg);
         } else {
@@ -873,6 +945,15 @@ void QmlEngine::disconnected()
     notifyInferiorExited();
 }
 
+void QmlEngine::wrongSetupMessageBoxFinished(int result)
+{
+    if (result == QMessageBox::Help) {
+        Core::HelpManager *helpManager = Core::HelpManager::instance();
+        helpManager->handleHelpRequest(
+                    QLatin1String("qthelp://com.nokia.qtcreator/doc/creator-debugging-qml.html"));
+    }
+}
+
 void QmlEngine::executeDebuggerCommand(const QString& command)
 {
     QByteArray reply;
@@ -961,7 +1042,7 @@ void QmlEngine::logMessage(LogDirection direction, const QString &message)
     showMessage(msg, LogDebug);
 }
 
-DebuggerEngine *createQmlEngine(const DebuggerStartParameters &sp,
+QmlEngine *createQmlEngine(const DebuggerStartParameters &sp,
     DebuggerEngine *masterEngine)
 {
     return new QmlEngine(sp, masterEngine);

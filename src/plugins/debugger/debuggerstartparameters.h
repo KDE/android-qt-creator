@@ -39,7 +39,7 @@
 
 #include <utils/ssh/sshconnection.h>
 #include <utils/environment.h>
-#include <projectexplorer/toolchaintype.h>
+#include <projectexplorer/abi.h>
 
 #include <QtCore/QMetaType>
 
@@ -65,12 +65,10 @@ public:
       : isSnapshot(false),
         attachPID(-1),
         useTerminal(false),
-        enabledEngines(AllEngineTypes),
         qmlServerAddress(QLatin1String("127.0.0.1")),
         qmlServerPort(0),
         useServerStartScript(false),
         connParams(Utils::SshConnectionParameters::NoProxy),
-        toolChainType(ProjectExplorer::ToolChain_UNKNOWN),
         startMode(NoStartMode),
         executableUid(0),
         communicationChannel(CommunicationChannelUsb),
@@ -88,7 +86,6 @@ public:
     QString workingDirectory;
     qint64 attachPID;
     bool useTerminal;
-    unsigned enabledEngines;
 
     // Used by AttachCrashedExternal.
     QString crashParameter;
@@ -98,9 +95,6 @@ public:
     quint16 qmlServerPort;
     QString projectBuildDir;
     QString projectDir;
-
-    // Used by combined cpp+qml debugging.
-    DebuggerEngineType cppEngineType;
 
     // Used by remote debugging.
     QString remoteChannel;
@@ -117,8 +111,7 @@ public:
     Utils::SshConnectionParameters connParams;
 
     QString debuggerCommand;
-    ProjectExplorer::ToolChainType toolChainType;
-    QString qtInstallPath;
+    ProjectExplorer::Abi toolChainAbi;
 
     QString dumperLibrary;
     QStringList solibSearchPath;

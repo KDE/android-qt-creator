@@ -75,7 +75,8 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/ifile.h>
-#include <projectexplorer/toolchain.h>
+#include <projectexplorer/abi.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <texteditor/itexteditor.h>
 #include <utils/qtcassert.h>
 
@@ -102,16 +103,20 @@
 #endif
 #include <ctype.h>
 
+using namespace ProjectExplorer;
+
 namespace Debugger {
 namespace Internal {
 
 class GdbToolTipContext : public DebuggerToolTipContext
 {
 public:
-    GdbToolTipContext(const DebuggerToolTipContext &c) : DebuggerToolTipContext(c) {}
+    GdbToolTipContext(const DebuggerToolTipContext &c) :
+        DebuggerToolTipContext(c), editor(0) {}
 
     QPoint mousePosition;
     QString expression;
+    Core::IEditor *editor;
 };
 
 static const char winPythonVersionC[] = "python2.5";
@@ -319,7 +324,7 @@ void GdbEngine::readDebugeeOutput(const QByteArray &data)
 {
     QString msg = m_outputCodec->toUnicode(data.constData(), data.length(),
         &m_outputCodecState);
-    showMessage(msg, AppStuff);
+    showMessage(msg, AppOutput);
 }
 
 void GdbEngine::handleResponse(const QByteArray &buff)
@@ -1502,8 +1507,7 @@ void GdbEngine::handleStop1(const GdbMi &data)
         m_currentThread = threadId;
     } else {
         QString reasontr = msgStopped(_(reason));
-        if (reason == "signal-received"
-            && debuggerCore()->boolSetting(UseMessageBoxForSignals)) {
+        if (reason == "signal-received") {
             QByteArray name = data.findChild("signal-name").data();
             QByteArray meaning = data.findChild("signal-meaning").data();
             // Ignore these as they are showing up regularly when
@@ -1515,7 +1519,8 @@ void GdbEngine::handleStop1(const GdbMi &data)
                 showMessage(_(CROSS_STOP_SIGNAL " CONSIDERED HARMLESS. CONTINUING."));
             } else {
                 showMessage(_("HANDLING SIGNAL" + name));
-                showStoppedBySignalMessageBox(_(meaning), _(name));
+                if (debuggerCore()->boolSetting(UseMessageBoxForSignals))
+                    showStoppedBySignalMessageBox(_(meaning), _(name));
                 if (!name.isEmpty() && !meaning.isEmpty())
                     reasontr = msgStoppedBySignal(_(meaning), _(name));
             }
@@ -1598,8 +1603,15 @@ void GdbEngine::handleHasPython(const GdbResponse &response)
         foreach (const GdbMi &dumper, dumpers.children()) {
             QByteArray type = dumper.findChild("type").data();
             QStringList formats(tr("Raw structure"));
-            QString reported = _(dumper.findChild("formats").data());
-            formats.append(reported.split(_(","), QString::SkipEmptyParts));
+            foreach (const QByteArray &format,
+                     dumper.findChild("formats").data().split(',')) {
+                if (format == "Normal")
+                    formats.append(tr("Normal"));
+                else if (format == "Displayed")
+                    formats.append(tr("Displayed"));
+                else if (!format.isEmpty())
+                    formats.append(_(format));
+            }
             watchHandler()->addTypeFormats(type, formats);
         }
         const GdbMi hasInferiorThreadList = data.findChild("hasInferiorThreadList");
@@ -1793,36 +1805,28 @@ int GdbEngine::currentFrame() const
     return stackHandler()->currentIndex();
 }
 
-QString msgNoBinaryForToolChain(int tc)
+QString msgNoGdbBinaryForToolChain(const ProjectExplorer::Abi &tc)
 {
-    using namespace ProjectExplorer;
-    return GdbEngine::tr("There is no gdb binary available for '%1'.")
-        .arg(ToolChain::toolChainName(ToolChainType(tc)));
+    return GdbEngine::tr("There is no gdb binary available for binaries in format '%1'")
+        .arg(tc.toString());
 }
 
 AbstractGdbAdapter *GdbEngine::createAdapter()
 {
     const DebuggerStartParameters &sp = startParameters();
-    switch (sp.toolChainType) {
-    case ProjectExplorer::ToolChain_WINSCW: // S60
-    case ProjectExplorer::ToolChain_GCCE:
-    case ProjectExplorer::ToolChain_RVCT2_ARMV5:
-    case ProjectExplorer::ToolChain_RVCT2_ARMV6:
-    case ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC:
-    case ProjectExplorer::ToolChain_GCCE_GNUPOC:
+    if (sp.toolChainAbi.os() == ProjectExplorer::Abi::SymbianOS) {
+        // FIXME: 1 of 3 testing hacks.
         if (sp.debugClient == DebuggerStartParameters::DebugClientCoda)
             return new CodaGdbAdapter(this);
         else
             return new TrkGdbAdapter(this);
-    default:
-        break;
     }
 
     switch (sp.startMode) {
     case AttachCore:
         return new CoreGdbAdapter(this);
     case AttachToRemote:
-        return new RemoteGdbServerAdapter(this, sp.toolChainType);
+        return new RemoteGdbServerAdapter(this, sp.toolChainAbi);
     case StartRemoteGdb:
         return new RemotePlainGdbAdapter(this);
     case AttachExternal:
@@ -1861,6 +1865,7 @@ unsigned GdbEngine::debuggerCapabilities() const
         | ReloadModuleSymbolsCapability
         | BreakOnThrowAndCatchCapability
         | BreakConditionCapability
+        | TracePointCapability
         | ReturnFromFunctionCapability
         | CreateFullBacktraceCapability
         | WatchpointCapability
@@ -1920,7 +1925,7 @@ void GdbEngine::handleExecuteStep(const GdbResponse &response)
 {
     if (response.resultClass == GdbResultDone) {
         // Step was finishing too quick, and a '*stopped' messages should
-        // have preceeded it, so just ignore this result.
+        // have preceded it, so just ignore this result.
         QTC_ASSERT(state() == InferiorStopOk, /**/);
         return;
     }
@@ -1983,7 +1988,7 @@ void GdbEngine::handleExecuteNext(const GdbResponse &response)
 {
     if (response.resultClass == GdbResultDone) {
         // Step was finishing too quick, and a '*stopped' messages should
-        // have preceeded it, so just ignore this result.
+        // have preceded it, so just ignore this result.
         QTC_ASSERT(state() == InferiorStopOk, /**/);
         return;
     }
@@ -2019,17 +2024,26 @@ void GdbEngine::executeNextI()
         postCommand("-exec-next-instruction", RunRequest, CB(handleExecuteContinue));
 }
 
-void GdbEngine::executeRunToLine(const QString &fileName, int lineNumber)
+static QByteArray addressSpec(quint64 address)
+{
+    return "*0x" + QByteArray::number(address, 16);
+}
+
+void GdbEngine::executeRunToLine(const ContextData &data)
 {
     QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
     setTokenBarrier();
     notifyInferiorRunRequested();
-    showStatusMessage(tr("Run to line %1 requested...").arg(lineNumber), 5000);
+    showStatusMessage(tr("Run to line %1 requested...").arg(data.lineNumber), 5000);
 #if 1
-    m_targetFrame.file = fileName;
-    m_targetFrame.line = lineNumber;
-    QByteArray loc = '"' + breakLocation(fileName).toLocal8Bit() + '"' + ':'
-        + QByteArray::number(lineNumber);
+    m_targetFrame.file = data.fileName;
+    m_targetFrame.line = data.lineNumber;
+    QByteArray loc;
+    if (data.address)
+        loc = addressSpec(data.address);
+    else
+        loc = '"' + breakLocation(data.fileName).toLocal8Bit() + '"' + ':'
+            + QByteArray::number(data.lineNumber);
     postCommand("tbreak " + loc);
     postCommand("continue", RunRequest, CB(handleExecuteRunToLine));
 #else
@@ -2050,15 +2064,15 @@ void GdbEngine::executeRunToFunction(const QString &functionName)
     continueInferiorInternal();
 }
 
-void GdbEngine::executeJumpToLine(const QString &fileName, int lineNumber)
+void GdbEngine::executeJumpToLine(const ContextData &data)
 {
     QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
-    StackFrame frame;
-    frame.file = fileName;
-    frame.line = lineNumber;
-#if 1
-    QByteArray loc = '"' + breakLocation(fileName).toLocal8Bit() + '"' + ':'
-        + QByteArray::number(lineNumber);
+    QByteArray loc;
+    if (data.address)
+        loc = addressSpec(data.address);
+    else
+        loc = '"' + breakLocation(data.fileName).toLocal8Bit() + '"' + ':'
+        + QByteArray::number(data.lineNumber);
     postCommand("tbreak " + loc);
     notifyInferiorRunRequested();
     postCommand("jump " + loc, RunRequest, CB(handleExecuteJumpToLine));
@@ -2068,15 +2082,6 @@ void GdbEngine::executeJumpToLine(const QString &fileName, int lineNumber)
     //  ~"run1 (argc=1, argv=0x7fffbf1f5538) at test1.cpp:242"
     //  ~"242\t x *= 2;"
     //  23^done"
-    gotoLocation(frame);
-    //setBreakpoint();
-    //postCommand("jump " + loc);
-#else
-    gotoLocation(frame);
-    setBreakpoint(fileName, lineNumber);
-    notifyInferiorRunRequested();
-    postCommand("jump " + loc, RunRequest);
-#endif
 }
 
 void GdbEngine::executeReturn()
@@ -2222,11 +2227,6 @@ QString GdbEngine::breakLocation(const QString &file) const
     if (where.isEmpty())
         return QFileInfo(file).fileName();
     return where;
-}
-
-static QByteArray addressSpec(quint64 address)
-{
-    return "*0x" + QByteArray::number(address, 16);
 }
 
 QByteArray GdbEngine::breakpointLocation(BreakpointId id)
@@ -2782,7 +2782,7 @@ void GdbEngine::requestModuleSymbols(const QString &moduleName)
     QString fileName = tf.fileName();
     tf.close();
     postCommand("maint print msymbols " + fileName.toLocal8Bit()
-            + " " + moduleName.toLocal8Bit(),
+            + ' ' + moduleName.toLocal8Bit(),
         NeedsStop, CB(handleShowModuleSymbols),
         QVariant(moduleName + QLatin1Char('@') +  fileName));
 }
@@ -3334,14 +3334,14 @@ void GdbEngine::handleRegisterListValues(const GdbResponse &response)
             GdbMi val = item.findChild("value");
             QByteArray ba;
             bool handled = false;
-            if (val.data().startsWith("{")) {
+            if (val.data().startsWith('{')) {
                 int pos1 = val.data().indexOf("v2_int32");
                 if (pos1 == -1)
                     pos1 = val.data().indexOf("v4_int32");
                 if (pos1 != -1) {
                     // FIXME: This block wastes cycles.
-                    pos1 = val.data().indexOf("{", pos1 + 1) + 1;
-                    int pos2 = val.data().indexOf("}", pos1);
+                    pos1 = val.data().indexOf('{', pos1 + 1) + 1;
+                    int pos2 = val.data().indexOf('}', pos1);
                     QByteArray ba2 = val.data().mid(pos1, pos2 - pos1);
                     foreach (QByteArray ba3, ba2.split(',')) {
                         ba3 = ba3.trimmed();
@@ -3405,7 +3405,8 @@ bool GdbEngine::showToolTip()
     tw->setExpression(expression);
     tw->setContext(*m_toolTipContext);
     tw->acquireEngine(this);
-    DebuggerToolTipManager::instance()->add(m_toolTipContext->mousePosition, tw);
+    DebuggerToolTipManager::instance()->showToolTip(m_toolTipContext->mousePosition,
+                                                    m_toolTipContext->editor, tw);
     return true;
 }
 
@@ -3480,6 +3481,7 @@ bool GdbEngine::setToolTipExpression(const QPoint &mousePos,
     m_toolTipContext.reset(new GdbToolTipContext(context));
     m_toolTipContext->mousePosition = mousePos;
     m_toolTipContext->expression = exp;
+    m_toolTipContext->editor = editor;
     if (DebuggerToolTipManager::debug())
         qDebug() << "GdbEngine::setToolTipExpression2 " << exp << (*m_toolTipContext);
 
@@ -3858,10 +3860,26 @@ struct MemoryAgentCookie
     quint64 address;
 };
 
+void GdbEngine::changeMemory(MemoryAgent *agent, QObject *token,
+        quint64 addr, const QByteArray &data)
+{
+    QByteArray cmd = "-data-write-memory " + QByteArray::number(addr) + " d 1";
+    foreach (char c, data) {
+        cmd.append(' ');
+        cmd.append(QByteArray::number(uint(c)));
+    }
+    postCommand(cmd, NeedsStop, CB(handleChangeMemory),
+        QVariant::fromValue(MemoryAgentCookie(agent, token, addr)));
+}
+
+void GdbEngine::handleChangeMemory(const GdbResponse &response)
+{
+    Q_UNUSED(response);
+}
+
 void GdbEngine::fetchMemory(MemoryAgent *agent, QObject *token, quint64 addr,
                             quint64 length)
 {
-    //qDebug() << "GDB MEMORY FETCH" << agent << addr << length;
     postCommand("-data-read-memory " + QByteArray::number(addr) + " x 1 1 "
             + QByteArray::number(length),
         NeedsStop, CB(handleFetchMemory),
@@ -4202,26 +4220,66 @@ void GdbEngine::handleFetchDisassemblerByCliRangePlain(const GdbResponse &respon
         .arg(QString::fromLocal8Bit(msg)), 5000);
 }
 
+// Binary/configuration check logic.
+
+static QString gdbBinary(const DebuggerStartParameters &sp)
+{
+    // 1) Environment.
+    const QByteArray envBinary = qgetenv("QTC_DEBUGGER_PATH");
+    if (!envBinary.isEmpty())
+        return QString::fromLocal8Bit(envBinary);
+    // 2) Command explicitly specified.
+    if (!sp.debuggerCommand.isEmpty()) {
+#ifdef Q_OS_WIN
+        // Do not use a CDB binary if we got started for a project with MSVC runtime.
+        const bool abiMatch = sp.toolChainAbi.os() != ProjectExplorer::Abi::WindowsOS
+                || sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMSysFlavor;
+#else
+        const bool abiMatch = true;
+#endif
+        if (abiMatch)
+            return sp.debuggerCommand;
+    }
+    // 3) Find one from toolchains.
+    return debuggerCore()->debuggerForAbi(sp.toolChainAbi, GdbEngineType);
+}
+
+bool checkGdbConfiguration(const DebuggerStartParameters &sp, ConfigurationCheck *check)
+{
+    const QString binary = gdbBinary(sp);
+    if (gdbBinary(sp).isEmpty()) {
+        check->errorDetails.push_back(msgNoGdbBinaryForToolChain(sp.toolChainAbi));
+        check->settingsCategory = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        check->settingsPage = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        return false;
+    }
+#ifdef Q_OS_WIN
+    // See initialization below, we need an absolute path to be able to locate Python on Windows.
+    if (!QFileInfo(binary).isAbsolute()) {
+        check->errorDetails.push_back(GdbEngine::tr("The gdb location must be given as an "
+                                                    "absolute path in the debugger settings (%1).").arg(binary));
+        check->settingsCategory = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        check->settingsPage = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        return false;
+    }
+#endif
+    return true;
+}
 
 //
 // Starting up & shutting down
 //
 
-bool GdbEngine::startGdb(const QStringList &args, const QString &gdb,
-    const QString &settingsIdHint)
+bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
 {
     gdbProc()->disconnect(); // From any previous runs
 
     const DebuggerStartParameters &sp = startParameters();
-    m_gdb = QString::fromLocal8Bit(qgetenv("QTC_DEBUGGER_PATH"));
-    if (m_gdb.isEmpty() && sp.startMode != StartRemoteGdb)
-        m_gdb = debuggerCore()->gdbBinaryForToolChain(sp.toolChainType);
-    if (m_gdb.isEmpty())
-        m_gdb = gdb;
+    m_gdb = gdbBinary(sp);
     if (m_gdb.isEmpty()) {
         handleAdapterStartFailed(
-            msgNoBinaryForToolChain(sp.toolChainType),
-            GdbOptionsPage::settingsId());
+            msgNoGdbBinaryForToolChain(sp.toolChainAbi),
+            _(Constants::DEBUGGER_COMMON_SETTINGS_ID));
         return false;
     }
     QStringList gdbArgs;
@@ -4235,13 +4293,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &gdb,
     // Set python path. By convention, python is located below gdb executable.
     // Extend the environment set on the process in startAdapter().
     const QFileInfo fi(m_gdb);
-    if (!fi.isAbsolute()) {
-        showMessage(_("GDB %1 DOES NOT HAVE ABSOLUTE LOCATION.").arg(m_gdb));
-        const QString msg = tr("The gdb location must be given as an "
-            "absolute path in the debugger settings.");
-        handleAdapterStartFailed(msg, settingsIdHint);
-        return false;
-    }
+    QTC_ASSERT(fi.isAbsolute(), return false; )
 
     const QString winPythonVersion = _(winPythonVersionC);
     const QDir dir = fi.absoluteDir();
@@ -4490,13 +4542,17 @@ void GdbEngine::notifyInferiorSetupFailed()
 void GdbEngine::handleInferiorPrepared()
 {
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
-    const QByteArray qtInstallPath = startParameters().qtInstallPath.toLocal8Bit();
+    const QByteArray qtInstallPath = 
+        debuggerCore()->action(QtSourcesLocation)->value().toString().toLocal8Bit();
     if (!qtInstallPath.isEmpty()) {
         QByteArray qtBuildPath;
 #if defined(Q_OS_WIN)
-        qtBuildPath = "C:/qt-greenhouse/Trolltech/Code_less_create_more/Trolltech/Code_less_create_more/Troll/4.6/qt";
+        qtBuildPath = "C:/qt-greenhouse/Trolltech/Code_less_create_more/"
+            "Trolltech/Code_less_create_more/Troll/4.6/qt";
         postCommand("set substitute-path " + qtBuildPath + ' ' + qtInstallPath);
         qtBuildPath = "C:/iwmake/build_mingw_opensource";
+        postCommand("set substitute-path " + qtBuildPath + ' ' + qtInstallPath);
+        qtBuildPath = "C:/ndk_buildrepos/qt-desktop/src";
         postCommand("set substitute-path " + qtBuildPath + ' ' + qtInstallPath);
 #elif defined(Q_OS_UNIX) && !defined (Q_OS_MAC)
         qtBuildPath = "/var/tmp/qt-src";

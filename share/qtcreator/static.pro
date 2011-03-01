@@ -52,8 +52,8 @@ defineReplace(stripSrcResourceDir) {
 }
 DATA_FILES_SRC = \
     externaltools/lrelease.xml \
-    externaltools/lupdate.xml
-unix:DATA_FILES_SRC += externaltools/sort.xml
+    externaltools/lupdate.xml \
+    externaltools/sort.xml
 linux-*:DATA_FILES_SRC += externaltools/vi.xml
 macx:DATA_FILES_SRC += externaltools/vi_mac.xml
 win32:DATA_FILES_SRC += externaltools/notepad_win.xml

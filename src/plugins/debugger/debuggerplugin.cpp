@@ -65,10 +65,7 @@
 
 #include "snapshothandler.h"
 #include "threadshandler.h"
-#include "gdb/gdboptionspage.h"
-
-#include "ui_commonoptionspage.h"
-#include "ui_dumperoptionpage.h"
+#include "commonoptionspage.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -83,7 +80,6 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/imode.h>
 #include <coreplugin/icorelistener.h>
-#include <coreplugin/manhattanstyle.h>
 #include <coreplugin/minisplitter.h>
 #include <coreplugin/modemanager.h>
 
@@ -95,10 +91,10 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/session.h>
 #include <projectexplorer/target.h>
-#include <projectexplorer/toolchain.h>
-#include <projectexplorer/toolchaintype.h>
+#include <projectexplorer/abi.h>
 
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 
@@ -458,6 +454,13 @@ static QToolButton *toolButton(QAction *action)
     return button;
 }
 
+static Abi abiOfBinary(const QString &fileName)
+{
+    QList<Abi> abis = Abi::abisOfBinary(fileName);
+    if (abis.isEmpty())
+        return Abi();
+    return abis.at(0);
+}
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -525,227 +528,35 @@ private:
 
 ///////////////////////////////////////////////////////////////////////
 //
-// CommonOptionsPage
-//
-///////////////////////////////////////////////////////////////////////
-
-class CommonOptionsPage : public Core::IOptionsPage
-{
-public:
-    CommonOptionsPage() {}
-
-    // IOptionsPage
-    QString id() const
-        { return _(DEBUGGER_COMMON_SETTINGS_ID); }
-    QString displayName() const
-        { return QCoreApplication::translate("Debugger", DEBUGGER_COMMON_SETTINGS_NAME); }
-    QString category() const
-        { return _(DEBUGGER_SETTINGS_CATEGORY);  }
-    QString displayCategory() const
-        { return QCoreApplication::translate("Debugger", DEBUGGER_SETTINGS_TR_CATEGORY); }
-    QIcon categoryIcon() const
-        { return QIcon(QLatin1String(DEBUGGER_COMMON_SETTINGS_CATEGORY_ICON)); }
-
-    QWidget *createPage(QWidget *parent);
-    void apply() { m_group.apply(ICore::instance()->settings()); }
-    void finish() { m_group.finish(); }
-    virtual bool matches(const QString &s) const;
-
-private:
-    Ui::CommonOptionsPage m_ui;
-    Utils::SavedActionSet m_group;
-    QString m_searchKeywords;
-};
-
-QWidget *CommonOptionsPage::createPage(QWidget *parent)
-{
-    QWidget *w = new QWidget(parent);
-    m_ui.setupUi(w);
-    m_group.clear();
-
-    m_group.insert(debuggerCore()->action(ListSourceFiles),
-        m_ui.checkBoxListSourceFiles);
-    m_group.insert(debuggerCore()->action(UseAlternatingRowColors),
-        m_ui.checkBoxUseAlternatingRowColors);
-    m_group.insert(debuggerCore()->action(UseToolTipsInMainEditor),
-        m_ui.checkBoxUseToolTipsInMainEditor);
-    m_group.insert(debuggerCore()->action(CloseBuffersOnExit),
-        m_ui.checkBoxCloseBuffersOnExit);
-    m_group.insert(debuggerCore()->action(SwitchModeOnExit),
-        m_ui.checkBoxSwitchModeOnExit);
-    m_group.insert(debuggerCore()->action(AutoDerefPointers), 0);
-    m_group.insert(debuggerCore()->action(UseToolTipsInLocalsView), 0);
-    m_group.insert(debuggerCore()->action(UseToolTipsInBreakpointsView), 0);
-    m_group.insert(debuggerCore()->action(UseAddressInBreakpointsView), 0);
-    m_group.insert(debuggerCore()->action(UseAddressInStackView), 0);
-    m_group.insert(debuggerCore()->action(MaximalStackDepth),
-        m_ui.spinBoxMaximalStackDepth);
-    m_group.insert(debuggerCore()->action(ShowStdNamespace), 0);
-    m_group.insert(debuggerCore()->action(ShowQtNamespace), 0);
-    m_group.insert(debuggerCore()->action(SortStructMembers), 0);
-    m_group.insert(debuggerCore()->action(LogTimeStamps), 0);
-    m_group.insert(debuggerCore()->action(VerboseLog), 0);
-    m_group.insert(debuggerCore()->action(BreakOnThrow), 0);
-    m_group.insert(debuggerCore()->action(BreakOnCatch), 0);
-#ifdef Q_OS_WIN
-    Utils::SavedAction *registerAction = debuggerCore()->action(RegisterForPostMortem);
-    m_group.insert(registerAction,
-        m_ui.checkBoxRegisterForPostMortem);
-    connect(registerAction, SIGNAL(toggled(bool)),
-            m_ui.checkBoxRegisterForPostMortem, SLOT(setChecked(bool)));
-#endif
-
-    if (m_searchKeywords.isEmpty()) {
-        QLatin1Char sep(' ');
-        QTextStream(&m_searchKeywords)
-                << sep << m_ui.checkBoxUseAlternatingRowColors->text()
-                << sep << m_ui.checkBoxUseToolTipsInMainEditor->text()
-                << sep << m_ui.checkBoxListSourceFiles->text()
-#ifdef Q_OS_WIN
-                << sep << m_ui.checkBoxRegisterForPostMortem->text()
-#endif
-                << sep << m_ui.checkBoxCloseBuffersOnExit->text()
-                << sep << m_ui.checkBoxSwitchModeOnExit->text()
-                << sep << m_ui.labelMaximalStackDepth->text()
-                   ;
-        m_searchKeywords.remove(QLatin1Char('&'));
-    }
-#ifndef Q_OS_WIN
-    m_ui.checkBoxRegisterForPostMortem->setVisible(false);
-#endif
-    return w;
-}
-
-bool CommonOptionsPage::matches(const QString &s) const
-{
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
-}
-
-///////////////////////////////////////////////////////////////////////
-//
-// DebuggingHelperOptionPage
-//
-///////////////////////////////////////////////////////////////////////
-
-static bool oxygenStyle()
-{
-    const ManhattanStyle *ms = qobject_cast<const ManhattanStyle *>(qApp->style());
-    return ms && !qstrcmp("OxygenStyle", ms->baseStyle()->metaObject()->className());
-}
-
-class DebuggingHelperOptionPage : public Core::IOptionsPage
-{
-    Q_OBJECT // Needs tr-context.
-public:
-    DebuggingHelperOptionPage() {}
-
-    // IOptionsPage
-    QString id() const { return _("Z.DebuggingHelper"); }
-    QString displayName() const { return tr("Debugging Helper"); }
-    QString category() const { return _(DEBUGGER_SETTINGS_CATEGORY); }
-    QString displayCategory() const
-    { return QCoreApplication::translate("Debugger", DEBUGGER_SETTINGS_TR_CATEGORY); }
-    QIcon categoryIcon() const
-    { return QIcon(QLatin1String(DEBUGGER_COMMON_SETTINGS_CATEGORY_ICON)); }
-
-    QWidget *createPage(QWidget *parent);
-    void apply() { m_group.apply(ICore::instance()->settings()); }
-    void finish() { m_group.finish(); }
-    virtual bool matches(const QString &s) const;
-
-private:
-    Ui::DebuggingHelperOptionPage m_ui;
-    Utils::SavedActionSet m_group;
-    QString m_searchKeywords;
-};
-
-QWidget *DebuggingHelperOptionPage::createPage(QWidget *parent)
-{
-    QWidget *w = new QWidget(parent);
-    m_ui.setupUi(w);
-
-    m_ui.dumperLocationChooser->setExpectedKind(Utils::PathChooser::Command);
-    m_ui.dumperLocationChooser->setPromptDialogTitle(tr("Choose DebuggingHelper Location"));
-    m_ui.dumperLocationChooser->setInitialBrowsePathBackup(
-        ICore::instance()->resourcePath() + "../../lib");
-
-    m_group.clear();
-    m_group.insert(debuggerCore()->action(UseDebuggingHelpers),
-        m_ui.debuggingHelperGroupBox);
-    m_group.insert(debuggerCore()->action(UseCustomDebuggingHelperLocation),
-        m_ui.customLocationGroupBox);
-    // Suppress Oxygen style's giving flat group boxes bold titles.
-    if (oxygenStyle())
-        m_ui.customLocationGroupBox->setStyleSheet(_("QGroupBox::title { font: ; }"));
-
-    m_group.insert(debuggerCore()->action(CustomDebuggingHelperLocation),
-        m_ui.dumperLocationChooser);
-
-    m_group.insert(debuggerCore()->action(UseCodeModel),
-        m_ui.checkBoxUseCodeModel);
-    m_group.insert(debuggerCore()->action(ShowThreadNames),
-        m_ui.checkBoxShowThreadNames);
-
-
-#ifndef QT_DEBUG
-#if 0
-    cmd = am->registerAction(m_dumpLogAction,
-        DUMP_LOG, globalcontext);
-    //cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+D,Ctrl+L")));
-    cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+F11")));
-    mdebug->addAction(cmd);
-#endif
-#endif
-
-    if (m_searchKeywords.isEmpty()) {
-        QTextStream(&m_searchKeywords)
-                << ' ' << m_ui.debuggingHelperGroupBox->title()
-                << ' ' << m_ui.customLocationGroupBox->title()
-                << ' ' << m_ui.dumperLocationLabel->text()
-                << ' ' << m_ui.checkBoxUseCodeModel->text()
-                << ' ' << m_ui.checkBoxShowThreadNames->text();
-        m_searchKeywords.remove(QLatin1Char('&'));
-    }
-    return w;
-}
-
-bool DebuggingHelperOptionPage::matches(const QString &s) const
-{
-    return m_searchKeywords.contains(s, Qt::CaseInsensitive);
-}
-
-
-///////////////////////////////////////////////////////////////////////
-//
 // Misc
 //
 ///////////////////////////////////////////////////////////////////////
 
-class ContextData
+static TextEditor::ITextEditor *currentTextEditor()
 {
-public:
-    ContextData() : lineNumber(0), address(0) {}
+    if (const Core::EditorManager *editorManager = Core::EditorManager::instance())
+            if (Core::IEditor *editor = editorManager->currentEditor())
+                return qobject_cast<TextEditor::ITextEditor*>(editor);
+    return 0;
+}
 
-public:
-    QString fileName;
-    int lineNumber;
-    quint64 address;
-};
-
-} // namespace Internal
-} // namespace Debugger
-
-Q_DECLARE_METATYPE(Debugger::Internal::ContextData)
-
+static bool currentTextEditorPosition(ContextData *data)
+{
+    if (TextEditor::ITextEditor *textEditor = currentTextEditor()) {
+        if (const Core::IFile *file = textEditor->file()) {
+            data->fileName = file->fileName();
+            data->lineNumber = textEditor->currentLine();
+            return true;
+        }
+    }
+    return false;
+}
 
 ///////////////////////////////////////////////////////////////////////
 //
 // DebuggerPluginPrivate
 //
 ///////////////////////////////////////////////////////////////////////
-
-namespace Debugger {
-namespace Internal {
 
 static DebuggerPluginPrivate *theDebuggerCore = 0;
 
@@ -780,6 +591,12 @@ public:
     DebuggerEngine *currentEngine() const { return m_currentEngine; }
 
 public slots:
+    void writeSettings()
+    {
+        m_debuggerSettings->writeSettings();
+        m_mainWindow->writeSettings();
+    }
+
     void selectThread(int index)
     {
         currentEngine()->selectThread(index);
@@ -879,10 +696,14 @@ public slots:
     void startRemoteApplication();
     void startRemoteEngine();
     void attachExternalApplication();
-    void attachExternalApplication(qint64 pid, const QString &binary);
+    void attachExternalApplication(qint64 pid, const QString &binary,
+                                   const ProjectExplorer::Abi &abi = ProjectExplorer::Abi(),
+                                   const QString &debuggerCommand = QString());
     void runScheduled();
     void attachCore();
-    void attachCore(const QString &core, const QString &exeFileName);
+    void attachCore(const QString &core, const QString &exeFileName,
+                    const ProjectExplorer::Abi &abi = ProjectExplorer::Abi(),
+                    const QString &debuggerCommand = QString());
     void attachRemote(const QString &spec);
     void attachRemoteTcf();
 
@@ -904,7 +725,8 @@ public slots:
     void runControlStarted(DebuggerEngine *engine);
     void runControlFinished(DebuggerEngine *engine);
     DebuggerLanguages activeLanguages() const;
-    QString gdbBinaryForToolChain(int toolChain) const;
+    unsigned enabledEngines() const { return m_cmdLineEnabledEngines; }
+    QString debuggerForAbi(const Abi &abi, DebuggerEngineType et = NoEngineType) const;
     void remoteCommand(const QStringList &options, const QStringList &);
 
     bool isReverseDebugging() const;
@@ -1001,20 +823,18 @@ public slots:
     {
         //removeTooltip();
         currentEngine()->resetLocation();
-        QString fileName;
-        int lineNumber;
-        if (currentTextEditorPosition(&fileName, &lineNumber))
-            currentEngine()->executeJumpToLine(fileName, lineNumber);
+        ContextData data;
+        if (currentTextEditorPosition(&data))
+            currentEngine()->executeJumpToLine(data);
     }
 
     void handleExecRunToLine()
     {
         //removeTooltip();
         currentEngine()->resetLocation();
-        QString fileName;
-        int lineNumber;
-        if (currentTextEditorPosition(&fileName, &lineNumber))
-            currentEngine()->executeRunToLine(fileName, lineNumber);
+        ContextData data;
+        if (currentTextEditorPosition(&data))
+            currentEngine()->executeRunToLine(data);
     }
 
     void handleExecRunToSelectedFunction()
@@ -1067,7 +887,7 @@ public slots:
         const QAction *action = qobject_cast<const QAction *>(sender());
         QTC_ASSERT(action, return);
         const ContextData data = action->data().value<ContextData>();
-        currentEngine()->executeRunToLine(data.fileName, data.lineNumber);
+        currentEngine()->executeRunToLine(data);
     }
 
     void slotJumpToLine()
@@ -1075,7 +895,7 @@ public slots:
         const QAction *action = qobject_cast<const QAction *>(sender());
         QTC_ASSERT(action, return);
         const ContextData data = action->data().value<ContextData>();
-        currentEngine()->executeJumpToLine(data.fileName, data.lineNumber);
+        currentEngine()->executeJumpToLine(data);
     }
 
     void handleAddToWatchWindow()
@@ -1235,7 +1055,9 @@ public:
     QSettings *m_coreSettings;
     bool m_gdbBinariesChanged;
     uint m_cmdLineEnabledEngines;
+    QStringList m_arguments;
     DebuggerToolTipManager *m_toolTipManager;
+    CommonOptionsPage *m_commonOptionsPage;
 };
 
 DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin) :
@@ -1287,6 +1109,8 @@ DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin) :
     m_attachCoreAction = 0;
     m_attachTcfAction = 0;
     m_detachAction = 0;
+
+    m_commonOptionsPage = 0;
 }
 
 DebuggerPluginPrivate::~DebuggerPluginPrivate()
@@ -1299,6 +1123,9 @@ DebuggerPluginPrivate::~DebuggerPluginPrivate()
 
     delete m_snapshotHandler;
     m_snapshotHandler = 0;
+
+    delete m_breakHandler;
+    m_breakHandler = 0;
 }
 
 DebuggerCore *debuggerCore()
@@ -1337,6 +1164,7 @@ bool DebuggerPluginPrivate::parseArgument(QStringList::const_iterator &it,
             sp.attachPID = pid;
             sp.displayName = tr("Process %1").arg(sp.attachPID);
             sp.startMessage = tr("Attaching to local process %1.").arg(sp.attachPID);
+            sp.toolChainAbi = Abi::hostAbi();
         } else if (port) {
             sp.startMode = AttachToRemote;
             sp.remoteChannel = remoteChannel;
@@ -1351,11 +1179,13 @@ bool DebuggerPluginPrivate::parseArgument(QStringList::const_iterator &it,
             sp.displayName = tr("Remote: \"%1\"").arg(sp.remoteChannel);
             sp.startMessage = tr("Attaching to remote server %1.")
                 .arg(sp.remoteChannel);
+            sp.toolChainAbi = abiOfBinary(sp.executable);
         } else {
             sp.startMode = AttachCore;
             sp.coreFile = *it;
             sp.displayName = tr("Core file \"%1\"").arg(sp.coreFile);
             sp.startMessage = tr("Attaching to core file %1.").arg(sp.coreFile);
+            sp.toolChainAbi = abiOfBinary(sp.coreFile);
         }
         m_scheduledStarts.append(sp);
         return true;
@@ -1377,6 +1207,7 @@ bool DebuggerPluginPrivate::parseArgument(QStringList::const_iterator &it,
         sp.attachPID = it->section(':', 1, 1).toULongLong();
         sp.displayName = tr("Crashed process %1").arg(sp.attachPID);
         sp.startMessage = tr("Attaching to crashed process %1").arg(sp.attachPID);
+        sp.toolChainAbi = Abi::hostAbi();
         if (!sp.attachPID) {
             *errorMessage = DebuggerPlugin::tr("The parameter '%1' of option '%2' "
                 "does not match the pattern <handle>:<pid>.").arg(*it, option);
@@ -1432,14 +1263,8 @@ bool DebuggerPluginPrivate::parseArguments(const QStringList &args,
 bool DebuggerPluginPrivate::initialize(const QStringList &arguments,
     QString *errorMessage)
 {
-    // Do not fail to load the whole plugin if something goes wrong here.
-    if (!parseArguments(arguments, &m_cmdLineEnabledEngines, errorMessage)) {
-        *errorMessage = tr("Error evaluating command line arguments: %1")
-            .arg(*errorMessage);
-        qWarning("%s\n", qPrintable(*errorMessage));
-        errorMessage->clear();
-    }
-
+    Q_UNUSED(errorMessage);
+    m_arguments = arguments;
     // Cpp/Qml ui setup
     m_mainWindow = new DebuggerMainWindow;
 
@@ -1520,6 +1345,8 @@ void DebuggerPluginPrivate::startExternalApplication()
             configValue(_("LastExternalExecutableArguments")).toString());
     dlg.setWorkingDirectory(
             configValue(_("LastExternalWorkingDirectory")).toString());
+    dlg.setAbiIndex(configValue(_("LastExternalAbiIndex")).toInt());
+
     if (dlg.exec() != QDialog::Accepted)
         return;
 
@@ -1529,14 +1356,19 @@ void DebuggerPluginPrivate::startExternalApplication()
                    dlg.executableArguments());
     setConfigValue(_("LastExternalWorkingDirectory"),
                    dlg.workingDirectory());
+    setConfigValue(_("LastExternalAbiIndex"), QVariant(dlg.abiIndex()));
+
     sp.executable = dlg.executableFile();
     sp.startMode = StartExternal;
+    sp.toolChainAbi = dlg.abi();
+    sp.debuggerCommand = dlg.debuggerCommand();
     sp.workingDirectory = dlg.workingDirectory();
     if (!dlg.executableArguments().isEmpty())
         sp.processArgs = dlg.executableArguments();
     // Fixme: 1 of 3 testing hacks.
     if (sp.processArgs.startsWith(__("@tcf@ ")) || sp.processArgs.startsWith(__("@sym@ ")))
-        sp.toolChainType = ToolChain_RVCT2_ARMV5;
+        // Set up an ARM Symbian Abi
+        sp.toolChainAbi = Abi(Abi::ArmArchitecture, Abi::SymbianOS, Abi::SymbianDeviceFlavor, Abi::ElfFormat, false);
 
     if (dlg.breakAtMain()) {
 #ifdef Q_OS_WIN
@@ -1554,12 +1386,18 @@ void DebuggerPluginPrivate::startExternalApplication()
 void DebuggerPluginPrivate::attachExternalApplication()
 {
     AttachExternalDialog dlg(mainWindow());
-    if (dlg.exec() == QDialog::Accepted)
-        attachExternalApplication(dlg.attachPID(), dlg.executable());
+    dlg.setAbiIndex(configValue(_("LastAttachExternalAbiIndex")).toInt());
+
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    setConfigValue(_("LastAttachExternalAbiIndex"), QVariant(dlg.abiIndex()));
+    attachExternalApplication(dlg.attachPID(), dlg.executable(), dlg.abi(), dlg.debuggerCommand());
 }
 
-void DebuggerPluginPrivate::attachExternalApplication
-    (qint64 pid, const QString &binary)
+void DebuggerPluginPrivate::attachExternalApplication(qint64 pid, const QString &binary,
+                                                      const ProjectExplorer::Abi &abi,
+                                                      const QString &debuggerCommand)
 {
     if (pid == 0) {
         QMessageBox::warning(mainWindow(), tr("Warning"),
@@ -1571,6 +1409,8 @@ void DebuggerPluginPrivate::attachExternalApplication
     sp.displayName = tr("Process %1").arg(pid);
     sp.executable = binary;
     sp.startMode = AttachExternal;
+    sp.toolChainAbi = abi.isValid() ? abi : abiOfBinary(sp.executable);
+    sp.debuggerCommand = debuggerCommand;
     if (DebuggerRunControl *rc = createDebugger(sp))
         startDebugger(rc);
 }
@@ -1580,20 +1420,29 @@ void DebuggerPluginPrivate::attachCore()
     AttachCoreDialog dlg(mainWindow());
     dlg.setExecutableFile(configValue(_("LastExternalExecutableFile")).toString());
     dlg.setCoreFile(configValue(_("LastExternalCoreFile")).toString());
+    dlg.setAbiIndex(configValue(_("LastExternalCoreAbiIndex")).toInt());
+
     if (dlg.exec() != QDialog::Accepted)
         return;
+
     setConfigValue(_("LastExternalExecutableFile"), dlg.executableFile());
     setConfigValue(_("LastExternalCoreFile"), dlg.coreFile());
-    attachCore(dlg.coreFile(), dlg.executableFile());
+    setConfigValue(_("LastExternalCoreAbiIndex"), QVariant(dlg.abiIndex()));
+    attachCore(dlg.coreFile(), dlg.executableFile(), dlg.abi());
 }
 
-void DebuggerPluginPrivate::attachCore(const QString &core, const QString &exe)
+void DebuggerPluginPrivate::attachCore(const QString &core,
+                                       const QString &exe,
+                                       const ProjectExplorer::Abi &abi,
+                                       const QString &debuggerCommand)
 {
     DebuggerStartParameters sp;
     sp.executable = exe;
     sp.coreFile = core;
     sp.displayName = tr("Core file \"%1\"").arg(core);
     sp.startMode = AttachCore;
+    sp.debuggerCommand = debuggerCommand;
+    sp.toolChainAbi = abi.isValid() ? abi : abiOfBinary(sp.coreFile);
     if (DebuggerRunControl *rc = createDebugger(sp))
         startDebugger(rc);
 }
@@ -1607,6 +1456,7 @@ void DebuggerPluginPrivate::attachRemote(const QString &spec)
     sp.remoteArchitecture = spec.section('@', 2, 2);
     sp.displayName = tr("Remote: \"%1\"").arg(sp.remoteChannel);
     sp.startMode = AttachToRemote;
+    sp.toolChainAbi = abiOfBinary(sp.executable);
     if (DebuggerRunControl *rc = createDebugger(sp))
         startDebugger(rc);
 }
@@ -1615,7 +1465,12 @@ void DebuggerPluginPrivate::startRemoteCdbSession()
 {
     const QString connectionKey = _("CdbRemoteConnection");
     DebuggerStartParameters sp;
-    sp.toolChainType = ToolChain_MSVC;
+    Abi hostAbi = Abi::hostAbi();
+    sp.toolChainAbi = ProjectExplorer::Abi(hostAbi.architecture(),
+                                           ProjectExplorer::Abi::WindowsOS,
+                                           ProjectExplorer::Abi::WindowsMsvcFlavor,
+                                           ProjectExplorer::Abi::PEFormat,
+                                           true);
     sp.startMode = AttachToRemote;
     StartRemoteCdbDialog dlg(mainWindow());
     QString previousConnection = configValue(connectionKey).toString();
@@ -1681,7 +1536,7 @@ void DebuggerPluginPrivate::startRemoteApplication()
     sp.displayName = dlg.localExecutable();
     sp.debuggerCommand = dlg.debugger(); // Override toolchain-detection.
     if (!sp.debuggerCommand.isEmpty())
-        sp.toolChainType = ToolChain_INVALID;
+        sp.toolChainAbi = ProjectExplorer::Abi();
     sp.startMode = AttachToRemote;
     sp.useServerStartScript = dlg.useServerStartScript();
     sp.serverStartScript = dlg.serverStartScript();
@@ -1702,7 +1557,7 @@ void DebuggerPluginPrivate::startRemoteEngine()
     sp.connParams.password = dlg.password();
 
     sp.connParams.timeout = 5;
-    sp.connParams.authorizationType = Utils::SshConnectionParameters::AuthorizationByPassword;
+    sp.connParams.authenticationType = Utils::SshConnectionParameters::AuthenticationByPassword;
     sp.connParams.port = 22;
     sp.connParams.proxyType = Utils::SshConnectionParameters::NoProxy;
 
@@ -1791,6 +1646,7 @@ void DebuggerPluginPrivate::requestContextMenu(ITextEditor *editor,
 
     ContextData args;
     args.lineNumber = lineNumber;
+    bool contextUsable = true;
 
     BreakpointId id = BreakpointId();
     if (editor->property("DisassemblerView").toBool()) {
@@ -1803,6 +1659,7 @@ void DebuggerPluginPrivate::requestContextMenu(ITextEditor *editor,
         args.address = needle.address;
         needle.lineNumber = -1;
         id = breakHandler()->findSimilarBreakpoint(needle);
+        contextUsable = args.address != 0;
     } else {
         args.fileName = editor->file()->fileName();
         id = breakHandler()
@@ -1840,27 +1697,30 @@ void DebuggerPluginPrivate::requestContextMenu(ITextEditor *editor,
         menu->addAction(act);
     } else {
         // Handle non-existing breakpoint.
-        const QString text = args.address ?
-                    tr("Set Breakpoint at 0x%1").arg(args.address, 0, 16) :
-                    tr("Set Breakpoint at line %1").arg(lineNumber);
+        const QString text = args.address
+            ? tr("Set Breakpoint at 0x%1").arg(args.address, 0, 16)
+            : tr("Set Breakpoint at line %1").arg(lineNumber);
         QAction *act = new QAction(text, menu);
         act->setData(QVariant::fromValue(args));
+        act->setEnabled(contextUsable);
         connect(act, SIGNAL(triggered()),
             SLOT(breakpointSetMarginActionTriggered()));
         menu->addAction(act);
     }
     // Run to, jump to line below in stopped state.
-    if (currentEngine()->state() == InferiorStopOk) {
+    if (currentEngine()->state() == InferiorStopOk && contextUsable) {
         menu->addSeparator();
-        const QString runText =
-            DebuggerEngine::tr("Run to Line %1").arg(lineNumber);
+        const QString runText = args.address
+            ? DebuggerEngine::tr("Run to Address 0x%1").arg(args.address, 0, 16)
+            : DebuggerEngine::tr("Run to Line %1").arg(args.lineNumber);
         QAction *runToLineAction  = new QAction(runText, menu);
         runToLineAction->setData(QVariant::fromValue(args));
         connect(runToLineAction, SIGNAL(triggered()), SLOT(slotRunToLine()));
         menu->addAction(runToLineAction);
         if (currentEngine()->debuggerCapabilities() & JumpToLineCapability) {
-            const QString jumpText =
-                DebuggerEngine::tr("Jump to Line %1").arg(lineNumber);
+            const QString jumpText = args.address
+                ? DebuggerEngine::tr("Jump to Address 0x%1").arg(args.address, 0, 16)
+                : DebuggerEngine::tr("Jump to Line %1").arg(args.lineNumber);
             QAction *jumpToLineAction  = new QAction(jumpText, menu);
             menu->addAction(runToLineAction);
             jumpToLineAction->setData(QVariant::fromValue(args));
@@ -2008,7 +1868,6 @@ void DebuggerPluginPrivate::cleanupViews()
 {
     m_reverseDirectionAction->setChecked(false);
     m_reverseDirectionAction->setEnabled(false);
-    m_toolTipManager->closeUnpinnedToolTips();
 
     if (!boolSetting(CloseBuffersOnExit))
         return;
@@ -2332,7 +2191,7 @@ void DebuggerPluginPrivate::aboutToUnloadSession()
 
 void DebuggerPluginPrivate::aboutToSaveSession()
 {
-    dummyEngine()->watchHandler()->loadSessionData();
+    dummyEngine()->watchHandler()->saveSessionData();
     m_toolTipManager->saveSessionData();
     m_breakHandler->saveSessionData();
 }
@@ -2492,14 +2351,74 @@ void DebuggerPluginPrivate::createNewDock(QWidget *widget)
     dockWidget->show();
 }
 
+static QString formatStartParameters(DebuggerStartParameters &sp)
+{
+    QString rc;
+    QTextStream str(&rc);
+    str << "Start parameters: '" << sp.displayName << "' mode: " << sp.startMode
+        << "\nABI: " << sp.toolChainAbi.toString() << '\n';
+    if (!sp.executable.isEmpty()) {
+        str << "Executable: " << QDir::toNativeSeparators(sp.executable) << ' ' << sp.processArgs;
+        if (sp.useTerminal)
+            str << " [terminal]";
+        str << '\n';
+        if (!sp.workingDirectory.isEmpty())
+            str << "Directory: " << QDir::toNativeSeparators(sp.workingDirectory) << '\n';
+        if (sp.executableUid) {
+            str << "UID: 0x";
+            str.setIntegerBase(16);
+            str << sp.executableUid << '\n';
+            str.setIntegerBase(10);
+        }
+    }
+    if (!sp.debuggerCommand.isEmpty())
+        str << "Debugger: " << QDir::toNativeSeparators(sp.debuggerCommand) << '\n';
+    if (!sp.coreFile.isEmpty())
+        str << "Core: " << QDir::toNativeSeparators(sp.coreFile) << '\n';
+    if (sp.attachPID > 0)
+        str << "PID: " << sp.attachPID << ' ' << sp.crashParameter << '\n';
+    if (!sp.projectDir.isEmpty()) {
+        str << "Project: " << QDir::toNativeSeparators(sp.projectDir);
+        if (!sp.projectBuildDir.isEmpty())
+            str << " (built: " << QDir::toNativeSeparators(sp.projectBuildDir) << ')';
+        str << '\n';
+    }
+    if (!sp.qmlServerAddress.isEmpty())
+        str << "QML server: " << sp.qmlServerAddress << ':' << sp.qmlServerPort << '\n';
+    if (!sp.remoteChannel.isEmpty()) {
+        str << "Remote: " << sp.remoteChannel << ", " << sp.remoteArchitecture << '\n';
+        if (!sp.remoteDumperLib.isEmpty())
+            str << "Remote dumpers: " << sp.remoteDumperLib << '\n';
+        if (!sp.remoteSourcesDir.isEmpty())
+            str << "Remote sources: " << sp.remoteSourcesDir << '\n';
+        if (!sp.remoteMountPoint.isEmpty())
+            str << "Remote mount point: " << sp.remoteMountPoint << " Local: " << sp.localMountDir << '\n';
+    }
+    if (!sp.gnuTarget.isEmpty())
+        str << "Gnu target: " << sp.gnuTarget << '\n';
+    if (!sp.sysRoot.isEmpty())
+        str << "Sysroot: " << sp.sysRoot << '\n';
+    if (!sp.symbolFileName.isEmpty())
+        str << "Symbol file: " << sp.symbolFileName << '\n';
+    if (sp.useServerStartScript)
+        str << "Using server start script: " << sp.serverStartScript;
+    if (!sp.dumperLibrary.isEmpty()) {
+        str << "Dumper libraries: " << QDir::toNativeSeparators(sp.dumperLibrary);
+        foreach (const QString &dl, sp.dumperLibraryLocations)
+            str << ' ' << QDir::toNativeSeparators(dl);
+        str << '\n';
+    }
+    return rc;
+}
+
 void DebuggerPluginPrivate::runControlStarted(DebuggerEngine *engine)
 {
     activateDebugMode();
-    QString toolChainName =
-        ToolChain::toolChainName(engine->startParameters().toolChainType);
-    const QString message = tr("Starting debugger '%1' for tool chain '%2'...")
-            .arg(engine->objectName()).arg(toolChainName);
+    const QString message = tr("Starting debugger '%1' for ABI '%2'...")
+            .arg(engine->objectName())
+            .arg(engine->startParameters().toolChainAbi.toString());
     showMessage(message, StatusBar);
+    showMessage(formatStartParameters(engine->startParameters()), LogDebug);
     showMessage(m_debuggerSettings->dump(), LogDebug);
     m_snapshotHandler->appendSnapshot(engine);
     connectEngine(engine);
@@ -2507,6 +2426,7 @@ void DebuggerPluginPrivate::runControlStarted(DebuggerEngine *engine)
 
 void DebuggerPluginPrivate::runControlFinished(DebuggerEngine *engine)
 {
+    showStatusMessage(tr("Debugger finished."));
     m_snapshotHandler->removeSnapshot(engine);
     if (m_snapshotHandler->size() == 0) {
         // Last engine quits.
@@ -2517,6 +2437,7 @@ void DebuggerPluginPrivate::runControlFinished(DebuggerEngine *engine)
         // Connect to some existing engine.
         m_snapshotHandler->activateSnapshot(0);
     }
+    action(OperateByInstruction)->setChecked(false);
 }
 
 void DebuggerPluginPrivate::remoteCommand(const QStringList &options,
@@ -2535,9 +2456,39 @@ void DebuggerPluginPrivate::remoteCommand(const QStringList &options,
     runScheduled();
 }
 
-QString DebuggerPluginPrivate::gdbBinaryForToolChain(int toolChain) const
+QString DebuggerPluginPrivate::debuggerForAbi(const Abi &abi, DebuggerEngineType et) const
 {
-    return GdbOptionsPage::gdbBinaryToolChainMap.key(toolChain);
+    enum { debug = 0 };
+    Abi searchAbi = abi;
+    // Pick the right toolchain in case cdb/gdb were started with other toolchains.
+    // Also, lldb should be preferred over gdb.
+    if (searchAbi.os() == ProjectExplorer::Abi::WindowsOS) {
+        switch (et) {
+        case CdbEngineType:
+            searchAbi = Abi(abi.architecture(), abi.os(), Abi::WindowsMsvcFlavor,
+                            abi.binaryFormat(), abi.wordWidth());
+            break;
+        case GdbEngineType:
+            searchAbi = Abi(abi.architecture(), abi.os(), Abi::WindowsMSysFlavor,
+                            abi.binaryFormat(), abi.wordWidth());
+            break;
+        default:
+            break;
+        }
+    }
+    if (debug)
+        qDebug() << "debuggerForAbi" << abi.toString() << searchAbi.toString() << et;
+
+    const QList<ToolChain *> toolchains = ToolChainManager::instance()->findToolChains(searchAbi);
+    // Find manually configured ones first
+    for (int i = toolchains.size() - 1; i >= 0; i--) {
+        const QString debugger = toolchains.at(i)->debuggerCommand();
+        if (debug)
+            qDebug() << i << toolchains.at(i)->displayName() << debugger;
+        if (!debugger.isEmpty())
+            return debugger;
+    }
+    return QString();
 }
 
 DebuggerLanguages DebuggerPluginPrivate::activeLanguages() const
@@ -2757,8 +2708,18 @@ void DebuggerPluginPrivate::extensionsInitialized()
     dock = m_mainWindow->createDockWidget(CppLanguage, localsAndWatchers);
     dock->setProperty(DOCKWIDGET_DEFAULT_AREA, Qt::RightDockWidgetArea);
 
+    m_commonOptionsPage = new CommonOptionsPage;
+    m_plugin->addAutoReleasedObject(m_commonOptionsPage);
+
     m_debuggerSettings->readSettings();
-    GdbOptionsPage::readGdbBinarySettings();
+
+    // Do not fail to load the whole plugin if something goes wrong here.
+    QString errorMessage;
+    if (!parseArguments(m_arguments, &m_cmdLineEnabledEngines, &errorMessage)) {
+        errorMessage = tr("Error evaluating command line arguments: %1")
+            .arg(errorMessage);
+        qWarning("%s\n", qPrintable(errorMessage));
+    }
 
     // Register factory of DebuggerRunControl.
     m_debuggerRunControlFactory = new DebuggerRunControlFactory
@@ -2832,11 +2793,6 @@ void DebuggerPluginPrivate::extensionsInitialized()
     cmd->setAttribute(Command::CA_Hide);
     mstart->addAction(cmd, CC::G_DEFAULT_ONE);
 
-    cmd = am->registerAction(m_startRemoteLldbAction,
-        Constants::STARTREMOTELLDB, globalcontext);
-    cmd->setAttribute(Command::CA_Hide);
-    mstart->addAction(cmd, CC::G_DEFAULT_ONE);
-
     cmd = am->registerAction(m_attachExternalAction,
         Constants::ATTACHEXTERNAL, globalcontext);
     cmd->setAttribute(Command::CA_Hide);
@@ -2854,6 +2810,11 @@ void DebuggerPluginPrivate::extensionsInitialized()
 
     cmd = am->registerAction(m_startRemoteAction,
         Constants::ATTACHREMOTE, globalcontext);
+    cmd->setAttribute(Command::CA_Hide);
+    mstart->addAction(cmd, CC::G_DEFAULT_ONE);
+
+    cmd = am->registerAction(m_startRemoteLldbAction,
+        Constants::STARTREMOTELLDB, globalcontext);
     cmd->setAttribute(Command::CA_Hide);
     mstart->addAction(cmd, CC::G_DEFAULT_ONE);
 
@@ -3001,7 +2962,6 @@ void DebuggerPluginPrivate::extensionsInitialized()
         cmd->setAttribute(Command::CA_NonConfigurable); // ADD_TO_WATCH1 is enough.
     }
 
-    m_plugin->addAutoReleasedObject(new CommonOptionsPage);
     QList<Core::IOptionsPage *> engineOptionPages;
     if (m_cmdLineEnabledEngines & GdbEngineType)
         addGdbOptionPages(&engineOptionPages);
@@ -3031,6 +2991,9 @@ void DebuggerPluginPrivate::extensionsInitialized()
     //
     //  Connections
     //
+
+    // Core
+    connect(core, SIGNAL(saveSettingsRequested()), SLOT(writeSettings()));
 
     // TextEditor
     connect(TextEditorSettings::instance(),
@@ -3157,10 +3120,6 @@ void DebuggerPluginPrivate::aboutToShutdown()
     disconnect(sessionManager(),
         SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
         this, 0);
-    m_debuggerSettings->writeSettings();
-    m_mainWindow->writeSettings();
-    if (GdbOptionsPage::gdbBinariesChanged)
-        GdbOptionsPage::writeGdbBinarySettings();
 }
 
 } // namespace Internal

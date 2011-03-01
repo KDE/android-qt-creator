@@ -47,8 +47,15 @@ class ICompletionCollectorPrivate;
 }
 
 class ICompletionCollector;
-class ITextEditable;
+class ITextEditor;
 class CompletionSettings;
+
+enum CompletionPolicy
+{
+    QuickFixCompletion, // Used for "Quick Fix" operation.
+    TextCompletion,     // Plain word completion.
+    SemanticCompletion  // Completion using code models.
+};
 
 class CompletionItem
 {
@@ -92,23 +99,28 @@ public:
     virtual QList<CompletionItem> getCompletions();
     virtual bool shouldRestartCompletion();
 
-    /* Returns the current active ITextEditable */
-    virtual ITextEditable *editor() const = 0;
+    /* Returns the current active ITextEditor */
+    virtual ITextEditor *editor() const = 0;
     virtual int startPosition() const = 0;
 
     /*
      * Returns true if this completion collector can be used with the given editor.
      */
-    virtual bool supportsEditor(ITextEditable *editor) = 0;
+    virtual bool supportsEditor(ITextEditor *editor) const = 0;
+
+    /*
+     * Returns true if this completion collector supports the given completion policy.
+     */
+    virtual bool supportsPolicy(CompletionPolicy policy) const = 0;
 
     /* This method should return whether the cursor is at a position which could
      * trigger an autocomplete. It will be called each time a character is typed in
      * the text editor.
      */
-    virtual bool triggersCompletion(ITextEditable *editor) = 0;
+    virtual bool triggersCompletion(ITextEditor *editor) = 0;
 
     // returns starting position
-    virtual int startCompletion(ITextEditable *editor) = 0;
+    virtual int startCompletion(ITextEditor *editor) = 0;
 
     /* This method should add all the completions it wants to show into the list,
      * based on the given cursor position.
@@ -180,7 +192,7 @@ public:
         fix(item);
     }
 
-    virtual bool triggersCompletion(TextEditor::ITextEditable *)
+    virtual bool triggersCompletion(TextEditor::ITextEditor *)
     { return false; }
 
     virtual bool partiallyComplete(const QList<TextEditor::CompletionItem> &)

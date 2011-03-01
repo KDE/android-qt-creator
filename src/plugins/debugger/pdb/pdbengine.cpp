@@ -120,7 +120,7 @@ void PdbEngine::postDirectCommand(const QByteArray &command)
 {
     QTC_ASSERT(m_pdbProc.state() == QProcess::Running, notifyEngineIll());
     showMessage(_(command), LogInput);
-    m_pdbProc.write(command + "\n");
+    m_pdbProc.write(command + '\n');
 }
 
 void PdbEngine::postCommand(const QByteArray &command,
@@ -138,7 +138,7 @@ void PdbEngine::postCommand(const QByteArray &command,
     m_commands.enqueue(cmd);
     qDebug() << "ENQUEUE: " << command << cmd.callbackName;
     showMessage(_(cmd.command), LogInput);
-    m_pdbProc.write(cmd.command + "\n");
+    m_pdbProc.write(cmd.command + '\n');
 }
 
 void PdbEngine::shutdownInferior()
@@ -280,10 +280,9 @@ void PdbEngine::continueInferior()
     postCommand("continue", CB(handleUpdateAll));
 }
 
-void PdbEngine::executeRunToLine(const QString &fileName, int lineNumber)
+void PdbEngine::executeRunToLine(const ContextData &data)
 {
-    Q_UNUSED(fileName)
-    Q_UNUSED(lineNumber)
+    Q_UNUSED(data)
     SDEBUG("FIXME:  PdbEngine::runToLineExec()");
 }
 
@@ -293,10 +292,9 @@ void PdbEngine::executeRunToFunction(const QString &functionName)
     XSDEBUG("FIXME:  PdbEngine::runToFunctionExec()");
 }
 
-void PdbEngine::executeJumpToLine(const QString &fileName, int lineNumber)
+void PdbEngine::executeJumpToLine(const ContextData &data)
 {
-    Q_UNUSED(fileName)
-    Q_UNUSED(lineNumber)
+    Q_UNUSED(data)
     XSDEBUG("FIXME:  PdbEngine::jumpToLineExec()");
 }
 

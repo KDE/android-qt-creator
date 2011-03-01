@@ -53,7 +53,7 @@ class QMLJSTOOLS_EXPORT QmlJSRefactoringFile: public TextEditor::RefactoringFile
 public:
     QmlJSRefactoringFile();
     QmlJSRefactoringFile(const QString &fileName, QmlJSRefactoringChanges *refactoringChanges);
-    QmlJSRefactoringFile(TextEditor::BaseTextEditor *editor, QmlJS::Document::Ptr document);
+    QmlJSRefactoringFile(TextEditor::BaseTextEditorWidget *editor, QmlJS::Document::Ptr document);
 
     QmlJS::Document::Ptr qmljsDocument() const;
 
@@ -84,7 +84,9 @@ public:
     QmlJSRefactoringFile file(const QString &fileName);
 
 private:
-    virtual void indentSelection(const QTextCursor &selection) const;
+    virtual void indentSelection(const QTextCursor &selection,
+                                 const QString &fileName,
+                                 const TextEditor::BaseTextEditorWidget *textEditor) const;
     virtual void fileChanged(const QString &fileName);
 
 private:

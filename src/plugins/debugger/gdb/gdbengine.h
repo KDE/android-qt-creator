@@ -132,7 +132,6 @@ private: ////////// Gdb Process Management //////////
 
     AbstractGdbAdapter *createAdapter();
     bool startGdb(const QStringList &args = QStringList(),
-                  const QString &gdb = QString(),
                   const QString &settingsIdHint = QString());
     void handleInferiorShutdown(const GdbResponse &response);
     void handleGdbExit(const GdbResponse &response);
@@ -333,9 +332,9 @@ private: ////////// Inferior Management //////////
     void interruptInferior();
     void interruptInferiorTemporarily();
 
-    void executeRunToLine(const QString &fileName, int lineNumber);
+    void executeRunToLine(const ContextData &data);
     void executeRunToFunction(const QString &functionName);
-    void executeJumpToLine(const QString &fileName, int lineNumber);
+    void executeJumpToLine(const ContextData &data);
     void executeReturn();
 
     void handleExecuteContinue(const GdbResponse &response);
@@ -483,6 +482,9 @@ private: ////////// View & Data Stuff //////////
 
     virtual void fetchMemory(MemoryAgent *agent, QObject *token,
         quint64 addr, quint64 length);
+    void handleChangeMemory(const GdbResponse &response);
+    virtual void changeMemory(MemoryAgent *agent, QObject *token,
+        quint64 addr, const QByteArray &data);
     void handleFetchMemory(const GdbResponse &response);
 
     virtual void watchPoint(const QPoint &);

@@ -36,11 +36,13 @@
 #include "qmlprojecttarget.h"
 #include "qmlproject.h"
 
+#include <coreplugin/helpmanager.h>
 #include <coreplugin/icore.h>
 #include <projectexplorer/environmentwidget.h>
 #include <projectexplorer/projectexplorer.h>
 #include <utils/debuggerlanguagechooser.h>
 #include <utils/detailswidget.h>
+#include <utils/environment.h>
 #include <utils/qtcassert.h>
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 #include <qt4projectmanager/qtversionmanager.h>
@@ -138,6 +140,8 @@ QmlProjectRunConfigurationWidget::QmlProjectRunConfigurationWidget(QmlProjectRun
             this, SLOT(useQmlDebuggerToggled(bool)));
     connect(debuggerLanguageChooser, SIGNAL(qmlDebugServerPortChanged(uint)),
             this, SLOT(qmlDebugServerPortChanged(uint)));
+    connect(debuggerLanguageChooser, SIGNAL(openHelpUrl(QString)),
+            Core::HelpManager::instance(), SLOT(handleHelpRequest(QString)));
 
     QtVersionManager *qtVersions = QtVersionManager::instance();
     connect(qtVersions, SIGNAL(qtVersionsChanged(QList<int>)),

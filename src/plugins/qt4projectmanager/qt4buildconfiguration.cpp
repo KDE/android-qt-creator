@@ -45,6 +45,7 @@
 #include <limits>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/toolchainmanager.h>
 
 #include <QtCore/QDebug>
 
@@ -72,7 +73,6 @@ Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4BaseTarget *target) :
     m_shadowBuild(true),
     m_isEnabled(false),
     m_qtVersionId(-1),
-    m_toolChainType(-1), // toolChainType() makes sure to return the default toolchainType
     m_qmakeBuildConfiguration(0),
     m_subNodeBuild(0)
 {
@@ -84,7 +84,6 @@ Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4BaseTarget *target, const QStrin
     m_shadowBuild(true),
     m_isEnabled(false),
     m_qtVersionId(-1),
-    m_toolChainType(-1), // toolChainType() makes sure to return the default toolchainType
     m_qmakeBuildConfiguration(0),
     m_subNodeBuild(0)
 {
@@ -97,7 +96,6 @@ Qt4BuildConfiguration::Qt4BuildConfiguration(Qt4BaseTarget *target, Qt4BuildConf
     m_isEnabled(false),
     m_buildDirectory(source->m_buildDirectory),
     m_qtVersionId(source->m_qtVersionId),
-    m_toolChainType(source->m_toolChainType),
     m_qmakeBuildConfiguration(source->m_qmakeBuildConfiguration),
     m_subNodeBuild(0) // temporary value, so not copied
 {
@@ -115,11 +113,17 @@ QVariantMap Qt4BuildConfiguration::toMap() const
     map.insert(QLatin1String(USE_SHADOW_BUILD_KEY), m_shadowBuild);
     map.insert(QLatin1String(BUILD_DIRECTORY_KEY), m_buildDirectory);
     map.insert(QLatin1String(QT_VERSION_ID_KEY), m_qtVersionId);
-    map.insert(QLatin1String(TOOLCHAIN_KEY), m_toolChainType);
+    map.insert(QLatin1String(TOOLCHAIN_KEY), toolChain() ? toolChain()->id() : QLatin1String("<UNSET>"));
     map.insert(QLatin1String(BUILD_CONFIGURATION_KEY), int(m_qmakeBuildConfiguration));
     return map;
 }
 
+static inline QString msgBuildConfigNotApplicable(const QString &d, const QtVersion *qtVersion,
+                                                  const Target *target)
+{
+    return QString::fromLatin1("Warning: Buildconfiguration '%1' : Qt '%2' from %3 not supported by target '%4'").
+            arg(d, qtVersion->displayName(), qtVersion->qmakeCommand(), target->id());
+}
 
 bool Qt4BuildConfiguration::fromMap(const QVariantMap &map)
 {
@@ -129,7 +133,8 @@ bool Qt4BuildConfiguration::fromMap(const QVariantMap &map)
     m_shadowBuild = map.value(QLatin1String(USE_SHADOW_BUILD_KEY), true).toBool();
     m_buildDirectory = map.value(QLatin1String(BUILD_DIRECTORY_KEY), qt4Target()->defaultBuildDirectory()).toString();
     m_qtVersionId = map.value(QLatin1String(QT_VERSION_ID_KEY)).toInt();
-    m_toolChainType = map.value(QLatin1String(TOOLCHAIN_KEY)).toInt();
+    ProjectExplorer::ToolChain *tc = 0;
+    tc = ProjectExplorer::ToolChainManager::instance()->findToolChain(map.value(QLatin1String(TOOLCHAIN_KEY)).toString());
     m_qmakeBuildConfiguration = QtVersion::QmakeBuildConfigs(map.value(QLatin1String(BUILD_CONFIGURATION_KEY)).toInt());
 
     // Pick a Qt version if the default version is used:
@@ -150,25 +155,33 @@ bool Qt4BuildConfiguration::fromMap(const QVariantMap &map)
     QtVersion *version = qtVersion();
     if (!map.contains(QLatin1String("Qt4ProjectManager.Qt4BuildConfiguration.NeedsV0Update"))) { // we are not upgrading from pre-targets!
         if (version->isValid() && !version->supportedTargetIds().contains(target()->id())) {
-            qWarning() << "Buildconfiguration" << displayName() << ": Qt" << version->displayName() << "not supported by target" << target()->id();
+            qWarning("%s", qPrintable(msgBuildConfigNotApplicable(displayName(), version, target())));
             return false;
         }
     } else {
         if (!version->isValid() || !version->supportedTargetIds().contains(target()->id())) {
-            qWarning() << "Buildconfiguration" << displayName() << ": Qt" << version->displayName() << "not supported by target" << target()->id();
+            qWarning("%s", qPrintable(msgBuildConfigNotApplicable(displayName(), version, target())));
             return false;
         }
     }
 
-    if (version->isValid())
+    if (version->isValid()) {
+        if (!tc)
+            tc = qt4Target()->preferredToolChain(this);
+        if (tc && qt4Target()->possibleToolChains(this).contains(tc))
+            setToolChain(tc);
         m_shadowBuild = (m_shadowBuild && version->supportsShadowBuilds());
+    }
 
-    QList<ProjectExplorer::ToolChainType> possibleTcs(qt4Target()->filterToolChainTypes(qtVersion()->possibleToolChainTypes()));
-    if (!possibleTcs.contains(toolChainType()))
-        setToolChainType(qt4Target()->preferredToolChainType(possibleTcs));
-
-    if (toolChainType() == ProjectExplorer::ToolChain_INVALID) {
-        qWarning() << "No toolchain available for" << qtVersion()->displayName() << "used in" << target()->id() << "!";
+    if (!toolChain()) {
+        if (version->isValid()) {
+            qWarning("Warning: No toolchain available for '%s' from %s used in '%s'.",
+                    qPrintable(version->displayName()), qPrintable(version->qmakeCommand()),
+                    qPrintable(target()->id()));
+        } else {
+            qWarning("Warning: No toolchain available for invalid Qt version used in '%s'.",
+                     qPrintable(target()->id()));
+        }
         return false;
     }
 
@@ -298,12 +311,6 @@ void Qt4BuildConfiguration::setShadowBuildAndDirectory(bool shadowBuild, const Q
     emit proFileEvaluateNeeded(this);
 }
 
-ProjectExplorer::ToolChain *Qt4BuildConfiguration::toolChain() const
-{
-    const ProjectExplorer::ToolChainType tct = toolChainType();
-    return qtVersion()->toolChain(tct);
-}
-
 QString Qt4BuildConfiguration::makeCommand() const
 {
     ToolChain *tc = toolChain();
@@ -322,25 +329,11 @@ static inline QString symbianMakeTarget(QtVersion::QmakeBuildConfigs buildConfig
 QString Qt4BuildConfiguration::defaultMakeTarget() const
 {
     ToolChain *tc = toolChain();
-    if (!tc)
+    if (!tc || target()->id() != Constants::S60_DEVICE_TARGET_ID)
         return QString();
     const QtVersion::QmakeBuildConfigs buildConfig = qmakeBuildConfiguration();
 
-    switch (tc->type()) {
-    case ProjectExplorer::ToolChain_GCCE:
-        return symbianMakeTarget(buildConfig, QLatin1String("gcce"));
-    case ProjectExplorer::ToolChain_RVCT2_ARMV5:
-    case ProjectExplorer::ToolChain_RVCT4_ARMV5:
-        return symbianMakeTarget(buildConfig, QLatin1String("armv5"));
-    case ProjectExplorer::ToolChain_RVCT2_ARMV6:
-    case ProjectExplorer::ToolChain_RVCT4_ARMV6:
-        return symbianMakeTarget(buildConfig, QLatin1String("armv6"));
-    case ProjectExplorer::ToolChain_RVCT_ARMV5_GNUPOC:
-    case ProjectExplorer::ToolChain_GCCE_GNUPOC:
-    default:
-        break;
-    }
-    return QString();
+    return symbianMakeTarget(buildConfig, tc->defaultMakeTarget());
 }
 
 QString Qt4BuildConfiguration::makefile() const
@@ -363,15 +356,8 @@ void Qt4BuildConfiguration::setQtVersion(QtVersion *version)
 
     m_qtVersionId = version->uniqueId();
 
-    if (!version->possibleToolChainTypes().contains(ProjectExplorer::ToolChainType(m_toolChainType))) {
-        QList<ProjectExplorer::ToolChainType> candidates =
-                qt4Target()->filterToolChainTypes(qtVersion()->possibleToolChainTypes());
-        if (candidates.isEmpty())
-            m_toolChainType = ProjectExplorer::ToolChain_INVALID;
-        else
-            m_toolChainType = candidates.first();
-    }
-
+    if (!qt4Target()->possibleToolChains(this).contains(toolChain()))
+        setToolChain(qt4Target()->preferredToolChain(this));
     m_shadowBuild = m_shadowBuild && qtVersion()->supportsShadowBuilds();
 
     emit proFileEvaluateNeeded(this);
@@ -380,23 +366,18 @@ void Qt4BuildConfiguration::setQtVersion(QtVersion *version)
     emitBuildDirectoryChanged();
 }
 
-void Qt4BuildConfiguration::setToolChainType(ProjectExplorer::ToolChainType type)
+void Qt4BuildConfiguration::setToolChain(ProjectExplorer::ToolChain *tc)
 {
-    if (!qt4Target()->filterToolChainTypes(qtVersion()->possibleToolChainTypes()).contains(type)
-        || m_toolChainType == type)
+    Q_ASSERT(qtVersion());
+    if (!qt4Target()->possibleToolChains(this).contains(tc)
+            || tc->restrictedToTargets().contains(target()->id()))
         return;
 
-    m_toolChainType = type;
+    BuildConfiguration::setToolChain(tc);
 
     emit proFileEvaluateNeeded(this);
-    emit toolChainTypeChanged();
     emit environmentChanged();
     emitBuildDirectoryChanged();
-}
-
-ProjectExplorer::ToolChainType Qt4BuildConfiguration::toolChainType() const
-{
-    return ProjectExplorer::ToolChainType(m_toolChainType);
 }
 
 QtVersion::QmakeBuildConfigs Qt4BuildConfiguration::qmakeBuildConfiguration() const

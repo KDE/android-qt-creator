@@ -51,7 +51,6 @@ AbstractLiveEditTool::AbstractLiveEditTool(QDeclarativeViewObserver *editorView)
 
 AbstractLiveEditTool::~AbstractLiveEditTool()
 {
-
 }
 
 QDeclarativeViewObserver *AbstractLiveEditTool::observer() const
@@ -151,7 +150,7 @@ QList<QGraphicsObject*> AbstractLiveEditTool::toGraphicsObjectList(const QList<Q
                                                                    &itemList)
 {
     QList<QGraphicsObject*> gfxObjects;
-    foreach(QGraphicsItem *item, itemList) {
+    foreach (QGraphicsItem *item, itemList) {
         QGraphicsObject *obj = item->toGraphicsObject();
         if (obj)
             gfxObjects << obj;
@@ -196,4 +195,4 @@ QString AbstractLiveEditTool::titleForItem(QGraphicsItem *item)
 }
 
 
-}
+} // namespace QmlJSDebugger

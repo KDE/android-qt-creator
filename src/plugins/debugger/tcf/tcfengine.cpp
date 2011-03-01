@@ -269,10 +269,9 @@ void TcfEngine::executeNextI()
     //SDEBUG("TcfEngine::executeNextI()");
 }
 
-void TcfEngine::executeRunToLine(const QString &fileName, int lineNumber)
+void TcfEngine::executeRunToLine(const ContextData &data)
 {
-    Q_UNUSED(fileName)
-    Q_UNUSED(lineNumber)
+    Q_UNUSED(data)
     SDEBUG("FIXME:  TcfEngine::executeRunToLine()");
 }
 
@@ -282,10 +281,9 @@ void TcfEngine::executeRunToFunction(const QString &functionName)
     XSDEBUG("FIXME:  TcfEngine::executeRunToFunction()");
 }
 
-void TcfEngine::executeJumpToLine(const QString &fileName, int lineNumber)
+void TcfEngine::executeJumpToLine(const ContextData &data)
 {
-    Q_UNUSED(fileName)
-    Q_UNUSED(lineNumber)
+    Q_UNUSED(data)
     XSDEBUG("FIXME:  TcfEngine::executeJumpToLine()");
 }
 
@@ -341,7 +339,7 @@ void TcfEngine::handleResponse(const QByteArray &response)
         int token = parts.at(1).toInt();
         TcfCommand tcf = m_cookieForToken[token];
         SDEBUG("COMMAND NOT RECOGNIZED FOR TOKEN" << token << tcf.toString());
-        showMessage(QString::number(token) + "^"
+        showMessage(QString::number(token) + '^'
                + "NOT RECOQNIZED: " + quoteUnprintableLatin1(response),
                 LogOutput);
         acknowledgeResult();
@@ -495,8 +493,8 @@ void TcfEngine::sendCommandNow(const TcfCommand &cmd)
     int result = m_socket->write(cmd.command);
     Q_UNUSED(result)
     m_socket->flush();
-    showMessage(QString::number(cmd.token) + " " + cmd.toString(), LogInput);
-    SDEBUG("SEND " <<  cmd.toString()); //<< " " << QString::number(result));
+    showMessage(QString::number(cmd.token) + ' ' + cmd.toString(), LogInput);
+    SDEBUG("SEND " <<  cmd.toString()); //<< ' ' << QString::number(result));
 }
 
 void TcfEngine::acknowledgeResult()

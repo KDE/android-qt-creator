@@ -35,11 +35,14 @@
 #define DEBUGGERRUNNER_H
 
 #include "debugger_global.h"
+#include "debuggerconstants.h"
 
+#include <projectexplorer/abi.h>
 #include <projectexplorer/runconfiguration.h>
-#include <projectexplorer/toolchaintype.h>
 
 #include <QtCore/QScopedPointer>
+#include <QtCore/QPair>
+#include <QtCore/QStringList>
 
 namespace Utils {
 class Environment;
@@ -59,16 +62,18 @@ class DebuggerRunControlFactory;
 class DEBUGGER_EXPORT ConfigurationCheck
 {
 public:
-    ConfigurationCheck() {}
-    operator bool() const { return errorMessage.isEmpty(); }
+    ConfigurationCheck();
+    operator bool() const;
+    QString errorDetailsString() const;
 
-public:
     QString errorMessage;
+    QStringList errorDetails;
     QString settingsCategory;
     QString settingsPage;
+    QPair<DebuggerEngineType, DebuggerEngineType> masterSlaveEngineTypes;
 };
 
-DEBUGGER_EXPORT ConfigurationCheck checkDebugConfiguration(ProjectExplorer::ToolChainType toolChain);
+DEBUGGER_EXPORT ConfigurationCheck checkDebugConfiguration(const DebuggerStartParameters &sp);
 
 // This is a job description containing all data "local" to the jobs, including
 // the models of the individual debugger views.
@@ -79,8 +84,10 @@ class DEBUGGER_EXPORT DebuggerRunControl
 
 public:
     typedef ProjectExplorer::RunConfiguration RunConfiguration;
-    DebuggerRunControl(RunConfiguration *runConfiguration,
-        const DebuggerStartParameters &sp);
+    explicit DebuggerRunControl(RunConfiguration *runConfiguration,
+                                const DebuggerStartParameters &sp,
+                                const QPair<DebuggerEngineType, DebuggerEngineType> &masterSlaveEngineTypes);
+
     ~DebuggerRunControl();
 
     // ProjectExplorer::RunControl

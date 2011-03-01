@@ -2,16 +2,16 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** Commercial Usage
+** No Commercial Usage
 **
-** Licensees holding valid Qt Commercial licenses may use this file in
-** accordance with the Qt Commercial License Agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Nokia.
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
@@ -22,8 +22,12 @@
 ** ensure the GNU Lesser General Public License version 2.1 requirements
 ** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
-** If you are unsure which license is appropriate for your use, please
-** contact the sales department at http://qt.nokia.com/contact.
+** In addition, as a special exception, Nokia gives you certain additional
+** rights.  These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,7 +51,6 @@
 #include <QtCore/QFile>
 #include <QtCore/QDateTime>
 #include <QtGui/QMenu>
-#include <QtGui/QMenuItem>
 #include <QtGui/QAction>
 
 #include <QtDebug>
@@ -79,11 +82,14 @@ namespace {
     const char * const kNo = "no";
     const char * const kTrue= "true";
     const char * const kFalse = "false";
+
+    const char * const kSpecialUncategorizedSetting = "SpecialEmptyCategoryForUncategorizedTools";
 }
 
 // #pragma mark -- ExternalTool
 
 ExternalTool::ExternalTool() :
+    m_displayCategory(QLatin1String("")), // difference between isNull and isEmpty
     m_order(-1),
     m_outputHandling(ShowInPane),
     m_errorHandling(ShowInPane),
@@ -315,6 +321,8 @@ static void localizedText(const QStringList &locales, QXmlStreamReader *reader, 
             reader->skipCurrentElement();
         }
     }
+    if (currentText->isNull()) // prefer isEmpty over isNull
+        *currentText = QLatin1String("");
 }
 
 static bool parseOutputAttribute(const QString &attribute, QXmlStreamReader *reader, ExternalTool::OutputHandling *value)
@@ -497,7 +505,7 @@ bool ExternalTool::save(QString *errorMessage) const
     return true;
 }
 
-bool ExternalTool::operator==(const ExternalTool &other)
+bool ExternalTool::operator==(const ExternalTool &other) const
 {
     return m_id == other.m_id
             && m_description == other.m_description
@@ -534,9 +542,9 @@ bool ExternalToolRunner::resolve()
 {
     if (!m_tool)
         return false;
-    m_resolvedExecutable = QString::null;
-    m_resolvedArguments = QString::null;
-    m_resolvedWorkingDirectory = QString::null;
+    m_resolvedExecutable.clear();
+    m_resolvedArguments.clear();
+    m_resolvedWorkingDirectory.clear();
     { // executable
         foreach (const QString &executable, m_tool->executables()) {
             QString resolved = Utils::expandMacros(executable,
@@ -548,7 +556,7 @@ bool ExternalToolRunner::resolve()
             return false;
     }
     { // arguments
-        m_resolvedArguments = Utils::expandMacros(m_tool->arguments(),
+        m_resolvedArguments = Utils::QtcProcess::expandMacros(m_tool->arguments(),
                                                Core::VariableManager::instance()->macroExpander());
     }
     { // input
@@ -590,11 +598,7 @@ void ExternalToolRunner::run()
         m_process->setWorkingDirectory(m_resolvedWorkingDirectory);
     m_process->setCommand(m_resolvedExecutable, m_resolvedArguments);
     ICore::instance()->messageManager()->printToOutputPane(
-                tr("Starting external tool '%1'").arg(m_resolvedExecutable), false);
-    if (!m_resolvedArguments.isEmpty()) {
-        ICore::instance()->messageManager()->printToOutputPane(
-                tr("with arguments '%1'").arg(m_resolvedArguments), false);
-    }
+                tr("Starting external tool '%1' %2").arg(m_resolvedExecutable, m_resolvedArguments), false);
     m_process->start();
 }
 
@@ -677,6 +681,11 @@ ExternalToolManager::~ExternalToolManager()
 
 void ExternalToolManager::initialize()
 {
+    m_configureSeparator = new QAction(this);
+    m_configureSeparator->setSeparator(true);
+    m_configureAction = new QAction(tr("Configure..."), this);
+    connect(m_configureAction, SIGNAL(triggered()), this, SLOT(openPreferences()));
+
     // add the external tools menu
     ActionManager *am = m_core->actionManager();
     ActionContainer *mexternaltools = am->createMenu(Id(Constants::M_TOOLS_EXTERNAL));
@@ -805,7 +814,7 @@ void ExternalToolManager::setToolsByCategory(const QMap<QString, QList<Internal:
         it.next();
         ActionContainer *container = 0;
         const QString &containerName = it.key();
-        if (containerName == QString()) { // no displayCategory, so put into external tools menu directly
+        if (containerName.isEmpty()) { // no displayCategory, so put into external tools menu directly
             container = mexternaltools;
         } else {
             if (m_containers.contains(containerName)) {
@@ -844,6 +853,10 @@ void ExternalToolManager::setToolsByCategory(const QMap<QString, QList<Internal:
     qDeleteAll(m_containers);
     // remember the new containers
     m_containers = newContainers;
+
+    // (re)add the configure menu item
+    mexternaltools->menu()->addAction(m_configureSeparator);
+    mexternaltools->menu()->addAction(m_configureAction);
 }
 
 void ExternalToolManager::readSettings(const QMap<QString, ExternalTool *> &tools,
@@ -854,8 +867,11 @@ void ExternalToolManager::readSettings(const QMap<QString, ExternalTool *> &tool
 
     if (categoryMap) {
         settings->beginGroup(QLatin1String("OverrideCategories"));
-        foreach (const QString &category, settings->childGroups()) {
-            int count = settings->beginReadArray(category);
+        foreach (const QString &settingsCategory, settings->childGroups()) {
+            QString displayCategory = settingsCategory;
+            if (displayCategory == QLatin1String(kSpecialUncategorizedSetting))
+                displayCategory = QLatin1String("");
+            int count = settings->beginReadArray(settingsCategory);
             for (int i = 0; i < count; ++i) {
                 settings->setArrayIndex(i);
                 const QString &toolId = settings->value(QLatin1String("Tool")).toString();
@@ -866,7 +882,7 @@ void ExternalToolManager::readSettings(const QMap<QString, ExternalTool *> &tool
                     if (categoryMap->value(tool->displayCategory()).isEmpty())
                         categoryMap->remove(tool->displayCategory());
                     // add to new category
-                    (*categoryMap)[category].append(tool);
+                    (*categoryMap)[displayCategory].append(tool);
                 }
             }
             settings->endArray();
@@ -887,7 +903,9 @@ void ExternalToolManager::writeSettings()
     QMapIterator<QString, QList<ExternalTool *> > it(m_categoryMap);
     while (it.hasNext()) {
         it.next();
-        const QString &category = it.key();
+        QString category = it.key();
+        if (category.isEmpty())
+            category = QLatin1String(kSpecialUncategorizedSetting);
         settings->beginWriteArray(category, it.value().count());
         int i = 0;
         foreach (ExternalTool *tool, it.value()) {
@@ -900,4 +918,10 @@ void ExternalToolManager::writeSettings()
     settings->endGroup();
 
     settings->endGroup();
+}
+
+void ExternalToolManager::openPreferences()
+{
+    ICore::instance()->showOptionsDialog(QLatin1String(Core::Constants::SETTINGS_CATEGORY_CORE),
+                                         QLatin1String(Core::Constants::SETTINGS_ID_TOOLS));
 }

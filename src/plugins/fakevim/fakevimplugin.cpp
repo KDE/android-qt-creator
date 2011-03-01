@@ -298,6 +298,7 @@ class FakeVimExCommandsPage : public Core::CommandMappings
 
 public:
     FakeVimExCommandsPage(FakeVimPluginPrivate *q) : m_q(q) {}
+    ~FakeVimExCommandsPage() { qDeleteAll(m_citems); }
 
     // IOptionsPage
     QString id() const { return _(Constants::SETTINGS_EX_CMDS_ID); }
@@ -331,9 +332,7 @@ QWidget *FakeVimExCommandsPage::createPage(QWidget *parent)
     setTargetHeader(tr("Ex Trigger Expression"));
     setTargetLabelText(tr("Regular expression:"));
     setTargetEditTitle(tr("Ex Command"));
-
     setImportExportEnabled(false);
-
     return w;
 }
 
@@ -492,32 +491,41 @@ public:
         m_editor = 0;
     }
 
-    virtual ~WordCompletion() {}
-
     virtual bool shouldRestartCompletion()
     {
         //qDebug() << "SHOULD RESTART COMPLETION?";
         return false;
     }
 
-    virtual ITextEditable *editor() const
+    virtual ITextEditor *editor() const
     {
         //qDebug() << "NO EDITOR?";
         return m_editable;
     }
 
-    virtual int startPosition() const { return m_startPosition; }
+    virtual int startPosition() const
+    {
+        return m_startPosition;
+    }
 
-    virtual bool supportsEditor(ITextEditable *) { return true; }
+    virtual bool supportsEditor(ITextEditor *) const
+    {
+        return true;
+    }
 
-    virtual bool triggersCompletion(ITextEditable *editable)
+    virtual bool supportsPolicy(CompletionPolicy policy) const
+    {
+        return policy == TextCompletion;
+    }
+
+    virtual bool triggersCompletion(ITextEditor *editable)
     {
         //qDebug() << "TRIGGERS?";
         QTC_ASSERT(m_editable == editable, /**/);
         return true;
     }
 
-    virtual int startCompletion(ITextEditable *editable)
+    virtual int startCompletion(ITextEditor *editable)
     {
         //qDebug() << "START COMPLETION";
         QTC_ASSERT(m_editor, return -1);
@@ -531,15 +539,15 @@ public:
         m_handler = handler;
         if (!m_handler)
             return;
-        m_editor = qobject_cast<BaseTextEditor *>(handler->widget());
+        m_editor = qobject_cast<BaseTextEditorWidget *>(handler->widget());
         if (!m_editor)
             return;
         //qDebug() << "ACTIVATE: " << needle << forward;
         m_needle = needle;
-        m_editable = m_editor->editableInterface();
+        m_editable = m_editor->editor();
         m_startPosition = m_editor->textCursor().position() - needle.size();
 
-        CompletionSupport::instance()->autoComplete(m_editable, false);
+        CompletionSupport::instance()->complete(m_editable, TextCompletion, false);
     }
 
     void setInactive()
@@ -613,8 +621,8 @@ private:
     bool isInComment() const;
 
     FakeVimHandler *m_handler;
-    BaseTextEditor *m_editor;
-    ITextEditable *m_editable;
+    BaseTextEditorWidget *m_editor;
+    ITextEditor *m_editable;
     QString m_needle;
     QString m_currentPrefix;
     QList<CompletionItem> m_items;
@@ -1160,9 +1168,12 @@ void FakeVimPluginPrivate::setUseFakeVim(const QVariant &value)
         //core->updateAdditionalContexts(Core::Context(),
         // Core::Context(FAKEVIM_CONTEXT));
         showCommandBuffer(QString());
-        TabSettings ts = TextEditorSettings::instance()->tabSettings();
-        foreach (Core::IEditor *editor, m_editorToHandler.keys())
-            m_editorToHandler[editor]->restoreWidget(ts.m_tabSize);
+        foreach (Core::IEditor *editor, m_editorToHandler.keys()) {
+            if (TextEditor::BaseTextEditorWidget *textEditor =
+                    qobject_cast<TextEditor::BaseTextEditorWidget *>(editor->widget())) {
+                m_editorToHandler[editor]->restoreWidget(textEditor->tabSettings().m_tabSize);
+            }
+        }
     }
 }
 
@@ -1171,9 +1182,9 @@ void FakeVimPluginPrivate::triggerCompletions()
     FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
     if (!handler)
         return;
-    if (BaseTextEditor *editor = qobject_cast<BaseTextEditor *>(handler->widget()))
+    if (BaseTextEditorWidget *editor = qobject_cast<BaseTextEditorWidget *>(handler->widget()))
         CompletionSupport::instance()->
-            autoComplete(editor->editableInterface(), false);
+            complete(editor->editor(), TextCompletion, false);
    //     editor->triggerCompletions();
 }
 
@@ -1189,7 +1200,7 @@ void FakeVimPluginPrivate::setBlockSelection(bool on)
     FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
     if (!handler)
         return;
-    if (BaseTextEditor *bt = qobject_cast<BaseTextEditor *>(handler->widget()))
+    if (BaseTextEditorWidget *bt = qobject_cast<BaseTextEditorWidget *>(handler->widget()))
         bt->setBlockSelection(on);
 }
 
@@ -1198,7 +1209,7 @@ void FakeVimPluginPrivate::hasBlockSelection(bool *on)
     FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
     if (!handler)
         return;
-    if (BaseTextEditor *bt = qobject_cast<BaseTextEditor *>(handler->widget()))
+    if (BaseTextEditorWidget *bt = qobject_cast<BaseTextEditorWidget *>(handler->widget()))
         *on = bt->hasBlockSelection();
 }
 
@@ -1207,7 +1218,7 @@ void FakeVimPluginPrivate::checkForElectricCharacter(bool *result, QChar c)
     FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
     if (!handler)
         return;
-    if (BaseTextEditor *bt = qobject_cast<BaseTextEditor *>(handler->widget()))
+    if (BaseTextEditorWidget *bt = qobject_cast<BaseTextEditorWidget *>(handler->widget()))
         *result = bt->indenter()->isElectricCharacter(c);
 }
 
@@ -1378,7 +1389,7 @@ void FakeVimPluginPrivate::indentRegion(int beginLine, int endLine,
     if (!handler)
         return;
 
-    BaseTextEditor *bt = qobject_cast<BaseTextEditor *>(handler->widget());
+    BaseTextEditorWidget *bt = qobject_cast<BaseTextEditorWidget *>(handler->widget());
     if (!bt)
         return;
 
@@ -1435,8 +1446,8 @@ void FakeVimPluginPrivate::changeSelection
     (const QList<QTextEdit::ExtraSelection> &selection)
 {
     if (FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender()))
-        if (BaseTextEditor *bt = qobject_cast<BaseTextEditor *>(handler->widget()))
-            bt->setExtraSelections(BaseTextEditor::FakeVimSelection, selection);
+        if (BaseTextEditorWidget *bt = qobject_cast<BaseTextEditorWidget *>(handler->widget()))
+            bt->setExtraSelections(BaseTextEditorWidget::FakeVimSelection, selection);
 }
 
 int FakeVimPluginPrivate::currentFile() const

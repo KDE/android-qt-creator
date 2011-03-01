@@ -62,7 +62,6 @@ public:
 
     QDeclarativeView *declarativeView();
 
-    QToolBar *toolbar() const;
     static QString idStringForObject(QObject *obj);
     QRectF adjustToScreenBoundaries(const QRectF &boundingRectInSceneSpace);
 
@@ -120,6 +119,6 @@ private:
     friend class AbstractLiveEditTool;
 };
 
-} //namespace QmlJSDebugger
+} // namespace QmlJSDebugger
 
 #endif // QDECLARATIVEVIEWOBSERVER_H

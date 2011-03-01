@@ -118,10 +118,10 @@ Core::IFile *CppEditorFactory::open(const QString &fileName)
 
 Core::IEditor *CppEditorFactory::createEditor(QWidget *parent)
 {
-    CPPEditor *editor = new CPPEditor(parent);
+    CPPEditorWidget *editor = new CPPEditorWidget(parent);
     editor->setRevisionsVisible(true);
     m_owner->initializeEditor(editor);
-    return editor->editableInterface();
+    return editor->editor();
 }
 
 QStringList CppEditorFactory::mimeTypes() const
@@ -172,19 +172,11 @@ CppPlugin *CppPlugin::instance()
     return m_instance;
 }
 
-void CppPlugin::initializeEditor(CPPEditor *editor)
+void CppPlugin::initializeEditor(CPPEditorWidget *editor)
 {
     m_actionHandler->setupActions(editor);
 
     TextEditor::TextEditorSettings::instance()->initializeEditor(editor);
-
-    // auto completion
-    connect(editor, SIGNAL(requestAutoCompletion(TextEditor::ITextEditable*, bool)),
-            TextEditor::CompletionSupport::instance(), SLOT(autoComplete(TextEditor::ITextEditable*, bool)));
-
-    // quick fix
-    connect(editor, SIGNAL(requestQuickFix(TextEditor::ITextEditable*)),
-            this, SLOT(quickFix(TextEditor::ITextEditable*)));
 
     // method combo box sorting
     connect(this, SIGNAL(outlineSortingChanged(bool)),
@@ -360,7 +352,7 @@ ExtensionSystem::IPlugin::ShutdownFlag CppPlugin::aboutToShutdown()
 void CppPlugin::switchDeclarationDefinition()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    CPPEditor *editor = qobject_cast<CPPEditor*>(em->currentEditor()->widget());
+    CPPEditorWidget *editor = qobject_cast<CPPEditorWidget*>(em->currentEditor()->widget());
     if (editor)
         editor->switchDeclarationDefinition();
 }
@@ -368,7 +360,7 @@ void CppPlugin::switchDeclarationDefinition()
 void CppPlugin::jumpToDefinition()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    CPPEditor *editor = qobject_cast<CPPEditor*>(em->currentEditor()->widget());
+    CPPEditorWidget *editor = qobject_cast<CPPEditorWidget*>(em->currentEditor()->widget());
     if (editor)
         editor->jumpToDefinition();
 }
@@ -376,7 +368,7 @@ void CppPlugin::jumpToDefinition()
 void CppPlugin::renameSymbolUnderCursor()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    CPPEditor *editor = qobject_cast<CPPEditor*>(em->currentEditor()->widget());
+    CPPEditorWidget *editor = qobject_cast<CPPEditorWidget*>(em->currentEditor()->widget());
     if (editor)
         editor->renameSymbolUnderCursor();
 }
@@ -384,31 +376,32 @@ void CppPlugin::renameSymbolUnderCursor()
 void CppPlugin::findUsages()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    CPPEditor *editor = qobject_cast<CPPEditor*>(em->currentEditor()->widget());
+    CPPEditorWidget *editor = qobject_cast<CPPEditorWidget*>(em->currentEditor()->widget());
     if (editor)
         editor->findUsages();
 }
 
-void CppPlugin::quickFix(TextEditor::ITextEditable *editable)
+void CppPlugin::quickFix(TextEditor::ITextEditor *editor)
 {
-    m_currentTextEditable = editable;
+    m_currentEditor = editor;
     quickFixNow();
 }
 
 void CppPlugin::quickFixNow()
 {
-    if (! m_currentTextEditable)
+    if (! m_currentEditor)
         return;
 
     Core::EditorManager *em = Core::EditorManager::instance();
-    CPPEditor *currentEditor = qobject_cast<CPPEditor*>(em->currentEditor()->widget());
+    CPPEditorWidget *currentEditor = qobject_cast<CPPEditorWidget*>(em->currentEditor()->widget());
 
-    if (CPPEditor *editor = qobject_cast<CPPEditor*>(m_currentTextEditable->widget())) {
+    if (CPPEditorWidget *editor = qobject_cast<CPPEditorWidget*>(m_currentEditor->widget())) {
         if (currentEditor == editor) {
             if (editor->isOutdated())
                 m_quickFixTimer->start(QUICKFIX_INTERVAL);
             else
-                TextEditor::CompletionSupport::instance()->quickFix(m_currentTextEditable);
+                TextEditor::CompletionSupport::instance()->
+                    complete(m_currentEditor, TextEditor::QuickFixCompletion, true);
         }
     }
 }
@@ -438,7 +431,7 @@ void CppPlugin::currentEditorChanged(Core::IEditor *editor)
     if (! editor)
         return;
 
-    else if (CPPEditor *textEditor = qobject_cast<CPPEditor *>(editor->widget())) {
+    else if (CPPEditorWidget *textEditor = qobject_cast<CPPEditorWidget *>(editor->widget())) {
         textEditor->rehighlight(/*force = */ true);
     }
 }
@@ -446,7 +439,7 @@ void CppPlugin::currentEditorChanged(Core::IEditor *editor)
 void CppPlugin::openTypeHierarchy()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    CPPEditor *editor = qobject_cast<CPPEditor*>(em->currentEditor()->widget());
+    CPPEditorWidget *editor = qobject_cast<CPPEditorWidget*>(em->currentEditor()->widget());
     if (editor) {
         Core::NavigationWidget *navigation = Core::NavigationWidget::instance();
         navigation->activateSubWidget(QLatin1String(Constants::TYPE_HIERARCHY_ID));

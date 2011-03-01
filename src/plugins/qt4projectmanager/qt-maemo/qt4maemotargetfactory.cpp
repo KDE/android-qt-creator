@@ -44,8 +44,6 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
 
-#include <QtGui/QApplication>
-
 using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
 using ProjectExplorer::idFromMap;
@@ -72,7 +70,7 @@ bool Qt4MaemoTargetFactory::supportsTargetId(const QString &id) const
 QStringList Qt4MaemoTargetFactory::supportedTargetIds(ProjectExplorer::Project *parent) const
 {
     QStringList targetIds;
-    if (!qobject_cast<Qt4Project *>(parent))
+    if (parent && !qobject_cast<Qt4Project *>(parent))
         return targetIds;
     if (QtVersionManager::instance()->supportsTargetId(QLatin1String(Constants::MAEMO5_DEVICE_TARGET_ID)))
         targetIds << QLatin1String(Constants::MAEMO5_DEVICE_TARGET_ID);
@@ -92,6 +90,12 @@ QString Qt4MaemoTargetFactory::displayNameForId(const QString &id) const
     else if (id == QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID))
         return Qt4MeegoTarget::defaultDisplayName();
     return QString();
+}
+
+QIcon Qt4MaemoTargetFactory::iconForId(const QString &id) const
+{
+    Q_UNUSED(id)
+    return QIcon(":/projectexplorer/images/MaemoDevice.png");
 }
 
 bool Qt4MaemoTargetFactory::canCreate(ProjectExplorer::Project *parent, const QString &id) const
@@ -145,19 +149,10 @@ QString Qt4MaemoTargetFactory::defaultShadowBuildDirectory(const QString &projec
     return projectLocation + QLatin1Char('-') + suffix;
 }
 
-QList<BuildConfigurationInfo> Qt4MaemoTargetFactory::availableBuildConfigurations(const QString &proFilePath)
-{
-    return QList<BuildConfigurationInfo>()
-        << availableBuildConfigurations(proFilePath, QLatin1String(Constants::MAEMO5_DEVICE_TARGET_ID))
-        << availableBuildConfigurations(proFilePath, QLatin1String(Constants::HARMATTAN_DEVICE_TARGET_ID))
-        << availableBuildConfigurations(proFilePath, QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID));
-}
-
-QList<BuildConfigurationInfo> Qt4MaemoTargetFactory::availableBuildConfigurations(const QString &proFilePath,
-    const QString &id)
+QList<BuildConfigurationInfo> Qt4MaemoTargetFactory::availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion)
 {
     QList<BuildConfigurationInfo> infos;
-    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id);
+    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion);
 
     foreach (QtVersion *version, knownVersions) {
         if (!version->isValid())
@@ -168,6 +163,12 @@ QList<BuildConfigurationInfo> Qt4MaemoTargetFactory::availableBuildConfiguration
         infos.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
     }
     return infos;
+}
+
+bool Qt4MaemoTargetFactory::isMobileTarget(const QString &id)
+{
+    Q_UNUSED(id)
+    return true;
 }
 
 Qt4BaseTarget *Qt4MaemoTargetFactory::create(ProjectExplorer::Project *parent, const QString &id)
@@ -190,7 +191,7 @@ Qt4BaseTarget *Qt4MaemoTargetFactory::create(ProjectExplorer::Project *parent, c
 }
 
 Qt4BaseTarget *Qt4MaemoTargetFactory::create(ProjectExplorer::Project *parent,
-    const QString &id, QList<BuildConfigurationInfo> infos)
+    const QString &id, const QList<BuildConfigurationInfo> &infos)
 {
     if (!canCreate(parent, id))
         return 0;

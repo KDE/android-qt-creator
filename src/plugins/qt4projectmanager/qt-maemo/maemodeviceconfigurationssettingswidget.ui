@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>703</width>
+    <width>708</width>
     <height>421</height>
    </rect>
   </property>
@@ -113,6 +113,19 @@
                  <string>&amp;Key</string>
                 </property>
                </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_4">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
               </item>
              </layout>
             </widget>
@@ -323,7 +336,7 @@
            <item row="2" column="1">
             <widget class="QLabel" name="deviceTypeValueLabel">
              <property name="text">
-              <string>TextLabel</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -337,7 +350,7 @@
            <item row="1" column="1">
             <widget class="QLabel" name="osTypeValueLabel">
              <property name="text">
-              <string>TextLabel</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -489,8 +502,8 @@
    <slot>hostNameEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>335</x>
-     <y>148</y>
+     <x>484</x>
+     <y>174</y>
     </hint>
     <hint type="destinationlabel">
      <x>424</x>
@@ -505,8 +518,8 @@
    <slot>userNameEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>430</x>
-     <y>274</y>
+     <x>536</x>
+     <y>286</y>
     </hint>
     <hint type="destinationlabel">
      <x>422</x>
@@ -521,8 +534,8 @@
    <slot>passwordEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>306</x>
-     <y>302</y>
+     <x>412</x>
+     <y>314</y>
     </hint>
     <hint type="destinationlabel">
      <x>423</x>
@@ -537,8 +550,8 @@
    <slot>addConfig()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>465</x>
-     <y>27</y>
+     <x>697</x>
+     <y>33</y>
     </hint>
     <hint type="destinationlabel">
      <x>516</x>
@@ -553,8 +566,8 @@
    <slot>deleteConfig()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>473</x>
-     <y>61</y>
+     <x>697</x>
+     <y>66</y>
     </hint>
     <hint type="destinationlabel">
      <x>513</x>
@@ -570,7 +583,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>228</x>
-     <y>135</y>
+     <y>147</y>
     </hint>
     <hint type="destinationlabel">
      <x>513</x>
@@ -585,8 +598,8 @@
    <slot>keyFileEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>149</x>
-     <y>334</y>
+     <x>434</x>
+     <y>346</y>
     </hint>
     <hint type="destinationlabel">
      <x>257</x>
@@ -601,8 +614,8 @@
    <slot>keyFileEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>149</x>
-     <y>334</y>
+     <x>434</x>
+     <y>346</y>
     </hint>
     <hint type="destinationlabel">
      <x>257</x>
@@ -617,8 +630,8 @@
    <slot>testConfig()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>473</x>
-     <y>90</y>
+     <x>697</x>
+     <y>99</y>
     </hint>
     <hint type="destinationlabel">
      <x>428</x>
@@ -633,8 +646,8 @@
    <slot>deployKey()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>473</x>
-     <y>148</y>
+     <x>697</x>
+     <y>165</y>
     </hint>
     <hint type="destinationlabel">
      <x>510</x>
@@ -650,7 +663,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>280</x>
-     <y>135</y>
+     <y>147</y>
     </hint>
     <hint type="destinationlabel">
      <x>525</x>
@@ -665,8 +678,8 @@
    <slot>configNameEditingFinished()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>237</x>
-     <y>75</y>
+     <x>520</x>
+     <y>82</y>
     </hint>
     <hint type="destinationlabel">
      <x>330</x>
@@ -681,8 +694,8 @@
    <slot>showGenerateSshKeyDialog()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>585</x>
-     <y>131</y>
+     <x>697</x>
+     <y>132</y>
     </hint>
     <hint type="destinationlabel">
      <x>358</x>
@@ -698,7 +711,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>217</x>
-     <y>245</y>
+     <y>257</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -714,7 +727,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>217</x>
-     <y>245</y>
+     <y>257</y>
     </hint>
     <hint type="destinationlabel">
      <x>0</x>
@@ -730,7 +743,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>210</x>
-     <y>189</y>
+     <y>201</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
@@ -746,7 +759,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>210</x>
-     <y>189</y>
+     <y>201</y>
     </hint>
     <hint type="destinationlabel">
      <x>3</x>
@@ -761,8 +774,8 @@
    <slot>showPassword(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>429</x>
-     <y>301</y>
+     <x>535</x>
+     <y>313</y>
     </hint>
     <hint type="destinationlabel">
      <x>3</x>
@@ -777,8 +790,8 @@
    <slot>handleFreePortsChanged()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>259</x>
-     <y>218</y>
+     <x>310</x>
+     <y>230</y>
     </hint>
     <hint type="destinationlabel">
      <x>0</x>
@@ -793,12 +806,28 @@
    <slot>showRemoteProcesses()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>591</x>
+     <x>697</x>
      <y>198</y>
     </hint>
     <hint type="destinationlabel">
      <x>598</x>
      <y>378</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>removeConfigButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MaemoDeviceConfigurationsSettingsWidget</receiver>
+   <slot>deleteConfig()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>697</x>
+     <y>63</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>351</x>
+     <y>210</y>
     </hint>
    </hints>
   </connection>

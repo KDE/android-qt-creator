@@ -120,7 +120,7 @@ static const VCSBase::VCSBaseSubmitEditorParameters submitEditorParameters = {
 static inline const VCSBase::VCSBaseEditorParameters *findType(int ie)
 {
     const VCSBase::EditorContentType et = static_cast<VCSBase::EditorContentType>(ie);
-    return  VCSBase::VCSBaseEditor::findType(editorParameters,
+    return  VCSBase::VCSBaseEditorWidget::findType(editorParameters,
                                              sizeof(editorParameters)/sizeof(VCSBase::VCSBaseEditorParameters), et);
 }
 
@@ -157,7 +157,7 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
 {
     typedef VCSBase::VCSEditorFactory<MercurialEditor> MercurialEditorFactory;
 
-    m_client = new MercurialClient();
+    m_client = new MercurialClient(mercurialSettings);
     VCSBase::VCSBasePlugin::initialize(new MercurialControl(m_client));
 
     core = Core::ICore::instance();
@@ -165,7 +165,7 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
 
     optionsPage = new OptionsPage();
     addAutoReleasedObject(optionsPage);
-    mercurialSettings.readSettings(core->settings());
+    mercurialSettings.readSettings(core->settings(), QLatin1String("Mercurial"));
 
     connect(optionsPage, SIGNAL(settingsChanged()), m_client, SLOT(settingsChanged()));
 
@@ -218,13 +218,13 @@ void MercurialPlugin::createMenu()
     menu->setTitle(tr("Mercurial"));
 
     createFileActions(context);
-    createSeparator(context, Core::Id("FileDirSeperator"));
+    createSeparator(context, Core::Id("Mercurial.FileDirSeperator"));
     createDirectoryActions(context);
-    createSeparator(context, Core::Id("DirRepoSeperator"));
+    createSeparator(context, Core::Id("Mercurial.DirRepoSeperator"));
     createRepositoryActions(context);
-    createSeparator(context, Core::Id("Repository Management"));
+    createSeparator(context, Core::Id("Mercurial.Repository Management"));
     createRepositoryManagementActions(context);
-    createSeparator(context, Core::Id("LessUsedfunctionality"));
+    createSeparator(context, Core::Id("Mercurial.LessUsedfunctionality"));
     createLessUsedActions(context);
 
     // Request the Tools menu and add the Mercurial menu to it
@@ -268,7 +268,7 @@ void MercurialPlugin::createFileActions(const Core::Context &context)
     mercurialContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
-    createSeparator(context, Core::Id("FileDirSeperator1"));
+    createSeparator(context, Core::Id("Mercurial.FileDirSeperator1"));
 
     m_addAction = new Utils::ParameterAction(tr("Add"), tr("Add \"%1\""), Utils::ParameterAction::EnabledWithParameter, this);
     command = actionManager->registerAction(m_addAction, Core::Id(Constants::ADD), context);
@@ -296,7 +296,7 @@ void MercurialPlugin::addCurrentFile()
 {
     const VCSBase::VCSBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return)
-    m_client->add(state.currentFileTopLevel(), state.relativeCurrentFile());
+    m_client->synchronousAdd(state.currentFileTopLevel(), state.relativeCurrentFile());
 }
 
 void MercurialPlugin::annotateCurrentFile()
@@ -395,7 +395,7 @@ void MercurialPlugin::revertMulti()
     RevertDialog reverter;
     if (reverter.exec() != QDialog::Accepted)
         return;
-    m_client->revertRepository(state.topLevel(), reverter.revision());
+    m_client->revertAll(state.topLevel(), reverter.revision());
 }
 
 void MercurialPlugin::statusMulti()
@@ -473,7 +473,7 @@ void MercurialPlugin::pull()
     dialog.setWindowTitle(tr("Pull Source"));
     if (dialog.exec() != QDialog::Accepted)
         return;
-    m_client->pullSync(state.topLevel(), dialog.getRepositoryString());
+    m_client->synchronousPull(state.topLevel(), dialog.getRepositoryString());
 }
 
 void MercurialPlugin::push()
@@ -485,7 +485,7 @@ void MercurialPlugin::push()
     dialog.setWindowTitle(tr("Push Destination"));
     if (dialog.exec() != QDialog::Accepted)
         return;
-    m_client->pushSync(state.topLevel(), dialog.getRepositoryString());
+    m_client->synchronousPush(state.topLevel(), dialog.getRepositoryString());
 }
 
 void MercurialPlugin::update()
@@ -672,11 +672,14 @@ bool MercurialPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *sub
         editorFile->save();
         core->fileManager()->unblockFileChange(editorFile);
 
-        m_client->commit(commitEditor->repoRoot(), files, commitEditor->committerInfo(),
-                       editorFile->fileName(), true);
+        QHash<int, QVariant> extraOptions;
+        extraOptions[MercurialClient::AuthorCommitOptionId] = commitEditor->committerInfo();
+        m_client->commit(m_submitRepository, files, editorFile->fileName(),
+                         extraOptions);
     }
     return true;
 }
+
 void MercurialPlugin::deleteCommitLog()
 {
     if (changeLog) {

@@ -48,16 +48,19 @@ public:
     QStringList supportedTargetIds(ProjectExplorer::Project *parent) const;
     bool supportsTargetId(const QString &id) const;
     QString displayNameForId(const QString &id) const;
+    QIcon iconForId(const QString &id) const;
 
     bool canCreate(ProjectExplorer::Project *parent, const QString &id) const;
     bool canRestore(ProjectExplorer::Project *parent, const QVariantMap &map) const;
-
     Qt4ProjectManager::Qt4BaseTarget *restore(ProjectExplorer::Project *parent, const QVariantMap &map);
+
     Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id);
-    Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id, QList<BuildConfigurationInfo> infos);
+    Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos);
+    Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id, Qt4TargetSetupWidget *widget);
 
     QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id);
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &proFilePath);
+    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion);
+    bool isMobileTarget(const QString &id);
 };
 
 } // namespace Internal

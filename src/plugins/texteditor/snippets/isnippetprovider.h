@@ -34,15 +34,13 @@
 #ifndef ISNIPPETEDITORDECORATOR_H
 #define ISNIPPETEDITORDECORATOR_H
 
-#include "snippet.h"
-
 #include <texteditor/texteditor_global.h>
 
 #include <QtCore/QObject>
 
 namespace TextEditor {
 
-class SnippetEditor;
+class SnippetEditorWidget;
 
 class TEXTEDITOR_EXPORT ISnippetProvider : public QObject
 {
@@ -52,7 +50,7 @@ public:
 
     virtual QString groupId() const = 0;
     virtual QString displayName() const = 0;
-    virtual void decorateEditor(SnippetEditor *editor) const = 0;
+    virtual void decorateEditor(SnippetEditorWidget *editor) const = 0;
 
 protected:
     ISnippetProvider();

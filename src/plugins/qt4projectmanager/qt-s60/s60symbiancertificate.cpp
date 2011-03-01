@@ -67,7 +67,7 @@ namespace {
 /*
 * X.509 S60 Certificate Extension
 */
-class S60CertificateExtension : Certificate_Extension
+class S60CertificateExtension : public Certificate_Extension
 {
 public:
     OID oid_of() const;
@@ -336,7 +336,7 @@ public:
 
     /**
    * Get a value for a specific subject_info parameter name.
-   * @param name the name of the paramter to look up. Possible names are
+   * @param name the name of the parameter to look up. Possible names are
    * "X509.Certificate.version", "X509.Certificate.serial",
    * "X509.Certificate.start", "X509.Certificate.end",
    * "X509.Certificate.v2.key_id", "X509.Certificate.public_key",
@@ -350,7 +350,7 @@ public:
 
     /**
    * Get a value for a specific subject_info parameter name.
-   * @param name the name of the paramter to look up. Possible names are
+   * @param name the name of the parameter to look up. Possible names are
    * "X509.Certificate.v2.key_id" or "X509v3.AuthorityKeyIdentifier".
    * @return the value(s) of the specified parameter
    */

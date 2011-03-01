@@ -84,7 +84,8 @@ QString S60RunControlFactory::displayName() const
     return m_name;
 }
 
-QWidget *S60RunControlFactory::createConfigurationWidget(RunConfiguration * /*S60DeviceRunConfiguration */)
+ProjectExplorer::RunConfigWidget *S60RunControlFactory::createConfigurationWidget(RunConfiguration *runConfiguration)
 {
+    Q_UNUSED(runConfiguration);
     return 0;
 }
