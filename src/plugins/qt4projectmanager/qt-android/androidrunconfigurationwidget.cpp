@@ -14,7 +14,6 @@ are required by law.
 #include "androidmanager.h"
 #include "androidrunconfiguration.h"
 #include "androidsettingspage.h"
-#include "androidtoolchain.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>

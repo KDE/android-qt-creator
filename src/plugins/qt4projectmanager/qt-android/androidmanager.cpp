@@ -41,6 +41,7 @@ AndroidManager::AndroidManager()
     , m_deployStepFactory(new AndroidDeployStepFactory(this))
     , m_settingsPage(new AndroidSettingsPage(this))
     , m_androidTargetFactory(new Qt4AndroidTargetFactory())
+    , m_toolChainFactory(new AndroidToolChainFactory)
 {
     Q_ASSERT(!m_instance);
 
@@ -48,6 +49,7 @@ AndroidManager::AndroidManager()
     AndroidConfigurations::instance(this);
 
     PluginManager *pluginManager = PluginManager::instance();
+    pluginManager->addObject(m_toolChainFactory);
     pluginManager->addObject(m_runControlFactory);
     pluginManager->addObject(m_runConfigurationFactory);
     pluginManager->addObject(m_packageCreationFactory);
@@ -65,6 +67,8 @@ AndroidManager::~AndroidManager()
     pluginManager->removeObject(m_packageCreationFactory);
     pluginManager->removeObject(m_settingsPage);
     pluginManager->removeObject(m_androidTargetFactory);
+    pluginManager->removeObject(m_toolChainFactory);
+    delete m_toolChainFactory;
 
     m_instance = 0;
 }
@@ -80,11 +84,5 @@ bool AndroidManager::isValidAndroidQtVersion(const QtVersion *version) const
     return version->mkspec().contains("android-g++");
 }
 
-ToolChain* AndroidManager::androidToolChain() const
-{
-#warning TODO FIX Android
-    return new AndroidToolChain(AndroidConfigurations::instance().config().NDKLocation +"/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-gcc");
-}
-
-    } // namespace Internal
+} // namespace Internal
 } // namespace Qt4ProjectManager

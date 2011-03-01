@@ -73,7 +73,7 @@ public:
     DebuggingType debuggingType() const;
 
     const QString gdbCmd() const;
-    const QString remoteChannel();
+    const QString remoteChannel() const;
     const QString dumperLib() const;
 
     virtual QVariantMap toMap() const;

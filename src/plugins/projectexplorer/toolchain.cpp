@@ -58,8 +58,6 @@ public:
     QString m_id;
     bool m_autodetect;
     mutable QString m_displayName;
-    case ToolChain_GCC_ANDROID:
-        return QCoreApplication::translate("ToolChain", "GCC for Android");
 };
 
 } // namespace Internal

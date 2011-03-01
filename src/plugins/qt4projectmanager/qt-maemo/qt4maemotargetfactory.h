@@ -57,11 +57,15 @@ public:
 
     bool supportsTargetId(const QString &id) const;
 
+    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &proFilePath);
     Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id);
     Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos);
 
     QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion);
     bool isMobileTarget(const QString &id);
+private:
+    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &proFilePath,
+        const QString &id);
 };
 
 } // namespace Internal

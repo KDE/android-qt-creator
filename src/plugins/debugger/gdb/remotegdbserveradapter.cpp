@@ -80,7 +80,6 @@ AbstractGdbAdapter::DumperHandling RemoteGdbServerAdapter::dumperHandling() cons
     if (m_abi.os() == ProjectExplorer::Abi::SymbianOS
             || m_abi.os() == ProjectExplorer::Abi::WindowsOS
             || m_abi.binaryFormat() == ProjectExplorer::Abi::ElfFormat)
-    case ProjectExplorer::ToolChain_GCC_ANDROID:
         return DumperLoadedByGdb;
     return DumperLoadedByGdbPreload;
 }

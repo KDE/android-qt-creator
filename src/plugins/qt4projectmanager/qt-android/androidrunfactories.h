@@ -15,12 +15,14 @@ are required by law.
 namespace ProjectExplorer {
     class RunConfiguration;
     class RunControl;
+    class RunConfigWidget;
     class Target;
 }
 using ProjectExplorer::IRunConfigurationFactory;
 using ProjectExplorer::IRunControlFactory;
 using ProjectExplorer::RunConfiguration;
 using ProjectExplorer::RunControl;
+using ProjectExplorer::RunConfigWidget;
 using ProjectExplorer::Target;
 
 namespace Qt4ProjectManager {
@@ -55,7 +57,7 @@ public:
     ~AndroidRunControlFactory();
 
     QString displayName() const;
-    QWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
+    RunConfigWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
 
     bool canRun(RunConfiguration *runConfiguration, const QString &mode) const;
     RunControl *create(RunConfiguration *runConfiguration, const QString &mode);

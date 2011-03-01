@@ -46,6 +46,7 @@
 #include "qt-android/androidmanager.h"
 #include "qt-s60/gccetoolchain.h"
 #include "qt-s60/winscwtoolchain.h"
+#include "qt-android/androidmanager.h"
 
 #include "qmlobservertool.h"
 #include "qmldumptool.h"
@@ -1537,7 +1538,9 @@ void QtVersion::updateAbiAndMkspec() const
                                            ProjectExplorer::Abi::ElfFormat, 32));
         m_targetIds.insert(QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID));
     } else if (AndroidManager::instance().isValidAndroidQtVersion(this)) {
-        m_toolChains << ToolChainPtr(AndroidManager::instance().androidToolChain());
+        m_abis.append(ProjectExplorer::Abi(ProjectExplorer::Abi::ArmArchitecture, ProjectExplorer::Abi::LinuxOS,
+                                           ProjectExplorer::Abi::AndroidLinuxFlavor,
+                                           ProjectExplorer::Abi::ElfFormat, 32));
         m_targetIds.insert(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
     } else if (qmakeCXX.contains("g++")
                || qmakeCXX == "cl" || qmakeCXX == "icl" // intel cl
@@ -1892,7 +1895,6 @@ QStringList QtVersion::debuggingHelperLibraryLocations() const
 bool QtVersion::supportsBinaryDebuggingHelper() const
 {
     if (!isValid())
-        case ProjectExplorer::ToolChain_GCC_ANDROID:
         return false;
     return qtAbis().at(0).os() != ProjectExplorer::Abi::SymbianOS;
 }

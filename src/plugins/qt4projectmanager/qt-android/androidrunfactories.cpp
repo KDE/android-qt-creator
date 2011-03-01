@@ -13,7 +13,6 @@ are required by law.
 #include "androiddebugsupport.h"
 #include "androidrunconfiguration.h"
 #include "androidruncontrol.h"
-#include "androidtoolchain.h"
 #include "qt4androidtarget.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
@@ -162,7 +161,7 @@ QString AndroidRunControlFactory::displayName() const
     return tr("Run on device");
 }
 
-QWidget *AndroidRunControlFactory::createConfigurationWidget(RunConfiguration *config)
+RunConfigWidget *AndroidRunControlFactory::createConfigurationWidget(RunConfiguration *config)
 {
     Q_UNUSED(config)
     return 0;

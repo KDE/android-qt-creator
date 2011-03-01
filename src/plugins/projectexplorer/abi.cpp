@@ -116,6 +116,8 @@ Abi::Abi(const QString &abiString) :
             m_osFlavor = UnknownFlavor;
         else if (abiParts.at(2) == QLatin1String("generic") && m_os == LinuxOS)
             m_osFlavor = GenericLinuxFlavor;
+        else if (abiParts.at(2) == QLatin1String("android") && m_os == LinuxOS)
+            m_osFlavor = AndroidLinuxFlavor;
         else if (abiParts.at(2) == QLatin1String("maemo") && m_os == LinuxOS)
             m_osFlavor = MaemoLinuxFlavor;
         else if (abiParts.at(2) == QLatin1String("meego") && m_os == LinuxOS)
@@ -250,6 +252,8 @@ QString Abi::toString(const OSFlavor &of)
     switch (of) {
     case ProjectExplorer::Abi::GenericLinuxFlavor:
         return QLatin1String("generic");
+    case ProjectExplorer::Abi::AndroidLinuxFlavor:
+        return QLatin1String("android");
     case ProjectExplorer::Abi::MaemoLinuxFlavor:
         return QLatin1String("maemo");
     case ProjectExplorer::Abi::HarmattanLinuxFlavor:

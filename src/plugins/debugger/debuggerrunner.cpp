@@ -181,7 +181,6 @@ DebuggerRunControlPrivate::DebuggerRunControlPrivate(DebuggerRunControl *parent,
 
 } // namespace Internal
 
-        case ToolChain_GCC_ANDROID:
 DebuggerRunControl::DebuggerRunControl(RunConfiguration *runConfiguration,
                                        const DebuggerStartParameters &sp,
                                        const QPair<DebuggerEngineType, DebuggerEngineType> &masterSlaveEngineTypes)

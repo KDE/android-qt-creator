@@ -93,7 +93,8 @@ int AbstractMobileAppWizardDialog::nextId() const
     const bool maemoTargetSelected =
         m_targetsPage->isTargetSelected(QLatin1String(Constants::MAEMO5_DEVICE_TARGET_ID))
             || m_targetsPage->isTargetSelected(QLatin1String(Constants::HARMATTAN_DEVICE_TARGET_ID))
-            || m_targetsPage->isTargetSelected(QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID));
+            || m_targetsPage->isTargetSelected(QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID))
+            || m_targetsPage->isTargetSelected(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
 
     if (currentPage() == m_targetsPage) {
         if (symbianTargetSelected || maemoTargetSelected)

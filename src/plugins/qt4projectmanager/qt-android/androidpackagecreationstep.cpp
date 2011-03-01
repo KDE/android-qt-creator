@@ -13,7 +13,6 @@ are required by law.
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidpackagecreationwidget.h"
-#include "androidtoolchain.h"
 #include "qt4androidtarget.h"
 
 #include <projectexplorer/buildsteplist.h>

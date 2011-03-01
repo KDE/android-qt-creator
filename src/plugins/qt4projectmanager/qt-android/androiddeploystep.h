@@ -30,7 +30,6 @@ namespace Qt4ProjectManager {
 namespace Internal {
 class AndroidDeviceConfigListModel;
 class AndroidPackageCreationStep;
-class AndroidToolChain;
 
 class AndroidDeployStep : public ProjectExplorer::BuildStep
 {
