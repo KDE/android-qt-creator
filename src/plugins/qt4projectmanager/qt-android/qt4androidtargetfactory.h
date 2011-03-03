@@ -10,6 +10,7 @@ are required by law.
 #ifndef QT4ANDROIDTARGETFACTORY_H
 #define QT4ANDROIDTARGETFACTORY_H
 
+#include "qt4basetargetfactory.h"
 #include "qt4target.h"
 
 namespace Qt4ProjectManager {
