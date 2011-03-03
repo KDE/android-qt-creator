@@ -313,13 +313,21 @@ PropertyEditor::~PropertyEditor()
     qDeleteAll(m_typeHash);
 }
 
+static inline QString fixTypeNameForPanes(const QString &typeName)
+{
+    QString fixedTypeName = typeName;
+    fixedTypeName.replace(".", "/");
+    fixedTypeName.replace("QtQuick/", "Qt/");
+    return fixedTypeName;
+}
+
 void PropertyEditor::setupPane(const QString &typeName)
 {
 
     QUrl qmlFile = fileToUrl(locateQmlFile(QLatin1String("Qt/ItemPane.qml")));
     QUrl qmlSpecificsFile;
 
-    qmlSpecificsFile = fileToUrl(locateQmlFile(typeName + "Specifics.qml"));
+    qmlSpecificsFile = fileToUrl(locateQmlFile(fixTypeNameForPanes(typeName) + "Specifics.qml"));
     NodeType *type = m_typeHash.value(qmlFile.toString());
 
     if (!type) {
@@ -509,8 +517,8 @@ void PropertyEditor::updateSize()
 void PropertyEditor::setupPanes()
 {
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-    setupPane("Qt/Rectangle");
-    setupPane("Qt/Text");  
+    setupPane("QtQuick.Rectangle");
+    setupPane("QtQuick.Text");
     resetView();
     m_setupCompleted = true;
     QApplication::restoreOverrideCursor();
@@ -642,7 +650,7 @@ void PropertyEditor::resetView()
     QUrl qmlFile(qmlForNode(m_selectedNode, specificsClassName));
     QUrl qmlSpecificsFile;
     if (m_selectedNode.isValid())
-        qmlSpecificsFile = fileToUrl(locateQmlFile(m_selectedNode.type() + "Specifics.qml"));
+        qmlSpecificsFile = fileToUrl(locateQmlFile(fixTypeNameForPanes(m_selectedNode.type()) + "Specifics.qml"));
 
     QString specificQmlData;
 
@@ -882,9 +890,10 @@ void PropertyEditor::reloadQml()
 
 QString PropertyEditor::qmlFileName(const NodeMetaInfo &nodeInfo) const
 {
-    if (nodeInfo.typeName().split('/').last() == "QDeclarativeItem")
-        return "Qt/ItemPane.qml";
-    return nodeInfo.typeName() + QLatin1String("Pane.qml");
+    if (nodeInfo.typeName().split('.').last() == "QDeclarativeItem")
+        return "Qt/ItemPane.qml";    
+    const QString fixedTypeName = fixTypeNameForPanes(nodeInfo.typeName());
+    return fixedTypeName + QLatin1String("Pane.qml");
 }
 
 QUrl PropertyEditor::fileToUrl(const QString &filePath) const {

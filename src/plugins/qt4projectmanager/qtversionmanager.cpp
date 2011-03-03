@@ -182,7 +182,7 @@ QtVersionManager::QtVersionManager()
             ProjectExplorer::MingwToolChain *tc = createToolChain<ProjectExplorer::MingwToolChain>(ProjectExplorer::Constants::MINGW_TOOLCHAIN_ID);
             if (tc) {
                 tc->setCompilerPath(QDir::fromNativeSeparators(mingwDir) + QLatin1String("/bin/gcc.exe"));
-                tc->setDisplayName(tr("Mingw from %1").arg(version->displayName()));
+                tc->setDisplayName(tr("MinGW from %1").arg(version->displayName()));
                 ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
             }
         }
@@ -1601,24 +1601,35 @@ QString QtVersion::resolveLink(const QString &path) const
 
 QString QtVersion::qtCorePath() const
 {
-    QDir libDir(libraryInstallPath());
-    QFileInfoList infoList = libDir.entryInfoList();
-    foreach (const QFileInfo &info, infoList) {
-        const QString file = info.fileName();
-        if (info.isDir()
-                && file.startsWith(QLatin1String("QtCore"))
-                && file.endsWith(QLatin1String(".framework"))) {
-            // handle Framework
-            const QString libName = file.left(file.lastIndexOf('.'));
-            return libDir.absoluteFilePath(file + '/' + libName);
+    QList<QDir> dirs;
+    dirs << QDir(libraryInstallPath()) << QDir(versionInfo().value(QLatin1String("QT_INSTALL_BINS")));
+    foreach (const QDir &d, dirs) {
+        QFileInfoList infoList = d.entryInfoList();
+        QFileInfoList staticLibs;
+        foreach (const QFileInfo &info, infoList) {
+            const QString file = info.fileName();
+            if (info.isDir()
+                    && file.startsWith(QLatin1String("QtCore"))
+                    && file.endsWith(QLatin1String(".framework"))) {
+                // handle Framework
+                const QString libName = file.left(file.lastIndexOf('.'));
+                return info.absoluteFilePath() + '/' + libName;
+            }
+            if (info.isReadable()) {
+                if (file.startsWith(QLatin1String("libQtCore"))
+                        || file.startsWith(QLatin1String("QtCore"))) {
+                    // Only handle static libs if we can not find dynamic ones:
+                    if (file.endsWith(".a"))
+                        staticLibs.append(info);
+                    else if (file.endsWith(QLatin1String(".dll"))
+                                || file.endsWith(QString::fromLatin1(".so.") + qtVersionString()))
+                        return info.absoluteFilePath();
+                }
+            }
         }
-        if (info.isReadable()
-                && (file.startsWith(QLatin1String("libQtCore"))
-                    || file.startsWith(QLatin1String("QtCore")))
-                && (file.endsWith(QLatin1String(".dll"))
-                    || file.endsWith(QString::fromLatin1(".so.") + qtVersionString()))) {
-            return info.absoluteFilePath();
-        }
+        // Return path to first static library found:
+        if (!staticLibs.isEmpty())
+            return staticLibs.at(0).absoluteFilePath();
     }
     return QString();
 }

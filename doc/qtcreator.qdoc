@@ -143,7 +143,7 @@
             \endlist
        \o \l{Using Version Control Systems}
        \o \l{Using External Tools}
-       \o \l{Creating Task List Files}
+       \o \l{Showing Task List Files in the Build Issues Pane}
        \o \l{Using Command Line Options}
        \o \l{Getting Help}
        \o \l{Tips and Tricks}
@@ -763,7 +763,8 @@
     imported to the pane. Press \key F6 and \key Shift+F6 to jump from one issue
     to the next.
 
-    For more information about creating task files, see \l{Creating Task List Files}.
+    For more information about creating task files, see
+    \l{Showing Task List Files in the Build Issues Pane}.
 
     \section2 Search Results
 
@@ -1129,6 +1130,9 @@
 
     To view lists of files or projects, instead, select \gui {File System},
     \gui {Open Documents}, or \gui Projects in the menu.
+    To view several types of content at a time, split the sidebar by clicking
+    \inlineimage qtcreator-splitbar.png
+    .
 
     \section2 Switching Parent Elements
 
@@ -1149,6 +1153,12 @@
     The \gui {Library} pane contains two tabs: \gui {Items} and \gui {Resources}.
     The \gui Items pane displays the QML elements grouped by type: your own QML
     components, basic elements, interaction elements, views, and widgets.
+
+    Sets of UI components with the MeeGo and Symbian look and feel have been
+    defined for Qt Quick. They are based on standard QML elements. To view the
+    UI components in \gui {QML Components}, click
+    \inlineimage qtcreator-filter.png
+    and select \gui {MeeGo Components} or \gui {Symbian Components}.
 
     \image qmldesigner-qml-components.png "QML Components pane"
 
@@ -1194,6 +1204,58 @@
 
     For more information on the JavaScript environment provided by QML, see
     \l{http://doc.qt.nokia.com/4.7/qdeclarativejavascript.html}{Integrating JavaScript}.
+
+    \section2 Loading Placeholder Data
+
+    Often, QML applications are prototyped with fake data that is later
+    replaced by real data sources from C++ plugins. QML Viewer loads fake data
+    into the application context: it looks for a directory named \e dummydata
+    in the same directory as the target QML file, loads any .qml files in that
+    directory as QML objects, and binds them to the root context as properties.
+    For more information, see
+    \l{http://doc.qt.nokia.com/latest/qmlviewer.html}{QML Viewer}.
+
+    You can use dummydata files also to specify fake properties for QML
+    components that you open for editing in \QMLD.
+    A QML component provides a way of defining a new UI element that you can
+    re-use in other QML files. A component is generally defined in its own QML
+    file. You can use property binding to specify the properties of a component
+    to make it easily reusable.
+
+    For example, you can create a button bar component (buttonbar.qml) that
+    inherits its width from the screen that is its parent:
+
+    \code
+
+    import QtQuick 1.0
+
+    Item {
+        width: parent.width
+        }
+
+    \endcode
+
+    However, when you open the QML file for editing in \QMLD, the button bar
+    component does not have a width, because it is specified outside the QML
+    file (in the QML file that specifies the screen). To specify a fake width
+    for the component, create a \c <component>_dummydata.qml file (here,
+    buttonbar_dummydata.qml) that specifies the component width and copy it to
+    the \c dummydata directory.
+
+    For example:
+
+    \code
+    import QtQuick 1.0
+    import QmlDesigner 1.0
+
+    DummyContextObject {
+        parent: QtObject {
+        property real width: 1000
+        }
+    }
+    \endcode
+
+    The file is reloaded if you change it.
 
     \section2 Setting Anchors and Margins
 
@@ -1357,6 +1419,17 @@
     by default, click the
     \inlineimage qmldesigner-only-select-items-with-content.png
     button.
+
+    \section2 Previewing Element Size
+
+    The width and height of the root item in a QML file determine the size of
+    the QML element. To experiment with different sizes, enter values in the
+    \gui Height and \gui Width fields on the canvas toolbar. The changes are
+    displayed in the \gui States pane and on the canvas, but the property
+    values are not changed permanently in the QML file. You can permanently
+    change the property values in the \gui Properties pane.
+
+    \image qmldesigner-preview-size.png "Canvas width and height"
 
 */
 
@@ -1741,6 +1814,7 @@
     To paste a snippet of code onto the server, select \gui{Tools} >
     \gui{Code Pasting} > \gui{Paste Snippet...} or press \key{Alt+C,Alt+P}.
 
+
     To fetch a snippet of code from the server, select \gui{Tools} >
     \gui{Code Pasting} > \gui{Fetch Snippet...} or press \key{Alt+C,Alt+F}.
 
@@ -1923,6 +1997,10 @@
     needs. To configure the editor, select  \gui Tools > \gui{Options...} >
     \gui{Text Editor}.
 
+    These settings apply to all projects. To specify editor behavior for an
+    open project, select \gui {Projects > Editor Settings}. For more
+    information, see \l{Specifying Editor Settings}.
+
     \image qtcreator-font-colors.png "Text editor options"
 
     You can perform the following configuration actions:
@@ -1938,6 +2016,9 @@
            text wrapping or \l{Moving to symbol definition or declaration}
            {moving to symbol definition or declaration}
            in \gui Display.
+        \o Add, modify, and remove \l{Editing Code Snippets}{code snippets} in
+           \gui Snippets.
+        \o Edit \l{Recording and Playing Macros}{macros} in \gui Macros.
         \o Configure \l{Completing Code}{code completion} in \gui Completion.
     \endlist
 
@@ -2100,6 +2181,12 @@
     }
 
     \endcode
+
+\section2 File Encoding
+
+    To define the default file encoding, select the desired encoding in
+    \gui {Default encoding}. By default, Qt Creator uses the file encoding
+    used by your system.
 
 */
 
@@ -4079,8 +4166,8 @@
     not supported on the development PC. You can choose from a set of supported
     devices, such as S60 3rd Edition or S60 5th Edition devices.
 
-    \note Remote Compiler is an experimental component that you must install
-    separately from the package that is included in the \QSDK.
+    \note Remote Compiler is an experimental component that is installed as
+    part of \QSDK.
 
     \list 1
 
@@ -4088,7 +4175,7 @@
         \gui {Maintain \QSDK} tool.
 
         \o In the \gui {Package Manager}, select \gui {Experimental >
-        Remote Compiler}.
+        Remote Compiler} to install Remote Compiler.
 
         \o In Qt Creator, choose \gui {Tools > Options > Projects > Remote Compiler}
         to log on to Forum Nokia.
@@ -4113,7 +4200,7 @@
     the development PC.
 
     For more information about Remote Compiler, choose \gui {Help > Contents >
-    Remote Compiler}. The document is added during the installation of
+    Remote Compiler Manual}. The document is added during the installation of
     Remote Compiler.
 
 */
@@ -4276,6 +4363,12 @@
     requirements.
 
     \image qtcreator-build-environment.png "Build Environment"
+
+    \note The changes are stored in the local project specific \c{.pro.user}
+    file. Therefore, they are not suitable for sharing between developers or
+    development PCs. To share settings, incorporate them into the build system.
+    For example, if you use qmake, make the changes in the \c{.pro} file.
+
 
     \section2 Clearing the System Environment
 
@@ -4557,7 +4650,8 @@
     notifications and error messages.
 
     To create a SIS package without copying it to the device (for example, to submit it
-    to Ovi Signed or Symbian Signed), create a deploy configuration that contains only the
+    to \e {Application Signing Services for Ovi Store} or \e {Symbian Signed}),
+    create a deploy configuration that contains only the
     \gui {Create SIS Package} step.
 
     \image qtcreator-run-settings-create.png "Create SIS Package step"
@@ -4580,21 +4674,21 @@
     \endlist
 
     To get around these limitations, you need to go through the Symbian Signed
-    or Ovi Signed process. The Symbian Signed organisation manages a public key
+    or Application Signing Services for Ovi Store. The Symbian Signed organisation
+    manages a public key
     infrastructure to provide public authentication of the information in the
     application signing certificates. Their security partner can validate your
     certificate and give you a Publisher ID. Then, when you sign an
     application, other people can be confident that the information in your
     certificate is correct and that the application does actually come from you.
 
-    Ovi Signed is a variant of the Symbian Signed certification provided by Ovi
+    Application Signing Services for Ovi Store is a variant of the Symbian
+    Signed certification provided by Ovi
     Publishing. It is limited to the Basic and System capability sets
     (Express Signing). Participants can submit an unsigned SIS file to Ovi
-    Publishing for signing, quality assurance, packaging with Nokia Smart Installer
-    for Symbian, and publishing on Ovi Store. For more information about how
-    to participate and a list
-    of supported Nokia devices, see
-    \l{http://www.forum.nokia.com/Distribute/Packaging_and_signing.xhtml}{Packaging and Signing}.
+    Publishing for signing. For more information about how
+    to participate, see
+    {http://wiki.forum.nokia.com/index.php/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store}.
 
     There are also options that do not require you to get a Publisher ID. For
     more detail about how the Symbian Signed process works, see
@@ -4674,13 +4768,14 @@
     the necessary software and by installing the missing pieces.
 
     For this to work, the Nokia Smart Installer must be packaged with the Qt application. The
-    application SIS file must first be Symbian Signed or Ovi Signed. The capabilities used in the applications
+    application SIS file must first be Symbian Signed or signed by the Application
+    Signing Services for Ovi Store. The capabilities used in the applications
     determine, which signing option must be selected. The wrapper package must be signed using
     either the same option or a more extensive option than the application SIS.
 
-    \note If you use Ovi Signed, you can just submit an unsigned SIS file to Ovi Publishing.
-    Ovi signs the file for you and packages it with Nokia Smart Installer for Symbian.
-    For more information, see \l{Publishing Applications to Ovi Store}.
+    \note If you use the Application Signing Services for Ovi Store, you can submit an unsigned
+    wrapper package to Ovi Publishing. For more information, see
+    \l{Publishing Applications to Ovi Store}.
 
     You can either install the Nokia Smart Installer for Symbian as part of
     the \QSDK, or download and install it from the
@@ -4881,39 +4976,21 @@
 
     \title Publishing Applications to Ovi Store
 
-    To register as an Ovi Publisher, go to \l{https://publish.ovi.com/login}{Ovi Store}.
+    The process and requirements to publish Qt applications to Ovi Store are
+    described in the
+    \l {http://wiki.forum.nokia.com/index.php/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store} wiki.
 
-    At the time of writing this document, Ovi Store accepts Qt
-    applications for the following Nokia device models:
-
-    \list
-
-        \o Symbian^3: N8-00, E7-00, C7-00, C6-01
-
-        \o Symbian^1 (S60 5th Edition): X6-00, N97, N97 mini, 5800 XpressMusic,
-        5530 XpressMusic, 5230 ExpressMusic, C6-00, 5228, 5235
-
-        \o S60 3rd Edition: E72, E71, E66, E63, E52
-
-        \o Maemo: Nokia N900, with PR1.3 and later
-
-    \endlist
-
-    For an up-to-date list, see
-    \l{http://www.forum.nokia.com/Distribute/Packaging_and_signing.xhtml}{Packaging and Signing}.
-    New devices are added to the list periodically. The final authority
-    on the supported devices is the Ovi Publish tool itself.
+    This section describes, how to use Qt Creator to generate SIS packages that
+    you can publish to Ovi Store.
 
     \section1 Publishing Qt Content for Symbian Devices
 
-    You can use the Ovi Signed process to get your application Express Signed for
+    You can use the \e {Application Signing Services for Ovi Store} to get your
+    application Express Signed for
     free by Nokia. Make sure to use the \l{Application UID}{application UID} that you
     receive from Ovi Publisher Support. Then create an unsigned SIS package and submit
-    it to Ovi Publishing for signing, quality assurance, packaging with Nokia Smart
-    Installer for Symbian, and publishing to Ovi Store.
-
-    For more information about how to use Ovi Signed, see
-    \l{http://www.forum.nokia.com/Distribute/Packaging_and_signing.xhtml}{Packaging and Signing}.
+    it to signing. When you receive the signed package back, package it with
+    Nokia Smart Installer for Symbian before submitting it to Ovi Publishing.
 
     If the application uses functions that require advanced
     \l{Capabilities and Signing}{capabilities}, you must
@@ -4972,7 +5049,32 @@
 
         \o Choose \gui {Build > Run Project}.
 
-        \o Submit the SIS file to Ovi Publishing as a Qt Content item.
+        \o Submit the created .sis file to Application Signing Services for Ovi
+        Store for certification.
+
+        \note Ensure that your application complies with the Ovi Store
+        publishing requirements.
+
+        \o After receiving the signed .sis file from Ovi Publisher Support,
+        copy it over the old application.sis.
+
+        \note The instructions below assume that you have installed \QSDK.
+
+        \o To package Nokia Smart Installer for Symbian with the application, choose
+        \gui {Start > Qt SDK > Symbian > Qt for Symbian Command Prompt}
+        to open the Qt command line environment.
+
+        \o Change to the project directory. For example:
+
+        \c{cd C:\Sources\Application}
+
+        \o To create a Smart Installer wrapper package, enter the following
+        command:
+
+        \c {C:\Sources\Application> make ok_installer_sis QT_SIS_CERTIFICATE=publisherid.cer QT_SIS_KEY=publisherid.key}
+
+        \o Submit the created wrapped .sis file, application_installer.sis, to
+        Ovi Publishing as a Qt Content item.
 
     \endlist
 
@@ -5029,9 +5131,26 @@
 
     \title Specifying Editor Settings
 
-    To define the default file encoding, select the desired encoding in \gui Projects >
-    \gui{Editor Settings}. By default, the Qt Creator uses the file encoding
-    used by your system.
+    You can configure the code editor according to your needs. You can specify
+    editor behavior either globally for all projects or separately for each
+    project. To specify global editor behavior, select \gui {Tools > Options...
+    > Text Editor > Behavior}.
+
+    To configure the editor behavior for the current project, deselect the
+    \gui {Use global settings} check box in the \gui {Editor Settings} for the
+    project. For more information about the settings, see:
+
+    \list
+
+        \o \l{Indenting Code}
+
+        \o \l{File Encoding}
+
+        \o \l{Moving to Symbol Definition or Declaration}
+
+        \o \l{Configuring Fonts}
+
+    \endlist
 
     \image qtcreator-editor-settings.png "Editor Settings view"
 
@@ -5260,7 +5379,7 @@
         \o In the \gui{Projects} view, double-click the \c{mainwindow.h} file
         to open it for editing.
 
-        \o Include the System Info header file, as illustrated by the following
+        \o Include the System Device Info header file, as illustrated by the following
         code snippet:
 
         \snippet examples/batteryindicator/mainwindow.h 1
@@ -7198,9 +7317,9 @@
 
     \list
 
-        \o \c {C:\qtcreator-2.1\bin>qtcreator -debug 2000}
+        \o \c {C:\qtcreator\bin>qtcreator -debug 2000}
 
-        \o \c {C:\qtcreator-2.1\bin>qtcreator -debug core.2000}
+        \o \c {C:\qtcreator\bin>qtcreator -debug core.2000}
 
     \endlist
 
@@ -8341,6 +8460,8 @@
         adds a single line of editable formatted text that can be validated.
         \o \l{http://doc.qt.nokia.com/4.7/qml-textinput.html}{Text Input}
         adds a single line of editable plain text that can be validated.
+        \o \l{http://doc.qt.nokia.com/4.7-snapshot/qml-webview.html}{Web View}
+        adds Web content to a canvas.
 
     \endlist
 
@@ -8630,7 +8751,7 @@
 
     \endlist
 
-    \section1 Organizing Items on Screens
+    \section1 Using Data Models
 
     You can create the following types of views to organize items provided by
     \l{http://doc.qt.nokia.com/4.7/qdeclarativemodels.html}{data models}:
@@ -8638,12 +8759,38 @@
     \list
 
         \o \l{http://doc.qt.nokia.com/4.7/qml-gridview.html}{Grid View}
+        provides a grid vizualization of a model.
+
         \o \l{http://doc.qt.nokia.com/4.7/qml-listview.html}{List View}
+        provides a list vizualization of a model.
+
         \o \l{http://doc.qt.nokia.com/4.7/qml-pathview.html}{Path View}
+        visualizes the contents of a model along a path.
 
     \endlist
 
     In the code editor, write the code to use the data models.
+
+    \section1 Positioning Items on Screens
+
+    You can use the following items to arrange items on screens:
+
+    \list
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-column.html}{Column}
+            arranges its child items vertically.
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-row.html}{Row}
+            arranges its child items horizontally.
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-grid.html}{Grid}
+            arranges its child items so that they are aligned in a grid and
+            are not overlapping.
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-flow.html}{Flow}
+            arranges its child items side by side, wrapping as necessary.
+
+    \endlist
 
     \section1 Using States
 
@@ -10133,7 +10280,7 @@
 
     \title Known Issues
 
-    This section lists known issues in Qt Creator version 2.1.0.
+    This section lists known issues in Qt Creator version 2.2.0.
     The development team is aware of them, and therefore, you do not need to
     report them as bugs.
 
@@ -10143,6 +10290,10 @@
     \section1 General Issues
 
     \list
+
+        \o If you change the Input Languages in Windows, Qt Creator might not
+           respond for 30 seconds. This is a known issue in the Advanced Text
+           Service of Microsoft Windows.
 
         \o Qt Creator uses SQLite for storing some of its settings. SQLite is
            known to have problems with certain NFS servers (most notably the
@@ -10230,6 +10381,16 @@
 
     \endlist
 
+    \section1 Qt Quick Designer Issues
+
+    \list
+
+        \o  \QMLD uses external processes (QML Puppet) to render and preview
+            images and to collect data. Executing C++ code might cause the QML
+            Puppet to crash. If it crashes, an error message is displayed and
+            you can continue editing the QML file in the code editor.
+
+    \endlist
 */
 
 
@@ -10336,11 +10497,22 @@
     \page creator-task-lists.html
     \nextpage creator-cli.html
 
-    \title Creating Task List Files
+    \title Showing Task List Files in the Build Issues Pane
 
-    You can load tasks from task lists to the \gui{Build Issues} pane. You can
-    either create the task lists manually or create scripts to generate them from
-    output of static code analysis tools, for example.
+    Code scanning and analysis tools typically create report files in ASCII-form,
+    consisting of lines containing file name, line number and an error message.
+    Stack traces obtained from crash reports take a similar form.
+    Traditionally, one would fix these issues by manually navigating to the
+    occurrences and correcting them, which is tedious.
+
+    Qt Creator makes this very easy by providing a way to load these files into
+    the \gui{Build Issues} pane,  so that the corresponding source code can be navigated
+    to by clicking on the message. For this to work, the files need to be converted to the
+    \l{Task List File Format}, which can be easily achieved by using conversion
+    scripts based on standard text processing tools of the operating system.
+
+    The resulting task list files can then be loaded by choosing
+    \gui{File} -> \gui{Open}.
 
     For an example of a script that checks new lines of code and matches them
     against regular expressions to generate a task list, see \c{scripts\mytasks.pl}
@@ -10409,11 +10581,11 @@
 
     \list
 
-        \o  \c {C:\qtcreator-2.1\bin>qtcreator -help}
+        \o  \c {C:\qtcreator\bin>qtcreator -help}
 
-        \o  \c {C:\qtcreator-2.1\bin>qtcreator C:\TextFinder\textfinder.cpp:100}
+        \o  \c {C:\qtcreator\bin>qtcreator C:\TextFinder\textfinder.cpp:100}
 
-        \o  \c {C:\qtcreator-2.1\bin>qtcreator C:\TextFinder\textfinder.cpp +100}
+        \o  \c {C:\qtcreator\bin>qtcreator C:\TextFinder\textfinder.cpp +100}
 
     \endlist
 

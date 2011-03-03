@@ -285,9 +285,12 @@ static QString removeInitialNamespace(QString str, const QByteArray &ns)
 
 QString WatchModel::displayType(const WatchData &data) const
 {
-    return data.displayedType.isEmpty()
+    QString base = data.displayedType.isEmpty()
         ? niceTypeHelper(data.type)
         : data.displayedType;
+    if (data.bitsize)
+        base += QString(":%1").arg(data.bitsize);
+    return base;
 }
 
 static int formatToIntegerBase(int format)
@@ -721,17 +724,21 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
                 return pointerValue(data.value);
             return QVariant(quint64(0));
 
-        case LocalsIsWatchpointAtAddressRole:
-            return engine()->breakHandler()
-                ->hasWatchpointAt(data.coreAddress());
+        case LocalsIsWatchpointAtAddressRole: {
+            BreakpointParameters bp(Watchpoint);
+            bp.address = data.coreAddress();
+            return engine()->breakHandler()->findWatchpoint(bp) != 0;
+        }
 
         case LocalsAddressRole:
             return data.coreAddress();
 
         case LocalsIsWatchpointAtPointerValueRole:
-            if (isPointerType(data.type))
-                return engine()->breakHandler()
-                    ->hasWatchpointAt(pointerValue(data.value));
+            if (isPointerType(data.type)) {
+                BreakpointParameters bp(Watchpoint);
+                bp.address = pointerValue(data.value);
+                return engine()->breakHandler()->findWatchpoint(bp) != 0;
+            }
             return false;
 
         default:

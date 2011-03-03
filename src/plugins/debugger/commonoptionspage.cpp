@@ -181,7 +181,7 @@ QString DebuggingHelperOptionPage::id() const
 
 QString DebuggingHelperOptionPage::displayName() const
 {
-    return tr("Debugging Helper");
+    return QCoreApplication::translate("Debugger", "Debugging Helper");
 }
 
 QString DebuggingHelperOptionPage::category() const
@@ -215,7 +215,8 @@ QWidget *DebuggingHelperOptionPage::createPage(QWidget *parent)
     m_ui.setupUi(w);
 
     m_ui.dumperLocationChooser->setExpectedKind(Utils::PathChooser::Command);
-    m_ui.dumperLocationChooser->setPromptDialogTitle(tr("Choose DebuggingHelper Location"));
+    m_ui.dumperLocationChooser->setPromptDialogTitle(QCoreApplication::translate("Debugger",
+                                                                                 "Choose DebuggingHelper Location"));
     m_ui.dumperLocationChooser->setInitialBrowsePathBackup(
         ICore::instance()->resourcePath() + "../../lib");
 
@@ -242,7 +243,7 @@ QWidget *DebuggingHelperOptionPage::createPage(QWidget *parent)
     cmd = am->registerAction(m_dumpLogAction,
         DUMP_LOG, globalcontext);
     //cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+D,Ctrl+L")));
-    cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+F11")));
+    cmd->setDefaultKeySequence(QKeySequence(QCoreApplication::translate("Debugger", "Ctrl+Shift+F11")));
     mdebug->addAction(cmd);
 #endif
 #endif

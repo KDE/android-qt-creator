@@ -601,6 +601,8 @@ void WatchWindow::setModel(QAbstractItemModel *model)
 
     connect(model, SIGNAL(layoutChanged()), SLOT(resetHelper()));
     connect(model, SIGNAL(enableUpdates(bool)), SLOT(setUpdatesEnabled(bool)));
+    // Potentially left in disabled state in case engine crashes when expanding.
+    setUpdatesEnabled(true);
 }
 
 void WatchWindow::setUpdatesEnabled(bool enable)
@@ -654,7 +656,15 @@ void WatchWindow::setModelData
 
 void WatchWindow::setWatchpoint(quint64 address)
 {
-    breakHandler()->setWatchpointByAddress(address);
+    BreakpointParameters data(Watchpoint);
+    data.address = address;
+    BreakpointId id = breakHandler()->findWatchpoint(data);
+    if (id) {
+        qDebug() << "WATCHPOINT EXISTS";
+        //   removeBreakpoint(index);
+        return;
+    }
+    breakHandler()->appendBreakpoint(data);
 }
 
 } // namespace Internal

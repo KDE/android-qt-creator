@@ -293,6 +293,18 @@ class OutputSafer:
         return False
 
 
+class NoAddress:
+    def __init__(self, d):
+        self.d = d
+
+    def __enter__(self):
+        self.savedPrintsAddress = self.d.printsAddress
+        self.d.printsAddress = False
+
+    def __exit__(self, exType, exValue, exTraceBack):
+        self.d.printsAddress = self.savedPrintsAddress
+
+
 class SubItem:
     def __init__(self, d):
         self.d = d
@@ -1114,6 +1126,7 @@ SalCommand()
 class Dumper:
     def __init__(self, args):
         self.output = ""
+        self.printsAddress = True
         self.currentChildType = ""
         self.currentChildNumChild = -1
         self.currentMaxNumChilds = -1
@@ -1402,7 +1415,8 @@ class Dumper:
             self.currentTypePriority = priority
 
     def putAddress(self, addr):
-        self.put('addr="%s",' % cleanAddress(addr))
+        if self.printsAddress:
+            self.put('addr="%s",' % cleanAddress(addr))
 
     def putNumChild(self, numchild):
         #warn("NUM CHILD: '%s' '%s'" % (numchild, self.currentChildNumChild))
@@ -1484,6 +1498,7 @@ class Dumper:
         with SubItem(self):
             self.putName(name)
             self.putValue(value)
+            self.putAddress(value.address)
             self.putType("int")
             self.putNumChild(0)
 
@@ -1491,6 +1506,7 @@ class Dumper:
         with SubItem(self):
             self.putName(name)
             self.putValue(value)
+            self.putAddress(value.address)
             self.putType("bool")
             self.putNumChild(0)
 
@@ -1578,7 +1594,9 @@ class Dumper:
             except:
                 pass
 
-        if type.code == gdb.TYPE_CODE_INT:
+        typedefStrippedType = stripTypedefs(type)
+
+        if typedefStrippedType.code == gdb.TYPE_CODE_INT:
             if self.alienSource and str(type) == "unsigned long long":
                 strlen = value % (1L<<32)
                 strptr = value / (1L<<32)
@@ -1593,9 +1611,17 @@ class Dumper:
             self.putNumChild(0)
             return
 
-        if type.code == gdb.TYPE_CODE_CHAR:
+        if typedefStrippedType.code == gdb.TYPE_CODE_CHAR:
             self.putType(realtype)
             self.putValue(int(value))
+            self.putAddress(value.address)
+            self.putNumChild(0)
+            return
+
+        if typedefStrippedType.code == gdb.TYPE_CODE_FLT \
+                or typedefStrippedType.code == gdb.TYPE_CODE_BOOL:
+            self.putType(realtype)
+            self.putValue(value)
             self.putAddress(value.address)
             self.putNumChild(0)
             return
@@ -1616,8 +1642,6 @@ class Dumper:
                     child = Item(value, item.iname, None, item.name)
                     self.putFields(child)
             return
-
-        typedefStrippedType = stripTypedefs(type)
 
         if isSimpleType(typedefStrippedType):
             #warn("IS SIMPLE: %s " % type)
@@ -1731,8 +1755,10 @@ class Dumper:
                 innerType = realtype.target()
                 innerTypeName = str(innerType.unqualified())
                 # Never dereference char types.
-                if innerTypeName != "char" and innerTypeName != "signed char" \
-                   and innerTypeName != "unsigned char" and innerTypeName != "wchar_t":
+                if innerTypeName != "char" \
+                        and innerTypeName != "signed char" \
+                        and innerTypeName != "unsigned char"  \
+                        and innerTypeName != "wchar_t":
                     self.putType(innerType)
                     savedCurrentChildType = self.currentChildType
                     self.currentChildType = stripClassTag(str(innerType))
@@ -1806,7 +1832,7 @@ class Dumper:
             with Children(self):
                self.putFields(item)
 
-    def putFields(self, item):
+    def putFields(self, item, dumpBase = True):
             value = item.value
             type = stripTypedefs(value.type)
             fields = extractFields(type)
@@ -1833,8 +1859,9 @@ class Dumper:
 
                 #warn("FIELD NAME: %s" % field.name)
                 #warn("FIELD TYPE: %s" % field.type)
-                # The 'field.is_base_class' attribute exists in gdb 7.0.X and later only.
-                # Symbian gdb is 6.8 as of 20.10.2010. TODO: Remove once Symbian gdb is up to date.
+                # The 'field.is_base_class' attribute exists in gdb 7.0.X
+                # and later only. Symbian gdb is 6.8 as of 20.10.2010.
+                # TODO: Remove once Symbian gdb is up to date.
                 if hasattr(field, 'is_base_class'):
                     isBaseClass = field.is_base_class
                 else:
@@ -1843,12 +1870,13 @@ class Dumper:
                     # Field is base type. We cannot use field.name as part
                     # of the iname as it might contain spaces and other
                     # strange characters.
-                    child = Item(value.cast(field.type),
-                        item.iname, "@%d" % baseNumber, field.name)
-                    baseNumber += 1
-                    with SubItem(self):
-                        self.put('iname="%s",' % child.iname)
-                        self.putItem(child)
+                    if dumpBase:
+                        child = Item(value.cast(field.type),
+                            item.iname, "@%d" % baseNumber, field.name)
+                        baseNumber += 1
+                        with SubItem(self):
+                            self.put('iname="%s",' % child.iname)
+                            self.putItem(child)
                 elif len(field.name) == 0:
                     # Anonymous union. We need a dummy name to distinguish
                     # multiple anonymous unions in the struct.
@@ -1860,6 +1888,10 @@ class Dumper:
                     with SubItem(self):
                         child = Item(value[field.name],
                             item.iname, field.name, field.name)
+                        bitsize = getattr(field, "bitsize", None)
+                        if not bitsize is None:
+                            self.put("bitsize=\"%s\",bitpos=\"%s\","
+                                    % (bitsize, bitpos))
                         self.putItem(child)
 
 

@@ -44,9 +44,9 @@
 
 #include <QtCore/qdatetime.h>
 #include <QtCore/qdebug.h>
-#include <QtCore/qurl.h>
 #include <QtCore/qcoreapplication.h>
 #include <QtCore/qset.h>
+#include <QtCore/qurl.h>
 #include <QtScript/qscriptcontextinfo.h>
 #include <QtScript/qscriptengine.h>
 #include <QtScript/qscriptvalueiterator.h>
@@ -81,19 +81,19 @@ QDataStream &operator<<(QDataStream &s, const JSAgentWatchData &data)
 struct JSAgentStackData
 {
     QByteArray functionName;
-    QByteArray fileName;
+    QByteArray fileUrl;
     qint32 lineNumber;
 };
 
 QDataStream &operator<<(QDataStream &s, const JSAgentStackData &data)
 {
-    return s << data.functionName << data.fileName << data.lineNumber;
+    return s << data.functionName << data.fileUrl << data.lineNumber;
 }
 
 struct JSAgentBreakpointData
 {
     QByteArray functionName;
-    QByteArray fileName;
+    QByteArray fileUrl;
     qint32 lineNumber;
 };
 
@@ -101,22 +101,22 @@ typedef QSet<JSAgentBreakpointData> JSAgentBreakpoints;
 
 QDataStream &operator<<(QDataStream &s, const JSAgentBreakpointData &data)
 {
-    return s << data.functionName << data.fileName << data.lineNumber;
+    return s << data.functionName << data.fileUrl << data.lineNumber;
 }
 
 QDataStream &operator>>(QDataStream &s, JSAgentBreakpointData &data)
 {
-    return s >> data.functionName >> data.fileName >> data.lineNumber;
+    return s >> data.functionName >> data.fileUrl >> data.lineNumber;
 }
 
 bool operator==(const JSAgentBreakpointData &b1, const JSAgentBreakpointData &b2)
 {
-    return b1.lineNumber == b2.lineNumber && b1.fileName == b2.fileName;
+    return b1.lineNumber == b2.lineNumber && b1.fileUrl == b2.fileUrl;
 }
 
 uint qHash(const JSAgentBreakpointData &b)
 {
-    return b.lineNumber ^ qHash(b.fileName);
+    return b.lineNumber ^ qHash(b.fileUrl);
 }
 
 class JSDebuggerAgentPrivate
@@ -144,6 +144,8 @@ public:
     QEventLoop loop;
     QHash<qint64, QString> filenames;
     JSAgentBreakpoints breakpoints;
+    // breakpoints by filename (without path)
+    QHash<QString, JSAgentBreakpointData> fileNameToBreakpoints;
     QStringList watchExpressions;
     QSet<qint64> knownObjectIds;
 };
@@ -313,7 +315,7 @@ void JSDebuggerAgent::scriptLoad(qint64 id, const QString &program,
                                  const QString &fileName, int)
 {
     Q_UNUSED(program);
-    d->filenames.insert(id, QUrl(fileName).toLocalFile());
+    d->filenames.insert(id, fileName);
 }
 
 /*!
@@ -365,6 +367,12 @@ void JSDebuggerAgent::positionChange(qint64 scriptId, int lineNumber, int column
     d->positionChange(scriptId, lineNumber, columnNumber);
 }
 
+QString fileName(const QString &fileUrl)
+{
+    int lastDelimiterPos = fileUrl.lastIndexOf(QLatin1Char('/'));
+    return fileUrl.mid(lastDelimiterPos, fileUrl.size() - lastDelimiterPos);
+}
+
 void JSDebuggerAgentPrivate::positionChange(qint64 scriptId, int lineNumber, int columnNumber)
 {
     Q_UNUSED(columnNumber);
@@ -379,7 +387,7 @@ void JSDebuggerAgentPrivate::positionChange(qint64 scriptId, int lineNumber, int
         QScriptContextInfo info(ctx);
         if (it == filenames.constEnd()) {
             // It is possible that the scripts are loaded before the agent is attached
-            QString filename = QUrl(info.fileName()).toLocalFile();
+            QString filename = info.fileName();
 
             JSAgentStackData frame;
             frame.functionName = info.functionName().toUtf8();
@@ -387,12 +395,15 @@ void JSDebuggerAgentPrivate::positionChange(qint64 scriptId, int lineNumber, int
             QPair<QString, qint32> key = qMakePair(filename, lineNumber);
             it = filenames.insert(scriptId, filename);
         }
-        JSAgentBreakpointData bp;
-        bp.fileName = it->toUtf8();
-        bp.lineNumber = lineNumber;
-        if (breakpoints.contains(bp)) {
-            stopped();
-            return;
+
+        const QString filePath = it->toUtf8();
+        JSAgentBreakpoints bps = fileNameToBreakpoints.values(fileName(filePath)).toSet();
+
+        foreach (const JSAgentBreakpointData &bp, bps) {
+            if (bp.lineNumber == lineNumber) {
+                stopped();
+                return;
+            }
         }
     }
 
@@ -468,6 +479,12 @@ void JSDebuggerAgentPrivate::messageReceived(const QByteArray &message)
     ds >> command;
     if (command == "BREAKPOINTS") {
         ds >> breakpoints;
+
+        fileNameToBreakpoints.clear();
+        foreach (const JSAgentBreakpointData &bp, breakpoints) {
+            fileNameToBreakpoints.insert(fileName(bp.fileUrl), bp);
+        }
+
         //qDebug() << "BREAKPOINTS";
         //foreach (const JSAgentBreakpointData &bp, breakpoints)
         //    qDebug() << "BREAKPOINT: " << bp.fileName << bp.lineNumber;
@@ -609,7 +626,8 @@ void JSDebuggerAgentPrivate::stopped()
         // if the line number is unknown, fallback to the function line number
         if (frame.lineNumber == -1)
             frame.lineNumber = info.functionStartLineNumber();
-        frame.fileName = QUrl(info.fileName()).toLocalFile().toUtf8();
+
+        frame.fileUrl = info.fileName().toUtf8();
         backtrace.append(frame);
     }
     QList<JSAgentWatchData> watches;

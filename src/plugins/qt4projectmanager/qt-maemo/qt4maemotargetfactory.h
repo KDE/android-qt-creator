@@ -34,7 +34,7 @@
 #ifndef QT4MAEMOTARGETFACTORY_H
 #define QT4MAEMOTARGETFACTORY_H
 
-#include "qt4target.h"
+#include "qt4basetargetfactory.h"
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -52,14 +52,13 @@ public:
 
     bool canCreate(ProjectExplorer::Project *parent, const QString &id) const;
     bool canRestore(ProjectExplorer::Project *parent, const QVariantMap &map) const;
-    Qt4ProjectManager::Qt4BaseTarget *restore(ProjectExplorer::Project *parent, const QVariantMap &map);
+    ProjectExplorer::Target *restore(ProjectExplorer::Project *parent, const QVariantMap &map);
     QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id);
 
     bool supportsTargetId(const QString &id) const;
 
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &proFilePath);
-    Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id);
-    Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos);
+    ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id);
+    ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos);
 
     QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion);
     bool isMobileTarget(const QString &id);
