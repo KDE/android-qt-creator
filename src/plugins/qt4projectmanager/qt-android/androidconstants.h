@@ -27,8 +27,10 @@ enum AndroidQemuStatus {
 
 #ifdef Q_OS_WIN32
 #define ANDROID_EXEC_SUFFIX ".exe"
+#define ANDROID_EXECUTABLE_SUFFIX ".bat"
 #else
 #define ANDROID_EXEC_SUFFIX ""
+#define ANDROID_EXECUTABLE_SUFFIX ""
 #endif
 
 static const QLatin1String ANDROID_RC_ID(ANDROID_PREFIX);
