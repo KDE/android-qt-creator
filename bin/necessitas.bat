@@ -1,8 +1,9 @@
-@SET BIN_PATH=%~dp0
+echo ARSE
+@SET BIN_PATH=%CD%
 @SET BIN_PATH=%BIN_PATH:\=/%
-@SET BIN_PATH=dirname %BIN_PATH%
+echo %BIN_PATH%
 
-export LD_LIBRARY_PATH=$BIN_PATH/../Qt/lib;$LD_LIBRARY_PATH
-export QT_PLUGIN_PATH=$BIN_PATH/../Qt/plugins;$QT_PLUGIN_PATH
-export QT_IMPORT_PATH=$BIN_PATH/../Qt/imports;$QT_IMPORT_PATH
-exec $BIN_PATH/qtcreator.exe %*
+@SET LD_LIBRARY_PATH=%BIN_PATH%/../Qt/lib;%LD_LIBRARY_PATH%
+@SET QT_PLUGIN_PATH=%BIN_PATH%/../Qt/plugins;%QT_PLUGIN_PATH%
+@SET QT_IMPORT_PATH=%BIN_PATH%/../Qt/imports;%QT_IMPORT_PATH%
+start %BIN_PATH%/qtcreator.exe %*
