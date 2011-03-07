@@ -15,7 +15,6 @@ are required by law.
 #include "androidglobal.h"
 #include "androidpackagecreationstep.h"
 #include "androidrunconfiguration.h"
-#include "androidtoolchain.h"
 #include "qt4androidtarget.h"
 
 #include <projectexplorer/buildconfiguration.h>

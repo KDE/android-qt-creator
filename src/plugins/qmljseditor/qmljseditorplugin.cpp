@@ -264,35 +264,27 @@ ExtensionSystem::IPlugin::ShutdownFlag QmlJSEditorPlugin::aboutToShutdown()
     return IPlugin::aboutToShutdown();
 }
 
-void QmlJSEditorPlugin::initializeEditor(QmlJSEditor::QmlJSTextEditor *editor)
+void QmlJSEditorPlugin::initializeEditor(QmlJSEditor::QmlJSTextEditorWidget *editor)
 {
     QTC_ASSERT(m_instance, /**/);
 
     m_actionHandler->setupActions(editor);
 
     TextEditor::TextEditorSettings::instance()->initializeEditor(editor);
-
-    // auto completion
-    connect(editor, SIGNAL(requestAutoCompletion(TextEditor::ITextEditable*, bool)),
-            TextEditor::CompletionSupport::instance(), SLOT(autoComplete(TextEditor::ITextEditable*, bool)));
-
-    // quick fix
-    connect(editor, SIGNAL(requestQuickFix(TextEditor::ITextEditable*)),
-            this, SLOT(quickFix(TextEditor::ITextEditable*)));
 }
 
 void QmlJSEditorPlugin::followSymbolUnderCursor()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
 
-    if (QmlJSTextEditor *editor = qobject_cast<QmlJSTextEditor*>(em->currentEditor()->widget()))
+    if (QmlJSTextEditorWidget *editor = qobject_cast<QmlJSTextEditorWidget*>(em->currentEditor()->widget()))
         editor->followSymbolUnderCursor();
 }
 
 void QmlJSEditorPlugin::findUsages()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    if (QmlJSTextEditor *editor = qobject_cast<QmlJSTextEditor*>(em->currentEditor()->widget()))
+    if (QmlJSTextEditorWidget *editor = qobject_cast<QmlJSTextEditorWidget*>(em->currentEditor()->widget()))
         editor->findUsages();
 }
 
@@ -300,7 +292,7 @@ void QmlJSEditorPlugin::showContextPane()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
 
-    if (QmlJSTextEditor *editor = qobject_cast<QmlJSTextEditor*>(em->currentEditor()->widget()))
+    if (QmlJSTextEditorWidget *editor = qobject_cast<QmlJSTextEditorWidget*>(em->currentEditor()->widget()))
         editor->showContextPane();
 
 }
@@ -319,7 +311,7 @@ Core::Command *QmlJSEditorPlugin::addToolAction(QAction *a, Core::ActionManager 
 QmlJSQuickFixCollector *QmlJSEditorPlugin::quickFixCollector() const
 { return m_quickFixCollector; }
 
-void QmlJSEditorPlugin::quickFix(TextEditor::ITextEditable *editable)
+void QmlJSEditorPlugin::quickFix(TextEditor::ITextEditor *editable)
 {
     m_currentTextEditable = editable;
     quickFixNow();
@@ -331,16 +323,17 @@ void QmlJSEditorPlugin::quickFixNow()
         return;
 
     Core::EditorManager *em = Core::EditorManager::instance();
-    QmlJSTextEditor *currentEditor = qobject_cast<QmlJSTextEditor*>(em->currentEditor()->widget());
+    QmlJSTextEditorWidget *currentEditor = qobject_cast<QmlJSTextEditorWidget*>(em->currentEditor()->widget());
 
-    if (QmlJSTextEditor *editor = qobject_cast<QmlJSTextEditor*>(m_currentTextEditable->widget())) {
+    if (QmlJSTextEditorWidget *editor = qobject_cast<QmlJSTextEditorWidget*>(m_currentTextEditable->widget())) {
         if (currentEditor == editor) {
             if (editor->isOutdated()) {
                 // qDebug() << "TODO: outdated document" << editor->editorRevision() << editor->semanticInfo().revision();
                 // ### FIXME: m_quickFixTimer->start(QUICKFIX_INTERVAL);
                 m_quickFixTimer->stop();
             } else {
-                TextEditor::CompletionSupport::instance()->quickFix(m_currentTextEditable);
+                TextEditor::CompletionSupport::instance()
+                    ->complete(m_currentTextEditable, TextEditor::QuickFixCompletion, true);
             }
         }
     }
@@ -351,7 +344,7 @@ void QmlJSEditorPlugin::currentEditorChanged(Core::IEditor *editor)
     if (! editor)
         return;
 
-    else if (QmlJSTextEditor *textEditor = qobject_cast<QmlJSTextEditor *>(editor->widget())) {
+    else if (QmlJSTextEditorWidget *textEditor = qobject_cast<QmlJSTextEditorWidget *>(editor->widget())) {
         textEditor->forceSemanticRehighlight();
     }
 }

@@ -10,30 +10,87 @@ are required by law.
 #ifndef ANDROIDTOOLCHAIN_H
 #define ANDROIDTOOLCHAIN_H
 
-#include <projectexplorer/toolchain.h>
+#include <projectexplorer/gcctoolchain.h>
+#include <projectexplorer/toolchainconfigwidget.h>
 
 namespace Qt4ProjectManager {
-    class QtVersion;
-    namespace Internal {
+class QtVersion;
+
+namespace Internal {
+
+// --------------------------------------------------------------------------
+// MaemoToolChain
+// --------------------------------------------------------------------------
 
 class AndroidToolChain : public ProjectExplorer::GccToolChain
 {
 public:
-    AndroidToolChain(const QString &gccPath);
-    virtual ~AndroidToolChain();
+    ~AndroidToolChain();
 
-    void addToEnvironment(Utils::Environment &env);
-    ProjectExplorer::ToolChainType type() const;
-    QString makeCommand() const;
+    QString typeName() const;
+    ProjectExplorer::Abi targetAbi() const;
+
+    bool isValid() const;
+
+    void addToEnvironment(Utils::Environment &env) const;
+    QString sysroot() const;
+
+    bool operator ==(const ProjectExplorer::ToolChain &) const;
+
+    ProjectExplorer::ToolChainConfigWidget *configurationWidget();
 
 
-protected:
-    bool equals(const ToolChain *other) const;
+    QVariantMap toMap() const;
+    bool fromMap(const QVariantMap &data);
+
+    void setQtVersionId(int);
+    int qtVersionId() const;
 
 private:
+    void updateId();
+
+    explicit AndroidToolChain(bool);
+    AndroidToolChain(const AndroidToolChain &);
+
+    int m_qtVersionId;
+    mutable QString m_sysroot;
+    ProjectExplorer::Abi m_targetAbi;
+
+    friend class AndroidToolChainFactory;
 };
 
-    } // namespace Internal
+
+class AndroidToolChainConfigWidget : public ProjectExplorer::ToolChainConfigWidget
+{
+    Q_OBJECT
+
+public:
+    AndroidToolChainConfigWidget(AndroidToolChain *);
+
+    void apply();
+    void discard();
+    bool isDirty() const;
+};
+
+
+class AndroidToolChainFactory : public ProjectExplorer::ToolChainFactory
+{
+    Q_OBJECT
+
+public:
+    AndroidToolChainFactory();
+
+    QString displayName() const;
+    QString id() const;
+
+    QList<ProjectExplorer::ToolChain *> autoDetect();
+
+private slots:
+    void handleQtVersionChanges(const QList<int> &);
+    QList<ProjectExplorer::ToolChain *> createToolChainList(const QList<int> &);
+};
+
+} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // ANDROIDTOOLCHAIN_H

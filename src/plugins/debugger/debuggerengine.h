@@ -122,6 +122,17 @@ private:
     quint64 m_address;
 };
 
+class ContextData
+{
+public:
+    ContextData() : lineNumber(0), address(0) {}
+
+public:
+    QString fileName;
+    int lineNumber;
+    quint64 address;
+};
+
 } // namespace Internal
 
 
@@ -149,6 +160,8 @@ public:
     virtual void openMemoryView(quint64 addr);
     virtual void fetchMemory(Internal::MemoryAgent *, QObject *,
                              quint64 addr, quint64 length);
+    virtual void changeMemory(Internal::MemoryAgent *, QObject *,
+                              quint64 addr, const QByteArray &data);
     virtual void updateMemoryViews();
     virtual void openDisassemblerView(const Internal::Location &location);
     virtual void fetchDisassembler(Internal::DisassemblerAgent *);
@@ -234,7 +247,7 @@ public:
     void handleCommand(int role, const QVariant &value);
 
     // Convenience
-    Q_SLOT void showMessage(const QString &msg, int channel = LogDebug,
+    Q_SLOT virtual void showMessage(const QString &msg, int channel = LogDebug,
         int timeout = -1) const;
     Q_SLOT void showStatusMessage(const QString &msg, int timeout = -1) const;
 
@@ -324,9 +337,9 @@ protected:
     virtual void interruptInferior();
     virtual void requestInterruptInferior();
 
-    virtual void executeRunToLine(const QString &fileName, int lineNumber);
+    virtual void executeRunToLine(const Internal::ContextData &data);
     virtual void executeRunToFunction(const QString &functionName);
-    virtual void executeJumpToLine(const QString &fileName, int lineNumber);
+    virtual void executeJumpToLine(const Internal::ContextData &data);
     virtual void executeDebuggerCommand(const QString &command);
 
     virtual void frameUp();
@@ -374,5 +387,7 @@ private:
 };
 
 } // namespace Debugger
+
+Q_DECLARE_METATYPE(Debugger::Internal::ContextData)
 
 #endif // DEBUGGER_DEBUGGERENGINE_H

@@ -92,7 +92,7 @@
                 \o \l{Pasting and Fetching Code Snippets}
                 \o \l{Configuring the Editor}
                 \o \l{Using FakeVim Mode}
-                \o \l{Using an External Editor}
+
             \endlist
        \o \l{Developing Application UI}
        \list
@@ -142,6 +142,7 @@
                 \o \l{Building with Remote Compiler}
             \endlist
        \o \l{Using Version Control Systems}
+       \o \l{Using External Tools}
        \o \l{Creating Task List Files}
        \o \l{Using Command Line Options}
        \o \l{Getting Help}
@@ -433,14 +434,14 @@
 
     \section2 Maemo Emulator
 
-    The Maemo emulator emulates the Nokia N900 device environment. You can test
+    The Maemo 5 emulator emulates the Nokia N900 device environment. You can test
     applications in conditions practically identical to running the application
-    on a Nokia N900 device with the software update release 1.2 (V10.2010.19-1).
+    on a Nokia N900 device with the software update release 1.3 (V20.2010.36-2).
     However, it is faster to test on a real device connected to the development
     PC.
 
     The Maemo Emulator is installed as part of the \QSDK. After it is
-    installed and configured, you can start it from Qt Creator.
+    installed, you can start it from Qt Creator.
 
     \section1 Deploying
 
@@ -958,7 +959,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-editor-external.html
+    \previouspage creator-editor-fakevim.html
     \page creator-design-mode.html
     \nextpage creator-visual-editor.html
 
@@ -1362,7 +1363,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-project-wizards.html
+    \previouspage creator-project-managing-sessions.html
     \page creator-editor-using.html
     \nextpage creator-editor-finding.html
 
@@ -1763,7 +1764,7 @@
     \contentspage index.html
     \previouspage creator-editor-options.html
     \page creator-editor-fakevim.html
-    \nextpage creator-editor-external.html
+    \nextpage creator-design-mode.html
 
     \title Using FakeVim Mode
 
@@ -1796,41 +1797,117 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-editor-fakevim.html
+    \previouspage creator-version-control.html
     \page creator-editor-external.html
-    \nextpage creator-design-mode.html
+    \nextpage creator-task-lists.html
 
-    \title Using an External Editor
+    \title Using External Tools
 
+    You can use external tools directly from Qt Creator. Qt Linguist, the
+    default text editor for your system, and the \c sort tool are preconfigured
+    for use. You can change their default configurations and configure new
+    tools.
+
+    \section1 Using Qt Linguist
+
+    You can use the Qt Linguist release manager tools, lupdate and lrelease,
+    directly from Qt Creator. The lupdate tool is used to synchronize source
+    code and translations. The lrelease tool is used to create run-time
+    translation files for use by the released application.
+
+    To synchronize ts files from a translator with the application code,
+    select \gui {Tools > External > Text > Linguist > Update Translations
+    (lupdate)}.
+
+    To generate from the ts files qm translation files that can be used by an
+    application, select \gui {Tools > External > Text > Linguist > Release
+    Translations (lrelease)}.
+
+    By default, the project .pro file is passed to the tools as an argument. To
+    specify other command line arguments for the tools, select \gui {Tools >
+    External > Configure}.
+
+    For more information about Qt Linguist, see
+    \l{http://doc.qt.nokia.com/4.7/linguist-manual.html}{Qt Linguist Manual}.
+
+    \section1 Using External Text Editors
+
+    You can open files for editing in the default text editor for your system:
+    Notepad on Windows and vi on Linux and Mac OS.
     To open the file you are currently viewing in an external editor, select
-    \gui Edit > \gui Advanced > \gui{Open in External Editor}.
+    \gui {Tools > External > Text > Notepad} or \gui vi, depending on your
+    system.
 
-    To use the external editor of your choice:
+    Qt Creator looks for the editor path in the PATH environment variable
+    of your operating system.
+
+    \section1 Sorting Text Alphabetically
+
+    To sort selected text alphabetically, select \gui {Tools > External > Text
+    > Sort Selection}. The \c sort tool takes the selected text as input and
+    returns it in alphabetic order. By default, the output replaces the
+    original selection in the code editor.
+
+    To change the default configuration, select \gui {Tools > External >
+    Configure}.
+
+    \section1 Configuring External Tools
+
+    You can change the configuration of preconfigured tools and configure
+    additional tools in Qt Creator \gui Options.
+
+    You can use variables in the fields that you can select from lists
+    of available variables.
+
+    \image qtcreator-external-tools.png "External Tools options"
+
+    To configure external tools:
+
     \list 1
-        \o Add the editor path to the \c{PATH} environment variable of your
-           operating system.
-        \o In Qt Creator select \gui Tools > \gui Options... >
-           \gui Environment > \gui General.
-        \o In \gui{External editor} enter the name of the application followed
-           by \key Space and \tt{\bold %f}. For example, to open the file in
-           Smultron, enter \tt{\bold{smultron %f}}.
 
-           To further define how to open the file in the external editor, you
-           can use the following variables separated by a space:
-           \list
-            \o Current line number \tt{\bold %l}
-            \o Current column number \tt{\bold %c}
-            \o Editor's x position on the screen \tt{\bold %x}
-            \o Editor's y position on the screen \tt{\bold %y}
-            \o Editor's width in pixels \tt{\bold %w}
-            \o Editor's height in pixels \tt{\bold %h}
-            \o Editor's width in characters \tt{\bold %W}
-            \o Editor's height in characters \tt{\bold %H}
-            \o To pass % symbol to the editor \tt{\bold %%}
-           \endlist
+        \o  Select \gui {Tools > External > Configure}.
 
-           \note Not all variables work with all editors.
+        \o  Select
+            \inlineimage qtcreator-windows-add.png
+            to add a new tool. You can also select \gui {Add Category} to add a
+            new category.
+
+        \o  In the \gui Executable field, specify the executable to run. If the
+            executable is found in your system PATH variable, do not specify
+            the path to it.
+
+        \o  In the \gui Arguments field, specify optional arguments for running
+            the executable.
+
+        \o  In the \gui {Working directory} field, specify the path to the
+            working directory.
+
+        \o  In the \gui {Output pane}, select how to handle output from the
+            tool. You can ignore the output, view it in the \gui {General
+            Messages} output pane, or replace the selected text with the
+            output in the code editor.
+
+        \o  In the \gui {Error output pane}, select how to handle error messages
+            from the tool.
+
+        \o In the \gui Input field, specify text that is passed as standard
+        input to the tool.
+
     \endlist
+
+    The category and tool are added to the \gui {Tools > External} menu.
+
+    If you change the configuration of preconfigured tools, you can later
+    revert the changes by selecting the \gui Revert button.
+
+    The tool configurations that you add and modify are stored in XML format in
+    the user configuration folder. For example,
+    \c {~/config/Nokia/qtcreator/externaltools}
+    on Linux and Mac OS and
+    \c {C:\Users\username\AppData\Roaming\Nokia\qtcreator\externaltools}
+    in Windows. To share a configuration with other users, copy an XML
+    configuration file to the folder.
+
 */
 
 
@@ -2624,8 +2701,9 @@
     \title Managing Projects
 
     To set up a project, you first have to decide what kind of an
-    application you want to develop: whether you want a Qt Quick user interface
-    or a Qt widget based user interface. For a Qt Quick project, you must also
+    application you want to develop: whether you want a user interface
+    based on Qt Quick, Qt widgets, or HTML5. For a Qt Quick or HTML5 project,
+    you must also
     choose the language to implement the application logic: C++ or JavaScript.
     You can also create other kinds of projects, such as Qt console
     applications, shared or static C++ libraries, or subprojects.
@@ -2688,24 +2766,41 @@
 
     \list
 
-        \o Qt Quick Projects, which use QML to define the user interface and,
+        \o Qt Quick Projects
+
+        Use QML to define the user interface and,
         optionally, C++ or JavaScript to define the application logic
 
-        \o Qt Widget Projects, which use \QD forms to define a Qt widget based
+        \o Qt Widget Projects
+
+        Use \QD forms to define a Qt widget based
         user interface and C++ to define the application logic
 
-        \o Other Projects, such as Qt console applications, shared or static
-        C++ libraries, Qt unit tests, Qt Custom Designer Widgets, or
-        subprojects
+        \o Other Projects
 
-        \o
+        \list
+
+            \o HTML5 based applications
+
+            \o Qt console applications
+
+            \o Shared or static C++ libraries
+
+            \o Qt unit tests
+
+            \o Qt Custom Designer Widgets
+
+            \o Subprojects
+
+        \endlist
 
     \endlist
 
     To create a new project, select \gui File > \gui{New File or Project} and
     select the type of your
            project.
-           The contents of the wizard dialogs depend on the project type.
+           The contents of the wizard dialogs depend on the project type and
+           the build targets that you select in the \gui {Qt Versions} dialog.
            Follow the instructions of the wizard.
 
     For examples of creating different types of projects, see
@@ -2834,7 +2929,7 @@
     \contentspage index.html
     \previouspage creator-project-creating.html
     \page creator-project-opening.html
-    \nextpage creator-project-qmake.html
+    \nextpage creator-project-wizards.html
 
     \title Opening a Project
 
@@ -2901,9 +2996,9 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-project-managing-sessions.html
+    \previouspage creator-project-opening.html
     \page creator-project-wizards.html
-    \nextpage creator-editor-using.html
+    \nextpage creator-project-qmake.html
 
     \title Adding New Custom Wizards
 
@@ -3361,7 +3456,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-project-opening.html
+    \previouspage creator-project-wizards.html
     \page creator-project-qmake.html
     \nextpage creator-project-qmake-libraries.html
 
@@ -3384,12 +3479,21 @@
 
     Qt Creator allows you to have multiple versions of Qt installed on
     your development PC and use different versions for each of your projects.
+    For example, \QSDK contains special Qt versions for Maemo and Symbian
+    development.
 
     If Qt Creator finds \bold qmake in the \c{PATH} environment variable, it uses
     that version. The \l{glossary-system-qt}{ qmake version of Qt} is referred
     to as \bold{Qt in PATH}. If you intend to use only one version of Qt and it
     is already in the \c{PATH} and correctly set up for command line use, you do
     not need to manually configure your Qt version.
+
+    You can add Qt versions to Qt Creator in \gui {Tools > Options... > Qt4 >
+    Qt Versions}.
+
+    Typically, you select the Qt versions for a project when you use project
+    wizards to create the project. You can add Qt versions for a project in
+    \gui Projects mode \gui {Build Settings}.
 
     \section2 Compiling Projects with MinGW in Windows
 
@@ -3453,15 +3557,19 @@
 
            \image qtcreator-qt4-qtversions-win-msvc.png
 
-        \o If the \gui {Debugging helper} is not in use, click \gui Rebuild
-        to take it to use. For more information, see \l{Using Debugging Helpers}.
+        \o If the \gui {Helpers} are available, but not in use, click
+        \gui Build for each available helper to take it to use. For more
+        information, see \l{Using Debugging Helpers}.
 
     \endlist
 
     \section2 Compiling Qt for Symbian Projects
 
-    If you are using \bold{Qt for Symbian} and your Symbian SDK is registered
-    with devices.exe, Qt Creator automatically detects the Qt version. To add a
+    If you install Qt for Symbian as a part of \QSDK, it is automatically
+    detected by Qt Creator. If you install other Symbian SDKs and register them
+    with devices.exe, Qt Creator automatically detects the Qt version.
+
+    To add a
     Qt for Symbian version:
     \list 1
         \o Select \gui Tools > \gui Options... > \gui Qt4 >
@@ -3471,7 +3579,7 @@
            \image qtcreator-qt4-qtversions-win-symbian.png
         \o To build an application for your device using GCCE, enter the path
            to the CSL ARM toolchain directory in
-           \gui{CSL\\GCCE Directory}.
+           \gui{CSL\\GCCE directory}.
 
            You do not need to specify this path if the compiler is included in
            the \c{PATH} environment variable.
@@ -3480,6 +3588,10 @@
            \gui{Carbide directory}.
 
            \note You need to have Carbide C++ version 2.0 or later installed.
+
+        \o To build an application using the Symbian build system (SBS v2) that
+           is available for Symbian OS 9.5 based SDKs, enter the path to the SBS
+           v2 toolchain directory in \gui{SBS v2 directory}.
     \endlist
 
     \section2 Compiling Projects With Linux
@@ -3493,8 +3605,8 @@
         \o Select \gui Tools > \gui Options... > \gui Qt4 >
            \gui{Qt Versions}.
         \o Click \inlineimage qtcreator-linux-add.png
-           and enter the name of the version in \gui{Version Name}.
-        \o Enter the path to the qmake binary in \gui{Path to qmake}.
+           and enter the name of the version in \gui{Version name}.
+        \o Enter the path to the qmake binary in \gui{qmake location}.
     \endlist
 
     \section2 Compiling Projects With Mac OS X
@@ -3507,7 +3619,7 @@
         \o Select \gui{Qt Creator} > \gui Preferences... > \gui{Qt Versions}.
         \o Click \inlineimage qtcreator-macosx-add.png
            and enter the name of the version in \gui{Version Name}.
-        \o Enter the path to the qmake binary in \gui{Path to Qmake}.
+        \o Enter the path to the qmake binary in \gui{qmake location}.
 
            \image qtcreator-qt4-qtversions.png
     \endlist
@@ -4219,7 +4331,7 @@
     \section2 Specifying Run Settings for Symbian Devices
 
     Qt Creator automatically detects Symbian devices that are connected to
-    the development PC with an USB cable.
+    the development PC with a USB cable.
     If only one device is detected, the application is deployed to it
     and run on it. If multiple devices are connected to the PC,
     make sure that the correct device is selected in the
@@ -4250,10 +4362,21 @@
     a device configuration in the Maemo run settings for your project.
     You can also pass command line arguments to your application.
 
-    \image qtcreator-screenshot-run-settings.png "Run settings for Maemo devices"
+    \image qtcreator-screenshot-run-settings-maemo.png "Run settings for Maemo devices"
+
+    To run and debug applications on Maemo devices, you must create connections
+    from the development PC to the devices. Click \gui {Manage device
+    configurations} to create connections. For more information, see
+    \l {Configuring Connections in Qt Creator}.
+
+    By default, Qt Creator runs the remote gdbserver daemon on the device for
+    debugging. However, if the sysroot does not match that of the device, you
+    can run remote gdb, instead. Select the \gui {Run remote gdb} option in
+    \gui {Debugging details}. Select the \gui {Set debugger} link to specify
+    settings for gdb.
 
     When you run the application on the \gui{Maemo} target, Qt Creator generates
-    a debian installation package in the build directory by default. You can deliver
+    a Debian installation package in the build directory by default. You can deliver
     the installation package to users for installation on Maemo devices that are of
     the same type and run the same firmware as the connected device. For more
     information, see \l{Deploying Applications to Maemo Devices}.
@@ -4319,41 +4442,62 @@
     You can specify settings for deploying applications to Maemo devices in the
     project .pro file. You can view the settings in the \gui {Run Settings}.
 
+    \image qtcreator-maemo-deployment.png "Deploy to device"
+
     The files to be installed are listed in the
-    \gui {Deploy to Device} step, the \gui {Files to install} field. The
+    \gui {Deploy to Device} step, the \gui {Files to install for subproject}
+    field. The
     \gui {Local File Path} field displays the location of the file on the development
     PC. The \gui {Remote Directory} field displays the folder where the file is installed on
     the device.
+    Text in red color indicates that the information is missing. Select the
+    text to edit it and add the missing information.
 
-    \image qtcreator-maemo-deployment.png "Deploy to device"
+    You can use desktop files to display icons on the home screen of the
+    device. To add desktop files to the project file, select \gui {Add Desktop
+    File}. To specify the icon file to display, select \gui {Add Launcher
+    Icon...}. To remove desktop files and icons, delete the definitions from
+    the project file.
 
-    If you develop your own libraries, Qt Creator needs to be able to access them
-    during compilation. When you install MADDE, an instance of the device file
+    If you develop your own libraries, Qt Creator needs to be able to find
+    them when you compile projects depending on them. When you install MADDE,
+    an instance of the device file
     system, called sysroot, is installed to the development PC. Libraries are copied to
     sysroot if the \gui {Also deploy to sysroot} check box is selected.
 
     \section1 Creating Debian Installation Packages
 
     When you run the application on the \gui{Maemo} target, Qt Creator generates
-    a debian installation package in the build directory by default. You can deliver
+    a Debian installation package in the build directory by default. You can deliver
     the installation package to users for installation on Maemo devices that are of
     the same type and run the same firmware as the connected device.
 
     \image qtcreator-maemo-deb-package.png "Create installation package"
 
-    The name of the installation package is displayed in the \gui {Create Package}
-    field in the \gui {Run Settings}. You can change the version number in the \gui {Version number} field.
+    The name of the installation package is displayed in the \gui {Package name}
+    field in the \gui {Create Package} step. You can change the version number
+    in the \gui {Package version} field.
 
-    Qt Creator provides templates for a set of files that must be included
-    in debian packages. To edit the files, select a file in \gui {Adapt debian
-    file} and click \gui Edit. The file opens in the text editor.
+    You can specify information that users see on a delivery channel, such as
+    Ovi Store. You can specify a short description of the application, package
+    name, and application icon.
 
-    The debian control file contains an application icon in encoded form. To add the
-    application icon to the file, select it in the \gui {Package manager icon} field.
+    The Debian control file contains an application icon in encoded form. To add the
+    application icon to the file, select it in the \gui {Icon to be displayed
+    in Package Manager} field.
     For more information about icon files and adding them manually, see
     \l{ http://wiki.maemo.org/Packaging#Displaying_an_icon_in_the_Application_Manager_next_to_your_package}{Displaying an icon in the Application Manager next to your package}.
 
     \note Qt Creator automates this process for you.
+
+    Qt Creator provides templates for a set of files that must be included
+    in Debian packages. When you create a Maemo target for a project, Qt Creator
+    asks whether packaging files are to be added to the project and to version
+    control. If you plan to edit the packaging files, add them to version
+    control.
+
+    To edit the files, select a file in \gui {Adapt Debian
+    file} and click \gui Edit. The file opens in the text editor.
 
 */
 
@@ -5003,17 +5147,33 @@
         environment, for example, as part of the \QSDK. You can add targets
         later in the \gui Projects mode.
 
-        The \gui {Application Options} dialog opens.
+        The \gui {Mobile Options} dialog opens.
 
-        \image qtcreator-mobile-project-app-options.png "Application Options dialog"
+        \image qtcreator-mobile-project-app-options.png "Mobile Options dialog"
 
         \o In the \gui {Orientation behavior} field, determine how the application
         behaves when the orientation of the device display rotates between portrait
         and landscape, and then click \gui{Next}.
 
-        \note Qt Creator contains a default program icon and generates a UID for testing
-        the application on a device. You only need to specify the \gui {Symbian Specific}
-        and \gui {Maemo Specific} settings if you deliver the application for public use.
+        \note This dialog opens only if you select \gui Maemo5 or
+        \gui {Symbian Device} target in the \gui {Qt Versions} dialog.
+
+        The \gui {Symbian Specific} dialog opens.
+
+        \image qtcreator-mobile-project-symbian-options.png "Symbian Specific dialog"
+
+        \note Qt Creator contains a default program icon and generates an
+        \l{Application UID}, for testing the application on a device. You only
+        need to change the icon and UID if you deliver the application for public use.
+
+        \o Click \gui Next.
+
+        The \gui {Maemo Specific} dialog opens.
+
+        \image qtcreator-mobile-project-maemo-options.png "Maemo Specific dialog"
+
+        \o In the \gui {Application icon (64x64)} field, select the application
+         icon to use on Maemo targets, or click \gui Next to use the default icon.
 
         The \gui{Project Management} dialog opens.
 
@@ -5036,7 +5196,7 @@
         \o mainwindow.cpp
         \o mainwindow.ui
         \o mainwindow.h
-        \o templates for debian deployment files
+        \o templates for Debian deployment files
 
     \endlist
 
@@ -5159,7 +5319,7 @@
 
     You also need to test the application on real devices. Before you can
     start testing on Symbian devices, you must connect them to the development
-    PC by using an USB cable and install the necessary software on them.
+    PC by using a USB cable and install the necessary software on them.
 
     \list 1
 
@@ -5179,7 +5339,7 @@
 
     The Maemo emulator emulates the Nokia N900 device environment. You can test
     applications in conditions practically identical to running the application
-    on a Nokia N900 device with the software update release 1.2 (V10.2010.19-1).
+    on a Nokia N900 device with the software update release 1.3 (V20.2010.36-2).
 
     For more information, see \l{Using the Maemo Emulator}.
 
@@ -5578,11 +5738,11 @@
         \o Select \gui{File > New File or Project > Qt Widget Project > Qt Gui
         Application > Choose}.
 
-           \image qtcreator-new-project.png "New File or Project dialog"
+        \image qtcreator-new-qt-gui-application.png "New File or Project dialog"
 
         The \gui{Introduction and Project Location} dialog opens.
 
-        \image qtcreator-intro-and-location.png "Introduction and Project Location dialog"
+        \image qtcreator-intro-and-location-qt-gui.png "Introduction and Project Location dialog"
 
         \o In the \gui{Name} field, type \bold {TextFinder}.
 
@@ -5592,7 +5752,7 @@
 
         The \gui {Qt Versions} dialog opens.
 
-        \image qtcreator-new-project-qt-versions.png "Qt Versions dialog"
+        \image qtcreator-new-project-qt-versions-qt-gui.png "Qt Versions dialog"
 
         \o Select the Qt versions to use as build targets for your project, and click
         \gui{Next}.
@@ -5601,7 +5761,7 @@
 
         The \gui{Class Information} dialog opens.
 
-        \image qtcreator-class-info.png "Class Information dialog"
+        \image qtcreator-class-info-qt-gui.png "Class Information dialog"
 
         \o In the \gui{Class name} field, type \bold {TextFinder} as the class name.
 
@@ -5615,7 +5775,7 @@
 
         The \gui{Project Management} dialog opens.
 
-        \image qtcreator-new-project-summary.png "Project Management dialog"
+        \image qtcreator-new-project-summary-qt-gui.png "Project Management dialog"
 
         \o Review the project settings, and click \gui{Finish} to create the project.
 
@@ -5831,7 +5991,7 @@
     \contentspage index.html
     \previouspage creator-remote-compiler.html
     \page creator-version-control.html
-    \nextpage creator-task-lists.html
+    \nextpage creator-editor-external.html
 
     \title Using Version Control Systems
 
@@ -6396,8 +6556,9 @@
 
 /*!
     \contentspage index.html
+    \previouspage creator-developing-symbian.html
     \page creator-project-managing-sessions.html
-    \nextpage creator-project-wizards.html
+    \nextpage creator-editor-using.html
 
     \title Managing Sessions
 
@@ -6750,6 +6911,7 @@
                of Qt Creator, respectively),
                which is freely available for download from the
                \l{http://msdn.microsoft.com/en-us/default.aspx}
+
                {Microsoft Developer Network}. The Qt Creator help browser does
                not allow you to download files, and therefore, you must copy
                the above links to a browser.
@@ -7784,6 +7946,7 @@
     \contentspage index.html
     \previouspage creator-project-cmake.html
     \page creator-project-generic.html
+    \nextpage creator-developing-maemo.html
 
     \title Setting Up a Generic Project
 
@@ -7940,15 +8103,15 @@
 
     \list
 
-        \o \gui {Qt Quick UI} creates a Qt Quick UI project with a single QML file that
-        contains the main view. You can review Qt Quick UI projects in the QML Viewer and you
-        need not build them. You do not need to have the development environment installed on your
-        computer to create and run this type of projects.
-
         \o \gui {Qt Quick Application} creates a Qt Quick application project that can
         contain both QML and C++ code. The project includes a QDeclarativeView. You can build
         the application and deploy it on desktop and mobile target platforms. For example, you
         can create signed Symbian Installation System (SIS) packages for this type of projects.
+
+        \o \gui {Qt Quick UI} creates a Qt Quick UI project with a single QML file that
+        contains the main view. You can review Qt Quick UI projects in the QML Viewer and you
+        need not build them. You do not need to have the development environment installed on your
+        computer to create and run this type of projects.
 
         \o \gui {Custom QML Extension Plugin} creates a C++ plugin that makes it possible
         to offer extensions that can be loaded dynamically into applications by using the
@@ -7969,7 +8132,7 @@
 
         The \gui{Introduction and Project Location} dialog opens.
 
-        \image qmldesigner-new-project-location.png "Introduction and Project Location dialog"
+        \image qmldesigner-new-ui-project-location.png "Introduction and Project Location dialog"
 
         \o In the \gui Name field, give a name to the project.
 
@@ -8039,24 +8202,39 @@
         versions are displayed. Further, if you have only one supported Qt version installed,
         this dialog is skipped.
 
-        The \gui{Application Options} dialog opens.
+        The \gui {Mobile Options} dialog opens.
 
-        \image qtcreator-mobile-project-app-options.png "Application Options dialog"
+        \image qmldesigner-new-app-project-mobile-options.png "Mobile Options dialog"
 
         \o In the \gui {Orientation behavior} field, determine how the application
         behaves when the orientation of the device display rotates between portrait
-        and landscape.
+        and landscape, and then click \gui Next.
 
-        \o In the \gui {Application icon} field, select an application icon.
+        \note This dialog opens only if you select \gui Maemo5 or
+        \gui {Symbian Device} target in the \gui {Qt Versions} dialog.
 
-        \o In the \gui {Target UID3} field, specify the \l{Application UID}.
+        The \gui {Symbian Specific} dialog opens.
+
+        \image qmldesigner-new-project-symbian-options.png "Symbian Specific dialog"
+
+        \o In the \gui {Application icon (.svg)} field, select an application
+        icon for the \gui {Symbian Device} target, or use the default icon.
+
+        \o In the \gui {Target UID3} field, specify the \l{Application UID}, or
+        use the default UID.
 
         \note Qt Creator generates a UID for testing the application on a device.
         You need to change the UID when you deliver the application for public
         use.
 
-        \o If the application needs network connectivity, select the
-        \gui {Enable network access} check box, and then click \gui{Next}.
+        \o Click \gui Next.
+
+        The \gui {Maemo Specific} dialog opens.
+
+        \image qmldesigner-new-project-maemo-options.png "Maemo Specific dialog"
+
+        \o In the \gui {Application icon (64x64)} field, select the application
+         icon to use on Maemo targets, or use the default icon.
 
         The \gui {QML Sources} dialog opens.
 
@@ -8851,9 +9029,9 @@
 
     \title Using the Maemo Emulator
 
-    The Maemo emulator emulates the Nokia N900 device environment. You can test
+    The Maemo 5 emulator emulates the Nokia N900 device environment. You can test
     applications in conditions practically identical to running the application
-    on a Nokia N900 device with software update release 1.2 (V10.2010.19-1).
+    on a Nokia N900 device with software update release 1.3 (V20.2010.36-2).
     You can test user interaction by using the keypad and
     touch emulation.
 
@@ -8862,7 +9040,7 @@
     instead. For more information, see the
     \l{http://doc.qt.nokia.com/qtsimulator/index.html}{Qt Simulator Manual}.
 
-    The Maemo emulator is installed and configured as part of the \QSDK
+    The Maemo 5 emulator is installed and configured as part of the \QSDK
     package. You can also install and configure the MADDE environment and
     Maemo emulator separately. For more information, see
     \l{Setting Up Development Environment for Maemo}.
@@ -8870,33 +9048,31 @@
     \section1 Starting the Maemo Emulator
 
     The \gui {Start Maemo Emulator} button is visible if you have a project
-    open in Qt Creator for which you have added the Maemo build target
-    and if you have configured a connection between Qt Creator and the Maemo
-    Emulator.
+    open in Qt Creator for which you have added the Maemo build target.
 
-    To start the Maemo emulator:
-
-    \list 1
-
-    \o Click
+    To start the Maemo emulator, click
     \inlineimage qtcreator-maemo-emulator-button.png "Start Maemo Emulator button"
     .
-
-    \o Select \gui {Mad Developer} on the Maemo emulator, to start the Mad Developer
-    application
-
-    \o If you have not deployed an SSH key to protect the connection between
-    Qt Creator and the Maemo emulator, select \gui {Developer Password} to generate
-    a password.
-
-    \o In Qt Creator, enter the password in the connection settings:
-    \gui {Tools > Options... > Projects > Maemo Device Configurations}.
-
-    \endlist
 
     Test your application on the Maemo emulator as on a device. For a list of
     keyboard shortcuts that you can use to emulate Nokia N900 keys and functions, see
     \l {Emulating Nokia N900 Keys}.
+
+    \section1 Rendering Graphics
+
+    The Maemo emulator supports OpenGL to improve graphics rendering. Hardware
+    acceleration produces better results than software rendering. By default,
+    Qt Creator automatically detects, whether hardware acceleration is
+    supported on the development PC and tries to use it. However, sometimes
+    the results of the automatic detection are not reliable, and
+    hardware acceleration might be selected even if it is actually not
+    available on the development PC. This causes the emulator to crash.
+
+    If the Maemo emulator crashes, you are asked whether you want to try
+    software rendering, instead.
+
+    To specify the OpenGL mode, select \gui {Tools > Options... > Maemo > Qemu
+    Settings}.
 
     \section1 Emulating Nokia N900 Keys
 
@@ -10156,7 +10332,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-version-control.html
+    \previouspage creator-editor-external.html
     \page creator-task-lists.html
     \nextpage creator-cli.html
 
@@ -10218,15 +10394,28 @@
     \title Using Command Line Options
 
     You can start Qt Creator and specify some options from the command line.
+    For example, you can open a file to any line.
 
     To specify command line options, enter the following command in the Qt Creator
     installation or build directory:
 
-    \c {qtcreator [option] [filename]}
+    \c {qtcreator [option] [filename[:line_number]]}
+
+    \note You can use either a colon (:) or a plus sign (+) as a separator
+    between the filename and line number. You can also use a space between the
+    separator and the line number.
 
     For example:
 
-    \c {C:\qtcreator-2.1\bin>qtcreator -help}
+    \list
+
+        \o  \c {C:\qtcreator-2.1\bin>qtcreator -help}
+
+        \o  \c {C:\qtcreator-2.1\bin>qtcreator C:\TextFinder\textfinder.cpp:100}
+
+        \o  \c {C:\qtcreator-2.1\bin>qtcreator C:\TextFinder\textfinder.cpp +100}
+
+    \endlist
 
     The following table summarizes the available options:
 

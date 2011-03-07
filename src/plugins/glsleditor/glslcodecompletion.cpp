@@ -385,7 +385,7 @@ CodeCompletion::~CodeCompletion()
 {
 }
 
-TextEditor::ITextEditable *CodeCompletion::editor() const
+TextEditor::ITextEditor *CodeCompletion::editor() const
 {
     return m_editor;
 }
@@ -395,15 +395,17 @@ int CodeCompletion::startPosition() const
     return m_startPosition;
 }
 
-bool CodeCompletion::supportsEditor(TextEditor::ITextEditable *editor)
+bool CodeCompletion::supportsEditor(TextEditor::ITextEditor *editor) const
 {
-    if (qobject_cast<GLSLTextEditor *>(editor->widget()) != 0)
-        return true;
-
-    return false;
+    return qobject_cast<GLSLTextEditorWidget *>(editor->widget()) != 0;
 }
 
-bool CodeCompletion::triggersCompletion(TextEditor::ITextEditable *editor)
+bool CodeCompletion::supportsPolicy(TextEditor::CompletionPolicy policy) const
+{
+    return policy == TextEditor::SemanticCompletion;
+}
+
+bool CodeCompletion::triggersCompletion(TextEditor::ITextEditor *editor)
 {
     const int cursorPosition = editor->position();
     const QChar ch = editor->characterAt(cursorPosition - 1);
@@ -438,7 +440,7 @@ bool CodeCompletion::triggersCompletion(TextEditor::ITextEditable *editor)
     return false;
 }
 
-int CodeCompletion::startCompletion(TextEditor::ITextEditable *editor)
+int CodeCompletion::startCompletion(TextEditor::ITextEditor *editor)
 {
     m_editor = editor;
 
@@ -448,7 +450,7 @@ int CodeCompletion::startCompletion(TextEditor::ITextEditable *editor)
         ch = editor->characterAt(--pos);
 
     CPlusPlus::ExpressionUnderCursor expressionUnderCursor;
-    GLSLTextEditor *edit = qobject_cast<GLSLTextEditor *>(editor->widget());
+    GLSLTextEditorWidget *edit = qobject_cast<GLSLTextEditorWidget *>(editor->widget());
 
     QList<GLSL::Symbol *> members;
     QStringList specialMembers;
@@ -671,7 +673,7 @@ void CodeCompletion::complete(const TextEditor::CompletionItem &item, QChar type
     QString toInsert = item.text;
 
     const int length = m_editor->position() - m_startPosition;
-    m_editor->setCurPos(m_startPosition);
+    m_editor->setCursorPosition(m_startPosition);
     m_editor->replace(length, toInsert);
 
     if (toInsert.endsWith(QLatin1Char('.')) || toInsert.endsWith(QLatin1Char('(')))

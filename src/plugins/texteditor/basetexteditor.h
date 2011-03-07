@@ -34,7 +34,8 @@
 #ifndef BASETEXTEDITOR_H
 #define BASETEXTEDITOR_H
 
-#include "itexteditable.h"
+#include "itexteditor.h"
+#include "icompletioncollector.h"
 
 #include <find/ifindsupport.h>
 
@@ -61,12 +62,13 @@ namespace Internal {
     class BaseTextEditorPrivate;
     class TextEditorOverlay;
     typedef QList<RefactorMarker> RefactorMarkers;
+    typedef QString (QString::*TransformationMethod)() const;
 }
 
 class ITextMarkable;
 
 class BaseTextDocument;
-class BaseTextEditorEditable;
+class BaseTextEditor;
 class FontSettings;
 class BehaviorSettings;
 class CompletionSettings;
@@ -74,6 +76,7 @@ class DisplaySettings;
 class StorageSettings;
 class Indenter;
 class AutoCompleter;
+class ExtraEncodingSettings;
 
 class TEXTEDITOR_EXPORT BaseTextEditorAnimator : public QObject
 {
@@ -116,14 +119,14 @@ private:
 };
 
 
-class TEXTEDITOR_EXPORT BaseTextEditor : public QPlainTextEdit
+class TEXTEDITOR_EXPORT BaseTextEditorWidget : public QPlainTextEdit
 {
     Q_OBJECT
     Q_PROPERTY(int verticalBlockSelectionFirstColumn READ verticalBlockSelectionFirstColumn)
     Q_PROPERTY(int verticalBlockSelectionLastColumn READ verticalBlockSelectionLastColumn)
 public:
-    BaseTextEditor(QWidget *parent);
-    ~BaseTextEditor();
+    BaseTextEditorWidget(QWidget *parent);
+    ~BaseTextEditorWidget();
 
     static ITextEditor *openEditorAt(const QString &fileName, int line, int column = 0,
                                      const QString &editorId =  QString(),
@@ -150,11 +153,8 @@ public:
         , int at = -1) const;
     void convertPosition(int pos, int *line, int *column) const;
 
-    BaseTextEditorEditable *editableInterface() const;
+    BaseTextEditor *editor() const;
     ITextMarkable *markableInterface() const;
-
-    virtual void triggerCompletions();
-    virtual void triggerQuickFix();
 
     QChar characterAt(int pos) const;
 
@@ -234,6 +234,8 @@ public:
     void setAutoCompleter(AutoCompleter *autoCompleter);
     AutoCompleter *autoCompleter() const;
 
+    QPoint toolTipPosition(const QTextCursor &c) const;
+
 public slots:
     void setDisplayName(const QString &title);
 
@@ -291,6 +293,9 @@ public slots:
     void insertLineAbove();
     void insertLineBelow();
 
+    void uppercaseSelection();
+    void lowercaseSelection();
+
     void cleanWhitespace();
 
 signals:
@@ -320,7 +325,7 @@ private:
     void maybeSelectLine();
 
 public:
-    void duplicateFrom(BaseTextEditor *editor);
+    void duplicateFrom(BaseTextEditorWidget *editor);
 
 protected:
     BaseTextDocument *baseTextDocument() const;
@@ -328,7 +333,7 @@ protected:
 
     void setDefaultPath(const QString &defaultPath);
 
-    virtual BaseTextEditorEditable *createEditableInterface() = 0;
+    virtual BaseTextEditor *createEditor() = 0;
 
 private slots:
     void editorContentsChange(int position, int charsRemoved, int charsAdded);
@@ -409,6 +414,7 @@ public slots:
     virtual void setBehaviorSettings(const TextEditor::BehaviorSettings &);
     virtual void setStorageSettings(const TextEditor::StorageSettings &);
     virtual void setCompletionSettings(const TextEditor::CompletionSettings &);
+    virtual void setExtraEncodingSettings(const TextEditor::ExtraEncodingSettings &);
 
 protected:
     bool viewportEvent(QEvent *event);
@@ -483,8 +489,6 @@ signals:
     void requestFontZoom(int zoom);
     void requestZoomReset();
     void requestBlockUpdate(const QTextBlock &);
-    void requestAutoCompletion(TextEditor::ITextEditable *editor, bool forced);
-    void requestQuickFix(TextEditor::ITextEditable *editor);
 
 private:
     void maybeRequestAutoCompletion(const QChar &ch);
@@ -523,6 +527,7 @@ private:
     bool camelCaseRight(QTextCursor &cursor, QTextCursor::MoveMode mode);
     bool camelCaseLeft(QTextCursor &cursor, QTextCursor::MoveMode mode);
 
+    void transformSelection(Internal::TransformationMethod method);
 
 private slots:
     // auto completion
@@ -536,57 +541,53 @@ private slots:
     void slotSelectionChanged();
     void _q_animateUpdate(int position, QPointF lastPos, QRectF rect);
     void doFoo();
-
 };
 
 
-class TEXTEDITOR_EXPORT BaseTextEditorEditable : public ITextEditable
+class TEXTEDITOR_EXPORT BaseTextEditor : public ITextEditor
 {
     Q_OBJECT
-    friend class BaseTextEditor;
-public:
-    BaseTextEditorEditable(BaseTextEditor *editor);
-    ~BaseTextEditorEditable();
 
-    inline BaseTextEditor *editor() const { return e; }
+public:
+    BaseTextEditor(BaseTextEditorWidget *editorWidget);
+    ~BaseTextEditor();
+
+    friend class BaseTextEditorWidget;
+    BaseTextEditorWidget *editorWidget() const { return e; }
 
     // EditorInterface
-    inline QWidget *widget() { return e; }
-    inline Core::IFile * file() { return e->file(); }
-    inline bool createNew(const QString &contents) { return e->createNew(contents); }
-    inline bool open(const QString &fileName = QString())
-    {
-        return e->open(fileName);
-    }
-    inline QString displayName() const { return e->displayName(); }
-    inline void setDisplayName(const QString &title) { e->setDisplayName(title); emit changed(); }
+    QWidget *widget() { return e; }
+    Core::IFile * file() { return e->file(); }
+    bool createNew(const QString &contents) { return e->createNew(contents); }
+    bool open(const QString &fileName = QString()) { return e->open(fileName); }
+    QString displayName() const { return e->displayName(); }
+    void setDisplayName(const QString &title) { e->setDisplayName(title); emit changed(); }
 
-    inline QByteArray saveState() const { return e->saveState(); }
-    inline bool restoreState(const QByteArray &state) { return e->restoreState(state); }
-    virtual QWidget *toolBar();
+    QByteArray saveState() const { return e->saveState(); }
+    bool restoreState(const QByteArray &state) { return e->restoreState(state); }
+    QWidget *toolBar();
+
+    enum Side { Left, Right };
+    void insertExtraToolBarWidget(Side side, QWidget *widget);
 
     // ITextEditor
     int find(const QString &string) const;
-
     int currentLine() const;
     int currentColumn() const;
     void gotoLine(int line, int column = 0) { e->gotoLine(line, column); }
     int columnCount() const;
     int rowCount() const;
 
-    inline int position(
-        ITextEditor::PositionOperation posOp = ITextEditor::Current
-        , int at = -1) const { return e->position(posOp, at); }
-    inline void convertPosition(int pos, int *line, int *column) const { e->convertPosition(pos, line, column); }
+    int position(PositionOperation posOp = Current, int at = -1) const
+    { return e->position(posOp, at); }
+    void convertPosition(int pos, int *line, int *column) const
+    { e->convertPosition(pos, line, column); }
     QRect cursorRect(int pos = -1) const;
 
     QString contents() const;
     QString selectedText() const;
     QString textAt(int pos, int length) const;
     inline QChar characterAt(int pos) const { return e->characterAt(pos); }
-
-    inline void triggerCompletions() { e->triggerCompletions(); } // slot?
-    inline void triggerQuickFix() { e->triggerQuickFix(); } // slot?
 
     inline ITextMarkable *markableInterface() { return e->markableInterface(); }
 
@@ -597,25 +598,27 @@ public:
     inline QTextCodec *textCodec() const { return e->textCodec(); }
 
 
-    // ITextEditable
+    // ITextEditor
     void remove(int length);
     void insert(const QString &string);
     void replace(int length, const QString &string);
-    void setCurPos(int pos);
+    void setCursorPosition(int pos);
     void select(int toPos);
 
 private slots:
     void updateCursorPosition();
 
 private:
-    BaseTextEditor *e;
+    BaseTextEditorWidget *e;
     mutable QString m_contextHelpId;
     QToolBar *m_toolBar;
+    QWidget *m_stretchWidget;
+    QAction *m_cursorPositionLabelAction;
     Utils::LineColumnLabel *m_cursorPositionLabel;
 };
 
 } // namespace TextEditor
 
-Q_DECLARE_METATYPE(TextEditor::BaseTextEditor::Link)
+Q_DECLARE_METATYPE(TextEditor::BaseTextEditorWidget::Link)
 
 #endif // BASETEXTEDITOR_H

@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -179,8 +179,9 @@ QModelIndex ExternalToolModel::index(int row, int column, const QModelIndex &par
                 return createIndex(row, 0, items.at(row));
             }
         }
-    } else if (column == 0 && row < m_tools.keys().count())
+    } else if (column == 0 && row < m_tools.keys().count()) {
         return createIndex(row, 0);
+    }
     return QModelIndex();
 }
 
@@ -332,8 +333,13 @@ QModelIndex ExternalToolModel::addTool(const QModelIndex &atIndex)
     tool->setDisplayCategory(category);
     tool->setDisplayName(tr("New tool"));
     tool->setDescription(tr("This tool prints a line of useful text"));
+#ifdef Q_OS_WIN
+    tool->setExecutables(QStringList() << "cmd");
+    tool->setArguments(tr("/c echo Useful text"));
+#else
     tool->setExecutables(QStringList() << "echo");
     tool->setArguments(tr("Useful text"));
+#endif
 
     int pos;
     QModelIndex parent;
@@ -398,9 +404,6 @@ ExternalToolConfig::ExternalToolConfig(QWidget *parent) :
     connect(ui->modifiesDocumentCheckbox, SIGNAL(clicked()), this, SLOT(updateCurrentItem()));
     connect(ui->inputText, SIGNAL(textChanged()), this, SLOT(updateCurrentItem()));
 
-    ui->addButton->setIcon(QIcon(QLatin1String(Constants::ICON_PLUS)));
-    ui->removeButton->setIcon(QIcon(QLatin1String(Constants::ICON_MINUS)));
-    ui->revertButton->setIcon(QIcon(QLatin1String(Constants::ICON_RESET)));
     connect(ui->revertButton, SIGNAL(clicked()), this, SLOT(revertCurrentItem()));
     connect(ui->addButton, SIGNAL(clicked()), this, SLOT(add()));
     connect(ui->removeButton, SIGNAL(clicked()), this, SLOT(removeTool()));

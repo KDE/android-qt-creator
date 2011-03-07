@@ -214,7 +214,7 @@ QString CppFileSettings::licenseTemplate(const QString &fileName, const QString 
         return QString();
     }
 
-    QTextCodec *codec = Core::EditorManager::instance()->defaultTextEncoding();
+    QTextCodec *codec = Core::EditorManager::instance()->defaultTextCodec();
     QTextStream licenseStream(&file);
     licenseStream.setCodec(codec);
     licenseStream.setAutoDetectUnicode(true);
@@ -246,7 +246,7 @@ CppFileSettingsWidget::CppFileSettingsWidget(QWidget *parent) :
         foreach (const QString &suffix, headerMt.suffixes())
             m_ui->headerSuffixComboBox->addItem(suffix);
     m_ui->licenseTemplatePathChooser->setExpectedKind(Utils::PathChooser::File);
-    m_ui->licenseTemplatePathChooser->addButton(tr("Edit..."), this, SLOT(slotEdit()));
+    m_ui->licenseTemplatePathChooser->addButton(tr("Edit"), this, SLOT(slotEdit()));
 }
 
 CppFileSettingsWidget::~CppFileSettingsWidget()

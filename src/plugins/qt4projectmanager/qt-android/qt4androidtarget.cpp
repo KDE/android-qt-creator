@@ -14,7 +14,6 @@ are required by law.
 #include "androiddeploystep.h"
 #include "androidglobal.h"
 #include "androidpackagecreationstep.h"
-#include "androidtoolchain.h"
 
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorer.h>

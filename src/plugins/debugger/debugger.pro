@@ -20,6 +20,7 @@ HEADERS += breakhandler.h \
     breakpoint.h \
     breakpointmarker.h \
     breakwindow.h \
+    commonoptionspage.h \
     consolewindow.h \
     debugger_global.h \
     debuggeractions.h \
@@ -60,12 +61,14 @@ HEADERS += breakhandler.h \
     threadshandler.h \
     watchdelegatewidgets.h \
     debuggerruncontrolfactory.h \
-    debuggertooltipmanager.h
+    debuggertooltipmanager.h \
+    debuggertoolchaincombobox.h
 
 SOURCES += breakhandler.cpp \
     breakpoint.cpp \
     breakpointmarker.cpp \
     breakwindow.cpp \
+    commonoptionspage.cpp \
     consolewindow.cpp \
     debuggeractions.cpp \
     debuggerdialogs.cpp \
@@ -100,7 +103,8 @@ SOURCES += breakhandler.cpp \
     watchwindow.cpp \
     stackframe.cpp \
     watchdelegatewidgets.cpp \
-    debuggertooltipmanager.cpp
+    debuggertooltipmanager.cpp \
+    debuggertoolchaincombobox.cpp
 
 FORMS += attachexternaldialog.ui \
     attachcoredialog.ui \

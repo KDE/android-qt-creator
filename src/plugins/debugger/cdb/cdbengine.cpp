@@ -58,7 +58,8 @@
 
 #include <coreplugin/icore.h>
 #include <texteditor/itexteditor.h>
-#include <projectexplorer/toolchain.h>
+#include <projectexplorer/abi.h>
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <utils/synchronousprocess.h>
 #include <utils/winutils.h>
@@ -172,20 +173,20 @@ struct MemoryViewCookie
     quint64 length;
 };
 
-struct SourceLocationCookie
+struct MemoryChangeCookie
 {
-    explicit SourceLocationCookie(const QString &f = QString(), int l = 0) :
-             fileName(f), lineNumber(l) {}
+    explicit MemoryChangeCookie(quint64 addr = 0, const QByteArray &d = QByteArray()) :
+                               address(addr), data(d) {}
 
-    QString fileName;
-    int lineNumber;
+    quint64 address;
+    QByteArray data;
 };
 
 } // namespace Internal
 } // namespace Debugger
 
 Q_DECLARE_METATYPE(Debugger::Internal::MemoryViewCookie)
-Q_DECLARE_METATYPE(Debugger::Internal::SourceLocationCookie)
+Q_DECLARE_METATYPE(Debugger::Internal::MemoryChangeCookie)
 
 namespace Debugger {
 namespace Internal {
@@ -309,24 +310,14 @@ static inline bool validMode(DebuggerStartMode sm)
     return true;
 }
 
-static inline QString msgCdbDisabled(ToolChainType tc)
-{
-    return CdbEngine::tr("The CDB debug engine required for %1 is currently disabled.").
-                      arg(ToolChain::toolChainName(tc));
-}
-
 // Accessed by RunControlFactory
 DebuggerEngine *createCdbEngine(const DebuggerStartParameters &sp,
     DebuggerEngine *masterEngine, QString *errorMessage)
 {
 #ifdef Q_OS_WIN
     CdbOptionsPage *op = CdbOptionsPage::instance();
-    if (!op || !op->options()->isValid()) {
-        *errorMessage = msgCdbDisabled(sp.toolChainType);
-        return 0;
-    }
-    if (!validMode(sp.startMode)) {
-        *errorMessage = CdbEngine::tr("The CDB debug engine does not support start mode %1.").arg(sp.startMode);
+    if (!op || !op->options()->isValid() || !validMode(sp.startMode)) {
+        *errorMessage = QLatin1String("Internal error: Invalid start parameters passed for thre CDB engine.");
         return 0;
     }
     return new CdbEngine(sp, masterEngine, op->options());
@@ -347,28 +338,58 @@ bool isCdbEngineEnabled()
 #endif
 }
 
-ConfigurationCheck checkCdbConfiguration(ToolChainType toolChain)
+static inline QString msgNoCdbBinaryForToolChain(const ProjectExplorer::Abi &tc)
 {
-    ConfigurationCheck check;
-    switch (toolChain) {
-    case ToolChain_MinGW: // Do our best
-    case ToolChain_MSVC:
-    case ToolChain_WINCE:
-    case ToolChain_OTHER:
-    case ToolChain_UNKNOWN:
-    case ToolChain_INVALID:
-        if (!isCdbEngineEnabled()) {
-            check.errorMessage = msgCdbDisabled(toolChain);
-            check.settingsPage = CdbOptionsPage::settingsId();
-        }
-        break;
-    default:
-        //: %1 is something like "GCCE" or "Intel C++ Compiler (Linux)" (see ToolChain context)
-        check.errorMessage = CdbEngine::tr("The CDB debug engine does not support the %1 toolchain.").
-                    arg(ToolChain::toolChainName(toolChain));
-        check.settingsPage = CdbOptionsPage::settingsId();
+    return CdbEngine::tr("There is no CDB binary available for binaries in format '%1'").arg(tc.toString());
+}
+
+static QString cdbBinary(const DebuggerStartParameters &sp)
+{
+    if (!sp.debuggerCommand.isEmpty()) {
+        // Do not use a GDB binary if we got started for a project with MinGW runtime.
+        const bool abiMatch = sp.toolChainAbi.os() == ProjectExplorer::Abi::WindowsOS
+                    && sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvcFlavor;
+        if (abiMatch)
+            return sp.debuggerCommand;
     }
-    return check;
+    return debuggerCore()->debuggerForAbi(sp.toolChainAbi, CdbEngineType);
+}
+
+bool checkCdbConfiguration(const DebuggerStartParameters &sp, ConfigurationCheck *check)
+{
+#ifdef Q_OS_WIN
+    if (!isCdbEngineEnabled()) {
+        check->errorDetails.push_back(CdbEngine::tr("The CDB debug engine required for %1 is currently disabled.").
+                           arg(sp.toolChainAbi.toString()));
+        check->settingsCategory = QLatin1String(Debugger::Constants::DEBUGGER_SETTINGS_CATEGORY);
+        check->settingsPage = CdbOptionsPage::settingsId();
+        return false;
+    }
+
+    if (!validMode(sp.startMode)) {
+        check->errorDetails.push_back(CdbEngine::tr("The CDB engine does not support start mode %1.").arg(sp.startMode));
+        return false;
+    }
+
+    if (sp.toolChainAbi.binaryFormat() != Abi::PEFormat || sp.toolChainAbi.os() != Abi::WindowsOS) {
+        check->errorDetails.push_back(CdbEngine::tr("The CDB debug engine does not support the %1 ABI.").
+                                      arg(sp.toolChainAbi.toString()));
+        return false;
+    }
+
+    if (cdbBinary(sp).isEmpty()) {
+        check->errorDetails.push_back(msgNoCdbBinaryForToolChain(sp.toolChainAbi));
+        check->settingsCategory = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        check->settingsPage = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        return false;
+    }
+
+    return true;
+#else
+    Q_UNUSED(sp);
+    check->errorDetails.push_back(QString::fromLatin1("Unsupported debug mode"));
+    return false;
+#endif
 }
 
 void addCdbOptionPages(QList<Core::IOptionsPage *> *opts)
@@ -406,7 +427,6 @@ CdbEngine::CdbEngine(const DebuggerStartParameters &sp,
     m_hasDebuggee(false),
     m_elapsedLogTime(0),
     m_sourceStepInto(false),
-    m_wX86BreakpointCount(0),
     m_watchPointX(0),
     m_watchPointY(0),
     m_ignoreCdbOutput(false)
@@ -433,7 +453,6 @@ void CdbEngine::init()
     m_notifyEngineShutdownOnTermination = false;
     m_hasDebuggee = false;
     m_sourceStepInto = false;
-    m_wX86BreakpointCount = 0;
     m_watchPointX = m_watchPointY = 0;
     m_ignoreCdbOutput = false;
 
@@ -442,6 +461,7 @@ void CdbEngine::init()
     m_extensionCommandQueue.clear();
     m_extensionMessageBuffer.clear();
     m_pendingBreakpointMap.clear();
+    m_customSpecialStopData.clear();
     QTC_ASSERT(m_process.state() != QProcess::Running, Utils::SynchronousProcess::stopProcess(m_process); )
 }
 
@@ -500,7 +520,7 @@ bool CdbEngine::setToolTipExpression(const QPoint &mousePos,
     tw->setDebuggerModel(LocalsWatch);
     tw->setExpression(exp);
     tw->acquireEngine(this);
-    DebuggerToolTipManager::instance()->add(mousePos, tw);
+    DebuggerToolTipManager::instance()->showToolTip(mousePos, editor, tw);
     return true;
 }
 
@@ -566,7 +586,8 @@ bool CdbEngine::startConsole(const DebuggerStartParameters &sp, QString *errorMe
     connect(m_consoleStub.data(), SIGNAL(wrapperStopped()),
             SLOT(consoleStubExited()));
     m_consoleStub->setWorkingDirectory(sp.workingDirectory);
-    m_consoleStub->setEnvironment(sp.environment);
+    if (sp.environment.size())
+        m_consoleStub->setEnvironment(sp.environment);
     if (!m_consoleStub->start(sp.executable, sp.processArgs)) {
         *errorMessage = tr("The console process '%1' could not be started.").arg(sp.executable);
         return false;
@@ -653,10 +674,22 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
         qDebug("launchCDB startMode=%d", sp.startMode);
     const QChar blank(QLatin1Char(' '));
     // Start engine which will run until initial breakpoint:
-    // Determine extension lib name and path to use
+    // Determine binary (force MSVC), extension lib name and path to use
     // The extension is passed as relative name with the path variable set
     //(does not work with absolute path names)
-    const QFileInfo extensionFi(CdbEngine::extensionLibraryName(m_options->is64bit));
+    const QString executable = cdbBinary(sp);
+    if (executable.isEmpty()) {
+        *errorMessage = tr("There is no CDB executable specified.");
+        return false;
+    }
+
+    const bool is64bit =
+#ifdef Q_OS_WIN
+            Utils::winIs64BitBinary(executable);
+#else
+            false;
+#endif
+    const QFileInfo extensionFi(CdbEngine::extensionLibraryName(is64bit));
     if (!extensionFi.isFile()) {
         *errorMessage = QString::fromLatin1("Internal error: The extension %1 cannot be found.").
                 arg(QDir::toNativeSeparators(extensionFi.absoluteFilePath()));
@@ -709,7 +742,6 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
         nativeArguments += sp.processArgs;
     }
 
-    const QString executable = m_options->executable;
     const QString msg = QString::fromLatin1("Launching %1 %2\nusing %3 of %4.").
             arg(QDir::toNativeSeparators(executable),
                 arguments.join(QString(blank)) + blank + nativeArguments,
@@ -718,7 +750,10 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
     showMessage(msg, LogMisc);
 
     m_outputBuffer.clear();
-    m_process.setEnvironment(mergeEnvironment(sp.environment.toStringList(), extensionFi.absolutePath()));
+    const QStringList environment = sp.environment.size() == 0 ?
+                                    QProcessEnvironment::systemEnvironment().toStringList() :
+                                    sp.environment.toStringList();
+    m_process.setEnvironment(mergeEnvironment(environment, extensionFi.absolutePath()));
     if (!sp.workingDirectory.isEmpty())
         m_process.setWorkingDirectory(sp.workingDirectory);
 
@@ -756,6 +791,7 @@ void CdbEngine::setupInferior()
     if (debug)
         qDebug("setupInferior");
     attemptBreakpointSynchronization();
+    postCommand("sxn 0x4000001f", 0); // Do not break on WowX86 exceptions.
     postExtensionCommand("pid", QByteArray(), 0, &CdbEngine::handlePid);
 }
 
@@ -1062,6 +1098,13 @@ void CdbEngine::interruptInferior()
     }
 }
 
+void CdbEngine::doInterruptInferiorCustomSpecialStop(const QVariant &v)
+{
+    if (m_specialStopMode == NoSpecialStop)
+        doInterruptInferior(CustomSpecialStop);
+    m_customSpecialStopData.push_back(v);
+}
+
 void CdbEngine::doInterruptInferior(SpecialStopMode sm)
 {
 #ifdef Q_OS_WIN
@@ -1078,12 +1121,12 @@ void CdbEngine::doInterruptInferior(SpecialStopMode sm)
 #endif
 }
 
-void CdbEngine::executeRunToLine(const QString &fileName, int lineNumber)
+void CdbEngine::executeRunToLine(const ContextData &data)
 {
     // Add one-shot breakpoint
     BreakpointParameters bp(BreakpointByFileAndLine);
-    bp.fileName = fileName;
-    bp.lineNumber = lineNumber;
+    bp.fileName = data.fileName;
+    bp.lineNumber = data.lineNumber;
     postCommand(cdbAddBreakpointCommand(bp, BreakpointId(-1), true), 0);
     continueInferior();
 }
@@ -1110,13 +1153,13 @@ void CdbEngine::setRegisterValue(int regnr, const QString &value)
     reloadRegisters();
 }
 
-void CdbEngine::executeJumpToLine(const QString & fileName, int lineNumber)
+void CdbEngine::executeJumpToLine(const ContextData &data)
 {
     QByteArray cmd;
     ByteArrayInputStream str(cmd);
     // Resolve source line address and go to that location
-    str << "? `" << QDir::toNativeSeparators(fileName) << ':' << lineNumber << '`';
-    const QVariant cookie = qVariantFromValue(SourceLocationCookie(fileName, lineNumber));
+    str << "? `" << QDir::toNativeSeparators(data.fileName) << ':' << data.lineNumber << '`';
+    const QVariant cookie = qVariantFromValue(data);
     postBuiltinCommand(cmd, 0, &CdbEngine::handleJumpToLineAddressResolution, 0, cookie);
 }
 
@@ -1131,13 +1174,13 @@ void CdbEngine::handleJumpToLineAddressResolution(const CdbBuiltinCommandPtr &cm
     if (equalPos == -1)
         return;
     answer.remove(0, equalPos + 3);
-    QTC_ASSERT(qVariantCanConvert<SourceLocationCookie>(cmd->cookie), return ; )
-    const SourceLocationCookie cookie = qvariant_cast<SourceLocationCookie>(cmd->cookie);
+    QTC_ASSERT(qVariantCanConvert<ContextData>(cmd->cookie), return);
+    const ContextData cookie = qvariant_cast<ContextData>(cmd->cookie);
 
     QByteArray registerCmd;
     ByteArrayInputStream str(registerCmd);
     // PC-register depending on 64/32bit.
-    str << "r " << (m_options->is64bit ? "rip" : "eip") << "=0x" << answer;
+    str << "r " << (startParameters().toolChainAbi.wordWidth() == 64 ? "rip" : "eip") << "=0x" << answer;
     postCommand(registerCmd, 0);
     gotoLocation(Location(cookie.fileName, cookie.lineNumber));
 }
@@ -1419,6 +1462,17 @@ void CdbEngine::fetchMemory(MemoryAgent *agent, QObject *editor, quint64 addr, q
     str << addr << ' ' << length;
     const QVariant cookie = qVariantFromValue<MemoryViewCookie>(MemoryViewCookie(agent, editor, addr, length));
     postExtensionCommand("memory", args, 0, &CdbEngine::handleMemory, 0, cookie);
+}
+
+void CdbEngine::changeMemory(Internal::MemoryAgent *, QObject *, quint64 addr, const QByteArray &data)
+{
+    QTC_ASSERT(!data.isEmpty(), return; )
+    if (!m_accessible) {
+        const MemoryChangeCookie cookie(addr, data);
+        doInterruptInferiorCustomSpecialStop(qVariantFromValue(cookie));
+    } else {
+        postCommand(cdbWriteMemoryCommand(addr, data), 0);
+    }
 }
 
 void CdbEngine::handleMemory(const CdbExtensionCommandPtr &command)
@@ -1704,18 +1758,6 @@ unsigned CdbEngine::examineStopReason(const GdbMi &stopReason,
         // pulls DLLs. Avoid showing a 'stopped' Message box.
         if (exception.exceptionCode == winExceptionStartupCompleteTrap)
             return StopNotifyStop;
-        // WOW 64 breakpoint: Report in log and continue the first one,
-        // subsequent ones are caused by interrupting the application.
-        if (exception.exceptionCode == winExceptionWX86Breakpoint) {
-            if (m_wX86BreakpointCount++) {
-                *message = tr("Interrupted (%1)").arg(description);
-                rc |= StopReportStatusMessage|StopNotifyStop;
-            } else {
-                *message = description;
-                rc |= StopIgnoreContinue|StopReportLog;
-            }
-            return rc;
-        }
         if (exception.exceptionCode == winExceptionCtrlPressed) {
             // Detect interruption by pressing Ctrl in a console and force a switch to thread 0.
             *message = msgInterrupted();
@@ -1768,6 +1810,12 @@ void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
         return;
     case SpecialStopGetWidgetAt:
         postWidgetAtCommand();
+        return;
+    case CustomSpecialStop:
+        foreach (const QVariant &data, m_customSpecialStopData)
+            handleCustomSpecialStop(data);
+        m_customSpecialStopData.clear();
+        doContinueInferior();
         return;
     case NoSpecialStop:
         break;
@@ -2463,7 +2511,7 @@ static inline void formatCdbBreakPointResponse(BreakpointId id, const Breakpoint
 void CdbEngine::handleBreakPoints(const CdbExtensionCommandPtr &reply)
 {
     if (debugBreakpoints)
-        qDebug("CdbEngine::handleBreakPoints: sucess=%d: %s", reply->success, reply->reply.constData());
+        qDebug("CdbEngine::handleBreakPoints: success=%d: %s", reply->success, reply->reply.constData());
     if (!reply->success) {
         showMessage(QString::fromAscii(reply->errorMessage), LogError);
         return;
@@ -2545,6 +2593,15 @@ void CdbEngine::postWidgetAtCommand()
     arguments.append(' ');
     arguments.append(QByteArray::number(m_watchPointY));
     postExtensionCommand("widgetat", arguments, 0, &CdbEngine::handleWidgetAt, 0);
+}
+
+void CdbEngine::handleCustomSpecialStop(const QVariant &v)
+{
+    if (qVariantCanConvert<MemoryChangeCookie>(v)) {
+        const MemoryChangeCookie changeData = qVariantValue<MemoryChangeCookie>(v);
+        postCommand(cdbWriteMemoryCommand(changeData.address, changeData.data), 0);
+        return;
+    }
 }
 
 } // namespace Internal

@@ -41,7 +41,7 @@
 namespace TextEditor {
 
 class CompletionItem;
-class ITextEditable;
+class ITextEditor;
 class CompletionSupport;
 
 namespace Internal {
@@ -58,10 +58,9 @@ class CompletionWidget : public QFrame
     Q_OBJECT
 
 public:
-    CompletionWidget(CompletionSupport *support, ITextEditable *editor);
+    CompletionWidget(CompletionSupport *support, ITextEditor *editor);
     ~CompletionWidget();
 
-    void setQuickFix(bool quickFix);
     void setCompletionItems(const QList<TextEditor::CompletionItem> &completionitems);
     void showCompletions(int startPos);
 
@@ -83,7 +82,7 @@ private:
 
 private:
     CompletionSupport *m_support;
-    ITextEditable *m_editor;
+    ITextEditor *m_editor;
     CompletionListView *m_completionListView;
 };
 
@@ -109,19 +108,18 @@ protected:
 private:
     friend class CompletionWidget;
 
-    CompletionListView(CompletionSupport *support, ITextEditable *editor, CompletionWidget *completionWidget);
+    CompletionListView(CompletionSupport *support, ITextEditor *editor, CompletionWidget *completionWidget);
 
-    void setQuickFix(bool quickFix);
     void setCompletionItems(const QList<TextEditor::CompletionItem> &completionitems);
     void keyboardSearch(const QString &search);
     void closeList(const QModelIndex &index);
+
 private slots:
     void maybeShowInfoTip();
-private:
 
+private:
     bool m_blockFocusOut;
-    bool m_quickFix;
-    ITextEditable *m_editor;
+    ITextEditor *m_editor;
     QWidget *m_editorWidget;
     CompletionWidget *m_completionWidget;
     AutoCompletionModel *m_model;

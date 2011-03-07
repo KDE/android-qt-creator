@@ -35,10 +35,14 @@
 
 #include "buildsteplist.h"
 #include "deployconfiguration.h"
+#include "gcctoolchainfactories.h"
+#include "msvctoolchain.h"
 #include "project.h"
 #include "projectexplorersettings.h"
 #include "target.h"
 #include "targetsettingspanel.h"
+#include "toolchainmanager.h"
+#include "toolchainoptionspage.h"
 #include "copytaskhandler.h"
 #include "showineditortaskhandler.h"
 #include "vcsannotatetaskhandler.h"
@@ -211,13 +215,16 @@ struct ProjectExplorerPluginPrivate {
     Internal::ProjectWelcomePage *m_welcomePage;
 
     Core::IMode *m_projectsMode;
+
+    ToolChainManager *m_toolChainManager;
 };
 
 ProjectExplorerPluginPrivate::ProjectExplorerPluginPrivate() :
     m_currentProject(0),
     m_currentNode(0),
     m_delayedRunConfiguration(0),
-    m_projectsMode(0)
+    m_projectsMode(0),
+    m_toolChainManager(0)
 {
 }
 
@@ -258,6 +265,7 @@ ProjectExplorerPlugin::~ProjectExplorerPlugin()
 {
     removeObject(d->m_welcomePage);
     delete d->m_welcomePage;
+    delete d->m_toolChainManager;
     removeObject(this);
     delete d;
 }
@@ -278,6 +286,19 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     if (!parseArguments(arguments, error))
         return false;
     addObject(this);
+
+    // Add ToolChainFactories:
+#ifndef Q_OS_WIN
+    addAutoReleasedObject(new Internal::GccToolChainFactory);
+    addAutoReleasedObject(new Internal::LinuxIccToolChainFactory);
+#else
+    addAutoReleasedObject(new Internal::MingwToolChainFactory);
+    addAutoReleasedObject(new Internal::MsvcToolChainFactory);
+#endif
+
+    d->m_toolChainManager = new ToolChainManager(this);
+
+    addAutoReleasedObject(new Internal::ToolChainOptionsPage);
 
     addAutoReleasedObject(new TaskHub);
 
@@ -936,7 +957,7 @@ void ProjectExplorerPlugin::loadAction()
                                                     d->m_projectFilterString);
     if (filename.isEmpty())
         return;
-    loadProject(filename);
+    openProject(filename);
     updateActions();
 }
 
@@ -986,6 +1007,8 @@ void ProjectExplorerPlugin::clearSession()
 
 void ProjectExplorerPlugin::extensionsInitialized()
 {
+    d->m_toolChainManager->restoreToolChains();
+
     d->m_proWindow->extensionsInitialized();
     d->m_fileFactories = ProjectFileFactory::createFactories(&d->m_projectFilterString);
     foreach (ProjectFileFactory *pf, d->m_fileFactories) {
@@ -1140,18 +1163,6 @@ void ProjectExplorerPlugin::savePersistentSettings()
         s->setValue("ProjectExplorer/Settings/AutoRestoreLastSession", d->m_projectExplorerSettings.autorestoreLastSession);
         s->setValue("ProjectExplorer/Settings/PromptToStopRunControl", d->m_projectExplorerSettings.prompToStopRunControl);
         s->setValue("ProjectExplorer/Settings/EnvironmentId", d->m_projectExplorerSettings.environmentId.toString());
-    }
-}
-
-void ProjectExplorerPlugin::loadProject(const QString &project)
-{
-    if (!openProject(project)) {
-        QMessageBox box(QMessageBox::Warning,
-                        tr("Failed to open project"),
-                        tr("Failed to open project:\n%1").arg(project),
-                        QMessageBox::Ok,
-                        Core::ICore::instance()->mainWindow());
-        box.exec();
     }
 }
 
@@ -1336,13 +1347,14 @@ void ProjectExplorerPlugin::restoreSession()
     connect(modeManager, SIGNAL(currentModeChanged(Core::IMode*, Core::IMode*)),
             this, SLOT(currentModeChanged(Core::IMode*, Core::IMode*)));
     connect(d->m_welcomePage, SIGNAL(requestSession(QString)), this, SLOT(loadSession(QString)));
-    connect(d->m_welcomePage, SIGNAL(requestProject(QString)), this, SLOT(loadProject(QString)));
+    connect(d->m_welcomePage, SIGNAL(requestProject(QString)), this, SLOT(openProject(QString)));
 
     QStringList combinedList;
     // Converts "filename" "+45" or "filename" ":23"
     // into     "filename+45"   and "filename:23"
     foreach (const QString &str, arguments) {
-        if (!combinedList.isEmpty() && (str.startsWith("+") || str.startsWith(":"))) {
+        if (!combinedList.isEmpty() && (str.startsWith(QLatin1Char('+'))
+                                        || str.startsWith(QLatin1Char(':')))) {
             combinedList.last().append(str);
         } else {
             combinedList << str;
@@ -2198,7 +2210,7 @@ QString ProjectExplorerPlugin::directoryFor(Node *node)
         // We figure out a commonPath from the subfolders
         QStringList list;
         foreach (FolderNode *f, folder->subFolderNodes())
-            list << f->path() + "/";
+            list << f->path() + QLatin1Char('/');
         if (list.isEmpty())
             location = path.left(path.indexOf('#'));
         else
@@ -2421,7 +2433,7 @@ void ProjectExplorerPlugin::renameFile(Node *node, const QString &to)
         return;
     QString orgFilePath = QFileInfo(node->path()).absoluteFilePath();
     QString dir = QFileInfo(orgFilePath).absolutePath();
-    QString newFilePath = dir + "/" + to;
+    QString newFilePath = dir + QLatin1Char('/') + to;
     Core::ICore *core = Core::ICore::instance();
     Core::IVersionControl *vc = core->vcsManager()->findVersionControlForDirectory(dir);
     bool result = false;

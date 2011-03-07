@@ -34,7 +34,7 @@
 #include "icompletioncollector.h"
 
 #include "completionsettings.h"
-#include "itexteditable.h"
+#include "itexteditor.h"
 
 #include <QtCore/QRegExp>
 #include <algorithm>
@@ -149,10 +149,10 @@ bool ICompletionCollector::partiallyComplete(const QList<TextEditor::CompletionI
         lastKey.chop(1);
     }
 
-    if (ITextEditable *ed = editor()) {
+    if (ITextEditor *ed = editor()) {
         const int typedLength = ed->position() - startPosition();
         if (!firstKey.isEmpty() && firstKey.length() > typedLength) {
-            ed->setCurPos(startPosition());
+            ed->setCursorPosition(startPosition());
             ed->replace(typedLength, firstKey);
         }
     }
@@ -162,7 +162,8 @@ bool ICompletionCollector::partiallyComplete(const QList<TextEditor::CompletionI
 
 void ICompletionCollector::sortCompletion(QList<TextEditor::CompletionItem> &completionItems)
 {
-    qStableSort(completionItems.begin(), completionItems.end(), &ICompletionCollector::completionItemLessThan);
+    qStableSort(completionItems.begin(), completionItems.end(),
+        &ICompletionCollector::completionItemLessThan);
 }
 
 void ICompletionCollector::filter(const QList<TextEditor::CompletionItem> &items,
@@ -207,7 +208,7 @@ void ICompletionCollector::filter(const QList<TextEditor::CompletionItem> &items
     }
     const QRegExp regExp(keyRegExp);
 
-    foreach (TextEditor::CompletionItem item, items)
+    foreach (const TextEditor::CompletionItem &item, items)
         if (regExp.indexIn(item.text) == 0)
             filteredItems->append(item);
 }

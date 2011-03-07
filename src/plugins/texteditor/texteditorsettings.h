@@ -40,7 +40,7 @@
 
 namespace TextEditor {
 
-class BaseTextEditor;
+class BaseTextEditorWidget;
 class FontSettings;
 class TabSettings;
 class StorageSettings;
@@ -48,6 +48,7 @@ class BehaviorSettings;
 class DisplaySettings;
 class CompletionSettings;
 class HighlighterSettings;
+class ExtraEncodingSettings;
 
 namespace Internal {
 class TextEditorSettingsPrivate;
@@ -68,7 +69,7 @@ public:
 
     static TextEditorSettings *instance();
 
-    void initializeEditor(BaseTextEditor *editor);
+    void initializeEditor(BaseTextEditorWidget *editor);
 
     const FontSettings &fontSettings() const;
     const TabSettings &tabSettings() const;
@@ -77,6 +78,7 @@ public:
     const DisplaySettings &displaySettings() const;
     const CompletionSettings &completionSettings() const;
     const HighlighterSettings &highlighterSettings() const;
+    const ExtraEncodingSettings &extraEncodingSettings() const;
 
     void setCompletionSettings(const TextEditor::CompletionSettings &);
 
@@ -87,6 +89,7 @@ signals:
     void behaviorSettingsChanged(const TextEditor::BehaviorSettings &);
     void displaySettingsChanged(const TextEditor::DisplaySettings &);
     void completionSettingsChanged(const TextEditor::CompletionSettings &);
+    void extraEncodingSettingsChanged(const TextEditor::ExtraEncodingSettings &);
 
 private:
     Internal::TextEditorSettingsPrivate *m_d;

@@ -33,7 +33,7 @@
 
 #include "qmakestep.h"
 
-#include "projectexplorer/projectexplorerconstants.h"
+#include <projectexplorer/projectexplorerconstants.h>
 #include <proparser/profileevaluator.h>
 #include "qmakeparser.h"
 #include "qt4buildconfiguration.h"
@@ -45,6 +45,7 @@
 #include "debugginghelperbuildtask.h"
 
 #include <projectexplorer/buildsteplist.h>
+#include <projectexplorer/toolchain.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -155,11 +156,10 @@ QStringList QMakeStep::moreArguments()
     Qt4BuildConfiguration *bc = qt4BuildConfiguration();
     QStringList arguments;
 #if defined(Q_OS_WIN) || defined(Q_OS_MAC)
-    const ProjectExplorer::ToolChainType type = bc->toolChainType();
-    if (type == ProjectExplorer::ToolChain_GCC_MAEMO5
-            || type == ProjectExplorer::ToolChain_GCC_HARMATTAN) {
+    ProjectExplorer::ToolChain *tc = bc->toolChain();
+    if (tc && (tc->targetAbi().osFlavor() == ProjectExplorer::Abi::HarmattanLinuxFlavor
+               || tc->targetAbi().osFlavor() == ProjectExplorer::Abi::MaemoLinuxFlavor))
         arguments << QLatin1String("-unix");
-    }
 #endif
     if (!bc->qtVersion()->supportsShadowBuilds()) {
         // We have a target which does not allow shadow building.
@@ -332,31 +332,20 @@ bool QMakeStep::isQmlDebuggingLibrarySupported(QString *reason) const
     if (qt4BuildConfiguration()->qtVersion()->hasQmlDebuggingLibrary())
         return true;
 
-    int major, minor, patch;
-    if (!qt4BuildConfiguration()->qtVersion()->versionNumbers(&major, &minor, &patch)) {
+    if (!qt4BuildConfiguration()->qtVersion()->isValid()) {
         if (reason)
             *reason = tr("Invalid Qt version.");
         return false;
     }
 
-    // only support 4.7.1 onwards
-    bool compatibleQt = false;
-    if (major == 4) {
-        if (minor == 7) {
-            if (patch >= 1)
-                compatibleQt = true;
-        } else if (minor > 7)
-            compatibleQt = true;
-    }
-
-    if (!compatibleQt) {
+    if (qt4BuildConfiguration()->qtVersion()->qtVersion() < QtVersionNumber(4, 7 ,0)) {
         if (reason)
             *reason = tr("Requires Qt 4.7.1 or newer.");
         return false;
     }
 
     if (reason)
-        *reason = tr("Library not available. <a href='compile'>Compile...</a>.");
+        *reason = tr("Library not available. <a href='compile'>Compile...</a>");
 
     return false;
 }

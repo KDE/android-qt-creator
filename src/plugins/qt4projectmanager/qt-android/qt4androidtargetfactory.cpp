@@ -48,7 +48,7 @@ bool Qt4AndroidTargetFactory::supportsTargetId(const QString &id) const
 QStringList Qt4AndroidTargetFactory::supportedTargetIds(ProjectExplorer::Project *parent) const
 {
     QStringList targetIds;
-    if (!qobject_cast<Qt4Project *>(parent))
+    if (parent && !qobject_cast<Qt4Project *>(parent))
         return targetIds;
     if (QtVersionManager::instance()->supportsTargetId(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID)))
         targetIds << QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID);
@@ -60,6 +60,12 @@ QString Qt4AndroidTargetFactory::displayNameForId(const QString &id) const
     if (id == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
         return Qt4AndroidTarget::defaultDisplayName();
     return QString();
+}
+
+QIcon Qt4AndroidTargetFactory::iconForId(const QString &id) const
+{
+    Q_UNUSED(id)
+    return QIcon(":/projectexplorer/images/AndroidDevice.png");
 }
 
 bool Qt4AndroidTargetFactory::canCreate(ProjectExplorer::Project *parent, const QString &id) const
@@ -148,7 +154,7 @@ Qt4BaseTarget *Qt4AndroidTargetFactory::create(ProjectExplorer::Project *parent,
 }
 
 Qt4BaseTarget *Qt4AndroidTargetFactory::create(ProjectExplorer::Project *parent,
-    const QString &id, QList<BuildConfigurationInfo> infos)
+    const QString &id, const QList<BuildConfigurationInfo> & infos)
 {
     if (!canCreate(parent, id))
         return 0;
@@ -173,4 +179,25 @@ Qt4BaseTarget *Qt4AndroidTargetFactory::create(ProjectExplorer::Project *parent,
     if (target->runConfigurations().isEmpty())
         target->addRunConfiguration(new ProjectExplorer::CustomExecutableRunConfiguration(target));
     return target;
+}
+
+QList<BuildConfigurationInfo> Qt4AndroidTargetFactory::availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion)
+{
+    QList<BuildConfigurationInfo> infos;
+    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion);
+
+    foreach (QtVersion *version, knownVersions) {
+        if (!version->isValid())
+            continue;
+        QtVersion::QmakeBuildConfigs config = version->defaultBuildConfig();
+        QString dir = defaultShadowBuildDirectory(Qt4Project::defaultTopLevelBuildDirectory(proFilePath), id);
+        infos.append(BuildConfigurationInfo(version, config, QString(), dir));
+        infos.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
+    }
+    return infos;
+}
+
+bool Qt4AndroidTargetFactory::isMobileTarget(const QString &/*id*/)
+{
+    return true;
 }

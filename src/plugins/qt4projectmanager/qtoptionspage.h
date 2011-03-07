@@ -33,15 +33,14 @@
 #ifndef QTOPTIONSPAGE_H
 #define QTOPTIONSPAGE_H
 
+#include "debugginghelperbuildtask.h"
+
 #include <coreplugin/dialogs/ioptionspage.h>
-#include <utils/environment.h>
 
 #include <QtCore/QSharedPointer>
 #include <QtCore/QFutureInterface>
 
 #include <QtGui/QWidget>
-
-#include "debugginghelperbuildtask.h"
 
 QT_BEGIN_NAMESPACE
 class QTreeWidgetItem;
@@ -50,7 +49,6 @@ QT_END_NAMESPACE
 namespace Qt4ProjectManager {
 
 class QtVersion;
-typedef QSharedPointer<QtVersion> QSharedPointerQtVersion;
 
 namespace Internal {
 namespace Ui {
@@ -66,7 +64,7 @@ class QtOptionsPageWidget : public QWidget
 public:
     QtOptionsPageWidget(QWidget *parent, QList<QtVersion *> versions);
     ~QtOptionsPageWidget();
-    QList<QSharedPointerQtVersion> versions() const;
+    QList<QtVersion *> versions() const;
     void finish();
     QString searchKeywords() const;
 
@@ -86,7 +84,7 @@ private:
     Internal::Ui::QtVersionManager *m_ui;
     Internal::Ui::QtVersionInfo *m_versionUi;
     Internal::Ui::DebuggingHelper *m_debuggingHelperUi;
-    QList<QSharedPointerQtVersion> m_versions; // Passed on to the helper build task, so, use QSharedPointerQtVersion
+    QList<QtVersion *> m_versions;
     int m_defaultVersion;
 
 private slots:
@@ -94,20 +92,13 @@ private slots:
     void addQtDir();
     void removeQtDir();
     void updateState();
-    void makeMingwVisible(bool visible);
-    void makeMSVCVisible(bool visible);
     void makeS60Visible(bool visible);
     void onQtBrowsed();
-    void onMingwBrowsed();
     void updateCurrentQtName();
     void updateCurrentQMakeLocation();
-    void updateCurrentMingwDirectory();
-    void updateCurrentMwcDirectory();
     void updateCurrentS60SDKDirectory();
-    void updateCurrentGcceDirectory();
     void updateCurrentSbsV2Directory();
     void updateDebuggingHelperUi();
-    void msvcVersionChanged();
     void buildDebuggingHelper(DebuggingHelperBuildTask::Tools tools
                               = DebuggingHelperBuildTask::AllTools);
     void buildGdbHelper();
@@ -133,7 +124,7 @@ public:
     QIcon categoryIcon() const;
     QWidget *createPage(QWidget *parent);
     void apply();
-    void finish() { }
+    void finish() {}
     virtual bool matches(const QString &) const;
 
 private:

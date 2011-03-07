@@ -166,14 +166,14 @@ ExtensionSystem::IPlugin::ShutdownFlag CodepasterPlugin::aboutToShutdown()
 void CodepasterPlugin::updateActions()
 {
     const IEditor* editor = EditorManager::instance()->currentEditor();
-    const BaseTextEditorEditable *textEditor = qobject_cast<const BaseTextEditorEditable *>(editor);
+    const BaseTextEditor *textEditor = qobject_cast<const BaseTextEditor *>(editor);
     m_postEditorAction->setEnabled(textEditor != 0);
 }
 
 void CodepasterPlugin::postEditor()
 {
     const IEditor* editor = EditorManager::instance()->currentEditor();
-    const BaseTextEditorEditable *textEditor = qobject_cast<const BaseTextEditorEditable *>(editor);
+    const BaseTextEditor *textEditor = qobject_cast<const BaseTextEditor *>(editor);
     if (!textEditor)
         return;
 
@@ -181,7 +181,7 @@ void CodepasterPlugin::postEditor()
     if (data.isEmpty())
         data = textEditor->contents();
     if (!data.isEmpty())
-        post(data, textEditor->editor()->mimeType());
+        post(data, textEditor->editorWidget()->mimeType());
 }
 
 void CodepasterPlugin::postClipboard()
@@ -217,16 +217,18 @@ static inline void fixSpecialCharacters(QString &data)
 void CodepasterPlugin::post(QString data, const QString &mimeType)
 {
     fixSpecialCharacters(data);
-    FileDataList lst = splitDiffToFiles(data.toLatin1());
-    QString username = m_settings->username;
-    QString description;
-    QString comment;
-    QString protocolName;
+
+    const QString username = m_settings->username;
 
     PasteView view(m_protocols, mimeType, 0);
     view.setProtocol(m_settings->protocol);
 
-    view.show(username, description, comment, lst);
+    const FileDataList diffChunks = splitDiffToFiles(data.toLatin1());
+    if (diffChunks.isEmpty()) {
+        view.show(username, QString(), QString(), data);
+    } else {
+        view.show(username, QString(), QString(), diffChunks);
+    }
 }
 
 void CodepasterPlugin::fetch()

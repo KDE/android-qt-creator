@@ -242,21 +242,13 @@ ExtensionSystem::IPlugin::ShutdownFlag GLSLEditorPlugin::aboutToShutdown()
     return IPlugin::aboutToShutdown();
 }
 
-void GLSLEditorPlugin::initializeEditor(GLSLEditor::GLSLTextEditor *editor)
+void GLSLEditorPlugin::initializeEditor(GLSLEditor::GLSLTextEditorWidget *editor)
 {
     QTC_ASSERT(m_instance, /**/);
 
     m_actionHandler->setupActions(editor);
 
     TextEditor::TextEditorSettings::instance()->initializeEditor(editor);
-
-//    // auto completion
-    connect(editor, SIGNAL(requestAutoCompletion(TextEditor::ITextEditable*, bool)),
-            TextEditor::CompletionSupport::instance(), SLOT(autoComplete(TextEditor::ITextEditable*, bool)));
-
-//    // quick fix
-//    connect(editor, SIGNAL(requestQuickFix(TextEditor::ITextEditable*)),
-//            this, SLOT(quickFix(TextEditor::ITextEditable*)));
 }
 
 

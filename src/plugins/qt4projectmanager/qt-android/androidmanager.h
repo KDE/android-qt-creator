@@ -12,10 +12,6 @@ are required by law.
 
 #include <QtCore/QObject>
 
-namespace ProjectExplorer {
-    class ToolChain;
-}
-using ProjectExplorer::ToolChain;
 
 namespace Qt4ProjectManager {
     class QtVersion;
@@ -27,7 +23,7 @@ class AndroidPackageCreationFactory;
 class AndroidRunControlFactory;
 class AndroidRunConfigurationFactory;
 class AndroidSettingsPage;
-class AndroidQemuManager;
+class AndroidToolChainFactory;
 
 class AndroidManager : public QObject
 {
@@ -39,7 +35,6 @@ public:
     static AndroidManager &instance();
 
     bool isValidAndroidQtVersion(const Qt4ProjectManager::QtVersion *version) const;
-    ToolChain *androidToolChain() const;
 
     AndroidSettingsPage *settingsPage() const { return m_settingsPage; }
 
@@ -51,8 +46,8 @@ private:
     AndroidPackageCreationFactory *m_packageCreationFactory;
     AndroidDeployStepFactory *m_deployStepFactory;
     AndroidSettingsPage *m_settingsPage;
-    AndroidQemuManager *m_qemuRuntimeManager;
     Qt4AndroidTargetFactory * m_androidTargetFactory;
+    AndroidToolChainFactory *m_toolChainFactory;
 };
 
     } // namespace Internal

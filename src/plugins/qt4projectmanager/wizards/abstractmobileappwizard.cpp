@@ -54,8 +54,9 @@ AbstractMobileAppWizardDialog::AbstractMobileAppWizardDialog(QWidget *parent)
     : ProjectExplorer::BaseProjectWizardDialog(parent)
 {
     m_targetsPage = new TargetSetupPage;
+    m_targetsPage->setPreferMobile(true);
+    m_targetsPage->setMinimumQtVersion(QtVersionNumber(4,7,0));
     resize(900, 450);
-    m_targetsPage->setImportDirectoryBrowsingEnabled(false);
     m_targetsPageId = addPageWithTitle(m_targetsPage, tr("Qt Versions"));
     m_genericOptionsPage = new MobileAppWizardGenericOptionsPage;
     m_genericOptionsPageId = addPageWithTitle(m_genericOptionsPage,
@@ -92,7 +93,8 @@ int AbstractMobileAppWizardDialog::nextId() const
     const bool maemoTargetSelected =
         m_targetsPage->isTargetSelected(QLatin1String(Constants::MAEMO5_DEVICE_TARGET_ID))
             || m_targetsPage->isTargetSelected(QLatin1String(Constants::HARMATTAN_DEVICE_TARGET_ID))
-            || m_targetsPage->isTargetSelected(QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID));
+            || m_targetsPage->isTargetSelected(QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID))
+            || m_targetsPage->isTargetSelected(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
 
     if (currentPage() == m_targetsPage) {
         if (symbianTargetSelected || maemoTargetSelected)

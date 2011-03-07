@@ -135,8 +135,8 @@ QStringList createHtmlCapabilityList(uint capabilities)
         while (i.hasNext()) {
             i.next();
             if (i.key() == capabilitySet[j].value) {
-                foreach (QString capability, i.value()) {
-                    result << QString("<font color=\"%1\">%2</font>")
+                foreach (const QString &capability, i.value()) {
+                    result << QString::fromAscii("<font color=\"%1\">%2</font>")
                               .arg(capabilitySet[j].color).arg(capability);
                 }
                 break;
@@ -205,7 +205,7 @@ bool S60CertificateInfo::compareCapabilities(const QStringList &givenCaps, QStri
         return true;
 
     QStringList capabilities(createCapabilityList(capabilitiesSupported()));
-    foreach (QString capability, givenCaps) {
+    foreach (const QString &capability, givenCaps) {
         if (!capabilities.contains(capability, Qt::CaseInsensitive))
             unsupportedCaps << capability;
     }

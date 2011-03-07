@@ -134,6 +134,11 @@ QString AndroidConfigurations::readelfPath()
     return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-readelf"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
+QString AndroidConfigurations::gccPath()
+{
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gcc"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+}
+
 QString AndroidConfigurations::gdbServerPath()
 {
     return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/gdbserver").arg(m_config.NDKToolchainVersion);

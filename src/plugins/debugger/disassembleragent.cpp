@@ -212,8 +212,8 @@ void DisassemblerAgentPrivate::configureMimeType()
     QTC_ASSERT(doc, return);
     doc->setMimeType(mimeType);
 
-    TextEditor::PlainTextEditor *pe =
-        qobject_cast<TextEditor::PlainTextEditor *>(editor->widget());
+    TextEditor::PlainTextEditorWidget *pe =
+        qobject_cast<TextEditor::PlainTextEditorWidget *>(editor->widget());
     QTC_ASSERT(pe, return);
 
     MimeType mtype = ICore::instance()->mimeDatabase()->findByType(mimeType);
@@ -255,8 +255,8 @@ void DisassemblerAgent::setContents(const DisassemblerLines &contents)
         d->editor->setProperty(Debugger::Constants::OPENED_WITH_DISASSEMBLY, true);
         d->configureMimeType();
 
-        BaseTextEditor *baseTextEdit =
-                qobject_cast<BaseTextEditor *>(d->editor->widget());
+        BaseTextEditorWidget *baseTextEdit =
+                qobject_cast<BaseTextEditorWidget *>(d->editor->widget());
         if (baseTextEdit)
             baseTextEdit->setRequestMarkEnabled(true);
     }
@@ -271,12 +271,12 @@ void DisassemblerAgent::setContents(const DisassemblerLines &contents)
     for (int i = 0, n = contents.size(); i != n; ++i) {
         const DisassemblerLine &dl = contents.at(i);
         if (dl.address) {
-            str += QString("0x");
+            str += QLatin1String("0x");
             str += QString::number(dl.address, 16);
-            str += "  ";
+            str += QLatin1String("  ");
         }
         str += dl.data;
-        str += "\n";
+        str += QLatin1Char('\n');
     }
     plainTextEdit->setPlainText(str);
     plainTextEdit->setReadOnly(true);

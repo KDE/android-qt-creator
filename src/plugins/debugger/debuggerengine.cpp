@@ -57,9 +57,6 @@
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 
-#include <projectexplorer/toolchain.h>
-#include <projectexplorer/toolchaintype.h>
-
 #include <texteditor/itexteditor.h>
 #include <texteditor/basetextmark.h>
 
@@ -123,7 +120,7 @@ QDebug operator<<(QDebug str, const DebuggerStartParameters &sp)
             << " symbolFileName=" << sp.symbolFileName
             << " useServerStartScript=" << sp.useServerStartScript
             << " serverStartScript=" << sp.serverStartScript
-            << " toolchain=" << sp.toolChainType << '\n';
+            << " abi=" << sp.toolChainAbi.toString() << '\n';
     return str;
 }
 
@@ -356,7 +353,6 @@ void DebuggerEngine::showStatusMessage(const QString &msg, int timeout) const
     showMessage(msg, StatusBar, timeout);
 }
 
-
 void DebuggerEngine::frameUp()
 {
     int currentIndex = stackHandler()->currentIndex();
@@ -491,6 +487,13 @@ void DebuggerEngine::fetchMemory(MemoryAgent *, QObject *,
     Q_UNUSED(length);
 }
 
+void DebuggerEngine::changeMemory(MemoryAgent *, QObject *,
+        quint64 addr, const QByteArray &data)
+{
+    Q_UNUSED(addr);
+    Q_UNUSED(data);
+}
+
 void DebuggerEngine::setRegisterValue(int regnr, const QString &value)
 {
     Q_UNUSED(regnr);
@@ -607,12 +610,12 @@ void DebuggerEngine::handleFinished()
 {
     showMessage("HANDLE RUNCONTROL FINISHED");
     d->m_runControl = 0;
+    d->m_progress.setProgressValue(1000);
+    d->m_progress.reportFinished();
     modulesHandler()->removeAll();
     stackHandler()->removeAll();
     threadsHandler()->removeAll();
     watchHandler()->cleanup();
-    d->m_progress.setProgressValue(1000);
-    d->m_progress.reportFinished();
 }
 
 const DebuggerStartParameters &DebuggerEngine::startParameters() const
@@ -1462,7 +1465,7 @@ void DebuggerEngine::interruptInferior()
 {
 }
 
-void DebuggerEngine::executeRunToLine(const QString &, int)
+void DebuggerEngine::executeRunToLine(const ContextData &)
 {
 }
 
@@ -1470,7 +1473,7 @@ void DebuggerEngine::executeRunToFunction(const QString &)
 {
 }
 
-void DebuggerEngine::executeJumpToLine(const QString &, int)
+void DebuggerEngine::executeJumpToLine(const ContextData &)
 {
 }
 
@@ -1527,7 +1530,7 @@ QString DebuggerEngine::msgStopped(const QString &reason)
 QString DebuggerEngine::msgStoppedBySignal(const QString &meaning,
     const QString &name)
 {
-    return tr("Stopped: %1 by signal %2.").arg(meaning, name);
+    return tr("Stopped: %1 (Signal %2).").arg(meaning, name);
 }
 
 QString DebuggerEngine::msgStoppedByException(const QString &description,

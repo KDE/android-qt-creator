@@ -72,7 +72,7 @@ bool Qt4SymbianTargetFactory::supportsTargetId(const QString &id) const
 
 QStringList Qt4SymbianTargetFactory::supportedTargetIds(ProjectExplorer::Project *parent) const
 {
-    if (!qobject_cast<Qt4Project *>(parent))
+    if (parent && !qobject_cast<Qt4Project *>(parent))
         return QStringList();
 
     QStringList ids;
@@ -87,6 +87,15 @@ QStringList Qt4SymbianTargetFactory::supportedTargetIds(ProjectExplorer::Project
 QString Qt4SymbianTargetFactory::displayNameForId(const QString &id) const
 {
     return Qt4SymbianTarget::defaultDisplayName(id);
+}
+
+QIcon Qt4SymbianTargetFactory::iconForId(const QString &id) const
+{
+    if (id == QLatin1String(Constants::S60_EMULATOR_TARGET_ID))
+        return QIcon(":/projectexplorer/images/SymbianEmulator.png");
+    if (id == QLatin1String(Constants::S60_DEVICE_TARGET_ID))
+        return QIcon(":/projectexplorer/images/SymbianDevice.png");
+    return QIcon();
 }
 
 bool Qt4SymbianTargetFactory::canCreate(ProjectExplorer::Project *parent, const QString &id) const
@@ -117,44 +126,38 @@ Qt4BaseTarget *Qt4SymbianTargetFactory::restore(ProjectExplorer::Project *parent
 
 QString Qt4SymbianTargetFactory::defaultShadowBuildDirectory(const QString &projectLocation, const QString &id)
 {
-    QString shortName = QLatin1String("unknown");
-    if (id == QLatin1String(Constants::S60_EMULATOR_TARGET_ID))
-        shortName = QLatin1String("symbian_emulator");
-    else if (id == QLatin1String(Constants::S60_DEVICE_TARGET_ID))
-        shortName = QLatin1String("symbian");
-
-    // currently we can't have the build directory to be deeper than the source directory
-    // since that is broken in qmake
-    // Once qmake is fixed we can change that to have a top directory and
-    // subdirectories per build. (Replacing "QChar('-')" with "QChar('/') )
-    return projectLocation + QChar('-') + shortName;
+    Q_UNUSED(projectLocation);
+    Q_UNUSED(id);
+    // should not be called from anywhere, since we override Qt4BaseTarget::defaultBuldDirectory()
+    return QString();
 }
 
-QList<BuildConfigurationInfo> Qt4SymbianTargetFactory::availableBuildConfigurations(const QString &proFilePath)
+QList<BuildConfigurationInfo> Qt4SymbianTargetFactory::availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion)
 {
     QList<BuildConfigurationInfo> infos;
-    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(Constants::S60_EMULATOR_TARGET_ID);
+    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion);
 
     foreach (QtVersion *version, knownVersions) {
         if (!version->isValid())
             continue;
         bool buildAll = version->defaultBuildConfig() & QtVersion::BuildAll;
         QtVersion::QmakeBuildConfigs config = buildAll ? QtVersion::BuildAll : QtVersion::QmakeBuildConfig(0);
-        QString dir = defaultShadowBuildDirectory(Qt4Project::defaultTopLevelBuildDirectory(proFilePath), Constants::S60_EMULATOR_TARGET_ID);
-        infos.append(BuildConfigurationInfo(version, config | QtVersion::DebugBuild, QString(), dir));
-    }
-
-    knownVersions = QtVersionManager::instance()->versionsForTargetId(Constants::S60_DEVICE_TARGET_ID);
-    foreach (QtVersion *version, knownVersions) {
-        if (!version->isValid())
-            continue;
-        QtVersion::QmakeBuildConfigs config = version->defaultBuildConfig();
-        QString dir = defaultShadowBuildDirectory(Qt4Project::defaultTopLevelBuildDirectory(proFilePath), Constants::S60_DEVICE_TARGET_ID);
-        infos.append(BuildConfigurationInfo(version, config, QString(), dir));
-        infos.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
+        QString dir = QFileInfo(proFilePath).absolutePath(), id;
+        if (id == Constants::S60_EMULATOR_TARGET_ID) {
+            infos.append(BuildConfigurationInfo(version, config | QtVersion::DebugBuild, QString(), dir));
+        } else {
+            infos.append(BuildConfigurationInfo(version, config, QString(), dir));
+            infos.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
+        }
     }
 
     return infos;
+}
+
+bool Qt4SymbianTargetFactory::isMobileTarget(const QString &id)
+{
+    Q_UNUSED(id)
+    return true;
 }
 
 Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id)
@@ -183,7 +186,7 @@ Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent,
     return create(parent, id, infos);
 }
 
-Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, QList<BuildConfigurationInfo> infos)
+Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos)
 {
     if (!canCreate(parent, id))
         return 0;
@@ -200,4 +203,12 @@ Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent,
     if (t->runConfigurations().isEmpty())
         t->addRunConfiguration(new ProjectExplorer::CustomExecutableRunConfiguration(t));
     return t;
+}
+
+Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, Qt4TargetSetupWidget *widget)
+{
+    if (!widget->isTargetSelected())
+        return 0;
+    Qt4DefaultTargetSetupWidget *w = static_cast<Qt4DefaultTargetSetupWidget *>(widget);
+    return create(parent, id, w->buildConfigurationInfos());
 }

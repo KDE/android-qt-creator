@@ -501,7 +501,7 @@ CodeCompletion::CodeCompletion(ModelManagerInterface *modelManager, QObject *par
 CodeCompletion::~CodeCompletion()
 { }
 
-TextEditor::ITextEditable *CodeCompletion::editor() const
+TextEditor::ITextEditor *CodeCompletion::editor() const
 { return m_editor; }
 
 int CodeCompletion::startPosition() const
@@ -510,20 +510,25 @@ int CodeCompletion::startPosition() const
 bool CodeCompletion::shouldRestartCompletion()
 { return m_restartCompletion; }
 
-bool CodeCompletion::supportsEditor(TextEditor::ITextEditable *editor)
+bool CodeCompletion::supportsEditor(TextEditor::ITextEditor *editor) const
 {
-    if (qobject_cast<QmlJSTextEditor *>(editor->widget()))
+    if (qobject_cast<QmlJSTextEditorWidget *>(editor->widget()))
         return true;
 
     return false;
 }
 
-bool CodeCompletion::triggersCompletion(TextEditor::ITextEditable *editor)
+bool CodeCompletion::supportsPolicy(TextEditor::CompletionPolicy policy) const
+{
+    return policy == TextEditor::SemanticCompletion;
+}
+
+bool CodeCompletion::triggersCompletion(TextEditor::ITextEditor *editor)
 {
     if (maybeTriggersCompletion(editor)) {
         // check the token under cursor
 
-        if (QmlJSTextEditor *ed = qobject_cast<QmlJSTextEditor *>(editor->widget())) {
+        if (QmlJSTextEditorWidget *ed = qobject_cast<QmlJSTextEditorWidget *>(editor->widget())) {
 
             QTextCursor tc = ed->textCursor();
             QTextBlock block = tc.block();
@@ -552,7 +557,7 @@ bool CodeCompletion::triggersCompletion(TextEditor::ITextEditable *editor)
     return false;
 }
 
-bool CodeCompletion::maybeTriggersCompletion(TextEditor::ITextEditable *editor)
+bool CodeCompletion::maybeTriggersCompletion(TextEditor::ITextEditor *editor)
 {
     const int cursorPosition = editor->position();
     const QChar ch = editor->characterAt(cursorPosition - 1);
@@ -739,13 +744,13 @@ static const Interpreter::Value *getPropertyValue(
     return value;
 }
 
-int CodeCompletion::startCompletion(TextEditor::ITextEditable *editor)
+int CodeCompletion::startCompletion(TextEditor::ITextEditor *editor)
 {
     m_restartCompletion = false;
 
     m_editor = editor;
 
-    QmlJSTextEditor *edit = qobject_cast<QmlJSTextEditor *>(m_editor->widget());
+    QmlJSTextEditorWidget *edit = qobject_cast<QmlJSTextEditorWidget *>(m_editor->widget());
     if (! edit)
         return -1;
 
@@ -1023,7 +1028,7 @@ void CodeCompletion::complete(const TextEditor::CompletionItem &item, QChar type
 
     QString toInsert = item.text;
 
-    if (QmlJSTextEditor *edit = qobject_cast<QmlJSTextEditor *>(m_editor->widget())) {
+    if (QmlJSTextEditorWidget *edit = qobject_cast<QmlJSTextEditorWidget *>(m_editor->widget())) {
         if (item.data.isValid()) {
             QTextCursor tc = edit->textCursor();
             tc.setPosition(m_startPosition, QTextCursor::KeepAnchor);
@@ -1052,7 +1057,7 @@ void CodeCompletion::complete(const TextEditor::CompletionItem &item, QChar type
     }
 
     const int length = m_editor->position() - m_startPosition + replacedLength;
-    m_editor->setCurPos(m_startPosition);
+    m_editor->setCursorPosition(m_startPosition);
     m_editor->replace(length, toInsert);
 
     if (toInsert.endsWith(QLatin1Char('.')))

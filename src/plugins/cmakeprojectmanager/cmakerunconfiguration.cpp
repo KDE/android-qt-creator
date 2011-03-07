@@ -39,9 +39,15 @@
 #include "cmaketarget.h"
 
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/helpmanager.h>
 #include <projectexplorer/debugginghelper.h>
+#include <projectexplorer/environmentwidget.h>
+
+#include <utils/pathchooser.h>
+#include <utils/detailswidget.h>
 #include <utils/qtcassert.h>
 #include <utils/debuggerlanguagechooser.h>
+
 #include <QtGui/QFormLayout>
 #include <QtGui/QLineEdit>
 #include <QtGui/QGroupBox>
@@ -299,14 +305,6 @@ void CMakeRunConfiguration::setUserEnvironmentChanges(const QList<Utils::Environ
     }
 }
 
-ProjectExplorer::ToolChainType CMakeRunConfiguration::toolChainType() const
-{
-    CMakeBuildConfiguration *bc = activeBuildConfiguration();
-    if (!bc)
-        return ProjectExplorer::ToolChain_UNKNOWN;
-    return bc->toolChainType();
-}
-
 void CMakeRunConfiguration::setEnabled(bool b)
 {
     if (m_enabled == b)
@@ -337,7 +335,7 @@ CMakeRunConfigurationWidget::CMakeRunConfigurationWidget(CMakeRunConfiguration *
     m_workingDirectoryEdit = new Utils::PathChooser();
     m_workingDirectoryEdit->setBaseDirectory(m_cmakeRunConfiguration->target()->project()->projectDirectory());
     m_workingDirectoryEdit->setPath(m_cmakeRunConfiguration->baseWorkingDirectory());
-    m_workingDirectoryEdit->setExpectedKind(Utils::PathChooser::Directory);
+    m_workingDirectoryEdit->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_workingDirectoryEdit->setPromptDialogTitle(tr("Select Working Directory"));
 
     QToolButton *resetButton = new QToolButton();
@@ -420,6 +418,8 @@ CMakeRunConfigurationWidget::CMakeRunConfigurationWidget(CMakeRunConfiguration *
             this, SLOT(useQmlDebuggerToggled(bool)));
     connect(m_debuggerLanguageChooser, SIGNAL(qmlDebugServerPortChanged(uint)),
             this, SLOT(qmlDebugServerPortChanged(uint)));
+    connect(m_debuggerLanguageChooser, SIGNAL(openHelpUrl(QString)),
+            Core::HelpManager::instance(), SLOT(handleHelpRequest(QString)));
 
     connect(m_environmentWidget, SIGNAL(userChangesChanged()),
             this, SLOT(userChangesChanged()));

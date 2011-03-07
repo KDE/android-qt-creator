@@ -9,7 +9,6 @@ are required by law.
 
 #include "androidpackagecreationwidget.h"
 #include "androidpackagecreationstep.h"
-#include "androidtoolchain.h"
 #include "androidconfigurations.h"
 #include "qt4androidtarget.h"
 #include "ui_androidpackagecreationwidget.h"

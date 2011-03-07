@@ -101,10 +101,7 @@ bool AndroidRunConfiguration::isEnabled(ProjectExplorer::BuildConfiguration *con
 {
     if (!m_validParse)
         return false;
-    Qt4BuildConfiguration *qt4bc = qobject_cast<Qt4BuildConfiguration*>(config);
-    QTC_ASSERT(qt4bc, return false);
-    const ProjectExplorer::ToolChainType type = qt4bc->toolChainType();
-    return type == ProjectExplorer::ToolChain_GCC_ANDROID;
+    return true;
 }
 
 QWidget *AndroidRunConfiguration::createConfigurationWidget()
@@ -213,7 +210,7 @@ const QString AndroidRunConfiguration::arguments() const
     return m_arguments;
 }
 
-const QString AndroidRunConfiguration::remoteChannel()
+const QString AndroidRunConfiguration::remoteChannel() const
 {
 #warning FIXME Android
     return QString(":5039");
@@ -222,9 +219,8 @@ const QString AndroidRunConfiguration::remoteChannel()
 const QString AndroidRunConfiguration::dumperLib() const
 {
     Qt4BuildConfiguration *qt4bc(activeQt4BuildConfiguration());
-    return qt4bc->qtVersion()->debuggingHelperLibrary();
+    return qt4bc->qtVersion()->gdbDebuggingHelperLibrary();
 }
-
 
 QString AndroidRunConfiguration::localExecutableFilePath() const
 {

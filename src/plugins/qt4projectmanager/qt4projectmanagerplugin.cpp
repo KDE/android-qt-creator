@@ -201,6 +201,7 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     qmakeIcon.addFile(QLatin1String(":/qt4projectmanager/images/run_qmake_small.png"));
     m_runQMakeAction = new QAction(qmakeIcon, tr("Run qmake"), this);
     command = am->registerAction(m_runQMakeAction, Constants::RUNQMAKE, m_projectContext);
+    command->setAttribute(Core::Command::CA_Hide);
     mbuild->addAction(command, ProjectExplorer::Constants::G_BUILD_PROJECT);
     connect(m_runQMakeAction, SIGNAL(triggered()), m_qt4ProjectManager, SLOT(runQMake()));
 
@@ -329,7 +330,7 @@ void Qt4ProjectManagerPlugin::buildStateChanged(ProjectExplorer::Project *pro)
 void Qt4ProjectManagerPlugin::addLibrary()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    ProFileEditor *editor = qobject_cast<ProFileEditor*>(em->currentEditor()->widget());
+    ProFileEditorWidget *editor = qobject_cast<ProFileEditorWidget*>(em->currentEditor()->widget());
     if (editor)
         editor->addLibrary();
 }
@@ -337,7 +338,7 @@ void Qt4ProjectManagerPlugin::addLibrary()
 void Qt4ProjectManagerPlugin::jumpToFile()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    ProFileEditor *editor = qobject_cast<ProFileEditor*>(em->currentEditor()->widget());
+    ProFileEditorWidget *editor = qobject_cast<ProFileEditorWidget*>(em->currentEditor()->widget());
     if (editor)
         editor->jumpToFile();
 }

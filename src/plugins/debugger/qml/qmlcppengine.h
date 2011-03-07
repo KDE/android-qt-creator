@@ -48,7 +48,9 @@ class DEBUGGER_EXPORT QmlCppEngine : public DebuggerEngine
     Q_OBJECT
 
 public:
-    explicit QmlCppEngine(const DebuggerStartParameters &sp);
+    explicit QmlCppEngine(const DebuggerStartParameters &sp,
+                          DebuggerEngineType slaveEngineType,
+                          QString *errorMessage);
     ~QmlCppEngine();
 
     bool setToolTipExpression(const QPoint &mousePos,
@@ -91,6 +93,9 @@ public:
     void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
     void handleRemoteSetupFailed(const QString &message);
 
+    void showMessage(const QString &msg, int channel = LogDebug,
+        int timeout = -1) const;
+
 protected:
     void detachDebugger();
     void executeStep();
@@ -103,9 +108,9 @@ protected:
     void interruptInferior();
     void requestInterruptInferior();
 
-    void executeRunToLine(const QString &fileName, int lineNumber);
+    void executeRunToLine(const ContextData &data);
     void executeRunToFunction(const QString &functionName);
-    void executeJumpToLine(const QString &fileName, int lineNumber);
+    void executeJumpToLine(const ContextData &data);
     void executeDebuggerCommand(const QString &command);
 
     void setupEngine();

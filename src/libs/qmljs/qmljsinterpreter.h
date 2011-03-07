@@ -305,7 +305,6 @@ public:
     QSharedPointer<const QmlComponentChain> qmlComponentScope;
     QList<const ObjectValue *> qmlScopeObjects;
     const TypeEnvironment *qmlTypes;
-    const AttachedTypeEnvironment *qmlAttachedTypes;
     QList<const ObjectValue *> jsScopes;
 
     // rebuilds the flat list of all scopes
@@ -983,6 +982,7 @@ public:
     enum Type {
         InvalidImport,
         ImplicitDirectoryImport,
+        ImplicitLibraryImport,
         LibraryImport,
         FileImport,
         DirectoryImport,
@@ -1036,19 +1036,6 @@ public:
 
     void addImport(const ObjectValue *import, const ImportInfo &info);
     ImportInfo importInfo(const QString &name, const Context *context) const;
-};
-
-class QMLJS_EXPORT AttachedTypeEnvironment: public ObjectValue
-{
-    const TypeEnvironment *_typeEnvironment;
-
-public:
-    AttachedTypeEnvironment(const TypeEnvironment *typeEnv);
-
-    virtual const Value *lookupMember(const QString &name, const Context *context,
-                                      const ObjectValue **foundInObject = 0,
-                                      bool examinePrototypes = true) const;
-    virtual void processMembers(MemberProcessor *processor) const;
 };
 
 } } // namespace QmlJS::Interpreter

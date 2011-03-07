@@ -71,6 +71,7 @@ public:
     QString androidToolPath();
     QString antToolPath();
     QString emulatorToolPath();
+    QString gccPath();
     QString gdbServerPath();
     QString gdbPath();
     QString stripPath();

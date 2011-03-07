@@ -53,6 +53,7 @@
 #include <cplusplus/ModelManagerInterface.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <projectexplorer/toolchain.h>
+#include <projectexplorer/headerpath.h>
 #include <projectexplorer/buildenvironmentwidget.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/projectexplorer.h>
@@ -431,14 +432,10 @@ void Qt4Project::updateCppCodeModel()
     ToolChain *tc = activeBC->toolChain();
     if (tc) {
         predefinedMacros = tc->predefinedMacros();
-        //qDebug()<<"Predefined Macros";
-        //qDebug()<<tc->predefinedMacros();
-        //qDebug()<<"";
-        //qDebug()<<"System Header Paths";
-        //foreach(const HeaderPath &hp, tc->systemHeaderPaths())
-        //    qDebug()<<hp.path();
 
-        foreach (const HeaderPath &headerPath, tc->systemHeaderPaths()) {
+        QList<HeaderPath> headers = tc->systemHeaderPaths();
+        headers.append(activeBC->qtVersion()->systemHeaderPathes());
+        foreach (const HeaderPath &headerPath, headers) {
             if (headerPath.kind() == HeaderPath::FrameworkHeaderPath)
                 predefinedFrameworkPaths.append(headerPath.path());
             else
@@ -455,25 +452,16 @@ void Qt4Project::updateCppCodeModel()
 
     // Collect per .pro file information
     foreach (Qt4ProFileNode *pro, proFiles) {
-        Internal::CodeModelInfo info;
-        info.defines = predefinedMacros;
-        info.frameworkPaths = predefinedFrameworkPaths;
-
-        info.precompiledHeader = pro->variableValue(PrecompiledHeaderVar);
-
-        allPrecompileHeaders.append(info.precompiledHeader);
+        allPrecompileHeaders.append(pro->variableValue(PrecompiledHeaderVar));
 
         // Add custom defines
 
         foreach (const QString &def, pro->variableValue(DefinesVar)) {
             allDefinedMacros += "#define ";
-            info.defines += "#define ";
             const int index = def.indexOf(QLatin1Char('='));
             if (index == -1) {
                 allDefinedMacros += def.toLatin1();
                 allDefinedMacros += " 1\n";
-                info.defines += def.toLatin1();
-                info.defines += " 1\n";
             } else {
                 const QString name = def.left(index);
                 const QString value = def.mid(index + 1);
@@ -481,10 +469,6 @@ void Qt4Project::updateCppCodeModel()
                 allDefinedMacros += ' ';
                 allDefinedMacros += value.toLocal8Bit();
                 allDefinedMacros += '\n';
-                info.defines += name.toLatin1();
-                info.defines += ' ';
-                info.defines += value.toLocal8Bit();
-                info.defines += '\n';
             }
         }
 
@@ -492,8 +476,6 @@ void Qt4Project::updateCppCodeModel()
         foreach (const QString &includePath, proIncludePaths) {
             if (!allIncludePaths.contains(includePath))
                 allIncludePaths.append(includePath);
-            if (!info.includes.contains(includePath))
-                info.includes.append(includePath);
         }
 
 #if 0 // Experimental PKGCONFIG support
@@ -511,17 +493,6 @@ void Qt4Project::updateCppCodeModel()
             }
         }
 #endif
-
-        // Add mkspec directory
-        info.includes.append(activeBC->qtVersion()->mkspecPath());
-        info.includes.append(predefinedIncludePaths);
-
-//        qDebug()<<"Dumping code model information";
-//        qDebug()<<"for .pro file"<< pro->path();
-//        qDebug()<<info.defines;
-//        qDebug()<<info.includes;
-//        qDebug()<<info.frameworkPaths;
-//        qDebug()<<"\n";
     }
 
     // Add mkspec directory
@@ -784,7 +755,7 @@ QString Qt4Project::defaultTopLevelBuildDirectory(const QString &profilePath)
     if (profilePath.isEmpty())
         return QString();
     QFileInfo info(profilePath);
-    return QDir(projectDirectory(profilePath) + QLatin1String("/../") + info.baseName() + QLatin1String("-build")).absolutePath();
+    return QDir::cleanPath(projectDirectory(profilePath) + QLatin1String("/../") + info.baseName() + QLatin1String("-build"));
 }
 
 void Qt4Project::asyncUpdate()
@@ -920,8 +891,11 @@ ProFileReader *Qt4Project::createProFileReader(Qt4ProFileNode *qt4ProFileNode)
             QtVersion *version = activeTarget()->activeBuildConfiguration()->qtVersion();
             if (version->isValid()) {
                 m_proFileOption->properties = version->versionInfo();
-                m_proFileOption->sysroot
-                    = activeTarget()->activeBuildConfiguration()->toolChain()->sysroot();
+                if (activeTarget()
+                        && activeTarget()->activeBuildConfiguration()
+                        && activeTarget()->activeBuildConfiguration()->toolChain())
+                    m_proFileOption->sysroot
+                            = activeTarget()->activeBuildConfiguration()->qtVersion()->systemRoot();
             }
         }
 
@@ -1114,8 +1088,9 @@ QSet<QString> CentralizedFolderWatcher::recursiveDirs(const QString &folder)
     QDir dir(folder);
     QStringList list = dir.entryList(QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
     foreach (const QString &f, list) {
-        result.insert(folder + f + "/");
-        result += recursiveDirs(folder + f + "/");
+        const QString a = folder + f + '/';
+        result.insert(a);
+        result += recursiveDirs(a);
     }
     return result;
 }

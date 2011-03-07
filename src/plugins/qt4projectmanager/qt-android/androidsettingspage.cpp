@@ -14,6 +14,7 @@ are required by law.
 #include "androidconstants.h"
 
 #include <QtCore/QCoreApplication>
+#include <QtGui/QIcon>
 
 namespace Qt4ProjectManager {
 namespace Internal {

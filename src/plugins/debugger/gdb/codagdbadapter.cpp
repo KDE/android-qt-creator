@@ -377,7 +377,7 @@ void CodaGdbAdapter::startGdb()
 {
     QStringList gdbArgs;
     gdbArgs.append(_("--nx")); // Do not read .gdbinit file
-    if (!m_engine->startGdb(gdbArgs, QString(), QString())) {
+    if (!m_engine->startGdb(gdbArgs)) {
         cleanup();
         return;
     }
@@ -597,7 +597,7 @@ void CodaGdbAdapter::handleGdbServerCommand(const QByteArray &cmd)
         sendGdbServerAck();
         logMessage(_("Not implemented 'Continue with signal' %1: ").arg(signalNumber),
             LogWarning);
-        sendGdbServerMessage("O" + QByteArray("Console output").toHex());
+        sendGdbServerMessage('O' + QByteArray("Console output").toHex());
         sendGdbServerMessage("W81"); // "Process exited with result 1
         sendTrkContinue();
     }
@@ -988,10 +988,11 @@ void CodaGdbAdapter::sendRunControlTerminateCommand()
 void CodaGdbAdapter::handleRunControlTerminate(const CodaCommandResult &)
 {
     QString msg = QString::fromLatin1("CODA disconnected");
-    const bool emergencyShutdown = m_gdbProc.state() != QProcess::Running;
+    const bool emergencyShutdown = m_gdbProc.state() != QProcess::Running
+                                   && state() != EngineShutdownOk;
     if (emergencyShutdown)
-        msg += QString::fromLatin1(" (emergency shutdown");
-    logMessage(msg);
+        msg += QString::fromLatin1(" (emergency shutdown)");
+    logMessage(msg, LogMisc);
     if (emergencyShutdown) {
         cleanup();
         m_engine->notifyAdapterShutdownOk();
@@ -1213,7 +1214,8 @@ void CodaGdbAdapter::cleanup()
     delete m_gdbServer;
     m_gdbServer = 0;
     if (!m_codaSocketIODevice.isNull()) {
-        QAbstractSocket *socket = qobject_cast<QAbstractSocket *>(m_codaSocketIODevice.data());
+        QAbstractSocket *socket =
+            qobject_cast<QAbstractSocket *>(m_codaSocketIODevice.data());
         const bool isOpen = socket
             ? socket->state() == QAbstractSocket::ConnectedState
             : m_codaSocketIODevice->isOpen();

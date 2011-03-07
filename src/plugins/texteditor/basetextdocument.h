@@ -44,13 +44,11 @@ class QTextDocument;
 QT_END_NAMESPACE
 
 namespace TextEditor {
-namespace Internal {
-class DocumentMarker;
-}
 
 class ITextMarkable;
 class StorageSettings;
 class TabSettings;
+class ExtraEncodingSettings;
 class SyntaxHighlighter;
 class BaseTextDocumentPrivate;
 
@@ -64,13 +62,15 @@ public:
 
     void setStorageSettings(const StorageSettings &storageSettings);
     void setTabSettings(const TabSettings &tabSettings);
+    void setExtraEncodingSettings(const ExtraEncodingSettings &extraEncodingSettings);
 
     const StorageSettings &storageSettings() const;
     const TabSettings &tabSettings() const;
+    const ExtraEncodingSettings &extraEncodingSettings() const;
 
     ITextMarkable *documentMarker() const;
 
-    //IFile
+    // IFile implementation.
     virtual bool save(const QString &fileName = QString());
     virtual QString fileName() const;
     virtual bool isReadOnly() const;
@@ -96,22 +96,20 @@ public:
     void setSyntaxHighlighter(SyntaxHighlighter *highlighter);
     SyntaxHighlighter *syntaxHighlighter() const;
 
-
     bool hasDecodingError() const;
     QTextCodec *codec() const;
     void setCodec(QTextCodec *c);
     QByteArray decodingErrorSample() const;
 
     void reload(QTextCodec *codec);
-
     void cleanWhitespace(const QTextCursor &cursor);
 
 signals:
     void titleChanged(QString title);
 
 private:
-    void cleanWhitespace(QTextCursor& cursor, bool cleanIndentation, bool inEntireDocument);
-    void ensureFinalNewLine(QTextCursor& cursor);
+    void cleanWhitespace(QTextCursor &cursor, bool cleanIndentation, bool inEntireDocument);
+    void ensureFinalNewLine(QTextCursor &cursor);
     void documentClosing();
 
     BaseTextDocumentPrivate *d;

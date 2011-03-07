@@ -37,6 +37,7 @@
 #include "project.h"
 #include "environmentwidget.h"
 
+#include <coreplugin/helpmanager.h>
 #include <utils/detailswidget.h>
 #include <utils/environment.h>
 #include <utils/pathchooser.h>
@@ -48,6 +49,7 @@
 #include <QtGui/QHBoxLayout>
 #include <QtGui/QLabel>
 #include <QtGui/QLineEdit>
+
 
 namespace ProjectExplorer {
 namespace Internal {
@@ -84,7 +86,7 @@ CustomExecutableConfigurationWidget::CustomExecutableConfigurationWidget(CustomE
     layout->addRow(tr("Arguments:"), m_commandLineArgumentsLineEdit);
 
     m_workingDirectory = new CustomDirectoryPathChooser(this);
-    m_workingDirectory->setExpectedKind(Utils::PathChooser::Directory);
+    m_workingDirectory->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_workingDirectory->setBaseDirectory(rc->target()->project()->projectDirectory());
     m_workingDirectory->setEnvironment(rc->environment());
     layout->addRow(tr("Working directory:"), m_workingDirectory);
@@ -166,6 +168,8 @@ CustomExecutableConfigurationWidget::CustomExecutableConfigurationWidget(CustomE
             this, SLOT(useQmlDebuggerToggled(bool)));
     connect(m_debuggerLanguageChooser, SIGNAL(qmlDebugServerPortChanged(uint)),
             this, SLOT(qmlDebugServerPortChanged(uint)));
+    connect(m_debuggerLanguageChooser, SIGNAL(openHelpUrl(QString)),
+            Core::HelpManager::instance(), SLOT(handleHelpRequest(QString)));
 
     connect(m_runConfiguration, SIGNAL(changed()), this, SLOT(changed()));
 

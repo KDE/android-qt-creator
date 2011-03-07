@@ -19,7 +19,6 @@ are required by law.
 #include <debugger/debuggerengine.h>
 #include <debugger/debuggerstartparameters.h>
 
-#include <projectexplorer/toolchaintype.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4target.h>
 #include <qt4projectmanager/qt4project.h>
@@ -39,7 +38,7 @@ namespace Internal {
 RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *runConfig)
 {
     DebuggerStartParameters params;
-    params.toolChainType = ProjectExplorer::ToolChain_GCC_ANDROID;
+    params.toolChainAbi = runConfig->abi();
     params.dumperLibrary = runConfig->dumperLib();
     params.startMode = AttachToRemote;
     params.executable = runConfig->androidTarget()->qt4Project()->rootProjectNode()->buildDir()+"/app_process";

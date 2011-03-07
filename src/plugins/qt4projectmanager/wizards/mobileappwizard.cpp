@@ -39,6 +39,8 @@
 
 #include "qt4projectmanagerconstants.h"
 
+#include <projectexplorer/task.h>
+
 #include <QtCore/QCoreApplication>
 #include <QtGui/QIcon>
 
@@ -109,7 +111,7 @@ AbstractMobileAppWizardDialog *MobileAppWizard::createWizardDialogInternal(QWidg
 
 void MobileAppWizard::projectPathChanged(const QString &path) const
 {
-    m_d->wizardDialog->m_targetsPage->setImportInfos(TargetSetupPage::importInfosForKnownQtVersions(path));
+    m_d->wizardDialog->m_targetsPage->setProFilePath(path);
 }
 
 void MobileAppWizard::prepareGenerateFiles(const QWizard *w,

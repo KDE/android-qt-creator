@@ -290,19 +290,15 @@ QString WatchModel::displayType(const WatchData &data) const
         : data.displayedType;
 }
 
-static inline int formatToIntegerBase(int format)
+static int formatToIntegerBase(int format)
 {
     switch (format) {
-    case Debugger::Internal::HexadecimalFormat:
-        return 16;
-        break;
-    case Debugger::Internal::BinaryFormat:
-        return 2;
-        break;
-    case Debugger::Internal::OctalFormat:
-        return 8;
-    default:
-        break;
+        case HexadecimalFormat:
+            return 16;
+        case BinaryFormat:
+            return 2;
+        case OctalFormat:
+            return 8;
     }
     return 10;
 }
@@ -310,12 +306,12 @@ static inline int formatToIntegerBase(int format)
 template <class IntType> QString reformatInteger(IntType value, int format)
 {
     switch (format) {
-    case HexadecimalFormat:
-        return ("(hex) ") + QString::number(value, 16);
-    case BinaryFormat:
-        return ("(bin) ") + QString::number(value, 2);
-    case OctalFormat:
-        return ("(oct) ") + QString::number(value, 8);
+        case HexadecimalFormat:
+            return ("(hex) ") + QString::number(value, 16);
+        case BinaryFormat:
+            return ("(bin) ") + QString::number(value, 2);
+        case OctalFormat:
+            return ("(oct) ") + QString::number(value, 8);
     }
     return QString::number(value); // not reached
 }
@@ -383,7 +379,8 @@ static inline QString formattedValue(const WatchData &data, int format)
             const bool moreThan = result.at(1) == QLatin1Char('>');
             const int numberPos = moreThan ? 2 : 1;
             const int size = result.mid(numberPos, result.indexOf(' ') - numberPos).toInt(&ok);
-            QTC_ASSERT(ok, qWarning("WatchHandler: Invalid item count '%s'", qPrintable(result)) ; )
+            QTC_ASSERT(ok, qWarning("WatchHandler: Invalid item count '%s'",
+                qPrintable(result)))
             result = moreThan ?
                      WatchHandler::tr("<more than %n items>", 0, size) :
                      WatchHandler::tr("<%n items>", 0, size);
@@ -1262,6 +1259,8 @@ void WatchHandler::watchExpression(const QString &exp)
     data.exp = exp.toLatin1();
     data.name = exp;
     m_watcherNames[data.exp] = watcherCounter++;
+    saveWatchers();
+
     if (exp.isEmpty())
         data.setAllUnneeded();
     data.iname = watcherName(data.exp);
@@ -1276,7 +1275,6 @@ void WatchHandler::watchExpression(const QString &exp)
         insertData(data);
     }
     updateWatchersWindow();
-    saveWatchers();
     emitAllChanged();
 }
 
@@ -1369,7 +1367,7 @@ void WatchHandler::showEditValue(const WatchData &data)
             p->waitForStarted();
             m_editHandlers[key] = p;
         }
-        p->write(input + "\n");
+        p->write(input + '\n');
     } else {
         QTC_ASSERT(false, qDebug() << "Display format: " << data.editformat);
     }

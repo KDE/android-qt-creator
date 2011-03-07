@@ -35,15 +35,13 @@
 #define COMPLETIONSUPPORT_H
 
 #include <texteditor/texteditor_global.h>
+#include <texteditor/icompletioncollector.h>
 
 #include <QtCore/QObject>
 
 namespace TextEditor {
 
-class CompletionItem;
-class ICompletionCollector;
-class ITextEditable;
-
+class ITextEditor;
 class CompletionSupportPrivate;
 
 /* Completion support is responsible for querying the list of completion collectors
@@ -59,21 +57,14 @@ public:
     static CompletionSupport *instance();
 
     bool isActive() const;
+    CompletionPolicy policy() const;
 
 public slots:
-    void autoComplete(TextEditor::ITextEditable *editor, bool forced);
-    void quickFix(TextEditor::ITextEditable *editor);
-
-private slots:
-    void performCompletion(const TextEditor::CompletionItem &item);
-    void cleanupCompletions();
+    void complete(TextEditor::ITextEditor *editor,
+        TextEditor::CompletionPolicy policy, bool forced);
 
 private:
     CompletionSupport();
-
-    QList<CompletionItem> getCompletions() const;
-    void autoComplete_helper(ITextEditable *editor, bool forced, bool quickFix);
-
     QScopedPointer<CompletionSupportPrivate> d;
 };
 
