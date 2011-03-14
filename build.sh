@@ -1,9 +1,18 @@
 #!/bin/bash
 
-# Pass in release or debug then the install folder.
+if [ "$1" = "" -o "$2" = "" ]; then
+	echo "$0 :: Error. Pass in release or debug then the install folder"
+	echo "e.g. ./build.sh release C:/Necessitas/qtcreator-2.1.0"
+	exit 1
+fi
+
+if [ "$2" = "release" ]; then
+	QTDIR=/c/Qt/4.7.2-Git-MinGW-ShXcR
+else
+	QTDIR=/c/Qt/4.7.2-Git-MinGW-ShXcD
+fi
 
 # Using C:\Qt\4.7.1 doesn't work, though I should make this check the host os first, and use string substitution.
-QTDIR="C:/Qt/4.7.2-Git-MinGW-ShXcR"
 INCLUDE="-I$QTDIR/include"
 PATH=$QTDIR/bin:$PATH
 $QTDIR/bin/qmake.exe "QT_PRIVATE_HEADERS=$QTDIR/private-headers/include" "QT_CONFIG=webkit $1 svg declarative" -spec $QTDIR/mkspecs/win32-g++ -r `dirname $0`/qtcreator.pro
@@ -19,4 +28,4 @@ do
 	make -j9 $1
 done
 
-`dirname $0`/copy-to-qt-dir.sh $2
+`dirname $0`/copy-to-qt-dir.sh $2 $QTDIR

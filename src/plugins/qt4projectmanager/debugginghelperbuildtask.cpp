@@ -89,7 +89,14 @@ DebuggingHelperBuildTask::DebuggingHelperBuildTask(const QtVersion *version, Too
         m_target = QLatin1String("-unix");
     m_qmakeCommand = version->qmakeCommand();
     m_makeCommand = tc->makeCommand();
-    m_mkspec = version->mkspec();
+	if ( ProjectExplorer::Abi::hostAbi().os() == ProjectExplorer::Abi::WindowsOS ) {
+		qDebug() << "Using win32-g++ specs";
+		m_mkspec = "win32-g++";
+	}
+	else {
+		qDebug() << "Using version->mkspec() specs";
+		m_mkspec = version->mkspec();
+	}
 
     m_tools = tools;
 
