@@ -6,7 +6,7 @@ BUILDDEBUG=0
 BUILDRELEASE=1
 DEST_DIR=C:/Necessitas/qtcreator-2.1.0
 
-while getopts "p:c:q:d:r:o" arg; do
+while getopts "p:c:q:d:r:o:" arg; do
 	echo $arg $OPTARG
 	case $arg in
 		p)
@@ -32,7 +32,7 @@ while getopts "p:c:q:d:r:o" arg; do
 done
 
 if [ "$CLEAN" == "1" ]; then
-	CONFIGURE = 1
+	CONFIGURE=1
 fi
 
 if [ "$BUILDDEBUG" = "1" -a "$BUILDRELEASE" = "1" ]; then
@@ -49,13 +49,13 @@ else
 	CONFIGTYPE="debug"
 fi
 
+# Without this, make will not be able to translate relative paths
+# properly as it can't step beyond where / is mounted.
 if [ "$OSTYPE" = "msys" ]; then
 	MAKEDIR=`pwd -W`
 	MAKEFILE=$MAKEDIR/Makefile
-	MOCABLESMAKEFILE=$MAKEDIR/src/corelib/Makefile
 else
 	MAKEFILE=Makefile
-	MOCABLESMAKEFILE=Makefile
 fi
 
 if [ "$CLEAN" -eq "1" ]; then
@@ -80,17 +80,7 @@ if [ "$CONFIGURE" = "1" ]; then
 	$QTDIR/bin/qmake.exe "QT_PRIVATE_HEADERS=$QTDIR/private-headers/include" "QT_CONFIG=webkit $CONFIGTYPE svg declarative" -spec $QTDIR/mkspecs/win32-g++ -r `dirname $0`/qtcreator.pro
 fi
 
-# Without this, make will not be able to translate relative paths
-# properly as it can't step beyond where / is mounted.
-if [ "$OSTYPE" = "msys" ]; then
-	MAKEDIR=`pwd -W`
-	MAKEFILE=$MAKEDIR/Makefile
-else
-	MAKEFILE=Makefile
-fi
-
-
-make -f $MAKEFILE -j9 $1
+make -f $MAKEFILE -j9 $CONFIGTYPE
 while [ "$?" != "0" ]
 do
 	if [ -f /usr/break-make ]; then
@@ -98,7 +88,7 @@ do
 		rm -f /usr/break-make
 		exit 1
 	fi
-	make -f $MAKEFILE -j9 $1
+	make -f $MAKEFILE -j9 $CONFIGTYPE
 done
 
 `dirname $0`/copy-to-qt-dir.sh $DEST_DIR C:/Qt/qtcreator-2.1.0 $QTDIR C:/Qt/4.7.2-official
