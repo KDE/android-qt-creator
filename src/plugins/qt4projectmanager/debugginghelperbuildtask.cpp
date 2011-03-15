@@ -84,19 +84,20 @@ DebuggingHelperBuildTask::DebuggingHelperBuildTask(const QtVersion *version, Too
     ProjectExplorer::ToolChain *tc = tcList.at(0);
     tc->addToEnvironment(m_environment);
 
+    // Might not want this bit...
     if (tc->targetAbi().os() == ProjectExplorer::Abi::LinuxOS
         && ProjectExplorer::Abi::hostAbi().os() == ProjectExplorer::Abi::WindowsOS)
         m_target = QLatin1String("-unix");
     m_qmakeCommand = version->qmakeCommand();
     m_makeCommand = tc->makeCommand();
-	if ( ProjectExplorer::Abi::hostAbi().os() == ProjectExplorer::Abi::WindowsOS ) {
-		qDebug() << "Using win32-g++ specs";
-		m_mkspec = "win32-g++";
-	}
-	else {
-		qDebug() << "Using version->mkspec() specs";
-		m_mkspec = version->mkspec();
-	}
+//    if ( ProjectExplorer::Abi::hostAbi().os() == ProjectExplorer::Abi::WindowsOS ) {
+//        qDebug() << "Using win32-g++ specs";
+//        m_mkspec = "win32-g++";
+//    }
+//    else {
+//        qDebug() << "Using version->mkspec() specs";
+//        m_mkspec = version->mkspec();
+//    }
 
     m_tools = tools;
 
