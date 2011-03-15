@@ -101,4 +101,4 @@ do
 	make -f $MAKEFILE -j9 $1
 done
 
-`dirname $0`/copy-to-qt-dir.sh $DEST_DIR $QTDIR
+`dirname $0`/copy-to-qt-dir.sh $DEST_DIR C:/Qt/qtcreator-2.1.0 $QTDIR C:/Qt/4.7.2-official

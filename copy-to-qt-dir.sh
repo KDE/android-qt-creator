@@ -1,64 +1,75 @@
 #!/bin/bash
 
-echo "$0 :: Usage <dest-dir> <pre-existing-offical-nokia-qt-creator-install-dir> <pre-existing-mingw-qt-install-dir>"
-echo "e.g. $0 C:/Necessitas/qtcreator-2.1.0 C:/Qt/qtcreator-2.1.0 C:/Qt/4.7.2-Git-MinGW-ShXcR"
+# ../mingw-android-qt-creator/copy-to-qt-dir.sh C:/Necessitas/qtcreator-2.1.0 C:/Qt/qtcreator-2.1.0 C:/Qt/4.7.2-Git-MinGW-ShXcR C:/Qt/4.7.2-official
+
+echo "$0 :: Usage
+			<dest-dir> \n\
+			<official-qt-creator-dir>\n\
+			<mingw-qt-used-to-build-android-qt-creator-dir>\n\
+			<pre-existing-offical-nokia-qt-dir>"
+
+echo "e.g. $0 C:/Necessitas/qtcreator-2.1.0 C:/Qt/qtcreator-2.1.0 C:/Qt/4.7.2-Git-MinGW-ShXcR C:/Qt/4.7.2-official"
 
 if [ "$1" != "" ] ; then
-	DESTQTDIR=$1
+	DESTQTCDIR=$1
 fi
 
 if [ "$2" != "" ] ; then
-	OFFICIALNOKIAQTC210INST=$2
+	OFFICIALQTCDIR=$2
 fi
 
 # This *must* be the same Qt that QtCreator was built with.
 if [ "$3" != "" ] ; then
-	MINGWQTC210INST=$3
+	MINGWQTDIR=$3
 fi
 
-if [ "$DESTQTDIR" = "" ] ; then
-	DESTQTDIR=$QTDIR
+if [ "$4" != "" ] ; then
+	OFFICIALQTDIR=$3
 fi
 
-rm -rf $DESTQTDIR
+if [ "$DESTQTCDIR" = "" ] ; then
+	DESTQTCDIR=$QTDIR
+fi
+
+rm -rf $DESTQTCDIR
 
 SRCDIR=`dirname $0`
 
-PYTHONDIR="$SRCDIR/../../mingw-python/Python-2.7.1-mingw"
+PYTHONDIR="$SRCDIR/../../mingw-python"
 # NDKDIR="/usr/android-sdk-windows/android-ndk-r5b"
 
-echo "Copying QtCreator from $SRCDIR to $DESTQTDIR,"
+echo "Copying QtCreator from $SRCDIR to $DESTQTCDIR,"
 echo ":: Using additional directories of ::"
-echo "Nokia QtCreator Install for license files         :: $OFFICIALNOKIAQTC210INST"
-echo "MinGW Qt 4.7.2 Build for dlls                     :: $MINGWQTC210INST"
-echo "Python directory for LICENSE-PYTHON               :: $PYTHONDIR"
+echo "Nokia QtCreator Install for license files           :: $OFFICIALQTCDIR"
+echo "MinGW Qt 4.7.2 Install for dlls                     :: $MINGWQTDIR"
+echo "Python directory for LICENSE-PYTHON                 :: $PYTHONDIR"
 # echo "NDK directory for mingw.android gdb and gdbserver :: $NDKDIR"
 
-mkdir -p $DESTQTDIR/lib/qtcreator/plugins/Nokia
-mkdir -p $DESTQTDIR/bin
-mkdir -p $DESTQTDIR/share
-mkdir -p $DESTQTDIR/share/pixmaps
-mkdir -p $DESTQTDIR/pythongdb
-mkdir -p $DESTQTDIR/pythongdb/ma-mingw-gdb
-mkdir -p $DESTQTDIR/pythongdb/ma-android-gdb
+mkdir -p $DESTQTCDIR/lib/qtcreator/plugins/Nokia
+mkdir -p $DESTQTCDIR/bin
+mkdir -p $DESTQTCDIR/share
+mkdir -p $DESTQTCDIR/share/pixmaps
+mkdir -p $DESTQTCDIR/pythongdb
+mkdir -p $DESTQTCDIR/pythongdb/gdb-ma-mingw
+mkdir -p $DESTQTCDIR/pythongdb/gdb-ma-android/bin
 
 # Copy our new binaries libs and plugins.
-cp -f bin/* $DESTQTDIR/bin/
-cp -f lib/qtcreator/*.dll $DESTQTDIR/lib/qtcreator/
-cp -f lib/qtcreator/plugins/Nokia/* $DESTQTDIR/lib/qtcreator/plugins/Nokia/
-cp -rf share/* $DESTQTDIR/share/
+cp -f bin/* $DESTQTCDIR/bin/
+cp -f lib/qtcreator/*.dll $DESTQTCDIR/lib/qtcreator/
+cp -f lib/qtcreator/plugins/Nokia/* $DESTQTCDIR/lib/qtcreator/plugins/Nokia/
+cp -rf share/* $DESTQTCDIR/share/
 
 # Copy some other stuff, docs and licenses.
-cp -rf $SRCDIR/doc $DESTQTDIR/share/
-cp -f $SRCDIR/src/plugins/coreplugin/images/qtcreator_logo*.png $DESTQTDIR/share/pixmaps/
-cp -f $SRCDIR/*LICENSE* $DESTQTDIR/
-cp -f $SRCDIR/README $DESTQTDIR/
-cp -f $PYTHONDIR/LICENSE $DESTQTDIR/LICENSE-PYTHON
+cp -rf $SRCDIR/doc $DESTQTCDIR/share/
+cp -f $SRCDIR/src/plugins/coreplugin/images/qtcreator_logo*.png $DESTQTCDIR/share/pixmaps/
+cp -f $SRCDIR/*LICENSE* $DESTQTCDIR/
+cp -f $SRCDIR/README $DESTQTCDIR/
+cp -f $PYTHONDIR/LICENSE $DESTQTCDIR/LICENSE-PYTHON
 
 # Oops, these are generated from within QtCreator.
-# if [ "$OFFICIALNOKIAQTC210INST" != "" ] ; then
-#	cp -rf $OFFICIALNOKIAQTC210INST/pythongdb/* $DESTQTDIR/pythongdb/
-# fi
+if [ "$OFFICIALQTCDIR" != "" ] ; then
+	cp -rf $OFFICIALQTCDIR/pythongdb/* $DESTQTCDIR/pythongdb/
+fi
 
 # Grab my newer gdbs from Google code instead, MinGW and Android put in separate folders.
 wget -c http://mingw-and-ndk.googlecode.com/files/gdb-7.2.50.20110211-mingw32-bin.7z
@@ -67,28 +78,40 @@ wget -c http://mingw-and-ndk.googlecode.com/files/android-ndk-toolchain-4.4.3-gd
 mkdir andgdbtemp
 
 "C:/Program Files/7-zip/7z.exe" x -y -omingwgdbtemp gdb-7.2.50.20110211-mingw32-bin.7z
-mv -f mingwgdbtemp/* $DESTQTDIR/pythongdb/gdb-ma-mingw/
+mv -f mingwgdbtemp/* $DESTQTCDIR/pythongdb/gdb-ma-mingw/
 rmdir mingwgdbtemp
 
 "C:/Program Files/7-zip/7z.exe" x -y -oandgdbtemp android-ndk-toolchain-4.4.3-gdb-7.2.50-python-2.7.1-7.2.50.20110211-windows.7z
-mv -f mingwandtemp/* $DESTQTDIR/pythongdb/gdb-ma-android/
-rmdir mingwandtemp
 
-cp -f $SRCDIR/../mingw-android-lighthouse/qpatch.exe $DESTQTDIR/bin/
-cp -f $SRCDIR/../mingw-android-lighthouse/files-to-patch-* $DESTQTDIR/bin/
+mkdir -p andgdbservertemp
+tar xvjf andgdbtemp/arm-linux-androideabi-4.4.3-gdbserver.tar.bz2
+mkdir -p andtctemp
 
-# cp -f $NDKDIR/toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/arm-linux-androideabi-gdb*.exe $DESTQTDIR/pythongdb/
-# cp -f $NDKDIR/toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/*.dll $DESTQTDIR/pythongdb/
-cp -f $SRCDIR/mingw/*.dll $DESTQTDIR/bin/
+tar xvjf andgdbtemp/arm-linux-androideabi-4.4.3-windows.tar.bz2
+mv toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/arm-linux-androideabi-gdb.exe $DESTQTCDIR/pythongdb/gdb-ma-android/bin
+mv toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/arm-linux-androideabi-gdbtui.exe $DESTQTCDIR/pythongdb/gdb-ma-android/bin
+mv toolchains/arm-linux-androideabi-4.4.3/prebuilt/gdbserver $DESTQTCDIR/pythongdb/gdb-ma-android/
 
-if [ "$OFFICIALNOKIAQTC210INST" != "" ] ; then
-	cp -f $OFFICIALNOKIAQTC210INST/share/qtcreator/LGPL_EXCEPTION.TXT $DESTQTDIR/share/qtcreator
-	cp -f $OFFICIALNOKIAQTC210INST/share/qtcreator/LICENSE.LGPL $DESTQTDIR/share/qtcreator
+cp -f andgdbservertemp/* $DESTQTCDIR/pythongdb/gdb-ma-android/
+cp -f andtctemp/* $DESTQTCDIR/pythongdb/gdb-ma-android/
+# rmdir andgdbtemp
+
+cp -f $SRCDIR/../mingw-android-lighthouse/qpatch.exe $DESTQTCDIR/bin/
+cp -f $SRCDIR/../mingw-android-lighthouse/files-to-patch-* $DESTQTCDIR/bin/
+
+# cp -f $NDKDIR/toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/arm-linux-androideabi-gdb*.exe $DESTQTCDIR/pythongdb/
+# cp -f $NDKDIR/toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/*.dll $DESTQTCDIR/pythongdb/
+cp -f $SRCDIR/mingw/*.dll $DESTQTCDIR/bin/
+
+if [ "$OFFICIALQTCDIR" != "" ] ; then
+	cp -f $OFFICIALQTCDIR/share/qtcreator/LGPL_EXCEPTION.TXT $DESTQTCDIR/share/qtcreator
+	cp -f $OFFICIALQTCDIR/share/qtcreator/LICENSE.LGPL $DESTQTCDIR/share/qtcreator
 fi
 
 # Copy stuff over to allow Necessitas to work for MinGW too.
 # Happily, these don't conflict with the Android .so files.
-cp -f $MINGWQTC210INST/bin/*.dll $DESTQTDIR/bin/
+# You end up with a choice of
+cp -f $MINGWQTDIR/bin/*.dll $DESTQTCDIR/bin/
 echo "This will report:"
-echo "cp: omitting directory $MINGWQTC210INST/lib/qtcreator ... just ignore it, we don't want that folder anyway."
-cp -f $MINGWQTC210INST/lib/* $DESTQTDIR/lib/
+echo "cp: omitting directory $OFFICIALQTCDIR/lib/qtcreator ... just ignore it, we don't want that folder anyway."
+cp -f $OFFICIALQTCDIR/lib/* $DESTQTCDIR/lib/
