@@ -52,7 +52,10 @@ AndroidRunner::AndroidRunner(QObject *parent,
     connect(&m_adbLogcatProcess, SIGNAL(readyReadStandardError()) , SLOT(logcatReadStandardError()));
 }
 
-AndroidRunner::~AndroidRunner() {}
+AndroidRunner::~AndroidRunner()
+{
+    stop();
+}
 
 void AndroidRunner::checkPID()
 {
