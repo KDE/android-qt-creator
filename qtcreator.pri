@@ -127,10 +127,7 @@ INCLUDEPATH += \
     $$IDE_SOURCE_TREE/tools \
     $$IDE_SOURCE_TREE/src/plugins
 
-DEPENDPATH += \
-    $$IDE_SOURCE_TREE/src/libs \
-    $$IDE_SOURCE_TREE/tools \
-    $$IDE_SOURCE_TREE/src/plugins
+CONFIG += depend_includepath
 
 LIBS += -L$$IDE_LIBRARY_PATH
 
@@ -149,17 +146,7 @@ unix {
     UI_DIR = $${OUT_PWD}/.uic
 }
 
-linux-g++* {
-    # Bail out on non-selfcontained libraries. Just a security measure
-    # to prevent checking in code that does not compile on other platforms.
-    QMAKE_LFLAGS += -Wl,--allow-shlib-undefined -Wl,--no-undefined
-}
-
 win32-msvc* { 
     #Don't warn about sprintf, fopen etc being 'unsafe'
     DEFINES += _CRT_SECURE_NO_WARNINGS
 }
-
-# Handle S60 support: default on Windows, conditionally built on other platforms.
-macx:SUPPORT_QT_S60 = $$(QTCREATOR_WITH_S60)
-else:SUPPORT_QT_S60=1

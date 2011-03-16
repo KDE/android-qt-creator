@@ -173,37 +173,44 @@ QtVersionManager::QtVersionManager()
                                            id,
                                            isAutodetected,
                                            autodetectionSource);
-        version->setS60SDKDirectory(s->value("S60SDKDirectory").toString());
+        version->setSystemRoot(s->value("S60SDKDirectory").toString());
         version->setSbsV2Directory(s->value(QLatin1String("SBSv2Directory")).toString());
 
         // Update from 2.1 or earlier:
         QString mingwDir = s->value(QLatin1String("MingwDirectory")).toString();
         if (!mingwDir.isEmpty()) {
-            ProjectExplorer::MingwToolChain *tc = createToolChain<ProjectExplorer::MingwToolChain>(ProjectExplorer::Constants::MINGW_TOOLCHAIN_ID);
-            if (tc) {
-                tc->setCompilerPath(QDir::fromNativeSeparators(mingwDir) + QLatin1String("/bin/gcc.exe"));
-                tc->setDisplayName(tr("MinGW from %1").arg(version->displayName()));
-                ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
+            QFileInfo fi(mingwDir + QLatin1String("/bin/g++.exe"));
+            if (fi.exists() && fi.isExecutable()) {
+                ProjectExplorer::MingwToolChain *tc = createToolChain<ProjectExplorer::MingwToolChain>(ProjectExplorer::Constants::MINGW_TOOLCHAIN_ID);
+                if (tc) {
+                    tc->setCompilerPath(fi.absoluteFilePath());
+                    tc->setDisplayName(tr("MinGW from %1").arg(version->displayName()));
+                    ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
+                }
             }
         }
         QString mwcDir = s->value(QLatin1String("MwcDirectory")).toString();
         if (!mwcDir.isEmpty()) {
-            WinscwToolChain *tc = createToolChain<WinscwToolChain>(Constants::WINSCW_TOOLCHAIN_ID);
-            if (tc) {
-                tc->setCompilerPath(QDir::fromNativeSeparators(mwcDir)
-                                    + QLatin1String("/x86Build/Symbian_Tools/Command_Line_Tools/mwwinrc.exe"));
-                tc->setDisplayName(tr("WINSCW from %1").arg(version->displayName()));
-                ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
+            QFileInfo fi(mwcDir + QLatin1String("/x86Build/Symbian_Tools/Command_Line_Tools/mwwinrc.exe"));
+            if (fi.exists() && fi.isExecutable()) {
+                WinscwToolChain *tc = createToolChain<WinscwToolChain>(Constants::WINSCW_TOOLCHAIN_ID);
+                if (tc) {
+                    tc->setCompilerPath(fi.absoluteFilePath());
+                    tc->setDisplayName(tr("WINSCW from %1").arg(version->displayName()));
+                    ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
+                }
             }
         }
         QString gcceDir = s->value(QLatin1String("GcceDirectory")).toString();
         if (!gcceDir.isEmpty()) {
-            GcceToolChain *tc = createToolChain<GcceToolChain>(Constants::GCCE_TOOLCHAIN_ID);
-            if (tc) {
-                tc->setCompilerPath(QDir::fromNativeSeparators(gcceDir)
-                                    + QLatin1String("/bin/arm-none-symbianelf-g++.exe"));
-                tc->setDisplayName(tr("GCCE from %1").arg(version->displayName()));
-                ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
+            QFileInfo fi(gcceDir + QLatin1String("/bin/arm-none-symbianelf-g++.exe"));
+            if (fi.exists() && fi.isExecutable()) {
+                GcceToolChain *tc = createToolChain<GcceToolChain>(Constants::GCCE_TOOLCHAIN_ID);
+                if (tc) {
+                    tc->setCompilerPath(fi.absoluteFilePath());
+                    tc->setDisplayName(tr("GCCE from %1").arg(version->displayName()));
+                    ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
+                }
             }
         }
 
@@ -215,12 +222,8 @@ QtVersionManager::QtVersionManager()
     addNewVersionsFromInstaller();
     updateSystemVersion();
 
-    writeVersionsIntoSettings();
-
-    updateDocumentation();
-
     // cannot call from ctor, needs to get connected extenernally first
-    QTimer::singleShot(0, this, SLOT(updateExamples()));
+    QTimer::singleShot(0, this, SLOT(updateSettings()));
 }
 
 QtVersionManager::~QtVersionManager()
@@ -260,10 +263,10 @@ void QtVersionManager::removeVersion(QtVersion *version)
 
 bool QtVersionManager::supportsTargetId(const QString &id) const
 {
-    foreach (QtVersion *version, m_versions) {
-        if (version->supportsTargetId(id))
+    QList<QtVersion *> versions = QtVersionManager::instance()->versionsForTargetId(id);
+    foreach (QtVersion *v, versions)
+        if (v->isValid() && v->toolChainAvailable())
             return true;
-    }
     return false;
 }
 
@@ -302,8 +305,12 @@ void QtVersionManager::updateDocumentation()
     helpManager->registerDocumentation(files);
 }
 
-void QtVersionManager::updateExamples()
+void QtVersionManager::updateSettings()
 {
+    writeVersionsIntoSettings();
+
+    updateDocumentation();
+
     QtVersion *version = 0;
     QList<QtVersion*> candidates;
 
@@ -369,8 +376,13 @@ void QtVersionManager::writeVersionsIntoSettings()
         s->setValue("isAutodetected", version->isAutodetected());
         if (version->isAutodetected())
             s->setValue("autodetectionSource", version->autodetectionSource());
-        s->setValue("S60SDKDirectory", version->s60SDKDirectory());
+        s->setValue("S60SDKDirectory", version->systemRoot());
         s->setValue(QLatin1String("SBSv2Directory"), version->sbsV2Directory());
+        // Remove obsolete settings: New toolchains would be created at each startup
+        // otherwise, overriding manually set ones.
+        s->remove(QLatin1String("MingwDirectory"));
+        s->remove(QLatin1String("MwcDirectory"));
+        s->remove(QLatin1String("GcceDirectory"));
         ++it;
     }
     s->endArray();
@@ -446,7 +458,7 @@ void QtVersionManager::addNewVersionsFromInstaller()
             if (QFile::exists(newVersionData[1])) {
                 QtVersion *version = new QtVersion(newVersionData[0], newVersionData[1], m_idcount++ );
                 if (newVersionData.count() >= 3)
-                    version->setS60SDKDirectory(QDir::fromNativeSeparators(newVersionData[2]));
+                    version->setSystemRoot(QDir::fromNativeSeparators(newVersionData[2]));
                 if (newVersionData.count() >= 4)
                     version->setSbsV2Directory(QDir::fromNativeSeparators(newVersionData[3]));
 
@@ -575,7 +587,7 @@ void QtVersionManager::setNewQtVersions(QList<QtVersion *> newVersions)
     if (!changedVersions.isEmpty())
         updateDocumentation();
 
-    updateExamples();
+    updateSettings();
     writeVersionsIntoSettings();
 
     if (!changedVersions.isEmpty())
@@ -1335,38 +1347,17 @@ QString QtVersion::qmlviewerCommand() const
     return m_qmlviewerCommand;
 }
 
+void QtVersion::setSystemRoot(const QString &root)
+{
+    if (root == m_systemRoot)
+        return;
+    m_systemRoot = root;
+    m_abiUpToDate = false;
+}
+
 QString QtVersion::systemRoot() const
 {
-    if (m_systemRoot.isNull()) {
-        if (supportsTargetId(Constants::S60_DEVICE_TARGET_ID)
-                || supportsTargetId(Constants::S60_EMULATOR_TARGET_ID)) {
-            S60Devices::Device device = S60Manager::instance()->deviceForQtVersion(this);
-
-            m_systemRoot = device.epocRoot;
-            if (!m_systemRoot.endsWith(QLatin1Char('/')))
-                m_systemRoot.append(QLatin1Char('/'));
-
-        } else if (supportsTargetId(Constants::MAEMO5_DEVICE_TARGET_ID) ||
-                   supportsTargetId(Constants::HARMATTAN_DEVICE_TARGET_ID)) {
-            QFile file(QDir::cleanPath(MaemoGlobal::targetRoot(this))
-                       + QLatin1String("/information"));
-            if (file.exists() && file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                QTextStream stream(&file);
-                while (!stream.atEnd()) {
-                    const QString &line = stream.readLine().trimmed();
-                    const QStringList &list = line.split(QLatin1Char(' '));
-                    if (list.count() <= 1)
-                        continue;
-                    if (list.at(0) == QLatin1String("sysroot")) {
-                        m_systemRoot = MaemoGlobal::maddeRoot(this)
-                                + QLatin1String("/sysroots/") + list.at(1);
-                    }
-                }
-            }
-        }
-        if (m_systemRoot.isNull())
-            m_systemRoot = QLatin1String("");
-    }
+    updateAbiAndMkspec();
     return m_systemRoot;
 }
 
@@ -1393,6 +1384,8 @@ void QtVersion::updateAbiAndMkspec() const
 {
     if (m_id == -1 || m_abiUpToDate)
         return;
+
+    m_abiUpToDate = true;
 
     m_targetIds.clear();
     m_abis.clear();
@@ -1502,6 +1495,7 @@ void QtVersion::updateAbiAndMkspec() const
     QString ce_sdk = evaluator.values("CE_SDK").join(QLatin1String(" "));
     QString ce_arch = evaluator.value("CE_ARCH");
 
+    const QString coreLibrary = qtCorePath();
 
     // Evaluate all the information we have:
     if (!ce_sdk.isEmpty() && !ce_arch.isEmpty()) {
@@ -1545,7 +1539,7 @@ void QtVersion::updateAbiAndMkspec() const
     } else if (qmakeCXX.contains("g++")
                || qmakeCXX == "cl" || qmakeCXX == "icl" // intel cl
                || qmakeCXX == QLatin1String("icpc")) {
-        m_abis = ProjectExplorer::Abi::abisOfBinary(qtCorePath());
+        m_abis = ProjectExplorer::Abi::abisOfBinary(coreLibrary);
 #if defined (Q_OS_WIN)
         if (makefileGenerator == "MINGW") {
             QList<ProjectExplorer::Abi> tmp = m_abis;
@@ -1558,12 +1552,12 @@ void QtVersion::updateAbiAndMkspec() const
         m_targetIds.insert(QLatin1String(Constants::DESKTOP_TARGET_ID));
     }
 
-    if (m_abis.isEmpty()) {
-        qWarning("Warning: Could not find ABI for '%s' ('%s', %s) /%s "
+    if (m_abis.isEmpty() && !coreLibrary.isEmpty()) {
+        qWarning("Warning: Could not find ABI for '%s' ('%s', %s)/%s by looking at %s:"
                  "Qt Creator does not know about the system includes, "
                  "nor the system defines.",
                  qPrintable(m_mkspecFullPath), qPrintable(displayName()),
-                 qPrintable(qmakeCommand()), qPrintable(qmakeCXX));
+                 qPrintable(qmakeCommand()), qPrintable(qmakeCXX), qPrintable(coreLibrary));
     }
 
     QStringList configValues = evaluator.values("CONFIG");
@@ -1581,11 +1575,35 @@ void QtVersion::updateAbiAndMkspec() const
         m_targetIds.clear();
         m_targetIds.insert(QLatin1String(Constants::QT_SIMULATOR_TARGET_ID));
     }
-
     ProFileCacheManager::instance()->decRefCount();
-    m_abiUpToDate = true;
-    updateingToolChainAndMkspec = false;
 
+    // Set up systemroot
+    if (supportsTargetId(Constants::MAEMO5_DEVICE_TARGET_ID)
+            || supportsTargetId(Constants::HARMATTAN_DEVICE_TARGET_ID)) {
+        if (m_systemRoot.isNull()) {
+            QFile file(QDir::cleanPath(MaemoGlobal::targetRoot(this))
+                       + QLatin1String("/information"));
+            if (file.exists() && file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream stream(&file);
+                while (!stream.atEnd()) {
+                    const QString &line = stream.readLine().trimmed();
+                    const QStringList &list = line.split(QLatin1Char(' '));
+                    if (list.count() <= 1)
+                        continue;
+                    if (list.at(0) == QLatin1String("sysroot")) {
+                        m_systemRoot = MaemoGlobal::maddeRoot(this)
+                                + QLatin1String("/sysroots/") + list.at(1);
+                    }
+                }
+            }
+        }
+    } else if (supportsTargetId(Constants::S60_DEVICE_TARGET_ID)
+           || supportsTargetId(Constants::S60_EMULATOR_TARGET_ID)) {
+        if (!m_systemRoot.endsWith(QLatin1Char('/')))
+            m_systemRoot.append(QLatin1Char('/'));
+    } else {
+        m_systemRoot = QLatin1String("");
+    }
 }
 
 QString QtVersion::resolveLink(const QString &path) const
@@ -1603,9 +1621,10 @@ QString QtVersion::qtCorePath() const
 {
     QList<QDir> dirs;
     dirs << QDir(libraryInstallPath()) << QDir(versionInfo().value(QLatin1String("QT_INSTALL_BINS")));
+
+    QFileInfoList staticLibs;
     foreach (const QDir &d, dirs) {
         QFileInfoList infoList = d.entryInfoList();
-        QFileInfoList staticLibs;
         foreach (const QFileInfo &info, infoList) {
             const QString file = info.fileName();
             if (info.isDir()
@@ -1619,7 +1638,7 @@ QString QtVersion::qtCorePath() const
                 if (file.startsWith(QLatin1String("libQtCore"))
                         || file.startsWith(QLatin1String("QtCore"))) {
                     // Only handle static libs if we can not find dynamic ones:
-                    if (file.endsWith(".a"))
+                    if (file.endsWith(".a") || file.endsWith(".lib"))
                         staticLibs.append(info);
                     else if (file.endsWith(QLatin1String(".dll"))
                                 || file.endsWith(QString::fromLatin1(".so.") + qtVersionString()))
@@ -1627,22 +1646,11 @@ QString QtVersion::qtCorePath() const
                 }
             }
         }
-        // Return path to first static library found:
-        if (!staticLibs.isEmpty())
-            return staticLibs.at(0).absoluteFilePath();
     }
+    // Return path to first static library found:
+    if (!staticLibs.isEmpty())
+        return staticLibs.at(0).absoluteFilePath();
     return QString();
-}
-
-QString QtVersion::s60SDKDirectory() const
-{
-    return m_s60SDKDirectory;
-}
-
-void QtVersion::setS60SDKDirectory(const QString &directory)
-{
-    m_s60SDKDirectory = directory;
-    m_abiUpToDate = false;
 }
 
 QString QtVersion::sbsV2Directory() const
@@ -1766,6 +1774,16 @@ bool QtVersion::isValid() const
             && !m_abis.isEmpty();
 }
 
+bool QtVersion::toolChainAvailable() const
+{
+    if (!isValid())
+        return false;
+    foreach (const ProjectExplorer::Abi &abi, qtAbis())
+        if (!ProjectExplorer::ToolChainManager::instance()->findToolChains(abi).isEmpty())
+            return true;
+    return false;
+}
+
 QString QtVersion::invalidReason() const
 {
     if (isValid())
@@ -1781,6 +1799,8 @@ QString QtVersion::invalidReason() const
                                            "Could not determine the path to the binaries of the Qt installation, maybe the qmake path is wrong?");
     if (m_abiUpToDate && m_mkspecFullPath.isEmpty())
         return QCoreApplication::translate("QtVersion", "The default mkspec symlink is broken.");
+    if (m_abiUpToDate && m_abis.isEmpty())
+        return QCoreApplication::translate("QtVersion", "Failed to detect the ABI(s) used by the Qt version.");
     return QString();
 }
 

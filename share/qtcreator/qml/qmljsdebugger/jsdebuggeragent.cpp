@@ -275,7 +275,8 @@ QList<JSAgentWatchData> JSDebuggerAgentPrivate::getLocals(QScriptContext *ctx)
         QScriptValue thisObject = ctx->thisObject();
         locals = expandObject(activationObject);
         if (thisObject.isObject()
-                && thisObject.objectId() != engine()->globalObject().objectId())
+                && thisObject.objectId() != engine()->globalObject().objectId()
+                && QScriptValueIterator(thisObject).hasNext())
             locals.prepend(fromScriptValue("this", thisObject));
         recordKnownObjects(locals);
         knownObjectIds << activationObject.objectId();
@@ -482,7 +483,7 @@ void JSDebuggerAgentPrivate::messageReceived(const QByteArray &message)
 
         fileNameToBreakpoints.clear();
         foreach (const JSAgentBreakpointData &bp, breakpoints) {
-            fileNameToBreakpoints.insert(fileName(bp.fileUrl), bp);
+            fileNameToBreakpoints.insertMulti(fileName(bp.fileUrl), bp);
         }
 
         //qDebug() << "BREAKPOINTS";

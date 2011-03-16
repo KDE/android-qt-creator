@@ -37,9 +37,15 @@ SUBDIRS   = plugin_coreplugin \
             plugin_bazaar \
             plugin_classview \
             plugin_tasklist \
+            plugin_analyzerbase \
             plugin_qmljstools \
             plugin_macros \
             debugger/dumper.pro
+
+!win32 {
+     SUBDIRS += plugin_valgrindtoolbase \
+                plugin_memcheck
+}
 
 linux-* {
      SUBDIRS += debugger/ptracepreload.pro
@@ -241,6 +247,21 @@ plugin_classview.depends += plugin_texteditor
 plugin_tasklist.subdir = tasklist
 plugin_tasklist.depends = plugin_coreplugin
 plugin_tasklist.depends += plugin_projectexplorer
+
+plugin_analyzerbase.subdir = analyzerbase
+plugin_analyzerbase.depends = plugin_coreplugin
+plugin_analyzerbase.depends += plugin_projectexplorer
+
+!win32 {
+    plugin_valgrindtoolbase.subdir = valgrindtoolbase
+    plugin_valgrindtoolbase.depends = plugin_coreplugin
+    plugin_valgrindtoolbase.depends += plugin_analyzerbase
+
+    plugin_memcheck.subdir = memcheck
+    plugin_memcheck.depends = plugin_coreplugin
+    plugin_memcheck.depends += plugin_analyzerbase
+    plugin_memcheck.depends += plugin_valgrindtoolbase
+}
 
 plugin_qmljstools.subdir = qmljstools
 plugin_qmljstools.depends = plugin_projectexplorer

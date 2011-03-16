@@ -316,7 +316,7 @@ PropertyEditor::~PropertyEditor()
 static inline QString fixTypeNameForPanes(const QString &typeName)
 {
     QString fixedTypeName = typeName;
-    fixedTypeName.replace(".", "/");
+    fixedTypeName.replace('.', '/');
     fixedTypeName.replace("QtQuick/", "Qt/");
     return fixedTypeName;
 }
@@ -528,6 +528,9 @@ void PropertyEditor::otherPropertyChanged(const QmlObjectNode &fxObjectNode, con
 {
     QmlModelView::otherPropertyChanged(fxObjectNode, propertyName);
 
+    if (!m_selectedNode.isValid())
+        return;
+
     if (fxObjectNode.isValid() && m_currentType && fxObjectNode == m_selectedNode && fxObjectNode.currentState().isValid()) {
         AbstractProperty property = fxObjectNode.modelNode().property(propertyName);
         if (fxObjectNode == m_selectedNode || QmlObjectNode(m_selectedNode).propertyChangeForCurrentState() == fxObjectNode) {
@@ -542,6 +545,9 @@ void PropertyEditor::otherPropertyChanged(const QmlObjectNode &fxObjectNode, con
 void PropertyEditor::transformChanged(const QmlObjectNode &fxObjectNode, const QString &propertyName)
 {
     QmlModelView::transformChanged(fxObjectNode, propertyName);
+
+    if (!m_selectedNode.isValid())
+        return;
 
     if (fxObjectNode.isValid() && m_currentType && fxObjectNode == m_selectedNode && fxObjectNode.currentState().isValid()) {
         AbstractProperty property = fxObjectNode.modelNode().property(propertyName);
@@ -824,6 +830,16 @@ void PropertyEditor::bindingPropertiesChanged(const QList<BindingProperty>& prop
     }
 }
 
+
+void PropertyEditor::instanceInformationsChange(const QVector<ModelNode> &nodeList)
+{
+    if (!m_selectedNode.isValid())
+        return;
+
+    if (nodeList.contains(m_selectedNode))
+        m_currentType->m_backendAnchorBinding.setup(QmlItemNode(m_selectedNode));
+}
+
 void PropertyEditor::nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId)
 {
     QmlModelView::nodeIdChanged(node, newId, oldId);
@@ -891,7 +907,7 @@ void PropertyEditor::reloadQml()
 QString PropertyEditor::qmlFileName(const NodeMetaInfo &nodeInfo) const
 {
     if (nodeInfo.typeName().split('.').last() == "QDeclarativeItem")
-        return "Qt/ItemPane.qml";    
+        return "Qt/ItemPane.qml";
     const QString fixedTypeName = fixTypeNameForPanes(nodeInfo.typeName());
     return fixedTypeName + QLatin1String("Pane.qml");
 }

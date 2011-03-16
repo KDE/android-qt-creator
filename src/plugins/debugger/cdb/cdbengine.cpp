@@ -89,6 +89,7 @@ Q_DECLARE_METATYPE(Debugger::Internal::MemoryAgent*)
 
 enum { debug = 0 };
 enum { debugLocals = 0 };
+enum { debugSourceMapping = 0 };
 enum { debugWatches = 0 };
 enum { debugBreakpoints = 0 };
 
@@ -462,6 +463,19 @@ void CdbEngine::init()
     m_extensionMessageBuffer.clear();
     m_pendingBreakpointMap.clear();
     m_customSpecialStopData.clear();
+
+    // Create local list of mappings in native separators
+    m_sourcePathMappings.clear();
+    const QSharedPointer<GlobalDebuggerOptions> globalOptions = debuggerCore()->globalDebuggerOptions();
+    if (!globalOptions->sourcePathMap.isEmpty()) {
+        typedef GlobalDebuggerOptions::SourcePathMap::const_iterator SourcePathMapIterator;
+        m_sourcePathMappings.reserve(globalOptions->sourcePathMap.size());
+        const SourcePathMapIterator cend = globalOptions->sourcePathMap.constEnd();
+        for (SourcePathMapIterator it = globalOptions->sourcePathMap.constBegin(); it != cend; ++it) {
+            m_sourcePathMappings.push_back(SourcePathMapping(QDir::toNativeSeparators(it.key()),
+                                                             QDir::toNativeSeparators(it.value())));
+        }
+    }
     QTC_ASSERT(m_process.state() != QProcess::Running, Utils::SynchronousProcess::stopProcess(m_process); )
 }
 
@@ -926,8 +940,15 @@ void CdbEngine::processFinished()
             notifyEngineShutdownOk();
         }
     } else {
-        STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyEngineSpontaneousShutdown")
-        notifyEngineSpontaneousShutdown();
+        // The QML/CPP engine relies on the standard sequence of InferiorShutDown,etc.
+        // Otherwise, we take a shortcut.
+        if (isSlaveEngine()) {
+            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorExited")
+            notifyInferiorExited();
+        } else {
+            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyEngineSpontaneousShutdown")
+            notifyEngineSpontaneousShutdown();
+        }
     }
 }
 
@@ -1133,7 +1154,7 @@ void CdbEngine::executeRunToLine(const ContextData &data)
         bp.fileName = data.fileName;
         bp.lineNumber = data.lineNumber;
     }
-    postCommand(cdbAddBreakpointCommand(bp, BreakpointId(-1), true), 0);
+    postCommand(cdbAddBreakpointCommand(bp, m_sourcePathMappings, BreakpointId(-1), true), 0);
     continueInferior();
 }
 
@@ -1143,7 +1164,7 @@ void CdbEngine::executeRunToFunction(const QString &functionName)
     BreakpointParameters bp(BreakpointByFunction);
     bp.functionName = functionName;
 
-    postCommand(cdbAddBreakpointCommand(bp, BreakpointId(-1), true), 0);
+    postCommand(cdbAddBreakpointCommand(bp, m_sourcePathMappings, BreakpointId(-1), true), 0);
     continueInferior();
 }
 
@@ -2250,7 +2271,26 @@ bool CdbEngine::stateAcceptsBreakpointChanges() const
 
 bool CdbEngine::acceptsBreakpoint(BreakpointId id) const
 {
-    return DebuggerEngine::isCppBreakpoint(breakHandler()->breakpointData(id));
+    const BreakpointParameters &data = breakHandler()->breakpointData(id);
+    if (!DebuggerEngine::isCppBreakpoint(data))
+        return false;
+    switch (data.type) {
+    case UnknownType:
+    case BreakpointAtFork:
+    case BreakpointAtVFork:
+    case BreakpointAtSysCall:
+        return false;
+    case Watchpoint:
+    case BreakpointByFileAndLine:
+    case BreakpointByFunction:
+    case BreakpointByAddress:
+    case BreakpointAtThrow:
+    case BreakpointAtCatch:
+    case BreakpointAtMain:
+    case BreakpointAtExec:
+        break;
+    }
+    return true;
 }
 
 void CdbEngine::attemptBreakpointSynchronization()
@@ -2315,7 +2355,7 @@ void CdbEngine::attemptBreakpointSynchronization()
         }
         switch (handler->state(id)) {
         case BreakpointInsertRequested:
-            postCommand(cdbAddBreakpointCommand(parameters, id, false), 0);
+            postCommand(cdbAddBreakpointCommand(parameters, m_sourcePathMappings, id, false), 0);
             if (!parameters.enabled)
                 postCommand("bd " + QByteArray::number(id), 0);
             handler->notifyBreakpointInsertProceeding(id);
@@ -2337,7 +2377,7 @@ void CdbEngine::attemptBreakpointSynchronization()
                 // Delete and re-add, triggering update
                 addedChanged = true;
                 postCommand("bc " + QByteArray::number(id), 0);
-                postCommand(cdbAddBreakpointCommand(parameters, id, false), 0);
+                postCommand(cdbAddBreakpointCommand(parameters, m_sourcePathMappings, id, false), 0);
                 m_pendingBreakpointMap.insert(id, response);
             }
             handler->notifyBreakpointChangeOk(id);
@@ -2359,24 +2399,39 @@ void CdbEngine::attemptBreakpointSynchronization()
         postCommandSequence(CommandListBreakPoints);
 }
 
-QString CdbEngine::normalizeFileName(const QString &f)
+// Pass a file name through source mapping and normalize upper/lower case (for the editor
+// manager to correctly process it) and convert to clean path.
+CdbEngine::NormalizedSourceFileName CdbEngine::sourceMapNormalizeFileNameFromDebugger(const QString &f)
 {
-    QMap<QString, QString>::const_iterator it = m_normalizedFileCache.constFind(f);
+    // 1) Check cache.
+    QMap<QString, NormalizedSourceFileName>::const_iterator it = m_normalizedFileCache.constFind(f);
     if (it != m_normalizedFileCache.constEnd())
         return it.value();
-    const QString winF = QDir::toNativeSeparators(f);
+    if (debugSourceMapping)
+        qDebug(">sourceMapNormalizeFileNameFromDebugger %s", qPrintable(f));
+    // Do we have source path mappings? ->Apply.
+    const QString fileName = cdbSourcePathMapping(QDir::toNativeSeparators(f), m_sourcePathMappings,
+                                                  DebuggerToSource);
+    // Up/lower case normalization according to Windows.
 #ifdef Q_OS_WIN
-    QString normalized = winNormalizeFileName(winF);
+    QString normalized = winNormalizeFileName(fileName);
 #else
-    QString normalized = winF;
+    QString normalized = fileName;
 #endif
-    if (normalized.isEmpty()) { // At least upper case drive letter
-        normalized = winF;
-        if (normalized.size() > 2 && normalized.at(1) == QLatin1Char(':'))
-            normalized[0] = normalized.at(0).toUpper();
+    if (debugSourceMapping)
+        qDebug(" sourceMapNormalizeFileNameFromDebugger %s->%s", qPrintable(fileName), qPrintable(normalized));
+    // Check if it really exists, that is normalize worked and QFileInfo confirms it.
+    const bool exists = !normalized.isEmpty() && QFileInfo(normalized).isFile();
+    NormalizedSourceFileName result(QDir::cleanPath(normalized.isEmpty() ? fileName : normalized), exists);
+    if (!exists) {
+        // At least upper case drive letter if failed.
+        if (result.fileName.size() > 2 && result.fileName.at(1) == QLatin1Char(':'))
+            result.fileName[0] = result.fileName.at(0).toUpper();
     }
-    m_normalizedFileCache.insert(f, normalized);
-    return normalized;
+    m_normalizedFileCache.insert(f, result);
+    if (debugSourceMapping)
+        qDebug("<sourceMapNormalizeFileNameFromDebugger %s %d", qPrintable(result.fileName), result.exists);
+    return result;
 }
 
 // Parse frame from GDBMI. Duplicate of the gdb code, but that
@@ -2394,7 +2449,7 @@ static StackFrames parseFrames(const GdbMi &gdbmi)
         if (fullName.isValid()) {
             frame.file = QFile::decodeName(fullName.data());
             frame.line = frameMi.findChild("line").data().toInt();
-            frame.usable = QFileInfo(frame.file).isFile();
+            frame.usable = false; // To be decided after source path mapping.
         }
         frame.function = QLatin1String(frameMi.findChild("func").data());
         frame.from = QLatin1String(frameMi.findChild("from").data());
@@ -2422,7 +2477,9 @@ unsigned CdbEngine::parseStackTrace(const GdbMi &data, bool sourceStepInto)
             return ParseStackStepInto;
         }
         if (hasFile) {
-            frames[i].file = QDir::cleanPath(normalizeFileName(frames.at(i).file));
+            const NormalizedSourceFileName fileName = sourceMapNormalizeFileNameFromDebugger(frames.at(i).file);
+            frames[i].file = fileName.fileName;
+            frames[i].usable = fileName.exists;
             if (current == -1 && frames[i].usable)
                 current = i;
         }

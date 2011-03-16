@@ -1498,7 +1498,16 @@ void GdbEngine::handleStop1(const GdbMi &data)
         const int bpNumber = wpt.findChild("number").data().toInt();
         const BreakpointId id = breakHandler()->findBreakpointByNumber(bpNumber);
         const quint64 bpAddress = wpt.findChild("exp").data().mid(1).toULongLong(0, 0);
-        showStatusMessage(msgWatchpointTriggered(id, bpNumber, bpAddress));
+        QString msg = msgWatchpointTriggered(id, bpNumber, bpAddress);
+        GdbMi value = data.findChild("value");
+        GdbMi oldValue = value.findChild("old");
+        GdbMi newValue = value.findChild("new");
+        if (oldValue.isValid() && newValue.isValid()) {
+            msg += QLatin1Char(' ');
+            msg += tr("Value changed from %1 to %2.")
+                .arg(_(oldValue.data())).arg(_(newValue.data()));
+        }
+        showStatusMessage(msg);
     } else if (reason == "breakpoint-hit") {
         GdbMi gNumber = data.findChild("bkptno"); // 'number' or 'bkptno'?
         if (!gNumber.isValid())
@@ -1873,7 +1882,8 @@ unsigned GdbEngine::debuggerCapabilities() const
         | CreateFullBacktraceCapability
         | WatchpointCapability
         | AddWatcherCapability
-        | ShowModuleSymbolsCapability;
+        | ShowModuleSymbolsCapability
+        | CatchCapability;
 
     if (startParameters().startMode == AttachCore)
         return caps;
@@ -2265,6 +2275,16 @@ QByteArray GdbEngine::breakpointLocation(BreakpointId id)
         + QByteArray::number(data.lineNumber) + '"';
 }
 
+QByteArray GdbEngine::breakpointLocation2(BreakpointId id)
+{
+    BreakHandler *handler = breakHandler();
+    const BreakpointParameters &data = handler->breakpointData(id);
+    const QString fileName = data.pathUsage == BreakpointUseFullPath
+        ? data.fileName : breakLocation(data.fileName);
+    return  GdbMi::escapeCString(fileName).toLocal8Bit() + ':'
+        + QByteArray::number(data.lineNumber);
+}
+
 void GdbEngine::handleWatchInsert(const GdbResponse &response)
 {
     const int id = response.cookie.toInt();
@@ -2304,6 +2324,16 @@ void GdbEngine::attemptAdjustBreakpointLocation(BreakpointId id)
         CB(handleInfoLine), id);
 }
 
+void GdbEngine::handleCatchInsert(const GdbResponse &response)
+{
+    BreakHandler *handler = breakHandler();
+    BreakpointId id(response.cookie.toInt());
+    if (response.resultClass == GdbResultDone) {
+        handler->notifyBreakpointInsertOk(id);
+        attemptAdjustBreakpointLocation(id);
+    }
+}
+
 void GdbEngine::handleBreakInsert1(const GdbResponse &response)
 {
     BreakHandler *handler = breakHandler();
@@ -2333,7 +2363,7 @@ void GdbEngine::handleBreakInsert1(const GdbResponse &response)
         // Some versions of gdb like "GNU gdb (GDB) SUSE (6.8.91.20090930-2.4)"
         // know how to do pending breakpoints using CLI but not MI. So try
         // again with MI.
-        QByteArray cmd = "break " + breakpointLocation(id);
+        QByteArray cmd = "break " + breakpointLocation2(id);
         postCommand(cmd, NeedsStop | RebuildBreakpointModel,
             CB(handleBreakInsert2), id);
     }
@@ -2341,15 +2371,15 @@ void GdbEngine::handleBreakInsert1(const GdbResponse &response)
 
 void GdbEngine::handleBreakInsert2(const GdbResponse &response)
 {
-    if (response.resultClass == GdbResultError) {
-        if (m_gdbVersion < 60800 && !m_isMacGdb) {
-            // This gdb version doesn't "do" pending breakpoints.
-            // Not much we can do about it except implementing the
-            // logic on top of shared library events, and that's not
-            // worth the effort.
-        } else {
-            QTC_ASSERT(false, /**/);
-        }
+    if (response.resultClass == GdbResultDone) {
+        BreakpointId id(response.cookie.toInt());
+        attemptAdjustBreakpointLocation(id);
+        breakHandler()->notifyBreakpointInsertOk(id);
+    } else {
+        // Note: gdb < 60800  doesn't "do" pending breakpoints.
+        // Not much we can do about it except implementing the
+        // logic on top of shared library events, and that's not
+        // worth the effort.
     }
 }
 
@@ -2634,14 +2664,35 @@ void GdbEngine::insertBreakpoint(BreakpointId id)
     BreakHandler *handler = breakHandler();
     QTC_ASSERT(handler->state(id) == BreakpointInsertRequested, /**/);
     handler->notifyBreakpointInsertProceeding(id);
-    if (handler->type(id) == Watchpoint) {
+    BreakpointType type = handler->type(id);
+    if (type == Watchpoint) {
         postCommand("watch " + addressSpec(handler->address(id)),
             NeedsStop | RebuildBreakpointModel,
             CB(handleWatchInsert), id);
         return;
     }
+    if (type == BreakpointAtFork) {
+        postCommand("catch fork", NeedsStop | RebuildBreakpointModel,
+            CB(handleCatchInsert), id);
+        return;
+    }
+    if (type == BreakpointAtVFork) {
+        postCommand("catch vfork", NeedsStop | RebuildBreakpointModel,
+            CB(handleCatchInsert), id);
+        return;
+    }
+    if (type == BreakpointAtExec) {
+        postCommand("catch exec", NeedsStop | RebuildBreakpointModel,
+            CB(handleCatchInsert), id);
+        return;
+    }
+    if (type == BreakpointAtSysCall) {
+        postCommand("catch syscall", NeedsStop | RebuildBreakpointModel,
+            CB(handleCatchInsert), id);
+        return;
+    }
 
-    QByteArray cmd;
+    QByteArray cmd = "xxx";
     if (handler->isTracepoint(id)) {
         cmd = "-break-insert -a -f ";
     } else if (m_isMacGdb) {
@@ -4564,22 +4615,19 @@ void GdbEngine::notifyInferiorSetupFailed()
 void GdbEngine::handleInferiorPrepared()
 {
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
-    const QByteArray qtInstallPath = 
-        debuggerCore()->action(QtSourcesLocation)->value().toString().toLocal8Bit();
-    if (!qtInstallPath.isEmpty()) {
-        QByteArray qtBuildPath;
-#if defined(Q_OS_WIN)
-        qtBuildPath = "C:/qt-greenhouse/Trolltech/Code_less_create_more/"
-            "Trolltech/Code_less_create_more/Troll/4.6/qt";
-        postCommand("set substitute-path " + qtBuildPath + ' ' + qtInstallPath);
-        qtBuildPath = "C:/iwmake/build_mingw_opensource";
-        postCommand("set substitute-path " + qtBuildPath + ' ' + qtInstallPath);
-        qtBuildPath = "C:/ndk_buildrepos/qt-desktop/src";
-        postCommand("set substitute-path " + qtBuildPath + ' ' + qtInstallPath);
-#elif defined(Q_OS_UNIX) && !defined (Q_OS_MAC)
-        qtBuildPath = "/var/tmp/qt-src";
-        postCommand("set substitute-path " + qtBuildPath + ' ' + qtInstallPath);
-#endif
+
+    // Apply source path mappings from global options.
+    const QSharedPointer<GlobalDebuggerOptions> globalOptions = debuggerCore()->globalDebuggerOptions();
+    if (!globalOptions->sourcePathMap.isEmpty()) {
+        typedef GlobalDebuggerOptions::SourcePathMap::const_iterator SourcePathMapIterator;
+        const SourcePathMapIterator cend = globalOptions->sourcePathMap.constEnd();
+        for (SourcePathMapIterator it = globalOptions->sourcePathMap.constBegin(); it != cend; ++it) {
+            QByteArray command = "set substitute-path ";
+            command += it.key().toLocal8Bit();
+            command += ' ';
+            command += it.value().toLocal8Bit();
+            postCommand(command);
+        }
     }
 
     // Initial attempt to set breakpoints.

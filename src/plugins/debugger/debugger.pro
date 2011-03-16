@@ -62,7 +62,8 @@ HEADERS += breakhandler.h \
     watchdelegatewidgets.h \
     debuggerruncontrolfactory.h \
     debuggertooltipmanager.h \
-    debuggertoolchaincombobox.h
+    debuggertoolchaincombobox.h \
+    debuggersourcepathmappingwidget.h
 
 SOURCES += breakhandler.cpp \
     breakpoint.cpp \
@@ -104,7 +105,8 @@ SOURCES += breakhandler.cpp \
     stackframe.cpp \
     watchdelegatewidgets.cpp \
     debuggertooltipmanager.cpp \
-    debuggertoolchaincombobox.cpp
+    debuggertoolchaincombobox.cpp \
+    debuggersourcepathmappingwidget.cpp
 
 FORMS += attachexternaldialog.ui \
     attachcoredialog.ui \
@@ -136,11 +138,7 @@ include(gdb/gdb.pri)
 include(script/script.pri)
 include(pdb/pdb.pri)
 include(lldb/lldbhost.pri)
-
-contains(QT_CONFIG, declarative) {
-    QT += declarative
-    include(qml/qml.pri)
-}
+include(qml/qml.pri)
 
 include(tcf/tcf.pri)
 include(shared/shared.pri)

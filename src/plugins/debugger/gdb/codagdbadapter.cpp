@@ -256,18 +256,8 @@ void CodaGdbAdapter::handleCodaRunControlModuleLoadContextSuspendedEvent(const C
             m_session.codeseg = minfo.codeAddress;
             m_session.dataseg = minfo.dataAddress;
             logMessage(startMsg(m_session), LogMisc);
-            // 26.8.2010: When paging occurs in S^3, bogus starting ROM addresses
-            // like 0x500000 or 0x40000 are reported. Warn about symbol resolution
-            // errors. Code duplicated in TrkAdapter. @TODO: Hopefully fixed in
-            // future TRK versions.
-            if ((m_session.codeseg  & 0xFFFFF) == 0) {
-                const QString warnMessage = tr("The reported code segment address "
-                    "(0x%1) might be invalid. Symbol resolution or setting breakoints "
-                    "may not work.").arg(m_session.codeseg, 0, 16);
-                logMessage(warnMessage, LogError);
-            }
 
-	    const QByteArray symbolFile = m_symbolFile.toLocal8Bit();
+            const QByteArray symbolFile = m_symbolFile.toLocal8Bit();
             if (symbolFile.isEmpty()) {
                 logMessage(_("WARNING: No symbol file available."), LogError);
             } else {
@@ -299,7 +289,7 @@ void CodaGdbAdapter::handleTargetRemote(const GdbResponse &record)
         if (debug)
             qDebug() << "handleTargetRemote" << m_session.toString();
     } else {
-        QString msg = tr("Connecting to TRK server adapter failed:\n")
+        QString msg = tr("Connecting to CODA server adapter failed:\n")
             + QString::fromLocal8Bit(record.data.findChild("msg").data());
         m_engine->notifyInferiorSetupFailed(msg);
     }
@@ -1036,16 +1026,15 @@ void CodaGdbAdapter::startAdapter()
     QSharedPointer<QTcpSocket> codaSocket;
     if (parameters.communicationChannel ==
             DebuggerStartParameters::CommunicationChannelTcpIp) {
-        m_codaDevice = QSharedPointer<CodaDevice>(new CodaDevice);
+        m_codaDevice = QSharedPointer<CodaDevice>(new CodaDevice, &CodaDevice::deleteLater);
         setupTrkDeviceSignals();
         codaSocket = QSharedPointer<QTcpSocket>(new QTcpSocket);
         m_codaDevice->setDevice(codaSocket);
-        m_codaSocketIODevice = codaSocket;
     } else {
         m_codaDevice = SymbianUtils::SymbianDeviceManager::instance()
             ->getCodaDevice(parameters.remoteChannel);
-        bool ok = m_codaDevice && m_codaDevice->device()->isOpen();
 
+        bool ok = !m_codaDevice.isNull() && m_codaDevice->device()->isOpen();
         if (!ok) {
             QString msg = QString("Couldn't open serial device %1")
                     .arg(parameters.remoteChannel);
@@ -1213,22 +1202,6 @@ void CodaGdbAdapter::cleanup()
 {
     delete m_gdbServer;
     m_gdbServer = 0;
-    if (!m_codaSocketIODevice.isNull()) {
-        QAbstractSocket *socket =
-            qobject_cast<QAbstractSocket *>(m_codaSocketIODevice.data());
-        const bool isOpen = socket
-            ? socket->state() == QAbstractSocket::ConnectedState
-            : m_codaSocketIODevice->isOpen();
-        if (isOpen) {
-            // Ensure process is stopped after being suspended.
-            sendRunControlTerminateCommand();
-            if (socket) {
-                socket->disconnect();
-            } else {
-                m_codaSocketIODevice->close();
-            }
-        }
-    } //!m_trkIODevice.isNull()
     if (m_codaDevice) {
         // Ensure process is stopped after being suspended.
         sendRunControlTerminateCommand();
@@ -1249,7 +1222,7 @@ void CodaGdbAdapter::shutdownAdapter()
         m_engine->notifyAdapterShutdownOk();
     } else {
         // Something is wrong, gdb crashed. Kill debuggee (see handleDeleteProcess2)
-        if (m_codaDevice->device()->isOpen()) {
+        if (m_codaDevice && m_codaDevice->device()->isOpen()) {
             logMessage("Emergency shutdown of CODA", LogError);
             sendRunControlTerminateCommand();
         }

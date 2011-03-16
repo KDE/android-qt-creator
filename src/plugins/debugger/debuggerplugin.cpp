@@ -972,6 +972,7 @@ public slots:
         unsigned *enabledEngines, QString *errorMessage);
 
     DebuggerToolTipManager *toolTipManager() const { return m_toolTipManager; }
+    virtual QSharedPointer<GlobalDebuggerOptions> globalDebuggerOptions() const { return m_globalDebuggerOptions; }
 
 public:
     DebuggerMainWindow *m_mainWindow;
@@ -1053,11 +1054,13 @@ public:
     DebuggerToolTipManager *m_toolTipManager;
     CommonOptionsPage *m_commonOptionsPage;
     DummyEngine *m_dummyEngine;
+    const QSharedPointer<GlobalDebuggerOptions> m_globalDebuggerOptions;
 };
 
 DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin) :
     m_toolTipManager(new DebuggerToolTipManager(this)),
-    m_dummyEngine(0)
+    m_dummyEngine(0),
+    m_globalDebuggerOptions(new GlobalDebuggerOptions)
 {
     qRegisterMetaType<WatchData>("WatchData");
     qRegisterMetaType<ContextData>("ContextData");
@@ -1114,8 +1117,7 @@ DebuggerPluginPrivate::~DebuggerPluginPrivate()
     delete m_debuggerSettings;
     m_debuggerSettings = 0;
 
-    delete m_mainWindow;
-    m_mainWindow = 0;
+    // Mainwindow will be deleted by debug mode.
 
     delete m_snapshotHandler;
     m_snapshotHandler = 0;
@@ -2714,7 +2716,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
     dock = m_mainWindow->createDockWidget(CppLanguage, localsAndWatchers);
     dock->setProperty(DOCKWIDGET_DEFAULT_AREA, Qt::RightDockWidgetArea);
 
-    m_commonOptionsPage = new CommonOptionsPage;
+    m_commonOptionsPage = new CommonOptionsPage(m_globalDebuggerOptions);
     m_plugin->addAutoReleasedObject(m_commonOptionsPage);
 
     m_debuggerSettings->readSettings();
@@ -3069,6 +3071,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
         SLOT(onCurrentProjectChanged(ProjectExplorer::Project*)));
 
     QTC_ASSERT(m_coreSettings, /**/);
+    m_globalDebuggerOptions->fromSettings(m_coreSettings);
     m_watchersWindow->setVisible(false);
     m_returnWindow->setVisible(false);
 

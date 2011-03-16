@@ -43,6 +43,9 @@
 #include <symbianutils/symbiandevicemanager.h>
 #include <codadevice.h>
 
+#include <coreplugin/helpmanager.h>
+
+#include "codaruncontrol.h"
 #include "trkruncontrol.h"
 
 #include <utils/detailswidget.h>
@@ -51,6 +54,7 @@
 #include <utils/pathchooser.h>
 
 #include <QtCore/QDir>
+#include <QtCore/QTimer>
 #include <QtGui/QLabel>
 #include <QtGui/QLineEdit>
 #include <QtGui/QComboBox>
@@ -66,6 +70,8 @@
 #include <QtGui/QGroupBox>
 #include <QtGui/QRadioButton>
 #include <QtGui/QValidator>
+
+#include <QtNetwork/QTcpSocket>
 
 Q_DECLARE_METATYPE(SymbianUtils::SymbianDevice)
 
@@ -135,7 +141,9 @@ S60DeployConfigurationWidget::S60DeployConfigurationWidget(QWidget *parent)
       m_wlanRadioButton(new QRadioButton(tr("WLAN:"))),
       m_ipAddress(new Utils::IpAddressLineEdit),
       m_trkRadioButton(new QRadioButton(tr("TRK"))),
-      m_codaRadioButton(new QRadioButton(tr("CODA")))
+      m_codaRadioButton(new QRadioButton(tr("CODA"))),
+      m_codaInfoLabel(new QLabel(tr("<a href=\"qthelp://com.nokia.qtcreator/doc/creator-developing-symbian.html\">What are the prerequisites?</a>"))),
+      m_codaTimeout(new QTimer(this))
 {
 }
 
@@ -190,7 +198,11 @@ void S60DeployConfigurationWidget::init(ProjectExplorer::DeployConfiguration *dc
             this, SLOT(updateSerialDevices()));
 
     //Debug Client
+    QVBoxLayout *debugClientContentVBoxLayout = new QVBoxLayout;
+    debugClientContentVBoxLayout->addWidget(m_codaInfoLabel);
+
     QHBoxLayout *debugClientHBoxLayout = new QHBoxLayout;
+    debugClientContentVBoxLayout->addLayout(debugClientHBoxLayout);
 
     QVBoxLayout *debugClientVBoxLayout = new QVBoxLayout;
     debugClientVBoxLayout->addWidget(m_trkRadioButton);
@@ -204,7 +216,7 @@ void S60DeployConfigurationWidget::init(ProjectExplorer::DeployConfiguration *dc
     debugClientHBoxLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
 
     QGroupBox *debugClientGroupBox = new QGroupBox(tr("Device Agent"));
-    debugClientGroupBox->setLayout(debugClientHBoxLayout);
+    debugClientGroupBox->setLayout(debugClientContentVBoxLayout);
 
     bool usingTrk = m_deployConfiguration->communicationChannel() == S60DeployConfiguration::CommunicationTrkSerialConnection;
     m_trkRadioButton->setChecked(usingTrk);
@@ -214,10 +226,10 @@ void S60DeployConfigurationWidget::init(ProjectExplorer::DeployConfiguration *dc
     m_serialRadioButton->setChecked(!usingTcp);
     m_wlanRadioButton->setChecked(usingTcp);
 
-    connect(m_trkRadioButton, SIGNAL(clicked()), this, SLOT(updateDebugClient()));
-    connect(m_codaRadioButton, SIGNAL(clicked()), this, SLOT(updateDebugClient()));
-
-    updateDebugClient();
+    connect(m_trkRadioButton, SIGNAL(clicked()), this, SLOT(updateCommunicationChannel()));
+    connect(m_codaRadioButton, SIGNAL(clicked()), this, SLOT(updateCommunicationChannel()));
+    connect(m_codaInfoLabel, SIGNAL(linkActivated(QString)),
+            Core::HelpManager::instance(), SLOT(handleHelpRequest(QString)));
 
     formLayout->addRow(debugClientGroupBox);
 
@@ -237,6 +249,11 @@ void S60DeployConfigurationWidget::init(ProjectExplorer::DeployConfiguration *dc
             this, SLOT(updateTargetInformation()));
     connect(m_deployConfiguration, SIGNAL(availableDeviceDrivesChanged()),
             this, SLOT(updateInstallationDrives()));
+    connect(this, SIGNAL(infoCollected()),
+            this, SLOT(collectingInfoFinished()));
+
+    m_codaTimeout->setSingleShot(true);
+    connect(m_codaTimeout, SIGNAL(timeout()), this, SLOT(codaTimeout()));
 }
 
 QWidget *S60DeployConfigurationWidget::createCommunicationChannel()
@@ -272,8 +289,8 @@ QWidget *S60DeployConfigurationWidget::createCommunicationChannel()
 
     if(!m_deployConfiguration->deviceAddress().isEmpty())
         m_ipAddress->setText(QString("%1:%2")
-                         .arg(m_deployConfiguration->deviceAddress())
-                         .arg(m_deployConfiguration->devicePort()));
+                             .arg(m_deployConfiguration->deviceAddress())
+                             .arg(m_deployConfiguration->devicePort()));
 
     QHBoxLayout *wlanChannelLayout = new QHBoxLayout();
     wlanChannelLayout->addWidget(new QLabel(tr("Address:")));
@@ -284,6 +301,9 @@ QWidget *S60DeployConfigurationWidget::createCommunicationChannel()
     communicationChannelGridLayout->addLayout(wlanChannelLayout, 1, 1);
 
     communicationChannelGroupBox->setLayout(communicationChannelGridLayout);
+
+    updateCommunicationChannelUi();
+
     return communicationChannelGroupBox;
 }
 
@@ -322,7 +342,6 @@ void S60DeployConfigurationWidget::silentInstallChanged(int state)
 void S60DeployConfigurationWidget::updateSerialDevices()
 {
     m_serialPortsCombo->clear();
-    clearDeviceInfo();
     const QString previouPortName = m_deployConfiguration->serialPortName();
     const QList<SymbianUtils::SymbianDevice> devices = SymbianUtils::SymbianDeviceManager::instance()->devices();
     int newIndex = -1;
@@ -332,6 +351,14 @@ void S60DeployConfigurationWidget::updateSerialDevices()
         if (device.portName() == previouPortName)
             newIndex = i;
     }
+
+    if(m_deployConfiguration->communicationChannel()
+            == S60DeployConfiguration::CommunicationCodaTcpConnection) {
+        m_deviceInfoButton->setEnabled(true);
+        return;
+    }
+
+    clearDeviceInfo();
     // Set new index: prefer to keep old or set to 0, if available.
     if (newIndex == -1 && !devices.empty())
         newIndex = 0;
@@ -344,9 +371,6 @@ void S60DeployConfigurationWidget::updateSerialDevices()
         const QString newPortName = device(newIndex).portName();
         m_deployConfiguration->setSerialPortName(newPortName);
     }
-    if (m_deployConfiguration->communicationChannel() != S60DeployConfiguration::CommunicationTrkSerialConnection
-            && m_deployConfiguration->communicationChannel() != S60DeployConfiguration::CommunicationCodaSerialConnection)
-        m_deviceInfoButton->setEnabled(false);
 }
 
 SymbianUtils::SymbianDevice S60DeployConfigurationWidget::device(int i) const
@@ -389,41 +413,61 @@ void S60DeployConfigurationWidget::setSerialPort(int index)
     clearDeviceInfo();
 }
 
-void S60DeployConfigurationWidget::updateDebugClient()
+void S60DeployConfigurationWidget::updateCommunicationChannelUi()
 {
-        if (!m_trkRadioButton->isChecked() && !m_codaRadioButton->isChecked())
-            m_trkRadioButton->setChecked(true);
-
-        if (m_trkRadioButton->isChecked()) {
-            m_serialRadioButton->setEnabled(true);
-            m_serialRadioButton->setChecked(true);
-            m_wlanRadioButton->setEnabled(false);
+    S60DeployConfiguration::CommunicationChannel channel = m_deployConfiguration->communicationChannel();
+    if (channel == S60DeployConfiguration::CommunicationTrkSerialConnection) {
+        m_trkRadioButton->setChecked(true);
+        m_codaRadioButton->setChecked(false);
+        m_serialRadioButton->setChecked(true);
+        m_wlanRadioButton->setDisabled(true);
+        m_ipAddress->setDisabled(true);
+        m_serialPortsCombo->setDisabled(false);
+        updateSerialDevices();
+    } else {
+        m_trkRadioButton->setChecked(false);
+        m_codaRadioButton->setChecked(true);
+        m_wlanRadioButton->setDisabled(false);
+        if (channel == S60DeployConfiguration::CommunicationCodaTcpConnection) {
+            m_ipAddress->setDisabled(false);
+            m_serialPortsCombo->setDisabled(true);
+            m_deviceInfoButton->setEnabled(true);
+        } else {
+            m_ipAddress->setDisabled(true);
+            m_serialPortsCombo->setDisabled(false);
             updateSerialDevices();
-        } else if(m_codaRadioButton->isChecked()) {
-            m_serialRadioButton->setEnabled(true);
-            m_wlanRadioButton->setEnabled(true);
         }
-
-        updateCommunicationChannel();
+    }
 }
 
 void S60DeployConfigurationWidget::updateCommunicationChannel()
 {
-    if (!m_serialRadioButton->isChecked() && !m_wlanRadioButton->isChecked())
-        m_serialRadioButton->setChecked(true);
+    if (!m_trkRadioButton->isChecked() && !m_codaRadioButton->isChecked())
+        m_trkRadioButton->setChecked(true);
 
-    if (m_serialRadioButton->isChecked()) {
+    if (m_trkRadioButton->isChecked()) {
+        m_serialRadioButton->setChecked(true);
+        m_wlanRadioButton->setDisabled(true);
         m_ipAddress->setDisabled(true);
         m_serialPortsCombo->setDisabled(false);
-        if (m_trkRadioButton->isChecked())
-            m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationTrkSerialConnection);
-        else
-            m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationCodaSerialConnection);
+        m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationTrkSerialConnection);
         updateSerialDevices();
-    } else if(m_wlanRadioButton->isChecked()) {
-        m_ipAddress->setDisabled(false);
-        m_serialPortsCombo->setDisabled(true);
-        m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationCodaTcpConnection);
+    } else if (m_codaRadioButton->isChecked()) {
+        if (!m_wlanRadioButton->isChecked() && !m_serialRadioButton->isChecked())
+            m_serialRadioButton->setChecked(true);
+        m_wlanRadioButton->setDisabled(false);
+
+        if (m_wlanRadioButton->isChecked()) {
+            m_ipAddress->setDisabled(false);
+            m_serialPortsCombo->setDisabled(true);
+            m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationCodaTcpConnection);
+            m_deviceInfoButton->setEnabled(true);
+        } else {
+            m_ipAddress->setDisabled(true);
+            m_serialPortsCombo->setDisabled(false);
+            m_deployConfiguration->setCommunicationChannel(S60DeployConfiguration::CommunicationCodaSerialConnection);
+            updateSerialDevices();
+        }
     }
 }
 
@@ -474,7 +518,7 @@ void S60DeployConfigurationWidget::slotLauncherStateChanged(int s)
         connect(mb, SIGNAL(finished(int)), this, SLOT(slotWaitingForTrkClosed()));
         mb->open();
     }
-        break;
+    break;
     case trk::Launcher::DeviceDescriptionReceived: // All ok, done
         setDeviceInfoLabel(m_infoLauncher->deviceDescription());
         m_deviceInfoButton->setEnabled(true);
@@ -494,10 +538,10 @@ void S60DeployConfigurationWidget::slotWaitingForTrkClosed()
 
 void S60DeployConfigurationWidget::updateDeviceInfo()
 {
+    setDeviceInfoLabel(tr("Connecting"));
     if (m_deployConfiguration->communicationChannel() == S60DeployConfiguration::CommunicationTrkSerialConnection) {
         QTC_ASSERT(!m_infoLauncher, return)
 
-        setDeviceInfoLabel(tr("Connecting..."));
         // Do a launcher run with the ping protocol. Prompt to connect and
         // go asynchronous afterwards to pop up launch trk box if a timeout occurs.
         QString message;
@@ -536,9 +580,12 @@ void S60DeployConfigurationWidget::updateDeviceInfo()
         // Wait for either timeout or results
         m_deviceInfoButton->setEnabled(false);
     } else if (m_deployConfiguration->communicationChannel() == S60DeployConfiguration::CommunicationCodaSerialConnection) {
-        setDeviceInfoLabel(tr("Connecting..."));
         const SymbianUtils::SymbianDevice commDev = currentDevice();
         m_codaInfoDevice = SymbianUtils::SymbianDeviceManager::instance()->getCodaDevice(commDev.portName());
+        if (m_codaInfoDevice.isNull()) {
+            setDeviceInfoLabel(tr("Unable to create CODA connection. Please try again."), true);
+            return;
+        }
         if (!m_codaInfoDevice->device()->isOpen()) {
             setDeviceInfoLabel(m_codaInfoDevice->device()->errorString(), true);
             return;
@@ -546,127 +593,150 @@ void S60DeployConfigurationWidget::updateDeviceInfo()
         //TODO error handling - for now just throw the command at coda
         m_codaInfoDevice->sendSymbianOsDataGetQtVersionCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getQtVersionCommandResult));
         m_deviceInfoButton->setEnabled(false);
+        m_codaTimeout->start(1000);
+    } else if(m_deployConfiguration->communicationChannel() == S60DeployConfiguration::CommunicationCodaTcpConnection) {
+        // collectingInfoFinished, which deletes m_codaDevice, can get called from within a coda callback, so need to use deleteLater
+        m_codaInfoDevice =  QSharedPointer<Coda::CodaDevice>(new Coda::CodaDevice, &QObject::deleteLater);
+        connect(m_codaInfoDevice.data(), SIGNAL(tcfEvent(Coda::CodaEvent)), this, SLOT(codaEvent(Coda::CodaEvent)));
+
+        const QSharedPointer<QTcpSocket> codaSocket(new QTcpSocket);
+        m_codaInfoDevice->setDevice(codaSocket);
+        codaSocket->connectToHost(m_deployConfiguration->deviceAddress(),
+                                  m_deployConfiguration->devicePort().toInt());
+        m_deviceInfoButton->setEnabled(false);
+        m_codaTimeout->start(1500);
     } else
         setDeviceInfoLabel(tr("Currently there is no information about the device for this connection type."), true);
 }
 
- void S60DeployConfigurationWidget::getQtVersionCommandResult(const Coda::CodaCommandResult &result)
- {
-     if (result.type == Coda::CodaCommandResult::FailReply) {
-         setDeviceInfoLabel(tr("No device information available"), true);
-         m_deviceInfoButton->setEnabled(true);
-         return;
-     } else if (result.type == Coda::CodaCommandResult::CommandErrorReply){
-         QString message;
-         startTable(message);
-         QTextStream str(&message);
-         addErrorToTable(str, tr("Qt version: "), tr("Not installed on device"));
-         finishTable(message);
-         setDeviceInfoLabel(message, false);
-     } else {
-         QString resultString;
-         if (result.values.count()) {
-             QHash<QString, QVariant> obj = result.values[0].toVariant().toHash();
-             QString ver = obj.value("qVersion").toString();
+void S60DeployConfigurationWidget::codaEvent(const Coda::CodaEvent &event)
+{
+    switch (event.type()) {
+    case Coda::CodaEvent::LocatorHello: // Commands accepted now
+        codaIncreaseProgress();
+        m_codaInfoDevice->sendSymbianOsDataGetQtVersionCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getQtVersionCommandResult));
+        break;
+    default:
+        break;
+    }
+}
 
-             startTable(resultString);
-             QTextStream str(&resultString);
-             addToTable(str, tr("Qt version:"), ver);
-             QString systemVersion;
+void S60DeployConfigurationWidget::getQtVersionCommandResult(const Coda::CodaCommandResult &result)
+{
+    m_deviceInfo.clear();
+    if (result.type == Coda::CodaCommandResult::FailReply) {
+        setDeviceInfoLabel(tr("No device information available"), true);
+        SymbianUtils::SymbianDeviceManager::instance()->releaseCodaDevice(m_codaInfoDevice);
+        m_deviceInfoButton->setEnabled(true);
+        m_codaTimeout->stop();
+        return;
+    } else if (result.type == Coda::CodaCommandResult::CommandErrorReply){
+        startTable(m_deviceInfo);
+        QTextStream str(&m_deviceInfo);
+        addErrorToTable(str, tr("Qt version: "), tr("Not installed on device"));
+        finishTable(m_deviceInfo);
+    } else {
+        if (result.values.count()) {
+            QHash<QString, QVariant> obj = result.values[0].toVariant().toHash();
+            QString ver = obj.value("qVersion").toString();
 
-             int symVer = obj.value("symbianVersion").toInt();
-             // Ugh why won't QSysInfo define these on non-symbian builds...
-             switch (symVer) {
-             case 10:
-                 systemVersion.append("Symbian OS v9.2");
-                 break;
-             case 20:
-                 systemVersion.append("Symbian OS v9.3");
-                 break;
-             case 30:
-                 systemVersion.append("Symbian OS v9.4 / Symbian^1");
-                 break;
-             case 40:
-                 systemVersion.append("Symbian^2");
-                 break;
-             case 50:
-                 systemVersion.append("Symbian^3");
-                 break;
-             case 60:
-                 systemVersion.append("Symbian^4");
-                 break;
-             default:
-                 systemVersion.append(tr("Unrecognised Symbian version 0x%1").arg(symVer, 0, 16));
-                 break;
-             }
-             systemVersion.append(", ");
-             int s60Ver = obj.value("s60Version").toInt();
-             switch (s60Ver) {
-             case 10:
-                 systemVersion.append("S60 3rd Edition Feature Pack 1");
-                 break;
-             case 20:
-                 systemVersion.append("S60 3rd Edition Feature Pack 2");
-                 break;
-             case 30:
-                 systemVersion.append("S60 5th Edition");
-                 break;
-             case 40:
-                 systemVersion.append("S60 5th Edition Feature Pack 1");
-                 break;
-             case 50:
-                 systemVersion.append("S60 5th Edition Feature Pack 2");
-                 break;
-             default:
-                 systemVersion.append(tr("Unrecognised S60 version 0x%1").arg(symVer, 0, 16));
-                 break;
-             }
-             addToTable(str, tr("OS version:"), systemVersion);
-             finishTable(resultString);
-         }
-         setDeviceInfoLabel(resultString);
-     }
-     m_codaInfoDevice->sendSymbianOsDataGetRomInfoCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getRomInfoResult));
- }
+            startTable(m_deviceInfo);
+            QTextStream str(&m_deviceInfo);
+            addToTable(str, tr("Qt version:"), ver);
+            QString systemVersion;
 
- void S60DeployConfigurationWidget::getRomInfoResult(const Coda::CodaCommandResult &result)
- {
-     if (result.type == Coda::CodaCommandResult::SuccessReply && result.values.count()) {
-         QString resultString = m_deviceInfoLabel->text();
-         startTable(resultString);
-         QTextStream str(&resultString);
+            int symVer = obj.value("symbianVersion").toInt();
+            // Ugh why won't QSysInfo define these on non-symbian builds...
+            switch (symVer) {
+            case 10:
+                systemVersion.append("Symbian OS v9.2");
+                break;
+            case 20:
+                systemVersion.append("Symbian OS v9.3");
+                break;
+            case 30:
+                systemVersion.append("Symbian OS v9.4 / Symbian^1");
+                break;
+            case 40:
+                systemVersion.append("Symbian^2");
+                break;
+            case 50:
+                systemVersion.append("Symbian^3");
+                break;
+            case 60:
+                systemVersion.append("Symbian^4");
+                break;
+            default:
+                systemVersion.append(tr("Unrecognised Symbian version 0x%1").arg(symVer, 0, 16));
+                break;
+            }
+            systemVersion.append(", ");
+            int s60Ver = obj.value("s60Version").toInt();
+            switch (s60Ver) {
+            case 10:
+                systemVersion.append("S60 3rd Edition Feature Pack 1");
+                break;
+            case 20:
+                systemVersion.append("S60 3rd Edition Feature Pack 2");
+                break;
+            case 30:
+                systemVersion.append("S60 5th Edition");
+                break;
+            case 40:
+                systemVersion.append("S60 5th Edition Feature Pack 1");
+                break;
+            case 50:
+                systemVersion.append("S60 5th Edition Feature Pack 2");
+                break;
+            default:
+                systemVersion.append(tr("Unrecognised S60 version 0x%1").arg(symVer, 0, 16));
+                break;
+            }
+            addToTable(str, tr("OS version:"), systemVersion);
+            finishTable(m_deviceInfo);
+        }
+    }
+    codaIncreaseProgress();
+    m_codaInfoDevice->sendSymbianOsDataGetRomInfoCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getRomInfoResult));
+}
 
-         QVariantHash obj = result.values[0].toVariant().toHash();
-         QString romVersion = obj.value("romVersion", tr("unknown")).toString();
-         romVersion.replace('\n', " "); // The ROM string is split across multiple lines, for some reason.
-         addToTable(str, tr("ROM version:"), romVersion);
+void S60DeployConfigurationWidget::getRomInfoResult(const Coda::CodaCommandResult &result)
+{
+    codaIncreaseProgress();
+    if (result.type == Coda::CodaCommandResult::SuccessReply && result.values.count()) {
+        startTable(m_deviceInfo);
+        QTextStream str(&m_deviceInfo);
 
-         QString pr = obj.value("prInfo").toString();
-         if (pr.length())
-             addToTable(str, tr("Release:"), pr);
-         finishTable(resultString);
-         setDeviceInfoLabel(resultString);
-     }
+        QVariantHash obj = result.values[0].toVariant().toHash();
+        QString romVersion = obj.value("romVersion", tr("unknown")).toString();
+        romVersion.replace('\n', " "); // The ROM string is split across multiple lines, for some reason.
+        addToTable(str, tr("ROM version:"), romVersion);
 
-     QList<quint32> packagesOfInterest;
-     packagesOfInterest.append(CODA_UID);
-     packagesOfInterest.append(QTMOBILITY_UID);
-     m_codaInfoDevice->sendSymbianInstallGetPackageInfoCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getInstalledPackagesResult), packagesOfInterest);
- }
+        QString pr = obj.value("prInfo").toString();
+        if (pr.length())
+            addToTable(str, tr("Release:"), pr);
+        finishTable(m_deviceInfo);
+    }
 
- void S60DeployConfigurationWidget::getInstalledPackagesResult(const Coda::CodaCommandResult &result)
- {
-     if (result.type == Coda::CodaCommandResult::SuccessReply && result.values.count()) {
-         QString resultString = m_deviceInfoLabel->text();
-         startTable(resultString);
-         QTextStream str(&resultString);
+    QList<quint32> packagesOfInterest;
+    packagesOfInterest.append(CODA_UID);
+    packagesOfInterest.append(QTMOBILITY_UID);
+    m_codaInfoDevice->sendSymbianInstallGetPackageInfoCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getInstalledPackagesResult), packagesOfInterest);
+}
 
-         QVariantList resultsList = result.values[0].toVariant().toList();
-         foreach (const QVariant& var, resultsList) {
-             QVariantHash obj = var.toHash();
-             bool ok = false;
-             uint uid = obj.value("uid").toString().toUInt(&ok, 16);
-             if (ok) {
+void S60DeployConfigurationWidget::getInstalledPackagesResult(const Coda::CodaCommandResult &result)
+{
+    codaIncreaseProgress();
+    if (result.type == Coda::CodaCommandResult::SuccessReply && result.values.count()) {
+        startTable(m_deviceInfo);
+        QTextStream str(&m_deviceInfo);
+
+        QVariantList resultsList = result.values[0].toVariant().toList();
+        foreach (const QVariant& var, resultsList) {
+            QVariantHash obj = var.toHash();
+            bool ok = false;
+            uint uid = obj.value("uid").toString().toUInt(&ok, 16);
+            if (ok) {
                 bool error = !obj.value("error").isNull();
                 QString versionString;
                 if (!error) {
@@ -693,46 +763,73 @@ void S60DeployConfigurationWidget::updateDeviceInfo()
                 break;
                 default: break;
                 }
-             }
-         }
-         finishTable(resultString);
-         setDeviceInfoLabel(resultString);
-     }
+            }
+        }
+        finishTable(m_deviceInfo);
+    }
 
-     QStringList keys;
-     keys << QLatin1String("EDisplayXPixels");
-     keys << QLatin1String("EDisplayYPixels");
-     //keys << "EMemoryRAMFree";
-     m_codaInfoDevice->sendSymbianOsDataGetHalInfoCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getHalResult), keys);
- }
+    QStringList keys;
+    keys << QLatin1String("EDisplayXPixels");
+    keys << QLatin1String("EDisplayYPixels");
+    //keys << "EMemoryRAMFree";
+    m_codaInfoDevice->sendSymbianOsDataGetHalInfoCommand(Coda::CodaCallback(this, &S60DeployConfigurationWidget::getHalResult), keys);
+}
 
- void S60DeployConfigurationWidget::getHalResult(const Coda::CodaCommandResult &result)
- {
-     if (result.type == Coda::CodaCommandResult::SuccessReply && result.values.count()) {
-         QString resultString = m_deviceInfoLabel->text();
-         QVariantList resultsList = result.values[0].toVariant().toList();
-         int x = 0;
-         int y = 0;
-         foreach (const QVariant& var, resultsList) {
-             QVariantHash obj = var.toHash();
-             if (obj.value("name").toString() == "EDisplayXPixels")
-                 x = obj.value("value").toInt();
-             else if (obj.value("name").toString() == "EDisplayYPixels")
-                 y = obj.value("value").toInt();
-         }
-         if (x && y) {
-             startTable(resultString);
-             QTextStream str(&resultString);
-             addToTable(str, tr("Screen size:"), QString("%1x%2").arg(x).arg(y));
-             finishTable(resultString);
-             setDeviceInfoLabel(resultString);
-         }
-     }
+void S60DeployConfigurationWidget::getHalResult(const Coda::CodaCommandResult &result)
+{
+    codaIncreaseProgress();
+    if (result.type == Coda::CodaCommandResult::SuccessReply && result.values.count()) {
+        QVariantList resultsList = result.values[0].toVariant().toList();
+        int x = 0;
+        int y = 0;
+        foreach (const QVariant& var, resultsList) {
+            QVariantHash obj = var.toHash();
+            if (obj.value("name").toString() == "EDisplayXPixels")
+                x = obj.value("value").toInt();
+            else if (obj.value("name").toString() == "EDisplayYPixels")
+                y = obj.value("value").toInt();
+        }
+        if (x && y) {
+            startTable(m_deviceInfo);
+            QTextStream str(&m_deviceInfo);
+            addToTable(str, tr("Screen size:"), QString("%1x%2").arg(x).arg(y));
+            finishTable(m_deviceInfo);
+        }
+    }
 
-     // Done with collecting info
-     m_deviceInfoButton->setEnabled(true);
-     SymbianUtils::SymbianDeviceManager::instance()->releaseCodaDevice(m_codaInfoDevice);
- }
+    // Done with collecting info
+    emit infoCollected();
+}
+
+void S60DeployConfigurationWidget::codaIncreaseProgress()
+{
+    m_codaTimeout->start();
+    setDeviceInfoLabel(m_deviceInfoLabel->text() + '.');
+}
+
+void S60DeployConfigurationWidget::collectingInfoFinished()
+{
+    m_codaTimeout->stop();
+    emit codaConnected();
+    m_deviceInfoButton->setEnabled(true);
+    setDeviceInfoLabel(m_deviceInfo);
+    SymbianUtils::SymbianDeviceManager::instance()->releaseCodaDevice(m_codaInfoDevice);
+}
+
+void S60DeployConfigurationWidget::codaTimeout()
+{
+    QMessageBox *mb = CodaRunControl::createCodaWaitingMessageBox(this);
+    connect(this, SIGNAL(codaConnected()), mb, SLOT(close()));
+    connect(mb, SIGNAL(finished(int)), this, SLOT(codaCanceled()));
+    mb->open();
+}
+
+void S60DeployConfigurationWidget::codaCanceled()
+{
+    clearDeviceInfo();
+    m_deviceInfoButton->setEnabled(true);
+    SymbianUtils::SymbianDeviceManager::instance()->releaseCodaDevice(m_codaInfoDevice);
+}
 
 } // namespace Internal
 } // namespace Qt4ProjectManager

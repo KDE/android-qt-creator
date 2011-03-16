@@ -44,6 +44,7 @@
 #include <QtCore/QList>
 #include <QtCore/QMap>
 #include <QtCore/QPointer>
+#include <QtCore/QProcess>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtCore/QSettings>
@@ -84,6 +85,12 @@
 #include <vector>
 
 #define USE_PRIVATE 1
+//#define USE_BOOST 1
+
+#if USE_BOOST
+#include <boost/optional.hpp>
+#include <boost/shared_ptr.hpp>
+#endif
 
 #if USE_PRIVATE
 #include <QtCore/private/qobject_p.h>
@@ -105,7 +112,6 @@
 #include <xmmintrin.h>
 #include <stddef.h>
 #endif
-
 Q_DECLARE_METATYPE(QHostAddress)
 Q_DECLARE_METATYPE(QList<int>)
 Q_DECLARE_METATYPE(QStringList)
@@ -2356,9 +2362,50 @@ void testQScriptValue(int argc, char *argv[])
     s = engine.newDate(date);
     x = s.toInt32();
     bool xx = s.isDate();
+    Q_UNUSED(xx);
     date = s.toDateTime();
     s.setProperty("a", QScriptValue());
     QScriptValue d = s.data();
+}
+
+void testBoostOptional()
+{
+#if USE_BOOST
+    boost::optional<int> i;
+    i = 1;
+    boost::optional<QStringList> sl;
+    sl = (QStringList() << "xxx" << "yyy");
+    sl.get().append("zzz");
+    i = 3;
+    i = 4;
+    i = 5;
+#endif
+}
+
+void testBoostSharedPtr()
+{
+#if USE_BOOST
+    QSharedPointer<int> qs;
+    QSharedPointer<int> qi(new int(43));
+    QSharedPointer<int> qj = qi;
+
+    boost::shared_ptr<int> s;
+    boost::shared_ptr<int> i(new int(43));
+    boost::shared_ptr<int> j = i;
+    boost::shared_ptr<QStringList> sl(new QStringList);
+    int k = 2;
+    ++k;
+#endif
+}
+
+void testFork()
+{
+    QProcess proc;
+    proc.start("/bin/ls");
+    proc.waitForFinished();
+    QByteArray ba = proc.readAllStandardError();
+    ba.append('x');
+    ba.append('x');
 }
 
 int main(int argc, char *argv[])
@@ -2454,8 +2501,10 @@ int main(int argc, char *argv[])
     testQVector();
     testQVectorOfQList();
 
+    testBoostOptional();
+    testBoostSharedPtr();
 
-    //*(int *)0 = 0;
+    testFork();
 
     testQObject(argc, argv);
 
