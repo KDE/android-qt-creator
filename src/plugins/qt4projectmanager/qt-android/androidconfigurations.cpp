@@ -95,7 +95,9 @@ QStringList AndroidConfigurations::sdkTargets()
 
 QStringList AndroidConfigurations::ndkToolchainVersions()
 {
+#ifdef __GNUC__
 #warning TODO list the content of NDK_path/toolchains and get only the folders which contain "prebuilt" folder
+#endif
     return QStringList()<<"arm-linux-androideabi-4.4.3"<<"arm-eabi-4.4.0";
 }
 

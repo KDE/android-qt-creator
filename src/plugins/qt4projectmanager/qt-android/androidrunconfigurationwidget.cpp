@@ -63,7 +63,9 @@ AndroidRunConfigurationWidget::AndroidRunConfigurationWidget(
 //    connect(m_runConfiguration,
 //        SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
 //        this, SLOT(handleCurrentDeviceConfigChanged()));
+#ifdef __GNUC__
 #warning ANDROID FIX
+#endif
 //    connect(m_runConfiguration->qt4Target(),
 //        SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)),
 //        this, SLOT(handleBuildConfigChanged()));
@@ -160,7 +162,9 @@ void AndroidRunConfigurationWidget::addDebuggingWidgets(QVBoxLayout *mainLayout)
     debugRadioButtonsLayout->addWidget(gdbButton);
     debugRadioButtonsLayout->addWidget(gdbServerButton);
     debugRadioButtonsLayout->addStretch(1);
+#ifdef __GNUC__
 #warning FIXME Android
+#endif
 //    gdbButton->setChecked(m_runConfiguration->useRemoteGdb());
 //    gdbServerButton->setChecked(!gdbButton->isChecked());
 //    connect(gdbButton, SIGNAL(toggled(bool)), this,

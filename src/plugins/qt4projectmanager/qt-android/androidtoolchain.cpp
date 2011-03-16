@@ -34,8 +34,10 @@ ProjectExplorer::ToolChainType AndroidToolChain::type() const
 
 void AndroidToolChain::addToEnvironment(Utils::Environment &env)
 {
+#ifdef __GNUC__
 #warning TODO this vars should be configurable in projects -> build tab
 #warning TODO invalidate all .pro files !!!
+#endif
     // this env vars are used by qmake mkspecs to generate makefiles (check QTDIR/mkspecs/android-g++/qmake.conf for more info)
     env.set(QLatin1String("ANDROID_NDK_ROOT")
                      ,QDir::toNativeSeparators(AndroidConfigurations::instance().config().NDKLocation));

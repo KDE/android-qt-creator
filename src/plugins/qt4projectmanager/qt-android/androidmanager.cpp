@@ -82,7 +82,9 @@ bool AndroidManager::isValidAndroidQtVersion(const QtVersion *version) const
 
 ToolChain* AndroidManager::androidToolChain() const
 {
+#ifdef __GNUC__
 #warning TODO FIX Android
+#endif
     return new AndroidToolChain(AndroidConfigurations::instance().config().NDKLocation +"/toolchains/arm-linux-androideabi-4.4.3/prebuilt/linux-x86/bin/arm-linux-androideabi-gcc");
 }
 
