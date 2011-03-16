@@ -107,7 +107,7 @@ QStringList AndroidConfigurations::ndkToolchainVersions()
 
 QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 {
-    QString adbCmmand=m_config.SDKLocation+QLatin1String("/platform-tools/adb"ANDROID_EXEC_SUFFIX);
+    QString adbCmmand=m_config.SDKLocation+QLatin1String("/platform-tools/adb"ANDROID_EXE_SUFFIX);
     if (deviceSerialNumber.length())
         adbCmmand+=" -s "+deviceSerialNumber;
     return adbCmmand;
@@ -115,13 +115,7 @@ QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 
 QString AndroidConfigurations::androidToolPath()
 {
-    return m_config.SDKLocation +
-#ifdef Q_OS_WIN
-    QLatin1String("\\tools\\android.bat");
-#else
-    QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX);
-#endif
-
+    return m_config.SDKLocation + QString("/tools/android"ANDROID_BAT_SUFFIX);
 }
 
 QString AndroidConfigurations::antToolPath()
@@ -134,22 +128,22 @@ QString AndroidConfigurations::antToolPath()
 
 QString AndroidConfigurations::emulatorToolPath()
 {
-    return m_config.SDKLocation+QLatin1String("/tools/emulator"ANDROID_EXEC_SUFFIX);
+    return m_config.SDKLocation+QString("/tools/emulator"ANDROID_EXE_SUFFIX);
 }
 
 QString AndroidConfigurations::stripPath()
 {
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-strip"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-strip"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
 QString AndroidConfigurations::readelfPath()
 {
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-readelf"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-readelf"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
 QString AndroidConfigurations::gccPath()
 {
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gcc"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gcc"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
 QString AndroidConfigurations::gdbServerPath()
@@ -159,7 +153,7 @@ QString AndroidConfigurations::gdbServerPath()
 
 QString AndroidConfigurations::gdbPath()
 {
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gdb"ANDROID_EXEC_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gdb"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
 QString AndroidConfigurations::getDeployDeviceSerialNumber(int apiLevel)
@@ -304,8 +298,7 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
         return avdName;
 
     // start the emulator
-    m_avdProcess->start(emulatorToolPath(), QStringList() << "-partition-size" << "1024" << "-avd" << avdName);
-    //m_avdProcess->start(emulatorToolPath()+QString(" -partition-size %1 -avd %2").arg(config().PartitionSize).arg(avdName));
+    m_avdProcess->start(emulatorToolPath(), QStringList() << "-partition-size" << QString::number(config().PartitionSize) << "-avd" << avdName);
     if (!m_avdProcess->waitForStarted(-1))
         return QString();
 
@@ -338,8 +331,9 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
 
 int AndroidConfigurations::getSDKVersion(const QString & device)
 {
+
     QProcess adbProc;
-    adbProc.start(adbToolPath(device), QStringList() << "shell" << "getprop" << "ro.build.version.sdk");
+    adbProc.start(adbToolPath(), QStringList()<< "-s" << device << "shell" << "getprop" << "ro.build.version.sdk");
     if (!adbProc.waitForFinished(-1))
     {
         adbProc.terminate();

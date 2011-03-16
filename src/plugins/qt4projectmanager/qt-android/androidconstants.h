@@ -26,9 +26,11 @@ enum AndroidQemuStatus {
 #define ANDROID_PREFIX "Qt4ProjectManager.AndroidRunConfiguration"
 
 #ifdef Q_OS_WIN32
-#define ANDROID_EXEC_SUFFIX ".exe"
+#define ANDROID_EXE_SUFFIX ".exe"
+#define ANDROID_BAT_SUFFIX ".bat"
 #else
-#define ANDROID_EXEC_SUFFIX ""
+#define ANDROID_EXE_SUFFIX ""
+#define ANDROID_BAT_SUFFIX ""
 #endif
 
 static const QLatin1String ANDROID_RC_ID(ANDROID_PREFIX);
