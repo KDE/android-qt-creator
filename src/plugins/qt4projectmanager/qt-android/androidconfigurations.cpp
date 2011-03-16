@@ -37,6 +37,7 @@ namespace {
     const QLatin1String NDKLocationKey("NDKLocation");
     const QLatin1String NDKToolchainVersionKey("NDKToolchainVersion");
     const QLatin1String AntLocationKey("AntLocation");
+    const QLatin1String PartitionSizeKey("PartitionSize");
     bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
     {
         return dev1.sdk< dev2.sdk;
@@ -48,12 +49,14 @@ AndroidConfig::AndroidConfig(const QSettings &settings)
     : SDKLocation(settings.value(SDKLocationKey).toString()),
       NDKLocation(settings.value(NDKLocationKey).toString()),
       NDKToolchainVersion(settings.value(NDKToolchainVersionKey).toString()),
-      AntLocation(settings.value(AntLocationKey).toString())
+      AntLocation(settings.value(AntLocationKey).toString()),
+      PartitionSize(settings.value(PartitionSizeKey, 1024).toInt())
 {
 }
 
 AndroidConfig::AndroidConfig()
 {
+    PartitionSize = 1024;
 }
 
 void AndroidConfig::save(QSettings &settings) const
@@ -62,6 +65,7 @@ void AndroidConfig::save(QSettings &settings) const
     settings.setValue(NDKLocationKey, NDKLocation);
     settings.setValue(NDKToolchainVersionKey, NDKToolchainVersion);
     settings.setValue(AntLocationKey, AntLocation);
+    settings.setValue(PartitionSizeKey, PartitionSize);
 }
 
 void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
@@ -290,7 +294,7 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
         return avdName;
 
     // start the emulator
-    m_avdProcess->start(emulatorToolPath()+QLatin1String(" -partition-size 1024 -avd ")+avdName);
+    m_avdProcess->start(emulatorToolPath()+QString(" -partition-size %1 -avd %2").arg(config().PartitionSize).arg(avdName));
     if (!m_avdProcess->waitForStarted(-1))
         return QString();
 
