@@ -89,7 +89,7 @@ QStringList AndroidRunConfigurationFactory::availableCreationIds(Target *parent)
 
 QString AndroidRunConfigurationFactory::displayNameForId(const QString &id) const
 {
-    return id;
+    return QFileInfo(pathFromId(id)).completeBaseName();
 }
 
 RunConfiguration *AndroidRunConfigurationFactory::create(Target *parent,
