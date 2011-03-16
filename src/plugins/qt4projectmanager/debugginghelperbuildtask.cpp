@@ -98,6 +98,7 @@ DebuggingHelperBuildTask::DebuggingHelperBuildTask(const QtVersion *version, Too
 //        qDebug() << "Using version->mkspec() specs";
 //        m_mkspec = version->mkspec();
 //    }
+    m_mkspec = version->mkspec();
 
     m_tools = tools;
 

@@ -53,6 +53,7 @@ static inline QStringList validBinaryFilenames()
 {
     return QStringList()
             << QLatin1String("debug/gdbmacros.dll")
+            << QLatin1String("release/gdbmacros.dll")
             << QLatin1String("libgdbmacros.dylib")
             << QLatin1String("libgdbmacros.so");
 }

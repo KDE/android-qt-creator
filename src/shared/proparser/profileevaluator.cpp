@@ -616,7 +616,7 @@ static QString fixPathToLocalOS(const QString &str)
     QString string = expandEnvVars(str);
 
     if (string.length() > 2 && string.at(0).isLetter() && string.at(1) == QLatin1Char(':'))
-        string[0] = string[0].toLower();
+        string[0] = string[0].toUpper();
 
 #if defined(Q_OS_WIN32)
     string.replace(QLatin1Char('/'), QLatin1Char('\\'));
@@ -2283,7 +2283,7 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                     if (!pfx.endsWith(QLatin1Char('/')))
                         pfx += QLatin1Char('/');
                 }
-                int slash = r.lastIndexOf(QDir::separator());
+                int slash = m_tmp1.lastIndexOf(QDir::separator());
                 if (slash != -1) {
                     dirs.append(r.left(slash+1));
                     r = r.mid(slash+1);

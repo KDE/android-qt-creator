@@ -83,18 +83,12 @@ rmdir mingwgdbtemp
 
 "C:/Program Files/7-zip/7z.exe" x -y -oandgdbtemp android-ndk-toolchain-4.4.3-gdb-7.2.50-python-2.7.1-7.2.50.20110211-windows.7z
 
-mkdir -p andgdbservertemp
 tar xvjf andgdbtemp/arm-linux-androideabi-4.4.3-gdbserver.tar.bz2
-mkdir -p andtctemp
 
 tar xvjf andgdbtemp/arm-linux-androideabi-4.4.3-windows.tar.bz2
 mv toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/arm-linux-androideabi-gdb.exe $DESTQTCDIR/pythongdb/gdb-ma-android/bin
 mv toolchains/arm-linux-androideabi-4.4.3/prebuilt/windows/bin/arm-linux-androideabi-gdbtui.exe $DESTQTCDIR/pythongdb/gdb-ma-android/bin
 mv toolchains/arm-linux-androideabi-4.4.3/prebuilt/gdbserver $DESTQTCDIR/pythongdb/gdb-ma-android/
-
-cp -f andgdbservertemp/* $DESTQTCDIR/pythongdb/gdb-ma-android/
-cp -f andtctemp/* $DESTQTCDIR/pythongdb/gdb-ma-android/
-# rmdir andgdbtemp
 
 cp -f $SRCDIR/../mingw-android-lighthouse/qpatch.exe $DESTQTCDIR/bin/
 cp -f $SRCDIR/../mingw-android-lighthouse/files-to-patch-* $DESTQTCDIR/bin/
