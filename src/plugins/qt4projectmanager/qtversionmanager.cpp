@@ -1577,6 +1577,7 @@ void QtVersion::updateAbiAndMkspec() const
     }
     ProFileCacheManager::instance()->decRefCount();
 
+    updateingToolChainAndMkspec = false;
     // Set up systemroot
     if (supportsTargetId(Constants::MAEMO5_DEVICE_TARGET_ID)
             || supportsTargetId(Constants::HARMATTAN_DEVICE_TARGET_ID)) {
