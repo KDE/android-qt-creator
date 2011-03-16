@@ -79,7 +79,7 @@ QStringList AndroidConfigurations::sdkTargets()
 {
     QStringList targets;
     QProcess proc;
-    proc.start(QString("%1 list target").arg(androidToolPath())); // list avaialbe AVDs
+    proc.start(androidToolPath(), QStringList() << "list" << "target"); // list avaialbe AVDs
     if (!proc.waitForFinished(-1))
     {
         proc.terminate();
@@ -99,7 +99,9 @@ QStringList AndroidConfigurations::sdkTargets()
 
 QStringList AndroidConfigurations::ndkToolchainVersions()
 {
+#ifdef __GNUC__
 #warning TODO list the content of NDK_path/toolchains and get only the folders which contain "prebuilt" folder
+#endif
     return QStringList()<<"arm-linux-androideabi-4.4.3"<<"arm-eabi-4.4.0";
 }
 
@@ -113,7 +115,13 @@ QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 
 QString AndroidConfigurations::androidToolPath()
 {
-    return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX);
+    return m_config.SDKLocation +
+#ifdef Q_OS_WIN
+    QLatin1String("\\tools\\android.bat");
+#else
+    QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX);
+#endif
+
 }
 
 QString AndroidConfigurations::antToolPath()
@@ -123,6 +131,7 @@ QString AndroidConfigurations::antToolPath()
     else
         return QLatin1String("ant");
 }
+
 QString AndroidConfigurations::emulatorToolPath()
 {
     return m_config.SDKLocation+QLatin1String("/tools/emulator"ANDROID_EXEC_SUFFIX);
@@ -168,7 +177,7 @@ QVector<AndroidDevice> AndroidConfigurations::connectedDevices(int apiLevel)
 {
     QVector<AndroidDevice> devices;
     QProcess adbProc;
-    adbProc.start(QString("%1 devices").arg(adbToolPath()));
+    adbProc.start(adbToolPath(), QStringList() << "devices");
     if (!adbProc.waitForFinished(-1))
     {
         adbProc.terminate();
@@ -207,7 +216,8 @@ bool AndroidConfigurations::createAVD()
 bool AndroidConfigurations::createAVD(const QString & target, const QString & name, int sdcardSize )
 {
     QProcess proc;
-    proc.start(QString("%1 create avd -t %2 -n %3 -c %4M").arg(androidToolPath()).arg(target).arg(name).arg(sdcardSize));
+    proc.start(androidToolPath(), QStringList() << "create" << "avd" << "-t" << target
+            << "-n" << name << "-c" << QString::fromLatin1("%4M").arg(sdcardSize));
     if (!proc.waitForStarted())
         return false;
     proc.write(QByteArray("no\n"));
@@ -222,7 +232,7 @@ bool AndroidConfigurations::createAVD(const QString & target, const QString & na
 bool AndroidConfigurations::removeAVD(const QString & name)
 {
     QProcess proc;
-    proc.start(QString("%1 delete avd -n %2").arg(androidToolPath()).arg(name)); // list avaialbe AVDs
+    proc.start(androidToolPath(), QStringList() << "delete" << "avd" << "-n" << name); // list avaialbe AVDs
     if (!proc.waitForFinished(-1))
     {
         proc.terminate();
@@ -235,7 +245,7 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
 {
     QVector<AndroidDevice> devices;
     QProcess proc;
-    proc.start(QString("%1 list avd").arg(androidToolPath())); // list avaialbe AVDs
+    proc.start(androidToolPath(), QStringList() << "list" << "avd"); // list avaialbe AVDs
     if (!proc.waitForFinished(-1))
     {
         proc.terminate();
@@ -294,13 +304,14 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
         return avdName;
 
     // start the emulator
-    m_avdProcess->start(emulatorToolPath()+QString(" -partition-size %1 -avd %2").arg(config().PartitionSize).arg(avdName));
+    m_avdProcess->start(emulatorToolPath(), QStringList() << "-partition-size" << "1024" << "-avd" << avdName);
+    //m_avdProcess->start(emulatorToolPath()+QString(" -partition-size %1 -avd %2").arg(config().PartitionSize).arg(avdName));
     if (!m_avdProcess->waitForStarted(-1))
         return QString();
 
     // wait until the emulator is online
     QProcess proc;
-    proc.start(adbToolPath()+ QLatin1String(" -e wait-for-device"));
+    proc.start(adbToolPath(), QStringList() << QLatin1String("-e") << "wait-for-device");
     if (!proc.waitForFinished(-1))
     {
         proc.terminate();
@@ -309,7 +320,7 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
     sleep(5);// wait for pm to start
 
     // workaround for stupid adb bug
-    proc.start(adbToolPath()+ QLatin1String(" devices"));
+    proc.start(adbToolPath(), QStringList() << QLatin1String("devices"));
     if (!proc.waitForFinished(-1))
     {
         proc.terminate();
@@ -328,7 +339,7 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
 int AndroidConfigurations::getSDKVersion(const QString & device)
 {
     QProcess adbProc;
-    adbProc.start(QString("%1 shell getprop ro.build.version.sdk").arg(adbToolPath(device)));
+    adbProc.start(adbToolPath(device), QStringList() << "shell" << "getprop" << "ro.build.version.sdk");
     if (!adbProc.waitForFinished(-1))
     {
         adbProc.terminate();

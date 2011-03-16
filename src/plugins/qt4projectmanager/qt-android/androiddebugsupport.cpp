@@ -68,7 +68,9 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
       m_debuggingType(runConfig->debuggingType()),
       m_gdbServerPort(5039), m_qmlPort(-1)
 {
+#ifdef __GNUC__
 #warning FIXME Android m_gdbServerPort(5039)
+#endif
     connect(m_runControl->engine(), SIGNAL(requestRemoteSetup()), m_runner,
         SLOT(start()));
     connect(m_runControl, SIGNAL(finished()), m_runner,
