@@ -111,7 +111,13 @@ QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 
 QString AndroidConfigurations::androidToolPath()
 {
-    return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX);
+    return m_config.SDKLocation +
+#ifdef Q_OS_WIN
+    QLatin1String("\\tools\\android.bat");
+#else
+    QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX);
+#endif
+
 }
 
 QString AndroidConfigurations::antToolPath()
