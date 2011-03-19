@@ -31,36 +31,37 @@
 **
 **************************************************************************/
 
-#ifndef S60PROJECTCHECKER_H
-#define S60PROJECTCHECKER_H
+#ifndef UTILS_STATUSLABEL_H
+#define UTILS_STATUSLABEL_H
 
-#include <projectexplorer/taskwindow.h>
+#include "utils_global.h"
 
-namespace Qt4ProjectManager {
-class QtVersion;
-class Qt4Project;
+QT_FORWARD_DECLARE_CLASS(QTimer)
 
-namespace Internal {
+#include <QtGui/QLabel>
 
-class S60ProjectChecker
+namespace Utils {
+
+class QTCREATOR_UTILS_EXPORT StatusLabel : public QLabel
 {
+    Q_OBJECT
 public:
-    /// Check a .pro-file/Qt version combination on possible issues with
-    /// its symbian setup.
-    /// @return a list of tasks, ordered on severity (errors first, then
-    ///         warnings and finally info items.
-    static QList<ProjectExplorer::Task>
-    reportIssues(const QString &proFile, const QtVersion *version);
+    explicit StatusLabel(QWidget *parent = 0);
 
-    /// Check a project/Qt version combination on possible issues with
-    /// its symbian setup.
-    /// @return a list of tasks, ordered on severity (errors first, then
-    ///         warnings and finally info items.
-    static QList<ProjectExplorer::Task>
-    reportIssues(const Qt4Project *project, const QtVersion *version);
+public slots:
+    void showStatusMessage(const QString &message, int timeoutMS = 5000);
+    void clearStatusMessage();
+
+private slots:
+    void slotTimeout();
+
+private:
+    void stopTimer();
+
+    QTimer *m_timer;
+    QString m_lastPermanentStatusMessage;
 };
 
-} // namespace Internal
-} // namespace Qt4ProjectExplorer
+} // namespace Utils
 
-#endif // S60PROJECTCHECKER_H
+#endif // UTILS_STATUSLABEL_H

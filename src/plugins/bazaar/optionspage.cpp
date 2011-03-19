@@ -46,7 +46,7 @@ using namespace Bazaar::Internal;
 using namespace Bazaar;
 
 OptionsPageWidget::OptionsPageWidget(QWidget *parent) :
-        QWidget(parent)
+    QWidget(parent)
 {
     m_ui.setupUi(this);
     m_ui.commandChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
@@ -81,7 +81,7 @@ QString OptionsPageWidget::searchKeywords() const
     QLatin1Char sep(' ');
     QTextStream(&rc)
             << sep << m_ui.configGroupBox->title()
-            << sep << m_ui.mercurialCommandLabel->text()
+            << sep << m_ui.commandLabel->text()
             << sep << m_ui.userGroupBox->title()
             << sep << m_ui.defaultUsernameLabel->text()
             << sep << m_ui.defaultEmailLabel->text()

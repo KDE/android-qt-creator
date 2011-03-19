@@ -118,6 +118,12 @@ QString Qt4BaseTargetFactory::msgBuildConfigurationName(const BuildConfiguration
         tr("%1 Release").arg(qtVersionName);
 }
 
+QList<ProjectExplorer::Task> Qt4BaseTargetFactory::reportIssues(const QString &proFile)
+{
+    Q_UNUSED(proFile);
+    return QList<ProjectExplorer::Task>();
+}
+
 // -------------------------------------------------------------------------
 // Qt4BaseTarget
 // -------------------------------------------------------------------------
@@ -232,7 +238,7 @@ Qt4BuildConfiguration *Qt4BaseTarget::addQt4BuildConfiguration(QString displayNa
 
     bc->setQMakeBuildConfiguration(qmakeBuildConfiguration);
 
-    // Finally set the qt version & ToolChain
+    // Finally set the qt version & tool chain
     bc->setQtVersion(qtversion);
     if (!directory.isEmpty())
         bc->setShadowBuildAndDirectory(directory != project()->projectDirectory(), directory);
@@ -282,6 +288,21 @@ Qt4TargetSetupWidget::~Qt4TargetSetupWidget()
 // Qt4DefaultTargetSetupWidget
 // -------------------------------------------------------------------------
 
+QString issuesListToString(const QList<ProjectExplorer::Task> &issues)
+{
+    QStringList lines;
+    foreach (const ProjectExplorer::Task &t, issues) {
+        // set severity:
+        QString severity;
+        if (t.type == ProjectExplorer::Task::Error)
+            severity = QCoreApplication::translate("Qt4DefaultTargetSetupWidget", "<b>Error:</b> ", "Severity is Task::Error");
+        else if (t.type == ProjectExplorer::Task::Warning)
+            severity = QCoreApplication::translate("Qt4DefaultTargetSetupWidget", "<b>Warning:</b> ", "Severity is Task::Warning");
+        lines.append(severity + t.description);
+    }
+    return lines.join("<br>");
+}
+
 Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *factory,
                                                          const QString &id,
                                                          const QString &proFilePath,
@@ -313,6 +334,7 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
     m_detailsWidget->setChecked(true);
     m_detailsWidget->setSummaryFontBold(true);
     m_detailsWidget->setIcon(factory->iconForId(id));
+    m_detailsWidget->setAdditionalSummaryText(issuesListToString(factory->reportIssues(m_proFilePath)));
     vboxLayout->addWidget(m_detailsWidget);
 
     QWidget *widget = new QWidget;
@@ -325,7 +347,7 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
 
     m_importLineLayout = new QHBoxLayout();
     m_importLineLabel = new QLabel();
-    m_importLineLabel->setText(tr("Import build from:"));
+    m_importLineLabel->setText(tr("Add build from:"));
     m_importLineLayout->addWidget(m_importLineLabel);
 
     m_importLinePath = new Utils::PathChooser();
@@ -336,13 +358,12 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
     m_importLineButton = new QPushButton;
     m_importLineButton->setText(tr("Add Build"));
     m_importLineLayout->addWidget(m_importLineButton);
+    m_importLineLayout->addStretch();
     layout->addLayout(m_importLineLayout);
 
-    if (!m_showImport) {
-        m_importLineLabel->setVisible(false);
-        m_importLinePath->setVisible(false);
-        m_importLineButton->setVisible(false);
-    }
+    m_importLineLabel->setVisible(false);
+    m_importLinePath->setVisible(false);
+    m_importLineButton->setVisible(m_showImport);
 
     m_spacerTopWidget = new QWidget;
     m_spacerTopWidget->setMinimumHeight(12);
@@ -430,6 +451,7 @@ QString Qt4DefaultTargetSetupWidget::displayNameFrom(const BuildConfigurationInf
 void Qt4DefaultTargetSetupWidget::setProFilePath(const QString &proFilePath)
 {
     m_proFilePath = proFilePath;
+    m_detailsWidget->setAdditionalSummaryText(issuesListToString(m_factory->reportIssues(m_proFilePath)));
     setBuildConfigurationInfos(m_factory->availableBuildConfigurations(m_id, proFilePath, m_minimumQtVersion), false);
 }
 
@@ -465,6 +487,11 @@ QList<BuildConfigurationInfo> Qt4DefaultTargetSetupWidget::buildConfigurationInf
 
 void Qt4DefaultTargetSetupWidget::addImportClicked()
 {
+    if (!m_importLineLabel->isVisible()) {
+        m_importLineLabel->setVisible(true);
+        m_importLinePath->setVisible(true);
+        return;
+    }
     BuildConfigurationInfo info = BuildConfigurationInfo::checkForBuild(m_importLinePath->path(), m_proFilePath);
     if (!info.isValid()) {
         QMessageBox::critical(Core::ICore::instance()->mainWindow(),
@@ -538,6 +565,7 @@ void Qt4DefaultTargetSetupWidget::setBuildConfigurationInfos(const QList<BuildCo
         clearWidgets();
         setupWidgets();
     } else {
+        bool foundIssues = false;
         m_ignoreChange = true;
         QString sourceDir = QFileInfo(m_proFilePath).absolutePath();
         for (int i=0; i < m_checkboxes.size(); ++i) {
@@ -548,9 +576,11 @@ void Qt4DefaultTargetSetupWidget::setBuildConfigurationInfos(const QList<BuildCo
                 m_pathChoosers[i]->setPath(info.directory);
             else
                 m_pathChoosers[i]->setPath(sourceDir);
-            reportIssues(i);
+            foundIssues |= reportIssues(i);
         }
         m_ignoreChange = false;
+        if (foundIssues)
+            m_detailsWidget->setState(Utils::DetailsWidget::Expanded);
     }
 }
 
@@ -577,6 +607,7 @@ void Qt4DefaultTargetSetupWidget::setupWidgets()
 {
     m_ignoreChange = true;
     QString sourceDir = QFileInfo(m_proFilePath).absolutePath();
+    bool foundIssues = false;
     for (int i = 0; i < m_infos.size(); ++i) {
         const BuildConfigurationInfo &info = m_infos.at(i);
         QCheckBox *checkbox = new QCheckBox;
@@ -606,8 +637,10 @@ void Qt4DefaultTargetSetupWidget::setupWidgets()
         m_checkboxes.append(checkbox);
         m_pathChoosers.append(pathChooser);
         m_reportIssuesLabels.append(reportIssuesLabel);
-        reportIssues(i);
+        foundIssues |= reportIssues(i);
     }
+    if (foundIssues)
+        m_detailsWidget->setState(Utils::DetailsWidget::Expanded);
     m_ignoreChange = false;
 }
 
@@ -687,12 +720,13 @@ void Qt4DefaultTargetSetupWidget::shadowBuildingToggled()
     m_ignoreChange = false;
 }
 
-void Qt4DefaultTargetSetupWidget::reportIssues(int index)
+bool Qt4DefaultTargetSetupWidget::reportIssues(int index)
 {
     QPair<ProjectExplorer::Task::TaskType, QString> issues = findIssues(m_infos.at(index));
     QLabel *reportIssuesLabel = m_reportIssuesLabels.at(index);
     reportIssuesLabel->setText(issues.second);
     reportIssuesLabel->setVisible(issues.first != ProjectExplorer::Task::Unknown);
+    return issues.first != ProjectExplorer::Task::Unknown;
 }
 
 QPair<ProjectExplorer::Task::TaskType, QString> Qt4DefaultTargetSetupWidget::findIssues(const BuildConfigurationInfo &info)
@@ -703,7 +737,7 @@ QPair<ProjectExplorer::Task::TaskType, QString> Qt4DefaultTargetSetupWidget::fin
     QString buildDir = info.directory;
     QtVersion *version = info.version;
 
-    QList<ProjectExplorer::Task> issues = version->reportIssues(m_proFilePath, buildDir);
+    QList<ProjectExplorer::Task> issues = version->reportIssues(m_proFilePath, buildDir, false);
 
     QString text;
     ProjectExplorer::Task::TaskType highestType = ProjectExplorer::Task::Unknown;

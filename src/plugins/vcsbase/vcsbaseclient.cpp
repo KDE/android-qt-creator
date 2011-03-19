@@ -290,7 +290,7 @@ void VCSBaseClient::log(const QString &workingDir, const QStringList &files,
     const QString title = vcsEditorTitle(vcsCmdString, id);
     const QString source = VCSBase::VCSBaseEditorWidget::getSource(workingDir, files);
 
-    VCSBase::VCSBaseEditorWidget *editor = createVCSEditor(kind, title, workingDir, true,
+    VCSBase::VCSBaseEditorWidget *editor = createVCSEditor(kind, title, source, true,
                                                            vcsCmdString.toLatin1().constData(), id);
     editor->setFileLogAnnotateEnabled(enableAnnotationContextMenu);
 
@@ -399,7 +399,7 @@ void VCSBaseClient::view(const QString &source, const QString &id)
     VCSBase::VCSBaseEditorWidget *editor = createVCSEditor(kind, title, source,
                                                            true, "view", id);
 
-    QSharedPointer<VCSJob> job(new VCSJob(source, args, editor));
+    QSharedPointer<VCSJob> job(new VCSJob(QFileInfo(source).absolutePath(), args, editor));
     enqueueJob(job);
 }
 
@@ -427,19 +427,26 @@ void VCSBaseClient::commit(const QString &repositoryRoot,
     enqueueJob(job);
 }
 
+const VCSBaseClientSettings &VCSBaseClient::settings() const
+{
+    return d->m_clientSettings;
+}
+
 void VCSBaseClient::settingsChanged()
 {
     if (d->m_jobManager) {
         d->m_jobManager->setSettings(d->m_clientSettings.binary(),
-                                  d->m_clientSettings.standardArguments(),
-                                  d->m_clientSettings.timeoutMilliSeconds());
+                                     d->m_clientSettings.standardArguments(),
+                                     d->m_clientSettings.timeoutMilliSeconds());
         d->m_jobManager->restart();
     }
 }
 
 QString VCSBaseClient::vcsEditorTitle(const QString &vcsCmd, const QString &sourceId) const
 {
-    return d->m_clientSettings.binary() + QLatin1Char(' ') + vcsCmd + QLatin1Char(' ') + sourceId;
+    return QFileInfo(d->m_clientSettings.binary()).baseName() +
+            QLatin1Char(' ') + vcsCmd + QLatin1Char(' ') +
+            QFileInfo(sourceId).fileName();
 }
 
 VCSBase::VCSBaseEditorWidget *VCSBaseClient::createVCSEditor(const QString &kind, QString title,
@@ -477,8 +484,8 @@ void VCSBaseClient::enqueueJob(const QSharedPointer<VCSJob> &job)
     if (!d->m_jobManager) {
         d->m_jobManager = new VCSJobRunner();
         d->m_jobManager->setSettings(d->m_clientSettings.binary(),
-                                  d->m_clientSettings.standardArguments(),
-                                  d->m_clientSettings.timeoutMilliSeconds());
+                                     d->m_clientSettings.standardArguments(),
+                                     d->m_clientSettings.timeoutMilliSeconds());
         d->m_jobManager->start();
     }
     d->m_jobManager->enqueueJob(job);

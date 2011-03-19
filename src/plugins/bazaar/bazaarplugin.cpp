@@ -147,8 +147,11 @@ BazaarPlugin::~BazaarPlugin()
     m_instance = 0;
 }
 
-bool BazaarPlugin::initialize(const QStringList &/*arguments*/, QString * /*error_message*/)
+bool BazaarPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
+    Q_UNUSED(arguments);
+    Q_UNUSED(errorMessage);
+
     typedef VCSBase::VCSEditorFactory<BazaarEditor> BazaarEditorFactory;
 
     m_client = new BazaarClient(m_bazaarSettings);
@@ -202,7 +205,10 @@ const BazaarSettings &BazaarPlugin::settings() const
 void BazaarPlugin::setSettings(const BazaarSettings &settings)
 {
     if (settings != m_bazaarSettings) {
+        const bool userIdChanged = !m_bazaarSettings.sameUserId(settings);
         m_bazaarSettings = settings;
+        if (userIdChanged)
+            client()->synchronousSetUserId();
     }
 }
 
@@ -547,7 +553,7 @@ void BazaarPlugin::showCommitWidget(const QList<QPair<QString, QString> > &statu
     if (!m_changeLogPattern.endsWith(QLatin1Char('/')))
         m_changeLogPattern += QLatin1Char('/');
     m_changeLogPattern += QLatin1String("qtcreator-bzr-XXXXXX.msg");
-    m_changeLog = new QTemporaryFile(m_changeLogPattern,  this);
+    m_changeLog = new QTemporaryFile(m_changeLogPattern, this);
     if (!m_changeLog->open()) {
         outputWindow->appendError(tr("Unable to generate a temporary file for the commit editor."));
         return;
@@ -621,12 +627,20 @@ bool BazaarPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submit
         break;
     }
 
-    const QStringList files = commitEditor->checkedFiles();
+    QStringList files = commitEditor->checkedFiles();
     if (!files.empty()) {
         //save the commit message
         m_core->fileManager()->blockFileChange(editorFile);
         editorFile->save();
         m_core->fileManager()->unblockFileChange(editorFile);
+
+        //rewrite entries of the form 'file => newfile' to 'newfile' because
+        //this would mess the commit command
+        for (QStringList::iterator iFile = files.begin(); iFile != files.end(); ++iFile) {
+            const QStringList parts = iFile->split(" => ", QString::SkipEmptyParts);
+            if (!parts.isEmpty())
+                *iFile = parts.last();
+        }
 
         const BazaarCommitWidget* commitWidget = commitEditor->commitWidget();
         BazaarClient::ExtraCommandOptions extraOptions;

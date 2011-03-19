@@ -129,7 +129,7 @@ const char * const MEEGO_DEVICE_TARGET_ID = "Qt4ProjectManager.Target.MeegoDevic
 const char * const QT_SIMULATOR_TARGET_ID   = "Qt4ProjectManager.Target.QtSimulatorTarget";
 const char * const ANDROID_DEVICE_TARGET_ID = "Qt4ProjectManager.Target.AndroidDeviceTarget";
 
-// ToolChains:
+// Tool chains:
 const char * const GCCE_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.GCCE";
 const char * const MAEMO_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.Maemo";
 const char * const ANDROID_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.Android";

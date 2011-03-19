@@ -2,7 +2,7 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2010 Hugues Delorme
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
@@ -31,27 +31,57 @@
 **
 **************************************************************************/
 
-#include "bazaarsettings.h"
-#include "constants.h"
+#include "statuslabel.h"
 
-namespace Bazaar {
-namespace Internal {
+#include <QtCore/QTimer>
 
-BazaarSettings::BazaarSettings()
+/*!
+    \class Utils::StatusLabel
+
+    \brief A status label that displays messages for a while with a timeout.
+*/
+
+namespace Utils {
+
+StatusLabel::StatusLabel(QWidget *parent) : QLabel(parent), m_timer(0)
 {
-    setBinary(QLatin1String(Constants::BAZAARDEFAULT));
+    // A manual size let's us shrink below minimum text width which is what
+    // we want in [fake] status bars.
+    setMinimumSize(QSize(30, 10));
 }
 
-BazaarSettings& BazaarSettings::operator=(const BazaarSettings& other)
+void StatusLabel::stopTimer()
 {
-    VCSBase::VCSBaseClientSettings::operator=(other);
-    return *this;
+    if (m_timer && m_timer->isActive())
+        m_timer->stop();
 }
 
-bool BazaarSettings::sameUserId(const BazaarSettings& other) const
+void StatusLabel::showStatusMessage(const QString &message, int timeoutMS)
 {
-    return userName() == other.userName() && email() == other.email();
+    setText(message);
+    if (timeoutMS > 0) {
+        if (!m_timer) {
+            m_timer = new QTimer(this);
+            m_timer->setSingleShot(true);
+            connect(m_timer, SIGNAL(timeout()), this, SLOT(slotTimeout()));
+        }
+        m_timer->start(timeoutMS);
+    } else {
+        m_lastPermanentStatusMessage = message;
+        stopTimer();
+    }
 }
 
-} // namespace Internal
-} // namespace Bazaar
+void StatusLabel::slotTimeout()
+{
+    setText(m_lastPermanentStatusMessage);
+}
+
+void StatusLabel::clearStatusMessage()
+{
+    stopTimer();
+    m_lastPermanentStatusMessage.clear();
+    clear();
+}
+
+} // namespace Utils
