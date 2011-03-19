@@ -45,7 +45,6 @@ if [ "$BUILDRELEASE" = "1" ]; then
 	CONFIGTYPE="release"
 else
 	QTDIR=C:/Qt/4.7.2-Git-MinGW-ShXcD
-	DEST_DIR=$DEST_DIR-dbg
 	CONFIGTYPE="debug"
 fi
 
@@ -91,4 +90,3 @@ do
 	make -f $MAKEFILE -j9 $CONFIGTYPE
 done
 
-`dirname $0`/copy-to-qt-dir.sh $DEST_DIR C:/Qt/qtcreator-2.1.0 $QTDIR C:/Qt/4.7.2-official
