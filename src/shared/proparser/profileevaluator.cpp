@@ -1676,7 +1676,7 @@ ProStringList ProFileEvaluator::Private::expandVariableReferences(
 
                 ProStringList replacement;
                 if (var_type == ENVIRON) {
-                    replacement = split_value_list(QString::fromLocal8Bit(qgetenv_dbg(
+                    replacement = split_value_list(QString::fromLocal8Bit(qgetenv(
                             var.toQString(m_tmp1).toLocal8Bit().constData())));
                 } else if (var_type == PROPERTY) {
                     replacement << ProString(propertyValue(var.toQString(m_tmp1), true), NoHash);
