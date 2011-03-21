@@ -898,7 +898,7 @@ void QtVersion::updateSourcePath()
         }
     }
     m_sourcePath = QDir::cleanPath(m_sourcePath);
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) && !defined(__MINGW32__)
     m_sourcePath = m_sourcePath.toLower();
 #endif
 }
@@ -929,7 +929,7 @@ QString QtVersionManager::findQMakeBinaryFromMakefile(const QString &makefile)
                 QFileInfo fi(qmakePath);
                 if (fi.exists()) {
                     qmakePath = fi.absoluteFilePath();
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) && !defined(__MINGW32__)
                     qmakePath = qmakePath.toLower();
 #endif
                     return qmakePath;
@@ -1410,7 +1410,7 @@ void QtVersion::updateAbiAndMkspec() const
     if (baseMkspecDir.isEmpty())
         baseMkspecDir = versionInfo().value("QT_INSTALL_DATA") + "/mkspecs";
 
-#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN && !defined(__MINGW32__)
     baseMkspecDir = baseMkspecDir.toLower();
 #endif
 
@@ -1463,7 +1463,7 @@ void QtVersion::updateAbiAndMkspec() const
     mkspecFullPath =resolveLink(mkspecFullPath);
 #endif
 
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) && !defined(__MINGW32__)
     mkspecFullPath = mkspecFullPath.toLower();
 #endif
 

@@ -18,6 +18,7 @@ are required by law.
 #include <QtCore/QStringBuilder>
 #include <QtCore/QStringList>
 #include <QtCore/QProcess>
+#include <QtCore/QFileInfo>
 #include <QtGui/QStringListModel>
 #include <QtGui/QDesktopServices>
 #include <QDebug>
@@ -109,7 +110,17 @@ QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 
 QString AndroidConfigurations::androidToolPath()
 {
+#ifdef Q_OS_WIN32
+	// I want to switch from using android.bat to using an executable. All it really does is call
+	// Java and I've made some progress on it. So if android.exe exists, return that instead.
+	QFileInfo fi(m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX));
+	if (fi.exists())
+		return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXEC_SUFFIX);
+	else
+		return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXECUTABLE_SUFFIX);
+#else
     return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXECUTABLE_SUFFIX);
+#endif
 }
 
 QString AndroidConfigurations::antToolPath()

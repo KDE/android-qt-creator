@@ -4,13 +4,13 @@ CLEAN=1
 CONFIGURE=1
 BUILDDEBUG=0
 BUILDRELEASE=1
-DEST_DIR=C:/Necessitas/qtcreator-2.1.0
+DEST_DIR=C:/Necessitas/QtCreator
 
 while getopts "p:c:q:d:r:o:" arg; do
 	echo $arg $OPTARG
 	case $arg in
 		p)
-			echo "Usage :: ./build.sh -r 1 -d 0 -c 1 -q 1 -o C:/Necessitas/qtcreator-2.1.0"
+			echo "Usage :: ./build.sh -r 1 -d 0 -c 1 -q 1 -o C:/Necessitas/QtCreator"
 			exit 0
 			;;
 		c)

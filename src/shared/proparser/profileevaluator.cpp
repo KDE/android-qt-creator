@@ -76,6 +76,15 @@ QT_BEGIN_NAMESPACE
 
 using namespace ProStringConstants;
 
+/*
+static QByteArray qgetenv_dbg(const char *varName)
+{
+    QByteArray temp = qgetenv(varName);
+    QString string(temp);
+    qDebug() << "varName " << varName << " is " << string;
+    return temp;
+}
+*/
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -606,7 +615,7 @@ static QString expandEnvVars(const QString &str)
     QRegExp reg_variableName = statics.reg_variableName; // Copy for thread safety
     while ((rep = reg_variableName.indexIn(string)) != -1)
         string.replace(rep, reg_variableName.matchedLength(),
-                       QString::fromLocal8Bit(qgetenv(string.mid(rep + 2, reg_variableName.matchedLength() - 3).toLatin1().constData()).constData()));
+		       QString::fromLocal8Bit(qgetenv(string.mid(rep + 2, reg_variableName.matchedLength() - 3).toLatin1().constData()).constData()));
     return string;
 }
 
@@ -714,7 +723,7 @@ void ProFileEvaluator::Private::evaluateExpression(
                     getStr(tokPtr).toQString(m_tmp1), true), NoHash), ret, pending, joined);
             break;
         case TokEnvVar:
-            addStrList(split_value_list(QString::fromLocal8Bit(qgetenv(
+	    addStrList(split_value_list(QString::fromLocal8Bit(qgetenv(
                     getStr(tokPtr).toQString(m_tmp1).toLatin1().constData()))), tok, ret, pending, joined);
             break;
         case TokFuncName: {
@@ -1667,11 +1676,8 @@ ProStringList ProFileEvaluator::Private::expandVariableReferences(
 
                 ProStringList replacement;
                 if (var_type == ENVIRON) {
-					QString posixVar(QDir::fromNativeSeparators(QString::fromLocal8Bit(qgetenv(var.toQString(m_tmp1).toLocal8Bit().constData()))));
-//					qWarning("Warning: posixVar %s = %s",qPrintable(m_tmp1),qPrintable(posixVar));
-					replacement = split_value_list(posixVar);
-//                    replacement = split_value_list(QString::fromLocal8Bit(qgetenv(
-//                            var.toQString(m_tmp1).toLocal8Bit().constData())));
+                    replacement = split_value_list(QString::fromLocal8Bit(qgetenv_dbg(
+                            var.toQString(m_tmp1).toLocal8Bit().constData())));
                 } else if (var_type == PROPERTY) {
                     replacement << ProString(propertyValue(var.toQString(m_tmp1), true), NoHash);
                 } else if (var_type == FUNCTION) {
