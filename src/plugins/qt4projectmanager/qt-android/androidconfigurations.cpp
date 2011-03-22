@@ -125,7 +125,7 @@ QString AndroidConfigurations::androidToolPath()
     else
         return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_BAT_SUFFIX);
 #else
-    return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXECUTABLE_SUFFIX);
+    return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXE_SUFFIX);
 #endif
 }
 
