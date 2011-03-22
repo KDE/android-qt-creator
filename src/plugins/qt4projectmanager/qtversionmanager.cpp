@@ -862,7 +862,7 @@ void QtVersion::setDisplayName(const QString &name)
 void QtVersion::setQMakeCommand(const QString& qmakeCommand)
 {
     m_qmakeCommand = QDir::fromNativeSeparators(qmakeCommand);
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) && !defined(__MINGW32__)
     m_qmakeCommand = m_qmakeCommand.toLower();
 #endif
     m_designerCommand.clear();
@@ -1410,7 +1410,7 @@ void QtVersion::updateAbiAndMkspec() const
     if (baseMkspecDir.isEmpty())
         baseMkspecDir = versionInfo().value("QT_INSTALL_DATA") + "/mkspecs";
 
-#ifdef Q_OS_WIN && !defined(__MINGW32__)
+#if defined(Q_OS_WIN) && !defined(__MINGW32__)
     baseMkspecDir = baseMkspecDir.toLower();
 #endif
 
