@@ -313,13 +313,21 @@ PropertyEditor::~PropertyEditor()
     qDeleteAll(m_typeHash);
 }
 
+static inline QString fixTypeNameForPanes(const QString &typeName)
+{
+    QString fixedTypeName = typeName;
+    fixedTypeName.replace('.', '/');
+    fixedTypeName.replace("QtQuick/", "Qt/");
+    return fixedTypeName;
+}
+
 void PropertyEditor::setupPane(const QString &typeName)
 {
 
     QUrl qmlFile = fileToUrl(locateQmlFile(QLatin1String("Qt/ItemPane.qml")));
     QUrl qmlSpecificsFile;
 
-    qmlSpecificsFile = fileToUrl(locateQmlFile(typeName + "Specifics.qml"));
+    qmlSpecificsFile = fileToUrl(locateQmlFile(fixTypeNameForPanes(typeName) + "Specifics.qml"));
     NodeType *type = m_typeHash.value(qmlFile.toString());
 
     if (!type) {
@@ -509,8 +517,8 @@ void PropertyEditor::updateSize()
 void PropertyEditor::setupPanes()
 {
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-    setupPane("Qt/Rectangle");
-    setupPane("Qt/Text");  
+    setupPane("QtQuick.Rectangle");
+    setupPane("QtQuick.Text");
     resetView();
     m_setupCompleted = true;
     QApplication::restoreOverrideCursor();
@@ -519,6 +527,9 @@ void PropertyEditor::setupPanes()
 void PropertyEditor::otherPropertyChanged(const QmlObjectNode &fxObjectNode, const QString &propertyName)
 {
     QmlModelView::otherPropertyChanged(fxObjectNode, propertyName);
+
+    if (!m_selectedNode.isValid())
+        return;
 
     if (fxObjectNode.isValid() && m_currentType && fxObjectNode == m_selectedNode && fxObjectNode.currentState().isValid()) {
         AbstractProperty property = fxObjectNode.modelNode().property(propertyName);
@@ -534,6 +545,9 @@ void PropertyEditor::otherPropertyChanged(const QmlObjectNode &fxObjectNode, con
 void PropertyEditor::transformChanged(const QmlObjectNode &fxObjectNode, const QString &propertyName)
 {
     QmlModelView::transformChanged(fxObjectNode, propertyName);
+
+    if (!m_selectedNode.isValid())
+        return;
 
     if (fxObjectNode.isValid() && m_currentType && fxObjectNode == m_selectedNode && fxObjectNode.currentState().isValid()) {
         AbstractProperty property = fxObjectNode.modelNode().property(propertyName);
@@ -642,7 +656,7 @@ void PropertyEditor::resetView()
     QUrl qmlFile(qmlForNode(m_selectedNode, specificsClassName));
     QUrl qmlSpecificsFile;
     if (m_selectedNode.isValid())
-        qmlSpecificsFile = fileToUrl(locateQmlFile(m_selectedNode.type() + "Specifics.qml"));
+        qmlSpecificsFile = fileToUrl(locateQmlFile(fixTypeNameForPanes(m_selectedNode.type()) + "Specifics.qml"));
 
     QString specificQmlData;
 
@@ -816,6 +830,16 @@ void PropertyEditor::bindingPropertiesChanged(const QList<BindingProperty>& prop
     }
 }
 
+
+void PropertyEditor::instanceInformationsChange(const QVector<ModelNode> &nodeList)
+{
+    if (!m_selectedNode.isValid())
+        return;
+
+    if (nodeList.contains(m_selectedNode))
+        m_currentType->m_backendAnchorBinding.setup(QmlItemNode(m_selectedNode));
+}
+
 void PropertyEditor::nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId)
 {
     QmlModelView::nodeIdChanged(node, newId, oldId);
@@ -882,9 +906,10 @@ void PropertyEditor::reloadQml()
 
 QString PropertyEditor::qmlFileName(const NodeMetaInfo &nodeInfo) const
 {
-    if (nodeInfo.typeName().split('/').last() == "QDeclarativeItem")
+    if (nodeInfo.typeName().split('.').last() == "QDeclarativeItem")
         return "Qt/ItemPane.qml";
-    return nodeInfo.typeName() + QLatin1String("Pane.qml");
+    const QString fixedTypeName = fixTypeNameForPanes(nodeInfo.typeName());
+    return fixedTypeName + QLatin1String("Pane.qml");
 }
 
 QUrl PropertyEditor::fileToUrl(const QString &filePath) const {

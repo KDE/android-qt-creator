@@ -212,7 +212,9 @@ const QString AndroidRunConfiguration::arguments() const
 
 const QString AndroidRunConfiguration::remoteChannel() const
 {
+#ifdef __GNUC__
 #warning FIXME Android
+#endif
     return QString(":5039");
 }
 
@@ -244,7 +246,9 @@ QString AndroidRunConfiguration::proFilePath() const
 
 AndroidRunConfiguration::DebuggingType AndroidRunConfiguration::debuggingType() const
 {
+#ifdef __GNUC__
 #warning FIXME Android
+#endif
 
 //    if (!toolchain() || !toolchain()->allowsQmlDebugging())
 //        return DebugCppOnly;

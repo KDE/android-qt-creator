@@ -19,6 +19,7 @@ are required by law.
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
+#include <buildconfigurationinfo.h>
 
 #include <QtGui/QApplication>
 

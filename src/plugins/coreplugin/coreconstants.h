@@ -253,11 +253,15 @@ const char * const SETTINGS_CATEGORY_CORE = "A.Core";
 const char * const SETTINGS_CATEGORY_CORE_ICON = ":/core/images/category_core.png";
 const char * const SETTINGS_TR_CATEGORY_CORE = QT_TRANSLATE_NOOP("Core", "Environment");
 const char * const SETTINGS_ID_ENVIRONMENT = "A.General";
-const char * const SETTINGS_ID_TOOLS = "G.ExternalTools";
+const char * const SETTINGS_ID_SHORTCUTS = "B.Keyboard";
+const char * const SETTINGS_ID_TOOLS = "C.ExternalTools";
+const char * const SETTINGS_ID_MIMETYPES = "D.MimeTypes";
 
 const char * const SETTINGS_DEFAULTTEXTENCODING = "General/DefaultFileEncoding";
 
 const char * const ALL_FILES_FILTER      = QT_TRANSLATE_NOOP("Core", "All Files (*)");
+
+const char * const VARIABLE_SUPPORT_PROPERTY = "QtCreator.VariableSupport";
 
 const int TARGET_ICON_SIZE = 32;
 

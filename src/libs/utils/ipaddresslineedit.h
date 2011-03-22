@@ -35,39 +35,33 @@
 #define IPADDRESSLINEEDIT_H
 
 #include "utils_global.h"
-
-#include <QtGui/QLineEdit>
+#include "basevalidatinglineedit.h"
 
 namespace Utils {
 
 class IpAddressLineEditPrivate;
 
-/**
- * A LineEdit widget that validates the IP address inserted.
- * The valid address example is 192.168.1.12 or 192.168.1.12:8080
- */
-
-class QTCREATOR_UTILS_EXPORT IpAddressLineEdit : public QLineEdit
+class QTCREATOR_UTILS_EXPORT IpAddressLineEdit : public Utils::BaseValidatingLineEdit
 {
+    Q_DISABLE_COPY(IpAddressLineEdit)
     Q_OBJECT
+
 public:
     explicit IpAddressLineEdit(QWidget* parent = 0);
     virtual ~IpAddressLineEdit();
-
-    bool isValid() const;
 
 signals:
     void validAddressChanged(const QString& address);
     void invalidAddressChanged();
 
-private slots:
-    void validateAddress(const QString &string);
+protected:
+    virtual bool validate(const QString &value, QString *errorMessage) const;
+    virtual void slotChanged(const QString &t);
 
 private:
     IpAddressLineEditPrivate *m_d;
 };
 
 } // namespace Utils
-
 
 #endif // IPADDRESSLINEEDIT_H

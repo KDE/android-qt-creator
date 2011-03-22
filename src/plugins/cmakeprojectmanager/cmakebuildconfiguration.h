@@ -68,13 +68,13 @@ public:
 
     Utils::Environment baseEnvironment() const;
 
+    BuildType buildType() const;
+
 protected:
     CMakeBuildConfiguration(CMakeTarget *parent, CMakeBuildConfiguration *source);
     virtual bool fromMap(const QVariantMap &map);
 
 private:
-    void updateToolChain() const;
-    mutable ProjectExplorer::ToolChain *m_toolChain;
     QString m_buildDirectory;
     QString m_msvcVersion;
 };

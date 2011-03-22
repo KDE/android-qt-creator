@@ -148,12 +148,20 @@ bool S60DeployConfiguration::isStaticLibrary(const Qt4ProFileNode &projectNode) 
     return false;
 }
 
+bool S60DeployConfiguration::hasSisPackage(const Qt4ProFileNode &projectNode) const
+{
+    if (projectNode.projectType() != ApplicationTemplate
+            && projectNode.projectType() != LibraryTemplate)
+        return false;
+    return !isStaticLibrary(projectNode);
+}
+
 QStringList S60DeployConfiguration::signedPackages() const
 {
     QList<Qt4ProFileNode *> list = qt4Target()->qt4Project()->allProFiles();
     QStringList result;
     foreach (Qt4ProFileNode *node, list) {
-        if (isStaticLibrary(*node)) //no sis package
+        if (!hasSisPackage(*node))
             continue;
         TargetInformation ti = node->targetInformation();
         if (ti.valid)
@@ -176,7 +184,7 @@ QStringList S60DeployConfiguration::packageFileNamesWithTargetInfo() const
     QList<Qt4ProFileNode *> leafs = qt4Target()->qt4Project()->allProFiles();
     QStringList result;
     foreach (Qt4ProFileNode *qt4ProFileNode, leafs) {
-        if (isStaticLibrary(*qt4ProFileNode)) //no sis package
+        if (!hasSisPackage(*qt4ProFileNode))
             continue;
         TargetInformation ti = qt4ProFileNode->targetInformation();
         if (!ti.valid)
@@ -195,7 +203,7 @@ QStringList S60DeployConfiguration::packageTemplateFileNames() const
     QList<Qt4ProFileNode *> list = qt4Target()->qt4Project()->allProFiles();
     QStringList result;
     foreach (Qt4ProFileNode *node, list) {
-        if (isStaticLibrary(*node)) //no sis package
+        if (!hasSisPackage(*node))
             continue;
         TargetInformation ti = node->targetInformation();
         if (ti.valid)
@@ -209,7 +217,7 @@ QStringList S60DeployConfiguration::appPackageTemplateFileNames() const
     QList<Qt4ProFileNode *> list = qt4Target()->qt4Project()->allProFiles();
     QStringList result;
     foreach (Qt4ProFileNode *node, list) {
-        if (isStaticLibrary(*node)) //no sis package
+        if (!hasSisPackage(*node))
             continue;
         TargetInformation ti = node->targetInformation();
         if (ti.valid)
@@ -357,7 +365,10 @@ char S60DeployConfiguration::installationDrive() const
 
 void S60DeployConfiguration::setInstallationDrive(char drive)
 {
+    if (m_installationDrive == drive)
+        return;
     m_installationDrive = drive;
+    emit installationDriveChanged();
 }
 
 bool S60DeployConfiguration::silentInstall() const
@@ -410,6 +421,17 @@ void S60DeployConfiguration::setCommunicationChannel(CommunicationChannel channe
         m_communicationChannel = channel;
         emit communicationChannelChanged();
     }
+}
+
+void S60DeployConfiguration::setAvailableDeviceDrives(QList<DeviceDrive> drives)
+{
+    m_availableDeviceDrives = drives;
+    emit availableDeviceDrivesChanged();
+}
+
+const QList<S60DeployConfiguration::DeviceDrive> &S60DeployConfiguration::availableDeviceDrives() const
+{
+    return m_availableDeviceDrives;
 }
 
 // ======== S60DeployConfigurationFactory

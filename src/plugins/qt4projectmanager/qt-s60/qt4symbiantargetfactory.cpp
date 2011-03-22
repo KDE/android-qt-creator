@@ -34,6 +34,7 @@
 #include "qt4symbiantargetfactory.h"
 #include "qt4projectmanagerconstants.h"
 #include "qt4project.h"
+#include "buildconfigurationinfo.h"
 
 #include "qt-s60/s60deployconfiguration.h"
 #include "qt-s60/s60devicerunconfiguration.h"
@@ -44,6 +45,7 @@
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
+#include <projectexplorer/toolchainmanager.h>
 
 using ProjectExplorer::idFromMap;
 using namespace Qt4ProjectManager;
@@ -110,7 +112,7 @@ bool Qt4SymbianTargetFactory::canRestore(ProjectExplorer::Project *parent, const
     return canCreate(parent, idFromMap(map));
 }
 
-Qt4BaseTarget *Qt4SymbianTargetFactory::restore(ProjectExplorer::Project *parent, const QVariantMap &map)
+ProjectExplorer::Target *Qt4SymbianTargetFactory::restore(ProjectExplorer::Project *parent, const QVariantMap &map)
 {
     if (!canRestore(parent, map))
         return 0;
@@ -138,8 +140,9 @@ QList<BuildConfigurationInfo> Qt4SymbianTargetFactory::availableBuildConfigurati
     QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion);
 
     foreach (QtVersion *version, knownVersions) {
-        if (!version->isValid())
+        if (!version->isValid() || !version->toolChainAvailable())
             continue;
+
         bool buildAll = version->defaultBuildConfig() & QtVersion::BuildAll;
         QtVersion::QmakeBuildConfigs config = buildAll ? QtVersion::BuildAll : QtVersion::QmakeBuildConfig(0);
         QString dir = QFileInfo(proFilePath).absolutePath(), id;
@@ -160,7 +163,7 @@ bool Qt4SymbianTargetFactory::isMobileTarget(const QString &id)
     return true;
 }
 
-Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id)
+ProjectExplorer::Target *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id)
 {
     if (!canCreate(parent, id))
         return 0;
@@ -186,7 +189,7 @@ Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent,
     return create(parent, id, infos);
 }
 
-Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos)
+ProjectExplorer::Target *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos)
 {
     if (!canCreate(parent, id))
         return 0;
@@ -205,7 +208,7 @@ Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent,
     return t;
 }
 
-Qt4BaseTarget *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, Qt4TargetSetupWidget *widget)
+ProjectExplorer::Target *Qt4SymbianTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, Qt4TargetSetupWidget *widget)
 {
     if (!widget->isTargetSelected())
         return 0;

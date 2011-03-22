@@ -52,6 +52,15 @@
 #include <QtGui/QLineEdit>
 #include <QtGui/QPushButton>
 
+/*!
+    \class Utils::PathChooser
+
+    \brief A control that let's the user choose a path, consisting of a QLineEdit and
+    a "Browse" button.
+
+    Has some validation logic for embedding into QWizardPage.
+*/
+
 /*static*/ const char * const Utils::PathChooser::browseButtonLabel =
 #ifdef Q_WS_MAC
                    QT_TRANSLATE_NOOP("Utils::PathChooser", "Choose...");
@@ -397,11 +406,6 @@ bool PathChooser::validatePath(const QString &path, QString *errorMessage)
 {
     QString expandedPath = m_d->expandedPath(path);
 
-    QString displayPath = expandedPath;
-    if (expandedPath.isEmpty())
-        //: Selected path is not valid:
-        displayPath = tr("<not valid>");
-
     if (expandedPath.isEmpty()) {
         if (errorMessage)
             *errorMessage = tr("The path must not be empty.");
@@ -486,7 +490,10 @@ QString PathChooser::homePath()
 
 void PathChooser::setExpectedKind(Kind expected)
 {
+    if (m_d->m_acceptingKind == expected)
+        return;
     m_d->m_acceptingKind = expected;
+    m_d->m_lineEdit->triggerChanged();
 }
 
 PathChooser::Kind PathChooser::expectedKind() const

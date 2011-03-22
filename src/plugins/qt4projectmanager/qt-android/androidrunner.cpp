@@ -52,7 +52,10 @@ AndroidRunner::AndroidRunner(QObject *parent,
     connect(&m_adbLogcatProcess, SIGNAL(readyReadStandardError()) , SLOT(logcatReadStandardError()));
 }
 
-AndroidRunner::~AndroidRunner() {}
+AndroidRunner::~AndroidRunner()
+{
+    stop();
+}
 
 void AndroidRunner::checkPID()
 {
@@ -178,7 +181,9 @@ void AndroidRunner::start()
     m_exitStatus = 0;
     m_checkPIDTimer.start(1000); // check if the application is alive every 1 seconds
     m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" logcat"));
+#ifdef __GNUC__
 #warning FIXME Android m_gdbServerPort(5039)
+#endif
     emit remoteProcessStarted(5039);
 }
 

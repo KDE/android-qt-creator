@@ -76,7 +76,7 @@ void StatesEditorView::removeState(int nodeId)
     try {
         if (nodeId > 0 && hasModelNodeForInternalId(nodeId)) {
             ModelNode stateNode(modelNodeForInternalId(nodeId));
-            Q_ASSERT(stateNode.metaInfo().isSubclassOf("QtQuick/State", 4, 7));
+            Q_ASSERT(stateNode.metaInfo().isSubclassOf("QtQuick.State", -1, -1));
             NodeListProperty parentProperty = stateNode.parentProperty().toNodeListProperty();
 
             if (parentProperty.count() <= 1) {
@@ -196,6 +196,11 @@ bool StatesEditorView::validStateName(const QString &name) const
             return false;
     }
     return true;
+}
+
+QString StatesEditorView::currentStateName() const
+{
+    return currentState().isValid() ? currentState().name() : QString();
 }
 
 void StatesEditorView::renameState(int nodeId, const QString &newName)

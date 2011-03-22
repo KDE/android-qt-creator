@@ -1,9 +1,4 @@
-!isEmpty(SUPPORT_QT_S60) {
-    DEFINES += QTCREATOR_WITH_S60
-}
-SOURCES += $$PWD/s60devices.cpp \
-    $$PWD/s60devicespreferencepane.cpp \
-    $$PWD/s60manager.cpp \
+SOURCES += $$PWD/s60manager.cpp \
     $$PWD/sbsv2parser.cpp \
     $$PWD/winscwtoolchain.cpp \
     $$PWD/gccetoolchain.cpp \
@@ -31,11 +26,15 @@ SOURCES += $$PWD/s60devices.cpp \
     $$PWD/s60runcontrolfactory.cpp \
     $$PWD/codaruncontrol.cpp \
     $$PWD/trkruncontrol.cpp \
-    $$PWD/s60runcontrolbase.cpp
+    $$PWD/s60runcontrolbase.cpp \
+    $$PWD/s60publishingwizardfactories.cpp \
+    $$PWD/s60publishingwizardovi.cpp \
+    $$PWD/s60publishingsissettingspageovi.cpp \
+    $$PWD/s60publisherovi.cpp \
+    $$PWD/s60publishingbuildsettingspageovi.cpp \
+    $$PWD/s60publishingresultspageovi.cpp
 
-HEADERS += $$PWD/s60devices.h \
-    $$PWD/s60devicespreferencepane.h \
-    $$PWD/s60manager.h \
+HEADERS += $$PWD/s60manager.h \
     $$PWD/sbsv2parser.h \
     $$PWD/winscwtoolchain.h \
     $$PWD/gccetoolchain.h \
@@ -63,10 +62,18 @@ HEADERS += $$PWD/s60devices.h \
     $$PWD/s60runcontrolfactory.h \
     $$PWD/codaruncontrol.h \
     $$PWD/trkruncontrol.h \
-    $$PWD/s60runcontrolbase.h
+    $$PWD/s60runcontrolbase.h \
+    $$PWD/s60publishingwizardfactories.h \
+    $$PWD/s60publishingwizardovi.h \
+    $$PWD/s60publishingsissettingspageovi.h \
+    $$PWD/s60publisherovi.h \
+    $$PWD/s60publishingbuildsettingspageovi.h \
+    $$PWD/s60publishingresultspageovi.h
 
-FORMS += $$PWD/s60devicespreferencepane.ui \
-    $$PWD/s60createpackagestep.ui \
+FORMS += $$PWD/s60createpackagestep.ui \
     $$PWD/s60certificatedetailsdialog.ui \
-    qt-s60/rvcttoolchainconfigwidget.ui \
-    qt-s60/winscwtoolchainconfigwidget.ui
+    $$PWD/rvcttoolchainconfigwidget.ui \
+    $$PWD/winscwtoolchainconfigwidget.ui \
+    $$PWD/s60publishingbuildsettingspageovi.ui \
+    $$PWD/s60publishingresultspageovi.ui \
+    $$PWD/s60publishingsissettingspageovi.ui

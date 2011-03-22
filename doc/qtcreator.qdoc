@@ -90,6 +90,7 @@
                 \o \l{Using Qt Quick Toolbars}
                 \o \l{Searching With the Locator}
                 \o \l{Pasting and Fetching Code Snippets}
+                \o \l{Using Text Editing Macros}
                 \o \l{Configuring the Editor}
                 \o \l{Using FakeVim Mode}
 
@@ -129,21 +130,24 @@
                 \o \l{Debugging the Example Application}
                 \o \l{Interacting with the Debugger}
                 \o \l{Setting Up Debugger}
-                \o \l{Debugger Modes of Operation}
+                \o \l{Launching the Debugger in Different Modes}
                 \o \l{Using Debugging Helpers}
                 \o \l{Debugging Qt Quick Projects}
+                \o \l{Troubleshooting Debugger}
             \endlist
        \o \l{Using the Maemo Emulator}
        \o \l{Deploying Applications to Mobile Devices}
             \list
                 \o \l{Deploying Applications to Symbian Devices}
                 \o \l{Deploying Applications to Maemo Devices}
+                \o \l{Publishing Maemo Applications to Extras-devel}
                 \o \l{Publishing Applications to Ovi Store}
                 \o \l{Building with Remote Compiler}
             \endlist
        \o \l{Using Version Control Systems}
        \o \l{Using External Tools}
-       \o \l{Creating Task List Files}
+       \o \l{Editing MIME Types}
+       \o \l{Showing Task List Files in the Build Issues Pane}
        \o \l{Using Command Line Options}
        \o \l{Getting Help}
        \o \l{Tips and Tricks}
@@ -763,7 +767,8 @@
     imported to the pane. Press \key F6 and \key Shift+F6 to jump from one issue
     to the next.
 
-    For more information about creating task files, see \l{Creating Task List Files}.
+    For more information about creating task files, see
+    \l{Showing Task List Files in the Build Issues Pane}.
 
     \section2 Search Results
 
@@ -1129,6 +1134,9 @@
 
     To view lists of files or projects, instead, select \gui {File System},
     \gui {Open Documents}, or \gui Projects in the menu.
+    To view several types of content at a time, split the sidebar by clicking
+    \inlineimage qtcreator-splitbar.png
+    .
 
     \section2 Switching Parent Elements
 
@@ -1150,10 +1158,16 @@
     The \gui Items pane displays the QML elements grouped by type: your own QML
     components, basic elements, interaction elements, views, and widgets.
 
+    Sets of UI components with the MeeGo and Symbian look and feel have been
+    defined for Qt Quick. They are based on standard QML elements. To view the
+    UI components in \gui {QML Components}, click
+    \inlineimage qtcreator-filter.png
+    and select \gui {MeeGo Components} or \gui {Symbian Components}.
+
     \image qmldesigner-qml-components.png "QML Components pane"
 
     The \gui {Resources} pane displays the images and other files that you copy to
-    the project folder.
+    the project folder (to the same subfolder as the QML files).
 
     \section1 Specifying Element Properties
 
@@ -1194,6 +1208,58 @@
 
     For more information on the JavaScript environment provided by QML, see
     \l{http://doc.qt.nokia.com/4.7/qdeclarativejavascript.html}{Integrating JavaScript}.
+
+    \section2 Loading Placeholder Data
+
+    Often, QML applications are prototyped with fake data that is later
+    replaced by real data sources from C++ plugins. QML Viewer loads fake data
+    into the application context: it looks for a directory named \e dummydata
+    in the same directory as the target QML file, loads any .qml files in that
+    directory as QML objects, and binds them to the root context as properties.
+    For more information, see
+    \l{http://doc.qt.nokia.com/latest/qmlviewer.html}{QML Viewer}.
+
+    You can use dummydata files also to specify fake properties for QML
+    components that you open for editing in \QMLD.
+    A QML component provides a way of defining a new UI element that you can
+    re-use in other QML files. A component is generally defined in its own QML
+    file. You can use property binding to specify the properties of a component
+    to make it easily reusable.
+
+    For example, you can create a button bar component (buttonbar.qml) that
+    inherits its width from the screen that is its parent:
+
+    \code
+
+    import QtQuick 1.0
+
+    Item {
+        width: parent.width
+        }
+
+    \endcode
+
+    However, when you open the QML file for editing in \QMLD, the button bar
+    component does not have a width, because it is specified outside the QML
+    file (in the QML file that specifies the screen). To specify a fake width
+    for the component, create a \c <component>_dummydata.qml file (here,
+    buttonbar_dummydata.qml) that specifies the component width and copy it to
+    the \c dummydata directory.
+
+    For example:
+
+    \code
+    import QtQuick 1.0
+    import QmlDesigner 1.0
+
+    DummyContextObject {
+        parent: QtObject {
+        property real width: 1000
+        }
+    }
+    \endcode
+
+    The file is reloaded if you change it.
 
     \section2 Setting Anchors and Margins
 
@@ -1357,6 +1423,17 @@
     by default, click the
     \inlineimage qmldesigner-only-select-items-with-content.png
     button.
+
+    \section2 Previewing Element Size
+
+    The width and height of the root item in a QML file determine the size of
+    the QML element. To experiment with different sizes, enter values in the
+    \gui Height and \gui Width fields on the canvas toolbar. The changes are
+    displayed in the \gui States pane and on the canvas, but the property
+    values are not changed permanently in the QML file. You can permanently
+    change the property values in the \gui Properties pane.
+
+    \image qmldesigner-preview-size.png "Canvas width and height"
 
 */
 
@@ -1722,7 +1799,7 @@
     \contentspage index.html
     \previouspage creator-editor-locator.html
     \page creator-editor-codepasting.html
-    \nextpage creator-editor-options.html
+    \nextpage creator-macros.html
 
     \title Pasting and Fetching Code Snippets
 
@@ -1740,6 +1817,8 @@
 
     To paste a snippet of code onto the server, select \gui{Tools} >
     \gui{Code Pasting} > \gui{Paste Snippet...} or press \key{Alt+C,Alt+P}.
+
+
 
     To fetch a snippet of code from the server, select \gui{Tools} >
     \gui{Code Pasting} > \gui{Fetch Snippet...} or press \key{Alt+C,Alt+F}.
@@ -1759,6 +1838,39 @@
 
 */
 
+/*!
+    \contentspage index.html
+    \previouspage creator-editor-codepasting.html
+    \page creator-macros.html
+    \nextpage creator-editor-options.html
+
+    \title Using Text Editing Macros
+
+    When you have a file open in the code editor, you can record a keyboard
+    sequence as a macro. You can then play the macro to repeat the sequence.
+    You can save the latest macro and assign a keyboard shortcut for running
+    it or run it from the locator.
+
+    To record a text editing macro, select \gui {Tools > Macros > Record Macro}
+    or press \key {Alt+(}. To stop recording, select \gui {Tools > Macros >
+    Stop Recording Macro} or press \key {Alt+)}.
+
+    To play the last macro, select \gui {Tools > Macros > Play Last Macro} or
+    press \key {Alt+R}.
+
+    To save the last macro, select \gui {Tools > Macros > Save Last Macro}.
+
+    To assign a keyboard shortcut to a text editing macro, select \gui {Tools >
+    Options... > Environment > Keyboard}. For more information, see
+    \l{Configuring Keyboard Shortcuts}.
+
+    You can also use the \c rm locator filter to run a macro. For more
+    information, see \l{Searching With the Locator}.
+
+    To view and remove saved macros, select \gui {Tools > Options... > Text
+    Editor > Macros}.
+
+*/
 
 /*!
     \contentspage index.html
@@ -1799,7 +1911,7 @@
     \contentspage index.html
     \previouspage creator-version-control.html
     \page creator-editor-external.html
-    \nextpage creator-task-lists.html
+    \nextpage creator-mime-types.html
 
     \title Using External Tools
 
@@ -1856,8 +1968,8 @@
     You can change the configuration of preconfigured tools and configure
     additional tools in Qt Creator \gui Options.
 
-    You can use variables in the fields that you can select from lists
-    of available variables.
+    You can use Qt Creator variables in the fields that you can select from
+    lists of available Qt Creator variables.
 
     \image qtcreator-external-tools.png "External Tools options"
 
@@ -1913,7 +2025,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-editor-codepasting.html
+    \previouspage creator-macros.html
     \page creator-editor-options.html
     \nextpage creator-editor-fakevim.html
 
@@ -1922,6 +2034,10 @@
     Qt Creator allows you to configure the text editor to suit your specific
     needs. To configure the editor, select  \gui Tools > \gui{Options...} >
     \gui{Text Editor}.
+
+    These settings apply to all projects. To specify editor behavior for an
+    open project, select \gui {Projects > Editor Settings}. For more
+    information, see \l{Specifying Editor Settings}.
 
     \image qtcreator-font-colors.png "Text editor options"
 
@@ -1938,6 +2054,10 @@
            text wrapping or \l{Moving to symbol definition or declaration}
            {moving to symbol definition or declaration}
            in \gui Display.
+        \o Add, modify, and remove \l{Editing Code Snippets}{code snippets} in
+           \gui Snippets.
+        \o View and remove \l{Using Text Editing Macros}{text editing macros}
+           in \gui Macros.
         \o Configure \l{Completing Code}{code completion} in \gui Completion.
     \endlist
 
@@ -2100,6 +2220,12 @@
     }
 
     \endcode
+
+\section2 File Encoding
+
+    To define the default file encoding, select the desired encoding in
+    \gui {Default encoding}. By default, Qt Creator uses the file encoding
+    used by your system.
 
 */
 
@@ -2800,7 +2926,7 @@
     select the type of your
            project.
            The contents of the wizard dialogs depend on the project type and
-           the build targets that you select in the \gui {Qt Versions} dialog.
+           the build targets that you select in the \gui {Target Setup} dialog.
            Follow the instructions of the wizard.
 
     For examples of creating different types of projects, see
@@ -2946,7 +3072,7 @@
     installed on the development PC. Select the Qt versions that you want to use to build
     the project for each target.
 
-    \image qtcreator-open-project-targets.png "Qt Versions dialog"
+    \image qtcreator-open-project-targets.png "Target Setup dialog"
 
     The status \gui New indicates that Qt Creator did not find an existing build
     for a particular development environment (Qt version) and target. Therefore,
@@ -4009,7 +4135,7 @@
         The tool tip of the target selector shows more details about the actual
         device that will be used when you run your application.
 
-        \o Start the \gui{App TRK} application on your device.
+        \o Start the debugging agent (CODA or App TRK) application on your device.
 
         \o Click the \gui Run button.
 
@@ -4029,10 +4155,10 @@
         \o The Nokia USB drivers that come with \e{PC Suite} or \e{Ovi Suite}
         have been installed on the development PC.
         \o The device is connected through USB cable in \e{PC Suite} mode.
-        \o \gui{App TRK} is running on the device, using the USB connection,
+        \o The debugging agent (CODA or App TRK) is running on the device, using
+           the USB connection,
            with the status \e connected.
-        \o The device is detected and selected in the run configuration
-           details.
+        \o The device is detected and selected in the \gui {Run Settings}.
      \endlist
 
     If this does not help to solve your problem, search the qt-creator@trolltech.com
@@ -4079,8 +4205,11 @@
     not supported on the development PC. You can choose from a set of supported
     devices, such as S60 3rd Edition or S60 5th Edition devices.
 
-    \note Remote Compiler is an experimental component that you must install
-    separately from the package that is included in the \QSDK.
+    You need a Forum Nokia user account to use the Remote Compiler. You can
+    create an account for free at \l{http://www.forum.nokia.com/}{Forum Nokia}.
+
+    \note Remote Compiler is an experimental component that is installed as
+    part of \QSDK.
 
     \list 1
 
@@ -4088,7 +4217,7 @@
         \gui {Maintain \QSDK} tool.
 
         \o In the \gui {Package Manager}, select \gui {Experimental >
-        Remote Compiler}.
+        Remote Compiler} to install Remote Compiler.
 
         \o In Qt Creator, choose \gui {Tools > Options > Projects > Remote Compiler}
         to log on to Forum Nokia.
@@ -4113,7 +4242,7 @@
     the development PC.
 
     For more information about Remote Compiler, choose \gui {Help > Contents >
-    Remote Compiler}. The document is added during the installation of
+    Remote Compiler Manual}. The document is added during the installation of
     Remote Compiler.
 
 */
@@ -4187,7 +4316,8 @@
     The executable name is specified in the executable fields: \gui qmake,
     \gui Make, \gui Command, or \gui Executable. It is either derived from the
     project or specified manually. When you specify executables manually, you
-    can reference environment variables and macros. However, no quoting rules
+    can reference environment variables and Qt Creator variables. However, no
+    quoting rules
     apply.
 
     You can specify command-line arguments in the arguments fields: \gui {Additional
@@ -4202,16 +4332,17 @@
 
     You can use any environment variables as values in the fields. For a list
     of variable names, click \gui {Build Environment > Details} in the
-    \gui {Build Settings}. Variables are referenced using the platform's native
+    \gui {Build Settings}. Environment variables are referenced using the native
     syntax: $VARNAME or ${VARNAME} on Unix and %VARNAME% on Windows.
 
-    \section2 Using Macros
+    \section2 Using Qt Creator Variables
 
-    You can use macros in arguments, executable paths, and working directories.
-    The macros take care of quoting their expansions, so you do not need to
+    You can use Qt Creator variables in arguments, executable paths, and working
+    directories.
+    The variables take care of quoting their expansions, so you do not need to
     put them in quotes.
 
-    The following macros are available:
+    The following Qt Creator variables are available:
 
     \list
 
@@ -4277,6 +4408,12 @@
 
     \image qtcreator-build-environment.png "Build Environment"
 
+    \note The changes are stored in the local project specific \c{.pro.user}
+    file. Therefore, they are not suitable for sharing between developers or
+    development PCs. To share settings, incorporate them into the build system.
+    For example, if you use qmake, make the changes in the \c{.pro} file.
+
+
     \section2 Clearing the System Environment
 
     To build with a clean system environment, select the \gui {Clear system
@@ -4339,7 +4476,7 @@
 
     You can also pass command line arguments to your application on the device.
     Press the \gui{Device info button} to get more information about the selected
-    device, such as the CPU type and the running TRK version.
+    device, such as the CPU type and the running debugging agent version.
 
     \image qtcreator-symbian-run-settings.png "Run settings for Symbian devices"
 
@@ -4393,30 +4530,25 @@
 
     \image qmldesigner-run-custom-exe.png "Run settings for custom executables"
 
-    \section1 Specifying Run Settings for Qt Quick Projects
+    \section1 Specifying Run Settings for Qt Quick UI Projects
 
-    Select run settings in the \gui {Run configuration} field. The settings
-    are specified automatically and, you mostly need to change them if you
-    develop applications that use both C++ and QML:
+    You can specify run settings for the \gui Desktop target:
 
     \list
 
-        \o \gui {Custom QML Viewer} is the path to the \QQV executable.
-        Qt Creator ships with a specific version of \QQV and imported
-        modules, which is used by default. If you develop Qt Quick applications
-        that contain C++ plugins, you must select the \QQV version
-        shipped with your Qt version here.
+        \o In the \gui {Qt version} field, select a Qt version that has support
+        for QML.
 
-        \o \gui {QML Viewer arguments} sets arguments for running \QQV.
-        The \c{-I <directory>} argument searches for C++ or QML plugins from
-        the project folder. For a list of available arguments, enter \c {qml --help}
-        on the command line.
+        \o In the \gui Arguments field, you can specify command line arguments
+        to be passed to the executable.
 
-        \o \gui {Main QML file} is the Qt Quick project file.
+        \o In the \gui {Main QML file}, select the file that \QQV will be
+        started with.
 
-        \o \gui Debugger allows you to select the languages to debug:
+        \o In the \gui Debugger group, select the languages to debug:
         \gui{C++} and \gui QML. \gui {Debug port} is the port to access \QQV.
         You can use any free port in the registered port range.
+        For more information, see \l{Debugging Qt Quick Projects}.
 
     \endlist
 
@@ -4425,7 +4557,7 @@
     execute any JavaScript functions. Therefore, you must make sure that the port
     is properly protected by a firewall.
 
-    \image qmldesigner-run-settings.png "Run settings for Qt Quick projects"
+    \image qmldesigner-run-settings.png "Run settings for Qt Quick UI projects"
 
 
 */
@@ -4435,7 +4567,7 @@
     \contentspage index.html
     \previouspage creator-deployment-symbian.html
     \page creator-deployment-maemo.html
-    \nextpage creator-publish-ovi.html
+    \nextpage creator-publishing-to-maemo-extras.html
 
     \title Deploying Applications to Maemo Devices
 
@@ -4479,7 +4611,8 @@
     in the \gui {Package version} field.
 
     You can specify information that users see on a delivery channel, such as
-    Ovi Store. You can specify a short description of the application, package
+    Ovi Store or Maemo.org. You can specify a short description of the
+    application, package
     name, and application icon.
 
     The Debian control file contains an application icon in encoded form. To add the
@@ -4498,6 +4631,73 @@
 
     To edit the files, select a file in \gui {Adapt Debian
     file} and click \gui Edit. The file opens in the text editor.
+
+*/
+
+
+/*!
+    \contentspage index.html
+    \previouspage creator-deployment-maemo.html
+    \page creator-publishing-to-maemo-extras.html
+    \nextpage creator-publish-ovi.html
+
+    \title Publishing Maemo Applications to Extras-devel
+
+    Extras is the primary repository for Maemo applications where most
+    community software can be found. You can browse the applications available
+    in Extras at \l{http://maemo.org/downloads/Maemo5/}{Maemo Downloads}.
+
+    You can publish both free and commercial applications to Extras. Free
+    applications must be open source and pass through a QA process.
+    Commercial applications are usually closed, binary only, and the publisher
+    is responsible for assuring their quality and security.
+
+    You can upload free applications as Debian packages to
+    \l{http://wiki.maemo.org/Extras-devel}{Extras-devel} at Maemo.org to share
+    new updates to your application and to start the community QA process.
+    You need a \l{https://garage.maemo.org/}{Garage} account for the uploads,
+    but the package itself does not need to be hosted in the Garage.
+
+    You can use the \gui {Publish for Fremantle Extras-devel Free Repository}
+    wizard to create a source archive and, optionally, upload it to a build
+    server for compiling and packaging. The package is then moved to the
+    Extras-devel repository. From there on, you must follow the standard
+    Maemo processes to get the application published to Extras.
+
+    The wizard checks that the package contains all the information that is
+    required to publish applications on Extras: package description and
+    Package Manager icon. For more information about entering this information,
+    see \l{Creating Debian Installation Packages}.
+
+    To use the publishing wizard:
+
+    \list 1
+
+        \o  Select the \gui {Maemo5} build target for your project.
+
+        \o  Choose \gui {Build > Publish Project}.
+
+        \o  Select \gui {Publish for Fremantle Extras-devel Free Repository},
+            and then select \gui {Start Wizard}.
+
+        \o  Select the Qt version and device type to build against and click
+            \gui Next.
+
+            To create a source archive without uploading it to the build
+            server, select the \gui {Only create source package, do not upload}
+            check box.
+
+        \o  In the \gui {Garage account name} field, enter your login name, or
+            select \gui {Get an account} to create a new account.
+
+            \image qtcreator-publish-maemo-extras.png "Upload Settings dialog"
+
+            You can also select \gui {Request upload rights} to use the Maemo
+            Extras Assistant to validate your Garage account.
+
+        \o  Select \gui Commit to publish the application.
+
+    \endlist
 
 */
 
@@ -4524,6 +4724,7 @@
     \list
         \o \l{Deploying Applications to Symbian Devices}
         \o \l{Deploying Applications to Maemo Devices}
+        \o \l{Publishing Maemo Applications to Extras-devel}
         \o \l{Publishing Applications to Ovi Store}
         \o \l{Building with Remote Compiler}
     \endlist
@@ -4557,7 +4758,8 @@
     notifications and error messages.
 
     To create a SIS package without copying it to the device (for example, to submit it
-    to Ovi Signed or Symbian Signed), create a deploy configuration that contains only the
+    to \e {Application Signing Services for Ovi Store} or \e {Symbian Signed}),
+    create a deploy configuration that contains only the
     \gui {Create SIS Package} step.
 
     \image qtcreator-run-settings-create.png "Create SIS Package step"
@@ -4580,21 +4782,21 @@
     \endlist
 
     To get around these limitations, you need to go through the Symbian Signed
-    or Ovi Signed process. The Symbian Signed organisation manages a public key
+    or Application Signing Services for Ovi Store. The Symbian Signed organisation
+    manages a public key
     infrastructure to provide public authentication of the information in the
     application signing certificates. Their security partner can validate your
     certificate and give you a Publisher ID. Then, when you sign an
     application, other people can be confident that the information in your
     certificate is correct and that the application does actually come from you.
 
-    Ovi Signed is a variant of the Symbian Signed certification provided by Ovi
+    Application Signing Services for Ovi Store is a variant of the Symbian
+    Signed certification provided by Ovi
     Publishing. It is limited to the Basic and System capability sets
     (Express Signing). Participants can submit an unsigned SIS file to Ovi
-    Publishing for signing, quality assurance, packaging with Nokia Smart Installer
-    for Symbian, and publishing on Ovi Store. For more information about how
-    to participate and a list
-    of supported Nokia devices, see
-    \l{http://www.forum.nokia.com/Distribute/Packaging_and_signing.xhtml}{Packaging and Signing}.
+    Publishing for signing. For more information about how
+    to participate, see
+    \l {http://wiki.forum.nokia.com/index.php/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store}.
 
     There are also options that do not require you to get a Publisher ID. For
     more detail about how the Symbian Signed process works, see
@@ -4674,13 +4876,14 @@
     the necessary software and by installing the missing pieces.
 
     For this to work, the Nokia Smart Installer must be packaged with the Qt application. The
-    application SIS file must first be Symbian Signed or Ovi Signed. The capabilities used in the applications
+    application SIS file must first be Symbian Signed or signed by the Application
+    Signing Services for Ovi Store. The capabilities used in the applications
     determine, which signing option must be selected. The wrapper package must be signed using
     either the same option or a more extensive option than the application SIS.
 
-    \note If you use Ovi Signed, you can just submit an unsigned SIS file to Ovi Publishing.
-    Ovi signs the file for you and packages it with Nokia Smart Installer for Symbian.
-    For more information, see \l{Publishing Applications to Ovi Store}.
+    \note If you use the Application Signing Services for Ovi Store, you can submit an unsigned
+    wrapper package to Ovi Publishing. For more information, see
+    \l{Publishing Applications to Ovi Store}.
 
     You can either install the Nokia Smart Installer for Symbian as part of
     the \QSDK, or download and install it from the
@@ -4875,112 +5078,104 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-deployment-maemo.html
+    \previouspage creator-publishing-to-maemo-extras.html
     \page creator-publish-ovi.html
     \nextpage creator-remote-compiler.html
 
     \title Publishing Applications to Ovi Store
 
-    To register as an Ovi Publisher, go to \l{https://publish.ovi.com/login}{Ovi Store}.
-
-    At the time of writing this document, Ovi Store accepts Qt
-    applications for the following Nokia device models:
+    Ovi Store is the global content market of Nokia, which reaches millions of
+    people worldwide. Consumers can access Ovi Store through either of these
+    platforms:
 
     \list
 
-        \o Symbian^3: N8-00, E7-00, C7-00, C6-01
+        \o  Ovi Store applications on mobile devices
 
-        \o Symbian^1 (S60 5th Edition): X6-00, N97, N97 mini, 5800 XpressMusic,
-        5530 XpressMusic, 5230 ExpressMusic, C6-00, 5228, 5235
-
-        \o S60 3rd Edition: E72, E71, E66, E63, E52
-
-        \o Maemo: Nokia N900, with PR1.3 and later
+        \o  Web browsers on desktop computers, laptops, netbooks, and tablets
 
     \endlist
 
-    For an up-to-date list, see
-    \l{http://www.forum.nokia.com/Distribute/Packaging_and_signing.xhtml}{Packaging and Signing}.
-    New devices are added to the list periodically. The final authority
-    on the supported devices is the Ovi Publish tool itself.
+    Consumers have access to a wide selection of content and can download
+    content in a few easy clicks.
+
+    The process and requirements to publish Qt applications to Ovi Store are
+    described in the
+    \l {http://wiki.forum.nokia.com/index.php/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store} wiki.
+
+    This section describes how to
+    generate installation packages that
+    you can publish to Ovi Store.
 
     \section1 Publishing Qt Content for Symbian Devices
 
-    You can use the Ovi Signed process to get your application Express Signed for
+    You can use the \e {Application Signing Services for Ovi Store} to get your
+    application Express Signed for
     free by Nokia. Make sure to use the \l{Application UID}{application UID} that you
-    receive from Ovi Publisher Support. Then create an unsigned SIS package and submit
-    it to Ovi Publishing for signing, quality assurance, packaging with Nokia Smart
-    Installer for Symbian, and publishing to Ovi Store.
+    receive from Ovi Publisher Support.
 
-    For more information about how to use Ovi Signed, see
-    \l{http://www.forum.nokia.com/Distribute/Packaging_and_signing.xhtml}{Packaging and Signing}.
+    The \gui {Publish Qt Symbian Applications to Ovi Store} wizard allows you
+    to check that your application can be
+    published on Ovi Store. It checks that the application UID, vendor name,
+    and the capabilities used meet the Ovi Publishing criteria.
 
-    If the application uses functions that require advanced
+    If you use Symbian Signed UIDs or the application uses functions that
+    require advanced
     \l{Capabilities and Signing}{capabilities}, you must
     use the standard Symbian Signed process to have the application Symbian Signed
     (using the Certified Signed path or the manufacturer-specific channel).
+    For more information, see \l{Deploying Applications to Symbian Devices}.
 
     \note At the time of writing this document, the distribution of Qt 4.7.x based
-    applications is not supported by neither Ovi Store nor Smart Installer.
+    applications is supported by neither Ovi Store nor Smart Installer.
     For up-to-date information about the packages available for distribution, see the
     \l{http://wiki.forum.nokia.com/index.php/Nokia_Smart_Installer_for_Symbian}{Nokia Smart Installer for Symbian}
     wiki.
 
-    To create a SIS package that you can submit to Ovi Publishing:
+    To use the publishing wizard:
 
     \list 1
 
-        \o Make sure that the source directory is clean. For example, if you use git,
-        enter the following command:
+        \o Select the \gui {Symbian Device} build target for your project.
 
-        \c {git clean -dfx}
+        \o Choose \gui {Build > Publish Project}.
 
-        \o Click \gui Projects to edit the \gui {Build Settings} for the
-        \gui {Symbian Device} target.
+        \o Select \gui {Publish Qt Symbian Applications to Ovi Store}, and then
+        select \gui {Start Wizard}.
 
-        \o Select the \gui Release configuration.
+        \o Select the Qt version and device type to build against and click
+        \gui Next. We recommend that you select a release configuration.
 
-        \o Open the \gui {Run Settings}.
+        \o The wizard checks the information in the project file against the
+        Ovi Publishing criteria and indicates possible problems. You can fix
+        some of the problems in the wizard.
 
-        \o In the \gui {Create SIS Package} step, select the \gui {Not signed} option.
+        \image qtcreator-publishing-wizard-symbian.png "Project File Checks dialog"
 
-        \o In the \gui {Deploy SIS Package} step, click \gui {Remove Item} to
-        skip the step of copying the SIS file to a device. The SIS file is created
-        in the project folder.
+        \o Select \gui Commit to save changes and create the .sis file. The
+        .sis file is packaged with Nokia Smart Installer for Symbian.
 
-        \image qtcreator-remove-deploy-step.png "Removing deploy steps"
+        \o Choose \gui {Open Containing Folder} to open the folder where the
+        .sis file was created.
 
-        \o Check that the project .pro file uses the correct UID for the application and
-        the correct vendor information, as illustrated by the following code snippet:
+        \o Submit the created .sis file to Ovi Publishing as a Qt Content item.
 
-       \code
-       symbian {
-            TARGET.UID3 = 0x2000D7D1
-
-            vendorinfo = \
-            "%{\"CustomVendor-EN\"}" \
-            ":\"CustomVendor\""
-
-            my_deployment.pkg_prerules = vendorinfo
-            DEPLOYMENT += my_deployment
-        }
-        \endcode
-
-        \note Ovi Store does not accept the application if the localized and non-localized
-        vendor information in the package file  do not match the publisher name. That is,
-        it cannot be \e Nokia, \e Vendor, or \e Vendor-EN.
-
-        \o Choose \gui {Build > Run Project}.
-
-        \o Submit the SIS file to Ovi Publishing as a Qt Content item.
+        \note You cannot use this .sis file for testing.
 
     \endlist
 
     \note After you change the application UID, you must use the developer
     certificate-key pair that you receive from Ovi Publisher Support for testing
-    the application on devices. Self-signing cannot be
-    applied when UIDs from the trusted range 0x2xxxxxxx are used. For more
+    the application on devices. The following error message is displayed on the
+    device if you use UIDs from the trusted range (0x2xxxxxxx) in a self-signed
+    application: \gui {Unable to install a trusted application from a trusted
+    supplier.} For more
     information, see \l{http://wiki.forum.nokia.com/index.php/UID}{UID}.
+
+    If you try to use more capabilites than the certificate permits, the
+    following error message is displayed on the device: \gui {Requested
+    application access not granted.} For example, if you try to install a
+    self-signed application that uses a system capability.
 
     \section1 Publishing Qt Content for Maemo Devices
 
@@ -5029,9 +5224,26 @@
 
     \title Specifying Editor Settings
 
-    To define the default file encoding, select the desired encoding in \gui Projects >
-    \gui{Editor Settings}. By default, the Qt Creator uses the file encoding
-    used by your system.
+    You can configure the code editor according to your needs. You can specify
+    editor behavior either globally for all projects or separately for each
+    project. To specify global editor behavior, select \gui {Tools > Options...
+    > Text Editor > Behavior}.
+
+    To configure the editor behavior for the current project, deselect the
+    \gui {Use global settings} check box in the \gui {Editor Settings} for the
+    project. For more information about the settings, see:
+
+    \list
+
+        \o \l{Indenting Code}
+
+        \o \l{File Encoding}
+
+        \o \l{Moving to Symbol Definition or Declaration}
+
+        \o \l{Configuring Fonts}
+
+    \endlist
 
     \image qtcreator-editor-settings.png "Editor Settings view"
 
@@ -5136,9 +5348,9 @@
         \o In the \gui {Create in} field, enter the path for the project files. For example,
         \c {C:\Qt\examples}, and then click \gui{Next}.
 
-        The \gui{Qt Versions} dialog opens.
+        The \gui{Target Setup} dialog opens.
 
-        \image qtcreator-mobile-project-qt-versions.png "Qt Versions dialog"
+        \image qtcreator-mobile-project-qt-versions.png "Target Setup dialog"
 
         \o Select \gui Maemo, \gui {Qt Simulator}, and \gui {Symbian Device} targets,
         and click \gui{Next}.
@@ -5156,7 +5368,7 @@
         and landscape, and then click \gui{Next}.
 
         \note This dialog opens only if you select \gui Maemo5 or
-        \gui {Symbian Device} target in the \gui {Qt Versions} dialog.
+        \gui {Symbian Device} target in the \gui {Target Setup} dialog.
 
         The \gui {Symbian Specific} dialog opens.
 
@@ -5260,7 +5472,7 @@
         \o In the \gui{Projects} view, double-click the \c{mainwindow.h} file
         to open it for editing.
 
-        \o Include the System Info header file, as illustrated by the following
+        \o Include the System Device Info header file, as illustrated by the following
         code snippet:
 
         \snippet examples/batteryindicator/mainwindow.h 1
@@ -5323,11 +5535,11 @@
 
     \list 1
 
-        \o Install Qt libraries, Qt mobile libraries, and the TRK
-        debugging application on the device. For more information,
+        \o Install Qt libraries, Qt mobile libraries, and a
+        debugging agent on the device. For more information,
         see \l{Setting Up Development Environment for Symbian}.
 
-        \o Start TRK on the device.
+        \o Start the debugging agent, App TRK or CODA, on the device.
 
         \o Click the \gui {Target Selector} and select \gui {Symbian Device}.
 
@@ -5382,7 +5594,7 @@
         to build the application and run it in Qt Simulator.
 
         \o To see the compilation progress, press \key{Alt+4} to open the
-        \gui Compile Output pane.
+        \gui {Compile Output} pane.
 
         The \gui Build progress bar on the toolbar turns green when the project
         is successfully built. The application opens in Qt Simulator.
@@ -5396,7 +5608,7 @@
         mobile functions and create your own scripts.
 
         \o To test the application on a Symbian device, install Qt libraries
-        and the TRK debugging application on the device. For more information,
+        and a debugging agent on the device. For more information,
         see \l{Setting Up Development Environment for Symbian}.
 
         \o Click the \gui {Target Selector} and select \gui {Symbian Device}.
@@ -5452,7 +5664,7 @@
     screen and two empty rectangles.
 
     To use the states.png image in your application, you must copy it to the project
-    directory from the examples directory in the
+    directory (same subdirectory as the QML file) from the examples directory in the
     Qt installation directory. For example:
     \c {C:\QtSDK\Examples\4.7\declarative\animation\states}. The image appears
     in the \gui Resources pane. You can also use any other image or a QML element, instead.
@@ -5750,9 +5962,9 @@
         \o In the \gui {Create in} field, enter the path for the project files. For example,
         \c {C:\Qt\examples}, and then click \gui{Next}.
 
-        The \gui {Qt Versions} dialog opens.
+        The \gui {Target Setup} dialog opens.
 
-        \image qtcreator-new-project-qt-versions-qt-gui.png "Qt Versions dialog"
+        \image qtcreator-new-project-qt-versions-qt-gui.png "Target Setup dialog"
 
         \o Select the Qt versions to use as build targets for your project, and click
         \gui{Next}.
@@ -6415,18 +6627,21 @@
 
     The locator allows you to browse not only files, but any items
     defined by \bold{locator filters}. By default, the locator contains
-    filters which locate:
+    filters for:
     \list
-        \o  Any open document
-        \o  Files anywhere on your file system
-        \o  Files belonging to your project, such as source, header resource,
+        \o  Locating any open document
+        \o  Locating files anywhere on your file system
+        \o  Locating iles belonging to your project, such as source, header resource,
             and .ui files
-        \o  Class and method definitions in your project or anywhere referenced
+        \o  Locating class and method definitions in your project or anywhere
+            referenced
             from your project
-        \o  Class and method definitions in the current document
-        \o  Help topics, including Qt documentation
-        \o  Specific line in the document displayed in your editor
-
+        \o  Locating class and method definitions in the current document
+        \o  Locating a specific line in the document displayed in your editor
+        \o  Opening help topics, including Qt documentation
+        \o  Performing web searches
+        \o  Running text editing macros that you record and save. For more
+            information, see \l{Using Text Editing Macros}
     \endlist
 
     To use a specific locator filter, type the assigned prefix followed by
@@ -6478,6 +6693,10 @@
             \o  \tt{\bold{? \e{Help topic}}}
             \o  \image qtcreator-locator-help.png
         \row
+            \o  Search for a term by using a web search engine.
+            \o  \tt{\bold{r \e{Search term}}}
+            \o  \image qtcreator-locator-web.png
+        \row
             \o  Go to an open file.
             \o  \tt{\bold{o \e{File name}}}
             \o  \image qtcreator-locator-opendocs.png
@@ -6501,6 +6720,10 @@
             \o  Go to a method definition.
             \o  \tt{\bold{m \e{Method name}}}
             \o  \image qtcreator-locator-methods.png
+        \row
+            \o  Execute a text editing macro.
+            \o  \tt{\bold{rm \e{Macro name}}}
+            \o  \image qtcreator-locator-macros.png
     \endtable
 
     \section2 Creating Locator Filters
@@ -6534,7 +6757,36 @@
         \o Click OK.
     \endlist
 
-    \section3 Configuring the Locator Cache
+    \section2 Adding Web Search Engines
+
+    You can use the \gui {Web Search (\c r)} locator filter to perform
+    web searches. URLs and search commands for Bing, Google, Yahoo! Search,
+    cplusplus.com, and Wikipedia are configured by default.
+
+    To find out the format of the search command to use for your favorite
+    web search engine, perform a search in your browser and copy the resulting
+    URL to the locator filter configuration. Replace the search term with the
+    variable \c {%1}.
+
+    To add URLs and search commands to the list:
+
+    \list 1
+
+        \o  Select \gui {Tools > Options > Locator > Web Search (prefix: r) >
+            Edit}.
+
+        \o  Select \gui Add to add a new entry to the list.
+
+            \image qtcreator-add-online-doc.png "Filter Configuration dialog"
+
+        \o  Double-click the new entry to specify a URL and a search command.
+            For example, http://www.google.com/search?q=%1.
+
+        \o  Click \gui OK.
+
+    \endlist
+
+    \section2 Configuring the Locator Cache
 
     The locator searches the files matching your file pattern in the
     directories you have selected and caches that information. The cache for
@@ -6626,11 +6878,12 @@
         requirements for installation. Typically, the interaction between Qt Creator
         and the native debugger is set up automatically and you do not need to do anything.
 
-        \o \l{Debugger Modes of Operation} describes the operating modes in which the
+        \o \l{Launching the Debugger in Different Modes} describes the operating modes in which the
         debugger plugin runs, depending on where and how the process is started and run.
 
         \o \l{Using Debugging Helpers} describes how to get more detailed data
         on complex data.
+
 
         \o \l{Debugging Qt Quick Projects} describes how to debug Qt Quick projects.
 
@@ -6644,7 +6897,7 @@
     \page creator-debugger-operating-modes.html
     \nextpage creator-debugging-helpers.html
 
-    \title Debugger Modes of Operation
+    \title Launching the Debugger in Different Modes
 
     The debugger plugin runs in different operating modes depending on where and
     how the process is started and run. Some of the modes are only available for
@@ -6668,14 +6921,14 @@
 
        \o \bold Post-mortem to debug crashed processes on Windows.
 
-       \o \bold TRK to debug processes running on a Symbian device.
+       \o \bold On-device to debug processes running on a mobile device.
 
     \endlist
 
     \note Debugging QML and JavaScript is supported only in plain mode.
 
     When you click the \gui {Start Debugging} button, the debugger is launched
-    in the appropriate operating mode (plain, terminal, or TRK), based on the
+    in the appropriate operating mode (plain, terminal, or on-device), based on the
     build and run settings for the active project. Select \gui Debug menu options
     to launch the debugger in the other modes.
 
@@ -6733,18 +6986,16 @@
     on Windows. Click the \gui {Debug in Qt Creator} button in the error message
     that is displayed by the Windows operating system.
 
-    \section2 TRK Mode
+    \section2 On-device Mode
 
-    The TRK mode is a special mode available only for Symbian. It
-    debugs processes running on a Symbian
-    device using the App TRK application that runs on the device.
+    The on-device mode is a special mode available for run configurations
+    targeting mobile devices. It debugs processes running on mobile
+    devices using on-device debugging agents, such as CODA on Symbian and
+    gdbserver on Maemo and MeeGo.
 
-    To launch the debugger in the TRK mode, open the project, select Symbian as the
-    target, and click the \gui {Start Debugging} button.
-
-    For more information on setting up Symbian projects, see
-    \l{Setting Up Development Environment for Symbian}.
-
+    To launch the debugger in the on-device mode, open the project, select a
+    run configuration that targets a mobile device, and click the
+    \gui {Start Debugging} button.
 
 */
 
@@ -6835,16 +7086,16 @@
             \o gcc
             \o gdb
             \o Yes
-            \o TRK
+            \o On-device
         \row
             \o Maemo
             \o gcc
             \o gdb
             \o Yes
-            \o Remote
+            \o On-device
     \endtable
 
-    For more information on the debugger modes, see \l{Debugger Modes of Operation}.
+    For more information on the debugger modes, see \l{Launching the Debugger in Different Modes}.
 
     \omit
 
@@ -6872,9 +7123,10 @@
 
        \o RemoteGdbAdapter interacts with the gdbserver running on Linux.
 
-       \o TrkGdbAdapter interacts with Symbian devices. The gdb protocol and
-       the gdb serial protocol are used between gdb and the adapter. The TRK
-       protocol is used between the adapter and AppTRK running on the device.
+       \o CodaGdbAdapter interacts with Symbian devices. The gdb protocol and
+       the gdb serial protocol are used between gdb and the adapter. The
+       target communication framework (TCF) protocol is used between the
+       adapter and the CODA debugging agent running on the device.
 
      \endlist
 
@@ -6896,23 +7148,26 @@
             \o Notes
         \row
             \o Gdb
-            \o On Linux, install version 7.0.1, 7.1, or preferably, 7.2 or
-               later. On Mac OS X, install Apple gdb version 6.3.50-20050815
-            (build 1344) or later.
+            \o On Linux and Windows, use the Python-enabled gdb versions that
+            are installed when you install Qt Creator and Qt SDK. On Mac OS X,
+            use the gdb provided with Xcode.
+            For a custom target, you can build your own Python-enabled gdb.
+            Follow the instructions on
+            \l{http://developer.qt.nokia.com/wiki/QtCreatorBuildGdb}{Building Gdb}.
 
         \row
             \o Debugging tools for Windows
             \o Using this engine requires you to install the
                \e{Debugging tools for Windows}
-               \l{http://www.microsoft.com/whdc/devtools/debugging/installx86.Mspx}{32-bit}
+               \l{http://www.microsoft.com/whdc/devtools/debugging/installx86.Mspx}
                or
-               \l{http://www.microsoft.com/whdc/devtools/debugging/install64bit.Mspx}{64-bit}
+               \l{http://www.microsoft.com/whdc/devtools/debugging/install64bit.Mspx}
                package (Version 6.11.1.404 for the 32-bit or the 64-bit version
                of Qt Creator, respectively),
-               which is freely available for download from the
-               \l{http://msdn.microsoft.com/en-us/default.aspx}
+               which are freely available for download from the
+               \l{http://msdn.microsoft.com/en-us/default.aspx}{Microsoft Developer Network}.
 
-               {Microsoft Developer Network}. The Qt Creator help browser does
+               The Qt Creator help browser does
                not allow you to download files, and therefore, you must copy
                the above links to a browser.
 
@@ -6942,12 +7197,12 @@
               flag in your run configuration, in \gui Projects mode. In the run
               configuration, select \gui{Use debug version of frameworks}.
 
-              For more detailed information about debugging on the Mac, see:
-              \l http://developer.apple.com/mac/library/technotes/tn2004/tn2124.html
+              For more detailed information about debugging on the Mac OS X, see:
+              \l{http://developer.apple.com/mac/library/technotes/tn2004/tn2124.html}{Mac OS X Debugging Magic}.
 
-        \note The Mac OS X Snow Leopard (10.6) has a bug, that can be worked
-              around as described in the link provided below:
-              \l http://bugreports.qt.nokia.com/browse/QTBUG-4962.
+        \note The Mac OS X Snow Leopard (10.6) has a bug that might cause the
+              application to crash. For a workaround, see:
+              \l{http://bugreports.qt.nokia.com/browse/QTBUG-4962}{QTBUG-4962}.
 
     \endtable
 
@@ -7009,9 +7264,9 @@
     features (like QtWebKit) are used.
 
     The debugger is launched in the appropriate operating mode (plain, terminal,
-    or TRK), based on the build and run settings for the active project.
+    or on-device), based on the build and run settings for the active project.
     Select \gui Debug menu options to launch the debugger in other modes.
-    For more information, see \l{Debugger Modes of Operation}.
+    For more information, see \l{Launching the Debugger in Different Modes}.
 
     \note Debugging QML and JavaScript is supported only in plain mode.
 
@@ -7198,9 +7453,9 @@
 
     \list
 
-        \o \c {C:\qtcreator-2.1\bin>qtcreator -debug 2000}
+        \o \c {C:\qtcreator\bin>qtcreator -debug 2000}
 
-        \o \c {C:\qtcreator-2.1\bin>qtcreator -debug core.2000}
+        \o \c {C:\qtcreator\bin>qtcreator -debug core.2000}
 
     \endlist
 
@@ -7400,6 +7655,36 @@
 
 
     \section1 Debugging Helpers Based on Python
+
+    Qt Creator uses gdb builds that enable Python scripting to display
+    information in the \gui {Locals and Watchers} view. When Python scripting
+    is used, code (Debugging helpers) does not need to be injected into the
+    debugged process to nicely display QStringList or \c std::map contents, for
+    example.
+
+    The code injection caused problems and put an extra stress on the debugged
+    process. You can now easily extend the debugging helpers to other types. No
+    compilation is required, just adding a few lines of Python.
+
+    Python scripting vastly reduces the communication overhead compared
+    with the previous solution. However, there are some obstacles:
+
+    \list
+
+        \o  There is no Python-enabled gdb for Mac OS. Mac OS continues
+            injection with C++ based debugging helpers.
+
+        \o  On the Symbian platform, an on-device debugging agent restricts the
+            communication between gdb and the device. Therefore, extracting
+            QObject properties, for example, is not possible.
+
+        \o  There is no gdb to communicate with MSVC compiled applications on
+            Windows. So information can be displayed nicely only in a limited
+            fashion by using a cdb extension DLL.
+
+    \endlist
+
+    \section2 Extending the Python Based Debugging Helpers
 
     On platforms featuring a Python-enabled version of the gdb debugger,
     the data extraction is done by a Python script. This is more robust
@@ -7620,7 +7905,8 @@
         Uses gdb to call the function \c func on the value specified by
         \a {item.value} and output the resulting item. This function is
         not available when debugging core dumps and it is not available
-        on the Symbian platform due to restrictions imposed by AppTRK.
+        on the Symbian platform due to restrictions imposed by the on-device
+        debugging agent.
 
     \o \gui{putItem(self, item)} - The "master function", handling
         basic types, references, pointers and enums directly, iterates
@@ -7681,6 +7967,17 @@
     with. Select \gui{Tools > Options... > Qt4 > Qt Versions}.
 
     \note QML Observer requires Qt 4.7.1 or later.
+
+    \section1 Enabling Debugging Helpers for Qt's Bootstrapped Applications
+
+    Qt's bootstrapped applications (such as moc and qmake) are built in a way
+    that is incompatible with the default build of the debugging helpers. To
+    work around this, add gdbmacros.cpp to the compiled sources in the
+    application Makefile.
+
+    Choose \gui {Tools > Options > Debugger > Debugging Helper > Use debugging
+    helper from custom location}, and specify an invalid location, such as
+    \c{/dev/null}.
 
 */
 
@@ -7794,7 +8091,7 @@
     \contentspage index.html
     \previouspage creator-debugging-helpers.html
     \page creator-debugging-qml.html
-    \nextpage creator-maemo-emulator.html
+    \nextpage creator-troubleshooting-debugging.html
 
     \title Debugging Qt Quick Projects
 
@@ -7812,7 +8109,7 @@
         \o Select \gui Projects, and then select the \gui QML check box in the
         \gui {Run Settings}, to enable QML debugging.
 
-        \o Compile the debugging helpers. For more information, see
+        \o Compile the QML Observer debugging helper. For more information, see
         \l{Debugging Helpers for QML}.
 
     \endlist
@@ -7821,24 +8118,27 @@
 
         \list 1
 
-        \o Modify the project file to comment in the following line:
+        \o Select \gui Projects, and then select the \gui {Link QML debugging
+        library} check box in \gui {Build Steps}.
 
-    \c {DEFINES += QMLJSDEBUGGER}.
+        You might have to compile the library first, by selecting the
+        \gui Compile link.
 
-        \o Select \gui Projects, and then select the \gui QML check box in the
-        \gui {Run Settings}, to enable QML debugging.
+        \image qml-link-debugging-library.png "Build Steps"
 
-        \o In the \gui {Target selector}, select a debug configuration for
-        the target.
+        \note Debugging requires opening a socket at a well-known port, which
+        presents a security risk. Anyone on the Internet could connect to the
+        application that you are debugging and execute any JavaScript
+        functions. Therefore, you must make sure that the port is properly
+        protected by a firewall.
 
-        \image qtcreator-target-selector-debug.png "Target selector"
+        \o In the \gui {Run Settings}, select the \gui QML check box to enable
+        QML debugging.
 
-        \o Select \gui {Build > Rebuild Project} to clean and rebuild the project
-        in debug mode.
+        \o Select \gui {Build > Rebuild Project} to clean and rebuild the
+        project.
 
     \endlist
-
-    You can create debug configurations for project targets in the \gui Projects mode.
 
     \section1 Starting QML Debugging
 
@@ -7893,13 +8193,14 @@
 
     Reloading is enabled by default. To disable it, click
     \inlineimage qml-observer-bar-reload.png "Apply Changes on Save button"
-    in the \gui {QML Observer} view.
+    on the toolbar.
 
     \section1 Inspecting QML at Runtime
 
     While the application is running, you can use the \gui {QML Observer} view to
     explore the object structure, debug animations, and inspect colors.
     To open the \gui {QML Observer} view, choose \gui {Window > View > QML Observer}.
+    The view shows the properties of the currently selected QML element.
 
     \image qml-observer-view.png "QML Observer view"
 
@@ -7907,11 +8208,14 @@
     mode to jump to the position in code where an element is defined. To switch to
     the observe mode, click
     \inlineimage qml-observer-bar-observe.png
-    in the \gui {QML Observer} view.
+    on the toolbar.
 
     Click elements in the running application to jump to their definitions in the code.
     Double-click elements to browse the element hierarchy. The hierarchy is displayed
     as bread crumbs in the \gui {QML Observer} view.
+
+    To move the application running in \QQV to the front, select the
+    \gui {Show Application on Top} button.
 
     You can also right-click an element in the running application to view the element
     hierarchy as a context menu. Select an element to jump to its definition in code.
@@ -7928,16 +8232,14 @@
 
     \image qml-observer.png
 
-    To play and pause animations in the running application, click the \gui {Play/Pause Animations}
-    button in the \gui {QML Observer} view or \gui {Debugging > Animations > Pause} or press
+    To play and pause animations in the running application, select the
+    \gui {Play/Pause Animations} button on the toolbar or \gui {Debugging >
+    Animations > Pause}, or press
     \key {Ctrl+.}.
 
-    To step through an animation, select \gui {Debugging > Animations > Pause & Step}
-    or press \key {Ctrl+,}.
-
-    To set step duration in milliseconds, select \gui {Debugging > Animations > Set Step}.
     To change the speed at which animations are played, select a value in \gui {Debugging
-    > Animations}.
+    > Animations} or click and hold down the \gui {Play/Pause Animations}
+    button to select a value.
 
 */
 
@@ -8191,9 +8493,9 @@
 
         \o Click \gui{Next}.
 
-        The \gui {Qt Versions} dialog opens.
+        The \gui {Target Setup} dialog opens.
 
-        \image qmldesigner-new-project-qt-versions.png "Qt Versions dialog"
+        \image qmldesigner-new-project-qt-versions.png "Target Setup dialog"
 
         \o Select the Qt versions to use as build targets for your project,
         and then click \gui{Next}.
@@ -8211,7 +8513,7 @@
         and landscape, and then click \gui Next.
 
         \note This dialog opens only if you select \gui Maemo5 or
-        \gui {Symbian Device} target in the \gui {Qt Versions} dialog.
+        \gui {Symbian Device} target in the \gui {Target Setup} dialog.
 
         The \gui {Symbian Specific} dialog opens.
 
@@ -8341,6 +8643,8 @@
         adds a single line of editable formatted text that can be validated.
         \o \l{http://doc.qt.nokia.com/4.7/qml-textinput.html}{Text Input}
         adds a single line of editable plain text that can be validated.
+        \o \l{http://doc.qt.nokia.com/4.7-snapshot/qml-webview.html}{Web View}
+        adds web content to a canvas.
 
     \endlist
 
@@ -8630,7 +8934,7 @@
 
     \endlist
 
-    \section1 Organizing Items on Screens
+    \section1 Using Data Models
 
     You can create the following types of views to organize items provided by
     \l{http://doc.qt.nokia.com/4.7/qdeclarativemodels.html}{data models}:
@@ -8638,12 +8942,38 @@
     \list
 
         \o \l{http://doc.qt.nokia.com/4.7/qml-gridview.html}{Grid View}
+        provides a grid vizualization of a model.
+
         \o \l{http://doc.qt.nokia.com/4.7/qml-listview.html}{List View}
+        provides a list vizualization of a model.
+
         \o \l{http://doc.qt.nokia.com/4.7/qml-pathview.html}{Path View}
+        visualizes the contents of a model along a path.
 
     \endlist
 
     In the code editor, write the code to use the data models.
+
+    \section1 Positioning Items on Screens
+
+    You can use the following items to arrange items on screens:
+
+    \list
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-column.html}{Column}
+            arranges its child items vertically.
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-row.html}{Row}
+            arranges its child items horizontally.
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-grid.html}{Grid}
+            arranges its child items so that they are aligned in a grid and
+            are not overlapping.
+
+        \o  \l{http://doc.qt.nokia.com/4.7-snapshot/qml-flow.html}{Flow}
+            arranges its child items side by side, wrapping as necessary.
+
+    \endlist
 
     \section1 Using States
 
@@ -9023,7 +9353,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-debugging-qml.html
+    \previouspage creator-troubleshooting-debugging.html
     \page creator-maemo-emulator.html
     \nextpage creator-deployment.html
 
@@ -10133,7 +10463,7 @@
 
     \title Known Issues
 
-    This section lists known issues in Qt Creator version 2.1.0.
+    This section lists known issues in Qt Creator version 2.2.0.
     The development team is aware of them, and therefore, you do not need to
     report them as bugs.
 
@@ -10143,6 +10473,10 @@
     \section1 General Issues
 
     \list
+
+        \o If you change the Input Languages in Windows, Qt Creator might not
+           respond for 30 seconds. This is a known issue in the Advanced Text
+           Service of Microsoft Windows.
 
         \o Qt Creator uses SQLite for storing some of its settings. SQLite is
            known to have problems with certain NFS servers (most notably the
@@ -10191,8 +10525,9 @@
 
     \list
 
-        \o Debugging large applications on Symbian devices using the Symbian S^3
-           operating system might not work, because the TRK debug agent might not be able to
+        \o Debugging large applications on Symbian devices using the Symbian^3
+           operating system might not work, because the on-device debugging agent
+           might not be able to
            access memory when the operating system starts paging. This causes breakpoint
            handling and symbol resolution to fail. For more information, see
            \l{http://bugreports.qt.nokia.com/browse/QTCREATORBUG-2158}{QTCREATORBUG-2158}.
@@ -10218,8 +10553,7 @@
            by 'Wave \reg Systems' is installed and active (causing crashes in \c{vxvault.dll)}).
 
         \o Gdb may take long to load debugging symbols, especially from large
-           libraries like \c libQtWebKit. Starting the debugging module can
-           take up to several minutes without visible progress.
+           libraries.
 
         \o Setting breakpoints in code that is compiled into the binary more
            than once does not work.
@@ -10230,6 +10564,16 @@
 
     \endlist
 
+    \section1 Qt Quick Designer Issues
+
+    \list
+
+        \o  \QMLD uses external processes (QML Puppet) to render and preview
+            images and to collect data. Executing C++ code might cause the QML
+            Puppet to crash. If it crashes, an error message is displayed and
+            you can continue editing the QML file in the code editor.
+
+    \endlist
 */
 
 
@@ -10332,19 +10676,30 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-editor-external.html
+    \previouspage creator-mime-types.html
     \page creator-task-lists.html
     \nextpage creator-cli.html
 
-    \title Creating Task List Files
+    \title Showing Task List Files in the Build Issues Pane
 
-    You can load tasks from task lists to the \gui{Build Issues} pane. You can
-    either create the task lists manually or create scripts to generate them from
-    output of static code analysis tools, for example.
+    Code scanning and analysis tools create report files in ASCII format.
+    Usually, the report files consist of lines that contain a file name, a line
+    number, and an error message. A similar format is used for stack traces
+    obtained from crash reports. Traditionally, you would fix the errors by
+    manually navigating to them and correcting them, which is tedious.
 
+    Qt Creator makes this very easy by providing a way to load these files into
+    the \gui{Build Issues} pane. You can navigate to the corresponding source
+    code by clicking the error message. But first you must convert the files to
+    the \l{Task List File Format} by using conversion scripts that based on
+    standard text processing tools of the operating system.
+
+    In addition, you can generate task list files from code.
     For an example of a script that checks new lines of code and matches them
     against regular expressions to generate a task list, see \c{scripts\mytasks.pl}
     in the Qt Creator repository.
+
+    To open task list files, choose \gui{File} > \gui{Open}.
 
     \section1 Task List File Format
 
@@ -10409,11 +10764,11 @@
 
     \list
 
-        \o  \c {C:\qtcreator-2.1\bin>qtcreator -help}
+        \o  \c {C:\qtcreator\bin>qtcreator -help}
 
-        \o  \c {C:\qtcreator-2.1\bin>qtcreator C:\TextFinder\textfinder.cpp:100}
+        \o  \c {C:\qtcreator\bin>qtcreator C:\TextFinder\textfinder.cpp:100}
 
-        \o  \c {C:\qtcreator-2.1\bin>qtcreator C:\TextFinder\textfinder.cpp +100}
+        \o  \c {C:\qtcreator\bin>qtcreator C:\TextFinder\textfinder.cpp +100}
 
     \endlist
 
@@ -10488,5 +10843,144 @@
 
     \endtable
 
+
+    */
+
+
+    /*!
+    \contentspage index.html
+    \previouspage creator-editor-external.html
+    \page creator-mime-types.html
+    \nextpage creator-task-lists.html
+
+    \title Editing MIME Types
+
+    Qt Creator uses the
+    \l{http://en.wikipedia.org/wiki/Internet_media_type}{Internet media type}
+    (MIME type) of the file to determine which mode and editor to use for
+    opening the file. For example, Qt Creator opens C++ source and header files
+    in the C++ editor, and Qt widget based UI files (.ui) in \QD.
+
+    To identify the MIME type of a file, Qt Creator uses matching by pattern
+    and matching by contents. First, Qt Creator looks at the filename to check
+    whether it matches the patterns specified for any MIME type. If no match is
+    found, it checks the contents of the file for magic headers specified for the
+    file.
+
+    The magic headers can contain text strings or bytes. The type of the
+    header value, string or byte, determines how Qt Creator interprets the
+    value. Qt Creator searches for the value within a specified
+    range in the files and takes the priority of the magic header into account.
+    If you specify wide search ranges, openging files in Qt Creator might take
+    a long time. Therefore, you are advised to use the recommended values for
+    the range and priority of the magic header.
+
+    If your files do not match the predefined MIME types, you can edit the
+    MIME types to add filename extensions and magic headers. You cannot
+    add new MIME types, however.
+
+    To edit MIME types:
+
+    \list 1
+
+        \o  Select \gui {Tools > Options... > Environment > MIME Types}.
+
+            \image qtcreator-mime-types.png "MIME Types"
+
+        \o  In \gui {MIME Type}, select a MIME type.
+
+        \o  In \gui Patterns, add the filename extension for the type of files
+            that you want to identify as having this MIME type.
+
+        \o  Click \gui Add to add \gui {Magic Headers}.
+
+            \image qtcreator-mime-types-magic-header.png "Magic Header"
+
+        \o  In the \gui Value field, specify a text string or bytes that
+            appear in the files.
+
+        \o  In the \gui Type field, select the type of the value.
+
+        \note You are recommended not to change the range and priority, because
+        it might cause problems when opening files in Qt Creator.
+
+        \o  Click \gui OK.
+
+    \endlist
+
+    To revert all the changes you have made to the MIME type definitions,
+    select \gui {Reset All}.
+
+    \note If you now select \gui OK or \gui Apply, you permanently lose all
+    your own patterns and magic headers. The changes are reverted the next
+    time you start Qt Creator.
+
+    */
+
+
+    /*!
+    \contentspage index.html
+    \previouspage creator-debugging-qml.html
+    \page creator-troubleshooting-debugging.html
+    \nextpage creator-maemo-emulator.html
+
+    \title Troubleshooting Debugger
+
+    This section lists some typical problems that you might encounter while
+    debugging and solutions for them.
+
+   \section1 Debugger Does Not Hit Breakpoints
+
+    You might have created a release build that does not contain debug
+    information. A GNU Compiler Collection (GCC) debug build has the \c {-g}
+    option on the compiler command line. Check that this option is present in
+    the \gui {Compile Output} pane. If it is not, adjust your build settings
+    in the \gui {Projects} mode.
+
+    \section1 Debugger Does Not Work
+
+    If the debugger does not work properly, try the following:
+
+    \list 1
+
+        \o  Make sure you use at least Qt Creator 2.1.
+
+        \o  In the \gui Debug mode, select \gui {Windows > Views > Debugger
+            Log} to open the \gui {Debugger Log} view. Browse the contents of
+            the pane on the right hand side to find out what went wrong.
+            Always attach the contents of the pane to debugger-related
+            questions to the Qt Creator mailing list (qt-creator@trolltech.com)
+            or paste them to
+            \l{http://creator.pastebin.com}{creator.pastebin.com} before
+            asking questions in the IRC (on the #qt-creator channel at
+            FreeNode).
+
+    \endlist
+
+    \section1 Directly Displaying Pointer Variable Members
+
+    When you use the \gui {Locals and Watchers} view to inspect a pointer
+    variable and expand the variable tree item, another tree item level
+    is displayed. To directly display the members of the pointer variable,
+    select \gui {Dereference Pointers Automatically} in the context menu in the
+    \gui {Locals and Watchers} view.
+
+    \section1 Built-in Debugger Is Slow During Startup and Runtime
+
+    The Qt Creator for Windows installation packages install gdb from MinGW.
+    Unfortunately, gdb is quite slow on Windows. Qt Creator does not cause
+    this, as it interacts with gdb and adds custom dumpers for Qt types.
+
+    \note You can use Qt Creator with MSVC on Windows for debugging.
+
+    \section1 Debugger Displays <not in scope> Message
+
+    The message is created by the debugging helpers. Qt Creator posts an
+    expression to the gdb command line to invoke the debugging helpers.
+    The expression includes the address of the object to examine. This
+    address might be modified by gdb before the helper function is called. It
+    is unclear why and when this happens, but if it happens, the debugging
+    helpers operate on wrong data and come to wrong conclusions. Most likely,
+    they find garbage and declare the variable to be <not in scope>.
 
     */

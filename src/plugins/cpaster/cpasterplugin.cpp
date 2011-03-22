@@ -142,9 +142,6 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *error_m
     connect(m_fetchAction, SIGNAL(triggered()), this, SLOT(fetch()));
     cpContainer->addAction(command);
 
-    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
-            this, SLOT(updateActions()));
-    updateActions();
     return true;
 }
 
@@ -163,25 +160,19 @@ ExtensionSystem::IPlugin::ShutdownFlag CodepasterPlugin::aboutToShutdown()
     return SynchronousShutdown;
 }
 
-void CodepasterPlugin::updateActions()
-{
-    const IEditor* editor = EditorManager::instance()->currentEditor();
-    const BaseTextEditor *textEditor = qobject_cast<const BaseTextEditor *>(editor);
-    m_postEditorAction->setEnabled(textEditor != 0);
-}
-
 void CodepasterPlugin::postEditor()
 {
-    const IEditor* editor = EditorManager::instance()->currentEditor();
-    const BaseTextEditor *textEditor = qobject_cast<const BaseTextEditor *>(editor);
-    if (!textEditor)
-        return;
-
-    QString data = textEditor->selectedText();
-    if (data.isEmpty())
-        data = textEditor->contents();
-    if (!data.isEmpty())
-        post(data, textEditor->editorWidget()->mimeType());
+    QString data;
+    QString mimeType;
+    if (const IEditor* editor = EditorManager::instance()->currentEditor()) {
+        if (const BaseTextEditor *textEditor = qobject_cast<const BaseTextEditor *>(editor)) {
+            data = textEditor->selectedText();
+            if (data.isEmpty())
+                data = textEditor->contents();
+            mimeType = textEditor->editorWidget()->mimeType();
+        }
+    }
+    post(data, mimeType);
 }
 
 void CodepasterPlugin::postClipboard()
@@ -274,8 +265,7 @@ static inline QString filePrefixFromTitle(const QString &title)
 }
 
 // Return a temp file pattern with extension or not
-static inline QString tempFilePattern(const QString &prefix,
-                                      const QString &extension = QString())
+static inline QString tempFilePattern(const QString &prefix, const QString &extension)
 {
     // Get directory
     QString pattern = QDir::tempPath();
@@ -283,11 +273,8 @@ static inline QString tempFilePattern(const QString &prefix,
         pattern.append(QDir::separator());
     // Prefix, placeholder, extension
     pattern += prefix;
-    pattern += QLatin1String("_XXXXXX");
-    if (!extension.isEmpty()) {
-       pattern += QLatin1Char('.');
-       pattern += extension;
-    }
+    pattern += QLatin1String("_XXXXXX.");
+    pattern += extension;
     return pattern;
 }
 
@@ -322,29 +309,19 @@ void CodepasterPlugin::finishFetch(const QString &titleDescription,
         messageManager->printToOutputPane(tr("Empty snippet received for \"%1\".").arg(titleDescription), true);
         return;
     }
-    // Write the file out and do a mime type detection on the content. Note
-    // that for the initial detection, there must not be a suffix
-    // as we want mime type detection to trigger on the content and not on
-    // higher-prioritized suffixes.
-    const QString filePrefix = filePrefixFromTitle(titleDescription);
-    QString errorMessage;
-    TemporaryFilePtr tempFile = writeTemporaryFile(tempFilePattern(filePrefix), content, &errorMessage);
-    if (tempFile.isNull()) {
-        messageManager->printToOutputPane(errorMessage);
-        return;
-    }
     // If the mime type has a preferred suffix (cpp/h/patch...), use that for
     // the temporary file. This is to make it more convenient to "Save as"
     // for the user and also to be able to tell a patch or diff in the VCS plugins
     // by looking at the file name of FileManager::currentFile() without expensive checking.
     // Default to "txt".
     QString suffix;
-    if (const Core::MimeType mimeType = Core::ICore::instance()->mimeDatabase()->findByFile(QFileInfo(tempFile->fileName())))
+    if (const Core::MimeType mimeType = Core::ICore::instance()->mimeDatabase()->findByData(content.toUtf8()))
         suffix = mimeType.preferredSuffix();
     if (suffix.isEmpty())
          suffix = QLatin1String("txt");
-    // Write out with extension.
-    tempFile = writeTemporaryFile(tempFilePattern(filePrefix, suffix), content, &errorMessage);
+    const QString filePrefix = filePrefixFromTitle(titleDescription);
+    QString errorMessage;
+    TemporaryFilePtr tempFile = writeTemporaryFile(tempFilePattern(filePrefix, suffix), content, &errorMessage);
     if (tempFile.isNull()) {
         messageManager->printToOutputPane(errorMessage);
         return;

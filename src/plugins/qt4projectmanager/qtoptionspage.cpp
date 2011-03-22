@@ -39,10 +39,6 @@
 #include "qt4projectmanagerconstants.h"
 #include "qt4target.h"
 #include "qtversionmanager.h"
-#include "qmldumptool.h"
-#include "qmlobservertool.h"
-#include "qmldebugginglibrary.h"
-#include "debugginghelperbuildtask.h"
 
 #include <projectexplorer/abi.h>
 #include <projectexplorer/debugginghelper.h>
@@ -145,7 +141,7 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent, QList<QtVersion *> ver
 
     QWidget *versionInfoWidget = new QWidget();
     m_versionUi->setupUi(versionInfoWidget);
-    m_versionUi->qmakePath->setExpectedKind(Utils::PathChooser::File);
+    m_versionUi->qmakePath->setExpectedKind(Utils::PathChooser::ExistingCommand);
     m_versionUi->qmakePath->setPromptDialogTitle(tr("Select qmake Executable"));
     m_versionUi->s60SDKPath->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_versionUi->s60SDKPath->setPromptDialogTitle(tr("Select S60 SDK Root"));
@@ -439,20 +435,22 @@ void QtOptionsPageWidget::removeQtDir()
 
 void QtOptionsPageWidget::updateDebuggingHelperUi()
 {
-    QtVersion *version = currentVersion();
+    const QtVersion *version = currentVersion();
     const QTreeWidgetItem *currentItem = m_ui->qtdirList->currentItem();
 
     if (!version || !version->supportsBinaryDebuggingHelper()) {
         m_ui->debuggingHelperWidget->setVisible(false);
     } else {
-        bool canBuildQmlDumper = QmlDumpTool::canBuild(version);
-        bool canBuildQmlDebuggingLib = QmlDebuggingLibrary::canBuild(version);
-        bool canBuildQmlObserver = QmlObserverTool::canBuild(version);
+        const DebuggingHelperBuildTask::Tools availableTools = DebuggingHelperBuildTask::availableTools(version);
+        const bool canBuildGdbHelper = availableTools & DebuggingHelperBuildTask::GdbDebugging;
+        const bool canBuildQmlDumper = availableTools & DebuggingHelperBuildTask::QmlDump;
+        const bool canBuildQmlDebuggingLib = availableTools & DebuggingHelperBuildTask::QmlDebugging;
+        const bool canBuildQmlObserver = availableTools & DebuggingHelperBuildTask::QmlObserver;
 
-        bool hasGdbHelper = !version->gdbDebuggingHelperLibrary().isEmpty();
-        bool hasQmlDumper = version->hasQmlDump();
-        bool hasQmlDebuggingLib = version->hasQmlDebuggingLibrary();
-        bool hasQmlObserver = !version->qmlObserverTool().isEmpty();
+        const bool hasGdbHelper = !version->gdbDebuggingHelperLibrary().isEmpty();
+        const bool hasQmlDumper = version->hasQmlDump();
+        const bool hasQmlDebuggingLib = version->hasQmlDebuggingLibrary();
+        const bool hasQmlObserver = !version->qmlObserverTool().isEmpty();
 
         bool isBuildingGdbHelper = false;
         bool isBuildingQmlDumper = false;
@@ -495,11 +493,15 @@ void QtOptionsPageWidget::updateDebuggingHelperUi()
             gdbHelperText = QDir::toNativeSeparators(version->gdbDebuggingHelperLibrary());
             gdbHelperTextFlags = Qt::TextSelectableByMouse;
         } else {
-            gdbHelperText =  tr("<i>Not yet built.</i>");
+            if (canBuildGdbHelper) {
+                gdbHelperText =  tr("<i>Not yet built.</i>");
+            } else {
+                gdbHelperText =  tr("<i>Not needed.</i>");
+            }
         }
         m_debuggingHelperUi->gdbHelperStatus->setText(gdbHelperText);
         m_debuggingHelperUi->gdbHelperStatus->setTextInteractionFlags(gdbHelperTextFlags);
-        m_debuggingHelperUi->gdbHelperBuildButton->setEnabled(!isBuildingGdbHelper);
+        m_debuggingHelperUi->gdbHelperBuildButton->setEnabled(canBuildGdbHelper && !isBuildingGdbHelper);
 
         QString qmlDumpStatusText;
         Qt::TextInteractionFlags qmlDumpStatusTextFlags = Qt::NoTextInteraction;
@@ -535,7 +537,7 @@ void QtOptionsPageWidget::updateDebuggingHelperUi()
             if (qmlDebuggingLibStatusText != debugPath) {
                 if (!qmlDebuggingLibStatusText.isEmpty()
                         && !debugPath.isEmpty()) {
-                    qmlDebuggingLibStatusText += QLatin1String("\n");
+                    qmlDebuggingLibStatusText += QLatin1Char('\n');
                 }
                 qmlDebuggingLibStatusText += debugPath;
             }
@@ -592,7 +594,7 @@ void QtOptionsPageWidget::updateState()
     m_versionUi->nameEdit->setEnabled(enabled && !isAutodetected);
     m_versionUi->qmakePath->setEnabled(enabled && !isAutodetected);
     bool s60SDKPathEnabled = enabled &&
-                             (isAutodetected ? version->s60SDKDirectory().isEmpty() : true);
+                             (isAutodetected ? version->systemRoot().isEmpty() : true);
     m_versionUi->s60SDKPath->setEnabled(s60SDKPathEnabled);
 
     updateDebuggingHelperUi();
@@ -628,7 +630,7 @@ void QtOptionsPageWidget::showEnvironmentPage(QTreeWidgetItem *item)
 
     if (qtAbi.os() == ProjectExplorer::Abi::SymbianOS) {
         makeS60Visible(true);
-        m_versionUi->s60SDKPath->setPath(QDir::toNativeSeparators(m_versions.at(index)->s60SDKDirectory()));
+        m_versionUi->s60SDKPath->setPath(QDir::toNativeSeparators(m_versions.at(index)->systemRoot()));
         m_versionUi->sbsV2Path->setPath(m_versions.at(index)->sbsV2Directory());
         m_versionUi->sbsV2Path->setEnabled(m_versions.at(index)->isBuildWithSymbianSbsV2());
     }
@@ -776,8 +778,7 @@ void QtOptionsPageWidget::updateCurrentS60SDKDirectory()
     int currentItemIndex = indexForTreeItem(currentItem);
     if (currentItemIndex < 0)
         return;
-    m_versions[currentItemIndex]->setS60SDKDirectory(
-            QDir::fromNativeSeparators(m_versionUi->s60SDKPath->path()));
+    m_versions[currentItemIndex]->setSystemRoot(m_versionUi->s60SDKPath->path());
 }
 
 void QtOptionsPageWidget::updateCurrentSbsV2Directory()
@@ -787,8 +788,7 @@ void QtOptionsPageWidget::updateCurrentSbsV2Directory()
     int currentItemIndex = indexForTreeItem(currentItem);
     if (currentItemIndex < 0)
         return;
-    m_versions[currentItemIndex]->setSbsV2Directory(
-            QDir::fromNativeSeparators(m_versionUi->sbsV2Path->path()));
+    m_versions[currentItemIndex]->setSbsV2Directory(m_versionUi->sbsV2Path->path());
 }
 
 QList<QtVersion *> QtOptionsPageWidget::versions() const

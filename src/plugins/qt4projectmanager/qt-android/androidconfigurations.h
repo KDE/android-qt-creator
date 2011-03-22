@@ -49,6 +49,7 @@ public:
     QString NDKLocation;
     QString NDKToolchainVersion;
     QString AntLocation;
+    unsigned PartitionSize;
 };
 
 struct AndroidDevice{

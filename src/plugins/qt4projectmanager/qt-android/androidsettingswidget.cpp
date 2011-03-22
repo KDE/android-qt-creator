@@ -105,7 +105,10 @@ QString AndroidSettingsWidget::searchKeywords() const
         << ' ' << m_ui->NDKLocationLineEdit->text()
         << ' ' << m_ui->NDKToolchainVersionLabel->text()
         << ' ' << m_ui->AntLocationLabel->text()
-        << ' ' << m_ui->AntLocationLineEdit->text();
+        << ' ' << m_ui->AntLocationLineEdit->text()
+        << ' ' << m_ui->AVDManagerLabel->text()
+        << ' ' << m_ui->DataPartitionSizeLable->text()
+        << ' ' << m_ui->DataPartitionSizeSpinBox->text();
     rc.remove(QLatin1Char('&'));
     return rc;
 }
@@ -123,6 +126,7 @@ void AndroidSettingsWidget::initGui()
     else
         m_androidConfig.NDKLocation="";
     m_ui->AntLocationLineEdit->setText(m_androidConfig.AntLocation);
+    m_ui->DataPartitionSizeSpinBox->setValue(m_androidConfig.PartitionSize);
     m_ui->AVDTableView->setModel(&m_AVDModel);
     m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
     m_ui->AVDTableView->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
@@ -272,6 +276,11 @@ void AndroidSettingsWidget::avdActivated(QModelIndex index)
 {
     m_ui->AVDRemovePushButton->setEnabled(index.isValid());
     m_ui->AVDStartPushButton->setEnabled(index.isValid());
+}
+
+void AndroidSettingsWidget::DataPartitionSizeEditingFinished()
+{
+    m_androidConfig.PartitionSize=m_ui->DataPartitionSizeSpinBox->value();
 }
 
 } // namespace Internal

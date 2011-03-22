@@ -59,6 +59,10 @@ enum BreakpointType
     BreakpointAtThrow,
     BreakpointAtCatch,
     BreakpointAtMain,
+    BreakpointAtFork,
+    BreakpointAtExec,
+    BreakpointAtVFork,
+    BreakpointAtSysCall,
     Watchpoint
 };
 
@@ -107,6 +111,9 @@ public:
     int ignoreCount;         //!< Ignore count associated with breakpoint.
     int lineNumber;          //!< Line in source file.
     quint64 address;         //!< Address for watchpoints.
+    uint size;               //!< Size of watched area for watchpoints.
+    uint bitpos;             //!< Location of watched bitfield within watched area.
+    uint bitsize;            //!< Size of watched bitfield within watched area.
     int threadSpec;          //!< Thread specification.
     QString functionName;
     QString module;          //!< module for file name
@@ -128,7 +135,8 @@ public:
     QString fullName;       //!< Full file name acknowledged by the debugger engine.
     bool multiple;          //!< Happens in constructors/gdb.
     QByteArray extra;       //!< gdb: <PENDING>, <MULTIPLE>
-    int correctedLineNumber;
+    QList<quint64> addresses;//!< Extra addresses for templated code.
+    int correctedLineNumber; //!< Line number as seen by gdb.
 };
 
 typedef QList<BreakpointId> BreakpointIds;

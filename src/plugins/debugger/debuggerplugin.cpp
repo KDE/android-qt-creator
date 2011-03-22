@@ -486,13 +486,6 @@ public:
     bool acceptsDebuggerCommands() const { return false; }
 };
 
-static DebuggerEngine *dummyEngine()
-{
-    static DummyEngine dummy;
-    return &dummy;
-}
-
-
 ///////////////////////////////////////////////////////////////////////
 //
 // DebugMode
@@ -589,6 +582,7 @@ public:
     void connectEngine(DebuggerEngine *engine);
     void disconnectEngine() { connectEngine(0); }
     DebuggerEngine *currentEngine() const { return m_currentEngine; }
+    DebuggerEngine *dummyEngine();
 
 public slots:
     void writeSettings()
@@ -978,6 +972,7 @@ public slots:
         unsigned *enabledEngines, QString *errorMessage);
 
     DebuggerToolTipManager *toolTipManager() const { return m_toolTipManager; }
+    virtual QSharedPointer<GlobalDebuggerOptions> globalDebuggerOptions() const { return m_globalDebuggerOptions; }
 
 public:
     DebuggerMainWindow *m_mainWindow;
@@ -1058,10 +1053,14 @@ public:
     QStringList m_arguments;
     DebuggerToolTipManager *m_toolTipManager;
     CommonOptionsPage *m_commonOptionsPage;
+    DummyEngine *m_dummyEngine;
+    const QSharedPointer<GlobalDebuggerOptions> m_globalDebuggerOptions;
 };
 
 DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin) :
-    m_toolTipManager(new DebuggerToolTipManager(this))
+    m_toolTipManager(new DebuggerToolTipManager(this)),
+    m_dummyEngine(0),
+    m_globalDebuggerOptions(new GlobalDebuggerOptions)
 {
     qRegisterMetaType<WatchData>("WatchData");
     qRegisterMetaType<ContextData>("ContextData");
@@ -1118,14 +1117,23 @@ DebuggerPluginPrivate::~DebuggerPluginPrivate()
     delete m_debuggerSettings;
     m_debuggerSettings = 0;
 
-    delete m_mainWindow;
-    m_mainWindow = 0;
+    // Mainwindow will be deleted by debug mode.
 
     delete m_snapshotHandler;
     m_snapshotHandler = 0;
 
     delete m_breakHandler;
     m_breakHandler = 0;
+}
+
+DebuggerEngine *DebuggerPluginPrivate::dummyEngine()
+{
+    if (!m_dummyEngine) {
+        m_dummyEngine = new DummyEngine;
+        m_dummyEngine->setParent(this);
+        m_dummyEngine->setObjectName(_("DummyEngine"));
+    }
+    return m_dummyEngine;
 }
 
 DebuggerCore *debuggerCore()
@@ -2708,7 +2716,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
     dock = m_mainWindow->createDockWidget(CppLanguage, localsAndWatchers);
     dock->setProperty(DOCKWIDGET_DEFAULT_AREA, Qt::RightDockWidgetArea);
 
-    m_commonOptionsPage = new CommonOptionsPage;
+    m_commonOptionsPage = new CommonOptionsPage(m_globalDebuggerOptions);
     m_plugin->addAutoReleasedObject(m_commonOptionsPage);
 
     m_debuggerSettings->readSettings();
@@ -3063,6 +3071,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
         SLOT(onCurrentProjectChanged(ProjectExplorer::Project*)));
 
     QTC_ASSERT(m_coreSettings, /**/);
+    m_globalDebuggerOptions->fromSettings(m_coreSettings);
     m_watchersWindow->setVisible(false);
     m_returnWindow->setVisible(false);
 

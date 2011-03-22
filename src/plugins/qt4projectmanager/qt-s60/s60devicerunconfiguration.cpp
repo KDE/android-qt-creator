@@ -37,7 +37,6 @@
 #include "qt4project.h"
 #include "qt4target.h"
 #include "s60manager.h"
-#include "s60devices.h"
 #include "s60runconfigbluetoothstarter.h"
 #include "qt4projectmanagerconstants.h"
 #include "qtoutputformatter.h"
@@ -272,7 +271,7 @@ static inline QString executableFromPackageUnix(const QString &packageFileName)
 }
 
 // ABLD/Raptor: Return executable from device/EPOC
-static inline QString localExecutableFromDevice(const QtVersion *qtv,
+static inline QString localExecutableFromVersion(const QtVersion *qtv,
                                                 const QString &symbianTarget, /* udeb/urel */
                                                 const QString &targetName,
                                                 const ProjectExplorer::ToolChain *tc)
@@ -281,12 +280,11 @@ static inline QString localExecutableFromDevice(const QtVersion *qtv,
     if (!tc)
         return QString();
 
-            const S60Devices::Device device = S60Manager::instance()->deviceForQtVersion(qtv);
     QString localExecutable;
     QString platform = S60Manager::platform(tc);
     if (qtv->isBuildWithSymbianSbsV2() && platform == QLatin1String("gcce"))
         platform = "armv5";
-    QTextStream(&localExecutable) << device.epocRoot << "/epoc32/release/"
+    QTextStream(&localExecutable) << qtv->systemRoot() << "/epoc32/release/"
             << platform << '/' << symbianTarget << '/' << targetName << ".exe";
     return localExecutable;
 }
@@ -297,13 +295,8 @@ QString S60DeviceRunConfiguration::localExecutableFileName() const
     if (!ti.valid)
         return QString();
 
-    const ProjectExplorer::Abi hostAbi = ProjectExplorer::Abi::hostAbi();
-    if (hostAbi.os() == ProjectExplorer::Abi::LinuxOS) {
-        return executableFromPackageUnix(ti.buildDir + QLatin1Char('/') + ti.target + QLatin1String("_template.pkg"));
-    }
-
-    ProjectExplorer::ToolChain *tc = qt4Target()->activeBuildConfiguration()->toolChain();
-    return localExecutableFromDevice(qtVersion(), symbianTarget(), targetName(), tc);
+    ProjectExplorer::ToolChain *tc = target()->activeBuildConfiguration()->toolChain();
+    return localExecutableFromVersion(qtVersion(), symbianTarget(), targetName(), tc);
 }
 
 quint32 S60DeviceRunConfiguration::executableUid() const
@@ -529,7 +522,7 @@ ProjectExplorer::RunControl* S60DeviceDebugRunControlFactory::create(ProjectExpl
     const Debugger::DebuggerStartParameters startParameters = s60DebuggerStartParams(rc);
     const Debugger::ConfigurationCheck check = Debugger::checkDebugConfiguration(startParameters);
     if (!check) {
-        Core::ICore::instance()->showWarningWithOptions(tr("Debugger for Symbian Platform"),
+        Core::ICore::instance()->showWarningWithOptions(S60DeviceDebugRunControl::tr("Debugger for Symbian Platform"),
             check.errorMessage, check.errorDetailsString(), check.settingsCategory, check.settingsPage);
         return 0;
     }
@@ -538,7 +531,7 @@ ProjectExplorer::RunControl* S60DeviceDebugRunControlFactory::create(ProjectExpl
 
 QString S60DeviceDebugRunControlFactory::displayName() const
 {
-    return tr("Debug on Device");
+    return S60DeviceDebugRunControl::tr("Debug on Device");
 }
 
 ProjectExplorer::RunConfigWidget *S60DeviceDebugRunControlFactory::createConfigurationWidget(RunConfiguration* /*runConfiguration */)

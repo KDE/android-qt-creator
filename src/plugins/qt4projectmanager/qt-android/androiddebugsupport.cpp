@@ -42,9 +42,9 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     params.dumperLibrary = runConfig->dumperLib();
     params.startMode = AttachToRemote;
     params.executable = runConfig->androidTarget()->qt4Project()->rootProjectNode()->buildDir()+"/app_process";
-    qDebug()<<params.executable;
     params.debuggerCommand = runConfig->gdbCmd();
     params.remoteChannel = runConfig->remoteChannel();
+    params.displayName = runConfig->androidTarget()->packageName();
     params.solibSearchPath.clear();
     params.solibSearchPath.append(runConfig->activeQt4BuildConfiguration()->qtVersion()->sourcePath()+"/lib");
     QList<Qt4ProFileNode *> nodes = runConfig->androidTarget()->qt4Project()->allProFiles();
@@ -68,7 +68,9 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
       m_debuggingType(runConfig->debuggingType()),
       m_gdbServerPort(5039), m_qmlPort(-1)
 {
+#ifdef __GNUC__
 #warning FIXME Android m_gdbServerPort(5039)
+#endif
     connect(m_runControl->engine(), SIGNAL(requestRemoteSetup()), m_runner,
         SLOT(start()));
     connect(m_runControl, SIGNAL(finished()), m_runner,

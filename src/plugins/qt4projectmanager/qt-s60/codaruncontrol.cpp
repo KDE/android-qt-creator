@@ -117,10 +117,12 @@ bool CodaRunControl::setupLauncher()
     if (m_serialPort.length()) {
         // We get the port from SymbianDeviceManager
         appendMessage(tr("Connecting to '%1'...").arg(m_serialPort), NormalMessageFormat);
-        m_codaDevice = SymbianUtils::SymbianDeviceManager::instance()->getTcfPort(m_serialPort);
-
-        bool ok = m_codaDevice && m_codaDevice->device()->isOpen();
-        if (!ok) {
+        m_codaDevice = SymbianUtils::SymbianDeviceManager::instance()->getCodaDevice(m_serialPort);
+        if (m_codaDevice.isNull()) {
+            appendMessage(tr("Unable to create CODA connection. Please try again."), ErrorMessageFormat);
+            return false;
+        }
+        if (!m_codaDevice->device()->isOpen()) {
             appendMessage(tr("Could not open serial device: %1").arg(m_codaDevice->device()->errorString()), ErrorMessageFormat);
             return false;
         }
@@ -134,7 +136,7 @@ bool CodaRunControl::setupLauncher()
         m_codaDevice->sendSerialPing(false);
     } else {
         // For TCP we don't use device manager, we just set it up directly
-        m_codaDevice = QSharedPointer<Coda::CodaDevice>(new Coda::CodaDevice);
+        m_codaDevice = QSharedPointer<Coda::CodaDevice>(new Coda::CodaDevice, &QObject::deleteLater); // finishRunControl, which deletes m_codaDevice, can get called from within a coda callback, so need to use deleteLater
         connect(m_codaDevice.data(), SIGNAL(error(QString)), this, SLOT(slotError(QString)));
         connect(m_codaDevice.data(), SIGNAL(logMessage(QString)), this, SLOT(slotTrkLogMessage(QString)));
         connect(m_codaDevice.data(), SIGNAL(tcfEvent(Coda::CodaEvent)), this, SLOT(slotCodaEvent(Coda::CodaEvent)));
@@ -144,9 +146,8 @@ bool CodaRunControl::setupLauncher()
         codaSocket->connectToHost(m_address, m_port);
         m_state = StateConnecting;
         appendMessage(tr("Connecting to %1:%2...").arg(m_address).arg(m_port), NormalMessageFormat);
-
     }
-    QTimer::singleShot(4000, this, SLOT(checkForTimeout()));
+    QTimer::singleShot(5000, this, SLOT(checkForTimeout()));
     if (debug)
         m_codaDevice->setVerbose(debug);
 
@@ -185,6 +186,7 @@ void CodaRunControl::slotSerialPong(const QString &message)
 {
     if (debug > 1)
         qDebug() << "CODA serial pong:" << message;
+    handleConnected();
 }
 
 void CodaRunControl::slotCodaEvent(const CodaEvent &event)
@@ -193,13 +195,9 @@ void CodaRunControl::slotCodaEvent(const CodaEvent &event)
         qDebug() << "CODA event:" << "Type:" << event.type() << "Message:" << event.toString();
 
     switch (event.type()) {
-    case CodaEvent::LocatorHello: { // Commands accepted now
-        m_state = StateConnected;
-        appendMessage(tr("Connected."), NormalMessageFormat);
-        setProgress(maxProgress()*0.80);
-        initCommunication();
-    }
-    break;
+    case CodaEvent::LocatorHello:
+        handleConnected();
+        break;
     case CodaEvent::RunControlContextRemoved:
         handleContextRemoved(event);
         break;
@@ -227,6 +225,16 @@ void CodaRunControl::slotCodaEvent(const CodaEvent &event)
 void CodaRunControl::initCommunication()
 {
     m_codaDevice->sendLoggingAddListenerCommand(CodaCallback(this, &CodaRunControl::handleAddListener));
+}
+
+void CodaRunControl::handleConnected()
+{
+    if (m_state >= StateConnected)
+        return;
+    m_state = StateConnected;
+    appendMessage(tr("Connected."), NormalMessageFormat);
+    setProgress(maxProgress()*0.80);
+    initCommunication();
 }
 
 void CodaRunControl::handleContextRemoved(const CodaEvent &event)
@@ -333,7 +341,7 @@ void CodaRunControl::finishRunControl()
     m_runningProcessId.clear();
     if (m_codaDevice) {
         disconnect(m_codaDevice.data(), 0, this, 0);
-        SymbianUtils::SymbianDeviceManager::instance()->releaseTcfPort(m_codaDevice);
+        SymbianUtils::SymbianDeviceManager::instance()->releaseCodaDevice(m_codaDevice);
     }
     m_state = StateUninit;
     emit finished();
@@ -344,7 +352,7 @@ QMessageBox *CodaRunControl::createCodaWaitingMessageBox(QWidget *parent)
     const QString title  = tr("Waiting for CODA");
     const QString text = tr("Qt Creator is waiting for the CODA application to connect.<br>"
                             "Please make sure the application is running on "
-                            "your mobile phone and the right IP address and port are "
+                            "your mobile phone and the right IP address and/or port are "
                             "configured in the project settings.");
     QMessageBox *mb = new QMessageBox(QMessageBox::Information, title, text, QMessageBox::Cancel, parent);
     return mb;

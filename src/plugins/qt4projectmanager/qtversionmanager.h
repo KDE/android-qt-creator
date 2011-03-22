@@ -95,7 +95,8 @@ public:
     QtVersion();
     ~QtVersion();
 
-    bool isValid() const; //TOOD check that the dir exists and the name is non empty
+    bool isValid() const;
+    bool toolChainAvailable() const;
     QString invalidReason() const;
     QString description() const;
     bool isAutodetected() const { return m_isAutodetected; }
@@ -109,6 +110,7 @@ public:
     QString linguistCommand() const;
     QString qmlviewerCommand() const;
     QString systemRoot() const;
+    void setSystemRoot(const QString &);
 
     bool supportsTargetId(const QString &id) const;
     QSet<QString> supportedTargetIds() const;
@@ -132,8 +134,6 @@ public:
     // Returns the PREFIX, BINPREFIX, DOCPREFIX and similar information
     QHash<QString,QString> versionInfo() const;
 
-    QString s60SDKDirectory() const;
-    void setS60SDKDirectory(const QString &directory);
     QString sbsV2Directory() const;
     void setSbsV2Directory(const QString &directory);
 
@@ -213,7 +213,6 @@ private:
     mutable bool m_hasQmlDebuggingLibrary; // controlled by m_versionInfoUpdate
     mutable bool m_hasQmlObserver;     // controlled by m_versionInfoUpToDate
 
-    QString m_s60SDKDirectory;
     QString m_sbsV2Directory;
     mutable QString m_systemRoot;
 
@@ -297,7 +296,7 @@ signals:
     void updateExamples(QString, QString, QString);
 
 private slots:
-    void updateExamples();
+    void updateSettings();
 private:
     // This function is really simplistic...
     static bool equals(QtVersion *a, QtVersion *b);

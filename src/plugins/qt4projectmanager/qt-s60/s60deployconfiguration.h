@@ -63,6 +63,8 @@ public:
         CommunicationCodaTcpConnection
     };
 
+    typedef QPair<char, int> DeviceDrive;
+
     explicit S60DeployConfiguration(ProjectExplorer::Target *parent);
     virtual ~S60DeployConfiguration();
 
@@ -92,6 +94,9 @@ public:
     void setCommunicationChannel(CommunicationChannel channel);
     S60DeployConfiguration::CommunicationChannel communicationChannel() const;
 
+    void setAvailableDeviceDrives(QList<DeviceDrive> drives);
+    const QList<DeviceDrive> &availableDeviceDrives() const;
+
     QStringList signedPackages() const;
     QStringList packageFileNamesWithTargetInfo() const;
     QStringList packageTemplateFileNames() const;
@@ -107,6 +112,8 @@ signals:
     void communicationChannelChanged();
     void deviceAddressChanged();
     void devicePortChanged();
+    void availableDeviceDrivesChanged();
+    void installationDriveChanged();
 
 private slots:
     void updateActiveBuildConfiguration(ProjectExplorer::BuildConfiguration *buildConfiguration);
@@ -124,6 +131,7 @@ private:
     QString createPackageName(const QString &baseName) const;
     bool isDebug() const;
     bool isStaticLibrary(const Qt4ProFileNode &projectNode) const;
+    bool hasSisPackage(const Qt4ProFileNode &projectNode) const;
 
 private:
     ProjectExplorer::BuildConfiguration *m_activeBuildConfiguration;
@@ -134,6 +142,8 @@ private:
     QString m_deviceAddress;
     QString m_devicePort;
     CommunicationChannel m_communicationChannel;
+
+    QList<DeviceDrive> m_availableDeviceDrives;
 };
 
 class S60DeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory

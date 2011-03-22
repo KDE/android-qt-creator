@@ -40,6 +40,7 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/manhattanstyle.h>
+#include <utils/qtcassert.h>
 
 #include <projectexplorer/projectexplorer.h>
 
@@ -53,13 +54,90 @@ using namespace ProjectExplorer;
 namespace Debugger {
 namespace Internal {
 
+CommonOptionsPageWidget::CommonOptionsPageWidget(const QSharedPointer<Utils::SavedActionSet> &group, QWidget *parent) :
+    QWidget(parent), m_group(group)
+{
+    m_ui.setupUi(this);
+    m_group->clear();
+
+    m_group->insert(debuggerCore()->action(ListSourceFiles),
+        m_ui.checkBoxListSourceFiles);
+    m_group->insert(debuggerCore()->action(UseAlternatingRowColors),
+        m_ui.checkBoxUseAlternatingRowColors);
+    m_group->insert(debuggerCore()->action(UseToolTipsInMainEditor),
+        m_ui.checkBoxUseToolTipsInMainEditor);
+    m_group->insert(debuggerCore()->action(CloseBuffersOnExit),
+        m_ui.checkBoxCloseBuffersOnExit);
+    m_group->insert(debuggerCore()->action(SwitchModeOnExit),
+        m_ui.checkBoxSwitchModeOnExit);
+    m_group->insert(debuggerCore()->action(AutoDerefPointers), 0);
+    m_group->insert(debuggerCore()->action(UseToolTipsInLocalsView), 0);
+    m_group->insert(debuggerCore()->action(UseToolTipsInBreakpointsView), 0);
+    m_group->insert(debuggerCore()->action(UseAddressInBreakpointsView), 0);
+    m_group->insert(debuggerCore()->action(UseAddressInStackView), 0);
+    m_group->insert(debuggerCore()->action(MaximalStackDepth),
+        m_ui.spinBoxMaximalStackDepth);
+    m_group->insert(debuggerCore()->action(ShowStdNamespace), 0);
+    m_group->insert(debuggerCore()->action(ShowQtNamespace), 0);
+    m_group->insert(debuggerCore()->action(SortStructMembers), 0);
+    m_group->insert(debuggerCore()->action(LogTimeStamps), 0);
+    m_group->insert(debuggerCore()->action(VerboseLog), 0);
+    m_group->insert(debuggerCore()->action(BreakOnThrow), 0);
+    m_group->insert(debuggerCore()->action(BreakOnCatch), 0);
+#ifdef Q_OS_WIN
+    Utils::SavedAction *registerAction = debuggerCore()->action(RegisterForPostMortem);
+    m_group->insert(registerAction,
+        m_ui.checkBoxRegisterForPostMortem);
+    connect(registerAction, SIGNAL(toggled(bool)),
+            m_ui.checkBoxRegisterForPostMortem, SLOT(setChecked(bool)));
+#else
+    m_ui.checkBoxRegisterForPostMortem->setVisible(false);
+#endif
+}
+
+QString CommonOptionsPageWidget::searchKeyWords() const
+{
+    QString rc;
+    const QLatin1Char sep(' ');
+    QTextStream(&rc)
+            << sep << m_ui.checkBoxUseAlternatingRowColors->text()
+            << sep << m_ui.checkBoxUseToolTipsInMainEditor->text()
+            << sep << m_ui.checkBoxListSourceFiles->text()
+#ifdef Q_OS_WIN
+            << sep << m_ui.checkBoxRegisterForPostMortem->text()
+#endif
+            << sep << m_ui.checkBoxCloseBuffersOnExit->text()
+            << sep << m_ui.checkBoxSwitchModeOnExit->text()
+            << sep << m_ui.labelMaximalStackDepth->text()
+               ;
+    rc.remove(QLatin1Char('&'));
+    return rc;
+}
+
+GlobalDebuggerOptions CommonOptionsPageWidget::globalOptions() const
+{
+    GlobalDebuggerOptions o;
+    o.sourcePathMap = m_ui.sourcesMappingWidget->sourcePathMap();
+    return o;
+}
+
+void CommonOptionsPageWidget::setGlobalOptions(const GlobalDebuggerOptions &go)
+{
+    m_ui.sourcesMappingWidget->setSourcePathMap(go.sourcePathMap);
+}
+
 ///////////////////////////////////////////////////////////////////////
 //
 // CommonOptionsPage
 //
 ///////////////////////////////////////////////////////////////////////
 
-CommonOptionsPage::CommonOptionsPage()
+CommonOptionsPage::CommonOptionsPage(const QSharedPointer<GlobalDebuggerOptions> &go) :
+    m_options(go)
+{
+}
+
+CommonOptionsPage::~CommonOptionsPage()
 {
 }
 
@@ -88,73 +166,33 @@ QIcon CommonOptionsPage::categoryIcon() const
 
 void CommonOptionsPage::apply()
 {
-    m_group.apply(ICore::instance()->settings());
+    QTC_ASSERT(!m_widget.isNull() && !m_group.isNull(), return; )
+
+    QSettings *settings = ICore::instance()->settings();
+    m_group->apply(settings);
+
+    const GlobalDebuggerOptions newGlobalOptions = m_widget->globalOptions();
+    if (newGlobalOptions != *m_options) {
+        *m_options = newGlobalOptions;
+        m_options->toSettings(settings);
+    }
 }
 
 void CommonOptionsPage::finish()
 {
-    m_group.finish();
+    if (!m_group.isNull())
+        m_group->finish();
 }
 
 QWidget *CommonOptionsPage::createPage(QWidget *parent)
 {
-    QWidget *w = new QWidget(parent);
-    m_ui.setupUi(w);
-    m_group.clear();
-
-    m_group.insert(debuggerCore()->action(ListSourceFiles),
-        m_ui.checkBoxListSourceFiles);
-    m_group.insert(debuggerCore()->action(UseAlternatingRowColors),
-        m_ui.checkBoxUseAlternatingRowColors);
-    m_group.insert(debuggerCore()->action(UseToolTipsInMainEditor),
-        m_ui.checkBoxUseToolTipsInMainEditor);
-    m_group.insert(debuggerCore()->action(CloseBuffersOnExit),
-        m_ui.checkBoxCloseBuffersOnExit);
-    m_group.insert(debuggerCore()->action(SwitchModeOnExit),
-        m_ui.checkBoxSwitchModeOnExit);
-    m_group.insert(debuggerCore()->action(AutoDerefPointers), 0);
-    m_group.insert(debuggerCore()->action(UseToolTipsInLocalsView), 0);
-    m_group.insert(debuggerCore()->action(UseToolTipsInBreakpointsView), 0);
-    m_group.insert(debuggerCore()->action(UseAddressInBreakpointsView), 0);
-    m_group.insert(debuggerCore()->action(UseAddressInStackView), 0);
-    m_group.insert(debuggerCore()->action(MaximalStackDepth),
-        m_ui.spinBoxMaximalStackDepth);
-    m_group.insert(debuggerCore()->action(ShowStdNamespace), 0);
-    m_group.insert(debuggerCore()->action(ShowQtNamespace), 0);
-    m_group.insert(debuggerCore()->action(SortStructMembers), 0);
-    m_group.insert(debuggerCore()->action(LogTimeStamps), 0);
-    m_group.insert(debuggerCore()->action(VerboseLog), 0);
-    m_group.insert(debuggerCore()->action(BreakOnThrow), 0);
-    m_group.insert(debuggerCore()->action(BreakOnCatch), 0);
-    m_group.insert(debuggerCore()->action(QtSourcesLocation),
-        m_ui.qtSourcesChooser);
-#ifdef Q_OS_WIN
-    Utils::SavedAction *registerAction = debuggerCore()->action(RegisterForPostMortem);
-    m_group.insert(registerAction,
-        m_ui.checkBoxRegisterForPostMortem);
-    connect(registerAction, SIGNAL(toggled(bool)),
-            m_ui.checkBoxRegisterForPostMortem, SLOT(setChecked(bool)));
-#endif
-
-    if (m_searchKeywords.isEmpty()) {
-        QLatin1Char sep(' ');
-        QTextStream(&m_searchKeywords)
-                << sep << m_ui.checkBoxUseAlternatingRowColors->text()
-                << sep << m_ui.checkBoxUseToolTipsInMainEditor->text()
-                << sep << m_ui.checkBoxListSourceFiles->text()
-#ifdef Q_OS_WIN
-                << sep << m_ui.checkBoxRegisterForPostMortem->text()
-#endif
-                << sep << m_ui.checkBoxCloseBuffersOnExit->text()
-                << sep << m_ui.checkBoxSwitchModeOnExit->text()
-                << sep << m_ui.labelMaximalStackDepth->text()
-                   ;
-        m_searchKeywords.remove(QLatin1Char('&'));
-    }
-#ifndef Q_OS_WIN
-    m_ui.checkBoxRegisterForPostMortem->setVisible(false);
-#endif
-    return w;
+    if (m_group.isNull())
+        m_group = QSharedPointer<Utils::SavedActionSet>(new Utils::SavedActionSet);
+    m_widget = new CommonOptionsPageWidget(m_group, parent);
+    m_widget->setGlobalOptions(*m_options);
+    if (m_searchKeywords.isEmpty())
+        m_searchKeywords = m_widget->searchKeyWords();
+    return m_widget;
 }
 
 bool CommonOptionsPage::matches(const QString &s) const
@@ -181,7 +219,7 @@ QString DebuggingHelperOptionPage::id() const
 
 QString DebuggingHelperOptionPage::displayName() const
 {
-    return tr("Debugging Helper");
+    return QCoreApplication::translate("Debugger", "Debugging Helper");
 }
 
 QString DebuggingHelperOptionPage::category() const
@@ -215,7 +253,8 @@ QWidget *DebuggingHelperOptionPage::createPage(QWidget *parent)
     m_ui.setupUi(w);
 
     m_ui.dumperLocationChooser->setExpectedKind(Utils::PathChooser::Command);
-    m_ui.dumperLocationChooser->setPromptDialogTitle(tr("Choose DebuggingHelper Location"));
+    m_ui.dumperLocationChooser->setPromptDialogTitle(QCoreApplication::translate("Debugger",
+                                                                                 "Choose DebuggingHelper Location"));
     m_ui.dumperLocationChooser->setInitialBrowsePathBackup(
         ICore::instance()->resourcePath() + "../../lib");
 
@@ -242,7 +281,7 @@ QWidget *DebuggingHelperOptionPage::createPage(QWidget *parent)
     cmd = am->registerAction(m_dumpLogAction,
         DUMP_LOG, globalcontext);
     //cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+D,Ctrl+L")));
-    cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+F11")));
+    cmd->setDefaultKeySequence(QKeySequence(QCoreApplication::translate("Debugger", "Ctrl+Shift+F11")));
     mdebug->addAction(cmd);
 #endif
 #endif

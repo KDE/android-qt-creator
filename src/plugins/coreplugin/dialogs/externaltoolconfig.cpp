@@ -37,6 +37,7 @@
 #include <utils/qtcassert.h>
 
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/variablechooser.h>
 
 #include <QtCore/QTextStream>
 #include <QtCore/QFile>
@@ -107,7 +108,9 @@ QVariant ExternalToolModel::data(const QString &category, int role) const
     switch (role) {
     case Qt::DisplayRole:
     case Qt::EditRole:
-        return category.isEmpty() ? tr("External Tools Menu") : category;
+        return category.isEmpty() ? tr("Uncategorized") : category;
+    case Qt::ToolTipRole:
+        return category.isEmpty() ? tr("Tools that will appear directly under the External Tools menu.") : QVariant();
     default:
         break;
     }
@@ -252,8 +255,11 @@ bool ExternalToolModel::setData(const QModelIndex &modelIndex, const QVariant &v
             categories.append(string);
             qSort(categories);
             int newIndex = categories.indexOf(string);
-            if (newIndex != previousIndex)
-                beginMoveRows(QModelIndex(), previousIndex, previousIndex, QModelIndex(), newIndex);
+            if (newIndex != previousIndex) {
+                // we have same parent so we have to do special stuff for beginMoveRows...
+                int beginMoveRowsSpecialIndex = (previousIndex < newIndex ? newIndex + 1 : newIndex);
+                beginMoveRows(QModelIndex(), previousIndex, previousIndex, QModelIndex(), beginMoveRowsSpecialIndex);
+            }
             QList<ExternalTool *> items = m_tools.take(category);
             m_tools.insert(string, items);
             if (newIndex != previousIndex)
@@ -393,6 +399,11 @@ ExternalToolConfig::ExternalToolConfig(QWidget *parent) :
     connect(ui->toolTree->selectionModel(), SIGNAL(currentChanged(QModelIndex,QModelIndex)),
             this, SLOT(handleCurrentChanged(QModelIndex,QModelIndex)));
 
+    ui->executable->lineEdit()->setProperty(Constants::VARIABLE_SUPPORT_PROPERTY, true);
+    ui->arguments->setProperty(Constants::VARIABLE_SUPPORT_PROPERTY, true);
+    ui->workingDirectory->lineEdit()->setProperty(Constants::VARIABLE_SUPPORT_PROPERTY, true);
+    ui->inputText->setProperty(Constants::VARIABLE_SUPPORT_PROPERTY, true);
+
     connect(ui->description, SIGNAL(editingFinished()), this, SLOT(updateCurrentItem()));
     connect(ui->executable, SIGNAL(editingFinished()), this, SLOT(updateCurrentItem()));
     connect(ui->executable, SIGNAL(browsingFinished()), this, SLOT(updateCurrentItem()));
@@ -405,17 +416,20 @@ ExternalToolConfig::ExternalToolConfig(QWidget *parent) :
     connect(ui->inputText, SIGNAL(textChanged()), this, SLOT(updateCurrentItem()));
 
     connect(ui->revertButton, SIGNAL(clicked()), this, SLOT(revertCurrentItem()));
-    connect(ui->addButton, SIGNAL(clicked()), this, SLOT(add()));
     connect(ui->removeButton, SIGNAL(clicked()), this, SLOT(removeTool()));
 
     QMenu *menu = new QMenu(ui->addButton);
     ui->addButton->setMenu(menu);
+    QAction *addTool = new QAction(tr("Add Tool"), this);
+    menu->addAction(addTool);
+    connect(addTool, SIGNAL(triggered()), this, SLOT(addTool()));
     QAction *addCategory = new QAction(tr("Add Category"), this);
     menu->addAction(addCategory);
     connect(addCategory, SIGNAL(triggered()), this, SLOT(addCategory()));
 
     showInfoForItem(QModelIndex());
-//    updateButtons(ui->toolTree->currentItem());
+
+    new VariableChooser(this);
 }
 
 ExternalToolConfig::~ExternalToolConfig()
@@ -449,8 +463,8 @@ void ExternalToolConfig::setTools(const QMap<QString, QList<ExternalTool *> > &t
             itemCopy.append(new ExternalTool(tool));
         toolsCopy.insert(it.key(), itemCopy);
     }
-    if (!toolsCopy.contains(QLatin1String("")))
-        toolsCopy.insert(QLatin1String(""), QList<ExternalTool *>());
+    if (!toolsCopy.contains(QString("")))
+        toolsCopy.insert(QString(""), QList<ExternalTool *>());
     m_model->setTools(toolsCopy);
     ui->toolTree->expandAll();
 }
@@ -554,13 +568,11 @@ void ExternalToolConfig::revertCurrentItem()
     showInfoForItem(index);
 }
 
-void ExternalToolConfig::add()
+void ExternalToolConfig::addTool()
 {
     QModelIndex currentIndex = ui->toolTree->selectionModel()->currentIndex();
-    if (!currentIndex.isValid()) {
-        addCategory();
-        return;
-    }
+    if (!currentIndex.isValid()) // default to Uncategorized
+        currentIndex = m_model->index(0, 0);
     QModelIndex index = m_model->addTool(currentIndex);
     ui->toolTree->selectionModel()->setCurrentIndex(index, QItemSelectionModel::Clear);
     ui->toolTree->selectionModel()->setCurrentIndex(index, QItemSelectionModel::SelectCurrent);

@@ -84,6 +84,42 @@ static QString stateToString(BreakpointState state)
     return BreakHandler::tr("<invalid state>");
 }
 
+static QString msgBreakpointAtSpecialFunc(const char *func)
+{
+    return BreakHandler::tr("Breakpoint at \"%1\"").arg(QString::fromAscii(func));
+}
+
+static QString typeToString(BreakpointType type)
+{
+    switch (type) {
+        case BreakpointByFileAndLine:
+            return BreakHandler::tr("Breakpoint by File and Line");
+        case BreakpointByFunction:
+            return BreakHandler::tr("Breakpoint by Function");
+        case BreakpointByAddress:
+            return BreakHandler::tr("Breakpoint by Address");
+        case BreakpointAtThrow:
+            return msgBreakpointAtSpecialFunc("throw");
+        case BreakpointAtCatch:
+            return msgBreakpointAtSpecialFunc("catch");
+        case BreakpointAtFork:
+            return msgBreakpointAtSpecialFunc("fork");
+        case BreakpointAtExec:
+            return msgBreakpointAtSpecialFunc("exec");
+        case BreakpointAtVFork:
+            return msgBreakpointAtSpecialFunc("vfork");
+        case BreakpointAtSysCall:
+            return msgBreakpointAtSpecialFunc("syscall");
+        case BreakpointAtMain:
+            return BreakHandler::tr("Breakpoint at Function \"main()\"");
+        case Watchpoint:
+            return BreakHandler::tr("Watchpoint");
+        case UnknownType:
+            break;
+    }
+    return BreakHandler::tr("Unknown Breakpoint Type");
+}
+
 BreakHandler::BreakHandler()
   : m_syncTimerId(-1)
 {}
@@ -240,31 +276,16 @@ const BreakpointParameters &BreakHandler::breakpointData(BreakpointId id) const
     return it->data;
 }
 
-BreakpointId BreakHandler::findWatchpointByAddress(quint64 address) const
+BreakpointId BreakHandler::findWatchpoint(const BreakpointParameters &data) const
 {
     ConstIterator it = m_storage.constBegin(), et = m_storage.constEnd();
     for ( ; it != et; ++it)
-        if (it->data.isWatchpoint() && it->data.address == address)
+        if (it->data.isWatchpoint()
+                && it->data.address == data.address
+                && it->data.size == data.size
+                && it->data.bitpos == data.bitpos)
             return it.key();
     return BreakpointId();
-}
-
-void BreakHandler::setWatchpointByAddress(quint64 address)
-{
-    const int id = findWatchpointByAddress(address);
-    if (id) {
-        qDebug() << "WATCHPOINT EXISTS";
-        //   removeBreakpoint(index);
-        return;
-    }
-    BreakpointParameters data(Watchpoint);
-    data.address = address;
-    appendBreakpoint(data);
-}
-
-bool BreakHandler::hasWatchpointAt(quint64 address) const
-{
-    return findWatchpointByAddress(address);
 }
 
 void BreakHandler::saveBreakpoints()
@@ -486,12 +507,16 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
                     return response.functionName;
                 if (!data.functionName.isEmpty())
                     return data.functionName;
-                if (data.type == BreakpointAtMain)
-                    return tr("Breakpoint at \"main\"");
-                if (data.type == BreakpointAtCatch)
-                    return tr("Break when catching exceptions");
-                if (data.type == BreakpointAtThrow)
-                    return tr("Break when throwing exceptions");
+                if (data.type == BreakpointAtMain
+                        || data.type == BreakpointAtThrow
+                        || data.type == BreakpointAtCatch
+                        || data.type == BreakpointAtFork
+                        || data.type == BreakpointAtExec
+                        || data.type == BreakpointAtVFork
+                        || data.type == BreakpointAtSysCall)
+                    return typeToString(data.type);
+                if (data.type == Watchpoint)
+                    return tr("Watchpoint at 0x%1").arg(data.address, 0, 16);
                 return empty;
             }
             break;
@@ -756,6 +781,7 @@ void BreakHandler::setState(BreakpointId id, BreakpointState state)
     }
 
     it->state = state;
+    layoutChanged();
 }
 
 void BreakHandler::notifyBreakpointChangeAfterInsertNeeded(BreakpointId id)
@@ -1043,26 +1069,29 @@ bool BreakHandler::needsChange(BreakpointId id) const
     return it->needsChange();
 }
 
-void BreakHandler::setResponse(BreakpointId id, const BreakpointResponse &response, bool takeOver)
+void BreakHandler::setResponse(BreakpointId id,
+    const BreakpointResponse &response, bool takeOver)
 {
     Iterator it = m_storage.find(id);
     QTC_ASSERT(it != m_storage.end(), return);
     BreakpointItem &item = it.value();
     item.response = response;
     item.destroyMarker();
-    // Take over corrected values from response
+    // Take over corrected values from response.
     if (takeOver) {
         if (item.data.type == BreakpointByFileAndLine
             && response.correctedLineNumber > 0)
             item.data.lineNumber = response.correctedLineNumber;
-        if ((item.data.type == BreakpointByFileAndLine || item.data.type == BreakpointByFunction)
-            && !response.module.isEmpty())
+        if ((item.data.type == BreakpointByFileAndLine
+                    || item.data.type == BreakpointByFunction)
+                && !response.module.isEmpty())
             item.data.module = response.module;
     }
     updateMarker(id);
 }
 
-void BreakHandler::setBreakpointData(BreakpointId id, const BreakpointParameters &data)
+void BreakHandler::setBreakpointData(BreakpointId id,
+    const BreakpointParameters &data)
 {
     Iterator it = m_storage.find(id);
     QTC_ASSERT(it != m_storage.end(), return);
@@ -1174,35 +1203,6 @@ QIcon BreakHandler::BreakpointItem::icon() const
 
 QString BreakHandler::BreakpointItem::toToolTip() const
 {
-    QString t;
-
-    switch (data.type) {
-        case BreakpointByFileAndLine:
-            t = tr("Breakpoint by File and Line");
-            break;
-        case BreakpointByFunction:
-            t = tr("Breakpoint by Function");
-            break;
-        case BreakpointByAddress:
-            t = tr("Breakpoint by Address");
-            break;
-        case BreakpointAtThrow:
-            t = tr("Breakpoint at \"throw\"");
-            break;
-        case BreakpointAtCatch:
-            t = tr("Breakpoint at \"catch\"");
-            break;
-        case BreakpointAtMain:
-            t = tr("Breakpoint at Function \"main()\"");
-            break;
-        case Watchpoint:
-            t = tr("Watchpoint");
-            break;
-        case UnknownType:
-            t = tr("Unknown Breakpoint Type");
-            break;
-    }
-
     QString rc;
     QTextStream str(&rc);
     str << "<html><body><table>"
@@ -1221,7 +1221,7 @@ QString BreakHandler::BreakpointItem::toToolTip() const
             << "</td><td>" << response.number << "</td></tr>";
     }
     str << "<tr><td>" << tr("Breakpoint Type:")
-        << "</td><td>" << t << "</td></tr>";
+        << "</td><td>" << typeToString(data.type) << "</td></tr>";
     if (!response.extra.isEmpty()) {
         str << "<tr><td>" << tr("Extra Information:")
             << "</td><td>" << response.extra << "</td></tr>";    }
@@ -1264,17 +1264,27 @@ QString BreakHandler::BreakpointItem::toToolTip() const
     formatAddress(str, data.address);
     str << "</td><td>";
     formatAddress(str, response.address);
+    str << "</td></tr>";
+    if (response.multiple) {
+        str << "<tr><td>" << tr("Multiple Addresses:")
+            << "</td><td>";
+        foreach (quint64 address, response.addresses) {
+            formatAddress(str, address);
+            str << " ";
+        }
+        str << "</td></tr>";
+    }
     if (!data.command.isEmpty() || !response.command.isEmpty()) {
-        str << "</td></tr>"
-            << "<tr><td>" << tr("Command:")
+        str << "<tr><td>" << tr("Command:")
             << "</td><td>" << data.command
-            << "</td><td>" << response.command<< "</td></tr>";
+            << "</td><td>" << response.command
+            << "</td></tr>";
     }
     if (!data.condition.isEmpty() || !response.condition.isEmpty()) {
-        str << "</td></tr>"
-            << "<tr><td>" << tr("Condition:")
+        str << "<tr><td>" << tr("Condition:")
             << "</td><td>" << data.condition
-            << "</td><td>" << response.condition << "</td></tr>";
+            << "</td><td>" << response.condition
+            << "</td></tr>";
     }
     if (data.ignoreCount || response.ignoreCount) {
         str << "<tr><td>" << tr("Ignore Count:") << "</td><td>";
@@ -1283,10 +1293,10 @@ QString BreakHandler::BreakpointItem::toToolTip() const
         str << "</td><td>";
         if (response.ignoreCount)
             str << response.ignoreCount;
+        str << "</td></tr>";
     }
     if (data.threadSpec >= 0 || response.threadSpec >= 0) {
-        str << "</td></tr>"
-            << "<tr><td>" << tr("Thread Specification:")
+        str << "<tr><td>" << tr("Thread Specification:")
             << "</td><td>";
         if (data.threadSpec >= 0)
             str << data.threadSpec;

@@ -244,6 +244,17 @@ void FormEditorWidget::updateActions()
     }
 }
 
+
+void FormEditorWidget::resetView()
+{
+    setRootItemRect(QRectF());
+}
+
+void FormEditorWidget::centerScene()
+{
+    m_graphicsView->centerOn(rootItemRect().center());
+}
+
 ZoomAction *FormEditorWidget::zoomAction() const
 {
     return m_zoomAction.data();
@@ -327,7 +338,7 @@ QString FormEditorWidget::contextHelpId() const
     QString helpId;
     if (!nodes.isEmpty()) {
         helpId = nodes.first().type();
-        helpId.replace("Qt/", "QML.");
+        helpId.replace("QtQuick", "QML");
     }
 
     return helpId;

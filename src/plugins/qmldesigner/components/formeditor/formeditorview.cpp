@@ -147,6 +147,8 @@ void FormEditorView::modelAboutToBeDetached(Model *model)
     m_dragTool->clear();
     m_scene->clearFormEditorItems();
     m_formEditorWidget->updateActions();
+    m_formEditorWidget->resetView();
+    scene()->resetScene();
 
     QmlModelView::modelAboutToBeDetached(model);
 }
@@ -288,6 +290,9 @@ void FormEditorView::changeToMoveTool()
     if (m_currentTool == m_moveTool)
         return;
 
+    if (!isMoveToolAvailable())
+        return;
+
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
     setCursor(Qt::SizeAllCursor);
@@ -315,6 +320,9 @@ void FormEditorView::changeToDragTool()
 void FormEditorView::changeToMoveTool(const QPointF &beginPoint)
 {
     if (m_currentTool == m_moveTool)
+        return;
+
+    if (!isMoveToolAvailable())
         return;
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
@@ -451,6 +459,8 @@ void FormEditorView::instancesCompleted(const QVector<ModelNode> &completedNodeL
         if (qmlItemNode.isValid() && scene()->hasItemForQmlItemNode(qmlItemNode)) {
             scene()->synchronizeParent(qmlItemNode);
             itemNodeList.append(scene()->itemForQmlItemNode(qmlItemNode));
+            if (qmlItemNode.isRootModelNode())
+                m_formEditorWidget->centerScene();
         }
     }
     currentTool()->instancesCompleted(itemNodeList);
@@ -594,6 +604,14 @@ void FormEditorView::updateGraphicsIndicators()
 void FormEditorView::setSelectOnlyContentItemsAction(bool selectOnlyContentItems)
 {
     m_selectionTool->setSelectOnlyContentItems(selectOnlyContentItems);
+}
+
+bool FormEditorView::isMoveToolAvailable() const
+{
+    if (selectedQmlItemNodes().count() == 1)
+        return selectedQmlItemNodes().first().instanceIsMovable() &&
+               !selectedQmlItemNodes().first().instanceIsInPositioner();
+    return true;
 }
 
 void FormEditorView::stateChanged(const QmlModelState &newQmlModelState, const QmlModelState &oldQmlModelState)

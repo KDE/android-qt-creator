@@ -78,6 +78,7 @@
 #include <QtGui/QMessageBox>
 #include <QtGui/QUndoStack>
 #include <QtGui/QPlainTextEdit>
+#include <QtGui/QApplication>
 
 enum {
     debug = false
@@ -151,6 +152,19 @@ Model *DesignDocumentController::masterModel() const
     return m_d->masterModel.data();
 }
 
+
+void DesignDocumentController::detachNodeInstanceView()
+{
+    if (m_d->nodeInstanceView)
+        model()->detachView(m_d->nodeInstanceView.data());
+}
+
+void DesignDocumentController::attachNodeInstanceView()
+{
+    if (m_d->nodeInstanceView)
+        model()->attachView(m_d->nodeInstanceView.data());
+}
+
 QWidget *DesignDocumentController::centralWidget() const
 {
     return qobject_cast<QWidget*>(parent());
@@ -180,8 +194,10 @@ void DesignDocumentController::blockModelSync(bool block)
 
     if (m_d->textModifier) {
         if (m_d->syncBlocked) {
+            detachNodeInstanceView();
             m_d->textModifier->deactivateChangeSignals();
         } else {
+            attachNodeInstanceView();
             m_d->textModifier->reactivateChangeSignals();
         }
     }
@@ -275,7 +291,7 @@ QList<RewriterView::Error> DesignDocumentController::loadMaster(QPlainTextEdit *
 
     //m_d->masterModel = Model::create(m_d->textModifier, m_d->searchPath, errors);
 
-    m_d->masterModel = Model::create("Qt/Rectangle", 4, 7);
+    m_d->masterModel = Model::create("QtQuick.Rectangle", 1, 0);
 
 #if defined(VIEWLOGGER)
     m_d->viewLogger = new Internal::ViewLogger(m_d->model.data());
@@ -284,11 +300,8 @@ QList<RewriterView::Error> DesignDocumentController::loadMaster(QPlainTextEdit *
 
     m_d->masterModel->setFileUrl(m_d->searchPath);
 
-    m_d->subComponentModel = Model::create("Qt/Rectangle", 4, 7);
+    m_d->subComponentModel = Model::create("QtQuick.Rectangle", 1, 0);
     m_d->subComponentModel->setFileUrl(m_d->searchPath);
-
-    m_d->subComponentManager = new SubComponentManager(m_d->masterModel->metaInfo(), this);
-    m_d->subComponentManager->update(m_d->searchPath, m_d->textModifier->text().toUtf8());
 
     m_d->rewriterView = new RewriterView(RewriterView::Amend, m_d->masterModel.data());
     m_d->rewriterView->setTextModifier( m_d->textModifier);
@@ -298,7 +311,8 @@ QList<RewriterView::Error> DesignDocumentController::loadMaster(QPlainTextEdit *
     m_d->masterModel->attachView(m_d->rewriterView.data());
     m_d->model = m_d->masterModel;
 
-
+    m_d->subComponentManager = new SubComponentManager(m_d->masterModel->metaInfo(), this);
+    m_d->subComponentManager->update(m_d->searchPath, m_d->model->imports());
 
     loadCurrentModel();
 
@@ -353,6 +367,8 @@ void DesignDocumentController::changeCurrentModelTo(const ModelNode &componentNo
 
 void DesignDocumentController::loadCurrentModel()
 {
+    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+
     Q_ASSERT(m_d->masterModel);
     Q_ASSERT(m_d->model);
     m_d->model->setMasterModel(m_d->masterModel.data());
@@ -386,6 +402,7 @@ void DesignDocumentController::loadCurrentModel()
 
     m_d->documentLoaded = true;
     Q_ASSERT(m_d->masterModel);
+    QApplication::restoreOverrideCursor();
 }
 
 QList<RewriterView::Error> DesignDocumentController::loadMaster(const QByteArray &qml)
@@ -775,7 +792,7 @@ QString DesignDocumentController::contextHelpId() const
     QString helpId;
     if (!nodes.isEmpty()) {
         helpId = nodes.first().type();
-        helpId.replace("Qt/", "QML.");
+        helpId.replace("QtQuick", "QML");
     }
 
     return helpId;

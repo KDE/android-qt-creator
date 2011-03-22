@@ -267,14 +267,14 @@ SYMBIANUTILS_EXPORT QDebug operator<<(QDebug d, const SymbianDevice &cd)
 
 // ------------- SymbianDeviceManagerPrivate
 struct SymbianDeviceManagerPrivate {
-    SymbianDeviceManagerPrivate() : m_initialized(false) /*, m_destroyReleaseMapper(0),*/ {}
+    SymbianDeviceManagerPrivate() : m_initialized(false), m_devicesLock(QMutex::Recursive) {}
 
     bool m_initialized;
     SymbianDeviceManager::SymbianDeviceList m_devices;
-    //QSignalMapper *m_destroyReleaseMapper;
+    QMutex m_devicesLock; // Used for protecting access to m_devices and serialising getCodaDevice/delayedClosePort
     // The following 2 variables are needed to manage requests for a TCF port not coming from the main thread
     int m_constructTcfPortEventType;
-    QMutex m_tcfPortWaitMutex;
+    QMutex m_codaPortWaitMutex;
 };
 
 class QConstructTcfPortEvent : public QEvent
@@ -305,11 +305,13 @@ SymbianDeviceManager::~SymbianDeviceManager()
 SymbianDeviceManager::SymbianDeviceList SymbianDeviceManager::devices() const
 {
     ensureInitialized();
+    QMutexLocker lock(&d->m_devicesLock);
     return d->m_devices;
 }
 
 QString SymbianDeviceManager::toString() const
 {
+    QMutexLocker lock(&d->m_devicesLock);
     QString rc;
     QTextStream str(&rc);
     str << d->m_devices.size() << " devices:\n";
@@ -334,6 +336,7 @@ int SymbianDeviceManager::findByPortName(const QString &p) const
 
 QString SymbianDeviceManager::friendlyNameForPort(const QString &port) const
 {
+    QMutexLocker lock(&d->m_devicesLock);
     const int idx = findByPortName(port);
     return idx == -1 ? QString() : d->m_devices.at(idx).friendlyName();
 }
@@ -355,9 +358,10 @@ SymbianDeviceManager::TrkDevicePtr
     return rc;
 }
 
-CodaDevicePtr SymbianDeviceManager::getTcfPort(const QString &port)
+CodaDevicePtr SymbianDeviceManager::getCodaDevice(const QString &port)
 {
     ensureInitialized();
+    QMutexLocker lock(&d->m_devicesLock);
     const int idx = findByPortName(port);
     if (idx == -1) {
         qWarning("Attempt to acquire device '%s' that does not exist.", qPrintable(port));
@@ -375,16 +379,16 @@ CodaDevicePtr SymbianDeviceManager::getTcfPort(const QString &port)
         // Check we instanciate in the correct thread - we can't afford to create the CodaDevice (and more specifically, open the VirtualSerialDevice) in a thread that isn't guaranteed to be long-lived.
         // Therefore, if we're not in SymbianDeviceManager's thread, rejig things so it's opened in the main thread
         if (QThread::currentThread() != thread()) {
-            // SymbianDeviceManager is owned by the current thread
-            d->m_tcfPortWaitMutex.lock();
+            // SymbianDeviceManager is owned by the main thread
+            d->m_codaPortWaitMutex.lock();
             QWaitCondition waiter;
             QCoreApplication::postEvent(this, new QConstructTcfPortEvent((QEvent::Type)d->m_constructTcfPortEventType, port, &devicePtr, &waiter));
-            waiter.wait(&d->m_tcfPortWaitMutex);
+            waiter.wait(&d->m_codaPortWaitMutex);
             // When the wait returns (due to the wakeAll in SymbianDeviceManager::customEvent), the CodaDevice will be fully set up
-            d->m_tcfPortWaitMutex.unlock();
+            d->m_codaPortWaitMutex.unlock();
         } else {
             // We're in the main thread, just set it up directly
-            constructTcfPort(devicePtr, port);
+            constructCodaPort(devicePtr, port);
         }
     // We still carry on in the case we failed to open so the client can access the IODevice's errorString()
     }
@@ -393,9 +397,9 @@ CodaDevicePtr SymbianDeviceManager::getTcfPort(const QString &port)
     return devicePtr;
 }
 
-void SymbianDeviceManager::constructTcfPort(CodaDevicePtr& device, const QString& portName)
+void SymbianDeviceManager::constructCodaPort(CodaDevicePtr& device, const QString& portName)
 {
-    QMutexLocker locker(&d->m_tcfPortWaitMutex);
+    QMutexLocker locker(&d->m_codaPortWaitMutex);
     if (device.isNull()) {
         device = QSharedPointer<Coda::CodaDevice>(new Coda::CodaDevice);
         const QSharedPointer<SymbianUtils::VirtualSerialDevice> serialDevice(new SymbianUtils::VirtualSerialDevice(portName));
@@ -414,14 +418,15 @@ void SymbianDeviceManager::customEvent(QEvent *event)
 {
     if (event->type() == d->m_constructTcfPortEventType) {
         QConstructTcfPortEvent* constructEvent = static_cast<QConstructTcfPortEvent*>(event);
-        constructTcfPort(*constructEvent->m_device, constructEvent->m_portName);
+        constructCodaPort(*constructEvent->m_device, constructEvent->m_portName);
         constructEvent->m_waiter->wakeAll(); // Should only ever be one thing waiting on this
     }
 }
 
-void SymbianDeviceManager::releaseTcfPort(CodaDevicePtr &port)
+void SymbianDeviceManager::releaseCodaDevice(CodaDevicePtr &port)
 {
     if (port) {
+        QMutexLocker(&d->m_devicesLock);
         // Check if this was the last reference to the port, if so close it after a short delay
         foreach (const SymbianDevice& device, d->m_devices) {
             if (device.m_data->codaDevice.data() == port.data()) {
@@ -442,6 +447,7 @@ void SymbianDeviceManager::releaseTcfPort(CodaDevicePtr &port)
 void SymbianDeviceManager::delayedClosePort()
 {
     // Find any coda ports that are still open but have a reference count of zero, and delete them
+    QMutexLocker(&d->m_devicesLock);
     foreach (const SymbianDevice& device, d->m_devices) {
         Coda::CodaDevice* codaDevice = device.m_data->codaDevice.data();
         if (codaDevice && device.m_data->deviceAcquired == 0 && codaDevice->device()->isOpen()) {
@@ -483,6 +489,8 @@ void SymbianDeviceManager::ensureInitialized() const
 
 void SymbianDeviceManager::update(bool emitSignals)
 {
+    QMutexLocker lock(&d->m_devicesLock);
+
     static int n = 0;
     typedef SymbianDeviceList::iterator SymbianDeviceListIterator;
 
@@ -502,6 +510,7 @@ void SymbianDeviceManager::update(bool emitSignals)
     }
     // Merge the lists and emit the respective added/removed signals, assuming
     // no one can plug a different device on the same port at the speed of lightning
+    SymbianDeviceList removedDevices;
     if (!d->m_devices.isEmpty()) {
         // Find deleted devices
         for (SymbianDeviceListIterator oldIt = d->m_devices.begin(); oldIt != d->m_devices.end(); ) {
@@ -511,25 +520,33 @@ void SymbianDeviceManager::update(bool emitSignals)
                 SymbianDevice toBeDeleted = *oldIt;
                 toBeDeleted.forcedClose();
                 oldIt = d->m_devices.erase(oldIt);
-                if (emitSignals)
-                    emit deviceRemoved(toBeDeleted);
+                removedDevices.append(toBeDeleted);
             }
         }
     }
+    SymbianDeviceList addedDevices;
     if (!newDevices.isEmpty()) {
         // Find new devices and insert in order
         foreach(const SymbianDevice &newDevice, newDevices) {
             if (!d->m_devices.contains(newDevice)) {
                 d->m_devices.append(newDevice);
-                if (emitSignals)
-                    emit deviceAdded(newDevice);
+                addedDevices.append(newDevice);
             }
         }
         if (d->m_devices.size() > 1)
             qStableSort(d->m_devices.begin(), d->m_devices.end());
     }
-    if (emitSignals)
+
+    lock.unlock();
+    if (emitSignals) {
+        foreach (const SymbianDevice &device, removedDevices) {
+            emit deviceRemoved(device);
+        }
+        foreach (const SymbianDevice &device, addedDevices) {
+            emit deviceAdded(device);
+        }
         emit updated();
+    }
 
     if (debug)
         qDebug("<SerialDeviceLister::update\n%s\n", qPrintable(toString()));
@@ -613,4 +630,106 @@ SYMBIANUTILS_EXPORT QDebug operator<<(QDebug d, const SymbianDeviceManager &sdm)
     return d;
 }
 
-} // namespace SymbianUtilsInternal
+OstChannel *SymbianDeviceManager::getOstChannel(const QString &port, uchar channelId)
+{
+    CodaDevicePtr coda = getCodaDevice(port);
+    if (coda.isNull() || !coda->device()->isOpen())
+        return 0;
+    return new OstChannel(coda, channelId);
+}
+
+struct OstChannelPrivate
+{
+    CodaDevicePtr m_codaPtr;
+    QByteArray m_dataBuffer;
+    uchar m_channelId;
+    bool m_hasReceivedData;
+};
+
+OstChannel::OstChannel(const CodaDevicePtr &codaPtr, uchar channelId)
+    : d(new OstChannelPrivate)
+{
+    d->m_codaPtr = codaPtr;
+    d->m_channelId = channelId;
+    d->m_hasReceivedData = false;
+    connect(codaPtr.data(), SIGNAL(unknownEvent(uchar, QByteArray)), this, SLOT(ostDataReceived(uchar,QByteArray)));
+    connect(codaPtr->device().data(), SIGNAL(aboutToClose()), this, SLOT(deviceAboutToClose()));
+    QIODevice::open(ReadWrite|Unbuffered);
+}
+
+void OstChannel::close()
+{
+    QIODevice::close();
+    if (d && d->m_codaPtr.data()) {
+        disconnect(d->m_codaPtr.data(), 0, this, 0);
+        SymbianDeviceManager::instance()->releaseCodaDevice(d->m_codaPtr);
+    }
+}
+
+OstChannel::~OstChannel()
+{
+    close();
+    delete d;
+}
+
+void OstChannel::flush()
+{
+    //TODO d->m_codaPtr->device()-
+}
+
+qint64 OstChannel::bytesAvailable() const
+{
+    return d->m_dataBuffer.size();
+}
+
+bool OstChannel::isSequential() const
+{
+    return true;
+}
+
+qint64 OstChannel::readData(char *data, qint64 maxSize)
+{
+    qint64 amount = qMin(maxSize, (qint64)d->m_dataBuffer.size());
+    qMemCopy(data, d->m_dataBuffer.constData(), amount);
+    d->m_dataBuffer.remove(0, amount);
+    return amount;
+}
+
+qint64 OstChannel::writeData(const char *data, qint64 maxSize)
+{
+    static const qint64 KMaxOstPayload = 1024;
+    // If necessary, split the packet up
+    while (maxSize) {
+        QByteArray dataBuf = QByteArray::fromRawData(data, qMin(KMaxOstPayload, maxSize));
+        d->m_codaPtr->writeCustomData(d->m_channelId, dataBuf);
+        data += dataBuf.length();
+        maxSize -= dataBuf.length();
+    }
+    return maxSize;
+}
+
+void OstChannel::ostDataReceived(uchar channelId, const QByteArray &aData)
+{
+    if (channelId == d->m_channelId) {
+        d->m_hasReceivedData = true;
+        d->m_dataBuffer.append(aData);
+        emit readyRead();
+    }
+}
+
+Coda::CodaDevice& OstChannel::codaDevice() const
+{
+    return *d->m_codaPtr;
+}
+
+bool OstChannel::hasReceivedData() const
+{
+    return isOpen() && d->m_hasReceivedData;
+}
+
+void OstChannel::deviceAboutToClose()
+{
+    close();
+}
+
+} // namespace SymbianUtils

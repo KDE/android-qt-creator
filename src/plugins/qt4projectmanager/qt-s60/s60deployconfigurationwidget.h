@@ -61,6 +61,12 @@ namespace SymbianUtils {
 class SymbianDevice;
 }
 
+namespace Coda {
+    class CodaDevice;
+    class CodaEvent;
+    struct CodaCommandResult;
+}
+
 namespace Qt4ProjectManager {
 namespace Internal {
 
@@ -78,6 +84,10 @@ public:
 
     void init(ProjectExplorer::DeployConfiguration *dc);
 
+signals:
+    void infoCollected();
+    void codaConnected();
+
 private slots:
     void updateTargetInformation();
     void updateInstallationDrives();
@@ -90,9 +100,14 @@ private slots:
     void slotWaitingForTrkClosed();
     void silentInstallChanged(int);
     void updateCommunicationChannel();
-    void updateDebugClient();
+    void updateCommunicationChannelUi();
     void updateWlanAddress(const QString &address);
     void cleanWlanAddress();
+    void codaEvent(const Coda::CodaEvent &event);
+    void collectingInfoFinished();
+    void codaTimeout();
+    void codaCanceled();
+    void codaIncreaseProgress();
 
 private:
     inline SymbianUtils::SymbianDevice device(int i) const;
@@ -101,6 +116,11 @@ private:
     void setDeviceInfoLabel(const QString &message, bool isError = false);
 
     QWidget * createCommunicationChannel();
+
+    void getQtVersionCommandResult(const Coda::CodaCommandResult &result);
+    void getRomInfoResult(const Coda::CodaCommandResult &result);
+    void getInstalledPackagesResult(const Coda::CodaCommandResult &result);
+    void getHalResult(const Coda::CodaCommandResult &result);
 
     S60DeployConfiguration *m_deployConfiguration;
     Utils::DetailsWidget *m_detailsWidget;
@@ -117,6 +137,10 @@ private:
     Utils::IpAddressLineEdit *m_ipAddress;
     QRadioButton *m_trkRadioButton;
     QRadioButton *m_codaRadioButton;
+    QLabel *m_codaInfoLabel;
+    QSharedPointer<Coda::CodaDevice> m_codaInfoDevice;
+    QString m_deviceInfo;
+    QTimer *m_codaTimeout;
 };
 
 } // namespace Internal

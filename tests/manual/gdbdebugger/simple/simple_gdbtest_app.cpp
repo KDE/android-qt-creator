@@ -44,6 +44,7 @@
 #include <QtCore/QList>
 #include <QtCore/QMap>
 #include <QtCore/QPointer>
+#include <QtCore/QProcess>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtCore/QSettings>
@@ -84,6 +85,12 @@
 #include <vector>
 
 #define USE_PRIVATE 1
+//#define USE_BOOST 1
+
+#if USE_BOOST
+#include <boost/optional.hpp>
+#include <boost/shared_ptr.hpp>
+#endif
 
 #if USE_PRIVATE
 #include <QtCore/private/qobject_p.h>
@@ -105,7 +112,6 @@
 #include <xmmintrin.h>
 #include <stddef.h>
 #endif
-
 Q_DECLARE_METATYPE(QHostAddress)
 Q_DECLARE_METATYPE(QList<int>)
 Q_DECLARE_METATYPE(QStringList)
@@ -137,10 +143,18 @@ int z;
 class DerivedObjectPrivate : public QObjectPrivate
 {
 public:
-    DerivedObjectPrivate() : m_extraX(43), m_extraY(44) {}
+    DerivedObjectPrivate()
+    {
+        m_extraX = 43;
+        m_extraY.append("xxx");
+        m_extraZ = 1;
+    }
 
     int m_extraX;
-    int m_extraY;
+    QStringList m_extraY;
+    uint m_extraZ : 1;
+    bool m_extraA : 1;
+    bool m_extraB;
 };
 
 class DerivedObject : public QObject
@@ -148,15 +162,20 @@ class DerivedObject : public QObject
     Q_OBJECT
 
 public:
-    DerivedObject() {}
+    DerivedObject()
+       : QObject(*new DerivedObjectPrivate, 0)
+    {}
 
     Q_PROPERTY(int x READ x WRITE setX)
-    Q_PROPERTY(int y READ y WRITE setY)
+    Q_PROPERTY(QStringList y READ y WRITE setY)
+    Q_PROPERTY(uint z READ z WRITE setZ)
 
     int x() const;
     void setX(int x);
-    int y() const;
-    void setY(int y);
+    QStringList y() const;
+    void setY(QStringList y);
+    uint z() const;
+    void setZ(uint z);
 
 private:
     Q_DECLARE_PRIVATE(DerivedObject)
@@ -172,25 +191,52 @@ void DerivedObject::setX(int x)
 {
     Q_D(DerivedObject);
     d->m_extraX = x;
+    d->m_extraA = !d->m_extraA;
+    d->m_extraB = !d->m_extraB;
 }
 
-int DerivedObject::y() const
+QStringList DerivedObject::y() const
 {
     Q_D(const DerivedObject);
     return d->m_extraY;
 }
 
-void DerivedObject::setY(int y)
+void DerivedObject::setY(QStringList y)
 {
     Q_D(DerivedObject);
     d->m_extraY = y;
 }
 
+uint DerivedObject::z() const
+{
+    Q_D(const DerivedObject);
+    return d->m_extraZ;
+}
+
+void DerivedObject::setZ(uint z)
+{
+    Q_D(DerivedObject);
+    d->m_extraZ = z;
+}
+
 #endif
 
+struct S
+{
+    uint x : 1;
+    uint y : 1;
+    bool c : 1;
+    bool b;
+    float f;
+    double d;
+    qreal q;
+    int i;
+};
 
 void testPrivate()
 {
+    S s;
+    s.x = 1;
 #if USE_PRIVATE
     DerivedObject ob;
     ob.setX(23);
@@ -2316,9 +2362,50 @@ void testQScriptValue(int argc, char *argv[])
     s = engine.newDate(date);
     x = s.toInt32();
     bool xx = s.isDate();
+    Q_UNUSED(xx);
     date = s.toDateTime();
     s.setProperty("a", QScriptValue());
     QScriptValue d = s.data();
+}
+
+void testBoostOptional()
+{
+#if USE_BOOST
+    boost::optional<int> i;
+    i = 1;
+    boost::optional<QStringList> sl;
+    sl = (QStringList() << "xxx" << "yyy");
+    sl.get().append("zzz");
+    i = 3;
+    i = 4;
+    i = 5;
+#endif
+}
+
+void testBoostSharedPtr()
+{
+#if USE_BOOST
+    QSharedPointer<int> qs;
+    QSharedPointer<int> qi(new int(43));
+    QSharedPointer<int> qj = qi;
+
+    boost::shared_ptr<int> s;
+    boost::shared_ptr<int> i(new int(43));
+    boost::shared_ptr<int> j = i;
+    boost::shared_ptr<QStringList> sl(new QStringList);
+    int k = 2;
+    ++k;
+#endif
+}
+
+void testFork()
+{
+    QProcess proc;
+    proc.start("/bin/ls");
+    proc.waitForFinished();
+    QByteArray ba = proc.readAllStandardError();
+    ba.append('x');
+    ba.append('x');
 }
 
 int main(int argc, char *argv[])
@@ -2414,8 +2501,10 @@ int main(int argc, char *argv[])
     testQVector();
     testQVectorOfQList();
 
+    testBoostOptional();
+    testBoostSharedPtr();
 
-    //*(int *)0 = 0;
+    testFork();
 
     testQObject(argc, argv);
 
