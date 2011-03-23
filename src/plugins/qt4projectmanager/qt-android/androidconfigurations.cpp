@@ -172,7 +172,7 @@ QString AndroidConfigurations::getDeployDeviceSerialNumber(int apiLevel)
     QVector<AndroidDevice> devices=connectedDevices();
 
     foreach(AndroidDevice device, devices)
-        if (device.sdk>=apiLevel || (device.sdk==9 && apiLevel==10))
+        if (device.sdk>=apiLevel)
             return device.serialNumber;
 
     return startAVD(apiLevel);
