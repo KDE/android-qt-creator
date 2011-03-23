@@ -150,9 +150,9 @@ bool AndroidSettingsWidget::checkSDK(const QString & location)
 {
     if (!location.length())
         return false;
-    if (!QFile::exists(location+QLatin1String("/platform-tools/adb" ANDROID_EXEC_SUFFIX)) || 
-		(!QFile::exists(location+QLatin1String("/tools/android" ANDROID_EXECUTABLE_SUFFIX)) && !QFile::exists(location+QLatin1String("/tools/android" ANDROID_EXEC_SUFFIX))) || 
-		!QFile::exists(location+QLatin1String("/tools/emulator" ANDROID_EXEC_SUFFIX)) )
+    if (!QFile::exists(location+QLatin1String("/platform-tools/adb" ANDROID_EXE_SUFFIX)) || 
+		(!QFile::exists(location+QLatin1String("/tools/android" ANDROID_EXE_SUFFIX)) && !QFile::exists(location+QLatin1String("/tools/android" ANDROID_BAT_SUFFIX))) || 
+		!QFile::exists(location+QLatin1String("/tools/emulator" ANDROID_EXE_SUFFIX)) )
     {
         QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android SDK top folder").arg(location));
         return false;
