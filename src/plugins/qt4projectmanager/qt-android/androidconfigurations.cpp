@@ -303,7 +303,12 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
     }
     // if no emulators found try to create one
     if (!avdName.length())
+    {
+        // if called from getDeployDeviceSerialNumber from depolyPackage,
+        // this causes an assert:
+        // "Widgets must be created in the GUI thread."
         avdName=createAVD();
+    }
 
     if (!avdName.length())// stop here if no emulators found
         return avdName;

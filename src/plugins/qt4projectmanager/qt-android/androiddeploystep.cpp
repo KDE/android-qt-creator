@@ -155,13 +155,15 @@ void AndroidDeployStep::handleBuildOutput()
     QProcess * const buildProc = qobject_cast<QProcess *>(sender());
     if (!buildProc)
         return;
+    // Doing both reads before doing emit addOutput() avoids a crash on Windows.
+	// Seems like buildProc QProcess dies and gets reallocated during the emit,
+	// (or something).
     const QByteArray &stdOut = buildProc->readAllStandardOutput();
+    const QByteArray &errorOut = buildProc->readAllStandardError();
     if (!stdOut.isEmpty())
         emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
-    const QByteArray &errorOut = buildProc->readAllStandardError();
-    if (!errorOut.isEmpty()) {
+    if (!errorOut.isEmpty())
         emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput);
-    }
 }
 
 QString AndroidDeployStep::deviceSerialNumber()
@@ -202,7 +204,7 @@ bool AndroidDeployStep::deployPackage()
     const QString packageName=androidTarget->packageName();
     const QString targetSDK=androidTarget->targetSDK();
 
-    writeOutput(tr("Please wait, searching for a siutable device for target:%1.").arg(targetSDK));
+    writeOutput(tr("Please wait, searching for a suitable device for target:%1.").arg(targetSDK));
     m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(targetSDK.mid(targetSDK.indexOf('-')+1).toInt());
     if (!m_deviceSerialNumber.length())
     {
