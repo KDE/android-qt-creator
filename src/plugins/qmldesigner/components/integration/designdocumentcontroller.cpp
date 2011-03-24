@@ -163,6 +163,7 @@ void DesignDocumentController::attachNodeInstanceView()
 {
     if (m_d->nodeInstanceView)
         model()->attachView(m_d->nodeInstanceView.data());
+
 }
 
 QWidget *DesignDocumentController::centralWidget() const
@@ -198,7 +199,18 @@ void DesignDocumentController::blockModelSync(bool block)
             m_d->textModifier->deactivateChangeSignals();
         } else {
             attachNodeInstanceView();
+            QmlModelState state;
+            //We go back to base state (and back again) to avoid side effects from text editing.
+            if (m_d->statesEditorView) {
+                state = m_d->statesEditorView->currentState();
+                m_d->statesEditorView->setCurrentState(m_d->statesEditorView->baseState());
+
+            }
+
             m_d->textModifier->reactivateChangeSignals();
+
+            if (state.isValid() && m_d->statesEditorView)
+                m_d->statesEditorView->setCurrentState(state);
         }
     }
 }

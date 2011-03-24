@@ -86,7 +86,9 @@ public:
         GenericUnixFlavor,
 
         // Windows
-        WindowsMsvcFlavor,
+        WindowsMsvc2005Flavor,
+        WindowsMsvc2008Flavor,
+        WindowsMsvc2010Flavor,
         WindowsMSysFlavor,
         WindowsCEFlavor
     };

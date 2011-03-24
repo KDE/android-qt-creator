@@ -532,6 +532,8 @@ void PropertyEditor::otherPropertyChanged(const QmlObjectNode &fxObjectNode, con
     if (!m_selectedNode.isValid())
         return;
 
+    m_locked = true;
+
     if (fxObjectNode.isValid() && m_currentType && fxObjectNode == m_selectedNode && fxObjectNode.currentState().isValid()) {
         AbstractProperty property = fxObjectNode.modelNode().property(propertyName);
         if (fxObjectNode == m_selectedNode || QmlObjectNode(m_selectedNode).propertyChangeForCurrentState() == fxObjectNode) {
@@ -541,6 +543,8 @@ void PropertyEditor::otherPropertyChanged(const QmlObjectNode &fxObjectNode, con
                 setValue(m_selectedNode, property.name(), QmlObjectNode(m_selectedNode).modelValue(property.name()));
         }
     }
+
+    m_locked = false;
 }
 
 void PropertyEditor::transformChanged(const QmlObjectNode &fxObjectNode, const QString &propertyName)
@@ -595,7 +599,11 @@ QString templateGeneration(NodeMetaInfo type, NodeMetaInfo superType, const QmlO
     qSort(orderedList);
 
     foreach (const QString &name, orderedList) {
+
+        if (name.startsWith(QLatin1String("__")))
+            continue; //private API
         QString properName = name;
+
         properName.replace('.', '_');
 
         QString typeName = type.propertyTypeName(name);
@@ -699,8 +707,8 @@ void PropertyEditor::resetView()
         ctxt->setContextProperty("finishedNotify", QVariant(false));
         if (specificQmlData.isEmpty())
             type->m_contextObject->setSpecificQmlData(specificQmlData);
-        
-        type->setup(fxObjectNode, currentState().name(), qmlSpecificsFile, this);
+        QString currentStateName = currentState().isValid() ? currentState().name() : QLatin1String("invalid state");
+        type->setup(fxObjectNode, currentStateName, qmlSpecificsFile, this);
         type->m_contextObject->setGlobalBaseUrl(qmlFile);
         type->m_contextObject->setSpecificQmlData(specificQmlData);
     }
@@ -837,8 +845,10 @@ void PropertyEditor::instanceInformationsChange(const QVector<ModelNode> &nodeLi
     if (!m_selectedNode.isValid())
         return;
 
+    m_locked = true;
     if (nodeList.contains(m_selectedNode))
         m_currentType->m_backendAnchorBinding.setup(QmlItemNode(m_selectedNode));
+    m_locked = false;
 }
 
 void PropertyEditor::nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId)

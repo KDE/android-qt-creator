@@ -271,7 +271,7 @@ void InspectorUi::showDebuggerTooltip(const QPoint &mousePos, TextEditor::ITextE
         }
 
         if (!query.isEmpty()) {
-            m_debugQuery = m_clientProxy->queryExpressionResult(ref.debugId(),query, this);
+            m_debugQuery = m_clientProxy->queryExpressionResult(ref.debugId(), query);
             connect(m_debugQuery, SIGNAL(stateChanged(QDeclarativeDebugQuery::State)),
                     this, SLOT(debugQueryUpdated(QDeclarativeDebugQuery::State)));
         }
@@ -630,7 +630,7 @@ void InspectorUi::selectItems(const QList<int> &objectIds)
 void InspectorUi::changePropertyValue(int debugId,const QString &propertyName, const QString &valueExpression)
 {
     QString query = propertyName + '=' + valueExpression;
-    m_clientProxy->queryExpressionResult(debugId, query, this);
+    m_clientProxy->queryExpressionResult(debugId, query);
 }
 
 void InspectorUi::enable()
@@ -884,6 +884,8 @@ void InspectorUi::connectSignals()
             m_toolBar, SLOT(setSelectedColor(QColor)));
     connect(m_clientProxy, SIGNAL(animationSpeedChanged(qreal)),
             m_toolBar, SLOT(setAnimationSpeed(qreal)));
+    connect(m_clientProxy, SIGNAL(animationPausedChanged(bool)),
+            m_toolBar, SLOT(setAnimationPaused(bool)));
 
     connect(m_toolBar, SIGNAL(applyChangesFromQmlFileTriggered(bool)),
             this, SLOT(setApplyChangesToQmlObserver(bool)));
@@ -894,6 +896,8 @@ void InspectorUi::connectSignals()
             m_clientProxy, SLOT(reloadQmlViewer()));
     connect(m_toolBar, SIGNAL(animationSpeedChanged(qreal)),
             m_clientProxy, SLOT(setAnimationSpeed(qreal)));
+    connect(m_toolBar, SIGNAL(animationPausedChanged(bool)),
+            m_clientProxy, SLOT(setAnimationPaused(bool)));
     connect(m_toolBar, SIGNAL(colorPickerSelected()),
             m_clientProxy, SLOT(changeToColorPickerTool()));
     connect(m_toolBar, SIGNAL(zoomToolSelected()),
