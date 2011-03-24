@@ -76,13 +76,6 @@ QT_BEGIN_NAMESPACE
 
 using namespace ProStringConstants;
 
-static QByteArray qgetenv_dbg(const char *varName)
-{
-    QByteArray temp = qgetenv(varName);
-    QString string(temp);
-    qDebug() << "varName " << varName << " is " << string;
-    return temp;
-}
 
 #define fL1S(s) QString::fromLatin1(s)
 
@@ -101,7 +94,7 @@ ProFileOption::ProFileOption()
     dirlist_sep = QLatin1Char(':');
     dir_sep = QLatin1Char('/');
 #endif
-    qmakespec = QString::fromLocal8Bit(qgetenv_dbg("QMAKESPEC").data());
+    qmakespec = QString::fromLocal8Bit(qgetenv("QMAKESPEC").data());
 
     host_mode = HOST_UNKNOWN_MODE;
     target_mode = TARG_UNKNOWN_MODE;
@@ -650,7 +643,7 @@ static QString expandEnvVars(const QString &str)
     QRegExp reg_variableName = statics.reg_variableName; // Copy for thread safety
     while ((rep = reg_variableName.indexIn(string)) != -1)
         string.replace(rep, reg_variableName.matchedLength(),
-		       QString::fromLocal8Bit(qgetenv_dbg(string.mid(rep + 2, reg_variableName.matchedLength() - 3).toLatin1().constData()).constData()));
+                       QString::fromLocal8Bit(qgetenv(string.mid(rep + 2, reg_variableName.matchedLength() - 3).toLatin1().constData()).constData()));
     return string;
 }
 
@@ -660,7 +653,7 @@ static QString fixPathToLocalOS(const QString &str)
     QString string = expandEnvVars(str);
 
     if (string.length() > 2 && string.at(0).isLetter() && string.at(1) == QLatin1Char(':'))
-        string[0] = string[0].toUpper();
+        string[0] = string[0].toLower();
 
 #if defined(Q_OS_WIN32)
     string.replace(QLatin1Char('/'), QLatin1Char('\\'));
@@ -758,7 +751,7 @@ void ProFileEvaluator::Private::evaluateExpression(
                     getStr(tokPtr).toQString(m_tmp1), true), NoHash), ret, pending, joined);
             break;
         case TokEnvVar:
-	    addStrList(split_value_list(QString::fromLocal8Bit(qgetenv_dbg(
+            addStrList(split_value_list(QString::fromLocal8Bit(qgetenv(
                     getStr(tokPtr).toQString(m_tmp1).toLatin1().constData()))), tok, ret, pending, joined);
             break;
         case TokFuncName: {
@@ -1391,7 +1384,7 @@ QStringList ProFileEvaluator::Private::qmakeMkspecPaths() const
     QStringList ret;
     const QString concat = QLatin1String("/mkspecs");
 
-    QByteArray qmakepath = qgetenv_dbg("QMAKEPATH");
+    QByteArray qmakepath = qgetenv("QMAKEPATH");
     if (!qmakepath.isEmpty())
         foreach (const QString &it, QString::fromLocal8Bit(qmakepath).split(m_option->dirlist_sep))
             ret << QDir::cleanPath(it) + concat;
@@ -1431,7 +1424,7 @@ QStringList ProFileEvaluator::Private::qmakeFeaturePaths() const
 
     QStringList feature_roots;
 
-    QByteArray mkspec_path = qgetenv_dbg("QMAKEFEATURES");
+    QByteArray mkspec_path = qgetenv("QMAKEFEATURES");
     if (!mkspec_path.isEmpty())
         foreach (const QString &f, QString::fromLocal8Bit(mkspec_path).split(m_option->dirlist_sep))
             feature_roots += resolvePath(f);
@@ -1445,7 +1438,7 @@ QStringList ProFileEvaluator::Private::qmakeFeaturePaths() const
             feature_roots << (path + concat_it);
     }
 
-    QByteArray qmakepath = qgetenv_dbg("QMAKEPATH");
+    QByteArray qmakepath = qgetenv("QMAKEPATH");
     if (!qmakepath.isNull()) {
         const QStringList lst = QString::fromLocal8Bit(qmakepath).split(m_option->dirlist_sep);
         foreach (const QString &item, lst) {
@@ -1715,7 +1708,7 @@ ProStringList ProFileEvaluator::Private::expandVariableReferences(
 
                 ProStringList replacement;
                 if (var_type == ENVIRON) {
-                    replacement = split_value_list(QString::fromLocal8Bit(qgetenv_dbg(
+                    replacement = split_value_list(QString::fromLocal8Bit(qgetenv(
                             var.toQString(m_tmp1).toLocal8Bit().constData())));
                 } else if (var_type == PROPERTY) {
                     replacement << ProString(propertyValue(var.toQString(m_tmp1), true), NoHash);
@@ -2408,7 +2401,7 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                     if (!pfx.endsWith(QLatin1Char('/')))
                         pfx += QLatin1Char('/');
                 }
-                int slash = m_tmp1.lastIndexOf(QDir::separator());
+                int slash = r.lastIndexOf(QDir::separator());
                 if (slash != -1) {
                     dirs.append(r.left(slash+1));
                     r = r.mid(slash+1);
