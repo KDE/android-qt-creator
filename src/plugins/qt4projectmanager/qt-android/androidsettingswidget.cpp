@@ -13,6 +13,7 @@ are required by law.
 
 #include "androidconfigurations.h"
 
+#include "androidconstants.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
@@ -24,13 +25,6 @@ are required by law.
 #include <QtGui/QIntValidator>
 #include <QtCore/QModelIndex>
 
-#if defined(_WIN32)
-#define EXE_SUFFIX ".exe"
-#define BAT_SUFFIX ".bat"
-#else
-#define EXE_SUFFIX ""
-#define BAT_SUFFIX ""
-#endif
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -156,7 +150,9 @@ bool AndroidSettingsWidget::checkSDK(const QString & location)
 {
     if (!location.length())
         return false;
-    if (!QFile::exists(location+QLatin1String("/platform-tools/adb" EXE_SUFFIX)) || !QFile::exists(location+QLatin1String("/tools/android" BAT_SUFFIX)) || !QFile::exists(location+QLatin1String("/tools/emulator" EXE_SUFFIX)) )
+    if ( !QFile::exists(location+QLatin1String("/platform-tools/adb" ANDROID_EXE_SUFFIX)) || 
+        (!QFile::exists(location+QLatin1String("/tools/android" ANDROID_EXE_SUFFIX)) && !QFile::exists(location+QLatin1String("/tools/android" ANDROID_BAT_SUFFIX))) || 
+         !QFile::exists(location+QLatin1String("/tools/emulator" ANDROID_EXE_SUFFIX)) )
     {
         QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android SDK top folder").arg(location));
         return false;

@@ -120,7 +120,7 @@ public:
     Core::IEditor *editor;
 };
 
-static const char winPythonVersionC[] = "python2.5";
+static const char winPythonVersionC[] = "python2.7";
 
 enum { debugPending = 0 };
 

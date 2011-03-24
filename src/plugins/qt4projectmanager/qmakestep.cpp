@@ -337,12 +337,13 @@ bool QMakeStep::isQmlDebuggingLibrarySupported(QString *reason) const
         return false;
     }
 
+/* For some reason (probably folder name) C:/Qt/Git Qt fails here. 
     if (qt4BuildConfiguration()->qtVersion()->qtVersion() < QtVersionNumber(4, 7 ,0)) {
         if (reason)
             *reason = tr("Requires Qt 4.7.1 or newer.");
         return false;
     }
-
+*/
     if (reason)
         *reason = tr("Library not available. <a href='compile'>Compile...</a>");
 

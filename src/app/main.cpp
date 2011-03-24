@@ -179,8 +179,35 @@ static inline QStringList getPluginPaths()
 #  define SHARE_PATH "/../share/qtcreator"
 #endif
 
+#if defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)
+static void myMessageOutput(QtMsgType type, const char *msg)
+{
+    switch (type) {
+    case QtDebugMsg:
+        fprintf(stderr, "Debug: %s\n", msg);
+        break;
+    case QtWarningMsg:
+        fprintf(stderr, "Warning: %s\n", msg);
+        break;
+    case QtCriticalMsg:
+        fprintf(stderr, "Critical: %s\n", msg);
+        break;
+    case QtFatalMsg:
+        fprintf(stderr, "Fatal: %s\n", msg);
+//        abort();
+    }
+}
+#endif
+
 int main(int argc, char **argv)
 {
+#if defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)
+    // on Windows, debug builds assert a bit, and post-mortem
+    // debugging these hasn't worked. So instead, I install
+    // a handler.
+    qInstallMsgHandler(myMessageOutput);
+#endif
+
 #ifdef Q_OS_MAC
     // increase the number of file that can be opened in Qt Creator.
     struct rlimit rl;

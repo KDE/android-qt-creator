@@ -773,7 +773,7 @@ void MaemoDeployStep::copyNextFileToDevice()
     QString sourceFilePath = deployMountPoint();
 #ifdef Q_OS_WIN
     const QString localFilePath = QDir::fromNativeSeparators(d.localFilePath);
-    sourceFilePath += QLatin1Char('/') + localFilePath.at(0).toLower()
+    sourceFilePath += QLatin1Char('/') + localFilePath.at(0).toUpper()
         + localFilePath.mid(2);
 #else
     sourceFilePath += d.localFilePath;

@@ -18,6 +18,7 @@ are required by law.
 #include <QtCore/QStringBuilder>
 #include <QtCore/QStringList>
 #include <QtCore/QProcess>
+#include <QtCore/QFileInfo>
 #include <QtGui/QStringListModel>
 #include <QtGui/QDesktopServices>
 #include <QDebug>
@@ -115,7 +116,17 @@ QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
 
 QString AndroidConfigurations::androidToolPath()
 {
-    return m_config.SDKLocation + QString("/tools/android"ANDROID_BAT_SUFFIX);
+#ifdef Q_OS_WIN32
+    // I want to switch from using android.bat to using an executable. All it really does is call
+    // Java and I've made some progress on it. So if android.exe exists, return that instead.
+    QFileInfo fi(m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXE_SUFFIX));
+    if (fi.exists())
+        return m_config.SDKLocation + QString("/tools/android"ANDROID_EXE_SUFFIX);
+    else
+        return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_BAT_SUFFIX);
+#else
+    return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXE_SUFFIX);
+#endif
 }
 
 QString AndroidConfigurations::antToolPath()
@@ -239,7 +250,7 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
 {
     QVector<AndroidDevice> devices;
     QProcess proc;
-    proc.start(androidToolPath(), QStringList() << "list" << "avd"); // list avaialbe AVDs
+    proc.start(androidToolPath(), QStringList() << "list" << "avd"); // list available AVDs
     if (!proc.waitForFinished(-1))
     {
         proc.terminate();
@@ -292,7 +303,12 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
     }
     // if no emulators found try to create one
     if (!avdName.length())
+    {
+        // if called from getDeployDeviceSerialNumber from depolyPackage,
+        // this causes an assert:
+        // "Widgets must be created in the GUI thread."
         avdName=createAVD();
+    }
 
     if (!avdName.length())// stop here if no emulators found
         return avdName;
