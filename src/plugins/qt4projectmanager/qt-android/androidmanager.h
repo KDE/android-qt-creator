@@ -34,8 +34,6 @@ public:
     ~AndroidManager();
     static AndroidManager &instance();
 
-    bool isValidAndroidQtVersion(const Qt4ProjectManager::QtVersion *version) const;
-
     AndroidSettingsPage *settingsPage() const { return m_settingsPage; }
 
 private:

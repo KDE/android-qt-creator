@@ -1535,7 +1535,6 @@ void QtVersion::updateAbiAndMkspec() const
     QString makefileGenerator = evaluator.value("MAKEFILE_GENERATOR");
     QString ce_sdk = evaluator.values("CE_SDK").join(QLatin1String(" "));
     QString ce_arch = evaluator.value("CE_ARCH");
-
     const QString coreLibrary = qtCorePath();
 
     // Evaluate all the information we have:
@@ -1572,7 +1571,7 @@ void QtVersion::updateAbiAndMkspec() const
                                            ProjectExplorer::Abi::MeegoLinuxFlavor,
                                            ProjectExplorer::Abi::ElfFormat, 32));
         m_targetIds.insert(QLatin1String(Constants::MEEGO_DEVICE_TARGET_ID));
-    } else if (AndroidManager::instance().isValidAndroidQtVersion(this)) {
+    } else if (evaluator.values("CONFIG").contains("android")) {
         m_abis.append(ProjectExplorer::Abi(ProjectExplorer::Abi::ArmArchitecture, ProjectExplorer::Abi::LinuxOS,
                                            ProjectExplorer::Abi::AndroidLinuxFlavor,
                                            ProjectExplorer::Abi::ElfFormat, 32));

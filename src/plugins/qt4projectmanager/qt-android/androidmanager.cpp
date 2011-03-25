@@ -79,12 +79,5 @@ AndroidManager &AndroidManager::instance()
     return *m_instance;
 }
 
-bool AndroidManager::isValidAndroidQtVersion(const QtVersion *version) const
-{
-    return version->mkspec().contains("android-g++");
-}
-
-#ifdef __GNUC__
-#endif
 } // namespace Internal
 } // namespace Qt4ProjectManager
