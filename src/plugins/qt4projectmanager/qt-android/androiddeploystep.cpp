@@ -262,16 +262,13 @@ bool AndroidDeployStep::deployPackage()
         return false;
     }
 
-    if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
-    {
-        writeOutput(tr("Pulling files necessary for debugging"));
-        runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                                           +QString(" pull /system/bin/app_process %1/app_process")
-                                            .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
-        runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                                           +QString(" pull /system/lib/libc.so %1/libc.so")
-                                            .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
-    }
+    writeOutput(tr("Pulling files necessary for debugging"));
+    runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                                       +QString(" pull /system/bin/app_process %1/app_process")
+                                        .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+    runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
+                                       +QString(" pull /system/lib/libc.so %1/libc.so")
+                                        .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
     return true;
 }
 
