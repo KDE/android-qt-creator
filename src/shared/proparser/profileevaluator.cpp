@@ -653,9 +653,9 @@ static QString fixPathToLocalOS(const QString &str)
     QString string = expandEnvVars(str);
 
     if (string.length() > 2 && string.at(0).isLetter() && string.at(1) == QLatin1Char(':'))
-        string[0] = string[0].toLower();
+        string[0] = string[0].toUpper();
 
-#if defined(Q_OS_WIN32)
+#if defined(Q_OS_WIN32) && !defined(__MINGW32__)
     string.replace(QLatin1Char('/'), QLatin1Char('\\'));
 #else
     string.replace(QLatin1Char('\\'), QLatin1Char('/'));

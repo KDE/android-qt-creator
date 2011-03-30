@@ -155,11 +155,11 @@ void AndroidDeployStep::handleBuildOutput()
     QProcess * const buildProc = qobject_cast<QProcess *>(sender());
     if (!buildProc)
         return;
-    // Doing both reads before doing emit addOutput() avoids a crash on Windows.
-	// Seems like buildProc QProcess dies and gets reallocated during the emit,
-	// (or something).
-    const QByteArray &stdOut = buildProc->readAllStandardOutput();
+    // Doing both reads before doing emit addOutput() reduces the frequency ofa crash
+    // on Windows. Seems like buildProc QProcess dies and gets reallocated during the emit,
+    // (or something).
     const QByteArray &errorOut = buildProc->readAllStandardError();
+    const QByteArray &stdOut = buildProc->readAllStandardOutput();
     if (!stdOut.isEmpty())
         emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
     if (!errorOut.isEmpty())

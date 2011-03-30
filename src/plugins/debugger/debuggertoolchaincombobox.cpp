@@ -56,10 +56,13 @@ DebuggerToolChainComboBox::DebuggerToolChainComboBox(QWidget *parent) :
 
 void DebuggerToolChainComboBox::init(bool hostAbiOnly)
 {
+    // Debug: hostAbi "x86-windows-unknown-pe-32bit" -> should be msys. Also, I'd like to be able to debug non-msys exes!
+    //        so need to check is compatiable
+    hostAbiOnly = false;
     const ProjectExplorer::Abi hostAbi = ProjectExplorer::Abi::hostAbi();
     foreach (const ProjectExplorer::ToolChain *tc, ProjectExplorer::ToolChainManager::instance()->toolChains()) {
         const ProjectExplorer::Abi abi = tc->targetAbi();
-        if (!hostAbiOnly || hostAbi.os() == abi.os()) { // Offer MSVC and Mingw, etc.
+        if (!hostAbiOnly || hostAbi.isCompatibleWith(abi)) {
             const QString debuggerCommand = tc->debuggerCommand();
             if (!debuggerCommand.isEmpty()) {
                 const AbiDebuggerCommandPair data(abi, debuggerCommand);
