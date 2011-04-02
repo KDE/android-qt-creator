@@ -244,10 +244,10 @@ void AndroidPackageCreationStep::handleBuildOutput()
     QProcess * const buildProc = qobject_cast<QProcess *>(sender());
     if (!buildProc)
         return;
-    const QByteArray &stdOut = buildProc->readAllStandardOutput();
+	const QByteArray &stdOut = buildProc->readAllStandardOutput();
+	const QByteArray &errorOut = buildProc->readAllStandardError();
     if (!stdOut.isEmpty())
         emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
-    const QByteArray &errorOut = buildProc->readAllStandardError();
     if (!errorOut.isEmpty()) {
         emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput);
     }

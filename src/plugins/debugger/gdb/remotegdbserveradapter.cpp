@@ -163,7 +163,11 @@ void RemoteGdbServerAdapter::uploadProcFinished()
 void RemoteGdbServerAdapter::setupInferior()
 {
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
-
+#ifdef Q_OS_WIN
+    #define PATHSEP ";"
+#else
+    #define PATHSEP ":"
+#endif
     QString fileName;
     if (!startParameters().executable.isEmpty()) {
         QFileInfo fi(startParameters().executable);
@@ -176,8 +180,8 @@ void RemoteGdbServerAdapter::setupInferior()
          QFileInfo(startParameters().dumperLibrary).path().toLocal8Bit();
 
     if (solibPath.size() && startParameters().solibSearchPath.size())
-        solibPath+=":";
-    solibPath+=startParameters().solibSearchPath.join(":").toLatin1();
+        solibPath+=PATHSEP;
+    solibPath+=startParameters().solibSearchPath.join(PATHSEP).toLatin1();
 
     const QString args = startParameters().processArgs;
 
