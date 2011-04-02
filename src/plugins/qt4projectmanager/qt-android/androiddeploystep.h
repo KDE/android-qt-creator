@@ -19,10 +19,10 @@ are required by law.
 #include <QtCore/QMap>
 #include <QtCore/QPair>
 #include <QtCore/QSharedPointer>
+#include <QtCore/QProcess>
 
 QT_BEGIN_NAMESPACE
 class QEventLoop;
-class QProcess;
 class QTimer;
 QT_END_NAMESPACE
 
@@ -83,13 +83,14 @@ private:
     void ctor();
     void raiseError(const QString &error);
     void writeOutput(const QString &text, OutputFormat = MessageOutput);
-    bool runCommand(QProcess *buildProc, const QString &command);
+    bool runCommand(QProcess *buildProc, const QString &program, const QStringList & arguments);
 
 private:
     QString m_deviceSerialNumber;
     QString m_QASIPackagePath;
     AndroidDeployAction m_deployAction;
     bool m_useLocalQtLibs;
+    QProcess m_proc;
 
     static const QLatin1String Id;
 };

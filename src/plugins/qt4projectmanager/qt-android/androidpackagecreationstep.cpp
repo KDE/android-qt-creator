@@ -150,7 +150,8 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     emit addOutput(tr("Stripping libraries, please wait"), BuildStep::MessageOutput);
     stripAndroidLibs(stripFiles);
 
-    QString build=QLatin1String(" debug");
+    QStringList build;
+    build<<"debug";
     if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
     {
             if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(),
@@ -170,7 +171,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 
     buildProc->setWorkingDirectory(androidDir);
 
-    if (!runCommand(buildProc, AndroidConfigurations::instance().antToolPath()+build))
+    if (!runCommand(buildProc, AndroidConfigurations::instance().antToolPath(), build))
         return false;
 
     emit addOutput(tr("Package created."), BuildStep::MessageOutput);
@@ -212,22 +213,22 @@ bool AndroidPackageCreationStep::removeDirectory(const QString &dirPath)
     return dir.rmdir(dirPath);
 }
 
-bool AndroidPackageCreationStep::runCommand(QProcess *buildProc,
-    const QString &command)
+bool AndroidPackageCreationStep::runCommand(QProcess *buildProc
+    , const QString &program, const QStringList & arguments)
 {
-    emit addOutput(tr("Package Creation: Running command '%1'").arg(command), BuildStep::MessageOutput);
-    buildProc->start(command);
+    emit addOutput(tr("Package deploy: Running command '%1 %2'.").arg(program).arg(arguments.join(" ")), BuildStep::MessageOutput);
+    buildProc->start(program, arguments);
     if (!buildProc->waitForStarted()) {
         raiseError(tr("Packaging failed."),
-            tr("Packaging error: Could not start command '%1'. Reason: %2")
-            .arg(command).arg(buildProc->errorString()));
+                   tr("Packaging error: Could not start command '%1 %2'. Reason: %3")
+                               .arg(program).arg(arguments.join(" ")).arg(buildProc->errorString()));
         return false;
     }
     buildProc->waitForFinished(-1);
     if (buildProc->error() != QProcess::UnknownError
         || buildProc->exitCode() != 0) {
-        QString mainMessage = tr("Packaging Error: Command '%1' failed.")
-            .arg(command);
+        QString mainMessage = tr("Packaging Error: Command '%1 %2' failed.")
+                .arg(program).arg(arguments.join(" "));
         if (buildProc->error() != QProcess::UnknownError)
             mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
         else

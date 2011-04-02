@@ -68,7 +68,7 @@ public:
     void setConfig(const AndroidConfig &config);
     QStringList sdkTargets();
     QStringList ndkToolchainVersions();
-    QString adbToolPath(const QString & deviceSerialNumber="");
+    QString adbToolPath();
     QString androidToolPath();
     QString antToolPath();
     QString emulatorToolPath();

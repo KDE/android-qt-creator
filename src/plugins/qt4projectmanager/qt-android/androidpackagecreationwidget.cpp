@@ -444,9 +444,8 @@ void AndroidPackageCreationWidget::readElfInfo()
                                  " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
         return;
     }
-    readelfProc.start(QString("%1 -d -W %2")
-                      .arg(AndroidConfigurations::instance().readelfPath())
-                      .arg(appPath));
+    readelfProc.start(AndroidConfigurations::instance().readelfPath(),
+                      QStringList()<<"-d"<<"-W"<<appPath);
     if (!readelfProc.waitForFinished(-1))
     {
         readelfProc.terminate();

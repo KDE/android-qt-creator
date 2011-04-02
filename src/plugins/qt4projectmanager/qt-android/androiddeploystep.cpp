@@ -30,7 +30,6 @@ are required by law.
 #include <QtCore/QEventLoop>
 #include <QtCore/QFileInfo>
 #include <QtCore/QTimer>
-#include <QtCore/QProcess>
 
 #define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
 
@@ -125,21 +124,21 @@ bool AndroidDeployStep::fromMap(const QVariantMap &map)
 }
 
 bool AndroidDeployStep::runCommand(QProcess *buildProc,
-    const QString &command)
+    const QString &program, const QStringList & arguments)
 {
 
-    writeOutput(tr("Package deploy: Running command '%1'.").arg(command), BuildStep::MessageOutput);
-    buildProc->start(command);
+    writeOutput(tr("Package deploy: Running command '%1 %2'.").arg(program).arg(arguments.join(" ")), BuildStep::MessageOutput);
+    buildProc->start(program, arguments);
     if (!buildProc->waitForStarted()) {
-        writeOutput(tr("Packaging error: Could not start command '%1'. Reason: %2")
-            .arg(command).arg(buildProc->errorString()), BuildStep::ErrorMessageOutput);
+        writeOutput(tr("Packaging error: Could not start command '%1 %2'. Reason: %3")
+            .arg(program).arg(arguments.join(" ")).arg(buildProc->errorString()), BuildStep::ErrorMessageOutput);
         return false;
     }
     buildProc->waitForFinished(-1);
     if (buildProc->error() != QProcess::UnknownError
         || buildProc->exitCode() != 0) {
-        QString mainMessage = tr("Packaging Error: Command '%1' failed.")
-            .arg(command);
+        QString mainMessage = tr("Packaging Error: Command '%1 %2' failed.")
+                .arg(program).arg(arguments.join(" "));
         if (buildProc->error() != QProcess::UnknownError)
             mainMessage += tr(" Reason: %1").arg(buildProc->errorString());
         else
@@ -213,17 +212,17 @@ bool AndroidDeployStep::deployPackage()
         return false;
     }
 
-    QProcess proc;
-    connect(&proc, SIGNAL(readyReadStandardOutput()), this,
+    connect(&m_proc, SIGNAL(readyReadStandardOutput()), this,
         SLOT(handleBuildOutput()));
-    connect(&proc, SIGNAL(readyReadStandardError()), this,
+    connect(&m_proc, SIGNAL(readyReadStandardError()), this,
         SLOT(handleBuildOutput()));
 
     if (m_deployAction == DeployLocal)
     {
         writeOutput(tr("Clean old qt libs"));
-        runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                   +" shell rm -r /data/local/qt");
+        runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
+                   QStringList()<<"-s"<<m_deviceSerialNumber
+                   <<"shell"<<"rm"<<"-r"<<"/data/local/qt");
 
         writeOutput(tr("Deploy qt libs ... this may take some time, please wait"));
         const QString tempPath=QDir::tempPath()+"/android_qt_libs_"+packageName;
@@ -233,41 +232,42 @@ bool AndroidDeployStep::deployPackage()
         copyLibs(bc->qtVersion()->sourcePath()+"/plugins", tempPath+"/plugins",stripFiles);
         copyLibs(bc->qtVersion()->sourcePath()+"/imports", tempPath+"/imports",stripFiles);
         AndroidPackageCreationStep::stripAndroidLibs(stripFiles);
-        runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                   +QString(" push %1 /data/local/qt").arg(tempPath));
+        runCommand(&m_proc,AndroidConfigurations::instance().adbToolPath(),
+                   QStringList()<<"-s"<<m_deviceSerialNumber
+                   <<"push"<<tempPath<<"/data/local/qt");
         AndroidPackageCreationStep::removeDirectory(tempPath);
         emit (resetDelopyAction());
     }
 
     if (m_deployAction == InstallQASI)
     {
-        if (!runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                   +QString(" install -r ") +m_QASIPackagePath))
+        if (!runCommand(&m_proc,AndroidConfigurations::instance().adbToolPath(),
+                        QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<"-r "<<m_QASIPackagePath))
         {
             raiseError(tr("Qt Android smart installer instalation failed"));
             return false;
         }
         emit (resetDelopyAction());
     }
-    proc.setWorkingDirectory(androidTarget->androidDirPath());
+    m_proc.setWorkingDirectory(androidTarget->androidDirPath());
 
     writeOutput(tr("Installing package onto %1.").arg(m_deviceSerialNumber));
-    runCommand(&proc,AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-               +QLatin1String(" uninstall ")
-               +packageName);
+    runCommand(&m_proc,AndroidConfigurations::instance().adbToolPath(),
+               QStringList()<<"-s"<<m_deviceSerialNumber<<"uninstall"<<packageName);
 
-    if (!runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" install \"%1\"").arg(androidTarget->apkPath())))
+    if (!runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
+                    QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<androidTarget->apkPath()))
     {
         raiseError(tr("Package instalation failed"));
         return false;
     }
 
     writeOutput(tr("Pulling files necessary for debugging"));
-    runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                                       +QString(" pull /system/bin/app_process %1/app_process")
+    runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
+               QStringList()<<"-s"<<m_deviceSerialNumber<<"pull"<<"/system/bin/app_process"<<QString("%1/app_process")
                                         .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
-    runCommand(&proc, AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)
-                                       +QString(" pull /system/lib/libc.so %1/libc.so")
+    runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
+               QStringList()<<"-s"<<m_deviceSerialNumber<<"pull"<<"/system/lib/libc.so"<<QString("%1/libc.so")
                                         .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
     return true;
 }

@@ -106,12 +106,9 @@ QStringList AndroidConfigurations::ndkToolchainVersions()
     return QStringList()<<"arm-linux-androideabi-4.4.3"<<"arm-eabi-4.4.0";
 }
 
-QString AndroidConfigurations::adbToolPath(const QString & deviceSerialNumber)
+QString AndroidConfigurations::adbToolPath()
 {
-    QString adbCmmand=m_config.SDKLocation+QLatin1String("/platform-tools/adb"ANDROID_EXE_SUFFIX);
-    if (deviceSerialNumber.length())
-        adbCmmand+=" -s "+deviceSerialNumber;
-    return adbCmmand;
+    return m_config.SDKLocation+QLatin1String("/platform-tools/adb"ANDROID_EXE_SUFFIX);
 }
 
 QString AndroidConfigurations::androidToolPath()

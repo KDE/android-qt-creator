@@ -55,7 +55,7 @@ private:
     virtual bool immutable() const { return true; }
 
     bool createPackage(QProcess *buildProc);
-    bool runCommand(QProcess *buildProc, const QString &command);
+    bool runCommand(QProcess *buildProc, const QString &program, const QStringList & arguments);
     void raiseError(const QString &shortMsg,
                     const QString &detailedMsg = QString());
 

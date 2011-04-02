@@ -61,7 +61,7 @@ void AndroidRunner::checkPID()
 {
     qApp->processEvents();
     QProcess psProc;
-    psProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" shell ps"));
+    psProc.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"ps");
     if (!psProc.waitForFinished(-1))
     {
         psProc.terminate();
@@ -115,13 +115,13 @@ void AndroidRunner::killPID()
         checkPID();
         if (-1 != m_processPID)
         {
-            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell kill -9 %1").arg(m_processPID));
+            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"kill"<<"-9"<<QString::number(m_processPID));
             if (!m_killProcess.waitForFinished(-1))
                 m_killProcess.terminate();
         }
         if (-1 != m_gdbserverPID)
         {
-            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell kill -9 %1").arg(m_gdbserverPID));
+            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"kill"<<"-9"<<QString::number(m_gdbserverPID));
             if (!m_killProcess.waitForFinished(-1))
                 m_killProcess.terminate();
         }
@@ -137,19 +137,26 @@ void AndroidRunner::start()
     QProcess adbStarProc;
     if (m_debugingMode)
     {
-        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" forward tcp%1 localfilesystem:/data/data/%2/debug-socket").arg(m_runConfig->remoteChannel()).arg(m_packageName));
+        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"forward"<<QString("tcp%1").arg(m_runConfig->remoteChannel())<<QString("localfilesystem:/data/data/%1/debug-socket").arg(m_packageName));
+        if (!adbStarProc.waitForStarted()) {
+            emit remoteProcessFinished(tr("Failed to forward debugging ports. Reason: $1").arg(adbStarProc.errorString()));
+            return;
+        }
         if (!adbStarProc.waitForFinished(-1))
         {
             emit remoteProcessFinished(tr("Failed to forward debugging ports"));
             return;
         }
-        extraParams="-e native_debug true -e gdbserver_socket \"+debug-socket\"";
+        extraParams="-e native_debug true -e gdbserver_socket +debug-socket";
     }
 
     if (m_runConfig->deployStep()->useLocalQtLibs())
         extraParams+=" -e use_local_qt_libs true";
-
-    adbStarProc.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QString(" shell am start -n %1 %2").arg(m_intentName).arg(extraParams));
+    adbStarProc.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"am"<<"start"<<"-n"<<m_intentName<<extraParams.trimmed().split(" "));
+    if (!adbStarProc.waitForStarted()) {
+        emit remoteProcessFinished(tr("Failed to forward debugging ports. Reason: $1").arg(adbStarProc.errorString()));
+        return;
+    }
     if (!adbStarProc.waitForFinished(-1))
     {
         adbStarProc.terminate();
@@ -180,7 +187,7 @@ void AndroidRunner::start()
 
     m_exitStatus = 0;
     m_checkPIDTimer.start(1000); // check if the application is alive every 1 seconds
-    m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath(m_deviceSerialNumber)+QLatin1String(" logcat"));
+    m_adbLogcatProcess.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"logcat");
 #ifdef __GNUC__
 #warning FIXME Android m_gdbServerPort(5039)
 #endif
