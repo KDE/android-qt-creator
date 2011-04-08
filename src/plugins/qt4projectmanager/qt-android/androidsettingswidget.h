@@ -59,9 +59,11 @@ private slots:
     void SDKLocationEditingFinished();
     void NDKLocationEditingFinished();
     void AntLocationEditingFinished();
+    void GdbLocationEditingFinished();
     void browseSDKLocation();
     void browseNDKLocation();
     void browseAntLocation();
+    void browseGdbLocation();
     void toolchainVersionIndexChanged(QString);
     void addAVD();
     void removeAVD();

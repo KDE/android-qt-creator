@@ -106,6 +106,8 @@ QString AndroidSettingsWidget::searchKeywords() const
         << ' ' << m_ui->NDKToolchainVersionLabel->text()
         << ' ' << m_ui->AntLocationLabel->text()
         << ' ' << m_ui->AntLocationLineEdit->text()
+        << ' ' << m_ui->GdbLocationLabel->text()
+        << ' ' << m_ui->GdbLocationLineEdit->text()
         << ' ' << m_ui->AVDManagerLabel->text()
         << ' ' << m_ui->DataPartitionSizeLable->text()
         << ' ' << m_ui->DataPartitionSizeSpinBox->text();
@@ -126,6 +128,7 @@ void AndroidSettingsWidget::initGui()
     else
         m_androidConfig.NDKLocation="";
     m_ui->AntLocationLineEdit->setText(m_androidConfig.AntLocation);
+    m_ui->GdbLocationLineEdit->setText(m_androidConfig.GdbLocation);
     m_ui->DataPartitionSizeSpinBox->setValue(m_androidConfig.PartitionSize);
     m_ui->AVDTableView->setModel(&m_AVDModel);
     m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
@@ -163,6 +166,8 @@ bool AndroidSettingsWidget::checkSDK(const QString & location)
 bool AndroidSettingsWidget::checkNDK(const QString & location)
 {
     m_ui->toolchainVersionComboBox->setEnabled(false);
+    m_ui->GdbLocationLineEdit->setEnabled(false);
+    m_ui->GdbLocationPushButton->setEnabled(false);
     if (!location.length())
         return false;
     if (!QFile::exists(location+QLatin1String("/platforms")) || !QFile::exists(location+QLatin1String("/toolchains")) || !QFile::exists(location+QLatin1String("/sources/cxx-stl")) )
@@ -171,6 +176,8 @@ bool AndroidSettingsWidget::checkNDK(const QString & location)
         return false;
     }
     m_ui->toolchainVersionComboBox->setEnabled(true);
+    m_ui->GdbLocationLineEdit->setEnabled(true);
+    m_ui->GdbLocationPushButton->setEnabled(true);
     fillToolchainVersions();
     return true;
 
@@ -224,6 +231,14 @@ void AndroidSettingsWidget::AntLocationEditingFinished()
     m_androidConfig.AntLocation = location;
 }
 
+void AndroidSettingsWidget::GdbLocationEditingFinished()
+{
+    QString location=m_ui->GdbLocationLineEdit->text();
+    if (!location.length() || !QFile::exists(location))
+        return;
+    m_androidConfig.GdbLocation = location;
+}
+
 void AndroidSettingsWidget::browseSDKLocation()
 {
     QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"));
@@ -247,12 +262,26 @@ void AndroidSettingsWidget::browseAntLocation()
     QString dir=QDir::homePath();
 #ifdef Q_OS_LINUX
     dir=QLatin1String("/usr/bin/ant");
+    QLatin1String antApp("ant");
+#elif defined(Q_OS_WIN)
+    QLatin1String antApp("ant.bat");
 #endif
-    QString file=QFileDialog::getOpenFileName(this, tr("Select ant file"),dir,QLatin1String("ant"));
+    QString file=QFileDialog::getOpenFileName(this, tr("Select ant file"),dir,antApp);
     if (!file.length())
         return;
     m_ui->AntLocationLineEdit->setText(file);
     AntLocationEditingFinished();
+}
+
+
+void AndroidSettingsWidget::browseGdbLocation()
+{
+    QString gdbPath=AndroidConfigurations::instance().gdbPath();
+    QString file=QFileDialog::getOpenFileName(this, tr("Select gdb file"),gdbPath);
+    if (!file.length())
+        return;
+    m_ui->GdbLocationLineEdit->setText(file);
+    GdbLocationEditingFinished();
 }
 
 void AndroidSettingsWidget::addAVD()
