@@ -33,7 +33,7 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 namespace {
-    const QLatin1String SettingsGroup("AndroidDeviceConfigs");
+    const QLatin1String SettingsGroup("AndroidConfigurations");
     const QLatin1String SDKLocationKey("SDKLocation");
     const QLatin1String NDKLocationKey("NDKLocation");
     const QLatin1String NDKToolchainVersionKey("NDKToolchainVersion");
@@ -369,7 +369,7 @@ AndroidConfigurations &AndroidConfigurations::instance(QObject *parent)
 
 void AndroidConfigurations::save()
 {
-    QSettings *settings = Core::ICore::instance()->settings();
+    QSettings *settings = Core::ICore::instance()->settings(QSettings::SystemScope);
     settings->beginGroup(SettingsGroup);
     m_config.save(*settings);
     settings->endGroup();
@@ -383,7 +383,7 @@ AndroidConfigurations::AndroidConfigurations(QObject *parent)
 
 void AndroidConfigurations::load()
 {
-    QSettings *settings = Core::ICore::instance()->settings();
+    QSettings *settings = Core::ICore::instance()->settings(QSettings::SystemScope);
     settings->beginGroup(SettingsGroup);
     m_config=AndroidConfig(*settings);
     settings->endGroup();
