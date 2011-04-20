@@ -40,6 +40,8 @@ public:
 
     QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion);
     bool isMobileTarget(const QString &id);
+    bool supportsShadowBuilds(const QString &id);
+
 private:
     QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &proFilePath,
         const QString &id);

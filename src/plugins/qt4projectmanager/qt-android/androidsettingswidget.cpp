@@ -203,7 +203,7 @@ void AndroidSettingsWidget::NDKLocationEditingFinished()
     if (!checkNDK(location))
         return;
     m_androidConfig.NDKLocation = location;
-    saveSettings();
+    saveSettings(true);
 }
 
 void AndroidSettingsWidget::fillToolchainVersions()
@@ -219,7 +219,7 @@ void AndroidSettingsWidget::fillToolchainVersions()
 void AndroidSettingsWidget::toolchainVersionIndexChanged(QString version)
 {
     m_androidConfig.NDKToolchainVersion=version;
-    saveSettings();
+    saveSettings(true);
 }
 
 

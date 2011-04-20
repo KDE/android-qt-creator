@@ -202,3 +202,8 @@ bool Qt4AndroidTargetFactory::isMobileTarget(const QString &/*id*/)
 {
     return true;
 }
+
+bool Qt4AndroidTargetFactory::supportsShadowBuilds(const QString &/*id*/)
+{
+    return true;
+}
