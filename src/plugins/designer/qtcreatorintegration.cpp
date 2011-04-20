@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -510,6 +509,8 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
                                           const QStringList &parameterNames,
                                           QString *errorMessage)
 {
+    typedef QMap<int, Document::Ptr> DocumentMap;
+
     const EditorData ed = m_few->activeEditor();
     QTC_ASSERT(ed, return false)
     const QString currentUiFile = ed.formWindowEditor->file()->fileName();
@@ -522,6 +523,7 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
     // be generating the ui_<>.h file for it, and the .pro file knows what the generated file's name and its absolute path will be.
     // So we should somehow get that info from project manager (?)
     const QFileInfo fi(currentUiFile);
+    const QString uiFolder = fi.absolutePath();
     const QString uicedName = QLatin1String("ui_") + fi.completeBaseName() + QLatin1String(".h");
 
     // Retrieve code model snapshot restricted to project of ui file.
@@ -542,11 +544,18 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
     docTable = newDocTable;
 
     // take all docs, find the ones that include the ui_xx.h.
-    QList<Document::Ptr> docList = findDocumentsIncluding(docTable, uicedName, true); // change to false when we know the absolute path to generated ui_<>.h file
+    // Sort into a map, putting the ones whose path closely matches the ui-folder path
+    // first in case there are project subdirectories that contain identical file names.
+    const QList<Document::Ptr> docList = findDocumentsIncluding(docTable, uicedName, true); // change to false when we know the absolute path to generated ui_<>.h file
+    DocumentMap docMap;
+    foreach (const Document::Ptr &d, docList) {
+        const QFileInfo docFi(d->fileName());
+        docMap.insert(qAbs(docFi.absolutePath().compare(uiFolder, Qt::CaseInsensitive)), d);
+    }
 
     if (Designer::Constants::Internal::debug)
         qDebug() << Q_FUNC_INFO << objectName << signalSignature << "Looking for " << uicedName << " returned " << docList.size();
-    if (docList.isEmpty()) {
+    if (docMap.isEmpty()) {
         *errorMessage = tr("No documents matching '%1' could be found.\nRebuilding the project might help.").arg(uicedName);
         return false;
     }
@@ -564,7 +573,7 @@ bool QtCreatorIntegration::navigateToSlot(const QString &objectName,
     const Class *cl = 0;
     Document::Ptr doc;
 
-    foreach (const Document::Ptr &d, docList) {
+    foreach (const Document::Ptr &d, docMap) {
         const ClassDocumentPtrPair cd = findClassRecursively(docTable, d, uiClass, 1u , &namespaceName);
         if (cd.first) {
             cl = cd.first;

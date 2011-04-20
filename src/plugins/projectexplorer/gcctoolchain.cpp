@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -37,6 +36,7 @@
 #include "linuxiccparser.h"
 #include "headerpath.h"
 #include "projectexplorerconstants.h"
+#include "toolchainmanager.h"
 
 #include <utils/environment.h>
 #include <utils/synchronousprocess.h>
@@ -287,7 +287,9 @@ void GccToolChain::updateId()
 {
     QString i = id();
     i = i.left(i.indexOf(QLatin1Char(':')));
-    setId(QString::fromLatin1("%1:%2.%3").arg(i).arg(m_compilerPath).arg(m_targetAbi.toString()));
+    setId(QString::fromLatin1("%1:%2.%3.%4")
+          .arg(i).arg(m_compilerPath)
+          .arg(m_targetAbi.toString()).arg(m_debuggerCommand));
 }
 
 QString GccToolChain::typeName() const
@@ -302,9 +304,14 @@ Abi GccToolChain::targetAbi() const
 
 void GccToolChain::setTargetAbi(const Abi &abi)
 {
+    if (abi == m_targetAbi)
+        return;
+
     updateSupportedAbis();
-    if (m_supportedAbis.contains(abi))
+    if (m_supportedAbis.contains(abi)) {
         m_targetAbi = abi;
+        toolChainUpdated();
+    }
 }
 
 QList<Abi> GccToolChain::supportedAbis() const
@@ -348,7 +355,10 @@ void GccToolChain::addToEnvironment(Utils::Environment &env) const
 
 void GccToolChain::setDebuggerCommand(const QString &d)
 {
+    if (m_debuggerCommand == d)
+        return;
     m_debuggerCommand = d;
+    toolChainUpdated();
 }
 
 QString GccToolChain::debuggerCommand() const
@@ -385,7 +395,7 @@ void GccToolChain::setCompilerPath(const QString &path)
         if (displayName() == typeName())
             setDisplayName(defaultDisplayName());
     }
-    updateId();
+    updateId(); // Will trigger toolChainUpdated()!
 }
 
 QString GccToolChain::compilerPath() const
@@ -513,11 +523,13 @@ QList<ToolChain *> Internal::GccToolChainFactory::autoDetectToolchains(const QSt
     if (!abiList.contains(requiredAbi))
         return result;
 
-    QString debuggerPath; // Find the first debugger
-    foreach (const QString &debugger, debuggers) {
-        debuggerPath = systemEnvironment.searchInPath(debugger);
-        if (!debuggerPath.isEmpty())
-            break;
+    QString debuggerPath = ToolChainManager::instance()->defaultDebugger(requiredAbi); // Find the first debugger
+    if (debuggerPath.isEmpty()) {
+        foreach (const QString &debugger, debuggers) {
+            debuggerPath = systemEnvironment.searchInPath(debugger);
+            if (!debuggerPath.isEmpty())
+                break;
+        }
     }
 
     foreach (const Abi &abi, abiList) {
@@ -581,6 +593,7 @@ void Internal::GccToolChainConfigWidget::apply()
     tc->setTargetAbi(m_abiList.at(m_abiComboBox->currentIndex()));
     tc->setDisplayName(displayName); // reset display name
     tc->setDebuggerCommand(debuggerCommand());
+    m_autoDebuggerCommand = QLatin1String("<manually set>");
 }
 
 void Internal::GccToolChainConfigWidget::populateAbiList(const QList<Abi> &list)
@@ -599,6 +612,7 @@ void Internal::GccToolChainConfigWidget::populateAbiList(const QList<Abi> &list)
         if (m_abiList.at(i) == currentAbi)
             m_abiComboBox->setCurrentIndex(i);
     }
+    handleAbiChange();
 }
 
 void Internal::GccToolChainConfigWidget::setFromToolchain()
@@ -630,6 +644,11 @@ void Internal::GccToolChainConfigWidget::handlePathChange()
 
 void Internal::GccToolChainConfigWidget::handleAbiChange()
 {
+    if (m_autoDebuggerCommand == debuggerCommand() && m_abiComboBox->currentIndex() >= 0) {
+        ProjectExplorer::Abi abi = m_abiList.at(m_abiComboBox->currentIndex());
+        m_autoDebuggerCommand = ToolChainManager::instance()->defaultDebugger(abi);
+        setDebuggerCommand(m_autoDebuggerCommand);
+    }
     emit dirty(toolChain());
 }
 
@@ -672,6 +691,16 @@ QString Internal::MingwToolChainFactory::id() const
 
 QList<ToolChain *> Internal::MingwToolChainFactory::autoDetect()
 {
+    // Compatibility to pre-2.2:
+    // All Mingw toolchains that exist so far are either installed by the SDK itself (in
+    // which case they most likely have debuggers set up) or were created when updating
+    // from a previous Qt version. Add debugger in that case.
+    foreach (ToolChain *tc, ToolChainManager::instance()->toolChains()) {
+        if (tc->debuggerCommand().isEmpty() && tc->id().startsWith(QLatin1String(Constants::MINGW_TOOLCHAIN_ID)))
+            static_cast<MingwToolChain *>(tc)
+                ->setDebuggerCommand(ToolChainManager::instance()->defaultDebugger(tc->targetAbi()));
+    }
+
     Abi ha = Abi::hostAbi();
     return autoDetectToolchains(QLatin1String("g++"), QStringList(),
                                 Abi(ha.architecture(), Abi::WindowsOS, Abi::WindowsMSysFlavor, Abi::PEFormat, ha.wordWidth()));

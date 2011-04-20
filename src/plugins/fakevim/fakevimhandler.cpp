@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -409,7 +408,13 @@ public:
 
     bool is(int c) const
     {
-        return m_xkey == c && m_modifiers != Qt::ControlModifier;
+        return m_xkey == c && m_modifiers !=
+#ifdef Q_WS_MAC
+                Qt::MetaModifier
+#else
+                Qt::ControlModifier
+#endif
+        ;
     }
 
     bool isControl(int c) const
@@ -510,21 +515,25 @@ class History
 {
 public:
     History() : m_index(0) {}
-    void append(const QString &item)
-        { //qDebug() << "APP: " << item << m_items;
-            m_items.removeAll(item);
-            m_items.append(item); m_index = m_items.size() - 1;  }
+    void append(const QString &item);
     void down() { m_index = qMin(m_index + 1, m_items.size()); }
     void up() { m_index = qMax(m_index - 1, 0); }
-    //void clear() { m_items.clear(); m_index = 0; }
     void restart() { m_index = m_items.size(); }
     QString current() const { return m_items.value(m_index, QString()); }
     QStringList items() const { return m_items; }
+
 private:
     QStringList m_items;
     int m_index;
 };
 
+void History::append(const QString &item)
+{
+    if (item.isEmpty())
+        return;
+    m_items.removeAll(item);
+    m_items.append(item); m_index = m_items.size() - 1;
+}
 
 // Mappings for a specific mode.
 class ModeMapping : public QList<QPair<Inputs, Inputs> >
@@ -867,6 +876,7 @@ public:
     QString selectText(const Range &range) const;
     void setCurrentRange(const Range &range);
     Range currentRange() const { return Range(position(), anchor(), m_rangemode); }
+    Range rangeFromCurrentLine() const;
 
     void yankText(const Range &range, int toregister = '"');
 
@@ -2944,6 +2954,7 @@ EventResult FakeVimHandler::Private::handleSearchSubSubMode(const Input &input)
 {
     if (input.isEscape()) {
         m_commandBuffer.clear();
+        g.searchHistory.append(m_searchCursor.selectedText());
         m_searchCursor = QTextCursor();
         updateSelection();
         enterCommandMode();
@@ -3088,6 +3099,15 @@ void FakeVimHandler::Private::setCurrentRange(const Range &range)
     m_rangemode = range.rangemode;
 }
 
+Range FakeVimHandler::Private::rangeFromCurrentLine() const
+{
+    Range range;
+    int line = cursorLine() + 1;
+    range.beginPos = firstPositionInLine(line);
+    range.endPos = lastPositionInLine(line) + 1;
+    return range;
+}
+
 // use handleExCommand for invoking commands that might move the cursor
 void FakeVimHandler::Private::handleCommand(const QString &cmd)
 {
@@ -3141,8 +3161,9 @@ bool FakeVimHandler::Private::handleExSubstituteCommand(const ExCommand &cmd)
     if (flags.contains('i'))
         pattern.setCaseSensitivity(Qt::CaseInsensitive);
     const bool global = flags.contains('g');
-    const int beginLine = lineForPosition(cmd.range.beginPos);
-    const int endLine = lineForPosition(cmd.range.endPos);
+    const Range range = cmd.range.endPos == 0 ? rangeFromCurrentLine() : cmd.range;
+    const int beginLine = lineForPosition(range.beginPos);
+    const int endLine = lineForPosition(range.endPos);
     beginEditBlock();
     for (int line = endLine; line >= beginLine; --line) {
         QString origText = lineContents(line);
@@ -3357,9 +3378,10 @@ bool FakeVimHandler::Private::handleExDeleteCommand(const ExCommand &cmd)
     if (!cmd.matches("d", "delete"))
         return false;
 
-    setCurrentRange(cmd.range);
+    Range range = cmd.range.endPos == 0 ? rangeFromCurrentLine() : cmd.range;
+    setCurrentRange(range);
     QString reg = cmd.args;
-    QString text = selectText(cmd.range);
+    QString text = selectText(range);
     removeText(currentRange());
     if (!reg.isEmpty()) {
         Register &r = g.registers[reg.at(0).unicode()];
@@ -3487,15 +3509,20 @@ bool FakeVimHandler::Private::handleExShiftCommand(const ExCommand &cmd)
     if (cmd.cmd != "<" && cmd.cmd != ">")
         return false;
 
-    setCurrentRange(cmd.range);
-    int count = qMin(1, cmd.args.toInt());
+    Range range = cmd.range;
+    if (cmd.range.endPos == 0) {
+        range = rangeFromCurrentLine();
+        --range.endPos;
+    }
+    setCurrentRange(range);
+    int count = qMax(1, cmd.args.toInt());
     if (cmd.cmd == "<")
         shiftRegionLeft(count);
     else
         shiftRegionRight(count);
     leaveVisualMode();
-    const int beginLine = lineForPosition(cmd.range.beginPos);
-    const int endLine = lineForPosition(cmd.range.endPos);
+    const int beginLine = lineForPosition(range.beginPos);
+    const int endLine = lineForPosition(range.endPos);
     showBlackMessage(FakeVimHandler::tr("%n lines %1ed %2 time", 0,
         (endLine - beginLine + 1)).arg(cmd.cmd).arg(count));
     return true;

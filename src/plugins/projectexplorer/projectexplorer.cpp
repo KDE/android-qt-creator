@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -36,7 +35,6 @@
 #include "buildsteplist.h"
 #include "deployconfiguration.h"
 #include "gcctoolchainfactories.h"
-#include "msvctoolchain.h"
 #include "project.h"
 #include "projectexplorersettings.h"
 #include "target.h"
@@ -85,6 +83,10 @@
 #include "taskhub.h"
 #include "publishing/ipublishingwizardfactory.h"
 #include "publishing/publishingwizardselectiondialog.h"
+
+#ifdef Q_OS_WIN
+#    include "msvctoolchain.h"
+#endif
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/filemanager.h>
@@ -288,12 +290,12 @@ bool ProjectExplorerPlugin::initialize(const QStringList &arguments, QString *er
     addObject(this);
 
     // Add ToolChainFactories:
-#ifndef Q_OS_WIN
-    addAutoReleasedObject(new Internal::GccToolChainFactory);
-    addAutoReleasedObject(new Internal::LinuxIccToolChainFactory);
-#else
+#ifdef Q_OS_WIN
     addAutoReleasedObject(new Internal::MingwToolChainFactory);
     addAutoReleasedObject(new Internal::MsvcToolChainFactory);
+#else
+    addAutoReleasedObject(new Internal::GccToolChainFactory);
+    addAutoReleasedObject(new Internal::LinuxIccToolChainFactory);
 #endif
 
     d->m_toolChainManager = new ToolChainManager(this);
@@ -1048,7 +1050,7 @@ void ProjectExplorerPlugin::updateVariable(const QString &variable)
     } else if (variable == QLatin1String(kCurrentProjectPath)) {
         if (currentProject() && currentProject()->file()) {
             Core::VariableManager::instance()->insert(variable,
-                                                      QFileInfo(currentProject()->file()->fileName()).filePath());
+                                                      QFileInfo(currentProject()->file()->fileName()).path());
         } else {
             Core::VariableManager::instance()->remove(variable);
         }
@@ -1572,7 +1574,8 @@ void ProjectExplorerPlugin::updateActions()
     d->m_rebuildProjectOnlyAction->setEnabled(enableBuildActions);
     d->m_cleanProjectOnlyAction->setEnabled(enableBuildActions);
 
-    d->m_clearSession->setEnabled(hasProjects && enabledSessionBuildActions);
+    d->m_clearSession->setEnabled(hasProjects);
+
     d->m_buildSessionAction->setEnabled(hasProjects && enabledSessionBuildActions);
     d->m_rebuildSessionAction->setEnabled(hasProjects && enabledSessionBuildActions);
     d->m_cleanSessionAction->setEnabled(hasProjects && enabledSessionBuildActions);
@@ -2112,14 +2115,7 @@ void ProjectExplorerPlugin::openRecentProject()
         return;
     QString fileName = a->data().toString();
     if (!fileName.isEmpty()) {
-        if (!openProject(fileName)) {
-            QMessageBox box(QMessageBox::Warning,
-                            tr("Failed to open project"),
-                            tr("Failed to open project:\n%1").arg(fileName),
-                            QMessageBox::Ok,
-                            Core::ICore::instance()->mainWindow());
-            box.exec();
-        }
+        openProject(fileName);
     }
 }
 

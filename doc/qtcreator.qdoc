@@ -4,14 +4,8 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Free Documentation License
 **
@@ -124,15 +118,16 @@
                        \o \l{Adding Qt Versions}
                        \o \l{Adding Tool Chains}
                    \endlist
+                \o \l{Specifying Run Settings}
                 \o \l{Specifying Editor Settings}
                 \o \l{Specifying Dependencies}
             \endlist
        \o \l{Debugging}
             \list
                 \o \l{Debugging the Example Application}
+                \o \l{Launching the Debugger}
                 \o \l{Interacting with the Debugger}
                 \o \l{Setting Up Debugger}
-                \o \l{Launching the Debugger in Different Modes}
                 \o \l{Using Debugging Helpers}
                 \o \l{Debugging Qt Quick Projects}
                 \o \l{Detecting Memory Leaks}
@@ -153,8 +148,9 @@
        \o \l{Showing Task List Files in the Build Issues Pane}
        \o \l{Using Command Line Options}
        \o \l{Getting Help}
-       \o \l{Tips and Tricks}
        \o \l{Keyboard Shortcuts}
+       \o \l{FAQ}
+       \o \l{Tips and Tricks}
        \o \l{Known Issues}
        \o \l{Glossary}
        \o \l{Acknowledgements}
@@ -370,7 +366,7 @@
 
     \list
 
-        \o GNU Symbolic Debugger (gdb)
+        \o GNU Symbolic Debugger (GDB)
 
         \o Microsoft Console Debugger (CDB)
 
@@ -406,7 +402,7 @@
     plugin understands the internal layout of several Qt classes, for
     example, QString, the Qt containers, and most importantly QObject
     (and classes derived from it), as well as most containers of the C++
-    Standard Library and some gcc and Symbian extensions. This
+    Standard Library and some GCC and Symbian extensions. This
     deeper understanding is used to present objects of such classes in
     a useful way.
 
@@ -742,6 +738,7 @@
        \o  \gui{Application Output}
        \o  \gui{Compile Output}
        \o  \gui{General Messages}
+       \o  \gui{Analysis}
        \o  \gui{Version Control}
     \endlist
 
@@ -755,7 +752,7 @@
     criteria in the \gui Find field and click the left and right arrows to
     search down and up in the pane.
 
-    To open the \gui{General Messages} and \gui{Version Control}
+    To open the \gui{General Messages}, \gui{Analysis}, and \gui{Version Control}
     panes, select \gui {Window > Output Panes}.
 
 
@@ -825,7 +822,7 @@
     \contentspage index.html
     \previouspage creator-cli.html
     \page creator-help.html
-    \nextpage creator-tips.html
+    \nextpage creator-keyboard-shortcuts.html
 
     \title Getting Help
 
@@ -1023,17 +1020,48 @@
 
     \title Developing Widget Based Applications
 
-    Widgets and forms created with \QD are integrated seamlessly with programmed code,
-    using the Qt signals and slots mechanism, that lets you easily assign behavior to
+    Widgets and forms created with \QD are integrated seamlessly with
+    programmed code by using the Qt signals and slots mechanism that allows you
+    to easily assign behavior to
     graphical elements. All properties set in \QD can be changed dynamically within the code.
-    Furthermore, features like widget promotion and custom plugins allow you to use your
-    own widgets with \QD.
+    Furthermore, features such as widget promotion and custom plugins allow you to use your
+    own widgets with \QD. For more information, see
+    \l{Adding Qt Designer Plugins}.
 
-    Qt Creator automatically opens all .ui files in \QD.
+    Qt Creator automatically opens all .ui files in the integrated \QD, in
+    \gui Design mode.
 
     \image qtcreator-formedit.png
 
+    For more information about \QD, see the
+    \l{http://doc.qt.nokia.com/4.7/designer-manual.html}{Qt Designer Manual}.
+
+    Generally, the integrated \QD contains the same functions as the standalone
+    \QD. The following sections describe the differences.
+
+    \section1 Code Editor Integration
+
+    To switch between forms (\gui Design mode) and code (\gui Edit mode),
+    press \key Shift+F4.
+
+    You can use Qt Creator to create stub implementations of slot functions.
+    In the \gui Design mode, right-click a widget to open a context menu, and
+    then select \gui {Go to Slot...}. Select a signal in the list to go to an
+    existing slot function or to create a new slot function.
+
+    \section1 Managing Image Resources
+
+    In standalone \QD, image resources are created using the built-in
+    \gui {Resource Editor}. In Qt Creator, .ui files are usually part of a
+    project, which may contain several resource files (.qrc). They are created
+    and maintained by using the Qt Creator Resource Editor. The \QD
+    \gui {Resource Editor} is de-activated and the image resources are
+    displayed in the \QD \gui {Resource Browser}.
+
+    \section1 Specifying Settings for Qt Designer
+
     To change the layout of \QD user interface elements:
+
     \list 1
         \o Select \gui Tools > \gui{Form Editor} > \gui Views >
            \gui Locked.
@@ -1043,29 +1071,50 @@
            position.
     \endlist
 
-    To change \QD properties, select \gui Tools > \gui Options... >
-    \gui Designer.
-    \list
-        \o Set the class properties and code generation preferences in \gui
-           {Class Generation}.
-        \o Set an additional folder for saving templates in \gui{Template
-           Paths}.
-        \o Set the grid settings and preview preferences in \gui Forms. To
-           preview your form with skins, enable \gui{Print/Preview
-           Configuration} and select your skin. Otherwise default preview
-           settings are used.
+    To specify settings for \QD:
 
-           To preview the settings, select \gui Tools > \gui{Form Editor} >
-           \gui Preview, or press \key Alt+Shift+R.
-        \o To specify embedded device profiles, such as style, font, and screen
-           resolution, select \gui{Embedded Design}.
+    \list
+
+        \o  Select \gui Tools > \gui Options... > \gui Designer.
+
+        \o  Specify settins for generating classes and code in \gui {Class
+            Generation}.
+
+        \o  Specify embedded device profiles, that determine style, font, and
+            screen resolution, for example, in \gui{Embedded Design}.
+
+        \o  Specify settings for the grid and previewing forms in \gui Forms.
+
+        \o  Specify an additional folder for saving templates in \gui{Template
+            Paths}.
+
     \endlist
 
-    To switch between forms and code, use \key Shift+F4.
+    To preview the settings, select \gui Tools > \gui{Form Editor} >
+    \gui Preview, or press \key Alt+Shift+R.
 
-    For more information on \QD, see
-    \l{http://doc.qt.nokia.com/4.7/designer-manual.html}{Qt Designer Manual}.
+    \section1 Previewing Forms Using Device Skins
 
+    A \e {device skin} is a set of configuration files that describe a mobile
+    device. It includes a border image that surrounds the form and depicts a
+    mobile device with its buttons.
+
+    To preview your form using device skins:
+
+    \list 1
+
+        \o  Select \gui Tools > \gui Options... > \gui Designer.
+
+        \o  Select the \gui{Print/Preview Configuration} check box.
+
+        \o  In the \gui {Device skin} field, select a device skin.
+
+        \o  When the form is open in \gui Design mode, press \key Alt+Shift+R.
+
+        \o  To end the preview, right-click the skin and select \gui Close in
+            the context menu.
+
+    \endlist
 */
 
 
@@ -1096,6 +1145,9 @@
     \o \gui {Library} pane displays the building blocks that you can use to design
     applications: predefined QML elements, your own QML components, and other
     resources.
+
+    \o \gui Canvas is the working area where you create QML components and
+    design applications.
 
     \o \gui {Properties} pane organizes the properties of the selected QML element
     or QML component. You can also change the properties in the code editor.
@@ -1168,11 +1220,13 @@
     The \gui Items pane displays the QML elements grouped by type: your own QML
     components, basic elements, interaction elements, views, and widgets.
 
+    \omit
     Sets of UI components with the MeeGo and Symbian look and feel have been
     defined for Qt Quick. They are based on standard QML elements. To view the
     UI components in \gui {QML Components}, click
     \inlineimage qtcreator-filter.png
     and select \gui {MeeGo Components} or \gui {Symbian Components}.
+    \endomit
 
     \image qmldesigner-qml-components.png "QML Components pane"
 
@@ -1437,13 +1491,35 @@
     \section2 Previewing Element Size
 
     The width and height of the root item in a QML file determine the size of
-    the QML element. To experiment with different sizes, enter values in the
+    the QML element. You can reuse elements, such as buttons, in different
+    sizes in other QML files and design screens for use with different device
+    profiles, screen resolution, or screen orientation. The component size
+    might also be zero (0,0) if its final size is determined by property
+    bindings.
+
+    To experiment with different element sizes, enter values in the
     \gui Height and \gui Width fields on the canvas toolbar. The changes are
     displayed in the \gui States pane and on the canvas, but the property
     values are not changed permanently in the QML file. You can permanently
     change the property values in the \gui Properties pane.
 
     \image qmldesigner-preview-size.png "Canvas width and height"
+
+    \section1 Specifying Canvas Size
+
+    To change the canvas size, select \gui {Tools > Options... > Qt Quick} and
+    specify the canvas width and height in the \gui Canvas group.
+
+    \section1 Refreshing the Canvas
+
+    When you open QML files in \QMLD, the QML elements in the file are drawn on
+    the canvas. When you edit the element properties in \QMLD, the QML file and
+    the image on the canvas might get out of sync. For example, when you change
+    the position of an item within a column or a row, the new position might
+    not be displayed correctly on the canvas.
+
+    To refresh the image on the canvas, press \key R or select the \gui {Reset
+    View} button on the canvas toolbar.
 
 */
 
@@ -1589,7 +1665,8 @@
 
     As you write code, Qt Creator suggests properties, IDs, and code
     snippets to complete the code. It provides a list of context-sensitive
-    suggestions to the statement currently under your cursor.
+    suggestions to the statement currently under your cursor. Press \key Tab
+    or \key Enter to accept the selected suggestion and complete the code.
 
     \image qtcreator-codecompletion.png
 
@@ -1691,7 +1768,7 @@
     and remove snippets in the snippet editor. To open the editor, select
     \gui {Tools > Options... > Text Editor > Snippets}.
 
-    \image qtcreator-edit-code-snippets "Snippet options"
+    \image qtcreator-edit-code-snippets.png "Snippet options"
 
     Qt Creator provides you with built-in snippets in the following categories:
 
@@ -3106,7 +3183,7 @@
 
     By default, Qt Creator does a \l{glossary-shadow-build}{shadow build} and also
     creates the directory. However, shadow building is not supported for the Symbian
-    Devices target.
+    Devices or Maemo5 target on Windows.
 
     If you have built the project before, Qt Creator can use the existing build
     configuration to make the exact same build as found in the directory available to
@@ -3167,8 +3244,10 @@
     In a class wizard, you can allow developers to specify the class name, base
     class, and header and source files for the class.
 
-    To see how this works, rename wizard_example.xml as wizard.xml in the helloworld
-    and listmodels folders. After you restart Qt Creator, the \gui {Custom Classes}
+    To see how this works, rename wizard_sample.xml as wizard.xml in the
+    \c {\share\qtcreator\templates\wizards\listmodel\helloworld} and
+    \c {\share\qtcreator\templates\wizards\listmodel\listmodels} folders. After
+    you restart Qt Creator, the \gui {Custom Classes}
     and \gui {Custom Projects} categories appear in the \gui New dialog.
 
     \image qtcreator-custom-project-wizards.png "The New dialog with custom projects and classes"
@@ -3700,7 +3779,7 @@
     \contentspage index.html
     \previouspage creator-project-qmake.html
     \page creator-tool-chains.html
-    \nextpage creator-editor-settings.html
+    \nextpage creator-run-settings.html
 
     \title Adding Tool Chains
 
@@ -3874,7 +3953,7 @@
     \endlist
 
     For more information about the project file settings, see
-    \l{http://doc.qt.nokia.com/4.7/qmake-project-files.html#declaring-other-libraries}{Declaring other Libraries}.
+    \l{http://doc.qt.nokia.com/4.7/qmake-project-files.html#declaring-other-libraries}{Declaring Other Libraries}.
 
     \section1 Example of Adding Internal Libraries
 
@@ -4192,6 +4271,9 @@
 
         \o Start the debugging agent (CODA or App TRK) application on your device.
 
+        \note If you use CODA over an USB connection, it starts up
+        automatically when you connect the device to the development PC.
+
         \o Click the \gui Run button.
 
     \endlist
@@ -4210,9 +4292,12 @@
         \o The Nokia USB drivers that come with \e{PC Suite} or \e{Ovi Suite}
         have been installed on the development PC.
         \o The device is connected through USB cable in \e{PC Suite} mode.
-        \o The debugging agent (CODA or App TRK) is running on the device, using
-           the USB connection,
-           with the status \e connected.
+        \o The debugging agent (App TRK or CODA) is running on the device with
+           the status \e connected.
+
+           \note If you use the CODA debugging agent over WLAN, you must enter
+           the WLAN address and port number in Qt Creator, separated by a
+           colon (:). For example: 192.167.0.100:1534
         \o The device is detected and selected in the \gui {Run Settings}.
      \endlist
 
@@ -4484,7 +4569,9 @@
 
 /*!
     \contentspage index.html
+    \previouspage creator-tool-chains.html
     \page creator-run-settings.html
+    \nextpage creator-editor-settings.html
 
     \title Specifying Run Settings
 
@@ -4535,6 +4622,10 @@
 
     \image qtcreator-symbian-run-settings.png "Run settings for Symbian devices"
 
+    To use the CODA debugging agent over a WLAN connection, enter the WLAN
+    address of the device and the port number to use, separated by a colon (:),
+    in the \gui WLAN field. For example: 192.167.0.100:1534
+
     When you deploy the application for the \gui{Symbian Device} target, Qt
     Creator generates a Symbian installation system (SIS) file in the project folder
     and copies it to the device that is connected to the development PC.
@@ -4563,9 +4654,9 @@
 
     By default, Qt Creator runs the remote gdbserver daemon on the device for
     debugging. However, if the sysroot does not match that of the device, you
-    can run remote gdb, instead. Select the \gui {Run remote gdb} option in
+    can run remote GDB, instead. Select the \gui {Use remote GDB} option in
     \gui {Debugging details}. Select the \gui {Set debugger} link to specify
-    settings for gdb.
+    settings for GDB.
 
     When you run the application on the \gui{Maemo} target, Qt Creator generates
     a Debian installation package in the build directory by default. You can deliver
@@ -5181,12 +5272,6 @@
     (using the Certified Signed path or the manufacturer-specific channel).
     For more information, see \l{Deploying Applications to Symbian Devices}.
 
-    \note At the time of writing this document, the distribution of Qt 4.7.x based
-    applications is supported by neither Ovi Store nor Smart Installer.
-    For up-to-date information about the packages available for distribution, see the
-    \l{http://wiki.forum.nokia.com/index.php/Nokia_Smart_Installer_for_Symbian}{Nokia Smart Installer for Symbian}
-    wiki.
-
     To use the publishing wizard:
 
     \list 1
@@ -5273,7 +5358,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-tool-chains.html
+    \previouspage creator-run-settings.html
     \page creator-editor-settings.html
     \nextpage creator-build-dependencies.html
 
@@ -5407,7 +5492,8 @@
 
         \image qtcreator-mobile-project-qt-versions.png "Target Setup dialog"
 
-        \o Select \gui Maemo, \gui {Qt Simulator}, and \gui {Symbian Device} targets,
+        \o Select \gui {Maemo5}, \gui {Qt Simulator}, and \gui {Symbian
+        Device} targets,
         and click \gui{Next}.
 
         \note Targets are listed if you installed the appropriate development
@@ -5840,7 +5926,8 @@
 
             \o In the \gui Id field, enter \e middleRightRect.
 
-            \o In \gui {Layout}, select the right and vertical center anchor buttons to
+            \o In \gui {Layout}, select the vertical center anchor button and
+            then the right anchor button to
             anchor the rectangle to the middle right margin of the screen.
 
             \o In the \gui Margin field, select 10 for the right anchor and 0 for
@@ -6968,7 +7055,11 @@
     \title Managing Sessions
 
     When you exit Qt Creator, a snapshot of your current workspace is stored
-    as a \e session. A session is an arbitrary collection of:
+    as a \e session. To restore the session automatically when you start Qt
+    Creator, select \gui {File > Session Manager > Restore last session on
+    startup}.
+
+    A session is an arbitrary collection of:
 
     \list
         \o Open projects with their dependencies (including SUBDIRS projects)
@@ -6987,12 +7078,12 @@
     to return to working on the first project later.
 
     To create a new session or remove existing sessions, select \gui File >
-    \gui Sessions > \gui{Session Manager}.
+    \gui{Session Manager}.
 
     \image qtcreator-session-manager.png
 
     To switch between sessions, choose
-    \gui File > \gui Session. If you do not create or select a session,
+    \gui {File > Session Manager}. If you do not create or select a session,
     Qt Creator always uses the default session, which was created the
     last time you exited Qt Creator.
 
@@ -7014,7 +7105,7 @@
 
     Qt Creator provides a debugger plugin that acts
     as an interface between the Qt Creator core and external native debuggers
-    such as the GNU Symbolic Debugger (gdb), the Microsoft Console Debugger (CDB),
+    such as the GNU Symbolic Debugger (GDB), the Microsoft Console Debugger (CDB),
     and a QML/JavaScript debugger.
 
     The following sections describe debugging with Qt Creator:
@@ -7025,6 +7116,10 @@
             to illustrate how to debug Qt C++ applications in the \gui Debug
             mode.
 
+        \o  \l{Launching the Debugger} describes the
+            operating modes in which the debugger plugin runs, depending on
+            where and how the process is started and run.
+
         \o  \l{Interacting with the Debugger} describes the views and functions
             available in the \gui Debug mode.
 
@@ -7033,13 +7128,8 @@
             between Qt Creator and the native debugger is set up automatically
             and you do not need to do anything.
 
-        \o  \l{Launching the Debugger in Different Modes} describes the
-            operating modes in which the debugger plugin runs, depending on
-            where and how the process is started and run.
-
         \o  \l{Using Debugging Helpers} describes how to get more detailed data
             on complex data.
-
 
         \o  \l{Debugging Qt Quick Projects} describes how to debug Qt Quick
             projects.
@@ -7056,11 +7146,28 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-debugger-engines.html
+    \previouspage creator-debugging-example.html
     \page creator-debugger-operating-modes.html
-    \nextpage creator-debugging-helpers.html
+    \nextpage creator-debug-mode.html
 
-    \title Launching the Debugger in Different Modes
+    \title Launching the Debugger
+
+    To start a program under the control of the debugger, select \gui{Debug} >
+    \gui{Start Debugging} > \gui{Start Debugging}, or press \key{F5}.
+    Qt Creator checks whether the compiled program is up-to-date, and rebuilds
+    it if necessary. The debugger then takes over and starts the program.
+
+    \note Starting a program in the debugger can take a long
+    time, typically in the range of several seconds to minutes if complex
+    features (like QtWebKit) are used.
+
+    The debugger is launched in the appropriate operating mode (plain, terminal,
+    or on-device), based on the build and run settings for the active project.
+    Select \gui Debug menu options to launch the debugger in other modes.
+
+    \note Debugging QML and JavaScript is supported only in plain mode.
+
+    \section1 Launching the Debugger in Different Modes
 
     The debugger plugin runs in different operating modes depending on where and
     how the process is started and run. Some of the modes are only available for
@@ -7095,33 +7202,132 @@
     build and run settings for the active project. Select \gui Debug menu options
     to launch the debugger in the other modes.
 
-    \section2 Plain Mode
+    \section2 Launching in Plain Mode
 
     To launch the debugger in the plain mode, click the \gui {Start Debugging}
     button for the active project, or choose
     \gui {Debug > Start Debugging > Start and Debug External Application...}
     and specify an executable.
 
-    \section2 Terminal Mode
+    \section2 Launching in Terminal Mode
 
     To launch the debugger in the terminal mode, select \gui {Projects > Run Settings}
     and select the \gui {Run in terminal} check box. Then click the
     \gui {Start Debugging} button for the active project.
 
-    \section2 Attach Mode
+    \section2 Launching in Attach Mode
 
     To launch the debugger in the attach mode, select
     \gui {Debug > Start Debugging >  Attach to Running External Application...},
     and then select a process by its name or process ID to attach to.
 
-    \section2 Remote Mode
+    You can load the source project in advance and set breakpoints in it before
+    attaching to an already running process. For more information, see
+    \l{Setting Breakpoints}.
 
-    The remote mode uses a \e{gdbserver} daemon that runs on the remote machine.
+    \section2 Launching in Remote Mode
 
-    To launch the debugger in the remote mode, select
-    \gui {Debug > Start Debugging > Start and Attach to Remote Application...}.
+    The remote mode allows you to debug processes that run on remote machines.
 
-    \section2 Core Mode
+    \section3 Using GDB
+
+    In remote mode, the local GDB process talks to a GDB server
+    process running on the remote machine that controls the process to be
+    debugged.
+
+    The GDB server process is started on the remote machines by passing a port
+    number and the executable:
+
+    \code
+    gdbserver :1234 <executable>
+    \endcode
+
+    It then typically responds:
+    \code
+    Process bin/qtcreator created; pid = 5159
+    Listening on port 1234
+    \endcode
+
+    On the local machine that runs Qt Creator:
+
+    \list 1
+
+        \o  Select \gui {Debug > Start Debugging > Start and Attach to Remote
+            Application...}.
+
+        \o  In the \gui {Host and port} field, enter the name of the remote
+            machine and the port number to use.
+
+        \o  Select \gui{OK} to start debugging.
+
+    \endlist
+
+    \section3 Using CDB
+
+    In remote mode, the local CDB process talks to a CDB process that
+    runs on the remote machine. The process is started with special
+    command line options that switch it into server mode. The remote CDB
+    process must load the Qt Creator CDB extension library that is shipped with
+    Qt Creator:
+
+    \list 1
+
+        \o  Install the \e{Debugging Tools for Windows} on the remote machine.
+            The installation folder contains the CDB command line executable (cdb.exe).
+
+        \o  Copy the Qt Creator CDB extension library from the Qt installation
+            directory to the a new folder on the remote machine
+            (32 or 64 bit version depending on the version of the Debugging
+            Tools for Windows
+            used):
+
+        \list
+
+            \o  \c {\lib\qtcreatorcdbext32\qtcreatorcdbext.dll} (32 bit)
+
+            \o  \c {\lib\qtcreatorcdbext64\qtcreatorcdbext.dll} (64 bit)
+
+        \endlist
+
+        \o  Set the _NT_DEBUGGER_EXTENSION_PATH environment variable to point
+            to that folder.
+
+        \o  To use TCP/IP as communication protocol, launch remote CDB as
+            follows:
+
+            \code
+            cdb.exe -server tcp:port=1234 <executable>
+            \endcode
+
+        \o  On the local machine running Qt Creator, select
+            \gui {Debug > Start Debugging > Attach to Remote CDB Session...}
+
+
+        \o  In the \gui Connection field enter the connection parameters.
+            For example, for TCP/IP:
+
+            \code
+            Server:Port
+            \endcode
+
+            If you chose some other protocol, specify one of the alternative
+            formats:
+
+            \code
+            tcp:server=Server,port=Port[,password=Password][,ipversion=6]
+            tcp:clicon=Server,port=Port[,password=Password][,ipversion=6]
+            npipe:server=Server,pipe=PipeName[,password=Password]
+            com:port=COMPort,baud=BaudRate,channel=COMChannel[,password=Password]
+            spipe:proto=Protocol,{certuser=Cert|machuser=Cert},server=Server,pipe=PipeName[,password=Password]
+            ssl:proto=Protocol,{certuser=Cert|machuser=Cert},server=Server,port=Socket[,password=Password]
+            ssl:proto=Protocol,{certuser=Cert|machuser=Cert},clicon=Server,port=Socket[,password=Password]
+            \endcode
+
+            \o Click \gui{OK} to start debugging.
+
+    \endlist
+
+    \section2 Launching in Core Mode
 
     The core mode it used to debug \e {core} files (crash dumps) that are
     generated from crashed processes if the system is set up to allow this.
@@ -7136,7 +7342,7 @@
     To launch the debugger in the core mode, select
     \gui{Debug > Start Debugging >  Attach to Core...}.
 
-    \section2 Post-Mortem Mode
+    \section2 Launching in Post-Mortem Mode
 
     The post-mortem mode is available only on Windows, if you have installed
     the debugging tools for Windows.
@@ -7149,7 +7355,7 @@
     on Windows. Click the \gui {Debug in Qt Creator} button in the error message
     that is displayed by the Windows operating system.
 
-    \section2 On-device Mode
+    \section2 Launching in On-device Mode
 
     The on-device mode is a special mode available for run configurations
     targeting mobile devices. It debugs processes running on mobile
@@ -7166,7 +7372,7 @@
     \contentspage index.html
     \previouspage creator-debug-mode.html
     \page creator-debugger-engines.html
-    \nextpage creator-debugger-operating-modes.html
+    \nextpage creator-debugging-helpers.html
 
     \title Setting Up Debugger
 
@@ -7175,7 +7381,7 @@
 
     Typically, the interaction between Qt Creator and the native debugger is set
     up automatically and you do not need to do anything. However, you might have an
-    unsupported gdb version installed, your Linux environment might not have gdb
+    unsupported GDB version installed, your Linux environment might not have GDB
     installed at all, or you might want to use the debugging tools for Windows.
 
     \note To use the debugging tools for Windows, you must install them and add the
@@ -7188,7 +7394,7 @@
 
     \section1 Supported Native Debugger Versions
 
-    The debugger plugin supports different builds of the gdb debugger, both
+    The debugger plugin supports different builds of the GDB debugger, both
     with and without the ability to use Python scripting. The Python enabled
     versions are preferred, but they are not available on Mac and on older
     versions of Linux.
@@ -7201,7 +7407,7 @@
     The Python version uses a script version of the debugging helpers
     that does not need any special setup.
 
-    The CDB native debugger has similar funtionality to the non-Python gdb debugger
+    The CDB native debugger has similar funtionality to the non-Python GDB debugger
     engine. Specifically, it also uses compiled C++ code for the debugging
     helper library.
 
@@ -7216,26 +7422,26 @@
             \o Debugger Modes
         \row
             \o Linux
-            \o gcc
-            \o gdb
+            \o GCC
+            \o GDB
             \o Yes
             \o Plain, Terminal, Attach, Remote, Core
         \row
             \o Unix
-            \o gcc
-            \o gdb
+            \o GCC
+            \o GDB
             \o Yes
             \o Plain, Terminal, Attach, Remote, Core
         \row
             \o Mac OS
-            \o gcc
-            \o gdb
+            \o GCC
+            \o GDB
             \o No
             \o Plain, Terminal, Attach, Core
         \row
             \o Windows/MinGW
-            \o gcc
-            \o gdb
+            \o GCC
+            \o GDB
             \o Yes
             \o Plain, Terminal, Attach, Remote, Core
         \row
@@ -7246,14 +7452,14 @@
             \o Plain, Terminal, Attach, Post-Mortem
         \row
             \o Symbian
-            \o gcc
-            \o gdb
+            \o GCC
+            \o GDB
             \o Yes
             \o On-device
         \row
             \o Maemo
-            \o gcc
-            \o gdb
+            \o GCC
+            \o GDB
             \o Yes
             \o On-device
     \endtable
@@ -7262,13 +7468,13 @@
 
     \omit
 
-    \section2 Gdb Adapter Modes
+    \section2 GDB Adapter Modes
 
     [Advanced Topic]
 
-    The gdb native debugger used internally by the debugger plugin runs in
+    The GDB native debugger used internally by the debugger plugin runs in
     different adapter modes to cope with the variety
-    of supported platforms and environments. All gdb adapters inherit from
+    of supported platforms and environments. All GDB adapters inherit from
     AbstractGdbAdapter:
 
     \list
@@ -7286,8 +7492,8 @@
 
        \o RemoteGdbAdapter interacts with the gdbserver running on Linux.
 
-       \o CodaGdbAdapter interacts with Symbian devices. The gdb protocol and
-       the gdb serial protocol are used between gdb and the adapter. The
+       \o CodaGdbAdapter interacts with Symbian devices. The GDB protocol and
+       the GDB serial protocol are used between GDB and the adapter. The
        target communication framework (TCF) protocol is used between the
        adapter and the CODA debugging agent running on the device.
 
@@ -7310,13 +7516,15 @@
             \o Native Debugger
             \o Notes
         \row
-            \o Gdb
-            \o On Linux and Windows, use the Python-enabled gdb versions that
+            \o GDB
+            \o On Linux and Windows, use the Python-enabled GDB versions that
             are installed when you install Qt Creator and Qt SDK. On Mac OS X,
-            use the gdb provided with Xcode.
-            For a custom target, you can build your own Python-enabled gdb.
+            use the GDB provided with Xcode.
+            For a custom target, you can build your own Python-enabled GDB.
             Follow the instructions on
-            \l{http://developer.qt.nokia.com/wiki/QtCreatorBuildGdb}{Building Gdb}.
+            \l{http://developer.qt.nokia.com/wiki/QtCreatorBuildGdb}{Building GDB}.
+            You must use at least Python version 2.5, but we recommend that you
+            use version 2.6.
 
         \row
             \o Debugging tools for Windows
@@ -7375,7 +7583,7 @@
     debugging Windows applications, add the Symbol Server provided
     by Microsoft to the symbol search path of the debugger:
     \list 1
-        \o  Select \gui Tools > \gui{Options...} > \gui Debugger > \gui Cdb.
+        \o  Select \gui Tools > \gui{Options...} > \gui Debugger > \gui CDB.
         \o  In the \gui {Symbol paths} field, open the \gui{Insert...} menu
             and select \gui{Symbol Server...}.
         \o  Select a directory where you want to store the cached information
@@ -7396,7 +7604,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-debugging-example.html
+    \previouspage creator-debugger-operating-modes.html
     \page creator-debug-mode.html
     \nextpage creator-debugger-engines.html
 
@@ -7415,30 +7623,12 @@
     views into new positions on the screen. Drag view borders to resize the
     views. The size and position of views are saved for future sessions.
 
-    \section1 Starting the Debugger
-
-    To start a program under the debugger's control, select \gui{Debug} >
-    \gui{Start Debugging} > \gui{Start Debugging}, or press \key{F5}.
-    Qt Creator checks whether the compiled program is up-to-date, rebuilding
-    it if necessary. The debugger then takes over and starts the program.
-
-    \note Starting a program in the debugger can take a considerable amount of
-    time, typically in the range of several seconds to minutes if complex
-    features (like QtWebKit) are used.
-
-    The debugger is launched in the appropriate operating mode (plain, terminal,
-    or on-device), based on the build and run settings for the active project.
-    Select \gui Debug menu options to launch the debugger in other modes.
-    For more information, see \l{Launching the Debugger in Different Modes}.
-
-    \note Debugging QML and JavaScript is supported only in plain mode.
-
-    Once the program starts running, it behaves and performs as usual.
-    You can interrupt a running C++ program by selecting \gui{Debug} >
-    \gui {Interrupt}. The program is automatically interrupted as soon as a
-    breakpoint is hit.
-
     \section1 Using the Debugger
+
+    Once the program starts running under the control of the debugger, it
+    behaves and performs as usual. You can interrupt a running C++ program by
+    selecting \gui{Debug} > \gui {Interrupt}. The program is automatically
+    interrupted when a breakpoint is hit.
 
     Once the program stops, Qt Creator:
 
@@ -7495,7 +7685,9 @@
 
         \o  Throwing and catching exceptions
 
-        \o  Some system calls, such as \c fork(), \c vfork(), and \c exec()
+        \o  Executing and forking processes
+
+        \o  Executing some system calls
 
     \endlist
 
@@ -7590,13 +7782,13 @@
             \i  \bold{Note:}
 
         \row
-            \i  Gdb, and therefore Qt Creator's debugger works for optimized
+            \i  GDB, and therefore Qt Creator's debugger works for optimized
                 builds on Linux and Mac OS X. Optimization can lead to
                 re-ordering of instructions or removal of some local variables,
                 causing the \gui{Locals and Watchers} view to show unexpected
                 data.
         \row
-            \i  The debug information provided by gcc does not include enough
+            \i  The debug information provided by GCC does not include enough
                 information about the time when a variable is initialized.
                 Therefore, Qt Creator can not tell whether the contents of a
                 local variable contains "real data", or "initial noise". If a
@@ -7649,7 +7841,7 @@
 
     \note Usually, you do not need this feature, because Qt Creator provides
     you with better ways to handle the task. For example, instead of using the
-    gdb \c print command from the command line, you can create a watcher item
+    GDB \c print command from the command line, you can create a watcher item
     in the \gui{Locals and Watchers} view and examine the expression there.
 
     \section1 Debugging C++ Based Applications
@@ -7754,7 +7946,7 @@
     \contentspage index.html
     \previouspage creator-debugging.html
     \page creator-debugging-example.html
-    \nextpage creator-debug-mode.html
+    \nextpage creator-debugger-operating-modes.html
 
     \title Debugging the Example Application
 
@@ -7837,7 +8029,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-debugger-operating-modes.html
+    \previouspage creator-debugger-engines.html
     \page creator-debugging-helpers.html
     \nextpage creator-debugging-qml.html
 
@@ -7872,7 +8064,7 @@
 
     \section1 Debugging Helpers Based on Python
 
-    Qt Creator uses gdb builds that enable Python scripting to display
+    Qt Creator uses GDB builds that enable Python scripting to display
     information in the \gui {Locals and Watchers} view. When Python scripting
     is used, code (Debugging helpers) does not need to be injected into the
     debugged process to nicely display QStringList or \c std::map contents, for
@@ -7887,14 +8079,14 @@
 
     \list
 
-        \o  There is no Python-enabled gdb for Mac OS. Mac OS continues
+        \o  There is no Python-enabled GDB for Mac OS. Mac OS continues
             injection with C++ based debugging helpers.
 
         \o  On the Symbian platform, an on-device debugging agent restricts the
-            communication between gdb and the device. Therefore, extracting
+            communication between GDB and the device. Therefore, extracting
             QObject properties, for example, is not possible.
 
-        \o  There is no gdb to communicate with MSVC compiled applications on
+        \o  There is no GDB to communicate with MSVC compiled applications on
             Windows. So information can be displayed nicely only in a limited
             fashion by using a cdb extension DLL.
 
@@ -7902,7 +8094,7 @@
 
     \section2 Extending the Python Based Debugging Helpers
 
-    On platforms featuring a Python-enabled version of the gdb debugger,
+    On platforms featuring a Python-enabled version of the GDB debugger,
     the data extraction is done by a Python script. This is more robust
     as the script execution is separated from the debugged process. It
     is also easier to extend as the script is less dependent on the
@@ -7910,9 +8102,10 @@
 
     To extend the shipped Python based debugging helpers for custom types,
     define one Python function per user defined type in the
-    gdb startup file. By default, the following startup file is used:
-    \c{~/.gdbinit}. To use another file, select \gui {Tools > Options... > Gdb}
-    and specify a filename in the \gui {Gdb startup script} field.
+    GDB startup file. By default, the following startup file is used:
+    \c{~/.gdbinit}. To use another file, select \gui {Tools > Options... >
+    Debugger > GDB}
+    and specify a filename in the \gui {GDB startup script} field.
 
     The function name has to be qdump__NS__Foo, where NS::Foo is the class
     or class template to be examined. Nested namespaces are possible.
@@ -8118,7 +8311,7 @@
         raise an exception.
 
     \o \gui{putCallItem(self, name, item, func)} -
-        Uses gdb to call the function \c func on the value specified by
+        Uses GDB to call the function \c func on the value specified by
         \a {item.value} and output the resulting item. This function is
         not available when debugging core dumps and it is not available
         on the Symbian platform due to restrictions imposed by the on-device
@@ -8309,7 +8502,7 @@
     \contentspage index.html
     \previouspage creator-debugging-helpers.html
     \page creator-debugging-qml.html
-    \nextpage creator-troubleshooting-debugging.html
+    \nextpage creator-analyzer.html
 
     \title Debugging Qt Quick Projects
 
@@ -8787,13 +8980,6 @@
     .qml file in your project. All the other files in the project are automatically added
     to the application project.
 
-    For example, you can open and run the
-    \l {http://doc.qt.nokia.com/4.7/qdeclarativeexamples.html} {QML examples and demos}
-    to learn how to use various aspects of QML. To run the examples in the QML Viewer
-    on the desktop, open them in the \gui Welcome mode. To view the examples on
-    mobile devices, use the \gui {Qt Quick Application} wizard to convert them into
-    Qt Quick Applications.
-
     To import QML applications:
 
     \list 1
@@ -8865,6 +9051,16 @@
         adds web content to a canvas.
 
     \endlist
+
+    You can experiment with a set of Qt Quick components that are designed to
+    appear native to the Symbian devices target platform. For more information,
+    see
+    \l{http://labs.qt.nokia.com/2011/04/08/qt-quick-components-for-symbian-technology-preview/}{Qt Quick components for Symbian Technology Preview}.
+
+    You can dowload a set of commonly used UI-components for generic use in
+    Qt Quick projects from
+    \l{https://projects.forum.nokia.com/QMLTemplates}{QML Templates}. You can
+    open and edit the templates in \QD.
 
     \section1 Creating Components in Qt Quick Designer
 
@@ -9138,6 +9334,10 @@
 
     The QML files in the project folder are displayed in \gui {QML Components} in the
     \gui Library pane.
+
+    You can dowload QML templates that specify different types of screens from
+    \l{https://projects.forum.nokia.com/QMLTemplates}{QML Templates} for use in
+    your Qt Quick projects. You can open and edit the templates in \QD.
 
     \section1 Adding Components to Screens
 
@@ -9911,9 +10111,9 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-help.html
+    \previouspage creator-faq.html
     \page creator-tips.html
-    \nextpage creator-keyboard-shortcuts.html
+    \nextpage creator-known-issues.html
 
     \title Tips and Tricks
 
@@ -10064,6 +10264,7 @@
 
     To switch off the debugging helpers:
     \list 1
+
         \o Select \gui Tools > \gui Options... > \gui Debugger >
            \gui{Debugging Helper}.
         \o Uncheck the \gui{Use Debugging Helper} checkbox.
@@ -10078,6 +10279,17 @@
         \o Select \gui Tools > \gui Options... > \gui Debugger > \gui General.
         \o Select the \gui {Use tooltips in main editor while debugging} check box.
     \endlist
+
+    When you hover over a variable in the code editor in \gui Debug mode, a
+    tooltip is displayed. To keep the tooltip visible, click the pin button.
+    You can expand pinned tooltips to view their full content.
+
+    \image qtcreator-pin-tooltip.png
+
+    Pinned tooltips are stored in the session. To close all pinned tooltips,
+    select \gui {Close Editor Tooltips} in the context menu in the \gui {Locals
+    and Watchers} view.
+
 
     \section1 Locating Files
 
@@ -10114,9 +10326,9 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-tips.html
+    \previouspage creator-help.html
     \page creator-keyboard-shortcuts.html
-    \nextpage creator-known-issues.html
+    \nextpage creator-faq.html
 
     \title Keyboard Shortcuts
 
@@ -10678,7 +10890,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-keyboard-shortcuts.html
+    \previouspage creator-tips.html
     \page creator-known-issues.html
     \nextpage creator-glossary.html
 
@@ -10770,10 +10982,10 @@
            (all platforms), some data types will not be displayed in the
            \gui{Locals and Watchers} view due to missing debug information.
 
-        \o Gdb on Windows may not work if the 'Embassy \reg Security Center' software
+        \o GDB on Windows may not work if the 'Embassy \reg Security Center' software
            by 'Wave \reg Systems' is installed and active (causing crashes in \c{vxvault.dll)}).
 
-        \o Gdb may take long to load debugging symbols, especially from large
+        \o GDB may take long to load debugging symbols, especially from large
            libraries.
 
         \o Setting breakpoints in code that is compiled into the binary more
@@ -10782,18 +10994,6 @@
         \o Setting breakpoints in files that do not have unique absolute
            paths may fail. For example, remounting parts of a file system
            using the --bind mount option.
-
-        \o You must use a workaround to use the DYLD_IMAGE_SUFFIX option in the
-           \gui Projects tab on Mac OS X  Snow Leopard. For more information on
-           the issue, see
-           \l{http://wimleers.com/blog/dyld-image-suffix-causing-havoc-on-mac-os-x-snow-leopard}{DYLD_IMAGE_SUFFIX causing havoc on Mac OS X Snow Leopard}.
-
-           To use the option, enter the following commands in the Terminal
-           application:
-           \code
-           sudo mv /usr/lib/libSystem.B_debug.dylib /usr/lib/libSystem.B_debug.dylib.backup
-           sudo cp /usr/lib/libSystem.B.dylib /usr/lib/libSystem.B_debug.dylib.backup
-           \endcode
 
     \endlist
 
@@ -11047,7 +11247,7 @@
 
         \row
             \o -disable-gdb
-            \o Debugger plugin: disable the GNU Symbolic Debugger (gdb) engine.
+            \o Debugger plugin: disable the GNU Symbolic Debugger (GDB) engine.
 
         \row
             \o -disable-sdb
@@ -11153,7 +11353,7 @@
 
     /*!
     \contentspage index.html
-    \previouspage creator-debugging-qml.html
+    \previouspage creator-analyzer.html
     \page creator-troubleshooting-debugging.html
     \nextpage creator-maemo-emulator.html
 
@@ -11161,6 +11361,20 @@
 
     This section lists some typical problems that you might encounter while
     debugging and solutions to them.
+
+    \section1 Cannot Launch Debugger
+
+    Some anti-virus applications do not allow debuggers to retrieve data. For
+    example, on Windows, launching the debugger might fail with the following
+    message if the Avira AntiVir is installed on the development PC: \e{The
+    inferior stopped because it received a signal from the operating system.
+    Signal name:? signal meaning: Unknown signal.}
+
+    Some versions of Avira AntiVir Desktop-Products contain known issues in
+    various development environments, including Qt Creator. To fix the problem,
+    Avira instructs you to update to version \c {avipbb.sys 10.0.22.22}. For
+    more information, see
+    \l{http://www.avira.com/en/support-for-business-knowledgebase-detail/kbid/805}{Restricted Usability of IDE/Debuggers since 2010-12-08}.
 
    \section1 Debugger Does Not Hit Breakpoints
 
@@ -11178,6 +11392,9 @@
 
         \o  Make sure you use at least Qt Creator 2.1.
 
+        \o  Make sure the debugger is set up properly. For more information,
+            see \l{Setting Up Debugger}.
+
         \o  In the \gui Debug mode, select \gui {Windows > Views > Debugger
             Log} to open the \gui {Debugger Log} view. Browse the contents of
             the pane on the right hand side to find out what went wrong.
@@ -11190,7 +11407,7 @@
 
     \endlist
 
-    \section1 Directly Displaying Pointer Variable Members
+    \section1 Pointer Variable Members Are Not Displayed Directly
 
     When you use the \gui {Locals and Watchers} view to inspect a pointer
     variable and expand the variable tree item, another tree item level
@@ -11200,21 +11417,52 @@
 
     \section1 Built-in Debugger Is Slow During Startup and Runtime
 
-    The Qt Creator for Windows installation packages install gdb from MinGW.
-    Unfortunately, gdb is quite slow on Windows. Qt Creator does not cause
-    this, as it interacts with gdb and adds custom dumpers for Qt types.
+    The Qt Creator for Windows installation packages install GDB from MinGW.
+    Unfortunately, GDB is quite slow on Windows. Qt Creator does not cause
+    this, as it interacts with GDB and adds custom dumpers for Qt types.
 
     \note You can use Qt Creator with MSVC on Windows for debugging.
 
     \section1 Debugger Displays <not in scope> Message
 
     The message is created by the debugging helpers. Qt Creator posts an
-    expression to the gdb command line to invoke the debugging helpers.
+    expression to the GDB command line to invoke the debugging helpers.
     The expression includes the address of the object to examine. This
-    address might be modified by gdb before the helper function is called. It
+    address might be modified by GDB before the helper function is called. It
     is unclear why and when this happens, but if it happens, the debugging
     helpers operate on wrong data and come to wrong conclusions. Most likely,
     they find garbage and declare the variable to be <not in scope>.
+
+    \section1 Application Crashes when Debugging on Mac OS X Snow Leopard
+
+    You must use a workaround to use the DYLD_IMAGE_SUFFIX option in the
+    \gui Projects tab on Mac OS X  Snow Leopard. For more information on the
+    issue, see
+    \l{http://wimleers.com/blog/dyld-image-suffix-causing-havoc-on-mac-os-x-snow-leopard}{DYLD_IMAGE_SUFFIX causing havoc on Mac OS X Snow Leopard}.
+
+    To use the option, enter the following commands in the Terminal
+    application:
+           \code
+           sudo mv /usr/lib/libSystem.B_debug.dylib /usr/lib/libSystem.B_debug.dylib.backup
+           sudo cp /usr/lib/libSystem.B.dylib /usr/lib/libSystem.B_debug.dylib.backup
+           \endcode
+
+     \section1 Debugger Cannot Attach to Running Process on Linux
+
+    GDB uses \c ptrace to attach to running processes. Some Linux distributions
+    do not allow this, which stops all attempts to either directly attach to an
+    existing process or use the \gui {Run in terminal} option in Qt Creator.
+
+    The reasons for this are described in
+    \l{https://wiki.ubuntu.com/SecurityTeam/Roadmap/KernelHardening#ptrace%20Protection}{KernelHardening}.
+
+    However, the usefulness of this security measure seems dubious,
+    because this feature can be easily disabled. With root permissions, you can
+    disable the feature immediately by writing \c{0} into
+    \c{/proc/sys/kernel/yama/ptrace_scope}. Even if you do not have elevated
+    permissions, you can disable the feature later by adding a library that
+    calls \c{prctl(0x59616d61, getppid(), 0, 0, 0);}, such as the one in
+    \c{$QTCREATORDIR/lib/libptracepreload.so} to the LD_PRELOAD environment.
 
     */
 
@@ -11223,7 +11471,7 @@
     \contentspage index.html
     \previouspage creator-debugging-qml.html
     \page creator-analyzer.html
-    \nextpage creator-maemo-emulator.html
+    \nextpage creator-troubleshooting-debugging.html
 
     \title Detecting Memory Leaks
 

@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -76,10 +75,19 @@ private slots:
 private:
     Environment env;
     MacroMapExpander mx;
+#ifdef Q_OS_UNIX
+    QString homeStr;
+    QString home;
+#endif
 };
 
 void tst_QtcProcess::initTestCase()
 {
+#ifdef Q_OS_UNIX
+    homeStr = QLatin1String("@HOME@");
+    home = QDir::homePath();
+#endif
+
     env.set("empty", "");
     env.set("word", "hi");
     env.set("words", "hi ho");
@@ -161,12 +169,20 @@ void tst_QtcProcess::splitArgs_data()
         { "hi'", "", QtcProcess::BadQuoting },
         { "hi\"dood", "", QtcProcess::BadQuoting },
         { "$var", "'$var'", QtcProcess::SplitOk },
+        { "~", "@HOME@", QtcProcess::SplitOk },
+        { "~ foo", "@HOME@ foo", QtcProcess::SplitOk },
+        { "foo ~", "foo @HOME@", QtcProcess::SplitOk },
+        { "~/foo", "@HOME@/foo", QtcProcess::SplitOk },
+        { "~foo", "'~foo'", QtcProcess::SplitOk },
 #endif
     };
 
     for (unsigned i = 0; i < sizeof(vals)/sizeof(vals[0]); i++)
         QTest::newRow(vals[i].in) << QString::fromLatin1(vals[i].in)
                                   << QString::fromLatin1(vals[i].out)
+#ifdef Q_OS_UNIX
+                                     .replace(homeStr, home)
+#endif
                                   << vals[i].err;
 }
 
@@ -221,12 +237,19 @@ void tst_QtcProcess::prepareArgs_data()
         { "hi'", "", QtcProcess::BadQuoting },
         { "hi\"dood", "", QtcProcess::BadQuoting },
         { "$var", "", QtcProcess::FoundMeta },
+        { "~", "@HOME@", QtcProcess::SplitOk },
+        { "~ foo", "@HOME@ foo", QtcProcess::SplitOk },
+        { "~/foo", "@HOME@/foo", QtcProcess::SplitOk },
+        { "~foo", "", QtcProcess::FoundMeta },
 #endif
     };
 
     for (unsigned i = 0; i < sizeof(vals)/sizeof(vals[0]); i++)
         QTest::newRow(vals[i].in) << QString::fromLatin1(vals[i].in)
                                   << QString::fromLatin1(vals[i].out)
+#ifdef Q_OS_UNIX
+                                     .replace(homeStr, home)
+#endif
                                   << vals[i].err;
 }
 

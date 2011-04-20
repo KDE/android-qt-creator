@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -487,12 +486,10 @@ CdbEngine::~CdbEngine()
 
 void CdbEngine::operateByInstructionTriggered(bool operateByInstruction)
 {
-    if (state() == InferiorStopOk) {
+    // To be set next time session becomes accessible
+    m_operateByInstructionPending = operateByInstruction;
+    if (state() == InferiorStopOk)
         syncOperateByInstruction(operateByInstruction);
-    } else {
-        // To be set next time session becomes accessible
-        m_operateByInstructionPending = operateByInstruction;
-    }
 }
 
 void CdbEngine::syncOperateByInstruction(bool operateByInstruction)
@@ -724,7 +721,7 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
     arguments << QLatin1String("-lines") << QLatin1String("-G")
     // register idle (debuggee stop) notification
               << QLatin1String("-c")
-              << QString::fromAscii(".idle_cmd " + m_extensionCommandPrefixBA + "idle");
+              << QLatin1String(".idle_cmd ") + QString::fromAscii(m_extensionCommandPrefixBA) + QLatin1String("idle");
     if (sp.useTerminal) // Separate console
         arguments << QLatin1String("-2");
     if (!m_options->symbolPaths.isEmpty())
@@ -1050,6 +1047,7 @@ unsigned CdbEngine::debuggerCapabilities() const
 {
     return DisassemblerCapability | RegisterCapability | ShowMemoryCapability
            |WatchpointCapability|JumpToLineCapability|AddWatcherCapability
+           |ReloadModuleCapability
            |BreakOnThrowAndCatchCapability // Sort-of: Can break on throw().
            |BreakModuleCapability;
 }
@@ -1431,19 +1429,21 @@ void CdbEngine::updateLocals(bool forNewStackFrame)
         }
     }
     addLocalsOptions(str);
-    // Uninitialized variables if desired
+    // Uninitialized variables if desired. Quote as safeguard against shadowed
+    // variables in case of errors in uninitializedVariables().
     if (debuggerCore()->boolSetting(UseCodeModel)) {
         QStringList uninitializedVariables;
         getUninitializedVariables(debuggerCore()->cppCodeModelSnapshot(),
                                   frame.function, frame.file, frame.line, &uninitializedVariables);
         if (!uninitializedVariables.isEmpty()) {
-            str << blankSeparator << "-u ";
+            str << blankSeparator << "-u \"";
             int i = 0;
             foreach(const QString &u, uninitializedVariables) {
                 if (i++)
                     str << ',';
                 str << localsPrefixC << u;
             }
+            str << '"';
         }
     }
     // Perform watches synchronization
@@ -1683,7 +1683,7 @@ void CdbEngine::handleLocals(const CdbExtensionCommandPtr &reply)
         if (forNewStackFrame)
             emit stackFrameCompleted();
     } else {
-        showMessage(QString::fromLatin1(reply->errorMessage), LogError);
+        showMessage(QString::fromLatin1(reply->errorMessage), LogWarning);
     }
 }
 
@@ -2283,7 +2283,7 @@ bool CdbEngine::acceptsBreakpoint(BreakpointId id) const
     switch (data.type) {
     case UnknownType:
     case BreakpointAtFork:
-    case BreakpointAtVFork:
+    //case BreakpointAtVFork:
     case BreakpointAtSysCall:
         return false;
     case Watchpoint:

@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -106,12 +105,12 @@ public:
 static void initializeMetaTypeSystem(const QString &resourcePath)
 {
     const QDir typeFileDir(resourcePath + QLatin1String("/qml-type-descriptions"));
-    const QStringList xmlExtensions = QStringList() << QLatin1String("*.xml");
-    const QFileInfoList xmlFiles = typeFileDir.entryInfoList(xmlExtensions,
+    const QStringList qmlExtensions = QStringList() << QLatin1String("*.qml");
+    const QFileInfoList qmlFiles = typeFileDir.entryInfoList(qmlExtensions,
                                                              QDir::Files,
                                                              QDir::Name);
 
-    const QStringList errors = QmlJS::Interpreter::CppQmlTypesLoader::load(xmlFiles);
+    const QStringList errors = QmlJS::Interpreter::CppQmlTypesLoader::loadQmlTypes(qmlFiles);
     foreach (const QString &error, errors)
         qWarning() << qPrintable(error);
 }
@@ -867,7 +866,11 @@ void tst_TestCore::testRewriterChangeImports()
     // Add / Remove an import in the model
     //
     Import webkitImport = Import::createLibraryImport("QtWebKit", "1.0");
-    model->addImport(webkitImport);
+
+    QList<Import> importList;
+    importList << webkitImport;
+
+    model->changeImports(importList, QList<Import>());
 
     const QLatin1String qmlWithImport("\n"
                                  "import Qt 4.7\n"
@@ -876,7 +879,7 @@ void tst_TestCore::testRewriterChangeImports()
                                  "Rectangle {}\n");
     QCOMPARE(textEdit.toPlainText(), qmlWithImport);
 
-    model->removeImport(webkitImport);
+    model->changeImports(QList<Import>(), importList);
 
     QCOMPARE(model->imports().size(), 1);
     QCOMPARE(model->imports().first(), Import::createLibraryImport("Qt", "4.7"));
@@ -887,8 +890,7 @@ void tst_TestCore::testRewriterChangeImports()
     //
     // Add / Remove an import in the model (with alias)
     //
-    webkitImport = Import::createLibraryImport("QtWebKit", "1.0", "Web");
-    model->addImport(webkitImport);
+    model->changeImports(importList, QList<Import>());
 
     const QLatin1String qmlWithAliasImport("\n"
                                  "import Qt 4.7\n"
@@ -897,7 +899,7 @@ void tst_TestCore::testRewriterChangeImports()
                                  "Rectangle {}\n");
     QCOMPARE(textEdit.toPlainText(), qmlWithAliasImport);
 
-    model->removeImport(webkitImport);
+    model->changeImports(QList<Import>(), importList);
 
     QCOMPARE(model->imports().size(), 1);
     QCOMPARE(model->imports().first(), Import::createLibraryImport("Qt", "4.7"));
@@ -3479,7 +3481,7 @@ void tst_TestCore::testSubComponentManager()
     QScopedPointer<Model> model(Model::create("Qt/Item"));
     model->setFileUrl(QUrl::fromLocalFile(fileName));
     QScopedPointer<SubComponentManager> subComponentManager(new SubComponentManager(model->metaInfo(), 0));
-    subComponentManager->update(QUrl::fromLocalFile(fileName), modifier.text().toUtf8());
+    subComponentManager->update(QUrl::fromLocalFile(fileName), model->imports());
 
     QScopedPointer<TestRewriterView> testRewriterView(new TestRewriterView());
     testRewriterView->setTextModifier(&modifier);

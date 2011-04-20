@@ -4,33 +4,31 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
-
 #include "maemoglobal.h"
 
 #include "maemoconstants.h"
@@ -113,10 +111,14 @@ QString MaemoGlobal::remoteSudo()
     return QLatin1String("/usr/lib/mad-developer/devrootsh");
 }
 
-QString MaemoGlobal::remoteCommandPrefix(const QString &commandFilePath)
+QString MaemoGlobal::remoteCommandPrefix(MaemoVersion maemoVersion,
+    const QString &commandFilePath)
 {
-    return QString::fromLocal8Bit("%1 chmod a+x %2; %3; ")
+    QString prefix = QString::fromLocal8Bit("%1 chmod a+x %2; %3; ")
         .arg(remoteSudo(), commandFilePath, remoteSourceProfilesCommand());
+    if (maemoVersion != Maemo5 && maemoVersion != Maemo6)
+        prefix += QLatin1String("DISPLAY=:0.0 ");
+    return prefix;
 }
 
 QString MaemoGlobal::remoteSourceProfilesCommand()
@@ -187,6 +189,12 @@ QString MaemoGlobal::madCommand(const QtVersion *qtVersion)
     return maddeRoot(qtVersion) + QLatin1String("/bin/mad");
 }
 
+QString MaemoGlobal::madDeveloperUiName(MaemoVersion maemoVersion)
+{
+    return maemoVersion == Maemo6
+        ? tr("SDK Connectivity") : tr("Mad Developer");
+}
+
 MaemoGlobal::MaemoVersion MaemoGlobal::version(const QtVersion *qtVersion)
 {
     const QString &name = targetName(qtVersion);
@@ -244,6 +252,43 @@ bool MaemoGlobal::removeRecursively(const QString &filePath, QString &error)
     return true;
 }
 
+bool MaemoGlobal::copyRecursively(const QString &srcFilePath,
+    const QString &tgtFilePath, QString *error)
+{
+    QFileInfo srcFileInfo(srcFilePath);
+    if (srcFileInfo.isDir()) {
+        QDir targetDir(tgtFilePath);
+        targetDir.cdUp();
+        if (!targetDir.mkdir(QFileInfo(tgtFilePath).fileName())) {
+            if (error) {
+                *error = tr("Failed to create directory '%1'.")
+                    .arg(QDir::toNativeSeparators(tgtFilePath));
+                return false;
+            }
+        }
+        QDir sourceDir(srcFilePath);
+        QStringList fileNames = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+        foreach (const QString &fileName, fileNames) {
+            const QString newSrcFilePath
+                = srcFilePath + QLatin1Char('/') + fileName;
+            const QString newTgtFilePath
+                = tgtFilePath + QLatin1Char('/') + fileName;
+            if (!copyRecursively(newSrcFilePath, newTgtFilePath))
+                return false;
+        }
+    } else {
+        if (!QFile::copy(srcFilePath, tgtFilePath)) {
+            if (error) {
+                *error = tr("Could not copy file '%1' to '%2'.")
+                    .arg(QDir::toNativeSeparators(srcFilePath),
+                         QDir::toNativeSeparators(tgtFilePath));
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
 bool MaemoGlobal::callMad(QProcess &proc, const QStringList &args,
     const QtVersion *qtVersion, bool useTarget)
 {
@@ -292,11 +337,11 @@ QStringList MaemoGlobal::targetArgs(const QtVersion *qtVersion, bool useTarget)
 QString MaemoGlobal::maemoVersionToString(MaemoVersion version)
 {
     switch (version) {
-    case Maemo5: return QLatin1String("Maemo 5/Fremantle");
-    case Maemo6: return QLatin1String("Maemo 6/Harmattan");
+    case Maemo5: return QLatin1String("Maemo5/Fremantle");
+    case Maemo6: return QLatin1String("Harmattan");
     case Meego: return QLatin1String("Meego");
     }
-    Q_ASSERT(false);
+    qDebug("%s: Unknown OS Version %d.", Q_FUNC_INFO, version);
     return QString();
 }
 

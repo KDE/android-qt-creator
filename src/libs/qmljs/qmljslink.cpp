@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -183,6 +182,28 @@ void Link::populateImportedTypes(TypeEnvironment *typeEnv, Document::Ptr doc)
     // explicit imports, whether directories, files or libraries
     foreach (const ImportInfo &info, doc->bind()->imports()) {
         ObjectValue *import = d->importCache.value(ImportCacheKey(info));
+
+        //### Hack: if this document is in a library, and if there is an qmldir file in the same directory, and if the prefix is an import-path, the import means to import everything in this library.
+        if (info.ast() && info.ast()->fileName && info.ast()->fileName->asString() == QLatin1String(".")) {
+            const QString importInfoName(info.name());
+            if (QFileInfo(QDir(importInfoName), QLatin1String("qmldir")).exists()) {
+                foreach (const QString &importPath, d->importPaths) {
+                    if (importInfoName.startsWith(importPath)) {
+                        // Got it.
+
+                        const QString cleanPath = QFileInfo(importInfoName).canonicalFilePath();
+                        const QString forcedPackageName = cleanPath.mid(importPath.size() + 1).replace('/', '.').replace('\\', '.');
+                        import = importNonFile(doc, info, forcedPackageName);
+                        if (import)
+                            d->importCache.insert(ImportCacheKey(info), import);
+
+                        break;
+                    }
+                }
+            }
+        }
+        //### End of hack.
+
         if (!import) {
             switch (info.type()) {
             case ImportInfo::FileImport:
@@ -245,12 +266,12 @@ ObjectValue *Link::importFileOrDirectory(Document::Ptr doc, const ImportInfo &im
   import Qt 4.6 as Xxx
   (import com.nokia.qt is the same as the ones above)
 */
-ObjectValue *Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
+ObjectValue *Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo, const QString &forcedPackageName)
 {
     Q_D(Link);
 
     ObjectValue *import = new ObjectValue(engine());
-    const QString packageName = Bind::toString(importInfo.ast()->importUri, '.');
+    const QString packageName = forcedPackageName.isEmpty() ? Bind::toString(importInfo.ast()->importUri, '.') : forcedPackageName;
     const ComponentVersion version = importInfo.version();
 
     bool importFound = false;
@@ -277,7 +298,7 @@ ObjectValue *Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo
         }
     }
 
-    if (!importFound) {
+    if (!importFound && importInfo.ast()) {
         error(doc, locationFromRange(importInfo.ast()->firstSourceLocation(),
                                      importInfo.ast()->lastSourceLocation()),
               tr("package not found"));
@@ -325,8 +346,16 @@ bool Link::importLibrary(Document::Ptr doc, Interpreter::ObjectValue *import,
                         tr("Library contains C++ plugins, type dump is in progress."));
             }
         } else if (libraryInfo.dumpStatus() == LibraryInfo::DumpError) {
-            if (errorLoc.isValid()) {
-                error(doc, errorLoc, libraryInfo.dumpError());
+            ModelManagerInterface *modelManager = ModelManagerInterface::instance();
+
+            // Only underline import if package/version isn't described in .qmltypes anyway
+            const QmlJS::ModelManagerInterface::BuiltinPackagesHash builtinPackages
+                    = modelManager->builtinPackages();
+            const QString packageName = importInfo.name().replace(QDir::separator(), QLatin1Char('.'));
+            if (!builtinPackages.value(packageName).contains(importInfo.version())) {
+                if (errorLoc.isValid()) {
+                    error(doc, errorLoc, libraryInfo.dumpError());
+                }
             }
         } else {
             QList<QmlObjectValue *> loadedObjects =

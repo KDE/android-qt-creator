@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -298,20 +297,24 @@ bool BuildableHelperLibrary::getHelperFileInfoFor(const QStringList &validBinary
 QString BuildableHelperLibrary::byInstallDataHelper(const QString &sourcePath,
                                                     const QStringList &sourceFileNames,
                                                     const QStringList &installDirectories,
-                                                    const QStringList &validBinaryFilenames)
+                                                    const QStringList &validBinaryFilenames,
+                                                    bool acceptOutdatedHelper)
 {
     // find the latest change to the sources
     QDateTime sourcesModified;
-    foreach (const QString &sourceFileName, sourceFileNames) {
-        const QDateTime fileModified = QFileInfo(sourcePath + sourceFileName).lastModified();
-        if (fileModified.isValid() && (!sourcesModified.isValid() || fileModified > sourcesModified))
-            sourcesModified = fileModified;
+    if (!acceptOutdatedHelper) {
+        foreach (const QString &sourceFileName, sourceFileNames) {
+            const QDateTime fileModified = QFileInfo(sourcePath + sourceFileName).lastModified();
+            if (fileModified.isValid() && (!sourcesModified.isValid() || fileModified > sourcesModified))
+                sourcesModified = fileModified;
+        }
     }
 
     // We pretend that the lastmodified of gdbmacros.cpp is 5 minutes before what the file system says
     // Because afer a installation from the package the modified dates of gdbmacros.cpp
     // and the actual library are close to each other, but not deterministic in one direction
-    sourcesModified = sourcesModified.addSecs(-300);
+    if (sourcesModified.isValid())
+        sourcesModified = sourcesModified.addSecs(-300);
 
     // look for the newest helper library in the different locations
     QString newestHelper;
@@ -319,7 +322,8 @@ QString BuildableHelperLibrary::byInstallDataHelper(const QString &sourcePath,
     QFileInfo fileInfo;
     foreach(const QString &installDirectory, installDirectories) {
         if (getHelperFileInfoFor(validBinaryFilenames, installDirectory, &fileInfo)) {
-            if (fileInfo.lastModified() > newestHelperModified) {
+            if (!newestHelperModified.isValid()
+                    || (fileInfo.lastModified() > newestHelperModified)) {
                 newestHelper = fileInfo.filePath();
                 newestHelperModified = fileInfo.lastModified();
             }

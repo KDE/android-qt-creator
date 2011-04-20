@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -175,11 +174,12 @@ QtVersionManager::QtVersionManager()
                                            id,
                                            isAutodetected,
                                            autodetectionSource);
-        version->setSystemRoot(s->value("S60SDKDirectory").toString());
-        version->setSbsV2Directory(s->value(QLatin1String("SBSv2Directory")).toString());
+        // Make sure we do not import non-native separators from old Qt Creator versions:
+        version->setSystemRoot(QDir::fromNativeSeparators(s->value("S60SDKDirectory").toString()));
+        version->setSbsV2Directory(QDir::fromNativeSeparators(s->value(QLatin1String("SBSv2Directory")).toString()));
 
-        // Update from 2.1 or earlier:
-        QString mingwDir = s->value(QLatin1String("MingwDirectory")).toString();
+        // Update from pre-2.2:
+        const QString mingwDir = s->value(QLatin1String("MingwDirectory")).toString();
         if (!mingwDir.isEmpty()) {
             QFileInfo fi(mingwDir + QLatin1String("/bin/g++.exe"));
             if (fi.exists() && fi.isExecutable()) {
@@ -187,34 +187,18 @@ QtVersionManager::QtVersionManager()
                 if (tc) {
                     tc->setCompilerPath(fi.absoluteFilePath());
                     tc->setDisplayName(tr("MinGW from %1").arg(version->displayName()));
+                    // The debugger is set later in the autoDetect method of the MinGw tool chain factory
+                    // as the default debuggers are not yet registered.
                     ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
                 }
             }
         }
-        QString mwcDir = s->value(QLatin1String("MwcDirectory")).toString();
-        if (!mwcDir.isEmpty()) {
-            QFileInfo fi(mwcDir + QLatin1String("/x86Build/Symbian_Tools/Command_Line_Tools/mwwinrc.exe"));
-            if (fi.exists() && fi.isExecutable()) {
-                WinscwToolChain *tc = createToolChain<WinscwToolChain>(Constants::WINSCW_TOOLCHAIN_ID);
-                if (tc) {
-                    tc->setCompilerPath(fi.absoluteFilePath());
-                    tc->setDisplayName(tr("WINSCW from %1").arg(version->displayName()));
-                    ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
-                }
-            }
-        }
-        QString gcceDir = s->value(QLatin1String("GcceDirectory")).toString();
-        if (!gcceDir.isEmpty()) {
-            QFileInfo fi(gcceDir + QLatin1String("/bin/arm-none-symbianelf-g++.exe"));
-            if (fi.exists() && fi.isExecutable()) {
-                GcceToolChain *tc = createToolChain<GcceToolChain>(Constants::GCCE_TOOLCHAIN_ID);
-                if (tc) {
-                    tc->setCompilerPath(fi.absoluteFilePath());
-                    tc->setDisplayName(tr("GCCE from %1").arg(version->displayName()));
-                    ProjectExplorer::ToolChainManager::instance()->registerToolChain(tc);
-                }
-            }
-        }
+        const QString mwcDir = s->value(QLatin1String("MwcDirectory")).toString();
+        if (!mwcDir.isEmpty())
+            m_pendingMwcUpdates.append(mwcDir);
+        const QString gcceDir = s->value(QLatin1String("GcceDirectory")).toString();
+        if (!gcceDir.isEmpty())
+            m_pendingGcceUpdates.append(gcceDir);
 
         m_versions.insert(version->uniqueId(), version);
     }
@@ -267,7 +251,7 @@ bool QtVersionManager::supportsTargetId(const QString &id) const
 {
     QList<QtVersion *> versions = QtVersionManager::instance()->versionsForTargetId(id);
     foreach (QtVersion *v, versions)
-        if (v->isValid() && v->toolChainAvailable())
+        if (v->isValid() && v->toolChainAvailable(id))
             return true;
     return false;
 }
@@ -415,6 +399,20 @@ bool QtVersionManager::isValidId(int id) const
     return m_versions.contains(id);
 }
 
+QString QtVersionManager::popPendingMwcUpdate()
+{
+    if (m_pendingMwcUpdates.isEmpty())
+        return QString();
+    return m_pendingMwcUpdates.takeFirst();
+}
+
+QString QtVersionManager::popPendingGcceUpdate()
+{
+    if (m_pendingGcceUpdates.isEmpty())
+        return QString();
+    return m_pendingGcceUpdates.takeFirst();
+}
+
 QtVersion *QtVersionManager::version(int id) const
 {
     QMap<int, QtVersion *>::const_iterator it = m_versions.find(id);
@@ -530,6 +528,10 @@ bool QtVersionManager::equals(QtVersion *a, QtVersion *b)
     if (a->m_id != b->m_id)
         return false;
     if (a->m_displayName != b->displayName())
+        return false;
+    if (a->m_sbsV2Directory != b->m_sbsV2Directory)
+        return false;
+    if (a->m_systemRoot != b->m_systemRoot)
         return false;
     return true;
 }
@@ -753,6 +755,12 @@ bool QtVersion::supportsShadowBuilds() const
         // We can not support shadow building with the ABLD system
         return false;
     }
+#ifdef Q_OS_WIN
+    if (targets.contains(Constants::MEEGO_DEVICE_TARGET_ID)
+        || targets.contains(Constants::MAEMO5_DEVICE_TARGET_ID)
+        || targets.contains(Constants::HARMATTAN_DEVICE_TARGET_ID))
+        return false;
+#endif
     return true;
 }
 
@@ -1265,11 +1273,14 @@ void QtVersion::updateVersionInfo() const
 
     if (m_versionInfo.contains("QT_INSTALL_DATA")) {
         QString qtInstallData = m_versionInfo.value("QT_INSTALL_DATA");
+        QString qtHeaderData = m_versionInfo.value("QT_INSTALL_HEADERS");
         m_versionInfo.insert("QMAKE_MKSPECS", QDir::cleanPath(qtInstallData+"/mkspecs"));
 
         if (!qtInstallData.isEmpty()) {
             m_hasDebuggingHelper = !DebuggingHelperLibrary::debuggingHelperLibraryByInstallData(qtInstallData).isEmpty();
-            m_hasQmlDump = !QmlDumpTool::toolByInstallData(qtInstallData, false).isEmpty() || !QmlDumpTool::toolByInstallData(qtInstallData, true).isEmpty();
+            m_hasQmlDump
+                    = !QmlDumpTool::toolByInstallData(qtInstallData, qtHeaderData, false).isEmpty()
+                    || !QmlDumpTool::toolByInstallData(qtInstallData, qtHeaderData, true).isEmpty();
             m_hasQmlDebuggingLibrary
                     = !QmlDebuggingLibrary::libraryByInstallData(qtInstallData, false).isEmpty()
                 || !QmlDebuggingLibrary::libraryByInstallData(qtInstallData, true).isEmpty();
@@ -1689,7 +1700,8 @@ QString QtVersion::qtCorePath() const
                     if (file.endsWith(".a") || file.endsWith(".lib"))
                         staticLibs.append(info);
                     else if (file.endsWith(QLatin1String(".dll"))
-                                || file.endsWith(QString::fromLatin1(".so.") + qtVersionString()))
+                                || file.endsWith(QString::fromLatin1(".so.") + qtVersionString())
+                                || file.endsWith(QLatin1Char('.') + qtVersionString() + QLatin1String(".dylib")))
                         return info.absoluteFilePath();
                 }
             }
@@ -1708,6 +1720,16 @@ QString QtVersion::sbsV2Directory() const
 
 void QtVersion::setSbsV2Directory(const QString &directory)
 {
+    QDir dir(directory);
+    if (dir.exists(QLatin1String("sbs"))) {
+        m_sbsV2Directory = dir.absolutePath();
+        return;
+    }
+    dir.cd("bin");
+    if (dir.exists(QLatin1String("sbs"))) {
+        m_sbsV2Directory = dir.absolutePath();
+        return;
+    }
     m_sbsV2Directory = directory;
 }
 
@@ -1760,11 +1782,14 @@ void QtVersion::addToEnvironment(Utils::Environment &env) const
         // SBSv2:
         if (isBuildWithSymbianSbsV2()) {
             QString sbsHome(env.value(QLatin1String("SBS_HOME")));
-            if (!m_sbsV2Directory.isEmpty()) {
-                env.prependOrSetPath(m_sbsV2Directory + QLatin1String("/bin"));
-                env.unset(QLatin1String("SBS_HOME")); // unset SBS_HOME to prevent SBS from picking it up
+            QString sbsConfig = sbsV2Directory();
+            if (!sbsConfig.isEmpty()) {
+                env.prependOrSetPath(sbsConfig);
+                // SBS_HOME is the path minus the trailing /bin:
+                env.set(QLatin1String("SBS_HOME"),
+                        QDir::toNativeSeparators(sbsConfig.left(sbsConfig.count() - 4))); // We need this for Qt 4.6.3 compatibility
             } else if (!sbsHome.isEmpty()) {
-                env.prependOrSetPath(sbsHome + QLatin1Char('/') + QLatin1String("bin"));
+                env.prependOrSetPath(sbsHome + QLatin1String("/bin"));
             }
         }
     }
@@ -1824,10 +1849,29 @@ bool QtVersion::isValid() const
             && m_validSystemRoot;
 }
 
-bool QtVersion::toolChainAvailable() const
+bool QtVersion::toolChainAvailable(const QString &id) const
 {
     if (!isValid())
         return false;
+
+    if (id == QLatin1String(Constants::S60_EMULATOR_TARGET_ID)) {
+        QList<ProjectExplorer::ToolChain *> tcList =
+                ProjectExplorer::ToolChainManager::instance()->toolChains();
+        foreach (ProjectExplorer::ToolChain *tc, tcList) {
+            if (tc->id().startsWith(QLatin1String(Constants::WINSCW_TOOLCHAIN_ID)))
+                return true;
+        }
+        return false;
+    } else if (id == QLatin1String(Constants::S60_DEVICE_TARGET_ID)) {
+        QList<ProjectExplorer::ToolChain *> tcList =
+                ProjectExplorer::ToolChainManager::instance()->toolChains();
+        foreach (ProjectExplorer::ToolChain *tc, tcList) {
+            if (!tc->id().startsWith(Qt4ProjectManager::Constants::WINSCW_TOOLCHAIN_ID))
+                return true;
+        }
+        return false;
+    }
+
     foreach (const ProjectExplorer::Abi &abi, qtAbis())
         if (!ProjectExplorer::ToolChainManager::instance()->findToolChains(abi).isEmpty())
             return true;
@@ -1948,9 +1992,10 @@ QString QtVersion::gdbDebuggingHelperLibrary() const
 QString QtVersion::qmlDumpTool(bool debugVersion) const
 {
     QString qtInstallData = versionInfo().value("QT_INSTALL_DATA");
+    QString qtHeaderData = versionInfo().value("QT_INSTALL_HEADERS");
     if (qtInstallData.isEmpty())
         return QString();
-    return QmlDumpTool::toolByInstallData(qtInstallData, debugVersion);
+    return QmlDumpTool::toolByInstallData(qtInstallData, qtHeaderData, debugVersion);
 }
 
 QString QtVersion::qmlDebuggingHelperLibrary(bool debugVersion) const

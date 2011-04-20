@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -46,6 +45,8 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QTimerEvent>
 
+#define BREAK_ASSERT(cond, action) if (cond) {} else { action; }
+//#define BREAK_ASSERT(cond, action) QTC_ASSERT(cond, action)
 
 //////////////////////////////////////////////////////////////////
 //
@@ -106,8 +107,8 @@ static QString typeToString(BreakpointType type)
             return msgBreakpointAtSpecialFunc("fork");
         case BreakpointAtExec:
             return msgBreakpointAtSpecialFunc("exec");
-        case BreakpointAtVFork:
-            return msgBreakpointAtSpecialFunc("vfork");
+        //case BreakpointAtVFork:
+        //    return msgBreakpointAtSpecialFunc("vfork");
         case BreakpointAtSysCall:
             return msgBreakpointAtSpecialFunc("syscall");
         case BreakpointAtMain:
@@ -272,7 +273,7 @@ const BreakpointParameters &BreakHandler::breakpointData(BreakpointId id) const
 {
     static BreakpointParameters dummy;
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return dummy);
+    BREAK_ASSERT(it != m_storage.end(), return dummy);
     return it->data;
 }
 
@@ -397,7 +398,7 @@ void BreakHandler::updateMarkers()
 void BreakHandler::updateMarker(BreakpointId id)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
 
     QString markerFileName = it->markerFileName();
     int markerLineNumber = it->markerLineNumber();
@@ -472,7 +473,7 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
     BreakpointId id = findBreakpointByIndex(mi);
     //qDebug() << "DATA: " << id << role << mi.column();
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return QVariant());
+    BREAK_ASSERT(it != m_storage.end(), return QVariant());
     const BreakpointParameters &data = it->data;
     const BreakpointResponse &response = it->response;
 
@@ -512,7 +513,7 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
                         || data.type == BreakpointAtCatch
                         || data.type == BreakpointAtFork
                         || data.type == BreakpointAtExec
-                        || data.type == BreakpointAtVFork
+                        //|| data.type == BreakpointAtVFork
                         || data.type == BreakpointAtSysCall)
                     return typeToString(data.type);
                 if (data.type == Watchpoint)
@@ -612,7 +613,7 @@ QVariant BreakHandler::data(const QModelIndex &mi, int role) const
 type BreakHandler::getter(BreakpointId id) const \
 { \
     ConstIterator it = m_storage.find(id); \
-    QTC_ASSERT(it != m_storage.end(), \
+    BREAK_ASSERT(it != m_storage.end(), \
         qDebug() << "ID" << id << "NOT KNOWN"; \
         return type()); \
     return it->data.getter; \
@@ -622,7 +623,7 @@ type BreakHandler::getter(BreakpointId id) const \
 void BreakHandler::setter(BreakpointId id, const type &value) \
 { \
     Iterator it = m_storage.find(id); \
-    QTC_ASSERT(it != m_storage.end(), \
+    BREAK_ASSERT(it != m_storage.end(), \
         qDebug() << "ID" << id << "NOT KNOWN"; return); \
     if (it->data.getter == value) \
         return; \
@@ -651,14 +652,14 @@ PROPERTY(int, ignoreCount, setIgnoreCount)
 bool BreakHandler::isEnabled(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return false);
+    BREAK_ASSERT(it != m_storage.end(), return false);
     return it->data.enabled;
 }
 
 void BreakHandler::setEnabled(BreakpointId id, bool on)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     //qDebug() << "SET ENABLED: " << id << it->data.isEnabled() << on;
     if (it->data.enabled == on)
         return;
@@ -674,14 +675,14 @@ void BreakHandler::setEnabled(BreakpointId id, bool on)
 bool BreakHandler::isTracepoint(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return false);
+    BREAK_ASSERT(it != m_storage.end(), return false);
     return it->data.tracepoint;
 }
 
 void BreakHandler::setTracepoint(BreakpointId id, bool on)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     if (it->data.tracepoint == on)
         return;
     it->data.tracepoint = on;
@@ -698,7 +699,7 @@ void BreakHandler::setMarkerFileAndLine(BreakpointId id,
     const QString &fileName, int lineNumber)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), qDebug() << id; return);
+    BREAK_ASSERT(it != m_storage.end(), qDebug() << id; return);
     if (it->response.fileName == fileName && it->response.lineNumber == lineNumber)
         return;
     it->response.fileName = fileName;
@@ -711,21 +712,21 @@ void BreakHandler::setMarkerFileAndLine(BreakpointId id,
 BreakpointState BreakHandler::state(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), qDebug() << id; return BreakpointDead);
+    BREAK_ASSERT(it != m_storage.end(), qDebug() << id; return BreakpointDead);
     return it->state;
 }
 
 DebuggerEngine *BreakHandler::engine(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), qDebug() << id; return 0);
+    BREAK_ASSERT(it != m_storage.end(), qDebug() << id; return 0);
     return it->engine;
 }
 
 void BreakHandler::setEngine(BreakpointId id, DebuggerEngine *value)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), qDebug() << id; return);
+    BREAK_ASSERT(it != m_storage.end(), qDebug() << id; return);
     QTC_ASSERT(it->state == BreakpointNew, qDebug() << id);
     QTC_ASSERT(!it->engine, qDebug() << id; return);
     it->engine = value;
@@ -770,7 +771,7 @@ void BreakHandler::setState(BreakpointId id, BreakpointState state)
 {
     Iterator it = m_storage.find(id);
     //qDebug() << "BREAKPOINT STATE TRANSITION" << id << it->state << state;
-    QTC_ASSERT(it != m_storage.end(), qDebug() << id; return);
+    BREAK_ASSERT(it != m_storage.end(), qDebug() << id; return);
     QTC_ASSERT(isAllowedTransition(it->state, state),
         qDebug() << "UNEXPECTED BREAKPOINT STATE TRANSITION"
             << it->state << state);
@@ -801,7 +802,7 @@ void BreakHandler::notifyBreakpointInsertOk(BreakpointId id)
     QTC_ASSERT(state(id) == BreakpointInsertProceeding, qDebug() << state(id));
     setState(id, BreakpointInserted);
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
 }
 
 void BreakHandler::notifyBreakpointInsertFailed(BreakpointId id)
@@ -852,7 +853,7 @@ void BreakHandler::notifyBreakpointReleased(BreakpointId id)
 {
     //QTC_ASSERT(state(id) == BreakpointChangeProceeding, qDebug() << state(id));
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     it->state = BreakpointNew;
     it->engine = 0;
     it->response = BreakpointResponse();
@@ -867,7 +868,7 @@ void BreakHandler::notifyBreakpointAdjusted(BreakpointId id,
 {
     QTC_ASSERT(state(id) == BreakpointInserted, qDebug() << state(id));
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     it->data = data;
     //if (it->needsChange())
     //    setState(id, BreakpointChangeRequested);
@@ -877,14 +878,14 @@ void BreakHandler::notifyBreakpointNeedsReinsertion(BreakpointId id)
 {
     QTC_ASSERT(state(id) == BreakpointChangeProceeding, qDebug() << state(id));
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     it->state = BreakpointInsertRequested;
 }
 
 void BreakHandler::removeBreakpoint(BreakpointId id)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     switch (it->state) {
     case BreakpointInserted:
         setState(id, BreakpointRemoveRequested);
@@ -966,8 +967,7 @@ void BreakHandler::breakByFunction(const QString &functionName)
 QIcon BreakHandler::icon(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(),
-        qDebug() << "NO ICON FOR ID" << id;
+    BREAK_ASSERT(it != m_storage.end(), qDebug() << "NO ICON FOR ID" << id;
         return pendingBreakpointIcon());
     return it->icon();
 }
@@ -990,7 +990,7 @@ void BreakHandler::timerEvent(QTimerEvent *event)
 void BreakHandler::gotoLocation(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     DebuggerEngine *engine = debuggerCore()->currentEngine();
     if (it->data.type == BreakpointByAddress) {
         if (engine)
@@ -1006,7 +1006,7 @@ void BreakHandler::updateLineNumberFromMarker(BreakpointId id, int lineNumber)
 {
     Iterator it = m_storage.find(id);
     it->response.pending = false;
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     if (it->response.lineNumber != lineNumber) {
         // FIXME: Should we tell gdb about the change?
         it->response.lineNumber = lineNumber;
@@ -1058,14 +1058,14 @@ const BreakpointResponse &BreakHandler::response(BreakpointId id) const
 {
     static BreakpointResponse dummy;
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), qDebug() << id; return dummy);
+    BREAK_ASSERT(it != m_storage.end(), qDebug() << id; return dummy);
     return it->response;
 }
 
 bool BreakHandler::needsChange(BreakpointId id) const
 {
     ConstIterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return false);
+    BREAK_ASSERT(it != m_storage.end(), return false);
     return it->needsChange();
 }
 
@@ -1073,7 +1073,7 @@ void BreakHandler::setResponse(BreakpointId id,
     const BreakpointResponse &response, bool takeOver)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     BreakpointItem &item = it.value();
     item.response = response;
     item.destroyMarker();
@@ -1094,7 +1094,7 @@ void BreakHandler::setBreakpointData(BreakpointId id,
     const BreakpointParameters &data)
 {
     Iterator it = m_storage.find(id);
-    QTC_ASSERT(it != m_storage.end(), return);
+    BREAK_ASSERT(it != m_storage.end(), return);
     if (data == it->data)
         return;
     it->data = data;

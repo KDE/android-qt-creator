@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -33,10 +32,12 @@
 
 #include "gccetoolchain.h"
 #include "qt4projectmanagerconstants.h"
+#include "qtversionmanager.h"
 
 #include <utils/environment.h>
 #include <utils/synchronousprocess.h>
 #include <projectexplorer/headerpath.h>
+#include <projectexplorer/toolchainmanager.h>
 
 #include <QtCore/QDir>
 
@@ -148,6 +149,22 @@ QString GcceToolChainFactory::id() const
 QList<ProjectExplorer::ToolChain *> GcceToolChainFactory::autoDetect()
 {
     QList<ProjectExplorer::ToolChain *> result;
+
+    // Compatibility to pre-2.2:
+    while (true) {
+        const QString path = QtVersionManager::instance()->popPendingGcceUpdate();
+        if (path.isNull())
+            break;
+
+        QFileInfo fi(path + QLatin1String("/bin/arm-none-symbianelf-g++.exe"));
+        if (fi.exists() && fi.isExecutable()) {
+            GcceToolChain *tc = new GcceToolChain(false);
+            tc->setCompilerPath(fi.absoluteFilePath());
+            tc->setDisplayName(tr("GCCE from Qt version"));
+            tc->setDebuggerCommand(ProjectExplorer::ToolChainManager::instance()->defaultDebugger(tc->targetAbi()));
+            result.append(tc);
+        }
+    }
 
     QString fullPath = Utils::Environment::systemEnvironment().searchInPath(QLatin1String("arm-none-symbianelf-gcc"));
     if (!fullPath.isEmpty()) {

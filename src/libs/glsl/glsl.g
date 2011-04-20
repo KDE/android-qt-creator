@@ -4,27 +4,26 @@
 --
 -- Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 --
--- Contact: Nokia Corporation (qt-info@nokia.com)
+-- Contact: Nokia Corporation (info@qt.nokia.com)
 --
--- No Commercial Usage
---
--- This file contains pre-release code and may not be distributed.
--- You may use this file in accordance with the terms and conditions
--- contained in the Technology Preview License Agreement accompanying
--- this package.
 --
 -- GNU Lesser General Public License Usage
 --
--- Alternatively, this file may be used under the terms of the GNU Lesser
--- General Public License version 2.1 as published by the Free Software
--- Foundation and appearing in the file LICENSE.LGPL included in the
--- packaging of this file.  Please review the following information to
--- ensure the GNU Lesser General Public License version 2.1 requirements
--- will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+-- This file may be used under the terms of the GNU Lesser General Public
+-- License version 2.1 as published by the Free Software Foundation and
+-- appearing in the file LICENSE.LGPL included in the packaging of this file.
+-- Please review the following information to ensure the GNU Lesser General
+-- Public License version 2.1 requirements will be met:
+-- http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 --
 -- In addition, as a special exception, Nokia gives you certain additional
--- rights.  These rights are described in the Nokia Qt LGPL Exception
+-- rights. These rights are described in the Nokia Qt LGPL Exception
 -- version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+--
+-- Other Usage
+--
+-- Alternatively, this file may be used in accordance with the terms and
+-- conditions contained in a signed written agreement between you and Nokia.
 --
 -- If you have questions regarding the use of this file, please contact
 -- Nokia at qt-info@nokia.com.
@@ -222,27 +221,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -292,11 +290,11 @@ public:
             List<ExpressionAST *> *arguments;
         } function;
         int qualifier;
-        LayoutQualifier *layout;
-        List<LayoutQualifier *> *layout_list;
+        LayoutQualifierAST *layout;
+        List<LayoutQualifierAST *> *layout_list;
         struct {
             int qualifier;
-            List<LayoutQualifier *> *layout_list;
+            List<LayoutQualifierAST *> *layout_list;
         } type_qualifier;
         struct {
             TypeAST *type;
@@ -433,27 +431,26 @@ private:
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -1397,7 +1394,7 @@ case $rule_number: {
     ast(1) = makeAstNode<ParameterDeclarationAST>
         (makeAstNode<QualifiedTypeAST>
             (sym(1).qualifier, sym(3).param_declarator.type,
-             (List<LayoutQualifier *> *)0),
+             (List<LayoutQualifierAST *> *)0),
          ParameterDeclarationAST::Qualifier(sym(2).qualifier),
          sym(3).param_declarator.name);
 }   break;
@@ -1418,7 +1415,7 @@ parameter_declaration ::= parameter_type_qualifier parameter_qualifier parameter
 case $rule_number: {
     ast(1) = makeAstNode<ParameterDeclarationAST>
         (makeAstNode<QualifiedTypeAST>
-            (sym(1).qualifier, type(3), (List<LayoutQualifier *> *)0),
+            (sym(1).qualifier, type(3), (List<LayoutQualifierAST *> *)0),
          ParameterDeclarationAST::Qualifier(sym(2).qualifier),
          (const QString *)0);
 }   break;
@@ -1608,7 +1605,7 @@ case $rule_number: {
 fully_specified_type ::= type_specifier ;
 /.
 case $rule_number: {
-    ast(1) = makeAstNode<QualifiedTypeAST>(0, type(1), (List<LayoutQualifier *> *)0);
+    ast(1) = makeAstNode<QualifiedTypeAST>(0, type(1), (List<LayoutQualifierAST *> *)0);
 }   break;
 ./
 
@@ -1659,28 +1656,28 @@ case $rule_number: {
 layout_qualifier_id_list ::= layout_qualifier_id ;
 /.
 case $rule_number: {
-    sym(1).layout_list = makeAstNode< List<LayoutQualifier *> >(sym(1).layout);
+    sym(1).layout_list = makeAstNode< List<LayoutQualifierAST *> >(sym(1).layout);
 }   break;
 ./
 
 layout_qualifier_id_list ::= layout_qualifier_id_list COMMA layout_qualifier_id ;
 /.
 case $rule_number: {
-    sym(1).layout_list = makeAstNode< List<LayoutQualifier *> >(sym(1).layout_list, sym(3).layout);
+    sym(1).layout_list = makeAstNode< List<LayoutQualifierAST *> >(sym(1).layout_list, sym(3).layout);
 }   break;
 ./
 
 layout_qualifier_id ::= IDENTIFIER ;
 /.
 case $rule_number: {
-    sym(1).layout = makeAstNode<LayoutQualifier>(string(1), (const QString *)0);
+    sym(1).layout = makeAstNode<LayoutQualifierAST>(string(1), (const QString *)0);
 }   break;
 ./
 
 layout_qualifier_id ::= IDENTIFIER EQUAL NUMBER ;
 /.
 case $rule_number: {
-    sym(1).layout = makeAstNode<LayoutQualifier>(string(1), string(3));
+    sym(1).layout = makeAstNode<LayoutQualifierAST>(string(1), string(3));
 }   break;
 ./
 

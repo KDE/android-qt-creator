@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -83,9 +82,7 @@ FormEditorScene::~FormEditorScene()
 void FormEditorScene::setupScene()
 {
     m_formLayerItem = new LayerItem(this);
-    qDebug() << "formLayerItem" << m_formLayerItem.data();
     m_manipulatorLayerItem = new LayerItem(this);
-    qDebug() << "manipulatorLayerItem" << m_manipulatorLayerItem.data();
     m_manipulatorLayerItem->setZValue(1.0);
     m_formLayerItem->setZValue(0.0);
     m_formLayerItem->setFlag(QGraphicsItem::ItemClipsChildrenToShape, false);
@@ -95,6 +92,8 @@ void FormEditorScene::resetScene()
 {
     foreach(QGraphicsItem *item, m_manipulatorLayerItem->childItems())
        removeItem(item);
+
+    setSceneRect(-canvasWidth()/2., -canvasHeight()/2., canvasWidth(), canvasHeight());
 }
 
 FormEditorItem* FormEditorScene::itemForQmlItemNode(const QmlItemNode &qmlItemNode) const
@@ -197,9 +196,12 @@ void FormEditorScene::synchronizeOtherProperty(const QmlItemNode &qmlItemNode, c
         if (propertyName == "clip")
             item->setFlag(QGraphicsItem::ItemClipsChildrenToShape, qmlItemNode.instanceValue("clip").toBool());
 
-        if (propertyName == "visible")
-            item->setContentVisible(qmlItemNode.instanceValue("visible").toBool());
-
+        if (!qmlItemNode.isRootNode()) {
+            if (propertyName == "visible")
+                item->setContentVisible(qmlItemNode.instanceValue("visible").toBool());
+        } else {
+            item->setContentVisible(true);
+        }
     }
 }
 
@@ -268,7 +270,9 @@ QList<QGraphicsItem *> FormEditorScene::removeLayerItems(const QList<QGraphicsIt
 
 void FormEditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-    currentTool()->mousePressEvent(removeLayerItems(items(event->scenePos())), event);
+    if (editorView() && editorView()->model()) {
+        currentTool()->mousePressEvent(removeLayerItems(items(event->scenePos())), event);
+    }
 }
 
 void FormEditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
@@ -283,26 +287,34 @@ void FormEditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 void FormEditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
-    currentTool()->mouseReleaseEvent(removeLayerItems(items(event->scenePos())), event);
+    if (editorView() && editorView()->model()) {
+        currentTool()->mouseReleaseEvent(removeLayerItems(items(event->scenePos())), event);
 
-    event->accept();
+        event->accept();
+    }
  }
 
 void FormEditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
 {
-    currentTool()->mouseDoubleClickEvent(removeLayerItems(items(event->scenePos())), event);
+    if (editorView() && editorView()->model()) {
+        currentTool()->mouseDoubleClickEvent(removeLayerItems(items(event->scenePos())), event);
 
-    event->accept();
+        event->accept();
+    }
 }
 
 void FormEditorScene::keyPressEvent(QKeyEvent *keyEvent)
 {
-    currentTool()->keyPressEvent(keyEvent);
+    if (editorView() && editorView()->model()) {
+        currentTool()->keyPressEvent(keyEvent);
+    }
 }
 
 void FormEditorScene::keyReleaseEvent(QKeyEvent *keyEvent)
 {
-    currentTool()->keyReleaseEvent(keyEvent);
+    if (editorView() && editorView()->model()) {
+        currentTool()->keyReleaseEvent(keyEvent);
+    }
 }
 
 FormEditorView *FormEditorScene::editorView() const

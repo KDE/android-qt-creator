@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -43,6 +42,7 @@
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcprocess.h>
 
@@ -129,6 +129,15 @@ bool MakeStep::fromMap(const QVariantMap &map)
 bool MakeStep::init()
 {
     Qt4BuildConfiguration *bc = qt4BuildConfiguration();
+
+    m_tasks.clear();
+    if (!bc->toolChain()) {
+        m_tasks.append(ProjectExplorer::Task(ProjectExplorer::Task::Error,
+                                             tr("Qt Creator needs a tool chain set up to build. Please configure a tool chain in Project mode."),
+                                             QString(), -1,
+                                             QLatin1String(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
+    }
+
     ProjectExplorer::ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
 
@@ -156,14 +165,23 @@ bool MakeStep::init()
 
     ProjectExplorer::ToolChain *toolchain = bc->toolChain();
 
-    if (bc->subNodeBuild()){
-        if(!bc->subNodeBuild()->makefile().isEmpty()) {
+    if (bc->subNodeBuild()) {
+        QString makefile = bc->subNodeBuild()->makefile();
+        if(!makefile.isEmpty()) {
             Utils::QtcProcess::addArg(&args, QLatin1String("-f"));
-            Utils::QtcProcess::addArg(&args, bc->subNodeBuild()->makefile());
+            Utils::QtcProcess::addArg(&args, makefile);
+            m_makeFileToCheck = QDir(workingDirectory).filePath(makefile);
+        } else {
+            m_makeFileToCheck = QDir(workingDirectory).filePath("Makefile");
         }
-    } else if (!bc->makefile().isEmpty()) {
-        Utils::QtcProcess::addArg(&args, QLatin1String("-f"));
-        Utils::QtcProcess::addArg(&args, bc->makefile());
+    } else {
+        if (!bc->makefile().isEmpty()) {
+            Utils::QtcProcess::addArg(&args, QLatin1String("-f"));
+            Utils::QtcProcess::addArg(&args, bc->makefile());
+            m_makeFileToCheck = QDir(workingDirectory).filePath(bc->makefile());
+        } else {
+            m_makeFileToCheck = QDir(workingDirectory).filePath("Makefile");
+        }
     }
 
     Utils::QtcProcess::addArgs(&args, m_userArgs);
@@ -202,6 +220,26 @@ void MakeStep::run(QFutureInterface<bool> & fi)
 {
     if (qt4BuildConfiguration()->qt4Target()->qt4Project()->rootProjectNode()->projectType() == ScriptTemplate) {
         fi.reportResult(true);
+        return;
+    }
+
+    if (!QFileInfo(m_makeFileToCheck).exists()) {
+        if (!m_clean)
+            emit addOutput(tr("Makefile not found. Please check your build settings"), BuildStep::MessageOutput);
+        fi.reportResult(m_clean);
+        return;
+    }
+
+    // Warn on common error conditions:
+    bool canContinue = true;
+    foreach (const ProjectExplorer::Task &t, m_tasks) {
+        addTask(t);
+        if (t.type == ProjectExplorer::Task::Error)
+            canContinue = false;
+    }
+    if (!canContinue) {
+        emit addOutput(tr("Configuration is faulty, please check the Build Issues view for details."), BuildStep::MessageOutput);
+        fi.reportResult(false);
         return;
     }
 

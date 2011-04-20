@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -371,7 +370,6 @@ const char * const M_DEBUG_START_DEBUGGING = "QtCreator.Menu.Debug.StartDebuggin
 const char * const STARTEXTERNAL            = "Debugger.StartExternal";
 const char * const ATTACHEXTERNAL           = "Debugger.AttachExternal";
 const char * const ATTACHCORE               = "Debugger.AttachCore";
-const char * const ATTACHTCF                = "Debugger.AttachTcf";
 const char * const ATTACHREMOTE             = "Debugger.AttachRemote";
 const char * const ATTACHREMOTECDB          = "Debugger.AttachRemoteCDB";
 const char * const STARTREMOTELLDB          = "Debugger.StartRemoteLLDB";
@@ -482,7 +480,7 @@ public:
     void runEngine() {}
     void shutdownEngine() {}
     void shutdownInferior() {}
-    unsigned debuggerCapabilities() const { return 0; }
+    unsigned debuggerCapabilities() const { return AddWatcherCapability; }
     bool acceptsBreakpoint(BreakpointId) const { return false; }
     bool acceptsDebuggerCommands() const { return false; }
 };
@@ -700,7 +698,6 @@ public slots:
                     const ProjectExplorer::Abi &abi = ProjectExplorer::Abi(),
                     const QString &debuggerCommand = QString());
     void attachRemote(const QString &spec);
-    void attachRemoteTcf();
 
     void enableReverseDebuggingTriggered(const QVariant &value);
     void languagesChanged();
@@ -988,7 +985,6 @@ public:
     QAction *m_startRemoteLldbAction;
     QAction *m_attachExternalAction;
     QAction *m_attachCoreAction;
-    QAction *m_attachTcfAction;
     QAction *m_detachAction;
     QAction *m_continueAction;
     QAction *m_exitAction; // On application output button if "Stop" is possible
@@ -1104,7 +1100,6 @@ DebuggerPluginPrivate::DebuggerPluginPrivate(DebuggerPlugin *plugin) :
     m_startRemoteLldbAction = 0;
     m_attachExternalAction = 0;
     m_attachCoreAction = 0;
-    m_attachTcfAction = 0;
     m_detachAction = 0;
 
     m_commonOptionsPage = 0;
@@ -1369,6 +1364,7 @@ void DebuggerPluginPrivate::startExternalApplication()
     sp.toolChainAbi = dlg.abi();
     sp.debuggerCommand = dlg.debuggerCommand();
     sp.workingDirectory = dlg.workingDirectory();
+    sp.displayName = sp.executable;
     if (!dlg.executableArguments().isEmpty())
         sp.processArgs = dlg.executableArguments();
     // Fixme: 1 of 3 testing hacks.
@@ -1580,37 +1576,6 @@ void DebuggerPluginPrivate::enableReverseDebuggingTriggered(const QVariant &valu
     m_reverseToolButton->setVisible(value.toBool());
     m_reverseDirectionAction->setChecked(false);
     m_reverseDirectionAction->setEnabled(value.toBool());
-}
-
-void DebuggerPluginPrivate::attachRemoteTcf()
-{
-    DebuggerStartParameters sp;
-    AttachTcfDialog dlg(mainWindow());
-    QStringList arches;
-    arches.append(_("i386:x86-64:intel"));
-    dlg.setRemoteArchitectures(arches);
-    dlg.setRemoteChannel(
-            configValue(_("LastTcfRemoteChannel")).toString());
-    dlg.setRemoteArchitecture(
-            configValue(_("LastTcfRemoteArchitecture")).toString());
-    dlg.setServerStartScript(
-            configValue(_("LastTcfServerStartScript")).toString());
-    dlg.setUseServerStartScript(
-            configValue(_("LastTcfUseServerStartScript")).toBool());
-    if (dlg.exec() != QDialog::Accepted)
-        return;
-    setConfigValue(_("LastTcfRemoteChannel"), dlg.remoteChannel());
-    setConfigValue(_("LastTcfRemoteArchitecture"), dlg.remoteArchitecture());
-    setConfigValue(_("LastTcfServerStartScript"), dlg.serverStartScript());
-    setConfigValue(_("LastTcfUseServerStartScript"), dlg.useServerStartScript());
-    sp.remoteChannel = dlg.remoteChannel();
-    sp.remoteArchitecture = dlg.remoteArchitecture();
-    sp.serverStartScript = dlg.serverStartScript();
-    sp.startMode = AttachTcf;
-    if (dlg.useServerStartScript())
-        sp.serverStartScript = dlg.serverStartScript();
-    if (RunControl *rc = createDebugger(sp))
-        startDebugger(rc);
 }
 
 void DebuggerPluginPrivate::runScheduled()
@@ -1844,6 +1809,7 @@ void DebuggerPluginPrivate::connectEngine(DebuggerEngine *engine)
     m_threadBox->setModel(engine->threadsModel());
     m_threadBox->setModelColumn(ThreadData::NameColumn);
     m_watchersWindow->setModel(engine->watchersModel());
+    engine->watchHandler()->rebuildModel();
 }
 
 static void changeFontSize(QWidget *widget, qreal size)
@@ -2742,9 +2708,11 @@ void DebuggerPluginPrivate::extensionsInitialized()
     act->setText(tr("Start and Debug External Application..."));
     connect(act, SIGNAL(triggered()), SLOT(startExternalApplication()));
 
+#ifdef WITH_LLDB
     act = m_startRemoteLldbAction = new QAction(this);
     act->setText(tr("Start and Debug External Application with External Engine..."));
     connect(act, SIGNAL(triggered()), SLOT(startRemoteEngine()));
+#endif
 
     act = m_attachExternalAction = new QAction(this);
     act->setText(tr("Attach to Running External Application..."));
@@ -2753,12 +2721,6 @@ void DebuggerPluginPrivate::extensionsInitialized()
     act = m_attachCoreAction = new QAction(this);
     act->setText(tr("Attach to Core..."));
     connect(act, SIGNAL(triggered()), SLOT(attachCore()));
-
-    act = m_attachTcfAction = new QAction(this);
-    act->setText(tr("Attach to Running Tcf Agent..."));
-    act->setToolTip(tr("This attaches to a running "
-        "'Target Communication Framework' agent."));
-    connect(act, SIGNAL(triggered()), SLOT(attachRemoteTcf()));
 
     act = m_startRemoteAction = new QAction(this);
     act->setText(tr("Start and Attach to Remote Application..."));
@@ -2807,19 +2769,17 @@ void DebuggerPluginPrivate::extensionsInitialized()
     cmd->setAttribute(Command::CA_Hide);
     mstart->addAction(cmd, CC::G_DEFAULT_ONE);
 
-    cmd = am->registerAction(m_attachTcfAction,
-        Constants::ATTACHTCF, globalcontext);
-    mstart->addAction(cmd, CC::G_DEFAULT_ONE);
-
     cmd = am->registerAction(m_startRemoteAction,
         Constants::ATTACHREMOTE, globalcontext);
     cmd->setAttribute(Command::CA_Hide);
     mstart->addAction(cmd, CC::G_DEFAULT_ONE);
 
+#ifdef WITH_LLDB
     cmd = am->registerAction(m_startRemoteLldbAction,
         Constants::STARTREMOTELLDB, globalcontext);
     cmd->setAttribute(Command::CA_Hide);
     mstart->addAction(cmd, CC::G_DEFAULT_ONE);
+#endif
 
     if (m_startRemoteCdbAction) {
         cmd = am->registerAction(m_startRemoteCdbAction,

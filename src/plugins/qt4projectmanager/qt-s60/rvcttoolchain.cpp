@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -38,6 +37,7 @@
 
 #include <projectexplorer/abi.h>
 #include <projectexplorer/headerpath.h>
+#include <projectexplorer/toolchainmanager.h>
 #include <utils/environment.h>
 #include <utils/environmentmodel.h>
 #include <utils/synchronousprocess.h>
@@ -87,8 +87,21 @@ static QString armVersionString(RvctToolChain::ArmVersion av)
 static Utils::Environment baseEnvironment(RvctToolChain *tc)
 {
     Utils::Environment result;
-    tc->addToEnvironment(result);
+    result.modify(tc->environmentChanges());
     return result;
+}
+
+static QString toString(const RvctToolChain::ArmVersion &v)
+{
+    switch (v)
+    {
+    case RvctToolChain::ARMv5:
+        return QString::fromAscii("armv5");
+    case RvctToolChain::ARMv6:
+        return QString::fromAscii("armv6");
+    default:
+        return QString::fromAscii("unknown");
+    }
 }
 
 // ==========================================================================
@@ -114,7 +127,7 @@ RvctToolChain::RvctVersion RvctToolChain::version(const QString &rvctPath)
 
     QProcess armcc;
     const QString binary = rvctPath;
-    armcc.start(binary, QStringList());
+    armcc.start(binary, QStringList() << "--version_number");
     if (!armcc.waitForStarted()) {
         qWarning("Unable to run rvct binary '%s' when trying to determine version.", qPrintable(binary));
         return v;
@@ -131,7 +144,7 @@ RvctToolChain::RvctVersion RvctToolChain::version(const QString &rvctPath)
     }
     QString versionLine = QString::fromLocal8Bit(armcc.readAllStandardOutput());
     versionLine += QString::fromLocal8Bit(armcc.readAllStandardError());
-    const QRegExp versionRegExp(QLatin1String("RVCT(\\d*)\\.(\\d*).*\\[Build.(\\d*)\\]"),
+    const QRegExp versionRegExp(QLatin1String("^(\\d)(\\d)0*([1-9]\\d*)"),
                                 Qt::CaseInsensitive);
     Q_ASSERT(versionRegExp.isValid());
 
@@ -248,7 +261,10 @@ bool RvctToolChain::operator ==(const ToolChain &other) const
 
 void RvctToolChain::setEnvironmentChanges(const QList<Utils::EnvironmentItem> &changes)
 {
+    if (m_environmentChanges == changes)
+        return;
     m_environmentChanges = changes;
+    toolChainUpdated();
 }
 
 QList<Utils::EnvironmentItem> RvctToolChain::environmentChanges() const
@@ -263,7 +279,7 @@ void RvctToolChain::setCompilerPath(const QString &path)
 
     m_compilerPath = path;
     m_version.reset();
-    updateId();
+    updateId(); // Will trigger toolChainUpdated()!
 }
 
 QString RvctToolChain::compilerPath() const
@@ -273,7 +289,10 @@ QString RvctToolChain::compilerPath() const
 
 void RvctToolChain::setDebuggerCommand(const QString &d)
 {
+    if (m_debuggerCommand == d)
+        return;
     m_debuggerCommand = d;
+    toolChainUpdated();
 }
 
 QString RvctToolChain::debuggerCommand() const
@@ -283,7 +302,10 @@ QString RvctToolChain::debuggerCommand() const
 
 void RvctToolChain::setArmVersion(RvctToolChain::ArmVersion av)
 {
+    if (m_armVersion == av)
+        return;
     m_armVersion = av;
+    toolChainUpdated();
 }
 
 RvctToolChain::ArmVersion RvctToolChain::armVersion() const
@@ -293,7 +315,10 @@ RvctToolChain::ArmVersion RvctToolChain::armVersion() const
 
 void RvctToolChain::setVersion(const RvctVersion &v) const
 {
+    if (m_version == v)
+        return;
     m_version = v;
+    // Internal use only! No need to call toolChainUpdated()!
 }
 
 ProjectExplorer::ToolChainConfigWidget *RvctToolChain::configurationWidget()
@@ -337,7 +362,8 @@ bool RvctToolChain::fromMap(const QVariantMap &data)
 
 void RvctToolChain::updateId()
 {
-    setId(QString::fromLatin1("%1:%2").arg(Constants::RVCT_TOOLCHAIN_ID).arg(m_compilerPath));
+    setId(QString::fromLatin1("%1:%2.%3.%4").arg(Constants::RVCT_TOOLCHAIN_ID)
+          .arg(m_compilerPath).arg(toString(m_armVersion)).arg(m_debuggerCommand));
 }
 
 QString RvctToolChain::varName(const QString &postFix) const
@@ -361,6 +387,12 @@ RvctToolChainConfigWidget::RvctToolChainConfigWidget(RvctToolChain *tc) :
     m_ui->environmentView->setModel(m_model);
     m_ui->environmentView->horizontalHeader()->setResizeMode(QHeaderView::ResizeToContents);
     m_ui->environmentView->horizontalHeader()->setStretchLastSection(true);
+    m_ui->environmentView->setGridStyle(Qt::NoPen);
+    m_ui->environmentView->horizontalHeader()->setHighlightSections(false);
+    m_ui->environmentView->verticalHeader()->hide();
+    QFontMetrics fm(font());
+    m_ui->environmentView->verticalHeader()->setDefaultSectionSize(qMax(static_cast<int>(fm.height() * 1.2), fm.height() + 4));
+
     connect(m_model, SIGNAL(userChangesChanged()), this, SLOT(emitDirty()));
 
     m_ui->compilerPath->setExpectedKind(Utils::PathChooser::ExistingCommand);
@@ -415,6 +447,20 @@ QList<Utils::EnvironmentItem> RvctToolChainConfigWidget::environmentChanges() co
     Utils::Environment resultEnv = baseEnvironment(static_cast<RvctToolChain *>(toolChain()));
     resultEnv.modify(m_model->userChanges());
     return baseEnv.diff(resultEnv);
+}
+
+void RvctToolChainConfigWidget::changeEvent(QEvent *ev)
+{
+    if (ev->type() == QEvent::EnabledChange) {
+        if (isEnabled()) {
+            m_ui->environmentView->horizontalHeader()->setVisible(true);
+            m_ui->environmentView->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        } else {
+            m_ui->environmentView->horizontalHeader()->setVisible(false);
+            m_ui->environmentView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        }
+    }
+    ToolChainConfigWidget::changeEvent(ev);
 }
 
 // ==========================================================================
@@ -490,6 +536,7 @@ QList<ProjectExplorer::ToolChain *> RvctToolChainFactory::autoDetect()
         tc->setDisplayName(name.arg(armVersionString(tc->armVersion()))
                            .arg(v.majorVersion).arg(v.minorVersion).arg(v.build));
         tc->setVersion(v);
+        tc->setDebuggerCommand(ProjectExplorer::ToolChainManager::instance()->defaultDebugger(tc->targetAbi()));
         result.append(tc);
     }
 

@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -204,7 +203,7 @@ void MimeTypeSettingsModel::updateKnownPatterns(const QStringList &oldPatterns,
     }
 }
 
-// MimeTypeSettingsPagePrivate
+// MimeTypeSettingsPrivate
 class MimeTypeSettingsPrivate : public QObject
 {
     Q_OBJECT
@@ -231,6 +230,7 @@ public:
     void editMagicHeaderRowData(const int row, const MagicData &data);
 
     void updateMimeDatabase();
+    void resetState();
 
 public slots:
     void syncData(const QModelIndex &current, const QModelIndex &previous);
@@ -249,6 +249,7 @@ public:
     int m_mimeForPatternSync;
     int m_mimeForMagicSync;
     bool m_reset;
+    bool m_persist;
     QList<int> m_modifiedMimeTypes;
     Ui::MimeTypeSettingsPage m_ui;
 };
@@ -261,6 +262,7 @@ MimeTypeSettingsPrivate::MimeTypeSettingsPrivate()
     , m_mimeForPatternSync(-1)
     , m_mimeForMagicSync(-1)
     , m_reset(false)
+    , m_persist(false)
 {}
 
 MimeTypeSettingsPrivate::~MimeTypeSettingsPrivate()
@@ -507,22 +509,32 @@ void MimeTypeSettingsPrivate::editMagicHeader()
 
 void MimeTypeSettingsPrivate::updateMimeDatabase()
 {
-    MimeDatabase *db = ICore::instance()->mimeDatabase();
+    if (m_modifiedMimeTypes.isEmpty())
+        return;
+
     // For this case it is a better approach to simply use a list and to remove duplicates
     // afterwards than to keep a more complex data structure like a hash table.
     qSort(m_modifiedMimeTypes.begin(), m_modifiedMimeTypes.end());
     m_modifiedMimeTypes.erase(std::unique(m_modifiedMimeTypes.begin(), m_modifiedMimeTypes.end()),
                               m_modifiedMimeTypes.end());
-    if (!m_modifiedMimeTypes.isEmpty()) {
-        QList<MimeType> allModified;
-        foreach (int index, m_modifiedMimeTypes) {
-            const MimeType &mimeType = m_model->m_mimeTypes.at(index);
-            db->setGlobPatterns(mimeType.type(), mimeType.globPatterns());
-            db->setMagicMatchers(mimeType.type(), mimeType.magicMatchers());
-            allModified.append(mimeType);
-        }
-        db->writeUserModifiedMimeTypes(allModified);
+
+    MimeDatabase *db = ICore::instance()->mimeDatabase();
+    QList<MimeType> allModified;
+    foreach (int index, m_modifiedMimeTypes) {
+        const MimeType &mimeType = m_model->m_mimeTypes.at(index);
+        db->setGlobPatterns(mimeType.type(), mimeType.globPatterns());
+        db->setMagicMatchers(mimeType.type(), mimeType.magicMatchers());
+        allModified.append(mimeType);
     }
+    db->writeUserModifiedMimeTypes(allModified);
+}
+
+void MimeTypeSettingsPrivate::resetState()
+{
+    clearSyncData();
+    m_modifiedMimeTypes.clear();
+    m_reset = false;
+    m_persist = false;
 }
 
 void MimeTypeSettingsPrivate::resetMimeTypes()
@@ -581,9 +593,7 @@ QWidget *MimeTypeSettings::createPage(QWidget *parent)
 
 void MimeTypeSettings::apply()
 {
-    if (m_d->m_reset) {
-        ICore::instance()->mimeDatabase()->clearUserModifiedMimeTypes();
-    } else if (!m_d->m_modifiedMimeTypes.isEmpty()) {
+    if (!m_d->m_modifiedMimeTypes.isEmpty()) {
         const QModelIndex &modelIndex =
             m_d->m_ui.mimeTypesTableView->selectionModel()->currentIndex();
         if (modelIndex.isValid()) {
@@ -592,12 +602,23 @@ void MimeTypeSettings::apply()
             if (m_d->m_mimeForMagicSync == modelIndex.row())
                 m_d->syncMimeMagic();
         }
-        m_d->updateMimeDatabase();
+        m_d->clearSyncData();
     }
+
+    if (!m_d->m_persist)
+        m_d->m_persist = true;
 }
 
 void MimeTypeSettings::finish()
-{}
+{
+    if (m_d->m_persist) {
+        if (m_d->m_reset)
+            ICore::instance()->mimeDatabase()->clearUserModifiedMimeTypes();
+        else
+            m_d->updateMimeDatabase();
+    }
+    m_d->resetState();
+}
 
 } // Internal
 } // Core

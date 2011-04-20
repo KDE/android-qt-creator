@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -322,11 +321,13 @@ void S60DeployStep::stop()
 
 void S60DeployStep::setupConnections()
 {
-    if (m_channel == S60DeployConfiguration::CommunicationTrkSerialConnection) {
+    if (m_channel == S60DeployConfiguration::CommunicationTrkSerialConnection
+            || m_channel == S60DeployConfiguration::CommunicationCodaSerialConnection)
         connect(SymbianUtils::SymbianDeviceManager::instance(), SIGNAL(deviceRemoved(SymbianUtils::SymbianDevice)),
                 this, SLOT(deviceRemoved(SymbianUtils::SymbianDevice)));
-        connect(m_launcher, SIGNAL(finished()), this, SLOT(launcherFinished()));
 
+    if (m_channel == S60DeployConfiguration::CommunicationTrkSerialConnection) {
+        connect(m_launcher, SIGNAL(finished()), this, SLOT(launcherFinished()));
         connect(m_launcher, SIGNAL(canNotConnect(QString)), this, SLOT(connectFailed(QString)));
         connect(m_launcher, SIGNAL(copyingStarted(QString)), this, SLOT(printCopyingNotice(QString)));
         connect(m_launcher, SIGNAL(canNotCreateFile(QString,QString)), this, SLOT(createFileFailed(QString,QString)));
@@ -495,6 +496,7 @@ void S60DeployStep::initFileSending()
 {
     QTC_ASSERT(m_currentFileIndex < m_signedPackages.count(), return);
     QTC_ASSERT(m_currentFileIndex >= 0, return);
+    QTC_ASSERT(m_codaDevice, return);
 
     const unsigned flags =
             Coda::CodaDevice::FileSystem_TCF_O_WRITE
@@ -513,6 +515,7 @@ void S60DeployStep::initFileInstallation()
 {
     QTC_ASSERT(m_currentFileIndex < m_signedPackages.count(), return);
     QTC_ASSERT(m_currentFileIndex >= 0, return);
+    QTC_ASSERT(m_codaDevice, return);
 
     QString packageName(QFileInfo(m_signedPackages.at(m_currentFileIndex)).fileName());
     QString remoteFileLocation = QString::fromLatin1("%1:\\Data\\%2").arg(m_installationDrive).arg(packageName);
@@ -583,13 +586,16 @@ void S60DeployStep::handleSymbianInstall(const Coda::CodaCommandResult &result)
 
 void S60DeployStep::putSendNextChunk()
 {
+    QTC_ASSERT(m_codaDevice, return);
+    QTC_ASSERT(m_putFile, return);
+
     // Read and send off next chunk
     const quint64 pos = m_putFile->pos();
     const QByteArray data = m_putFile->read(m_putChunkSize);
     const quint64 size = m_putFile->size();
     if (data.isEmpty()) {
         m_putWriteOk = true;
-        closeRemoteFile();
+        closeFiles();
         setCopyProgress(100);
     } else {
         m_putLastChunkSize = data.size();
@@ -603,8 +609,11 @@ void S60DeployStep::putSendNextChunk()
     }
 }
 
-void S60DeployStep::closeRemoteFile()
+void S60DeployStep::closeFiles()
 {
+    m_putFile.reset();
+    QTC_ASSERT(m_codaDevice, return);
+
     m_codaDevice->sendFileSystemCloseCommand(Coda::CodaCallback(this, &S60DeployStep::handleFileSystemClose),
                                             m_remoteFileHandle);
 }
@@ -619,7 +628,7 @@ void S60DeployStep::handleFileSystemWrite(const Coda::CodaCommandResult &result)
     }
 
     if (!m_putWriteOk || m_putLastChunkSize < m_putChunkSize) {
-        closeRemoteFile();
+        closeFiles();
     } else {
         putSendNextChunk();
     }

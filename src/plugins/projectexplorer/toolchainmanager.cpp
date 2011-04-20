@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -47,6 +46,9 @@
 static const char *const TOOLCHAIN_DATA_KEY = "ToolChain.";
 static const char *const TOOLCHAIN_COUNT_KEY = "ToolChain.Count";
 static const char *const TOOLCHAIN_FILE_VERSION_KEY = "Version";
+static const char *const DEFAULT_DEBUGGER_COUNT_KEY = "DefaultDebugger.Count";
+static const char *const DEFAULT_DEBUGGER_ABI_KEY = "DefaultDebugger.Abi.";
+static const char *const DEFAULT_DEBUGGER_PATH_KEY = "DefaultDebugger.Path.";
 static const char *const TOOLCHAIN_FILENAME = "/toolChains.xml";
 
 static QString settingsFileName()
@@ -70,6 +72,7 @@ class ToolChainManagerPrivate
 {
 public:
     QList<ToolChain *> m_toolChains;
+    QMap<QString, QString> m_abiToDebugger;
 };
 
 } // namespace Internal
@@ -96,6 +99,11 @@ ToolChainManager::ToolChainManager(QObject *parent) :
 
 void ToolChainManager::restoreToolChains()
 {
+    // Restore SDK settings first
+    restoreToolChains(Core::ICore::instance()->resourcePath()
+                      + QLatin1String("/Nokia") + QLatin1String(TOOLCHAIN_FILENAME), true);
+
+    // Then auto detect
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
     QList<ToolChainFactory *> factories = pm->getObjects<ToolChainFactory>();
     // Autodetect tool chains:
@@ -105,9 +113,8 @@ void ToolChainManager::restoreToolChains()
             registerToolChain(tc);
     }
 
+    // Then restore user settings
     restoreToolChains(settingsFileName(), false);
-    restoreToolChains(Core::ICore::instance()->resourcePath()
-                      + QLatin1String("/Nokia") + QLatin1String(TOOLCHAIN_FILENAME), true);
 }
 
 ToolChainManager::~ToolChainManager()
@@ -138,6 +145,8 @@ void ToolChainManager::saveToolChains()
     }
     writer.saveValue(QLatin1String(TOOLCHAIN_COUNT_KEY), count);
     writer.save(settingsFileName(), "QtCreatorToolChains");
+
+    // Do not save default debuggers! Those are set by the SDK!
 }
 
 void ToolChainManager::restoreToolChains(const QString &fileName, bool autoDetected)
@@ -152,10 +161,22 @@ void ToolChainManager::restoreToolChains(const QString &fileName, bool autoDetec
     if (version < 1)
         return;
 
+    // Read default debugger settings (if any)
+    int count = data.value(QLatin1String(DEFAULT_DEBUGGER_COUNT_KEY)).toInt();
+    for (int i = 0; i < count; ++i) {
+        const QString abiKey = QString::fromLatin1(DEFAULT_DEBUGGER_ABI_KEY) + QString::number(i);
+        if (!data.contains(abiKey))
+            continue;
+        const QString pathKey = QString::fromLatin1(DEFAULT_DEBUGGER_PATH_KEY) + QString::number(i);
+        if (!data.contains(abiKey))
+            continue;
+        m_d->m_abiToDebugger.insert(data.value(abiKey).toString(), data.value(pathKey).toString());
+    }
+
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
     QList<ToolChainFactory *> factories = pm->getObjects<ToolChainFactory>();
 
-    int count = data.value(QLatin1String(TOOLCHAIN_COUNT_KEY), 0).toInt();
+    count = data.value(QLatin1String(TOOLCHAIN_COUNT_KEY), 0).toInt();
     for (int i = 0; i < count; ++i) {
         const QString key = QString::fromLatin1(TOOLCHAIN_DATA_KEY) + QString::number(i);
         if (!data.contains(key))
@@ -205,6 +226,18 @@ ToolChain *ToolChainManager::findToolChain(const QString &id) const
             return tc;
     }
     return 0;
+}
+
+QString ToolChainManager::defaultDebugger(const Abi &abi) const
+{
+    return m_d->m_abiToDebugger.value(abi.toString());
+}
+
+void ToolChainManager::notifyAboutUpdate(ProjectExplorer::ToolChain *tc)
+{
+    if (!tc || !m_d->m_toolChains.contains(tc))
+        return;
+    emit toolChainUpdated(tc);
 }
 
 void ToolChainManager::registerToolChain(ToolChain *tc)

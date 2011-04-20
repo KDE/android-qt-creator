@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -78,12 +77,17 @@ void FormEditorStack::add(const EditorData &data)
 
     m_formEditors.append(data);
     addWidget(data.widgetHost);
+    // Editors are normally removed by listening to EditorManager::editorsClosed.
+    // However, in the case opening a file fails, EditorManager just deletes the editor, which
+    // is caught by the destroyed() signal.
+    connect(data.formWindowEditor, SIGNAL(destroyed(QObject*)),
+            this, SLOT(removeFormWindowEditor(QObject*)));
 
     connect(data.widgetHost, SIGNAL(formWindowSizeChanged(int,int)),
             this, SLOT(formSizeChanged(int,int)));
 
     if (Designer::Constants::Internal::debug)
-        qDebug() << "FormEditorStack::add" << data.widgetHost;
+        qDebug() << "FormEditorStack::add" << data.widgetHost << m_formEditors.size();
 
     // Since we have 1 pixel splitters we enforce no frame
     // on the content widget
@@ -91,7 +95,7 @@ void FormEditorStack::add(const EditorData &data)
         frame->setFrameStyle(QFrame::NoFrame);
 }
 
-int FormEditorStack::indexOf(const QDesignerFormWindowInterface *fw) const
+int FormEditorStack::indexOfFormWindow(const QDesignerFormWindowInterface *fw) const
 {
     const int count = m_formEditors.size();
      for(int i = 0; i < count; ++i)
@@ -100,7 +104,7 @@ int FormEditorStack::indexOf(const QDesignerFormWindowInterface *fw) const
      return -1;
 }
 
-int FormEditorStack::indexOf(const Core::IEditor *xmlEditor) const
+int FormEditorStack::indexOfFormEditor(const QObject *xmlEditor) const
 {
     const int count = m_formEditors.size();
     for(int i = 0; i < count; ++i)
@@ -113,7 +117,7 @@ EditorData FormEditorStack::activeEditor() const
 {
     // Should actually be in sync with current index.
     if (QDesignerFormWindowInterface *afw = m_designerCore->formWindowManager()->activeFormWindow()) {
-        const int index = indexOf(afw);
+        const int index = indexOfFormWindow(afw);
         if (index >= 0)
             return m_formEditors.at(index);
     }
@@ -122,28 +126,28 @@ EditorData FormEditorStack::activeEditor() const
 
 SharedTools::WidgetHost *FormEditorStack::formWindowEditorForFormWindow(const QDesignerFormWindowInterface *fw) const
 {
-    const int i = indexOf(fw);
+    const int i = indexOfFormWindow(fw);
     return i != -1 ? m_formEditors[i].widgetHost : static_cast<SharedTools::WidgetHost *>(0);
 }
 
-bool FormEditorStack::removeFormWindowEditor(Core::IEditor *xmlEditor)
+void FormEditorStack::removeFormWindowEditor(QObject *xmlEditor)
 {
+    const int i = indexOfFormEditor(xmlEditor);
     if (Designer::Constants::Internal::debug)
-        qDebug() << "FormEditorStack::removeFormWindowEditor"  << xmlEditor;
-    const int i = indexOf(xmlEditor);
-    if (i == -1) // Fail silently as this is invoked for all editors.
-        return false;
+        qDebug() << "FormEditorStack::removeFormWindowEditor"  << xmlEditor << i << " of " << m_formEditors.size() ;
+    if (i == -1) // Fail silently as this is invoked for all editors from EditorManager
+        return;  // and editor deletion signal.
+
     removeWidget(m_formEditors[i].widgetHost);
     m_formEditors[i].widgetHost->deleteLater();
     m_formEditors.removeAt(i);
-    return true;
 }
 
 bool FormEditorStack::setVisibleEditor(Core::IEditor *xmlEditor)
 {
     if (Designer::Constants::Internal::debug)
         qDebug() << "FormEditorStack::setVisibleEditor"  << xmlEditor;
-    const int i = indexOf(xmlEditor);
+    const int i = indexOfFormEditor(xmlEditor);
     QTC_ASSERT(i != -1, return false);
 
     if (i != currentIndex())
@@ -177,7 +181,7 @@ void FormEditorStack::formSizeChanged(int w, int h)
 
 SharedTools::WidgetHost *FormEditorStack::formWindowEditorForXmlEditor(const Core::IEditor *xmlEditor) const
 {
-    const int i = indexOf(xmlEditor);
+    const int i = indexOfFormEditor(xmlEditor);
     return i != -1 ? m_formEditors.at(i).widgetHost : static_cast<SharedTools::WidgetHost *>(0);
 }
 

@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -201,7 +200,7 @@ void DesignDocumentController::blockModelSync(bool block)
             attachNodeInstanceView();
             QmlModelState state;
             //We go back to base state (and back again) to avoid side effects from text editing.
-            if (m_d->statesEditorView) {
+            if (m_d->statesEditorView && m_d->statesEditorView->model()) {
                 state = m_d->statesEditorView->currentState();
                 m_d->statesEditorView->setCurrentState(m_d->statesEditorView->baseState());
 
@@ -507,8 +506,7 @@ void DesignDocumentController::deleteSelected()
 
 void DesignDocumentController::copySelected()
 {
-    QScopedPointer<Model> model(Model::create("Qt/Rectangle"));
-    model->setMetaInfo(m_d->model->metaInfo());
+    QScopedPointer<Model> model(Model::create("QtQuick.Rectangle", 1, 0, this->model()));
     model->setFileUrl(m_d->model->fileUrl());
     model->changeImports(m_d->model->imports(), QList<Import>());
 
@@ -552,7 +550,7 @@ void DesignDocumentController::copySelected()
         foreach (ModelNode node, view.rootModelNode().allDirectSubModelNodes()) {
             node.destroy();
         }
-        view.changeRootNodeType("Qt/Rectangle", 4, 7);
+        view.changeRootNodeType("QtQuick.Rectangle", 1, 0);
         view.rootModelNode().setId("designer__Selection");
 
         foreach (const ModelNode &selectedNode, selectedNodes) {
@@ -603,8 +601,7 @@ static void scatterItem(ModelNode pastedNode, const ModelNode targetNode, int of
 
 void DesignDocumentController::paste()
 {
-    QScopedPointer<Model> model(Model::create("empty"));
-    model->setMetaInfo(m_d->model->metaInfo());
+    QScopedPointer<Model> model(Model::create("empty", 1, 0, this->model()));
     model->setFileUrl(m_d->model->fileUrl());
     model->changeImports(m_d->model->imports(), QList<Import>());
 
@@ -789,7 +786,7 @@ bool DesignDocumentController::save(QIODevice *device, QString * /*errorMessage*
     if (m_d->model) {
         QByteArray data = m_d->textEdit->toPlainText().toLatin1();
         device->write(data);
-        m_d->textEdit->setPlainText(data); // clear undo/redo history
+        m_d->textEdit->setPlainText(m_d->textEdit->toPlainText()); // clear undo/redo history
     }
     return false;
 }

@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -284,6 +283,7 @@ PropertyEditor::PropertyEditor(QWidget *parent) :
     QString styleSheet = QLatin1String(file.readAll());
     m_stackedWidget->setStyleSheet(styleSheet);
     m_stackedWidget->setMinimumWidth(300);
+    m_stackedWidget->move(0, 0);
     connect(m_stackedWidget, SIGNAL(resized()), this, SLOT(updateSize()));
 
     m_stackedWidget->insertWidget(0, new QWidget(m_stackedWidget));
@@ -368,12 +368,17 @@ void PropertyEditor::changeValue(const QString &propertyName)
         PropertyEditorValue *value = qobject_cast<PropertyEditorValue*>(QDeclarativeMetaType::toQObject(m_currentType->m_backendValuesPropertyMap.value(propertyName)));
         const QString newId = value->value().toString();
 
-        if (m_selectedNode.isValidId(newId)) {
+        if (newId == m_selectedNode.id())
+            return;
+
+        if (m_selectedNode.isValidId(newId)  && !modelNodeForId(newId).isValid() ) {
             if (m_selectedNode.id().isEmpty() || newId.isEmpty()) { //no id
                 try {
                     m_selectedNode.setId(newId);
                 } catch (InvalidIdException &e) { //better save then sorry
+                    m_locked = true;
                     value->setValue(m_selectedNode.id());
+                    m_locked = false;
                     QMessageBox::warning(0, tr("Invalid Id"), e.description());
                 }
             } else { //there is already an id, so we refactor
@@ -381,8 +386,13 @@ void PropertyEditor::changeValue(const QString &propertyName)
                     rewriterView()->renameId(m_selectedNode.id(), newId);
             }
         } else {
+            m_locked = true;
             value->setValue(m_selectedNode.id());
-            QMessageBox::warning(0, tr("Invalid Id"),  tr("%1 is an invalid id").arg(newId));
+            m_locked = false;
+            if (!m_selectedNode.isValidId(newId))
+                QMessageBox::warning(0, tr("Invalid Id"),  tr("%1 is an invalid id").arg(newId));
+            else
+                QMessageBox::warning(0, tr("Invalid Id"),  tr("%1 already exists").arg(newId));
         }
         return;
     }
@@ -454,51 +464,60 @@ void PropertyEditor::changeExpression(const QString &name)
 
     RewriterTransaction transaction = beginRewriterTransaction();
 
-    QString underscoreName(name);
-    underscoreName.replace(QLatin1Char('.'), QLatin1Char('_'));
+    try {
+        QString underscoreName(name);
+        underscoreName.replace(QLatin1Char('.'), QLatin1Char('_'));
 
-    QmlObjectNode fxObjectNode(m_selectedNode);
-    PropertyEditorValue *value = qobject_cast<PropertyEditorValue*>(QDeclarativeMetaType::toQObject(m_currentType->m_backendValuesPropertyMap.value(underscoreName)));
+        QmlObjectNode fxObjectNode(m_selectedNode);
+        PropertyEditorValue *value = qobject_cast<PropertyEditorValue*>(QDeclarativeMetaType::toQObject(m_currentType->m_backendValuesPropertyMap.value(underscoreName)));
 
-    if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().hasProperty(name)) {
-        if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("QColor")) {
-            if (QColor(value->expression().remove('"')).isValid()) {
-                fxObjectNode.setVariantProperty(name, QColor(value->expression().remove('"')));
-                return;
-            }
-        } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("bool")) {
-            if (value->expression().compare("false", Qt::CaseInsensitive) == 0 || value->expression().compare("true", Qt::CaseInsensitive) == 0) {
-                if (value->expression().compare("true", Qt::CaseInsensitive) == 0)
-                    fxObjectNode.setVariantProperty(name, true);
-                else
-                    fxObjectNode.setVariantProperty(name, false);
-                return;
-            }
-        } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("int")) {
-            bool ok;
-            int intValue = value->expression().toInt(&ok);
-            if (ok) {
-                fxObjectNode.setVariantProperty(name, intValue);
-                return;
-            }
-        } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("qreal")) {
-            bool ok;
-            qreal realValue = value->expression().toFloat(&ok);
-            if (ok) {
-                fxObjectNode.setVariantProperty(name, realValue);
-                return;
+        if (fxObjectNode.modelNode().metaInfo().isValid() && fxObjectNode.modelNode().metaInfo().hasProperty(name)) {
+            if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("QColor")) {
+                if (QColor(value->expression().remove('"')).isValid()) {
+                    fxObjectNode.setVariantProperty(name, QColor(value->expression().remove('"')));
+                    transaction.commit(); //committing in the try block
+                    return;
+                }
+            } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("bool")) {
+                if (value->expression().compare("false", Qt::CaseInsensitive) == 0 || value->expression().compare("true", Qt::CaseInsensitive) == 0) {
+                    if (value->expression().compare("true", Qt::CaseInsensitive) == 0)
+                        fxObjectNode.setVariantProperty(name, true);
+                    else
+                        fxObjectNode.setVariantProperty(name, false);
+                    transaction.commit(); //committing in the try block
+                    return;
+                }
+            } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("int")) {
+                bool ok;
+                int intValue = value->expression().toInt(&ok);
+                if (ok) {
+                    fxObjectNode.setVariantProperty(name, intValue);
+                    transaction.commit(); //committing in the try block
+                    return;
+                }
+            } else if (fxObjectNode.modelNode().metaInfo().propertyTypeName(name) == QLatin1String("qreal")) {
+                bool ok;
+                qreal realValue = value->expression().toFloat(&ok);
+                if (ok) {
+                    fxObjectNode.setVariantProperty(name, realValue);
+                    transaction.commit(); //committing in the try block
+                    return;
+                }
             }
         }
-    }
 
-    if (!value) {
-        qWarning() << "PropertyEditor::changeExpression no value for " << underscoreName;
-        return;
-    }
+        if (!value) {
+            qWarning() << "PropertyEditor::changeExpression no value for " << underscoreName;
+            return;
+        }
 
-    try {
+        if (value->expression().isEmpty())
+            return;
+
         if (fxObjectNode.expression(name) != value->expression() || !fxObjectNode.propertyAffectedByCurrentState(name))
             fxObjectNode.setBindingProperty(name, value->expression());
+
+        transaction.commit(); //committing in the try block
     }
 
     catch (RewritingException &e) {

@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -36,16 +35,16 @@
 #include <iostream>
 
 using namespace std;
-using namespace Core;
+using namespace Utils;
 
 ArgumentsCollector::ArgumentsCollector(const QStringList &args)
     : m_arguments(args)
 {
 }
 
-Core::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
+Utils::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
 {
-    SshConnectionParameters parameters(Core::SshConnectionParameters::NoProxy);
+    SshConnectionParameters parameters(Utils::SshConnectionParameters::NoProxy);
     try {
         bool authTypeGiven = false;
         bool portGiven = false;
@@ -55,24 +54,24 @@ Core::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
         int port;
         for (pos = 1; pos < m_arguments.count() - 1; ++pos) {
             if (checkAndSetStringArg(pos, parameters.host, "-h")
-                || checkAndSetStringArg(pos, parameters.uname, "-u"))
+                || checkAndSetStringArg(pos, parameters.userName, "-u"))
                 continue;
             if (checkAndSetIntArg(pos, port, portGiven, "-p")
                 || checkAndSetIntArg(pos, parameters.timeout, timeoutGiven, "-t"))
                 continue;
-            if (checkAndSetStringArg(pos, parameters.pwd, "-pwd")) {
+            if (checkAndSetStringArg(pos, parameters.password, "-pwd")) {
                 if (!parameters.privateKeyFile.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
-                parameters.authType
-                    = SshConnectionParameters::AuthByPwd;
+                parameters.authenticationType
+                    = SshConnectionParameters::AuthenticationByPassword;
                 authTypeGiven = true;
                 continue;
             }
             if (checkAndSetStringArg(pos, parameters.privateKeyFile, "-k")) {
-                if (!parameters.pwd.isEmpty())
+                if (!parameters.password.isEmpty())
                     throw ArgumentErrorException(QLatin1String("-pwd and -k are mutually exclusive."));
-                parameters.authType
-                    = SshConnectionParameters::AuthByKey;
+                parameters.authenticationType
+                    = SshConnectionParameters::AuthenticationByKey;
                 authTypeGiven = true;
                 continue;
             }
@@ -90,7 +89,7 @@ Core::SshConnectionParameters ArgumentsCollector::collect(bool &success) const
             throw ArgumentErrorException(QLatin1String("No authentication argument given."));
         if (parameters.host.isEmpty())
             throw ArgumentErrorException(QLatin1String("No host given."));
-        if (parameters.uname.isEmpty())
+        if (parameters.userName.isEmpty())
             throw ArgumentErrorException(QLatin1String("No user name given."));
 
         parameters.port = portGiven ? port : 22;

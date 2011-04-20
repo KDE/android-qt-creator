@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -549,7 +548,8 @@ QList<Abi> Abi::abisOfBinary(const QString &path)
                     && tmp.at(0).binaryFormat() != Abi::MachOFormat)
                 break;
 
-            f.seek(offset + (offset % 2)); // ar is 2 byte alligned
+            offset += (offset % 2); // ar is 2 byte alligned
+            f.seek(offset);
             data = f.read(1024);
         }
     } else {
@@ -602,10 +602,13 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary_data()
             << (QStringList());
 
     QTest::newRow("static QtCore: win msvc2008")
-            << QString::fromLatin1("%1/abi/static/win_msvc2008_release.lib").arg(prefix)
+            << QString::fromLatin1("%1/abi/static/win-msvc2008-release.lib").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-unknown-pe-32bit"));
+    QTest::newRow("static QtCore: win msvc2008 II")
+            << QString::fromLatin1("%1/abi/static/win-msvc2008-release2.lib").arg(prefix)
+            << (QStringList() << QString::fromLatin1("x86-windows-unknown-pe-64bit"));
     QTest::newRow("static QtCore: win msvc2008 (debug)")
-            << QString::fromLatin1("%1/abi/static/win_msvc2008_debug.lib").arg(prefix)
+            << QString::fromLatin1("%1/abi/static/win-msvc2008-debug.lib").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-unknown-pe-32bit"));
     QTest::newRow("static QtCore: mac (debug)")
             << QString::fromLatin1("%1/abi/static/mac-32bit-debug.a").arg(prefix)
@@ -641,12 +644,14 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary_data()
     QTest::newRow("dynamic QtCore: win msys 32bit")
             << QString::fromLatin1("%1/abi/dynamic/win-mingw-32bit.dll").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-msys-pe-32bit"));
-    QTest::newRow("static stdc++: mac fat")
+    QTest::newRow("dynamic stdc++: mac fat")
             << QString::fromLatin1("%1/abi/dynamic/mac-fat.dylib").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-macos-generic-mach_o-32bit")
                               << QString::fromLatin1("ppc-macos-generic-mach_o-32bit")
                               << QString::fromLatin1("x86-macos-generic-mach_o-64bit"));
-
+    QTest::newRow("dynamic QtCore: arm linux 32bit")
+            << QString::fromLatin1("%1/abi/dynamic/arm-linux.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("arm-linux-generic-elf-32bit"));
 }
 
 void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary()

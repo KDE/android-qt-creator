@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -292,23 +291,23 @@ void CMakeRunPage::initWidgets()
     if (m_cmakeWizard->cmakeManager()->isCMakeExecutableValid()) {
         m_cmakeExecutable = 0;
     } else {
-        QString text = tr("Please specify the path to the CMake executable. No CMake executable was found in the path.");
+        QString text = tr("Please specify the path to the cmake executable. No cmake executable was found in the path.");
         QString cmakeExecutable = m_cmakeWizard->cmakeManager()->cmakeExecutable();
         if (!cmakeExecutable.isEmpty()) {
             QFileInfo fi(cmakeExecutable);
             if (!fi.exists())
-                text += tr(" The CMake executable (%1) does not exist.").arg(cmakeExecutable);
+                text += tr(" The cmake executable (%1) does not exist.").arg(cmakeExecutable);
             else if (!fi.isExecutable())
                 text += tr(" The path %1 is not a executable.").arg(cmakeExecutable);
             else
-                text += tr(" The path %1 is not a valid CMake.").arg(cmakeExecutable);
+                text += tr(" The path %1 is not a valid cmake.").arg(cmakeExecutable);
         }
 
         fl->addRow(new QLabel(text, this));
         // Show a field for the user to enter
         m_cmakeExecutable = new Utils::PathChooser(this);
         m_cmakeExecutable->setExpectedKind(Utils::PathChooser::ExistingCommand);
-        fl->addRow("CMake Executable", m_cmakeExecutable);
+        fl->addRow("cmake Executable", m_cmakeExecutable);
     }
 
     // Run CMake Line (with arguments)
@@ -403,8 +402,11 @@ void CMakeRunPage::initializePage()
 
         m_generatorComboBox->setVisible(true);
         m_generatorComboBox->clear();
+        ProjectExplorer::Abi abi = ProjectExplorer::Abi::hostAbi();
+        abi = ProjectExplorer::Abi(abi.architecture(), abi.os(), ProjectExplorer::Abi::UnknownFlavor,
+                                   abi.binaryFormat(), abi.wordWidth() == 32 ? 32 : 0);
         QList<ProjectExplorer::ToolChain *> tcs =
-                ProjectExplorer::ToolChainManager::instance()->findToolChains(ProjectExplorer::Abi::hostAbi());
+                ProjectExplorer::ToolChainManager::instance()->findToolChains(abi);
         foreach (ProjectExplorer::ToolChain *tc, tcs) {
             ProjectExplorer::Abi targetAbi = tc->targetAbi();
             QVariant tcVariant = qVariantFromValue(static_cast<void *>(tc));
@@ -479,7 +481,7 @@ void CMakeRunPage::runCMake()
         m_runCMake->setEnabled(true);
         m_argumentsLineEdit->setEnabled(true);
         m_generatorComboBox->setEnabled(true);
-        m_output->appendPlainText(tr("No valid CMake executable specified."));
+        m_output->appendPlainText(tr("No valid cmake executable specified."));
     }
 }
 
@@ -523,7 +525,7 @@ void CMakeRunPage::cmakeFinished()
 
     if (m_cmakeProcess->exitCode() != 0) {
         m_exitCodeLabel->setVisible(true);
-        m_exitCodeLabel->setText(tr("CMake exited with errors. Please check cmake output."));
+        m_exitCodeLabel->setText(tr("CMake exited with errors. Please check CMake output."));
         m_complete = false;
     } else {
         m_exitCodeLabel->setVisible(false);

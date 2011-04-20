@@ -6,27 +6,26 @@
 **
 ** Author: Andreas Hartmetz, KDAB (andreas.hartmetz@kdab.com)
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -453,12 +452,21 @@ void AnalyzerManager::AnalyzerManagerPrivate::startTool()
 
     ProjectExplorer::ProjectExplorerPlugin *pe = ProjectExplorer::ProjectExplorerPlugin::instance();
 
-    ProjectExplorer::Project *pro = pe->startupProject();
     // ### not sure if we're supposed to check if the RunConFiguration isEnabled
-    if (!pro || !pro->activeTarget()->activeRunConfiguration()->isEnabled())
+    ProjectExplorer::Project *pro = pe->startupProject();
+    const ProjectExplorer::RunConfiguration *runConfig = 0;
+    ProjectExplorer::BuildConfiguration::BuildType buildType = ProjectExplorer::BuildConfiguration::Unknown;
+    if (pro) {
+        if (const ProjectExplorer::Target *target = pro->activeTarget()) {
+            runConfig = target->activeRunConfiguration();
+            // Build configuration is 0 for QML projects.
+            if (const ProjectExplorer::BuildConfiguration *buildConfig = target->activeBuildConfiguration())
+                buildType = buildConfig->buildType();
+        }
+    }
+    if (!runConfig || !runConfig->isEnabled())
         return;
 
-    ProjectExplorer::BuildConfiguration::BuildType buildType = pro->activeTarget()->activeBuildConfiguration()->buildType();
     IAnalyzerTool::ToolMode toolMode = q->currentTool()->mode();
 
     // check the project for whether the build config is in the correct mode

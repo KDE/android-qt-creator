@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -259,12 +258,12 @@ QString GdbEngine::errorMessage(QProcess::ProcessError error)
 {
     switch (error) {
         case QProcess::FailedToStart:
-            return tr("The Gdb process failed to start. Either the "
+            return tr("The gdb process failed to start. Either the "
                 "invoked program '%1' is missing, or you may have insufficient "
                 "permissions to invoke the program.\n%2")
                 .arg(m_gdb, gdbProc()->errorString());
         case QProcess::Crashed:
-            return tr("The Gdb process crashed some time after starting "
+            return tr("The gdb process crashed some time after starting "
                 "successfully.");
         case QProcess::Timedout:
             return tr("The last waitFor...() function timed out. "
@@ -272,13 +271,13 @@ QString GdbEngine::errorMessage(QProcess::ProcessError error)
                 "waitFor...() again.");
         case QProcess::WriteError:
             return tr("An error occurred when attempting to write "
-                "to the Gdb process. For example, the process may not be running, "
+                "to the gdb process. For example, the process may not be running, "
                 "or it may have closed its input channel.");
         case QProcess::ReadError:
             return tr("An error occurred when attempting to read from "
-                "the Gdb process. For example, the process may not be running.");
+                "the gdb process. For example, the process may not be running.");
         default:
-            return tr("An unknown error in the Gdb process occurred. ");
+            return tr("An unknown error in the gdb process occurred. ");
     }
 }
 
@@ -619,7 +618,7 @@ void GdbEngine::readGdbStandardError()
         return;
     if (err.startsWith("BFD: reopening"))
         return;
-    qWarning() << "Unexpected gdb stderr:" << err;
+    qWarning() << "Unexpected GDB stderr:" << err;
 }
 
 void GdbEngine::readGdbStandardOutput()
@@ -870,9 +869,9 @@ void GdbEngine::commandTimeout()
             "the operation.\nYou can choose between waiting "
             "longer or abort debugging.").arg(timeOut / 1000);
         QMessageBox *mb = showMessageBox(QMessageBox::Critical,
-            tr("Gdb not responding"), msg,
+            tr("GDB not responding"), msg,
             QMessageBox::Ok | QMessageBox::Cancel);
-        mb->button(QMessageBox::Cancel)->setText(tr("Give gdb more time"));
+        mb->button(QMessageBox::Cancel)->setText(tr("Give GDB more time"));
         mb->button(QMessageBox::Ok)->setText(tr("Stop debugging"));
         if (mb->exec() == QMessageBox::Ok) {
             showMessage(_("KILLING DEBUGGER AS REQUESTED BY USER"));
@@ -918,7 +917,7 @@ void GdbEngine::handleResultRecord(GdbResponse *response)
                 //shutdown();
                 notifyInferiorIll();
             } else if (msg == "\"finish\" not meaningful in the outermost frame.") {
-                // Handle a case known to appear on gdb 6.4 symbianelf when
+                // Handle a case known to appear on GDB 6.4 symbianelf when
                 // the stack is cut due to access to protected memory.
                 //showMessage(_("APPLYING WORKAROUND #2"));
                 notifyInferiorStopOk();
@@ -1673,8 +1672,7 @@ void GdbEngine::handleExecuteContinue(const GdbResponse &response)
         return;
     }
     QByteArray msg = response.data.findChild("msg").data();
-    if (msg.startsWith("Cannot find bounds of current function")
-        || msg.startsWith("\"finish\" not meaningful in the outermost frame")) {
+    if (msg.startsWith("Cannot find bounds of current function")) {
         notifyInferiorRunFailed();
         if (isDying())
             return;
@@ -1683,9 +1681,14 @@ void GdbEngine::handleExecuteContinue(const GdbResponse &response)
         QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
         showStatusMessage(tr("Stopped."), 5000);
         reloadStack(true);
-        //showStatusMessage(tr("No debug information available. "
-        //  "Leaving function..."));
-        //executeStepOut();
+    } else if (msg.startsWith("\"finish\" not meaningful in the outermost frame")) {
+        notifyInferiorRunFailed();
+        if (isDying())
+            return;
+        QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
+        // FIXME: Fix translation in master.
+        showStatusMessage(QString::fromLocal8Bit(msg), 5000);
+        gotoLocation(stackHandler()->currentFrame());
     } else {
         showExecutionError(QString::fromLocal8Bit(msg));
         notifyInferiorIll();
@@ -1893,6 +1896,11 @@ unsigned GdbEngine::debuggerCapabilities() const
         return caps;
 
     return caps | SnapshotCapability;
+}
+
+bool GdbEngine::canWatchWidgets() const
+{
+    return true;
 }
 
 void GdbEngine::continueInferiorInternal()
@@ -2465,10 +2473,9 @@ void GdbEngine::handleBreakListMultiple(const GdbResponse &response)
 {
     QTC_ASSERT(response.resultClass == GdbResultDone, /**/)
     const BreakpointId id = response.cookie.toInt();
-    BreakHandler *handler = breakHandler();
-    BreakpointResponse br = handler->response(id);
-    br.addresses.append(0);
-    handler->setResponse(id, br);
+    const QString str = QString::fromLocal8Bit(
+        response.data.findChild("consolestreamoutput").data());
+    extractDataFromInfoBreak(str, id);
 }
 
 void GdbEngine::handleBreakDisable(const GdbResponse &response)
@@ -2680,13 +2687,15 @@ void GdbEngine::insertBreakpoint(BreakpointId id)
     if (type == BreakpointAtFork) {
         postCommand("catch fork", NeedsStop | RebuildBreakpointModel,
             CB(handleCatchInsert), id);
-        return;
-    }
-    if (type == BreakpointAtVFork) {
         postCommand("catch vfork", NeedsStop | RebuildBreakpointModel,
             CB(handleCatchInsert), id);
         return;
     }
+    //if (type == BreakpointAtVFork) {
+    //    postCommand("catch vfork", NeedsStop | RebuildBreakpointModel,
+    //        CB(handleCatchInsert), id);
+    //    return;
+    //}
     if (type == BreakpointAtExec) {
         postCommand("catch exec", NeedsStop | RebuildBreakpointModel,
             CB(handleCatchInsert), id);
@@ -3916,7 +3925,7 @@ void GdbEngine::handleWatchPoint(const GdbResponse &response)
             const QByteArray addr = ba.mid(pos0x);
             if (addr.toULongLong(0, 0)) { // Non-null pointer
                 const QByteArray ns = qtNamespace();
-                const QByteArray type = ns.isEmpty() ? "QWidget*" : ("'" + ns + "QWidget'*");
+                const QByteArray type = ns.isEmpty() ? "QWidget*" : QByteArray("'" + ns + "QWidget'*");
                 const QString exp = _("(*(struct %1)%2)").arg(_(type)).arg(_(addr));
                 // qDebug() << posNs << posWidget << pos0x << addr << ns << type;
                 watchHandler()->watchExpression(exp);
@@ -3945,7 +3954,8 @@ void GdbEngine::changeMemory(MemoryAgent *agent, QObject *token,
     QByteArray cmd = "-data-write-memory " + QByteArray::number(addr) + " d 1";
     foreach (char c, data) {
         cmd.append(' ');
-        cmd.append(QByteArray::number(uint(c)));
+        const unsigned char uc = (unsigned char)c;
+        cmd.append(QByteArray::number(uint(uc)));
     }
     postCommand(cmd, NeedsStop, CB(handleChangeMemory),
         QVariant::fromValue(MemoryAgentCookie(agent, token, addr)));
@@ -4114,7 +4124,7 @@ static DisassemblerLine parseLine(const GdbMi &line)
 {
     DisassemblerLine dl;
     QByteArray address = line.findChild("address").data();
-    dl.address = address.toULongLong();
+    dl.address = address.toULongLong(0, 0);
     dl.data = _(line.findChild("inst").data());
     return dl;
 }
@@ -4127,10 +4137,13 @@ DisassemblerLines GdbEngine::parseMiDisassembler(const GdbMi &lines)
     // src_and_asm_line={line="1244",file=".../app.cpp",
     // line_asm_insn=[{address="0x0805485c",func-name="main",offset="32",
     //inst="call 0x804cba1 <_Z11testObject1v>"}]}]}
-    // - or -
+    // - or - (non-Mac)
     // ^done,asm_insns=[
     // {address="0x0805acf8",func-name="...",offset="25",inst="and $0xe8,%al"},
-    // {address="0x0805acfa",func-name="...",offset="27",inst="pop %esp"},
+    // {address="0x0805acfa",func-name="...",offset="27",inst="pop %esp"}, ..]
+    // - or - (MAC)
+    // ^done,asm_insns={
+    // {address="0x0d8f69e0",func-name="...",offset="1952",inst="add $0x0,%al"},..}
 
     QStringList fileContents;
     bool fileLoaded = false;
@@ -4394,7 +4407,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
         const QString nativeGdb = QDir::toNativeSeparators(m_gdb);
         showMessage(_("GDB %1 CANNOT FIND THE PYTHON INSTALLATION.").arg(nativeGdb));
         showStatusMessage(_("%1 cannot find python").arg(nativeGdb));
-        const QString msg = tr("The gdb installed at %1 cannot "
+        const QString msg = tr("The GDB installed at %1 cannot "
            "find a valid python installation in its %2 subdirectory.\n"
            "You may set the environment variable PYTHONPATH to point to your installation.")
                 .arg(nativeGdb).arg(winPythonVersion);
@@ -4545,7 +4558,7 @@ void GdbEngine::handleGdbError(QProcess::ProcessError error)
     default:
         //gdbProc()->kill();
         //notifyEngineIll();
-        showMessageBox(QMessageBox::Critical, tr("Gdb I/O Error"), msg);
+        showMessageBox(QMessageBox::Critical, tr("GDB I/O Error"), msg);
         break;
     }
 }
@@ -4573,7 +4586,7 @@ void GdbEngine::handleGdbFinished(int code, QProcess::ExitStatus type)
         const QString msg = type == QProcess::CrashExit ?
                     tr("The gdb process crashed.") :
                     tr("The gdb process exited unexpectedly (code %1)").arg(code);
-        showMessageBox(QMessageBox::Critical, tr("Unexpected Gdb Exit"), msg);
+        showMessageBox(QMessageBox::Critical, tr("Unexpected GDB Exit"), msg);
         break;
     }
     }

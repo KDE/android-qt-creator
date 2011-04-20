@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -73,8 +72,8 @@ public:
     {
         qmlDumpBuilds()->insert(version->uniqueId(), this);
 
-        connect(m_buildTask, SIGNAL(finished(int,DebuggingHelperBuildTask::Tools,QString)),
-                this, SLOT(finish(int,DebuggingHelperBuildTask::Tools,QString)),
+        connect(m_buildTask, SIGNAL(finished(int,QString,DebuggingHelperBuildTask::Tools)),
+                this, SLOT(finish(int,QString,DebuggingHelperBuildTask::Tools)),
                 Qt::QueuedConnection);
     }
 
@@ -102,7 +101,7 @@ public:
     }
 
 private slots:
-    void finish(int qtId, DebuggingHelperBuildTask::Tools tools, const QString &output)
+    void finish(int qtId, const QString &output, DebuggingHelperBuildTask::Tools tools)
     {
         QtVersion *version = QtVersionManager::instance()->version(qtId);
 
@@ -176,14 +175,20 @@ static inline QStringList validBinaryFilenames(bool debugBuild)
     return list;
 }
 
+static bool hasPrivateHeaders(const QString &qtInstallHeaders) {
+    const QString header = qtInstallHeaders
+            + QLatin1String("/QtDeclarative/private/qdeclarativemetatype_p.h");
+    return QFile::exists(header);
+}
+
 bool QmlDumpTool::canBuild(const QtVersion *qtVersion)
 {
     const QString installHeaders = qtVersion->versionInfo().value("QT_INSTALL_HEADERS");
-    const QString header = installHeaders + QLatin1String("/QtDeclarative/private/qdeclarativemetatype_p.h");
+
     return (qtVersion->supportsTargetId(Constants::DESKTOP_TARGET_ID)
             || (qtVersion->supportsTargetId(Constants::QT_SIMULATOR_TARGET_ID)
                 && (qtVersion->qtVersion() > QtVersionNumber(4, 7, 1))))
-            && QFile::exists(header);
+            && hasPrivateHeaders(installHeaders);
 }
 
 static QtVersion *qtVersionForProject(ProjectExplorer::Project *project)
@@ -235,7 +240,8 @@ QString QmlDumpTool::toolForProject(ProjectExplorer::Project *project, bool debu
     QtVersion *version = qtVersionForProject(project);
     if (version) {
         QString qtInstallData = version->versionInfo().value("QT_INSTALL_DATA");
-        QString toolPath = toolByInstallData(qtInstallData, debugDump);
+        QString qtInstallHeaders = version->versionInfo().value("QT_INSTALL_HEADERS");
+        QString toolPath = toolByInstallData(qtInstallData, qtInstallHeaders, debugDump);
         return toolPath;
     }
 
@@ -252,22 +258,24 @@ static QStringList sourceFileNames()
     QStringList files;
     files << QLatin1String("main.cpp") << QLatin1String("qmldump.pro")
           << QLatin1String("qmlstreamwriter.cpp") << QLatin1String("qmlstreamwriter.h")
-          << QLatin1String("LICENSE.LGPL") << QLatin1String("LGPL_EXCEPTION.TXT")
-          << QLatin1String("Info.plist");
+          << QLatin1String("LICENSE.LGPL") << QLatin1String("LGPL_EXCEPTION.TXT");
+#ifdef Q_OS_MAC
+    files << QLatin1String("Info.plist");
+#endif
     return files;
 }
 
-QString QmlDumpTool::toolByInstallData(const QString &qtInstallData, bool debugDump)
+QString QmlDumpTool::toolByInstallData(const QString &qtInstallData, const QString &qtInstallHeaders,
+                                       bool debugDump)
 {
     if (!Core::ICore::instance())
         return QString();
 
-    const QString mainFilename = Core::ICore::instance()->resourcePath()
-            + QLatin1String("/qml/qmldump/main.cpp");
     const QStringList directories = installDirectories(qtInstallData);
     const QStringList binFilenames = validBinaryFilenames(debugDump);
 
-    return byInstallDataHelper(sourcePath(), sourceFileNames(), directories, binFilenames);
+    return byInstallDataHelper(sourcePath(), sourceFileNames(), directories, binFilenames,
+                               !hasPrivateHeaders(qtInstallHeaders));
 }
 
 QStringList QmlDumpTool::locationsByInstallData(const QString &qtInstallData, bool debugDump)

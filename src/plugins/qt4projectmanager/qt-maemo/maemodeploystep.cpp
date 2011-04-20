@@ -4,27 +4,26 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
-** No Commercial Usage
-**
-** This file contains pre-release code and may not be distributed.
-** You may use this file in accordance with the terms and conditions
-** contained in the Technology Preview License Agreement accompanying
-** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights.  These rights are described in the Nokia Qt LGPL Exception
+** rights. These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -352,8 +351,10 @@ void MaemoDeployStep::start()
         const int deployableCount = m_deployables->deployableCount();
         for (int i = 0; i < deployableCount; ++i) {
             const MaemoDeployable &d = m_deployables->deployableAt(i);
-            if (currentlyNeedsDeployment(hostName, d))
+            if (currentlyNeedsDeployment(hostName, d)
+                || QFileInfo(d.localFilePath).isDir()) {
                 m_filesToCopy << d;
+            }
         }
     }
 
@@ -506,7 +507,7 @@ void MaemoDeployStep::handleUnmounted()
         break;
     case UnmountingCurrentDirs:
         setState(GatheringPorts);
-        m_portsGatherer->start(m_connection, freePorts());
+        m_portsGatherer->start(m_connection, freePorts(m_cachedDeviceConfig));
         break;
     case UnmountingCurrentMounts:
         if (m_hasError)
@@ -631,8 +632,11 @@ void MaemoDeployStep::installToSysroot()
         const QString command = QLatin1String(
             packagingStep()->debBasedMaemoTarget() ? "xdpkg" : "xrpm");
         QStringList args = QStringList() << command << QLatin1String("-i");
-        if (packagingStep()->debBasedMaemoTarget())
-            args << QLatin1String("--no-force-downgrade");
+
+        // Cannot use it, because we have an outdated MADDE version in the SDK.
+//        if (packagingStep()->debBasedMaemoTarget())
+//            args << QLatin1String("--no-force-downgrade");
+
         args << packagingStep()->packageFilePath();
         MaemoGlobal::callMadAdmin(*m_sysrootInstaller, args, qtVersion, true);
         if (!m_sysrootInstaller->waitForStarted()) {
@@ -650,7 +654,9 @@ void MaemoDeployStep::installToSysroot()
                 + d.remoteDir + sep + QFileInfo(d.localFilePath).fileName();
             sysRootDir.mkpath(d.remoteDir.mid(1));
             QFile::remove(targetFilePath);
-            if (!QFile::copy(d.localFilePath, targetFilePath)) {
+            QString dummy;
+            MaemoGlobal::removeRecursively(targetFilePath, dummy);
+            if (!MaemoGlobal::copyRecursively(d.localFilePath, targetFilePath)) {
                 writeOutput(tr("Sysroot installation failed: "
                     "Could not copy '%1' to '%2'. Continuing anyway.")
                     .arg(QDir::toNativeSeparators(d.localFilePath),
@@ -729,7 +735,8 @@ void MaemoDeployStep::runPackageInstaller(const QString &packageFilePath)
 
     writeOutput(tr("Installing package to device..."));
     const QByteArray installCommand = packagingStep()->debBasedMaemoTarget()
-        ? "dpkg -i --no-force-downgrade" : "rpm -Uhv";
+        ? "dpkg -i --no-force-downgrade"
+        : "rpm -U --replacepkgs --replacefiles";
     QByteArray cmd = MaemoGlobal::remoteSudo().toUtf8() + ' '
         + installCommand + ' ' + packageFilePath.toUtf8();
     if (removeAfterInstall)
@@ -779,9 +786,8 @@ void MaemoDeployStep::copyNextFileToDevice()
     sourceFilePath += d.localFilePath;
 #endif
 
-    QString command = QString::fromLatin1("%1 cp -r %2 %3")
-        .arg(MaemoGlobal::remoteSudo(), sourceFilePath,
-            d.remoteDir + QLatin1Char('/'));
+    QString command = QString::fromLatin1("%1 mkdir -p %3 && %1 cp -r %2 %3")
+        .arg(MaemoGlobal::remoteSudo(), sourceFilePath, d.remoteDir);
     SshRemoteProcess::Ptr copyProcess
         = m_connection->createRemoteProcess(command.toUtf8());
     connect(copyProcess.data(), SIGNAL(errorOutputAvailable(QByteArray)),
@@ -926,7 +932,7 @@ void MaemoDeployStep::handlePortListReady()
 
     if (m_state == GatheringPorts) {
         setState(Mounting);
-        m_freePorts = freePorts();
+        m_freePorts = freePorts(m_cachedDeviceConfig);
         m_mounter->mount(&m_freePorts, m_portsGatherer);
     } else {
         setState(Inactive);
@@ -950,6 +956,7 @@ void MaemoDeployStep::setState(State newState)
         }
         if (m_deviceInstaller)
             disconnect(m_deviceInstaller.data(), 0, this, 0);
+        m_cachedDeviceConfig.clear();
         emit done();
     }
 }
@@ -978,10 +985,12 @@ void MaemoDeployStep::handleDeviceInstallerOutput(const QByteArray &output)
 
 void MaemoDeployStep::handleDeviceInstallerErrorOutput(const QByteArray &output)
 {
-    ASSERT_STATE(QList<State>() << InstallingToDevice << StopRequested);
+    ASSERT_STATE(QList<State>() << InstallingToDevice << CopyingFile
+        << StopRequested);
 
     switch (m_state) {
     case InstallingToDevice:
+    case CopyingFile:
     case StopRequested:
         m_installerStderr += output;
         writeOutput(QString::fromUtf8(output), ErrorOutput);
@@ -993,9 +1002,12 @@ void MaemoDeployStep::handleDeviceInstallerErrorOutput(const QByteArray &output)
 
 MaemoPortList MaemoDeployStep::freePorts() const
 {
+    return freePorts(m_deviceConfig);
+}
+
+MaemoPortList MaemoDeployStep::freePorts(const MaemoDeviceConfig::ConstPtr &devConf) const
+{
     const Qt4BuildConfiguration * const qt4bc = qt4BuildConfiguration();
-    const MaemoDeviceConfig::ConstPtr &devConf
-        = m_cachedDeviceConfig ? m_cachedDeviceConfig : m_deviceConfig;
     if (!devConf)
         return MaemoPortList();
     if (devConf->type() == MaemoDeviceConfig::Emulator && qt4bc) {
