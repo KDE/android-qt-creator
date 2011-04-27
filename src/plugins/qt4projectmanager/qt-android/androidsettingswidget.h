@@ -60,10 +60,12 @@ private slots:
     void NDKLocationEditingFinished();
     void AntLocationEditingFinished();
     void GdbLocationEditingFinished();
+    void GdbserverLocationEditingFinished();
     void browseSDKLocation();
     void browseNDKLocation();
     void browseAntLocation();
     void browseGdbLocation();
+    void browseGdbserverLocation();
     void toolchainVersionIndexChanged(QString);
     void addAVD();
     void removeAVD();

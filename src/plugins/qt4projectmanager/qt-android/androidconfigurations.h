@@ -50,6 +50,7 @@ public:
     QString NDKToolchainVersion;
     QString AntLocation;
     QString GdbLocation;
+    QString GdbserverLocation;
     unsigned PartitionSize;
 };
 

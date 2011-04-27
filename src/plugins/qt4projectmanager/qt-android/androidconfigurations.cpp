@@ -39,6 +39,7 @@ namespace {
     const QLatin1String NDKToolchainVersionKey("NDKToolchainVersion");
     const QLatin1String AntLocationKey("AntLocation");
     const QLatin1String GdbLocationKey("GdbLocation");
+    const QLatin1String GdbserverLocationKey("GdbserverLocation");
     const QLatin1String PartitionSizeKey("PartitionSize");
     bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
     {
@@ -53,6 +54,7 @@ AndroidConfig::AndroidConfig(const QSettings &settings)
       NDKToolchainVersion(settings.value(NDKToolchainVersionKey).toString()),
       AntLocation(settings.value(AntLocationKey).toString()),
       GdbLocation(settings.value(GdbLocationKey).toString()),
+      GdbserverLocation(settings.value(GdbserverLocationKey).toString()),
       PartitionSize(settings.value(PartitionSizeKey, 1024).toInt())
 {
 }
@@ -69,6 +71,7 @@ void AndroidConfig::save(QSettings &settings) const
     settings.setValue(NDKToolchainVersionKey, NDKToolchainVersion);
     settings.setValue(AntLocationKey, AntLocation);
     settings.setValue(GdbLocationKey, GdbLocation);
+    settings.setValue(GdbserverLocationKey, GdbserverLocation);
     settings.setValue(PartitionSizeKey, PartitionSize);
 }
 
@@ -159,6 +162,8 @@ QString AndroidConfigurations::gccPath()
 
 QString AndroidConfigurations::gdbServerPath()
 {
+    if (m_config.GdbserverLocation.length())
+        return m_config.GdbserverLocation;
     return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/gdbserver").arg(m_config.NDKToolchainVersion);
 }
 

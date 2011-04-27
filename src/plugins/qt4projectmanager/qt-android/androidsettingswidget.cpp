@@ -108,6 +108,8 @@ QString AndroidSettingsWidget::searchKeywords() const
         << ' ' << m_ui->AntLocationLineEdit->text()
         << ' ' << m_ui->GdbLocationLabel->text()
         << ' ' << m_ui->GdbLocationLineEdit->text()
+        << ' ' << m_ui->GdbserverLocationLabel->text()
+        << ' ' << m_ui->GdbserverLocationLineEdit->text()
         << ' ' << m_ui->AVDManagerLabel->text()
         << ' ' << m_ui->DataPartitionSizeLable->text()
         << ' ' << m_ui->DataPartitionSizeSpinBox->text();
@@ -129,6 +131,7 @@ void AndroidSettingsWidget::initGui()
         m_androidConfig.NDKLocation="";
     m_ui->AntLocationLineEdit->setText(m_androidConfig.AntLocation);
     m_ui->GdbLocationLineEdit->setText(m_androidConfig.GdbLocation);
+    m_ui->GdbserverLocationLineEdit->setText(m_androidConfig.GdbserverLocation);
     m_ui->DataPartitionSizeSpinBox->setValue(m_androidConfig.PartitionSize);
     m_ui->AVDTableView->setModel(&m_AVDModel);
     m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
@@ -168,6 +171,8 @@ bool AndroidSettingsWidget::checkNDK(const QString & location)
     m_ui->toolchainVersionComboBox->setEnabled(false);
     m_ui->GdbLocationLineEdit->setEnabled(false);
     m_ui->GdbLocationPushButton->setEnabled(false);
+    m_ui->GdbserverLocationLineEdit->setEnabled(false);
+    m_ui->GdbserverLocationPushButton->setEnabled(false);
     if (!location.length())
         return false;
     if (!QFile::exists(location+QLatin1String("/platforms")) || !QFile::exists(location+QLatin1String("/toolchains")) || !QFile::exists(location+QLatin1String("/sources/cxx-stl")) )
@@ -178,6 +183,8 @@ bool AndroidSettingsWidget::checkNDK(const QString & location)
     m_ui->toolchainVersionComboBox->setEnabled(true);
     m_ui->GdbLocationLineEdit->setEnabled(true);
     m_ui->GdbLocationPushButton->setEnabled(true);
+    m_ui->GdbserverLocationLineEdit->setEnabled(true);
+    m_ui->GdbserverLocationPushButton->setEnabled(true);
     fillToolchainVersions();
     return true;
 
@@ -239,6 +246,14 @@ void AndroidSettingsWidget::GdbLocationEditingFinished()
     m_androidConfig.GdbLocation = location;
 }
 
+void AndroidSettingsWidget::GdbserverLocationEditingFinished()
+{
+    QString location=m_ui->GdbserverLocationLineEdit->text();
+    if (!location.length() || !QFile::exists(location))
+        return;
+    m_androidConfig.GdbserverLocation = location;
+}
+
 void AndroidSettingsWidget::browseSDKLocation()
 {
     QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"));
@@ -283,6 +298,17 @@ void AndroidSettingsWidget::browseGdbLocation()
     m_ui->GdbLocationLineEdit->setText(file);
     GdbLocationEditingFinished();
 }
+
+void AndroidSettingsWidget::browseGdbserverLocation()
+{
+    QString gdbserverPath=AndroidConfigurations::instance().gdbServerPath();
+    QString file=QFileDialog::getOpenFileName(this, tr("Select gdbserver file"),gdbserverPath);
+    if (!file.length())
+        return;
+    m_ui->GdbserverLocationLineEdit->setText(file);
+    GdbserverLocationEditingFinished();
+}
+
 
 void AndroidSettingsWidget::addAVD()
 {
