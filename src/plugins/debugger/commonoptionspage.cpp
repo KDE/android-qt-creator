@@ -176,7 +176,7 @@ void CommonOptionsPage::apply()
 {
     QTC_ASSERT(!m_widget.isNull() && !m_group.isNull(), return; )
 
-    QSettings *settings = ICore::instance()->settings();
+    QSettings *settings = ICore::instance()->settings(QSettings::SystemScope);
     m_group->apply(settings);
 
     const GlobalDebuggerOptions newGlobalOptions = m_widget->globalOptions();
