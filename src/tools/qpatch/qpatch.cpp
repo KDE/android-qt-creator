@@ -4,26 +4,27 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
+** No Commercial Usage
+**
+** This file contains pre-release code and may not be distributed.
+** You may use this file in accordance with the terms and conditions
+** contained in the Technology Preview License Agreement accompanying
+** this package.
 **
 ** GNU Lesser General Public License Usage
 **
-** This file may be used under the terms of the GNU Lesser General Public
-** License version 2.1 as published by the Free Software Foundation and
-** appearing in the file LICENSE.LGPL included in the packaging of this file.
-** Please review the following information to ensure the GNU Lesser General
-** Public License version 2.1 requirements will be met:
-** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+** Alternatively, this file may be used under the terms of the GNU Lesser
+** General Public License version 2.1 as published by the Free Software
+** Foundation and appearing in the file LICENSE.LGPL included in the
+** packaging of this file.  Please review the following information to
+** ensure the GNU Lesser General Public License version 2.1 requirements
+** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 **
 ** In addition, as a special exception, Nokia gives you certain additional
-** rights. These rights are described in the Nokia Qt LGPL Exception
+** rights.  These rights are described in the Nokia Qt LGPL Exception
 ** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-**
-** Other Usage
-**
-** Alternatively, this file may be used in accordance with the terms and
-** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
@@ -37,16 +38,42 @@
 #include <QTextStream>
 #include <iostream>
 
-int main(int argc, char *argv[])
+int main(int argc_in, char* argv_in[])
 {
-    if (argc != 4) {
-        std::cerr << "Usage: qpatch file.list oldQtDir newQtDir" << std::endl;
+    int argc = argc_in;
+    char** argv = argv_in;
+    // MSYS path mangling prevention -> can use @tempfile, each line is an arg.
+    if ( (argc_in == 2) && argv_in[1][0] == '@' ) {
+        QString argsFile(&argv_in[1][1]);
+        QFile myFile(argsFile);
+        QString line;
+        if (!myFile.open(QFile::ReadOnly)) {
+            std::cerr << "Couldn't open args file " << argsFile.toLatin1().constData() << std::endl;
+            return EXIT_FAILURE;
+        }
+
+        argc = 0;
+        argv = new char* [5];
+        argv[argc] = new char [strlen(argv_in[0])+1];
+        strcpy(argv[argc],argv_in[0]);
+        ++argc;
+        QTextStream stream( &myFile );
+        while (!stream.atEnd()) {
+            line = stream.readLine();
+            std::cout << "line is " << line.toLatin1().constData() << std::endl;
+            argv[argc] = new char [line.length()+1];
+            strcpy(argv[argc],line.toLatin1().constData());
+            ++argc;
+        }
+    }
+    if (argc < 4 || argc > 5) {
+        std::cerr << "Usage: qpatch file.list oldQtDir newQtDir <filesRootDir>" << argc << std::endl;
         return EXIT_FAILURE;
     }
-
     const QByteArray files = argv[1];
     const QByteArray qtDirPath = argv[2];
     const QByteArray newQtPath = argv[3];
+    const QByteArray prefixBA = argc==5?argv[4]:"";
 
     if (qtDirPath.size() < newQtPath.size()) {
         std::cerr << "qpatch: error: newQtDir needs to be less than " << qtDirPath.size() << " characters."
@@ -86,7 +113,7 @@ int main(int argc, char *argv[])
     }
 
     foreach (QString fileName, filesToPatch) {
-        QString prefix = QFile::decodeName(newQtPath);
+        QString prefix = (prefixBA=="")?QFile::decodeName(newQtPath):prefixBA;
 
         if (! prefix.endsWith(QLatin1Char('/')))
             prefix += QLatin1Char('/');
@@ -162,7 +189,7 @@ int main(int argc, char *argv[])
     }
 
     foreach (QString fileName, textFilesToPatch) {
-        QString prefix = QFile::decodeName(newQtPath);
+        QString prefix = (prefixBA=="")?QFile::decodeName(newQtPath):prefixBA;
 
         if (! prefix.endsWith(QLatin1Char('/')))
             prefix += QLatin1Char('/');
