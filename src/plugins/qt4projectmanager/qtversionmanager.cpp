@@ -430,11 +430,10 @@ void QtVersionManager::addNewVersionsFromInstaller()
     // i.e.
     // NewQtVersions="versionname=pathtoversion=s60sdk;"
     // Duplicate entries are not added, the first new version is set as default.
-    QSettings *settings = Core::ICore::instance()->settings();
     QSettings *globalSettings = Core::ICore::instance()->settings(QSettings::SystemScope);
 
     QDateTime lastUpdateFromGlobalSettings = globalSettings->value(
-            QLatin1String("General/LastQtVersionUpdate")).toDateTime();
+            QLatin1String("LastQtVersionUpdate")).toDateTime();
 
     const QFileInfo gsFi(globalSettings->fileName());
     if ( !lastUpdateFromGlobalSettings.isNull() &&
@@ -447,9 +446,9 @@ void QtVersionManager::addNewVersionsFromInstaller()
         return;
     }
 
-    QString newVersionsValue = settings->value(newQtVersionsKey).toString();
+    QString newVersionsValue = globalSettings->value(newQtVersionsKey).toString();
     if (newVersionsValue.isEmpty())
-        newVersionsValue = settings->value(QLatin1String("Installer/")+newQtVersionsKey).toString();
+        newVersionsValue = globalSettings->value(QLatin1String("Installer/")+newQtVersionsKey).toString();
 
     QStringList newVersionsList = newVersionsValue.split(';', QString::SkipEmptyParts);
     foreach (const QString &newVersion, newVersionsList) {
@@ -479,7 +478,7 @@ void QtVersionManager::addNewVersionsFromInstaller()
             }
         }
     }
-    settings->setValue(QLatin1String("General/LastQtVersionUpdate"), QDateTime::currentDateTime());
+    globalSettings->setValue(QLatin1String("LastQtVersionUpdate"), QDateTime::currentDateTime());
 }
 
 void QtVersionManager::updateSystemVersion()
