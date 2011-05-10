@@ -275,7 +275,7 @@ void AndroidSettingsWidget::browseNDKLocation()
 void AndroidSettingsWidget::browseAntLocation()
 {
     QString dir=QDir::homePath();
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
     dir=QLatin1String("/usr/bin/ant");
     QLatin1String antApp("ant");
 #elif defined(Q_OS_WIN)
