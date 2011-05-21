@@ -421,7 +421,7 @@ p, li { white-space: pre-wrap; }
             <bool>true</bool>
            </property>
            <property name="currentIndex">
-            <number>-1</number>
+            <number>0</number>
            </property>
            <item>
             <property name="text">
@@ -431,6 +431,11 @@ p, li { white-space: pre-wrap; }
            <item>
             <property name="text">
              <string>android.permission.ACCESS_COARSE_LOCATION</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.ACCESS_FINE_LOCATION</string>
             </property>
            </item>
            <item>
@@ -460,6 +465,16 @@ p, li { white-space: pre-wrap; }
            </item>
            <item>
             <property name="text">
+             <string>android.permission.ACCOUNT_MANAGER</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.AUTHENTICATE_ACCOUNTS</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
              <string>android.permission.BATTERY_STATS</string>
             </property>
            </item>
@@ -470,7 +485,22 @@ p, li { white-space: pre-wrap; }
            </item>
            <item>
             <property name="text">
+             <string>android.permission.BIND_DEVICE_ADMIN</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
              <string>android.permission.BIND_INPUT_METHOD</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.BIND_REMOTEVIEWS</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.BIND_WALLPAPER</string>
             </property>
            </item>
            <item>
@@ -665,6 +695,16 @@ p, li { white-space: pre-wrap; }
            </item>
            <item>
             <property name="text">
+             <string>android.permission.KILL_BACKGROUND_PROCESSES</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.MANAGE_ACCOUNTS</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
              <string>android.permission.MANAGE_APP_TOKENS</string>
             </property>
            </item>
@@ -691,6 +731,11 @@ p, li { white-space: pre-wrap; }
            <item>
             <property name="text">
              <string>android.permission.MOUNT_UNMOUNT_FILESYSTEMS</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.NFC</string>
             </property>
            </item>
            <item>
@@ -810,6 +855,11 @@ p, li { white-space: pre-wrap; }
            </item>
            <item>
             <property name="text">
+             <string>com.android.alarm.permission.SET_ALARM</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
              <string>android.permission.SET_ALWAYS_FINISH</string>
             </property>
            </item>
@@ -836,6 +886,11 @@ p, li { white-space: pre-wrap; }
            <item>
             <property name="text">
              <string>android.permission.SET_PROCESS_LIMIT</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.SET_TIME</string>
             </property>
            </item>
            <item>
@@ -881,6 +936,16 @@ p, li { white-space: pre-wrap; }
            <item>
             <property name="text">
              <string>android.permission.UPDATE_DEVICE_STATS</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.USE_CREDENTIALS</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>android.permission.USE_SIP</string>
             </property>
            </item>
            <item>
