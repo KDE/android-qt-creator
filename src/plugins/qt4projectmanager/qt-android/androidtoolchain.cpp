@@ -69,7 +69,19 @@ void AndroidToolChain::addToEnvironment(Utils::Environment &env) const
 #warning TODO this vars should be configurable in projects -> build tab
 #warning TODO invalidate all .pro files !!!
 #endif
+    QString ndk_host = QLatin1String(
+#if defined(Q_OS_LINUX)
+        "linux-x86"
+#elif defined(Q_OS_WIN)
+        "windows"
+#elif defined(Q_OS_MAC)
+        "darwin-x86"
+#endif
+    );
+
     // this env vars are used by qmake mkspecs to generate makefiles (check QTDIR/mkspecs/android-g++/qmake.conf for more info)
+    env.set(QLatin1String("ANDROID_NDK_HOST")
+                     ,ndk_host);
     env.set(QLatin1String("ANDROID_NDK_ROOT")
                      ,QDir::toNativeSeparators(AndroidConfigurations::instance().config().NDKLocation));
     env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_PREFIX")
