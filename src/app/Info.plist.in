@@ -208,9 +208,9 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleExecutable</key>
-	<string>Qt Creator</string>
+	<string>NecessitasQtCreator</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.nokia.qtcreator</string>
+	<string>com.nokia.necessitasqtcreator</string>
 	<key>CFBundleVersion</key>
 	<string>$$QTCREATOR_VERSION</string>
 	<key>CFBundleShortVersionString</key>
