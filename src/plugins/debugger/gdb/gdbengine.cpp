@@ -4381,7 +4381,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
         gdbArgs << _("-n");
     gdbArgs += args;
 
-#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN_NO_THANKS
     // Set python path. By convention, python is located below gdb executable.
     // Extend the environment set on the process in startAdapter().
     const QFileInfo fi(m_gdb);
