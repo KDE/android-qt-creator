@@ -133,7 +133,7 @@ void tst_TestCore::initTestCase()
    // Load plugins
 
 #ifdef Q_OS_MAC
-    const QString pluginPath = QTCREATORDIR "/bin/Qt Creator.app/Contents/PlugIns/QmlDesigner";
+    const QString pluginPath = QTCREATORDIR "/bin/NecessitasQtCreator.app/Contents/PlugIns/QmlDesigner";
 #else
     const QString pluginPath = QTCREATORDIR "/lib/qmldesigner";
 #endif
