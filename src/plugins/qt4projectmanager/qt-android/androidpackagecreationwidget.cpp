@@ -16,7 +16,12 @@ are required by law.
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/target.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/buildmanager.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
+#include <qt4projectmanager/qmakestep.h>
+#include <qt4projectmanager/makestep.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QTimer>
@@ -307,6 +312,21 @@ void AndroidPackageCreationWidget::setApplicationName()
 void AndroidPackageCreationWidget::setTargetSDK(const QString & target)
 {
     m_step->androidTarget()->setTargetSDK(target);
+    Qt4BuildConfiguration *bc = m_step->androidTarget()->activeBuildConfiguration();
+    ProjectExplorer::BuildManager * bm = ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
+    QMakeStep *qs = bc->qmakeStep();
+
+    if (!qs)
+        return;
+
+    qs->setForced(true);
+
+    bm->buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
+    bm->appendStep(qs);
+    bc->setSubNodeBuild(0);
+    bool use=bc->useSystemEnvironment();
+    bc->setUseSystemEnvironment(!use);
+    bc->setUseSystemEnvironment(use);
 }
 
 void AndroidPackageCreationWidget::setVersionCode()

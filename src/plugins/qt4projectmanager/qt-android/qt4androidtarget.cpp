@@ -206,7 +206,6 @@ QString Qt4AndroidTarget::androidSrcPath()
     return androidDirPath()+QLatin1String("/src");
 }
 
-
 QString Qt4AndroidTarget::apkPath()
 {
     return project()->projectDirectory()+QLatin1Char('/')+AndroidDirName+QString("/bin/%1-debug.apk").arg(applicationName());
@@ -343,10 +342,8 @@ bool Qt4AndroidTarget::openXmlFile(QDomDocument & doc, const QString & fileName)
 
     QFile f(fileName);
     if (!f.open(QIODevice::ReadOnly))
-    {
-        raiseError(tr("Can't open '%1'").arg(fileName));
         return false;
-    }
+
     if (!doc.setContent(f.readAll()))
     {
         raiseError(tr("Can't parse '%1'").arg(fileName));

@@ -19,6 +19,7 @@ are required by law.
 #include <QtCore/QStringList>
 #include <QtCore/QProcess>
 #include <QtCore/QFileInfo>
+#include <QtCore/QDirIterator>
 #include <QtGui/QStringListModel>
 #include <QtGui/QDesktopServices>
 #include <QDebug>
@@ -79,7 +80,20 @@ void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
 {
     m_config = devConfigs;
     save();
+    updateAvailablePlatforms();
     emit updated();
+}
+
+void AndroidConfigurations::updateAvailablePlatforms()
+{
+    m_availablePlatforms.clear();
+    QDirIterator it(m_config.NDKLocation+"/platforms", QStringList()<<"android-*", QDir::Dirs);
+    while(it.hasNext())
+    {
+        const QString & fileName=it.next();
+        m_availablePlatforms.push_back(fileName.mid(fileName.lastIndexOf('-')+1).toInt());
+    }
+    qSort(m_availablePlatforms.begin(), m_availablePlatforms.end(), qGreater<int>());
 }
 
 QStringList AndroidConfigurations::sdkTargets()
@@ -109,7 +123,7 @@ QStringList AndroidConfigurations::ndkToolchainVersions()
 #ifdef __GNUC__
 #warning TODO list the content of NDK_path/toolchains and get only the folders which contain "prebuilt" folder
 #endif
-    return QStringList()<<"arm-linux-androideabi-4.4.3"<<"arm-eabi-4.4.0";
+    return QStringList()<<"arm-linux-androideabi-4.4.3";
 }
 
 QString AndroidConfigurations::adbToolPath()
@@ -365,6 +379,17 @@ int AndroidConfigurations::getSDKVersion(const QString & device)
     return adbProc.readAll().trimmed().toInt();
 }
 
+QString AndroidConfigurations::bestMatch(const QString &targetAPI)
+{
+    int target=targetAPI.mid(targetAPI.lastIndexOf('-')+1).toInt();
+    foreach(int apiLevel, m_availablePlatforms)
+    {
+        if(apiLevel<=target)
+            return QString("android-%1").arg(apiLevel);
+    }
+    return "android-4";
+}
+
 AndroidConfigurations &AndroidConfigurations::instance(QObject *parent)
 {
     if (m_instance == 0)
@@ -384,6 +409,7 @@ AndroidConfigurations::AndroidConfigurations(QObject *parent)
     : QObject(parent)
 {
     load();
+    updateAvailablePlatforms();
 }
 
 void AndroidConfigurations::load()

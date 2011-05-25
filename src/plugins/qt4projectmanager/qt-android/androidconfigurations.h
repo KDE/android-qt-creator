@@ -86,6 +86,7 @@ public:
     QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
     QVector<AndroidDevice> androidVirtualDevices();
     QString startAVD(int apiLevel, const QString & name = QString());
+    QString bestMatch(const QString & targetAPI);
 signals:
     void updated();
 
@@ -95,10 +96,11 @@ private:
     void save();
 
     int getSDKVersion(const QString & device);
-
+    void updateAvailablePlatforms();
 private:
     static AndroidConfigurations *m_instance;
     AndroidConfig m_config;
+    QVector<int> m_availablePlatforms;
     friend class AndroidConfig;
 };
 

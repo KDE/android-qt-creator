@@ -10,6 +10,7 @@ are required by law.
 #include "androidtoolchain.h"
 #include "androidconstants.h"
 #include "androidconfigurations.h"
+#include "qt4androidtarget.h"
 
 #include "qt4projectmanagerconstants.h"
 #include "qtversionmanager.h"
@@ -17,6 +18,9 @@ are required by law.
 #include <projectexplorer/gccparser.h>
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/projectexplorer.h>
+#include <qt4projectmanager/qt4project.h>
+
 #include <utils/environment.h>
 
 #include <QtCore/QDir>
@@ -88,6 +92,15 @@ void AndroidToolChain::addToEnvironment(Utils::Environment &env) const
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.left(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')));
     env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_VERSION")
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.mid(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')+1));
+
+    Qt4Project *qt4pro = qobject_cast<Qt4Project *>(ProjectExplorer::ProjectExplorerPlugin::instance()->currentProject());
+    if (!qt4pro)
+        return;
+    Qt4AndroidTarget * at = qobject_cast<Qt4AndroidTarget *>(qt4pro->activeTarget());
+    if (!at)
+        return;
+    env.set(QLatin1String("ANDROID_NDK_PLATFORM")
+                     ,AndroidConfigurations::instance().bestMatch(at->targetSDK()));
 }
 
 QString AndroidToolChain::sysroot() const
