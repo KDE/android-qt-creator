@@ -49,12 +49,13 @@ QDebug operator<<(QDebug debug, const FrameworkInfo &info)
     debug << "Install name" << info.installName << "\n";
     debug << "Deployed install name" << info.deployedInstallName << "\n";
     debug << "Source file Path" << info.sourceFilePath << "\n";
-    debug << "Deployed Directtory (relative to bundle)" << info.destinationDirectory << "\n";
+    debug << "Deployed Directory (relative to bundle)" << info.destinationDirectory << "\n";
     
     return debug;
 }
 
 const QString bundleFrameworkDirectory = "Contents/Frameworks";
+const QString bundlePlugInsDirectory = "Contents/PlugIns";
 const QString bundleBinaryDirectory = "Contents/MacOS";
 
 inline QDebug operator<<(QDebug debug, const ApplicationBundleInfo &info)
@@ -278,13 +279,13 @@ void runInstallNameTool(QStringList options)
 
 void changeIdentification(const QString &id, const QString &binaryPath)
 {
-//    qDebug() << "change identification on" << binaryPath << id;
+    qDebug() << "change identification on" << binaryPath << id;
     runInstallNameTool(QStringList() << "-id" << id << binaryPath);
 }
 
 void changeInstallName(const QString &oldName, const QString &newName, const QString &binaryPath)
 {
-//    qDebug() << "change install name on" << binaryPath << oldName << newName;
+    qDebug() << "change install name on" << binaryPath << oldName << newName;
     runInstallNameTool(QStringList() << "-change" << oldName << newName << binaryPath);
 }
 
@@ -361,6 +362,7 @@ DeploymentInfo deployQtFrameworks(const QString &appBundlePath)
 void deployPlugins(const ApplicationBundleInfo &appBundleInfo, const QString &pluginSourcePath, const QString pluginDestinationPath, DeploymentInfo deploymentInfo)
 {
     QStringList plugins = QDir(pluginSourcePath).entryList(QStringList() << "*.dylib");
+    qDebug() << "QStringList plugins (" << pluginSourcePath << ") is " << plugins;
 
     if (plugins.isEmpty() == false) {
         QDir dir;
@@ -370,9 +372,10 @@ void deployPlugins(const ApplicationBundleInfo &appBundleInfo, const QString &pl
     foreach (QString pluginName, plugins) {
         
         // Skip some Qt plugins based on what frameworks were deployed:
-        //qDebug() << pluginSourcePath << deploymentInfo.pluginPath;
+        qDebug() << pluginSourcePath << deploymentInfo.pluginPath;
         
-        if (pluginSourcePath.contains(deploymentInfo.pluginPath)) {
+//        if (pluginSourcePath.contains(deploymentInfo.pluginPath)) {
+          if (1) {
             QStringList deployedFrameworks = deploymentInfo.deployedFrameworks;
 
             // Skip the debug versions of the plugins
@@ -406,21 +409,25 @@ void deployPlugins(const ApplicationBundleInfo &appBundleInfo, const QString &pl
 
         const QString sourcePath = pluginSourcePath + "/" + pluginName;
         const QString destinationPath = pluginDestinationPath + "/" + pluginName;
-        if (copyFilePrintStatus(sourcePath, destinationPath)) {
+        bool res = copyFilePrintStatus(sourcePath, destinationPath);
+        QString tempDestPath = destinationPath;
+        if (!res)
+            tempDestPath = sourcePath;
+        if (1 || copyFilePrintStatus(sourcePath, tempDestPath)) {
         
         // Special case for the phonon plugin: CoreVideo is not available as a separate framework
         // on panther, link against the QuartzCore framework instead. (QuartzCore contians CoreVideo.)
         if (pluginName.contains("libphonon_qt7")) {
             changeInstallName("/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
                               "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
-                                destinationPath);
+                                tempDestPath);
         }
 
-//        qDebug() << "deploy plugin depedencies:";
-            QList<FrameworkInfo> frameworks = getQtFrameworks(destinationPath);
-//            qDebug() << frameworks;
-            deployQtFrameworks(frameworks, appBundleInfo.path, destinationPath);
-//        qDebug() << "deploy plugin depedencies done";
+        qDebug() << "deploy plugin depedencies:" << sourcePath;
+            QList<FrameworkInfo> frameworks = getQtFrameworks(tempDestPath);
+            qDebug() << frameworks;
+            deployQtFrameworks(frameworks, appBundleInfo.path, tempDestPath);
+            qDebug() << "deploy plugin depedencies done";
         }
     } // foreach plugins
 
@@ -465,9 +472,11 @@ void deployPlugins(const QString &appBundlePath, DeploymentInfo deploymentInfo)
    
     const QString pluginDestinationPath = appBundlePath + "/" + "Contents/plugins";
     
-//    qDebug() << "";
-//    qDebug() << "recursively copying plugins from" << deploymentInfo.pluginPath << "to" << pluginDestinationPath;
+    qDebug() << "";
+    qDebug() << "recursively copying plugins from" << deploymentInfo.pluginPath << "to" << pluginDestinationPath;
     deployPlugins(applicationBundle, deploymentInfo.pluginPath, pluginDestinationPath, deploymentInfo);
+    qDebug() << "recursively copying plugins from /usr/necessitas/android-qt-creator/bin/NecessitasQtCreator.app/Contents/PlugIns" << "to" << pluginDestinationPath;
+    deployPlugins(applicationBundle, "/usr/necessitas/android-qt-creator/bin/NecessitasQtCreator.app/Contents/PlugIns", pluginDestinationPath, deploymentInfo);
 }
 
 
