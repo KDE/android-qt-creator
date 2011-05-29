@@ -399,7 +399,7 @@ AndroidConfigurations &AndroidConfigurations::instance(QObject *parent)
 
 void AndroidConfigurations::save()
 {
-    QSettings *settings = Core::ICore::instance()->settings(QSettings::SystemScope);
+    QSettings *settings = Core::ICore::instance()->settings(QSettings::UserScope);
     settings->beginGroup(SettingsGroup);
     m_config.save(*settings);
     settings->endGroup();
@@ -414,7 +414,7 @@ AndroidConfigurations::AndroidConfigurations(QObject *parent)
 
 void AndroidConfigurations::load()
 {
-    QSettings *settings = Core::ICore::instance()->settings(QSettings::SystemScope);
+    QSettings *settings = Core::ICore::instance()->settings(QSettings::UserScope);
     settings->beginGroup(SettingsGroup);
     m_config=AndroidConfig(*settings);
     settings->endGroup();

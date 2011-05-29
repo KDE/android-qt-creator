@@ -79,7 +79,7 @@ void tst_Codegen::initTestCase()
 {
     pluginManager = new ExtensionSystem::PluginManager;
     QSettings *settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,
-                                 QLatin1String("Nokia"), QLatin1String("QtCreator"));
+                                 QLatin1String(NQTC_SETTINGS_ORG), QLatin1String(NQTC_SETTINGS_APPNAME));
     pluginManager->setSettings(settings);
     pluginManager->setFileExtension(QLatin1String("pluginspec"));
     pluginManager->setPluginPaths(QStringList() << QLatin1String(Q_PLUGIN_PATH));

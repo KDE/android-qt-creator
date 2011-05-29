@@ -80,7 +80,7 @@ private:
 
 ToolBox::ToolBox(QWidget *parent)
     : QWidget(parent, Qt::Tool)
-    , m_settings(QLatin1String("Nokia"), QLatin1String("QmlObserver"), this)
+    , m_settings(QLatin1String("eu.licentia.necessitas"), QLatin1String("QmlObserver"), this)
     , m_toolBar(new QmlToolBar)
 {
     setWindowFlags((windowFlags() & ~Qt::WindowCloseButtonHint) | Qt::CustomizeWindowHint);

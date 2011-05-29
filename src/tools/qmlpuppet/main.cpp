@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
     if (application.arguments().count() != 4)
         return -1;
 
-    QCoreApplication::setOrganizationName("Nokia");
-    QCoreApplication::setOrganizationDomain("nokia.com");
+    QCoreApplication::setOrganizationName(NQTC_SETTINGS_ORG);
+    QCoreApplication::setOrganizationDomain(NQTC_SETTINGS_DOMAIN);
     QCoreApplication::setApplicationName("QmlPuppet");
     QCoreApplication::setApplicationVersion("1.0.0");
 

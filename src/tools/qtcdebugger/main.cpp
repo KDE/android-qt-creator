@@ -58,7 +58,7 @@ using namespace RegistryAccess;
 enum { debug = 0 };
 
 static const char *titleC = "Qt Creator Debugger";
-static const char *organizationC = "Nokia";
+static const char *organizationC = NQTC_SETTINGS_ORG;
 
 // Optional
 static const WCHAR *debuggerWow32RegistryKeyC = L"Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";

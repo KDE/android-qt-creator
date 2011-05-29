@@ -250,8 +250,13 @@ int main(int argc, char **argv)
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
 
     // Must be done before any QSettings class is created
+#ifdef Q_OS_MAC
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+            QDir::homePath() + "/.config");
+#else
     QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope,
             QCoreApplication::applicationDirPath()+QLatin1String(SHARE_PATH));
+#endif
     // plugin manager takes control of this settings object
     QSettings *settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,
                                  QLatin1String("eu.licentia.necessitas"), QLatin1String("NecessitasQtCreator"));

@@ -3025,7 +3025,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
         SIGNAL(startupProjectChanged(ProjectExplorer::Project*)),
         SLOT(onCurrentProjectChanged(ProjectExplorer::Project*)));
 
-    QSettings *settings = ICore::instance()->settings(QSettings::SystemScope);
+    QSettings *settings = ICore::instance()->settings(QSettings::UserScope);
     QTC_ASSERT(settings, /**/);
     m_globalDebuggerOptions->fromSettings(settings);
     m_watchersWindow->setVisible(false);

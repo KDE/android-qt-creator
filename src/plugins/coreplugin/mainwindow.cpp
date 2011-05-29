@@ -128,9 +128,9 @@ MainWindow::MainWindow() :
     m_additionalContexts(Constants::C_GLOBAL),
     m_settings(ExtensionSystem::PluginManager::instance()->settings()),
     m_globalSettings(new QSettings(QSettings::IniFormat, QSettings::SystemScope,
-                             QLatin1String("Nokia"), QLatin1String("QtCreator"), this)),
+                             QLatin1String("eu.licentia.necessitas"), QLatin1String("NecessitasQtCreator"), this)),
     m_settingsDatabase(new SettingsDatabase(QFileInfo(m_settings->fileName()).path(),
-                                            QLatin1String("QtCreator"),
+                                            QLatin1String("NecessitasQtCreator"),
                                             this)),
     m_printer(0),
     m_actionManager(new ActionManagerPrivate(this)),
@@ -175,9 +175,9 @@ MainWindow::MainWindow() :
 #ifndef Q_WS_MAC
     QApplication::setWindowIcon(QIcon(QLatin1String(Constants::ICON_QTLOGO_128)));
 #endif
-    QCoreApplication::setApplicationName(QLatin1String("QtCreator"));
+    QCoreApplication::setApplicationName(QLatin1String(NQTC_SETTINGS_APPNAME));
     QCoreApplication::setApplicationVersion(QLatin1String(Core::Constants::IDE_VERSION_LONG));
-    QCoreApplication::setOrganizationName(QLatin1String("Nokia"));
+    QCoreApplication::setOrganizationName(QLatin1String(NQTC_SETTINGS_ORG));
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QString baseName = QApplication::style()->objectName();
 #ifdef Q_WS_X11
