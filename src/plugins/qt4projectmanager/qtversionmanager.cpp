@@ -430,7 +430,7 @@ void QtVersionManager::addNewVersionsFromInstaller()
     // i.e.
     // NewQtVersions="versionname=pathtoversion=s60sdk;"
     // Duplicate entries are not added, the first new version is set as default.
-    QSettings *globalSettings = Core::ICore::instance()->settings(QSettings::SystemScope);
+    QSettings *globalSettings = Core::ICore::instance()->settings(QSettings::UserScope);
 
     QDateTime lastUpdateFromGlobalSettings = globalSettings->value(
             QLatin1String("LastQtVersionUpdate")).toDateTime();
