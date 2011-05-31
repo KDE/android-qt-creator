@@ -135,7 +135,7 @@ LIBS += -L$$IDE_LIBRARY_PATH
 DEFINES += QT_NO_CAST_TO_ASCII
 # This is used to allow easy global swapping with Nokia and QtCreator
 DEFINES += NQTC_SETTINGS_ORG=\\\"eu.licentia.necessitas\\\" NQTC_SETTINGS_APPNAME=\\\"NecessitasQtCreator\\\" NQTC_SETTINGS_DOMAIN=\\\"www.kde.org\\\"
-!macx:DEFINES += QT_USE_FAST_OPERATOèR_PLUS QT_USE_FAST_CONCATENATION
+!macx:DEFINES += QT_USE_FAST_OPERATOR_PLUS QT_USE_FAST_CONCATENATION
 
 unix {
     CONFIG(debug, debug|release):OBJECTS_DIR = $${OUT_PWD}/.obj/debug-shared
