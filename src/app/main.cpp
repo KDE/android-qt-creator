@@ -179,21 +179,31 @@ static inline QStringList getPluginPaths()
 #endif
 
 #if defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)
+#include <windows.h>
 static void myMessageOutput(QtMsgType type, const char *msg)
 {
+    std::wstring wmsg = QString(msg).toStdWString();
     switch (type) {
     case QtDebugMsg:
+        OutputDebugStringW(L"Debug:");
+        OutputDebugStringW(wmsg.c_str());
         fprintf(stderr, "Debug: %s\n", msg);
         break;
     case QtWarningMsg:
+        OutputDebugStringW(L"Warning:");
+        OutputDebugStringW(wmsg.c_str());
         fprintf(stderr, "Warning: %s\n", msg);
         break;
     case QtCriticalMsg:
+        OutputDebugStringW(L"Critical:");
+        OutputDebugStringW(wmsg.c_str());
         fprintf(stderr, "Critical: %s\n", msg);
         break;
     case QtFatalMsg:
+        OutputDebugStringW(L"Fatal:");
+        OutputDebugStringW(wmsg.c_str());
         fprintf(stderr, "Fatal: %s\n", msg);
-//        abort();
+//      abort();
     }
 }
 #endif
@@ -201,7 +211,6 @@ static void myMessageOutput(QtMsgType type, const char *msg)
 int main(int argc, char **argv)
 {
 #if defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)
-    // on Windows, debug builds assert a bit, and post-mortem
     // debugging these hasn't worked. So instead, I install
     // a handler.
     qInstallMsgHandler(myMessageOutput);
@@ -249,14 +258,15 @@ int main(int argc, char **argv)
     if (!settingsPath.isEmpty())
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
 
-    // Must be done before any QSettings class is created - We shouldn't bother actually.
-#ifdef Q_OS_MAC
-//    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
-//            QDir::homePath() + "/.config");
-#else
-//    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
-//            QCoreApplication::applicationDirPath()+QLatin1String(SHARE_PATH));
+    // Must be done before any QSettings class is created
+#if defined(Q_OS_MAC)
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+            QDir::homePath() + "/.config");
+#elif defined(Q_OS_LINUX)
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+            QCoreApplication::applicationDirPath()+QLatin1String(SHARE_PATH));
 #endif
+
     // plugin manager takes control of this settings object
     QSettings *settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,
                                  QLatin1String("eu.licentia.necessitas"), QLatin1String("NecessitasQtCreator"));
