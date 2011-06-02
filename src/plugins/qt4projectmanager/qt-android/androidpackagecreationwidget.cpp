@@ -204,6 +204,8 @@ AndroidPackageCreationWidget::AndroidPackageCreationWidget(AndroidPackageCreatio
     m_ui->setupUi(this);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     QTimer::singleShot(0, this, SLOT(initGui()));
+    connect(m_step, SIGNAL(updateRequiredLibrariesModels()), SLOT(updateRequiredLibrariesModels()));
+
 }
 
 void AndroidPackageCreationWidget::init()
@@ -452,54 +454,15 @@ void AndroidPackageCreationWidget::discardPermissionsButton()
     m_ui->removePermissionButton->setEnabled(m_permissionsModel->permissions().size());
 }
 
+void AndroidPackageCreationWidget::updateRequiredLibrariesModels()
+{
+    m_qtLibsModel->setCheckedItems(m_step->androidTarget()->qtLibs());
+    m_prebundledLibs->setCheckedItems(m_step->androidTarget()->prebundledLibs());
+}
+
 void AndroidPackageCreationWidget::readElfInfo()
 {
-    QProcess readelfProc;
-    QString appPath=m_step->androidTarget()->targetApplicationPath();
-    if (!QFile::exists(appPath))
-    {
-        QMessageBox::critical(this, tr("Can't find read elf information"),
-                              tr("Can't find '%1'.\n"
-                                 "Please make sure your appication "
-                                 " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
-        return;
-    }
-    readelfProc.start(AndroidConfigurations::instance().readelfPath(),
-                      QStringList()<<"-d"<<"-W"<<appPath);
-    if (!readelfProc.waitForFinished(-1))
-    {
-        readelfProc.terminate();
-        return;
-    }
-    QStringList libs;
-    QList<QByteArray> lines=readelfProc.readAll().trimmed().split('\n');
-    foreach(QByteArray line, lines)
-    {
-        if (line.contains("(NEEDED)") && line.contains("Shared library:") )
-        {
-            const int pos=line.lastIndexOf('[')+1;
-            libs<<line.mid(pos,line.length()-pos-1);
-        }
-    }
-    libs.sort();
-    QStringList checkedLibs = m_qtLibsModel->checkedItems();
-    foreach(const QString & qtLib, m_step->androidTarget()->availableQtLibs())
-    {
-        if (libs.contains("lib"+qtLib+".so") && !checkedLibs.contains(qtLib))
-            checkedLibs<<qtLib;
-    }
-    checkedLibs.sort();
-    m_step->androidTarget()->setQtLibs(checkedLibs);
-    m_qtLibsModel->setCheckedItems(checkedLibs);
-
-    checkedLibs = m_prebundledLibs->checkedItems();
-    foreach(const QString & qtLib, m_step->androidTarget()->availableQtLibs())
-    {
-        if (libs.contains(qtLib) && !checkedLibs.contains(qtLib))
-            checkedLibs<<qtLib;
-    }
-    m_step->androidTarget()->setPrebundledLibs(checkedLibs);
-    m_prebundledLibs->setCheckedItems(checkedLibs);
+    m_step->checkRequiredLibraries();
 }
 
 void AndroidPackageCreationWidget::setEnabledSaveDiscardButtons(bool enabled)

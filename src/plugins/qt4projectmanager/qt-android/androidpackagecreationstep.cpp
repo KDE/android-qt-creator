@@ -27,6 +27,7 @@ are required by law.
 #include <QtCore/QRegExp>
 #include <QtCore/QStringBuilder>
 #include <QtGui/QWidget>
+#include <QtGui/QMessageBox>
 
 using namespace ProjectExplorer::Constants;
 using ProjectExplorer::BuildStepList;
@@ -89,11 +90,60 @@ Qt4AndroidTarget *AndroidPackageCreationStep::androidTarget() const
     return qobject_cast<Qt4AndroidTarget *>(buildConfiguration()->target());
 }
 
+void AndroidPackageCreationStep::checkRequiredLibraries()
+{
+    QProcess readelfProc;
+    QString appPath=androidTarget()->targetApplicationPath();
+    if (!QFile::exists(appPath))
+    {
+        QMessageBox::critical(0, tr("Can't find read elf information"),
+                              tr("Can't find '%1'.\n"
+                                 "Please make sure your appication "
+                                 " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
+        return;
+    }
+    readelfProc.start(AndroidConfigurations::instance().readelfPath(),
+                      QStringList()<<"-d"<<"-W"<<appPath);
+    if (!readelfProc.waitForFinished(-1))
+    {
+        readelfProc.terminate();
+        return;
+    }
+    QStringList libs;
+    QList<QByteArray> lines=readelfProc.readAll().trimmed().split('\n');
+    foreach(QByteArray line, lines)
+    {
+        if (line.contains("(NEEDED)") && line.contains("Shared library:") )
+        {
+            const int pos=line.lastIndexOf('[')+1;
+            libs<<line.mid(pos,line.length()-pos-1);
+        }
+    }
+    QStringList checkedLibs = androidTarget()->qtLibs();
+    QStringList requiredLibraries;
+    foreach(const QString & qtLib, androidTarget()->availableQtLibs())
+    {
+        if (libs.contains("lib"+qtLib+".so") || checkedLibs.contains(qtLib))
+            requiredLibraries<<qtLib;
+    }
+    androidTarget()->setQtLibs(requiredLibraries);
+
+    checkedLibs = androidTarget()->prebundledLibs();
+    requiredLibraries.clear();
+    foreach(const QString & qtLib, androidTarget()->availableQtLibs())
+    {
+        if (libs.contains(qtLib) || checkedLibs.contains(qtLib))
+            requiredLibraries<<qtLib;
+    }
+    androidTarget()->setPrebundledLibs(requiredLibraries);
+    emit updateRequiredLibrariesModels();
+}
 
 bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 {
     const Qt4BuildConfiguration * bc=static_cast<Qt4BuildConfiguration *>(buildConfiguration());
     Qt4AndroidTarget * target=androidTarget();
+    checkRequiredLibraries();
     emit addOutput(tr("Copy Qt app & libs to Android package ..."), MessageOutput);
 
     const QString androidDir(target->androidDirPath());

@@ -41,6 +41,8 @@ public:
 
     Qt4AndroidTarget * androidTarget() const;
 
+    void checkRequiredLibraries();
+
 private slots:
     void handleBuildOutput();
 
@@ -53,13 +55,15 @@ private:
     virtual void run(QFutureInterface<bool> &fi);
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const { return true; }
-
     bool createPackage(QProcess *buildProc);
     bool runCommand(QProcess *buildProc, const QString &program, const QStringList & arguments);
     void raiseError(const QString &shortMsg,
                     const QString &detailedMsg = QString());
 
     static const QLatin1String CreatePackageId;
+
+signals:
+    void updateRequiredLibrariesModels();
 };
 
 } // namespace Internal

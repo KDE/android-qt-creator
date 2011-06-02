@@ -607,18 +607,143 @@ bool Qt4AndroidTarget::setPermissions(const QStringList & permissions)
     return saveAndroidManifest(doc);
 }
 
-QStringList Qt4AndroidTarget::availableQtLibs()
+
+QStringList Qt4AndroidTarget::getDependencies(const QString & readelfPath, const QString & lib)
 {
     QStringList libs;
-    const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
-    QString libsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"];
-    QDirIterator libsIt(libsPath, QStringList()<<"libQt*.so");
-    while(libsIt.hasNext())
+
+    QProcess readelfProc;
+    readelfProc.start(readelfPath, QStringList()<<"-d"<<"-W"<<lib);
+
+    if (!readelfProc.waitForFinished(-1))
     {
-        libsIt.next();
-        libs<<libsIt.fileName().mid(3,libsIt.fileName().indexOf('.')-3);
+        readelfProc.terminate();
+        return libs;
     }
-    libs.sort();
+
+    QList<QByteArray> lines=readelfProc.readAll().trimmed().split('\n');
+    foreach(QByteArray line, lines)
+    {
+        if (line.contains("(NEEDED)") && line.contains("Shared library:") )
+        {
+            const int pos=line.lastIndexOf('[')+1;
+            libs<<line.mid(pos,line.lastIndexOf(']')-pos);
+        }
+    }
+    return libs;
+}
+
+int Qt4AndroidTarget::setLibraryLevel(const QString & library, LibrariesMap & mapLibs)
+{
+    int maxlevel=mapLibs[library].level;
+    if (maxlevel>0)
+        return maxlevel;
+    foreach (QString lib, mapLibs[library].dependencies)
+    {
+        foreach (const QString & key, mapLibs.keys())
+        {
+            if (library == key)
+                continue;
+            if (key==lib)
+            {
+                int libLevel=mapLibs[key].level;
+
+                if (libLevel<0)
+                    libLevel=setLibraryLevel(key, mapLibs);
+
+                if (libLevel>maxlevel)
+                    maxlevel=libLevel;
+                break;
+            }
+        }
+    }
+    if (mapLibs[library].level<0)
+        mapLibs[library].level=maxlevel+1;
+    return maxlevel+1;
+}
+
+bool Qt4AndroidTarget::QtLibrariesLessThan(const Library & a, const Library & b)
+{
+    if (a.level<b.level)
+        return a.name<b.name;
+    return false;
+}
+
+QStringList Qt4AndroidTarget::availableQtLibs()
+{
+    const QString readelfPath=AndroidConfigurations::instance().readelfPath();
+    QStringList libs;
+    const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
+    if (!qt4Project)
+        return libs;
+    QString qtLibsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"];
+    if (!QFile::exists(readelfPath))
+    {
+        QDirIterator libsIt(qtLibsPath, QStringList()<<"libQt*.so");
+        while(libsIt.hasNext())
+        {
+            libsIt.next();
+            libs<<libsIt.fileName().mid(3,libsIt.fileName().indexOf('.')-3);
+        }
+        libs.sort();
+        return libs;
+    }
+    LibrariesMap mapLibs;
+    QDir libPath;
+    QDirIterator it(qtLibsPath, QStringList()<<"*.so", QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext())
+    {
+        libPath=it.next();
+        const QString library=libPath.absolutePath().mid(libPath.absolutePath().lastIndexOf('/')+1);
+        QStringList depends=getDependencies(readelfPath, libPath.absolutePath());
+        foreach(const QString & libName, depends)
+        {
+            if (!mapLibs[library].dependencies.contains(libName))
+                    mapLibs[library].dependencies<<libName;
+        }
+    }
+
+    // clean dependencies
+    foreach (const QString & key, mapLibs.keys())
+    {
+        int it=0;
+        while(it<mapLibs[key].dependencies.size())
+        {
+            const QString & dependName=mapLibs[key].dependencies[it];
+            if (!mapLibs.keys().contains(dependName) && dependName.startsWith("lib") && dependName.endsWith(".so"))
+            {
+                mapLibs[key].dependencies.removeAt(it);
+            }
+            else
+                ++it;
+        }
+        if (!mapLibs[key].dependencies.size())
+            mapLibs[key].level = 0;
+    }
+
+    QVector<Library> qtLibraries;
+    // calculate the level for every library
+    foreach (const QString & key, mapLibs.keys())
+    {
+        if (mapLibs[key].level<0)
+           setLibraryLevel(key, mapLibs);
+
+        if (!mapLibs[key].name.length() && key.startsWith("lib") && key.endsWith(".so"))
+            mapLibs[key].name=key.mid(3,key.length()-6);
+
+        for (int it=0;it<mapLibs[key].dependencies.size();it++)
+        {
+            const QString & libName=mapLibs[key].dependencies[it];
+            if (libName.startsWith("lib") && libName.endsWith(".so"))
+                mapLibs[key].dependencies[it]=libName.mid(3,libName.length()-6);
+        }
+        qtLibraries.push_back(mapLibs[key]);
+    }
+    qSort(qtLibraries.begin(), qtLibraries.end(), QtLibrariesLessThan);
+    foreach(Library lib, qtLibraries)
+    {
+        libs.push_back(lib.name);
+    }
     return libs;
 }
 

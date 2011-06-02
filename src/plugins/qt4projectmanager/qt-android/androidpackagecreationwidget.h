@@ -71,6 +71,9 @@ public:
     virtual QString summaryText() const;
     virtual QString displayName() const;
 
+public slots:
+    void readElfInfo();
+
 private:
     void setEnabledSaveDiscardButtons(bool enabled);
 
@@ -102,7 +105,7 @@ private slots:
     void savePermissionsButton();
     void discardPermissionsButton();
 
-    void readElfInfo();
+    void updateRequiredLibrariesModels();
 
 private:
     AndroidPackageCreationStep * const m_step;

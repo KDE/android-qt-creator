@@ -48,6 +48,18 @@ class Qt4AndroidTarget  : public Qt4BaseTarget
         LowDPI
     };
 
+    struct Library
+    {
+        Library()
+        {
+            level = -1;
+        }
+        int level;
+        QStringList dependencies;
+        QString name;
+    };
+    typedef QMap<QString, Library>  LibrariesMap;
+
 public:
     explicit Qt4AndroidTarget(Qt4Project *parent, const QString &id);
     virtual ~Qt4AndroidTarget();
@@ -139,6 +151,10 @@ private:
 
     QStringList libsXml(const QString & tag);
     bool setLibsXml(const QStringList & qtLibs, const QString & tag);
+
+    static bool QtLibrariesLessThan(const Qt4AndroidTarget::Library & a, const Qt4AndroidTarget::Library & b);
+    QStringList getDependencies(const QString &  readelfPath, const QString & lib);
+    int setLibraryLevel(const QString & library, LibrariesMap & mapLibs);
 
 
     QFileSystemWatcher * const m_androidFilesWatcher;
