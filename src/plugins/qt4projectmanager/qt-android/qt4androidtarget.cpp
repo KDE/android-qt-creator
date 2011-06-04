@@ -223,7 +223,8 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &na
         androidProc.terminate();
     // clean previous build
 
-    bool commentLines=targetSDK=="android-4";
+    int targetSDKNumber=targetSDK.mid(targetSDK.lastIndexOf('-')+1).toInt();
+    bool commentLines=false;
     QDirIterator it(androidDir,QStringList()<<"*.java",QDir::Files, QDirIterator::Subdirectories);
     while(it.hasNext())
     {
@@ -231,14 +232,15 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &na
         QFile file(it.filePath());
         if (!file.open(QIODevice::ReadWrite))
             continue;
-        QList<QByteArray> lines=file.readAll().split('\n');
+        QList<QByteArray> lines=file.readAll().trimmed().split('\n');
 
         bool modified=false;
         bool comment=false;
         for (int i=0;i<lines.size();i++)
         {
-            if (lines[i].contains("@!ANDROID-4"))
+            if (lines[i].contains("@ANDROID-"))
             {
+                commentLines = targetSDKNumber < lines[i].mid(lines[i].lastIndexOf('-')+1).toInt();
                 comment = !comment;
                 continue;
             }
