@@ -211,6 +211,57 @@ QString Qt4AndroidTarget::apkPath()
     return project()->projectDirectory()+QLatin1Char('/')+AndroidDirName+QString("/bin/%1-debug.apk").arg(applicationName());
 }
 
+QString Qt4AndroidTarget::localLibsRulesFilePath()
+{
+    const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
+    if (!qt4Project)
+        return "";
+    return qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"]+"/rules.xml";
+}
+
+QString Qt4AndroidTarget::loadLocalLibs(int apiLevel)
+{
+    QString localLibs;
+
+    QDomDocument doc;
+    if (!openXmlFile(doc, localLibsRulesFilePath()))
+        return localLibs;
+
+    QStringList libs;
+    libs<<qtLibs()<<prebundledLibs();
+    QDomElement element=doc.documentElement().firstChildElement("platforms").firstChildElement("version");
+    while(!element.isNull())
+    {
+        if (element.attribute("value").toInt()==apiLevel)
+        {
+            if (element.hasAttribute("symlink"))
+                apiLevel=element.attribute("symlink").toInt();
+            break;
+        }
+        element=element.nextSiblingElement("version");
+    }
+
+    element = doc.documentElement().firstChildElement("dependencies").firstChildElement("lib");
+    while(!element.isNull())
+    {
+        if (libs.contains(element.attribute("name")))
+        {
+            QDomElement libElement=element.firstChildElement("depends").firstChildElement("lib");
+            while(!libElement.isNull())
+            {
+                localLibs+=libElement.attribute("file").arg(apiLevel)+";";
+                libElement=libElement.nextSiblingElement("lib");
+            }
+        }
+        element=element.nextSiblingElement("lib");
+    }
+
+    if (localLibs.length())
+        localLibs.remove(localLibs.length()-1,1);
+    return localLibs;
+}
+
+
 void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &name)
 {
     QString androidDir=androidDirPath();

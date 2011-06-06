@@ -79,13 +79,13 @@ public:
     QString gdbPath();
     QString stripPath();
     QString readelfPath();
-    QString getDeployDeviceSerialNumber(int apiLevel=-1);
+    QString getDeployDeviceSerialNumber(int & apiLevel);
     bool createAVD();
     bool createAVD(const QString & target, const QString & name, int sdcardSize );
     bool removeAVD(const QString & name);
     QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
     QVector<AndroidDevice> androidVirtualDevices();
-    QString startAVD(int apiLevel, const QString & name = QString());
+    QString startAVD(int & apiLevel, const QString & name = QString());
     QString bestMatch(const QString & targetAPI);
 signals:
     void updated();

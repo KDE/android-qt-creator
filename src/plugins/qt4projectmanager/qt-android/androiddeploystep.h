@@ -50,6 +50,8 @@ public:
     virtual ~AndroidDeployStep();
 
     QString deviceSerialNumber();
+    int deviceAPILevel();
+    QString localLibsRulesFilePath();
 
     AndroidDeployAction deployAction();
     bool useLocalQtLibs();
@@ -87,6 +89,7 @@ private:
 
 private:
     QString m_deviceSerialNumber;
+    int m_deviceAPILevel;
     QString m_QASIPackagePath;
     AndroidDeployAction m_deployAction;
     bool m_useLocalQtLibs;

@@ -170,6 +170,19 @@ QString AndroidDeployStep::deviceSerialNumber()
     return m_deviceSerialNumber;
 }
 
+int AndroidDeployStep::deviceAPILevel()
+{
+    return m_deviceAPILevel;
+}
+
+QString AndroidDeployStep::localLibsRulesFilePath()
+{
+    Qt4AndroidTarget * androidTarget = qobject_cast<Qt4AndroidTarget *>(target());
+    if (!androidTarget)
+        return "";
+    return androidTarget->localLibsRulesFilePath();
+}
+
 void AndroidDeployStep::copyLibs(const QString &srcPath, const QString &destPath, QStringList & copiedLibs, const QStringList &filter)
 {
     QDir dir;
@@ -204,7 +217,8 @@ bool AndroidDeployStep::deployPackage()
     const QString targetSDK=androidTarget->targetSDK();
 
     writeOutput(tr("Please wait, searching for a suitable device for target:%1.").arg(targetSDK));
-    m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(targetSDK.mid(targetSDK.indexOf('-')+1).toInt());
+    m_deviceAPILevel=targetSDK.mid(targetSDK.indexOf('-')+1).toInt();
+    m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(m_deviceAPILevel);
     if (!m_deviceSerialNumber.length())
     {
         m_deviceSerialNumber.clear();

@@ -151,7 +151,10 @@ void AndroidRunner::start()
     }
 
     if (m_runConfig->deployStep()->useLocalQtLibs())
+    {
         extraParams+=" -e use_local_qt_libs true";
+        extraParams+=" -e load_local_libs "+m_runConfig->androidTarget()->loadLocalLibs(m_runConfig->deployStep()->deviceAPILevel());
+    }
     adbStarProc.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"am"<<"start"<<"-n"<<m_intentName<<extraParams.trimmed().split(" "));
     if (!adbStarProc.waitForStarted()) {
         emit remoteProcessFinished(tr("Failed to forward debugging ports. Reason: $1").arg(adbStarProc.errorString()));

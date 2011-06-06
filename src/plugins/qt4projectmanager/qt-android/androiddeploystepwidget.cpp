@@ -17,6 +17,7 @@ are required by law.
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
+#include <icore.h>
 
 #include <QtGui/QMessageBox>
 #include <QtGui/QFileDialog>
@@ -35,6 +36,7 @@ AndroidDeployStepWidget::AndroidDeployStepWidget(AndroidDeployStep *step) :
     connect(ui->deployQtLibs, SIGNAL(clicked()), SLOT(setDeployLocalQtLibs()));
     connect(ui->chooseButton, SIGNAL(clicked()), SLOT(setQASIPackagePath()));
     connect(ui->useLocalQtLibs, SIGNAL(stateChanged(int)), SLOT(useLocalQtLibsStateChanged(int)));
+    connect(ui->editRulesFilePushButton, SIGNAL(clicked()), SLOT(editRulesFile()));
 }
 
 AndroidDeployStepWidget::~AndroidDeployStepWidget()
@@ -63,7 +65,6 @@ QString AndroidDeployStepWidget::displayName() const
 
 QString AndroidDeployStepWidget::summaryText() const
 {
-
     return displayName();
 }
 
@@ -88,6 +89,11 @@ void AndroidDeployStepWidget::setQASIPackagePath()
 void AndroidDeployStepWidget::useLocalQtLibsStateChanged(int state)
 {
     m_step->setUseLocalQtLibs(state == Qt::Checked);
+}
+
+void AndroidDeployStepWidget::editRulesFile()
+{
+    Core::ICore::instance()->openFiles(QStringList()<<m_step->localLibsRulesFilePath(), Core::ICore::SwitchMode);
 }
 
 } // namespace Internal

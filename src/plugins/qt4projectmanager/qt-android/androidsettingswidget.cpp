@@ -309,7 +309,6 @@ void AndroidSettingsWidget::browseGdbserverLocation()
     GdbserverLocationEditingFinished();
 }
 
-
 void AndroidSettingsWidget::addAVD()
 {
     AndroidConfigurations::instance().createAVD();
@@ -324,7 +323,8 @@ void AndroidSettingsWidget::removeAVD()
 
 void AndroidSettingsWidget::startAVD()
 {
-    AndroidConfigurations::instance().startAVD(-1, m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
+    int tempApiLevel=-1;
+    AndroidConfigurations::instance().startAVD(tempApiLevel, m_AVDModel.avdName(m_ui->AVDTableView->currentIndex()));
 }
 
 void AndroidSettingsWidget::avdActivated(QModelIndex index)

@@ -124,6 +124,8 @@ public:
     QString androidDefaultPropertiesPath();
     QString androidSrcPath();
     QString apkPath();
+    QString localLibsRulesFilePath();
+    QString loadLocalLibs(int apiLevel);
 
 public slots:
     bool createAndroidTemplatesIfNecessary(bool forceJava=false);

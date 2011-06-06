@@ -188,14 +188,16 @@ QString AndroidConfigurations::gdbPath()
     return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gdb"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
 }
 
-QString AndroidConfigurations::getDeployDeviceSerialNumber(int apiLevel)
+QString AndroidConfigurations::getDeployDeviceSerialNumber(int & apiLevel)
 {
     QVector<AndroidDevice> devices=connectedDevices();
 
     foreach(AndroidDevice device, devices)
         if (device.sdk>=apiLevel)
+        {
+            apiLevel=device.sdk;
             return device.serialNumber;
-
+        }
     return startAVD(apiLevel);
 }
 
@@ -304,7 +306,7 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
     return devices;
 }
 
-QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
+QString AndroidConfigurations::startAVD(int & apiLevel, const QString & name)
 {
     QProcess * m_avdProcess = new QProcess();
     connect(this, SIGNAL(destroyed()), m_avdProcess, SLOT(deleteLater()));
@@ -318,6 +320,7 @@ QString AndroidConfigurations::startAVD(int apiLevel, const QString & name)
         foreach(AndroidDevice device, devices)
             if (device.sdk>=apiLevel) // take first emulator how supports this package
             {
+                apiLevel = device.sdk;
                 avdName=device.serialNumber;
                 break;
             }
