@@ -248,17 +248,17 @@ void Qt4AndroidTarget::updateProject(const QString &targetSDK, const QString &na
                 continue;
             if (commentLines)
             {
-                if (!lines[i].trimmed().startsWith("//"))
+                if (!lines[i].trimmed().startsWith("//QtCreator"))
                 {
-                    lines[i] = "// "+lines[i];
+                    lines[i] = "//QtCreator "+lines[i];
                     modified =  true;
                 }
             }
             else
             {
-                if (lines[i].trimmed().startsWith("//"))
+                if (lines[i].trimmed().startsWith("//QtCreator"))
                 {
-                    lines[i] = lines[i].mid(3);
+                    lines[i] = lines[i].mid(12);
                     modified =  true;
                 }
             }
