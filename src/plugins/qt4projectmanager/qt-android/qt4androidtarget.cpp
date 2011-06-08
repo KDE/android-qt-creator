@@ -715,9 +715,9 @@ int Qt4AndroidTarget::setLibraryLevel(const QString & library, LibrariesMap & ma
 
 bool Qt4AndroidTarget::QtLibrariesLessThan(const Library & a, const Library & b)
 {
-    if (a.level<b.level)
+    if (a.level==b.level)
         return a.name<b.name;
-    return false;
+    return a.level<b.level;
 }
 
 QStringList Qt4AndroidTarget::availableQtLibs()
@@ -746,12 +746,7 @@ QStringList Qt4AndroidTarget::availableQtLibs()
     {
         libPath=it.next();
         const QString library=libPath.absolutePath().mid(libPath.absolutePath().lastIndexOf('/')+1);
-        QStringList depends=getDependencies(readelfPath, libPath.absolutePath());
-        foreach(const QString & libName, depends)
-        {
-            if (!mapLibs[library].dependencies.contains(libName))
-                    mapLibs[library].dependencies<<libName;
-        }
+        mapLibs[library].dependencies=getDependencies(readelfPath, libPath.absolutePath());
     }
 
     // clean dependencies
