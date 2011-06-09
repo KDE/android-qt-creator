@@ -35,6 +35,12 @@ using namespace ProjectExplorer;
 namespace Qt4ProjectManager {
 namespace Internal {
 
+static const char * const qMakeVariables[] = {
+         "QT_INSTALL_PLUGINS",
+         "QT_INSTALL_IMPORTS"
+};
+
+
 RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *runConfig)
 {
     DebuggerStartParameters params;
@@ -45,12 +51,18 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     params.debuggerCommand = runConfig->gdbCmd();
     params.remoteChannel = runConfig->remoteChannel();
     params.displayName = runConfig->androidTarget()->packageName();
+
     params.solibSearchPath.clear();
-    params.solibSearchPath.append(runConfig->activeQt4BuildConfiguration()->qtVersion()->sourcePath()+"/lib");
+
     QList<Qt4ProFileNode *> nodes = runConfig->androidTarget()->qt4Project()->allProFiles();
     foreach(Qt4ProFileNode * node, nodes)
         if (node->projectType() == ApplicationTemplate)
             params.solibSearchPath.append(node->targetInformation().buildDir);
+
+    // Make sure libs comes first
+    params.solibSearchPath.append(runConfig->activeQt4BuildConfiguration()->qtVersion()->libraryInstallPath());
+    // Add the other paths e.g. plugins,imports
+    params.solibSearchPath.append(qtSoPaths(runConfig->activeQt4BuildConfiguration()->qtVersion()));
 
     params.useServerStartScript = true;
     params.remoteArchitecture = QLatin1String("arm");
@@ -115,6 +127,23 @@ void AndroidDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
 {
    if (m_runControl)
         m_runControl->showMessage(QString::fromUtf8(output), AppError);
+}
+
+QStringList AndroidDebugSupport::qtSoPaths(QtVersion * qtVersion)
+{
+    QSet<QString> paths;
+    for (uint i = 0; i < sizeof qMakeVariables / sizeof qMakeVariables[0]; ++i)
+    {
+        if (!qtVersion->versionInfo().contains(qMakeVariables[i]))
+            continue;
+        QDirIterator it(qtVersion->versionInfo()[qMakeVariables[i]], QStringList()<<"*.so", QDir::Files, QDirIterator::Subdirectories);
+        while(it.hasNext())
+        {
+            it.next();
+            paths.insert(it.fileInfo().absolutePath());
+        }
+    }
+    return paths.toList();
 }
 
 } // namespace Internal

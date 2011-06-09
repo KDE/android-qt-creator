@@ -18,7 +18,6 @@ are required by law.
 #include <QtCore/QPointer>
 #include <QtCore/QSharedPointer>
 
-namespace Core { class SftpChannel; }
 
 namespace Debugger {
 class DebuggerRunControl;
@@ -27,6 +26,9 @@ class DebuggerRunControl;
 namespace ProjectExplorer { class RunControl; }
 
 namespace Qt4ProjectManager {
+
+class QtVersion;
+
 namespace Internal {
 
 class AndroidRunConfiguration;
@@ -50,9 +52,9 @@ private slots:
     void handleRemoteErrorOutput(const QByteArray &output);
 
 private:
+    static QStringList qtSoPaths(QtVersion * qtVersion);
 
-    void handleAdapterSetupDone();
-
+private:
     const QPointer<Debugger::DebuggerRunControl> m_runControl;
     const QPointer<AndroidRunConfiguration> m_runConfig;
     AndroidRunner * const m_runner;
