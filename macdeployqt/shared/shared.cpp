@@ -438,7 +438,7 @@ void deployPlugins(const ApplicationBundleInfo &appBundleInfo, const QString &pl
 
 void createQtConf(const QString &appBundlePath)
 {
-    QByteArray contents = "[Paths]\nPlugins = plugins\n";
+    QByteArray contents = "[Paths]\nPlugins = PlugIns\n";
     QString filePath = appBundlePath + "/Contents/Resources/";
     QString fileName = filePath + "qt.conf";
 
@@ -459,7 +459,7 @@ void createQtConf(const QString &appBundlePath)
     if (qtconf.write(contents) != -1) {
         qDebug() << "";
         qDebug() << "Created configuration file:" << fileName;
-        qDebug() << "This file sets the plugin search path to" << appBundlePath + "/Contents/plugins";
+        qDebug() << "This file sets the plugin search path to" << appBundlePath + "/Contents/PlugIns";
         qDebug() << "";
     }
 }
@@ -470,7 +470,7 @@ void deployPlugins(const QString &appBundlePath, DeploymentInfo deploymentInfo)
     applicationBundle.path = appBundlePath;
     applicationBundle.binaryPath = findAppBinary(appBundlePath);
    
-    const QString pluginDestinationPath = appBundlePath + "/" + "Contents/plugins";
+    const QString pluginDestinationPath = appBundlePath + "/" + "Contents/PlugIns";
     
     qDebug() << "";
     qDebug() << "recursively copying plugins from" << deploymentInfo.pluginPath << "to" << pluginDestinationPath;
