@@ -280,6 +280,9 @@ void AndroidSettingsWidget::browseAntLocation()
     QLatin1String antApp("ant");
 #elif defined(Q_OS_WIN)
     QLatin1String antApp("ant.bat");
+#elif defined(Q_OS_DARWIN)
+    dir=QLatin1String("/opt/local/bin/ant");
+    QLatin1String antApp("ant");
 #endif
     QString file=QFileDialog::getOpenFileName(this, tr("Select ant file"),dir,antApp);
     if (!file.length())
