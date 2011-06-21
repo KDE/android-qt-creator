@@ -272,7 +272,7 @@ int main(int argc, char **argv)
 
     // plugin manager takes control of this settings object
     QSettings *settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,
-                                 QLatin1String("eu.licentia.necessitas"), QLatin1String("NecessitasQtCreator"));
+                                 QLatin1String(NQTC_SETTINGS_ORG), QLatin1String(NQTC_SETTINGS_APPNAME));
 
     ExtensionSystem::PluginManager pluginManager;
     pluginManager.setFileExtension(QLatin1String("pluginspec"));
