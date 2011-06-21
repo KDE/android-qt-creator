@@ -14,6 +14,7 @@ are required by law.
 #include "androidglobal.h"
 #include "androidpackagecreationwidget.h"
 #include "qt4androidtarget.h"
+#include "qt4nodes.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -147,7 +148,14 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     emit addOutput(tr("Copy Qt app & libs to Android package ..."), MessageOutput);
 
     const QString androidDir(target->androidDirPath());
-    const QString androidLibPath(androidDir+QLatin1String("/libs/armeabi"));
+
+    QString androidLibPath;
+    if (bc->qt4Target()->qt4Project()->rootProjectNode()
+            ->variableValue(Qt4ProjectManager::Internal::ConfigVar).contains("armeabi-v7a"))
+        androidLibPath=androidDir+QLatin1String("/libs/armeabi-v7a");
+    else
+        androidLibPath=androidDir+QLatin1String("/libs/armeabi");
+
     removeDirectory(androidLibPath);
     QDir d(androidDir);
     d.mkpath(androidLibPath);
