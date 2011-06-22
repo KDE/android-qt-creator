@@ -167,7 +167,7 @@ static inline QStringList getPluginPaths()
     rc.push_back(pluginPath);
 #else
     // 2) "PlugIns" (OS X)
-    pluginPath = rootDirPath;
+    QString pluginPath = rootDirPath;
     pluginPath += QLatin1Char('/');
     pluginPath += QLatin1String("PlugIns");
     rc.push_back(pluginPath);
