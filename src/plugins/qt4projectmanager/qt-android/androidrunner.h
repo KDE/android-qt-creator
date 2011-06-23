@@ -7,8 +7,8 @@ this work for any purpose, without any conditions, unless such conditions
 are required by law.
 */
 
-#ifndef MAEMOSSHRUNNER_H
-#define MAEMOSSHRUNNER_H
+#ifndef ANDROIDRUNNER_H
+#define ANDROIDRUNNER_H
 
 #include "androidconfigurations.h"
 
@@ -54,6 +54,9 @@ private slots:
     void logcatReadStandardOutput();
 
 private:
+    void adbKill(qint64 pid, const QString &device, int timeout = 2000, const QString &runAsPackageName = "");
+
+private:
     int m_exitStatus;
     bool    m_debugingMode;
     QProcess m_adbLogcatProcess;
@@ -70,4 +73,4 @@ private:
 } // namespace Internal
 } // namespace Qt4ProjectManager
 
-#endif // MAEMOSSHRUNNER_H
+#endif // ANDROIDRUNNER_H

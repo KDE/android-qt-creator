@@ -109,23 +109,21 @@ void AndroidRunner::checkPID()
 
 void AndroidRunner::killPID()
 {
-    QProcess m_killProcess;
-    do
-    {
+    checkPID(); //updates m_processPID and m_gdbserverPID
+    for (int tries=0; tries < 10 && (m_processPID != -1 || m_gdbserverPID != -1); ++tries) {
+
+        if (m_processPID != -1) {
+            adbKill(m_processPID, m_deviceSerialNumber, 2000);
+            adbKill(m_processPID, m_deviceSerialNumber, 2000, m_packageName);
+        }
+
+        if (m_gdbserverPID != -1) {
+            adbKill(m_gdbserverPID, m_deviceSerialNumber, 2000);
+            adbKill(m_gdbserverPID, m_deviceSerialNumber, 2000, m_packageName);
+        }
+
         checkPID();
-        if (-1 != m_processPID)
-        {
-            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"kill"<<"-9"<<QString::number(m_processPID));
-            if (!m_killProcess.waitForFinished(-1))
-                m_killProcess.terminate();
-        }
-        if (-1 != m_gdbserverPID)
-        {
-            m_killProcess.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"kill"<<"-9"<<QString::number(m_gdbserverPID));
-            if (!m_killProcess.waitForFinished(-1))
-                m_killProcess.terminate();
-        }
-    }while(-1 != m_processPID || m_gdbserverPID != -1);
+    }
 }
 
 void AndroidRunner::start()
@@ -174,7 +172,7 @@ void AndroidRunner::start()
     if (-1== m_processPID)
     {
         m_exitStatus = -1;
-        emit remoteProcessFinished(tr("Can't find %1 precess").arg(m_packageName));
+        emit remoteProcessFinished(tr("Can't find %1 process").arg(m_packageName));
         return;
     }
 
@@ -230,6 +228,25 @@ void AndroidRunner::logcatReadStandardOutput()
     }
     if (keepLastLine)
         m_logcat=line;
+}
+
+void AndroidRunner::adbKill(qint64 pid, const QString &device, int timeout, const QString &runAsPackageName)
+{
+    QProcess process;
+    QStringList arguments;
+
+    arguments << "-s" << device;
+    arguments << "shell";
+    if (runAsPackageName.size())
+        arguments << "run-as" << runAsPackageName;
+    arguments << "kill" << "-9";
+    arguments << QString::number(pid);
+
+    process.start(AndroidConfigurations::instance().adbToolPath(), arguments);
+    if (!process.waitForFinished(timeout))
+        process.terminate();
+
+//    qDebug() << "Tried running: adb" << arguments.join(" ") << "\nWhich gave the output: " << process.readAllStandardOutput() << "\nAnd gave the exitcode of: " << process.exitCode();
 }
 
 QString AndroidRunner::displayName() const
