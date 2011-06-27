@@ -13,6 +13,7 @@ are required by law.
 #include "androiddeploystepfactory.h"
 #include "androidconfigurations.h"
 #include "androidpackagecreationfactory.h"
+#include "androidpackageinstallationfactory.h"
 #include "androidrunfactories.h"
 #include "androidsettingspage.h"
 #include "androidtoolchain.h"
@@ -37,6 +38,7 @@ AndroidManager::AndroidManager()
     : QObject(0)
     , m_runControlFactory(new AndroidRunControlFactory(this))
     , m_runConfigurationFactory(new AndroidRunConfigurationFactory(this))
+    , m_packageInstallationFactory( new AndroidPackageInstallationFactory(this))
     , m_packageCreationFactory(new AndroidPackageCreationFactory(this))
     , m_deployStepFactory(new AndroidDeployStepFactory(this))
     , m_settingsPage(new AndroidSettingsPage(this))
@@ -52,6 +54,7 @@ AndroidManager::AndroidManager()
     pluginManager->addObject(m_toolChainFactory);
     pluginManager->addObject(m_runControlFactory);
     pluginManager->addObject(m_runConfigurationFactory);
+    pluginManager->addObject(m_packageInstallationFactory);
     pluginManager->addObject(m_packageCreationFactory);
     pluginManager->addObject(m_deployStepFactory);
     pluginManager->addObject(m_settingsPage);
@@ -65,6 +68,7 @@ AndroidManager::~AndroidManager()
     pluginManager->removeObject(m_runConfigurationFactory);
     pluginManager->removeObject(m_deployStepFactory);
     pluginManager->removeObject(m_packageCreationFactory);
+    pluginManager->removeObject(m_packageInstallationFactory);
     pluginManager->removeObject(m_settingsPage);
     pluginManager->removeObject(m_androidTargetFactory);
     pluginManager->removeObject(m_toolChainFactory);

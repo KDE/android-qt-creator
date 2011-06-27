@@ -9,6 +9,8 @@ HEADERS += \
     $$PWD/androidsettingspage.h \
     $$PWD/androidsettingswidget.h \
     $$PWD/androidtoolchain.h \
+    $$PWD/androidpackageinstallationstep.h \
+    $$PWD/androidpackageinstallationfactory.h \
     $$PWD/androidpackagecreationstep.h \
     $$PWD/androidpackagecreationfactory.h \
     $$PWD/androidpackagecreationwidget.h \
@@ -34,6 +36,8 @@ SOURCES += \
     $$PWD/androidsettingspage.cpp \
     $$PWD/androidsettingswidget.cpp \
     $$PWD/androidtoolchain.cpp \
+    $$PWD/androidpackageinstallationstep.cpp \
+    $$PWD/androidpackageinstallationfactory.cpp \
     $$PWD/androidpackagecreationstep.cpp \
     $$PWD/androidpackagecreationfactory.cpp \
     $$PWD/androidpackagecreationwidget.cpp \

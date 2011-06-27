@@ -155,61 +155,61 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
         androidLibPath=androidDir+QLatin1String("/libs/armeabi-v7a");
     else
         androidLibPath=androidDir+QLatin1String("/libs/armeabi");
+//    removeDirectory(androidLibPath);
+//    QDir d(androidDir);
+//    d.mkpath(androidLibPath);
 
-    removeDirectory(androidLibPath);
-    QDir d(androidDir);
-    d.mkpath(androidLibPath);
+//    QStringList stripFiles;
+//    QList<Qt4ProFileNode *> nodes = bc->qt4Target()->qt4Project()->allProFiles();
+//    foreach(Qt4ProFileNode * node, nodes)
+//    {
+//        QString fileName;
+//        QString androidFileName;
+//        switch(node->projectType())
+//        {
+//            case ApplicationTemplate:
+//                fileName=node->targetInformation().target;
+//                if (node->targetInformation().target.endsWith(QLatin1String(".so")))
+//                    androidFileName=node->targetInformation().target;
+//                else
+//                {
+//                    androidFileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
+//                    QFile::remove(node->targetInformation().buildDir+QLatin1Char('/')+androidFileName);
+//                    if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
+//                                node->targetInformation().buildDir+QLatin1Char('/')+androidFileName))
+//                    {
+//                        raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
+//                                   .arg(node->targetInformation().buildDir)
+//                                   .arg(node->targetInformation().buildDir));
+//                        return false;
+//                    }
+//                }
+//                break;
+//            case LibraryTemplate:
+//                fileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
+//                androidFileName=fileName;
+//                break;
+//            default:
+//                continue;
+//        }
 
-    QStringList stripFiles;
-    QList<Qt4ProFileNode *> nodes = bc->qt4Target()->qt4Project()->allProFiles();
-    foreach(Qt4ProFileNode * node, nodes)
-    {
-        QString fileName;
-        QString androidFileName;
-        switch(node->projectType())
-        {
-            case ApplicationTemplate:
-                fileName=node->targetInformation().target;
-                if (node->targetInformation().target.endsWith(QLatin1String(".so")))
-                    androidFileName=node->targetInformation().target;
-                else
-                {
-                    androidFileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
-                    QFile::remove(node->targetInformation().buildDir+QLatin1Char('/')+androidFileName);
-                    if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
-                                node->targetInformation().buildDir+QLatin1Char('/')+androidFileName))
-                    {
-                        raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
-                                   .arg(node->targetInformation().buildDir)
-                                   .arg(node->targetInformation().buildDir));
-                        return false;
-                    }
-                }
-                break;
-            case LibraryTemplate:
-                fileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
-                androidFileName=fileName;
-                break;
-            default:
-                continue;
-        }
+////        if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
+////                    androidLibPath+QLatin1Char('/')+androidFileName))
+////        {
+////            raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
+////                       .arg(node->targetInformation().buildDir)
+////                       .arg(androidLibPath));
+////            return false;
+////        }
+//        stripFiles<<androidLibPath+QLatin1Char('/')+androidFileName;
+//    }
 
-        if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
-                    androidLibPath+QLatin1Char('/')+androidFileName))
-        {
-            raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
-                       .arg(node->targetInformation().buildDir)
-                       .arg(androidLibPath));
-            return false;
-        }
-        stripFiles<<androidLibPath+QLatin1Char('/')+androidFileName;
-    }
-
-    emit addOutput(tr("Stripping libraries, please wait"), BuildStep::MessageOutput);
-    stripAndroidLibs(stripFiles);
+//    emit addOutput(tr("Stripping libraries, please wait"), BuildStep::MessageOutput);
+//    stripAndroidLibs(stripFiles);
 
     QStringList build;
     build<<"debug";
+    QFile::remove(androidLibPath+QLatin1String("/gdbserver"));
     if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
     {
             if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(),

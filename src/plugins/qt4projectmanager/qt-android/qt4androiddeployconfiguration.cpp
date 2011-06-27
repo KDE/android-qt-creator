@@ -9,11 +9,13 @@ are required by law.
 
 
 #include "androiddeploystep.h"
+#include "androidpackageinstallationstep.h"
 #include "androidpackagecreationstep.h"
 #include "qt4androiddeployconfiguration.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/target.h>
+
 
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 
@@ -31,7 +33,8 @@ ProjectExplorer::DeployConfiguration *Qt4AndroidDeployConfigurationFactory::crea
         return 0;
     if (parent->id() == QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID))
         dc->setDefaultDisplayName(tr("Deploy to Android device"));
-    dc->stepList()->insertStep(0, new AndroidPackageCreationStep(dc->stepList()));
-    dc->stepList()->insertStep(1, new AndroidDeployStep(dc->stepList()));
+    dc->stepList()->insertStep(0, new AndroidPackageInstallationStep(dc->stepList()));
+    dc->stepList()->insertStep(1, new AndroidPackageCreationStep(dc->stepList()));
+    dc->stepList()->insertStep(2, new AndroidDeployStep(dc->stepList()));
     return dc;
 }

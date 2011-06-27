@@ -1504,6 +1504,7 @@ void DebuggerPluginPrivate::startRemoteApplication()
     gnuTargets.append(_("i686-linux-gnu"));
     gnuTargets.append(_("x86_64-linux-gnu"));
     gnuTargets.append(_("arm-none-linux-gnueabi"));
+    gnuTargets.append(_("arm-linux-androideabi"));
     const QString lastUsedGnuTarget
         = configValue(_("LastGnuTarget")).toString();
     if (!gnuTargets.contains(lastUsedGnuTarget))

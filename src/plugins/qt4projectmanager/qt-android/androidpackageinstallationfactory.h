@@ -1,25 +1,15 @@
-/*
-I BogDan Vatra < bog_dan_ro@yahoo.com >, the copyright holder of this work,
-hereby release it into the public domain. This applies worldwide.
-
-In case this is not legally possible, I grant any entity the right to use
-this work for any purpose, without any conditions, unless such conditions
-are required by law.
-*/
-
-#ifndef ANDROIDDEPLOYSTEPFACTORY_H
-#define ANDROIDDEPLOYSTEPFACTORY_H
-
+#ifndef ANDROIDPACKAGEINSTALLATIONFACTORY_H
+#define ANDROIDPACKAGEINSTALLATIONFACTORY_H
 #include <projectexplorer/buildstep.h>
 
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class AndroidDeployStepFactory : public ProjectExplorer::IBuildStepFactory
+class AndroidPackageInstallationFactory: public ProjectExplorer::IBuildStepFactory
 {
     Q_OBJECT
 public:
-    AndroidDeployStepFactory(QObject *parent);
+    AndroidPackageInstallationFactory(QObject *parent);
 
     virtual QStringList availableCreationIds(ProjectExplorer::BuildStepList *parent) const;
     virtual QString displayNameForId(const QString &id) const;
@@ -44,4 +34,4 @@ public:
 } // namespace Internal
 } // namespace Qt4ProjectManager
 
-#endif // ANDROIDDEPLOYSTEPFACTORY_H
+#endif // ANDROIDPACKAGEINSTALLATIONFACTORY_H

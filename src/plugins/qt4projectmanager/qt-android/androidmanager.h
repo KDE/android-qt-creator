@@ -19,6 +19,7 @@ namespace Internal {
 
 class Qt4AndroidTargetFactory;
 class AndroidDeployStepFactory;
+class AndroidPackageInstallationFactory;
 class AndroidPackageCreationFactory;
 class AndroidRunControlFactory;
 class AndroidRunConfigurationFactory;
@@ -41,6 +42,7 @@ private:
 
     AndroidRunControlFactory *m_runControlFactory;
     AndroidRunConfigurationFactory *m_runConfigurationFactory;
+    AndroidPackageInstallationFactory *m_packageInstallationFactory;
     AndroidPackageCreationFactory *m_packageCreationFactory;
     AndroidDeployStepFactory *m_deployStepFactory;
     AndroidSettingsPage *m_settingsPage;
