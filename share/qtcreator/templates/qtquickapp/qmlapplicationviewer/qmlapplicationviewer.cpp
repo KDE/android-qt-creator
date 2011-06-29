@@ -91,8 +91,13 @@ QmlApplicationViewer::~QmlApplicationViewer()
 
 void QmlApplicationViewer::setMainQmlFile(const QString &file)
 {
+#ifndef Q_OS_ANDROID
     m_d->mainQmlFile = QmlApplicationViewerPrivate::adjustPath(file);
     setSource(QUrl::fromLocalFile(m_d->mainQmlFile));
+#else
+    engine()->setBaseUrl(QUrl::fromLocalFile("/"));
+    setSource(QUrl::fromLocalFile(file));
+#endif
 }
 
 void QmlApplicationViewer::addImportPath(const QString &path)
