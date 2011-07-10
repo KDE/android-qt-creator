@@ -155,10 +155,24 @@ QStringList QMakeStep::moreArguments()
     Qt4BuildConfiguration *bc = qt4BuildConfiguration();
     QStringList arguments;
 #if defined(Q_OS_WIN) || defined(Q_OS_MAC)
+    bool isMaemo = false;
     ProjectExplorer::ToolChain *tc = bc->toolChain();
     if (tc && (tc->targetAbi().osFlavor() == ProjectExplorer::Abi::HarmattanLinuxFlavor
                || tc->targetAbi().osFlavor() == ProjectExplorer::Abi::MaemoLinuxFlavor))
+    {
+        isMaemo = true;
         arguments << QLatin1String("-unix");
+    }
+#if defined(Q_OS_WIN)
+    // Setting this means HOST_WIN_MODE gets set for Android and this is picked up by
+    // ProFileOption::setCommandLineArguments which means that
+    // MakefileGenerator::mkdir_p_asstring(const QString &dir, bool escape) const
+    // uses the Windows shell compatible format (i.e. if not exist $DIR mkdir $DIR instead of
+    // if not exist $DIR || mkdir $DIR). We could check for Android as a target here but
+    // I'd like any targets to work without needing MSYS.
+    if (!isMaemo)
+        arguments << QLatin1String("-win32");
+#endif
 #endif
     if (!bc->qtVersion()->supportsShadowBuilds()) {
         // We have a target which does not allow shadow building.
