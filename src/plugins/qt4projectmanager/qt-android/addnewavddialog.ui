@@ -45,7 +45,7 @@
      <item row="2" column="0">
       <widget class="QLabel" name="label_3">
        <property name="text">
-        <string>Size:</string>
+        <string>SD card size:</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -61,7 +61,7 @@
         <string> MiB</string>
        </property>
        <property name="minimum">
-        <number>0</number>
+        <number>50</number>
        </property>
        <property name="maximum">
         <number>9999999</number>

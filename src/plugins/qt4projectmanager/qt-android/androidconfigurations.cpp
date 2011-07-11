@@ -20,8 +20,10 @@ are required by law.
 #include <QtCore/QProcess>
 #include <QtCore/QFileInfo>
 #include <QtCore/QDirIterator>
+#include <QtCore/QMetaObject>
+
 #include <QtGui/QStringListModel>
-#include <QtGui/QDesktopServices>
+#include <QtGui/QMessageBox>
 #include <QDebug>
 
 #if defined(_WIN32)
@@ -96,7 +98,7 @@ void AndroidConfigurations::updateAvailablePlatforms()
     qSort(m_availablePlatforms.begin(), m_availablePlatforms.end(), qGreater<int>());
 }
 
-QStringList AndroidConfigurations::sdkTargets()
+QStringList AndroidConfigurations::sdkTargets(int minApiLevel)
 {
     QStringList targets;
     QProcess proc;
@@ -113,7 +115,9 @@ QStringList AndroidConfigurations::sdkTargets()
         int index = line.indexOf("\"android-");
         if (-1 == index)
             continue;
-        targets.push_back(line.mid(index+1, line.length()-index-2));
+        QString apiLevel=line.mid(index+1, line.length()-index-2);
+        if (apiLevel.mid(apiLevel.lastIndexOf('-')+1).toInt()>=minApiLevel)
+            targets.push_back(apiLevel);
     }
     return targets;
 }
@@ -226,15 +230,22 @@ QVector<AndroidDevice> AndroidConfigurations::connectedDevices(int apiLevel)
     return devices;
 }
 
-bool AndroidConfigurations::createAVD()
+bool AndroidConfigurations::createAVD(int minApiLevel)
 {
-    QRegExp rx("\\S+");
-    QRegExpValidator v(rx, 0);
     QDialog d;
     Ui::AddNewAVDDialog avdDialog;
     avdDialog.setupUi(&d);
-    QStringListModel model(sdkTargets());
+    QStringListModel model(sdkTargets(minApiLevel));
     avdDialog.targetComboBox->setModel(&model);
+    if (!model.rowCount())
+    {
+        QMessageBox::critical(0, tr("Create AVD error"), tr("Can't create a new AVD, not enough android SDKs available\n"
+                                                            "Please install one SDK with api version >=%1").arg(minApiLevel));
+        return false;
+    }
+
+    QRegExp rx("\\S+");
+    QRegExpValidator v(rx, 0);
     avdDialog.nameLineEdit->setValidator(&v);
     if (d.exec()!=QDialog::Accepted)
         return false;
@@ -244,8 +255,8 @@ bool AndroidConfigurations::createAVD()
 bool AndroidConfigurations::createAVD(const QString & target, const QString & name, int sdcardSize )
 {
     QProcess proc;
-    proc.start(androidToolPath(), QStringList() << "create" << "avd" << "-t" << target
-            << "-n" << name << "-c" << QString::fromLatin1("%4M").arg(sdcardSize));
+    proc.start(androidToolPath(), QStringList() << "create" << "avd" << "-a" << "-t" << target
+            << "-n" << name << "-c" << QString::fromLatin1("%1M").arg(sdcardSize));
     if (!proc.waitForStarted())
         return false;
     proc.write(QByteArray("no\n"));
@@ -314,24 +325,29 @@ QString AndroidConfigurations::startAVD(int & apiLevel, const QString & name)
 
     QString avdName = name;
     QVector<AndroidDevice> devices;
-    if (!avdName.length())
+    bool createAVDOnce=false;
+    while(true)
     {
-        devices=androidVirtualDevices();
-        foreach(AndroidDevice device, devices)
-            if (device.sdk>=apiLevel) // take first emulator how supports this package
-            {
-                apiLevel = device.sdk;
-                avdName=device.serialNumber;
-                break;
-            }
-    }
-    // if no emulators found try to create one
-    if (!avdName.length())
-    {
-        // if called from getDeployDeviceSerialNumber from depolyPackage,
-        // this causes an assert:
-        // "Widgets must be created in the GUI thread."
-        avdName=createAVD();
+        if (!avdName.length())
+        {
+            devices=androidVirtualDevices();
+            foreach(AndroidDevice device, devices)
+                if (device.sdk>=apiLevel) // take first emulator how supports this package
+                {
+                    apiLevel = device.sdk;
+                    avdName=device.serialNumber;
+                    break;
+                }
+        }
+        // if no emulators found try to create one once
+        if (!avdName.length() && !createAVDOnce)
+        {
+            createAVDOnce = true;
+            QMetaObject::invokeMethod(this,"createAVD", Qt::BlockingQueuedConnection,
+                                      Q_ARG(int, apiLevel));
+        }
+        else
+            break;
     }
 
     if (!avdName.length())// stop here if no emulators found

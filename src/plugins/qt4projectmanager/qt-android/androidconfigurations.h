@@ -68,7 +68,7 @@ public:
     static AndroidConfigurations &instance(QObject *parent = 0);
     AndroidConfig config() const { return m_config; }
     void setConfig(const AndroidConfig &config);
-    QStringList sdkTargets();
+    QStringList sdkTargets(int minApiLevel=0);
     QStringList ndkToolchainVersions();
     QString adbToolPath();
     QString androidToolPath();
@@ -80,7 +80,6 @@ public:
     QString stripPath();
     QString readelfPath();
     QString getDeployDeviceSerialNumber(int & apiLevel);
-    bool createAVD();
     bool createAVD(const QString & target, const QString & name, int sdcardSize );
     bool removeAVD(const QString & name);
     QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
@@ -89,6 +88,9 @@ public:
     QString bestMatch(const QString & targetAPI);
 signals:
     void updated();
+
+public slots:
+    bool createAVD(int minApiLevel=0);
 
 private:
     AndroidConfigurations(QObject *parent);
