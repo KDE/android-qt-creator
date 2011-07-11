@@ -33,6 +33,20 @@ bool AndroidPackageInstallationStep::init()
         emit addOutput(tr("Current target is not an android target"), BuildStep::MessageOutput);
         return false;
     }
+
+#ifdef Q_OS_WIN
+    // This is here because I hacked QDir::toNativeSeparators to do nothing when __MINGW32__
+    // Shouldn't be doing that. If want posix paths under MSYS, I should build runtime shell
+    // detection into QtCore.
+    QString n = androidTarget->androidDirPath();
+    for (int i = 0; i < (int)n.length(); ++i) {
+        if (n[i] == QLatin1Char('/'))
+            n[i] = QLatin1Char('\\');
+    }
+    setUserArguments(QString("INSTALL_ROOT=\"%1\" install").arg(n));
+#else
     setUserArguments(QString("INSTALL_ROOT=\"%1\" install").arg(androidTarget->androidDirPath()));
+#endif
+
     return MakeStep::init();
 }
