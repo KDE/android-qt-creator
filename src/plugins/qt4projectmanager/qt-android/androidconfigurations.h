@@ -51,6 +51,7 @@ public:
     QString AntLocation;
     QString GdbLocation;
     QString GdbserverLocation;
+    QString OpenJDKLocation;
     unsigned PartitionSize;
 };
 
@@ -77,6 +78,7 @@ public:
     QString gccPath();
     QString gdbServerPath();
     QString gdbPath();
+    QString openJDKPath();
     QString stripPath();
     QString readelfPath();
     QString getDeployDeviceSerialNumber(int & apiLevel);

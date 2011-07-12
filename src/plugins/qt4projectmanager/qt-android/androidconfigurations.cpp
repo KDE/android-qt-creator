@@ -43,6 +43,7 @@ namespace {
     const QLatin1String AntLocationKey("AntLocation");
     const QLatin1String GdbLocationKey("GdbLocation");
     const QLatin1String GdbserverLocationKey("GdbserverLocation");
+    const QLatin1String OpenJDKLocationKey("OpenJDKLocation");
     const QLatin1String PartitionSizeKey("PartitionSize");
     bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
     {
@@ -58,6 +59,7 @@ AndroidConfig::AndroidConfig(const QSettings &settings)
       AntLocation(settings.value(AntLocationKey).toString()),
       GdbLocation(settings.value(GdbLocationKey).toString()),
       GdbserverLocation(settings.value(GdbserverLocationKey).toString()),
+      OpenJDKLocation(settings.value(OpenJDKLocationKey).toString()),
       PartitionSize(settings.value(PartitionSizeKey, 1024).toInt())
 {
 }
@@ -75,6 +77,7 @@ void AndroidConfig::save(QSettings &settings) const
     settings.setValue(AntLocationKey, AntLocation);
     settings.setValue(GdbLocationKey, GdbLocation);
     settings.setValue(GdbserverLocationKey, GdbserverLocation);
+    settings.setValue(OpenJDKLocationKey, OpenJDKLocation);
     settings.setValue(PartitionSizeKey, PartitionSize);
 }
 
@@ -190,6 +193,13 @@ QString AndroidConfigurations::gdbPath()
     if (m_config.GdbLocation.length())
         return m_config.GdbLocation;
     return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gdb"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+}
+
+QString AndroidConfigurations::openJDKPath()
+{
+    if (m_config.OpenJDKLocation.length())
+        return m_config.OpenJDKLocation;
+    return QString("");
 }
 
 QString AndroidConfigurations::getDeployDeviceSerialNumber(int & apiLevel)
