@@ -6,295 +6,264 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>705</width>
-    <height>445</height>
+    <width>678</width>
+    <height>498</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Android Configuration</string>
   </property>
-  <widget class="QFrame" name="AVDManagerFrame">
-   <property name="geometry">
-    <rect>
-     <x>9</x>
-     <y>195</y>
-     <width>687</width>
-     <height>241</height>
-    </rect>
-   </property>
-   <property name="frameShape">
-    <enum>QFrame::StyledPanel</enum>
-   </property>
-   <property name="frameShadow">
-    <enum>QFrame::Raised</enum>
-   </property>
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <widget class="QLabel" name="AVDManagerLabel">
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QGridLayout" name="gridLayout_2">
+     <item row="0" column="0">
+      <widget class="QLabel" name="SDKLocationLabel">
+       <property name="text">
+        <string>Android SDK location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="SDKLocationLineEdit"/>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="SDKLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="NDKLocationLabel">
+       <property name="text">
+        <string>Android NDK location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="NDKLocationLineEdit"/>
+     </item>
+     <item row="1" column="2">
+      <widget class="QPushButton" name="NDKLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="NDKToolchainVersionLabel">
+       <property name="text">
+        <string>Android NDK toolchain version:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="toolchainVersionComboBox"/>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="AntLocationLabel">
+       <property name="text">
+        <string>Ant location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="AntLocationLineEdit"/>
+     </item>
+     <item row="3" column="2">
+      <widget class="QPushButton" name="AntLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="GdbLocationLabel">
+       <property name="text">
+        <string>GDB location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="GdbLocationLineEdit"/>
+     </item>
+     <item row="4" column="2">
+      <widget class="QPushButton" name="GdbLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="GdbserverLocationLabel">
+       <property name="text">
+        <string>GDBserver location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLineEdit" name="GdbserverLocationLineEdit"/>
+     </item>
+     <item row="5" column="2">
+      <widget class="QPushButton" name="GdbserverLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="OpenJDKLocationLabel">
+       <property name="text">
+        <string>OpenJDK location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QLineEdit" name="OpenJDKLocationLineEdit"/>
+     </item>
+     <item row="6" column="2">
+      <widget class="QPushButton" name="OpenJDKLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QFrame" name="AVDManagerFrame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QLabel" name="AVDManagerLabel">
+          <property name="text">
+           <string>AVD Manager</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="DataPartitionSizeLable">
+          <property name="text">
+           <string>System/data partition size:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="DataPartitionSizeSpinBox">
+          <property name="suffix">
+           <string> Mb</string>
+          </property>
+          <property name="maximum">
+           <number>99999</number>
+          </property>
+          <property name="value">
+           <number>1024</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0" rowspan="4">
+       <widget class="QTableView" name="AVDTableView">
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SingleSelection</enum>
+        </property>
+        <property name="selectionBehavior">
+         <enum>QAbstractItemView::SelectRows</enum>
+        </property>
+        <property name="textElideMode">
+         <enum>Qt::ElideMiddle</enum>
+        </property>
+        <attribute name="verticalHeaderVisible">
+         <bool>false</bool>
+        </attribute>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="AVDAddPushButton">
         <property name="text">
-         <string>AVD Manager</string>
+         <string>Add</string>
         </property>
        </widget>
       </item>
-      <item>
-       <spacer name="horizontalSpacer">
+      <item row="2" column="1">
+       <widget class="QPushButton" name="AVDRemovePushButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Remove</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QPushButton" name="AVDStartPushButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <spacer name="verticalSpacer">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Vertical</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
-          <width>40</width>
-          <height>20</height>
+          <width>20</width>
+          <height>129</height>
          </size>
         </property>
        </spacer>
       </item>
-      <item>
-       <widget class="QLabel" name="DataPartitionSizeLable">
-        <property name="text">
-         <string>System/data partition size:</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QSpinBox" name="DataPartitionSizeSpinBox">
-        <property name="suffix">
-         <string> Mb</string>
-        </property>
-        <property name="maximum">
-         <number>99999</number>
-        </property>
-        <property name="value">
-         <number>1024</number>
-        </property>
-       </widget>
-      </item>
      </layout>
-    </item>
-    <item row="1" column="0" rowspan="4">
-     <widget class="QTableView" name="AVDTableView">
-      <property name="selectionMode">
-       <enum>QAbstractItemView::SingleSelection</enum>
-      </property>
-      <property name="selectionBehavior">
-       <enum>QAbstractItemView::SelectRows</enum>
-      </property>
-      <property name="textElideMode">
-       <enum>Qt::ElideMiddle</enum>
-      </property>
-      <attribute name="verticalHeaderVisible">
-       <bool>false</bool>
-      </attribute>
-     </widget>
-    </item>
-    <item row="1" column="1">
-     <widget class="QPushButton" name="AVDAddPushButton">
-      <property name="text">
-       <string>Add</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="1">
-     <widget class="QPushButton" name="AVDRemovePushButton">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="text">
-       <string>Remove</string>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="1">
-     <widget class="QPushButton" name="AVDStartPushButton">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="text">
-       <string>Start</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="1">
-     <spacer name="verticalSpacer">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>129</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-   </layout>
-  </widget>
-  <widget class="QSpinBox" name="DataPartitionSizeSpinBox_2">
-   <property name="geometry">
-    <rect>
-     <x>420</x>
-     <y>420</y>
-     <width>68</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="suffix">
-    <string> Mb</string>
-   </property>
-   <property name="maximum">
-    <number>99999</number>
-   </property>
-   <property name="value">
-    <number>1024</number>
-   </property>
-  </widget>
-  <widget class="QWidget" name="">
-   <property name="geometry">
-    <rect>
-     <x>8</x>
-     <y>9</y>
-     <width>681</width>
-     <height>196</height>
-    </rect>
-   </property>
-   <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="0">
-     <widget class="QLabel" name="SDKLocationLabel">
-      <property name="text">
-       <string>Android SDK location:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <widget class="QLineEdit" name="SDKLocationLineEdit"/>
-    </item>
-    <item row="0" column="2">
-     <widget class="QPushButton" name="SDKLocationPushButton">
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QLabel" name="NDKLocationLabel">
-      <property name="text">
-       <string>Android NDK location:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
-     <widget class="QLineEdit" name="NDKLocationLineEdit"/>
-    </item>
-    <item row="1" column="2">
-     <widget class="QPushButton" name="NDKLocationPushButton">
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="0">
-     <widget class="QLabel" name="NDKToolchainVersionLabel">
-      <property name="text">
-       <string>Android NDK toolchain version:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="1">
-     <widget class="QComboBox" name="toolchainVersionComboBox"/>
-    </item>
-    <item row="3" column="0">
-     <widget class="QLabel" name="AntLocationLabel">
-      <property name="text">
-       <string>Ant location:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="1">
-     <widget class="QLineEdit" name="AntLocationLineEdit"/>
-    </item>
-    <item row="3" column="2">
-     <widget class="QPushButton" name="AntLocationPushButton">
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="0">
-     <widget class="QLabel" name="GdbLocationLabel">
-      <property name="text">
-       <string>GDB location:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="1">
-     <widget class="QLineEdit" name="GdbLocationLineEdit"/>
-    </item>
-    <item row="4" column="2">
-     <widget class="QPushButton" name="GdbLocationPushButton">
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="0">
-     <widget class="QLabel" name="GdbserverLocationLabel">
-      <property name="text">
-       <string>GDBserver location:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="1">
-     <widget class="QLineEdit" name="GdbserverLocationLineEdit"/>
-    </item>
-    <item row="5" column="2">
-     <widget class="QPushButton" name="GdbserverLocationPushButton">
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-    </item>
-    <item row="6" column="0">
-     <widget class="QLabel" name="OpenJDKLocationLabel">
-      <property name="text">
-       <string>OpenJDK location:</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="6" column="1">
-     <widget class="QLineEdit" name="OpenJDKLocationLineEdit"/>
-    </item>
-    <item row="6" column="2">
-     <widget class="QPushButton" name="OpenJDKLocationPushButton">
-      <property name="text">
-       <string>Browse</string>
-      </property>
-     </widget>
-    </item>
-   </layout>
-  </widget>
+    </widget>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections>
@@ -622,5 +591,5 @@
   <slot>browseGdbserverLocation()</slot>
   <slot>OpenJDKLocationEditingFinished()</slot>
   <slot>browseOpenJDKLocation()</slot>
-   </slots>
+ </slots>
 </ui>

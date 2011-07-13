@@ -197,9 +197,7 @@ QString AndroidConfigurations::gdbPath()
 
 QString AndroidConfigurations::openJDKPath()
 {
-    if (m_config.OpenJDKLocation.length())
-        return m_config.OpenJDKLocation;
-    return QString("");
+    return m_config.OpenJDKLocation;
 }
 
 QString AndroidConfigurations::getDeployDeviceSerialNumber(int & apiLevel)
