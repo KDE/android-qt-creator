@@ -252,10 +252,16 @@ QString Qt4AndroidTarget::loadLocalLibs(int apiLevel)
                 localLibs+=libElement.attribute("file").arg(apiLevel)+";";
                 libElement=libElement.nextSiblingElement("lib");
             }
+
+            libElement=element.firstChildElement("replaces").firstChildElement("lib");
+            while(!libElement.isNull())
+            {
+                localLibs.replace(libElement.attribute("file").arg(apiLevel)+";","");
+                libElement=libElement.nextSiblingElement("lib");
+            }
         }
         element=element.nextSiblingElement("lib");
     }
-
     return localLibs;
 }
 
