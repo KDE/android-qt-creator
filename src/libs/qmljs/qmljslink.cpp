@@ -43,8 +43,6 @@
 #include <QtCore/QDir>
 #include <QtCore/QDebug>
 
-#include <limits>
-
 using namespace LanguageUtils;
 using namespace QmlJS;
 using namespace QmlJS::Interpreter;
@@ -183,27 +181,6 @@ void Link::populateImportedTypes(TypeEnvironment *typeEnv, Document::Ptr doc)
     foreach (const ImportInfo &info, doc->bind()->imports()) {
         ObjectValue *import = d->importCache.value(ImportCacheKey(info));
 
-        //### Hack: if this document is in a library, and if there is an qmldir file in the same directory, and if the prefix is an import-path, the import means to import everything in this library.
-        if (info.ast() && info.ast()->fileName && info.ast()->fileName->asString() == QLatin1String(".")) {
-            const QString importInfoName(info.name());
-            if (QFileInfo(QDir(importInfoName), QLatin1String("qmldir")).exists()) {
-                foreach (const QString &importPath, d->importPaths) {
-                    if (importInfoName.startsWith(importPath)) {
-                        // Got it.
-
-                        const QString cleanPath = QFileInfo(importInfoName).canonicalFilePath();
-                        const QString forcedPackageName = cleanPath.mid(importPath.size() + 1).replace('/', '.').replace('\\', '.');
-                        import = importNonFile(doc, info, forcedPackageName);
-                        if (import)
-                            d->importCache.insert(ImportCacheKey(info), import);
-
-                        break;
-                    }
-                }
-            }
-        }
-        //### End of hack.
-
         if (!import) {
             switch (info.type()) {
             case ImportInfo::FileImport:
@@ -276,16 +253,35 @@ ObjectValue *Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo
 
     bool importFound = false;
 
-    // check the filesystem
     const QString &packagePath = importInfo.name();
+    // check the filesystem with full version
     foreach (const QString &importPath, d->importPaths) {
-        QString libraryPath = importPath;
-        libraryPath += QDir::separator();
-        libraryPath += packagePath;
+        QString libraryPath = QString("%1/%2.%3").arg(importPath, packagePath, version.toString());
 
         if (importLibrary(doc, import, libraryPath, importInfo, importPath)) {
             importFound = true;
             break;
+        }
+    }
+    if (!importFound) {
+        // check the filesystem with major version
+        foreach (const QString &importPath, d->importPaths) {
+            QString libraryPath = QString("%1/%2.%3").arg(importPath, packagePath,
+                                                          QString::number(version.majorVersion()));
+            if (importLibrary(doc, import, libraryPath, importInfo, importPath)) {
+                importFound = true;
+                break;
+            }
+        }
+    }
+    if (!importFound) {
+        // check the filesystem with no version
+        foreach (const QString &importPath, d->importPaths) {
+            QString libraryPath = QString("%1/%2").arg(importPath, packagePath);
+            if (importLibrary(doc, import, libraryPath, importInfo, importPath)) {
+                importFound = true;
+                break;
+            }
         }
     }
 
@@ -406,8 +402,7 @@ void Link::loadQmldirComponents(Interpreter::ObjectValue *import, ComponentVersi
 
     // if the version isn't valid, import the latest
     if (!version.isValid()) {
-        const int maxVersion = std::numeric_limits<int>::max();
-        version = ComponentVersion(maxVersion, maxVersion);
+        version = ComponentVersion(ComponentVersion::MaxVersion, ComponentVersion::MaxVersion);
     }
 
 
