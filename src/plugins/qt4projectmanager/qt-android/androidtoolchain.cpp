@@ -92,7 +92,19 @@ void AndroidToolChain::addToEnvironment(Utils::Environment &env) const
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.left(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')));
     env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_VERSION")
                      ,AndroidConfigurations::instance().config().NDKToolchainVersion.mid(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')+1));
-
+#if defined(Q_OS_WIN)
+    // These fixes are needed so that make.exe gets found by Environment::searchInPath()
+    // Seems '.' gets added to the path instead of argv[0] sometimes, which fails
+    // after having changed to the build directory when we look for "make"
+    // To fix this I force applicationDirPath to the front of PATH.
+    env.prependOrSet("PATH", QCoreApplication::applicationDirPath(), ";");
+    // This is a convenience thing:
+    // When debugging Necessitas QtCreator through QtCreator, PATHEXT isn't passed through. Another
+    // fix for this would be to find out where the arg passing happens when using "Start and Debug
+    // External Application" and fix that, I do it this way because I debug Necessitas QtCreator with
+    // the latest official Nokia QtCreator; can't use qgetenv("PATHEXT") either as it's already dead.
+    env.set("PATHEXT", ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC");
+#endif
     Qt4Project *qt4pro = qobject_cast<Qt4Project *>(ProjectExplorer::ProjectExplorerPlugin::instance()->currentProject());
     if (!qt4pro)
         return;
