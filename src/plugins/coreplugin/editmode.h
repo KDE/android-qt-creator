@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,6 @@
 
 QT_BEGIN_NAMESPACE
 class QSplitter;
-class QWidget;
 class QVBoxLayout;
 QT_END_NAMESPACE
 
@@ -52,17 +51,8 @@ class EditMode : public Core::IMode
     Q_OBJECT
 
 public:
-    EditMode(EditorManager *editorManager);
+    EditMode();
     ~EditMode();
-
-    // IMode
-    QString displayName() const;
-    QIcon icon() const;
-    int priority() const;
-    QWidget* widget();
-    QString id() const;
-    QString type() const;
-    Context context() const;
 
 private slots:
     void grabEditorManager(Core::IMode *mode);

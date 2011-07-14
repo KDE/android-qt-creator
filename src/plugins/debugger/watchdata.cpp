@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,13 +43,6 @@
 
 namespace Debugger {
 namespace Internal {
-
-enum GuessChildrenResult
-{
-    HasChildren,
-    HasNoChildren,
-    HasPossiblyChildren
-};
 
 static QString htmlEscape(const QString &plain)
 {
@@ -73,6 +66,13 @@ static QString htmlEscape(const QString &plain)
 bool isPointerType(const QByteArray &type)
 {
     return type.endsWith('*') || type.endsWith("* const");
+}
+
+bool isVTablePointer(const QByteArray &type)
+{
+    // FIXME: That is cdb only.
+    // But no user type can be named like this, so this is safe.
+    return type.startsWith("__fptr()");
 }
 
 bool isCharPointerType(const QByteArray &type)
@@ -126,24 +126,13 @@ bool isIntOrFloatType(const QByteArray &type)
     return isIntType(type) || isFloatType(type);
 }
 
-GuessChildrenResult guessChildren(const QByteArray &type)
-{
-    if (isIntOrFloatType(type))
-        return HasNoChildren;
-    if (isCharPointerType(type))
-        return HasNoChildren;
-    if (isPointerType(type))
-        return HasChildren;
-    if (type.endsWith("QString"))
-        return HasNoChildren;
-    return HasPossiblyChildren;
-}
-
 WatchData::WatchData() :
     id(0),
     state(InitialState),
     editformat(0),
     address(0),
+    referencingAddress(0),
+    size(0),
     bitpos(0),
     bitsize(0),
     generation(-1),
@@ -169,6 +158,7 @@ bool WatchData::isEqual(const WatchData &other) const
       && displayedType == other.displayedType
       && variable == other.variable
       && address == other.address
+      && size == other.size
       && hasChildren == other.hasChildren
       && valueEnabled == other.valueEnabled
       && valueEditable == other.valueEditable
@@ -230,6 +220,21 @@ void WatchData::setValueToolTip(const QString &tooltip)
     valuetooltip = tooltip;
 }
 
+enum GuessChildrenResult { HasChildren, HasNoChildren, HasPossiblyChildren };
+
+static GuessChildrenResult guessChildren(const QByteArray &type)
+{
+    if (isIntOrFloatType(type))
+        return HasNoChildren;
+    if (isCharPointerType(type))
+        return HasNoChildren;
+    if (isPointerType(type))
+        return HasChildren;
+    if (type.endsWith("QString"))
+        return HasNoChildren;
+    return HasPossiblyChildren;
+}
+
 void WatchData::setType(const QByteArray &str, bool guessChildrenFromType)
 {
     type = str.trimmed();
@@ -278,7 +283,7 @@ void WatchData::setAddress(const quint64 &a)
 void WatchData::setHexAddress(const QByteArray &a)
 {
     bool ok;
-    const qint64 av = a.toULongLong(&ok, 16);
+    const qint64 av = a.toULongLong(&ok, 0);
     if (ok) {
         address = av;
     } else {
@@ -304,6 +309,11 @@ QString WatchData::toString() const
     if (address) {
         str.setIntegerBase(16);
         str << "addr=\"0x" << address << doubleQuoteComma;
+        str.setIntegerBase(10);
+    }
+    if (referencingAddress) {
+        str.setIntegerBase(16);
+        str << "referencingaddr=\"0x" << referencingAddress << doubleQuoteComma;
         str.setIntegerBase(10);
     }
     if (!exp.isEmpty())
@@ -369,6 +379,12 @@ QString WatchData::toToolTip() const
     formatToolTipRow(str, tr("Value"), val);
     formatToolTipRow(str, tr("Object Address"),
                      QString::fromAscii(hexAddress()));
+    if (referencingAddress)
+        formatToolTipRow(str, tr("Referencing Address"),
+                         QString::fromAscii(hexReferencingAddress()));
+    if (size)
+        formatToolTipRow(str, tr("Size"),
+                         QString::number(size));
     formatToolTipRow(str, tr("Internal ID"), iname);
     formatToolTipRow(str, tr("Generation"),
         QString::number(generation));
@@ -378,8 +394,10 @@ QString WatchData::toToolTip() const
 
 QString WatchData::msgNotInScope()
 {
-    //: Value of variable in Debugger Locals display for variables out of scope (stopped above initialization).
-    static const QString rc = QCoreApplication::translate("Debugger::Internal::WatchData", "<not in scope>");
+    //: Value of variable in Debugger Locals display for variables out
+    //: of scope (stopped above initialization).
+    static const QString rc =
+        QCoreApplication::translate("Debugger::Internal::WatchData", "<not in scope>");
     return rc;
 }
 
@@ -388,7 +406,8 @@ const QString &WatchData::shadowedNameFormat()
     //: Display of variables shadowed by variables of the same name
     //: in nested scopes: Variable %1 is the variable name, %2 is a
     //: simple count.
-    static const QString format = QCoreApplication::translate("Debugger::Internal::WatchData", "%1 <shadowed %2>");
+    static const QString format =
+        QCoreApplication::translate("Debugger::Internal::WatchData", "%1 <shadowed %2>");
     return format;
 }
 
@@ -406,7 +425,16 @@ quint64 WatchData::coreAddress() const
 
 QByteArray WatchData::hexAddress() const
 {
-    return address ? (QByteArray("0x") + QByteArray::number(address, 16)) : QByteArray();
+    if (address)
+        return QByteArray("0x") + QByteArray::number(address, 16);
+    return QByteArray();
+}
+
+QByteArray WatchData::hexReferencingAddress() const
+{
+    if (referencingAddress)
+        return QByteArray("0x") + QByteArray::number(referencingAddress, 16);
+    return QByteArray();
 }
 
 } // namespace Internal

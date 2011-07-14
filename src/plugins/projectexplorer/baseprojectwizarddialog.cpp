@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,15 @@
 #include <utils/projectintropage.h>
 
 #include <QtCore/QDir>
+
+/*!
+    \class ProjectExplorer::BaseProjectWizardDialog
+
+    \brief Base class for project wizards.
+
+    Presents the introductory page and takes care of setting the folder chosen
+    as default projects' folder should the user wish to do that.
+*/
 
 namespace ProjectExplorer {
 
@@ -144,7 +153,7 @@ QString BaseProjectWizardDialog::uniqueProjectName(const QString &path)
     //: File path suggestion for a new project. If you choose
     //: to translate it, make sure it is a valid path name without blanks.
     const QString prefix = tr("untitled");
-    for (unsigned i = 0; ; i++) {
+    for (unsigned i = 0; ; ++i) {
         QString name = prefix;
         if (i)
             name += QString::number(i);

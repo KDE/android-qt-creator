@@ -10,7 +10,6 @@ INCLUDEPATH += .
 DEFINES += CPPTOOLS_LIBRARY
 HEADERS += completionsettingspage.h \
     cppclassesfilter.h \
-    cppcodecompletion.h \
     cppcurrentdocumentfilter.h \
     cppfunctionsfilter.h \
     cppmodelmanager.h \
@@ -19,6 +18,7 @@ HEADERS += completionsettingspage.h \
     cpptoolsconstants.h \
     cpptoolseditorsupport.h \
     cpptoolsplugin.h \
+    cppqtstyleindenter.h \
     searchsymbols.h \
     cppdoxygen.h \
     cppfilesettingspage.h \
@@ -28,17 +28,23 @@ HEADERS += completionsettingspage.h \
     uicodecompletionsupport.h \
     insertionpointlocator.h \
     cpprefactoringchanges.h \
-    abstracteditorsupport.h
+    abstracteditorsupport.h \
+    cppcompletionassist.h \
+    cppcodestylesettingspage.h \
+    cpptoolssettings.h \
+    cppcodestylesettings.h \
+    cppcodestylesettingsfactory.h \
+    cppcodestylepreferences.h
 
 SOURCES += completionsettingspage.cpp \
     cppclassesfilter.cpp \
-    cppcodecompletion.cpp \
     cppcurrentdocumentfilter.cpp \
     cppfunctionsfilter.cpp \
     cppmodelmanager.cpp \
     cpplocatorfilter.cpp \
     cpptoolseditorsupport.cpp \
     cpptoolsplugin.cpp \
+    cppqtstyleindenter.cpp \
     searchsymbols.cpp \
     cppdoxygen.cpp \
     cppfilesettingspage.cpp \
@@ -48,7 +54,14 @@ SOURCES += completionsettingspage.cpp \
     symbolsfindfilter.cpp \
     uicodecompletionsupport.cpp \
     insertionpointlocator.cpp \
-    cpprefactoringchanges.cpp
+    cpprefactoringchanges.cpp \
+    cppcompletionassist.cpp \
+    cppcodestylesettingspage.cpp \
+    cpptoolssettings.cpp \
+    cppcodestylesettings.cpp \
+    cppcodestylesettingsfactory.cpp \
+    cppcodestylepreferences.cpp
 
 FORMS += completionsettingspage.ui \
-    cppfilesettingspage.ui
+    cppfilesettingspage.ui \
+    cppcodestylesettingspage.ui

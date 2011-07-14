@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,8 +49,7 @@ public:
     explicit Qt4SimulatorTarget(Qt4Project *parent, const QString &id);
     virtual ~Qt4SimulatorTarget();
 
-    Internal::Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
-    ProjectExplorer::DeployConfigurationFactory *deployConfigurationFactory() const;
+    Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
 
     void createApplicationProFiles();
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);
@@ -58,8 +57,7 @@ public:
     static QString defaultDisplayName();
 
 private:
-    Internal::Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
-    ProjectExplorer::DeployConfigurationFactory *m_deployConfigurationFactory;
+    Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
 };
 
 } // namespace Internal

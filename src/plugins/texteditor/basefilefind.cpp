@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,6 +42,7 @@
 #include <texteditor/itexteditor.h>
 #include <texteditor/basetexteditor.h>
 #include <utils/stylehelper.h>
+#include <utils/fileutils.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QDirIterator>
@@ -50,6 +51,7 @@
 #include <QtGui/QCheckBox>
 #include <QtGui/QComboBox>
 #include <QtGui/QLabel>
+#include <QtGui/QMainWindow>
 #include <QtGui/QPushButton>
 #include <QtGui/QTextBlock>
 
@@ -130,7 +132,8 @@ void BaseFileFind::replaceAll(const QString &txt, Find::FindFlags findFlags)
     if (m_filterCombo)
         updateComboEntries(m_filterCombo, true);
     m_watcher.setFuture(QFuture<FileSearchResultList>());
-    SearchResult *result = m_resultWindow->startNewSearch(SearchResultWindow::SearchAndReplace);
+    SearchResult *result = m_resultWindow->startNewSearch(
+            SearchResultWindow::SearchAndReplace, QLatin1String("TextEditor"));
     connect(result, SIGNAL(activated(Find::SearchResultItem)), this, SLOT(openEditor(Find::SearchResultItem)));
     connect(result, SIGNAL(replaceButtonClicked(QString,QList<Find::SearchResultItem>)),
             this, SLOT(doReplace(QString,QList<Find::SearchResultItem>)));
@@ -346,25 +349,22 @@ QStringList BaseFileFind::replaceAll(const QString &text,
             applyChanges(textEditor->document(), text, changeItems);
             tc.endEditBlock();
         } else {
-            QFile file(fileName);
-
-            if (file.open(QFile::ReadOnly)) {
-                QTextStream stream(&file);
-                // ### set the encoding
-                const QString plainText = stream.readAll();
-                file.close();
-
+            Utils::FileReader reader;
+            if (reader.fetch(fileName, Core::ICore::instance()->mainWindow())) {
                 QTextDocument doc;
-                doc.setPlainText(plainText);
+                // ### set the encoding
+                doc.setPlainText(QString::fromLocal8Bit(reader.data()));
 
                 applyChanges(&doc, text, changeItems);
 
-                QFile newFile(fileName);
-                if (newFile.open(QFile::WriteOnly)) {
-                    QTextStream stream(&newFile);
+                Utils::FileSaver saver(fileName);
+                if (!saver.hasError()) {
+                    QTextStream stream(saver.file());
                     // ### set the encoding
                     stream << doc.toPlainText();
+                    saver.setResult(&stream);
                 }
+                saver.finalize(Core::ICore::instance()->mainWindow());
             }
         }
     }

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,8 +52,8 @@ QmlToolBar::QmlToolBar(QWidget *parent)
     ui->playIcon = QIcon(QLatin1String(":/qml/images/play-24.png"));
     ui->pauseIcon = QIcon(QLatin1String(":/qml/images/pause-24.png"));
 
-    ui->designmode = new QAction(QIcon(QLatin1String(":/qml/images/observermode-24.png")),
-                                 tr("Observer Mode"), this);
+    ui->designmode = new QAction(QIcon(QLatin1String(":/qml/images/inspectormode-24.png")),
+                                 tr("Inspector Mode"), this);
     ui->play = new QAction(ui->pauseIcon, tr("Play/Pause Animations"), this);
     ui->select = new QAction(QIcon(QLatin1String(":/qml/images/select-24.png")), tr("Select"), this);
     ui->selectMarquee = new QAction(QIcon(QLatin1String(":/qml/images/select-marquee-24.png")),

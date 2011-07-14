@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -61,6 +61,7 @@ protected:
     void handleNodeElement(QXmlStreamReader &reader);
     void handleNodeItemLibraryEntryElement(QXmlStreamReader &reader, const QString &className, const QIcon &icon);
     void handleItemLibraryEntryPropertyElement(QXmlStreamReader &reader, ItemLibraryEntry &itemLibraryEntry);
+    void handleItemLibraryEntryQmlElement(QXmlStreamReader &reader, ItemLibraryEntry &itemLibraryEntry);
 
 private:
     MetaInfo m_metaInfo;

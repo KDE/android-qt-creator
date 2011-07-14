@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,8 +35,9 @@
 #undef private
 
 #include "gdb/gdbmi.h"
-#include "gdbmacros.h"
-#include "gdbmacros_p.h"
+#include "dumper.h"
+#include "dumper_p.h"
+
 #include "json.h"
 
 #include <QtCore/private/qobject_p.h>
@@ -161,7 +162,7 @@ public:
 
     void testJson(const char* input)
     {
-        QCOMPARE('\n' + QString::fromLatin1(JsonValue(input).toString(false)),
+        QCOMPARE('\n' + QString::fromLatin1(Coda::JsonValue(input).toString(false)),
             '\n' + QString(input));
     }
 
@@ -1904,7 +1905,7 @@ void tst_Dumpers::dumpQObjectSignalHelper(QObject &o, int sigNum)
 {
     //qDebug() << o.objectName() << sigNum;
     QByteArray expected("addr='<synthetic>',numchild='1',type='"NS"QObjectSignal'");
-#if QT_VERSION >= 0x040400
+#if QT_VERSION >= 0x040400 && QT_VERSION <= 0x040700
     expected.append(",children=[");
     const QObjectPrivate *p = Cheater::getPrivate(o);
     Q_ASSERT(p != 0);
@@ -2276,7 +2277,7 @@ void tst_Dumpers::dumpQSharedPointer()
     // Case 2: Composite type.
     // Case 1.1: Null pointer.
     QSharedPointer<QString> compositePtr;
-    // TODO: This case is not handled in gdbmacros.cpp (segfault!)
+    // TODO: This case is not handled in dumper.cpp (segfault!)
     //dumpQSharedPointerHelper(compoistePtr);
 
     // Case 1.2: Non-null pointer,

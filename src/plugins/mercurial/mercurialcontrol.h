@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,7 +53,9 @@ public:
     explicit MercurialControl(MercurialClient *mercurialClient);
 
     QString displayName() const;
+    QString id() const;
     bool managesDirectory(const QString &filename, QString *topLevel = 0) const;
+    bool isConfigured() const;
     bool supportsOperation(Operation operation) const;
     bool vcsOpen(const QString &fileName);
     bool vcsAdd(const QString &filename);
@@ -74,6 +76,7 @@ public slots:
     // files changed signals according to the variant's type:
     // String -> repository, StringList -> files
     void changed(const QVariant&);
+    void emitConfigurationChanged();
 
 private:
     MercurialClient *mercurialClient;

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,9 +44,12 @@ class QTcpSocket;
 class QSignalMapper;
 QT_END_NAMESPACE
 
+namespace QtSupport {
+class BaseQtVersion;
+}
+
 namespace Qt4ProjectManager {
 
-class QtVersion;
 
 namespace Internal {
 
@@ -66,7 +69,7 @@ public:
 
 protected:
     // Method pointer for a QtVersion method return a string (command)
-    typedef QString (QtVersion::*QtVersionCommandAccessor)() const;
+    typedef QString (QtSupport::BaseQtVersion::*QtVersionCommandAccessor)() const;
 
     // Data required to launch the editor
     struct EditorLaunchData {

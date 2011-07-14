@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,6 +51,7 @@
 #include "nodeabstractproperty.h"
 #include "nodelistproperty.h"
 #include "nodeproperty.h"
+#include <rewriterview.h>
 
 namespace QmlDesigner {
 using namespace QmlDesigner::Internal;
@@ -902,7 +903,7 @@ QVariant ModelNode::auxiliaryData(const QString &name) const
     return internalNode()->auxiliaryData(name);
 }
 
-void ModelNode::setAuxiliaryData(const QString &name, const QVariant &data)
+void ModelNode::setAuxiliaryData(const QString &name, const QVariant &data) const
 {
     Internal::WriteLocker locker(m_model.data());
     m_model.data()->m_d->setAuxiliaryData(internalNode(), name, data);
@@ -915,6 +916,15 @@ bool ModelNode::hasAuxiliaryData(const QString &name) const
     }
 
     return internalNode()->hasAuxiliaryData(name);
+}
+
+QHash<QString, QVariant> ModelNode::auxiliaryData() const
+{
+    if (!isValid()) {
+        throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
+    }
+
+    return internalNode()->auxiliaryData();
 }
 
 void  ModelNode::setScriptFunctions(const QStringList &scriptFunctionList)
@@ -933,6 +943,52 @@ qint32 ModelNode::internalId() const
         return -1;
 
     return m_internalNode->internalId();
+}
+
+void ModelNode::setNodeSource(const QString &newNodeSource)
+{
+    Internal::WriteLocker locker(m_model.data());
+
+    if (!isValid()) {
+        Q_ASSERT_X(isValid(), Q_FUNC_INFO, "model node is invalid");
+        throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
+    }
+
+    if (internalNode()->nodeSource() == newNodeSource)
+        return;
+
+    m_model.data()->m_d->setNodeSource(internalNode(), newNodeSource);
+}
+
+QString ModelNode::nodeSource() const
+{
+    if (!isValid()) {
+        throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
+    }
+
+    return internalNode()->nodeSource();
+}
+
+QString ModelNode::convertTypeToImportAlias() const
+{
+    if (!isValid()) {
+        throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
+    }
+
+    if (model()->rewriterView())
+        return model()->rewriterView()->convertTypeToImportAlias(type());
+
+    return type();
+}
+
+ModelNode::NodeSourceType ModelNode::nodeSourceType() const
+{
+    if (!isValid()) {
+        throw InvalidModelNodeException(__LINE__, __FUNCTION__, __FILE__);
+    }
+
+    return static_cast<ModelNode::NodeSourceType>(internalNode()->nodeSourceType());
+
 }
 
 }

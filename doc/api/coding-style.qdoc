@@ -15,14 +15,15 @@
 ** file.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 ****************************************************************************/
 
 /*!
-
     \contentspage{index.html}{Qt Creator}
+    \previouspage qtcreator-ui-text.html
     \page coding-style.html
+    \nextpage qtcreator-api.html
 
     \title Qt Creator Coding Rules
 
@@ -62,7 +63,8 @@
     the philosophy behind Qt development. For more information about how to set up
     the development environment for working on a Qt library and how to submit code
     and documentation for inclusion to Qt, see
-    \l{http://qt.gitorious.org/qt/pages/QtContributionGuidelines}{Qt Contribution Guidelines}.
+    \l{http://developer.qt.nokia.com/wiki/Qt_Contribution_Guidelines}
+    {Guidelines for Contributions to the Qt Framework}.
 
     \section1 Binary and Source Compatibility
 
@@ -434,14 +436,26 @@
             protected, private. The public section is interesting for every
             user of the class. The private section is only of interest for the
             implementors of the class (you).
+
         \o  Avoid declaring global objects in the declaration file of the class.
             If the same variable is used for all objects, use a static member.
+
+        \o  Use \c{class} instead of \c{struct}. Some compilers mangle that
+            difference into the symbol names and spit out warnings if a struct
+            declaration is followed by a class definition. To avoid ongoing
+            changes from one to the other we declare \c{class} the prefered way.
+
     \endlist
 
     \section3 Declaring Variables
 
     \list
-        \o  Avoid global or static variables.
+        \o  Avoid global variables of class type to rule out initialization order problems.
+            Consider using \c Q_GLOBAL_STATIC if they cannot be avoided.
+        \o  Declare global string literals as
+            \code
+            const char aString[] = "Hello";
+            \endcode
         \o  Avoid short names (such as, a, rbarr, nughdeget) whenever possible.
             Use single-character variable names only for counters and
             temporaries, where the purpose of the variable is obvious.
@@ -531,9 +545,13 @@
 
     \list
         \o  Do not use exceptions, unless you know what you do.
+
         \o  Do not use RTTI (Run-Time Type Information; that is, the typeinfo
             struct, the dynamic_cast or the typeid operators, including throwing
             exceptions), unless you know what you do.
+
+        \o  Do not use virtual inheritance, unless you know what you do.
+
         \o  Use templates wisely, not just because you can.
 
             Hint: Use the compile autotest to see whether a C++ feature is supported
@@ -553,12 +571,13 @@
                   either use the qdoc \c {\unicode} command or use the relevant macro.
                   For example: \c{\uuml} for \uuml.
            \endlist
+
         \o  Use static keywords instead of anonymous namespaces whenever possible.
             A name localized to the compilation unit with static is
             guaranteed to have internal linkage. For names declared in anonymous
             namespaces, the C++ standard unfortunately mandates external linkage
-            (ISO/IEC 14882, 7.1.1/6, or see various discussions about this on the gcc mailing
-            lists).
+            (ISO/IEC 14882, 7.1.1/6, or see various discussions about this on the gcc
+            mailing lists).
     \endlist
 
     \section3 Null Pointers

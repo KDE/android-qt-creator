@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -84,7 +84,7 @@ SettingsPage::SettingsPage() :
 
 QString SettingsPage::id() const
 {
-    return QLatin1String("QmlDesigner");
+    return QLatin1String("B.QmlDesigner");
 }
 
 QString SettingsPage::displayName() const

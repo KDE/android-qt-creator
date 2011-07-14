@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,7 @@
 
 #include "debuggerengine.h"
 
-#include <projectexplorer/outputformat.h>
+#include <utils/outputformat.h>
 
 #include <QtCore/QScopedPointer>
 #include <QtNetwork/QAbstractSocket>
@@ -101,7 +101,7 @@ private:
     void selectThread(int index);
 
     void attemptBreakpointSynchronization();
-    bool acceptsBreakpoint(BreakpointId id) const;
+    bool acceptsBreakpoint(BreakpointModelId id) const;
 
     void assignValueInDebugger(const WatchData *data,
         const QString &expr, const QVariant &value);
@@ -130,7 +130,9 @@ private slots:
     void connectionStartupFailed();
     void connectionError(QAbstractSocket::SocketError error);
     void serviceConnectionError(const QString &service);
-    void appendMessage(const QString &msg, ProjectExplorer::OutputFormat);
+    void appendMessage(const QString &msg, Utils::OutputFormat);
+
+    void synchronizeWatchers();
 
 private:
     void expandObject(const QByteArray &iname, quint64 objectId);
@@ -145,8 +147,6 @@ private:
     QString mangleFilenamePaths(const QString &filename,
         const QString &oldBasePath, const QString &newBasePath) const;
     QString qmlImportPath() const;
-
-    void synchronizeWatchers();
 
     enum LogDirection {
         LogSend,

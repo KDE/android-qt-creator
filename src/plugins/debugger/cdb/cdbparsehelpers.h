@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,6 +53,7 @@ class BreakpointParameters;
 struct ThreadData;
 class Register;
 class GdbMi;
+class DisassemblerLines;
 
 // Perform mapping on parts of the source tree as reported by/passed to debugger
 // in case the user has specified such mappings in the global settings.
@@ -64,11 +65,11 @@ QString cdbSourcePathMapping(QString fileName,
 // Convert breakpoint in CDB syntax (applying source path mappings using native paths).
 QByteArray cdbAddBreakpointCommand(const BreakpointParameters &d,
                                    const QList<QPair<QString, QString> > &sourcePathMapping,
-                                   BreakpointId id = BreakpointId(-1), bool oneshot = false);
+                                   BreakpointModelId id = BreakpointModelId(-1), bool oneshot = false);
 // Parse extension command listing breakpoints.
 // Note that not all fields are returned, since file, line, function are encoded
 // in the expression (that is in addition deleted on resolving for a bp-type breakpoint).
-BreakpointId parseBreakPoint(const GdbMi &gdbmi, BreakpointResponse *r, QString *expression = 0);
+void parseBreakPoint(const GdbMi &gdbmi, BreakpointResponse *r, QString *expression = 0);
 
 // Convert a CDB integer value: '00000000`0012a290' -> '12a290', '0n10' ->'10'
 QByteArray fixCdbIntegerValue(QByteArray t, bool stripLeadingZeros = false, int *basePtr = 0);
@@ -79,6 +80,8 @@ QByteArray cdbWriteMemoryCommand(quint64 addr, const QByteArray &data);
 
 QString debugByteArray(const QByteArray &a);
 QString StringFromBase64EncodedUtf16(const QByteArray &a);
+
+DisassemblerLines parseCdbDisassembler(const QList<QByteArray> &a);
 
 // Model EXCEPTION_RECORD + firstchance
 struct WinException

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -84,7 +84,9 @@ public:
     virtual DeployConfiguration *activeDeployConfiguration() const;
     void setActiveDeployConfiguration(DeployConfiguration *configuration);
 
-    virtual DeployConfigurationFactory *deployConfigurationFactory() const = 0;
+    QStringList availableDeployConfigurationIds();
+    QString displayNameForDeployConfigurationId(const QString &id);
+    DeployConfiguration *createDeployConfiguration(const QString &id);
 
     // Running
     QList<RunConfiguration *> runConfigurations() const;
@@ -166,7 +168,6 @@ class PROJECTEXPLORER_EXPORT ITargetFactory :
 
 public:
     explicit ITargetFactory(QObject *parent = 0);
-    virtual ~ITargetFactory();
 
     virtual QStringList supportedTargetIds(ProjectExplorer::Project *project) const = 0;
     virtual bool supportsTargetId(const QString &id) const = 0;

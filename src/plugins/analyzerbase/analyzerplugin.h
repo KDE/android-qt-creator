@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,7 +38,6 @@
 #include <extensionsystem/iplugin.h>
 
 namespace Analyzer {
-
 namespace Internal {
 
 class AnalyzerPlugin : public ExtensionSystem::IPlugin
@@ -49,17 +48,12 @@ public:
     static AnalyzerPlugin *instance();
 
     AnalyzerPlugin();
-    ~AnalyzerPlugin();
+    virtual ~AnalyzerPlugin();
 
     bool initialize(const QStringList &arguments, QString *errorString);
     void extensionsInitialized();
+
     ShutdownFlag aboutToShutdown();
-
-private:
-    class AnalyzerPluginPrivate;
-    AnalyzerPluginPrivate *d;
-
-    static AnalyzerPlugin *m_instance;
 };
 
 } // namespace Internal

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,14 +36,18 @@
 #include "fileformat/qmlprojectitem.h"
 #include "qmlprojectrunconfiguration.h"
 #include "qmlprojecttarget.h"
+#include "qmlprojectconstants.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <extensionsystem/pluginmanager.h>
-#include <projectexplorer/filewatcher.h>
-#include <qt4projectmanager/qmldumptool.h>
-#include <qt4projectmanager/qtversionmanager.h>
+#include <qtsupport/qmldumptool.h>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionmanager.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
+#include <utils/fileutils.h>
+
+#include <utils/filesystemwatcher.h>
 
 #include <QtCore/QTextStream>
 #include <QtDeclarative/QDeclarativeComponent>
@@ -55,15 +59,19 @@ QmlProject::QmlProject(Internal::Manager *manager, const QString &fileName)
     : m_manager(manager),
       m_fileName(fileName),
       m_modelManager(ExtensionSystem::PluginManager::instance()->getObject<QmlJS::ModelManagerInterface>()),
-      m_fileWatcher(new ProjectExplorer::FileWatcher(this))
+      m_fileWatcher(new Utils::FileSystemWatcher(this))
 {
+    m_fileWatcher->setObjectName(QLatin1String("QmlProjectWatcher"));
+    setProjectContext(Core::Context(QmlProjectManager::Constants::PROJECTCONTEXT));
+    setProjectLanguage(Core::Context(QmlProjectManager::Constants::LANG_QML));
+
     QFileInfo fileInfo(m_fileName);
     m_projectName = fileInfo.completeBaseName();
 
     m_file = new Internal::QmlProjectFile(this, fileName);
     m_rootNode = new Internal::QmlProjectNode(this, m_file);
 
-    m_fileWatcher->addFile(fileName),
+    m_fileWatcher->addFile(fileName, Utils::FileSystemWatcher::WatchModifiedDate);
     connect(m_fileWatcher, SIGNAL(fileChanged(QString)),
             this, SLOT(refreshProjectFile()));
 
@@ -93,10 +101,10 @@ void QmlProject::parseProject(RefreshOptions options)
         if (options & ProjectFile)
             delete m_projectItem.data();
         if (!m_projectItem) {
-            QFile file(m_fileName);
-            if (file.open(QFile::ReadOnly)) {
+            Utils::FileReader reader;
+            if (reader.fetch(m_fileName)) {
                 QDeclarativeComponent *component = new QDeclarativeComponent(&m_engine, this);
-                component->setData(file.readAll(), QUrl::fromLocalFile(m_fileName));
+                component->setData(reader.data(), QUrl::fromLocalFile(m_fileName));
                 if (component->isReady()
                     && qobject_cast<QmlProjectItem*>(component->create())) {
                     m_projectItem = qobject_cast<QmlProjectItem*>(component->create());
@@ -107,7 +115,7 @@ void QmlProject::parseProject(RefreshOptions options)
                     messageManager->printToOutputPane(component->errorString(), true);
                 }
             } else {
-                messageManager->printToOutputPane(tr("Error while loading project file %1.").arg(m_fileName), true);
+                messageManager->printToOutputPane(tr("QML project: %1").arg(reader.errorString()), true);
             }
         }
         if (m_projectItem) {
@@ -135,7 +143,12 @@ void QmlProject::refresh(RefreshOptions options)
     QmlJS::ModelManagerInterface::ProjectInfo pinfo(this);
     pinfo.sourceFiles = files();
     pinfo.importPaths = importPaths();
-    Qt4ProjectManager::QmlDumpTool::pathAndEnvironment(this, false, &pinfo.qmlDumpPath, &pinfo.qmlDumpEnvironment);
+    QtSupport::BaseQtVersion *version = 0;
+    if (activeTarget()) {
+        if (QmlProjectRunConfiguration *rc = qobject_cast<QmlProjectRunConfiguration *>(activeTarget()->activeRunConfiguration()))
+            version = rc->qtVersion();
+        QtSupport::QmlDumpTool::pathAndEnvironment(this, version, false, &pinfo.qmlDumpPath, &pinfo.qmlDumpEnvironment);
+    }
     m_modelManager->updateProjectInfo(pinfo);
 }
 
@@ -185,7 +198,7 @@ QStringList QmlProject::importPaths() const
         const QmlProjectRunConfiguration *runConfig =
                 qobject_cast<QmlProjectRunConfiguration*>(activeTarget()->activeRunConfiguration());
         if (runConfig) {
-            const Qt4ProjectManager::QtVersion *qtVersion = runConfig->qtVersion();
+            const QtSupport::BaseQtVersion *qtVersion = runConfig->qtVersion();
             if (qtVersion && qtVersion->isValid()) {
                 const QString qtVersionImportPath = qtVersion->versionInfo().value("QT_INSTALL_IMPORTS");
                 if (!qtVersionImportPath.isEmpty())
@@ -278,9 +291,11 @@ bool QmlProject::fromMap(const QVariantMap &map)
 
     refresh(Everything);
     // FIXME workaround to guarantee that run/debug actions are enabled if a valid file exists
-    QmlProjectRunConfiguration *runConfig = qobject_cast<QmlProjectRunConfiguration*>(activeTarget()->activeRunConfiguration());
-    if (runConfig)
-        runConfig->changeCurrentFile(0);
+    if (activeTarget()) {
+        QmlProjectRunConfiguration *runConfig = qobject_cast<QmlProjectRunConfiguration*>(activeTarget()->activeRunConfiguration());
+        if (runConfig)
+            runConfig->changeCurrentFile(0);
+    }
 
     return true;
 }

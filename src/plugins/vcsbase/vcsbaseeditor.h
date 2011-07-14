@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,26 +55,14 @@ struct VCSBaseEditorWidgetPrivate;
 class DiffHighlighter;
 class BaseAnnotationHighlighter;
 
-// Contents of a VCSBaseEditor and its interaction.
+// Documentation inside
 enum EditorContentType {
-    // No special handling.
     RegularCommandOutput,
-    // Log of a file under revision control. Provide  'click on change'
-    // description and 'Annotate' if is the log of a single file.
     LogOutput,
-    // <change description>: file line
-    // Color per change number and provide 'click on change' description.
-    // Context menu offers "Annotate previous version".
     AnnotateOutput,
-    // Diff output. Might includes describe output, which consists of a
-    // header and diffs. Interaction is 'double click in  hunk' which
-    // opens the file
     DiffOutput
 };
 
-// Helper struct used to parametrize an editor with mime type, context
-// and id. The extension is currently only a suggestion when running
-// VCS commands with redirection.
 struct VCSBASE_EXPORT VCSBaseEditorParameters
 {
     EditorContentType type;
@@ -85,11 +73,16 @@ struct VCSBASE_EXPORT VCSBaseEditorParameters
     const char *extension;
 };
 
-// Base class for editors showing version control system output
-// of the type enumerated by EditorContentType.
-// The source property should contain the file or directory the log
-// refers to and will be emitted with describeRequested().
-// This is for VCS that need a current directory.
+class VCSBASE_EXPORT DiffChunk
+{
+public:
+    bool isValid() const;
+    QByteArray asPatch() const;
+
+    QString fileName;
+    QByteArray chunk;
+};
+
 class VCSBASE_EXPORT VCSBaseEditorWidget : public TextEditor::BaseTextEditorWidget
 {
     Q_PROPERTY(QString source READ source WRITE setSource)
@@ -98,6 +91,7 @@ class VCSBASE_EXPORT VCSBaseEditorWidget : public TextEditor::BaseTextEditorWidg
     Q_PROPERTY(QString annotateRevisionTextFormat READ annotateRevisionTextFormat WRITE setAnnotateRevisionTextFormat)
     Q_PROPERTY(QString copyRevisionTextFormat READ copyRevisionTextFormat WRITE setCopyRevisionTextFormat)
     Q_PROPERTY(bool isFileLogAnnotateEnabled READ isFileLogAnnotateEnabled WRITE setFileLogAnnotateEnabled)
+    Q_PROPERTY(bool revertDiffChunkEnabled READ isRevertDiffChunkEnabled WRITE setRevertDiffChunkEnabled)
     Q_OBJECT
 
 protected:
@@ -145,6 +139,10 @@ public:
     QString diffBaseDirectory() const;
     void setDiffBaseDirectory(const QString &d);
 
+    // Diff: Can revert?
+    bool isRevertDiffChunkEnabled() const;
+    void setRevertDiffChunkEnabled(bool e);
+
     bool isModified() const;
 
     EditorContentType contentType() const;
@@ -187,12 +185,21 @@ public:
     bool setConfigurationWidget(QWidget *w);
     QWidget *configurationWidget() const;
 
+    /* Tagging editors: Sometimes, an editor should be re-used, for example, when showing
+     * a diff of the same file with different diff-options. In order to be able to find
+     * the editor, they get a 'tag' containing type and parameters (dynamic property string). */
+    static void tagEditor(Core::IEditor *e, const QString &tag);
+    static Core::IEditor* locateEditorByTag(const QString &tag);
+    static QString editorTag(EditorContentType t, const QString &workingDirectory, const QStringList &files,
+                             const QString &revision = QString());
+
 signals:
     // These signals also exist in the opaque editable (IEditor) that is
     // handled by the editor manager for convenience. They are emitted
     // for LogOutput/AnnotateOutput content types.
     void describeRequested(const QString &source, const QString &change);
     void annotateRevisionRequested(const QString &source, const QString &change, int lineNumber);
+    void diffChunkReverted(const VCSBase::DiffChunk &dc);
 
 public slots:
     // Convenience slot to set data read from stdout, will use the
@@ -219,12 +226,18 @@ private slots:
     void slotDiffCursorPositionChanged();
     void slotAnnotateRevision();
     void slotCopyRevision();
+    void slotRevertDiffChunk();
+    void slotPaste();
 
 protected:
     /* A helper that can be used to locate a file in a diff in case it
      * is relative. Tries to derive the directory from base directory,
      * source and version control. */
     QString findDiffFile(const QString &f, Core::IVersionControl *control = 0) const;
+
+    virtual bool canRevertDiffChunk(const DiffChunk &dc) const;
+    // Revert a patch chunk. Default implementation uses patch.exe
+    virtual bool revertDiffChunk(const DiffChunk &dc) const;
 
 private:
     // Implement to return a set of change identifiers in
@@ -241,6 +254,8 @@ private:
     // Implement to return the previous version[s] of an annotation change
     // for "Annotate previous version"
     virtual QStringList annotationPreviousVersions(const QString &revision) const;
+    // cut out chunk and determine file name.
+    DiffChunk diffChunk(QTextCursor cursor) const;
 
     void jumpToChangeFromDiff(QTextCursor cursor);
     QAction *createDescribeAction(const QString &change);
@@ -251,5 +266,7 @@ private:
 };
 
 } // namespace VCSBase
+
+Q_DECLARE_METATYPE(VCSBase::DiffChunk)
 
 #endif // VCSBASE_BASEEDITOR_H

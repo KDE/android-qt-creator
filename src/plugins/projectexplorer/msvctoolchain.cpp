@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorersettings.h>
 
+#include <utils/fileutils.h>
 #include <utils/qtcprocess.h>
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
@@ -54,7 +55,11 @@
 #include <QtGui/QFormLayout>
 #include <QtGui/QDesktopServices>
 
-static const char debuggerCommandKeyC[] = "ProjectExplorer.MsvcToolChain.Debugger";
+#define KEY_ROOT "ProjectExplorer.MsvcToolChain."
+static const char debuggerCommandKeyC[] = KEY_ROOT"Debugger";
+static const char varsBatKeyC[] = KEY_ROOT"VarsBat";
+static const char varsBatArgKeyC[] = KEY_ROOT"VarsBatArg";
+static const char supportedAbiKeyC[] = KEY_ROOT"SupportedAbi";
 
 enum { debug = 0 };
 
@@ -176,16 +181,11 @@ static QByteArray msvcPredefinedMacros(const Utils::Environment &env)
                       "#define __ptr32\n"
                       "#define __ptr64\n";
 
-    QString tmpFilePath;
-    {
-        // QTemporaryFile is buggy and will not unlock the file for cl.exe
-        QTemporaryFile tmpFile(QDir::tempPath()+"/envtestXXXXXX.cpp");
-        tmpFile.setAutoRemove(false);
-        if (!tmpFile.open())
-            return predefinedMacros;
-        tmpFilePath = QFileInfo(tmpFile).canonicalFilePath();
-        tmpFile.write(msvcCompilationFile());
-        tmpFile.close();
+    Utils::TempFileSaver saver(QDir::tempPath()+"/envtestXXXXXX.cpp");
+    saver.write(msvcCompilationFile());
+    if (!saver.finalize()) {
+        qWarning("%s: %s", Q_FUNC_INFO, qPrintable(saver.errorString()));
+        return predefinedMacros;
     }
     QProcess cpp;
     cpp.setEnvironment(env.toStringList());
@@ -197,7 +197,7 @@ static QByteArray msvcPredefinedMacros(const Utils::Environment &env)
         return predefinedMacros;
     }
 
-    arguments << QLatin1String("/EP") << QDir::toNativeSeparators(tmpFilePath);
+    arguments << QLatin1String("/EP") << QDir::toNativeSeparators(saver.fileName());
     cpp.start(binary, arguments);
     if (!cpp.waitForStarted()) {
         qWarning("%s: Cannot start '%s': %s", Q_FUNC_INFO, qPrintable(binary),
@@ -231,7 +231,6 @@ static QByteArray msvcPredefinedMacros(const Utils::Environment &env)
             predefinedMacros += '\n';
         }
     }
-    QFile::remove(tmpFilePath);
     if (debug)
         qDebug() << "msvcPredefinedMacros" << predefinedMacros;
     return predefinedMacros;
@@ -269,13 +268,7 @@ static Utils::Environment msvcReadEnvironmentSetting(const QString &varsBat,
         return result;
 
     const QString tempOutputFileName = QDir::tempPath() + QLatin1String("\\qtcreator-msvc-environment.txt");
-    QTemporaryFile tf(QDir::tempPath() + "\\XXXXXX.bat");
-    tf.setAutoRemove(true);
-    if (!tf.open())
-        return result;
-
-    const QString filename = tf.fileName();
-
+    Utils::TempFileSaver saver(QDir::tempPath() + "\\XXXXXX.bat");
     QByteArray call = "call ";
     call += Utils::QtcProcess::quoteArg(varsBat).toLocal8Bit();
     if (!args.isEmpty()) {
@@ -283,19 +276,21 @@ static Utils::Environment msvcReadEnvironmentSetting(const QString &varsBat,
         call += args.toLocal8Bit();
     }
     call += "\r\n";
-    tf.write(call);
+    saver.write(call);
     const QByteArray redirect = "set > " + Utils::QtcProcess::quoteArg(
                 QDir::toNativeSeparators(tempOutputFileName)).toLocal8Bit() + "\r\n";
-    tf.write(redirect);
-    tf.flush();
-    tf.waitForBytesWritten(30000);
+    saver.write(redirect);
+    if (!saver.finalize()) {
+        qWarning("%s: %s", Q_FUNC_INFO, qPrintable(saver.errorString()));
+        return result;
+    }
 
     Utils::QtcProcess run;
     run.setEnvironment(env);
     const QString cmdPath = QString::fromLocal8Bit(qgetenv("COMSPEC"));
     // Windows SDK setup scripts require command line switches for environment expansion.
     QString cmdArguments = QLatin1String(" /E:ON /V:ON /c \"");
-    cmdArguments += QDir::toNativeSeparators(filename);
+    cmdArguments += QDir::toNativeSeparators(saver.fileName());
     cmdArguments += QLatin1Char('"');
     run.setCommand(cmdPath, cmdArguments);
     if (debug)
@@ -313,7 +308,6 @@ static Utils::Environment msvcReadEnvironmentSetting(const QString &varsBat,
         Utils::SynchronousProcess::stopProcess(run);
         return result;
     }
-    tf.close();
 
     QFile varsFile(tempOutputFileName);
     if (!varsFile.open(QIODevice::ReadOnly|QIODevice::Text))
@@ -362,10 +356,36 @@ MsvcToolChain::MsvcToolChain(const QString &name, const Abi &abi,
     Q_ASSERT(abi.binaryFormat() == Abi::PEFormat);
     Q_ASSERT(abi.osFlavor() != Abi::WindowsMSysFlavor);
 
-    setId(QString::fromLatin1("%1:%2.%3.%4").arg(Constants::MSVC_TOOLCHAIN_ID).arg(m_varsBat)
-            .arg(m_varsBatArg).arg(m_debuggerCommand));
-
+    updateId();
     setDisplayName(name);
+}
+
+MsvcToolChain::MsvcToolChain() :
+    ToolChain(QLatin1String(Constants::MSVC_TOOLCHAIN_ID), false),
+    m_lastEnvironment(Utils::Environment::systemEnvironment())
+{
+}
+
+MsvcToolChain *MsvcToolChain::readFromMap(const QVariantMap &data)
+{
+    MsvcToolChain *tc = new MsvcToolChain;
+    if (tc->fromMap(data))
+        return tc;
+    delete tc;
+    return 0;
+}
+
+void MsvcToolChain::updateId()
+{
+    const QChar colon = QLatin1Char(':');
+    QString id = QLatin1String(Constants::MSVC_TOOLCHAIN_ID);
+    id += colon;
+    id += m_varsBat;
+    id += colon;
+    id += m_varsBatArg;
+    id += colon;
+    id += m_debuggerCommand;
+    setId(id);
 }
 
 QString MsvcToolChain::typeName() const
@@ -416,6 +436,17 @@ void MsvcToolChain::addToEnvironment(Utils::Environment &env) const
     env = m_resultEnvironment;
 }
 
+QString MsvcToolChain::mkspec() const
+{
+    if (m_abi.osFlavor() == Abi::WindowsMsvc2005Flavor)
+        return QLatin1String("win32-msvc2005");
+    if (m_abi.osFlavor() == Abi::WindowsMsvc2008Flavor)
+        return QLatin1String("win32-msvc2008");
+    if (m_abi.osFlavor() == Abi::WindowsMsvc2010Flavor)
+        return QLatin1String("win32-msvc2010");
+    return QString();
+}
+
 QString MsvcToolChain::makeCommand() const
 {
     if (ProjectExplorerPlugin::instance()->projectExplorerSettings().useJom) {
@@ -437,6 +468,7 @@ void MsvcToolChain::setDebuggerCommand(const QString &d)
     if (m_debuggerCommand == d)
         return;
     m_debuggerCommand = d;
+    updateId();
     toolChainUpdated();
 }
 
@@ -448,7 +480,12 @@ QString MsvcToolChain::debuggerCommand() const
 QVariantMap MsvcToolChain::toMap() const
 {
     QVariantMap data = ToolChain::toMap();
-    data.insert(QLatin1String(debuggerCommandKeyC), m_debuggerCommand);
+    if (!m_debuggerCommand.isEmpty())
+        data.insert(QLatin1String(debuggerCommandKeyC), m_debuggerCommand);
+    data.insert(QLatin1String(varsBatKeyC), m_varsBat);
+    if (!m_varsBatArg.isEmpty())
+        data.insert(QLatin1String(varsBatArgKeyC), m_varsBatArg);
+    data.insert(QLatin1String(supportedAbiKeyC), m_abi.toString());
     return data;
 }
 
@@ -456,9 +493,13 @@ bool MsvcToolChain::fromMap(const QVariantMap &data)
 {
     if (!ToolChain::fromMap(data))
         return false;
-
-    m_debuggerCommand= data.value(QLatin1String(debuggerCommandKeyC)).toString();
-    return true;
+    m_varsBat = data.value(QLatin1String(varsBatKeyC)).toString();
+    m_varsBatArg = data.value(QLatin1String(varsBatArgKeyC)).toString();
+    m_debuggerCommand = data.value(QLatin1String(debuggerCommandKeyC)).toString();
+    const QString abiString = data.value(QLatin1String(supportedAbiKeyC)).toString();
+    m_abi = Abi(abiString);
+    updateId();
+    return !m_varsBat.isEmpty() && m_abi.isValid();
 }
 
 IOutputParser *MsvcToolChain::outputParser() const
@@ -522,10 +563,13 @@ void MsvcDebuggerConfigLabel::slotLinkActivated(const QString &link)
 // --------------------------------------------------------------------------
 
 MsvcToolChainConfigWidget::MsvcToolChainConfigWidget(ToolChain *tc) :
-    ToolChainConfigWidget(tc)
+    ToolChainConfigWidget(tc),
+    m_varsBatDisplayLabel(new QLabel(this))
 {
     QFormLayout *formLayout = new QFormLayout(this);
     formLayout->addRow(new QLabel(tc->displayName()));
+    m_varsBatDisplayLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    formLayout->addRow(tr("Initialization:"), m_varsBatDisplayLabel);
     formLayout->addRow(new MsvcDebuggerConfigLabel);
     addDebuggerCommandControls(formLayout, QStringList(QLatin1String("-version")));
     addDebuggerAutoDetection(this, SLOT(autoDetectDebugger()));
@@ -544,6 +588,12 @@ void MsvcToolChainConfigWidget::setFromToolChain()
 {
     MsvcToolChain *tc = static_cast<MsvcToolChain *>(toolChain());
     QTC_ASSERT(tc, return);
+    QString varsBatDisplay = tc->varsBat();
+    if (!tc->varsBatArg().isEmpty()) {
+        varsBatDisplay += QLatin1Char(' ');
+        varsBatDisplay += tc->varsBatArg();
+    }
+    m_varsBatDisplayLabel->setText(varsBatDisplay);
     setDebuggerCommand(tc->debuggerCommand());
 }
 
@@ -609,7 +659,6 @@ QList<ToolChain *> MsvcToolChainFactory::autoDetect()
             tmp.append(new MsvcToolChain(generateDisplayName(name, MsvcToolChain::WindowsSDK, MsvcToolChain::s32),
                                          findAbiOfMsvc(MsvcToolChain::WindowsSDK, MsvcToolChain::s32, version),
                                          sdkVcVarsBat, QLatin1String("/x86"), true));
-#ifdef Q_OS_WIN64
             // Add all platforms
             tmp.append(new MsvcToolChain(generateDisplayName(name, MsvcToolChain::WindowsSDK, MsvcToolChain::s64),
                                          findAbiOfMsvc(MsvcToolChain::WindowsSDK, MsvcToolChain::s64, version),
@@ -617,7 +666,6 @@ QList<ToolChain *> MsvcToolChainFactory::autoDetect()
             tmp.append(new MsvcToolChain(generateDisplayName(name, MsvcToolChain::WindowsSDK, MsvcToolChain::ia64),
                                          findAbiOfMsvc(MsvcToolChain::WindowsSDK, MsvcToolChain::ia64, version),
                                          sdkVcVarsBat, QLatin1String("/ia64"), true));
-#endif
             // Make sure the default is front.
             if (folder == defaultSdkPath)
                 results = tmp + results;
@@ -732,7 +780,7 @@ QString MsvcToolChain::autoDetectCdbDebugger(QStringList *checkedDirectories /* 
 
     // Try the post fixes
     QString outPath;
-    for (unsigned i = 0; i < sizeof(postFixes)/sizeof(const char*); i++) {
+    for (unsigned i = 0; i < sizeof(postFixes)/sizeof(const char*); ++i) {
         outPath = checkCdbExecutable(programDir, QLatin1String(postFixes[i]), checkedDirectories);
         if (!outPath.isEmpty())
             return outPath;
@@ -749,7 +797,7 @@ QString MsvcToolChain::autoDetectCdbDebugger(QStringList *checkedDirectories /* 
     // A 32bit process on 64 bit sees "ProgramFiles\Debg.. (x64)".
     if (programDir.endsWith(QLatin1String(" (x86)"))) {
         const QString programDir64 = programDir.left(programDir.size() - 6);
-        for (unsigned i = 0; i < sizeof(postFixes)/sizeof(const char*); i++) {
+        for (unsigned i = 0; i < sizeof(postFixes)/sizeof(const char*); ++i) {
             outPath = checkCdbExecutable(programDir64, QLatin1String(postFixes[i]), checkedDirectories);
             if (!outPath.isEmpty())
                 return outPath;
@@ -757,6 +805,11 @@ QString MsvcToolChain::autoDetectCdbDebugger(QStringList *checkedDirectories /* 
     }
 #endif
     return QString();
+}
+
+bool MsvcToolChainFactory::canRestore(const QVariantMap &data)
+{
+    return idFromMap(data).startsWith(QLatin1String(Constants::MSVC_TOOLCHAIN_ID) + QLatin1Char(':'));
 }
 
 } // namespace Internal

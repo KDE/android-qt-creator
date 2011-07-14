@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,9 +37,10 @@
 #include "qt4nodes.h"
 #include "qt4project.h"
 #include "qt4target.h"
-#include "profilereader.h"
+#include "profileeditor.h"
 #include "qmakestep.h"
 #include "qt4buildconfiguration.h"
+#include "addlibrarywizard.h"
 #include "wizards/qtquickapp.h"
 #include "wizards/html5app.h"
 
@@ -56,6 +57,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
+#include <qtsupport/profilereader.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -75,7 +77,7 @@ using ProjectExplorer::FormType;
 using ProjectExplorer::ResourceType;
 using ProjectExplorer::UnknownFileType;
 
-static const char * const kInstallBins = "CurrentProject:QT_INSTALL_BINS";
+static const char kInstallBins[] = "CurrentProject:QT_INSTALL_BINS";
 
 // Known file types of a Qt 4 project
 static const char* qt4FileTypes[] = {
@@ -189,8 +191,10 @@ void Qt4Manager::updateVariable(const QString &variable)
             Core::VariableManager::instance()->remove(QLatin1String(kInstallBins));
             return;
         }
-        QString value = qt4pro->activeTarget()->activeBuildConfiguration()
-                ->qtVersion()->versionInfo().value(QLatin1String("QT_INSTALL_BINS"));
+        QString value;
+        QtSupport::BaseQtVersion *qtv = qt4pro->activeTarget()->activeBuildConfiguration()->qtVersion();
+        if (qtv)
+            value = qtv->versionInfo().value(QLatin1String("QT_INSTALL_BINS"));
         Core::VariableManager::instance()->insert(QLatin1String(kInstallBins), value);
     }
 }
@@ -200,16 +204,6 @@ void Qt4Manager::uiEditorContentsChanged()
     // cast sender, get filename
     if (!m_dirty && isFormWindowEditor(sender()))
         m_dirty = true;
-}
-
-Core::Context Qt4Manager::projectContext() const
-{
-     return m_plugin->projectContext();
-}
-
-Core::Context Qt4Manager::projectLanguage() const
-{
-    return Core::Context(ProjectExplorer::Constants::LANG_CXX);
 }
 
 QString Qt4Manager::mimeType() const
@@ -293,6 +287,52 @@ ProjectExplorer::Project *Qt4Manager::contextProject() const
 {
     return m_contextProject;
 }
+
+void Qt4Manager::addLibrary()
+{
+    Core::EditorManager *em = Core::EditorManager::instance();
+    ProFileEditorWidget *editor = qobject_cast<ProFileEditorWidget*>(em->currentEditor()->widget());
+    if (editor)
+        addLibrary(editor->file()->fileName(), editor);
+}
+
+void Qt4Manager::addLibraryContextMenu()
+{
+    ProjectExplorer::Node *node = ProjectExplorer::ProjectExplorerPlugin::instance()->currentNode();
+    if (qobject_cast<Qt4ProFileNode *>(node))
+        addLibrary(node->path());
+}
+
+void Qt4Manager::addLibrary(const QString &fileName, ProFileEditorWidget *editor)
+{
+    AddLibraryWizard wizard(fileName, Core::EditorManager::instance());
+    if (wizard.exec() != QDialog::Accepted)
+        return;
+
+    TextEditor::BaseTextEditor *editable = 0;
+    if (editor) {
+        editable = editor->editor();
+    } else {
+        Core::EditorManager *em = Core::EditorManager::instance();
+        editable = qobject_cast<TextEditor::BaseTextEditor *>
+                (em->openEditor(fileName, Qt4ProjectManager::Constants::PROFILE_EDITOR_ID));
+    }
+    if (!editable)
+        return;
+
+    const int endOfDoc = editable->position(TextEditor::ITextEditor::EndOfDoc);
+    editable->setCursorPosition(endOfDoc);
+    QString snippet = wizard.snippet();
+
+    // add extra \n in case the last line is not empty
+    int line, column;
+    editable->convertPosition(endOfDoc, &line, &column);
+    if (!editable->textAt(endOfDoc - column, column).simplified().isEmpty())
+        snippet = QLatin1Char('\n') + snippet;
+
+    editable->insert(snippet);
+}
+
 
 void Qt4Manager::runQMake()
 {

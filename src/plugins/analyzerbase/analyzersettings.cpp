@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,41 +40,27 @@
 #include "analyzeroptionspage.h"
 
 #include <coreplugin/icore.h>
-#include <valgrind/xmlprotocol/error.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QSettings>
 
-using namespace Analyzer;
 using namespace Analyzer::Internal;
 
-static const QLatin1String groupC("Analyzer");
+static const char groupC[] = "Analyzer";
+
+namespace Analyzer {
 
 AnalyzerGlobalSettings *AnalyzerGlobalSettings::m_instance = 0;
 
-AbstractAnalyzerSubConfig::AbstractAnalyzerSubConfig(QObject *parent)
-: QObject(parent)
-{
-
-}
-
-AbstractAnalyzerSubConfig::~AbstractAnalyzerSubConfig()
-{
-}
-
 AnalyzerSettings::AnalyzerSettings(QObject *parent)
-: QObject(parent)
-{
-}
-
-AnalyzerSettings::~AnalyzerSettings()
+    : QObject(parent)
 {
 }
 
 bool AnalyzerSettings::fromMap(const QVariantMap &map)
 {
     bool ret = true;
-    foreach(AbstractAnalyzerSubConfig *config, subConfigs()) {
+    foreach (AbstractAnalyzerSubConfig *config, subConfigs()) {
         ret = ret && config->fromMap(map);
     }
     return ret;
@@ -83,7 +69,7 @@ bool AnalyzerSettings::fromMap(const QVariantMap &map)
 QVariantMap AnalyzerSettings::defaults() const
 {
     QVariantMap map;
-    foreach(AbstractAnalyzerSubConfig *config, subConfigs()) {
+    foreach (AbstractAnalyzerSubConfig *config, subConfigs()) {
         map.unite(config->defaults());
     }
     return map;
@@ -92,7 +78,7 @@ QVariantMap AnalyzerSettings::defaults() const
 QVariantMap AnalyzerSettings::toMap() const
 {
     QVariantMap map;
-    foreach(AbstractAnalyzerSubConfig *config, subConfigs()) {
+    foreach (AbstractAnalyzerSubConfig *config, subConfigs()) {
         map.unite(config->toMap());
     }
     return map;
@@ -115,7 +101,6 @@ AnalyzerGlobalSettings *AnalyzerGlobalSettings::instance()
 
 AnalyzerGlobalSettings::~AnalyzerGlobalSettings()
 {
-    qDeleteAll(m_subConfigFactories);
     m_instance = 0;
 }
 
@@ -125,7 +110,7 @@ void AnalyzerGlobalSettings::readSettings()
 
     QVariantMap map;
 
-    settings->beginGroup(groupC);
+    settings->beginGroup(QLatin1String(groupC));
     // read the values from config, using the keys from the defaults value map
     const QVariantMap def = defaults();
     for (QVariantMap::ConstIterator it = def.constBegin(); it != def.constEnd(); ++it)
@@ -139,44 +124,40 @@ void AnalyzerGlobalSettings::readSettings()
 void AnalyzerGlobalSettings::writeSettings() const
 {
     QSettings *settings = Core::ICore::instance()->settings();
-    settings->beginGroup(groupC);
+    settings->beginGroup(QLatin1String(groupC));
     const QVariantMap map = toMap();
     for (QVariantMap::ConstIterator it = map.begin(); it != map.end(); ++it)
         settings->setValue(it.key(), it.value());
     settings->endGroup();
 }
 
-void AnalyzerGlobalSettings::registerSubConfigFactory(AbstractAnalyzerSubConfigFactory *factory)
+void AnalyzerGlobalSettings::registerSubConfigs
+    (AnalyzerSubConfigFactory globalCreator, AnalyzerSubConfigFactory projectCreator)
 {
-    m_subConfigFactories << factory;
+    m_projectSubConfigs.append(projectCreator);
 
-    AbstractAnalyzerSubConfig *config = factory->createGlobalSubConfig(this);
-    addSubConfig(config);
+    AbstractAnalyzerSubConfig *config = globalCreator();
+    config->setParent(this);
     AnalyzerPlugin::instance()->addAutoReleasedObject(new AnalyzerOptionsPage(config));
 
     readSettings();
 }
 
-QList<AbstractAnalyzerSubConfigFactory *> AnalyzerGlobalSettings::subConfigFactories() const
+QList<AnalyzerSubConfigFactory> AnalyzerGlobalSettings::projectSubConfigs() const
 {
-    return m_subConfigFactories;
+    return m_projectSubConfigs;
 }
 
 AnalyzerProjectSettings::AnalyzerProjectSettings(QObject *parent)
-: AnalyzerSettings(parent)
+    : AnalyzerSettings(parent)
 {
     // add sub configs
-    foreach(AbstractAnalyzerSubConfigFactory *factory, AnalyzerGlobalSettings::instance()->subConfigFactories()) {
-        addSubConfig(factory->createProjectSubConfig(parent));
-    }
+    foreach (AnalyzerSubConfigFactory factory, AnalyzerGlobalSettings::instance()->projectSubConfigs())
+        factory()->setParent(this);
 
     // take defaults from global settings
     AnalyzerGlobalSettings *gs = AnalyzerGlobalSettings::instance();
     fromMap(gs->toMap());
-}
-
-AnalyzerProjectSettings::~AnalyzerProjectSettings()
-{
 }
 
 QString AnalyzerProjectSettings::displayName() const
@@ -193,3 +174,5 @@ QVariantMap AnalyzerProjectSettings::toMap() const
 {
     return AnalyzerSettings::toMap();
 }
+
+} // namespace Analyzer

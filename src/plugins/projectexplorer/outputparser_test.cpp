@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -63,9 +63,9 @@ void OutputParserTester::testParsing(const QString &lines,
     QStringList inputLines = lines.split(QChar('\n'));
     foreach (const QString &input, inputLines) {
         if (inputChannel == STDOUT)
-            childParser()->stdOutput(input);
+            childParser()->stdOutput(input + QLatin1Char('\n'));
         else
-            childParser()->stdError(input);
+            childParser()->stdError(input + QLatin1Char('\n'));
     }
      // first disconnect ourselves from the end of the parser chain again
     IOutputParser * parser = this;
@@ -91,7 +91,7 @@ void OutputParserTester::testParsing(const QString &lines,
             QCOMPARE(m_receivedTasks.at(i).description, tasks.at(i).description);
             QCOMPARE(m_receivedTasks.at(i).file, tasks.at(i).file);
             QCOMPARE(m_receivedTasks.at(i).line, tasks.at(i).line);
-            QCOMPARE(m_receivedTasks.at(i).type, tasks.at(i).type);
+            QCOMPARE(static_cast<int>(m_receivedTasks.at(i).type), static_cast<int>(tasks.at(i).type));
         }
     }
 }
@@ -135,15 +135,13 @@ void OutputParserTester::setDebugEnabled(bool debug)
 
 void OutputParserTester::stdOutput(const QString &line)
 {
-    if (!m_receivedStdOutChildLine.isEmpty())
-        m_receivedStdOutChildLine.append(QChar('\n'));
+    QVERIFY(line.endsWith(QLatin1Char('\n')));
     m_receivedStdOutChildLine.append(line);
 }
 
 void OutputParserTester::stdError(const QString &line)
 {
-    if (!m_receivedStdErrChildLine.isEmpty())
-        m_receivedStdErrChildLine.append(QChar('\n'));
+    QVERIFY(line.endsWith(QLatin1Char('\n')));
     m_receivedStdErrChildLine.append(line);
 }
 
@@ -155,9 +153,9 @@ void OutputParserTester::appendOutputParser(IOutputParser *parser)
     parser->appendOutputParser(this);
 }
 
-void OutputParserTester::outputAdded(const QString &line, const QTextCharFormat &textCharFormat)
+void OutputParserTester::outputAdded(const QString &line, ProjectExplorer::BuildStep::OutputFormat format)
 {
-    Q_UNUSED(textCharFormat);
+    Q_UNUSED(format);
     if (!m_receivedOutput.isEmpty())
         m_receivedOutput.append(QChar('\n'));
     m_receivedOutput.append(line);

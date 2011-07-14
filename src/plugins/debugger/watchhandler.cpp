@@ -26,19 +26,20 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "watchhandler.h"
 
 #include "breakhandler.h"
+#include "debuggerinternalconstants.h"
 #include "debuggeractions.h"
 #include "debuggercore.h"
 #include "debuggerengine.h"
 #include "watchutils.h"
 
-#if USE_MODEL_TEST
+#if USE_WATCH_MODEL_TEST
 #include "modeltest.h"
 #endif
 
@@ -79,6 +80,12 @@ static int generationCounter = 0;
 QHash<QByteArray, int> WatchHandler::m_watcherNames;
 QHash<QByteArray, int> WatchHandler::m_typeFormats;
 int WatchHandler::m_unprintableBase = 0;
+
+static QByteArray stripTemplate(const QByteArray &ba)
+{
+    int pos = ba.indexOf('<');
+    return pos == -1 ? ba : ba.left(pos);
+}
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -209,8 +216,8 @@ void WatchModel::removeOutdated()
     foreach (WatchItem *child, m_root->children)
         removeOutdatedHelper(child);
 #if DEBUG_MODEL
-#if USE_MODEL_TEST
-    //(void) new ModelTest(this, this);
+#if USE_WATCH_MODEL_TEST
+    (void) new ModelTest(this, this);
 #endif
 #endif
 }
@@ -289,6 +296,7 @@ QString WatchModel::displayType(const WatchData &data) const
         : data.displayedType;
     if (data.bitsize)
         base += QString(":%1").arg(data.bitsize);
+    base.remove('\'');
     return base;
 }
 
@@ -359,9 +367,17 @@ static inline QString formattedValue(const WatchData &data, int format)
             return data.value;
         // Evil hack, covers 'unsigned' as well as quint64.
         if (data.type.contains('u'))
-            return reformatInteger(data.value.toULongLong(), format);
+            return reformatInteger(data.value.toULongLong(0, 0), format);
         return reformatInteger(data.value.toLongLong(), format);
     }
+
+    if (!isPointerType(data.type) && !isVTablePointer(data.type)) {
+        bool ok = false;
+        qulonglong integer = data.value.toULongLong(&ok, 0);
+        if (ok)
+           return reformatInteger(integer, format);
+    }
+
     QString result = data.value;
     result.replace(QLatin1Char('\n'), QLatin1String("\\n"));
     if (result.startsWith(QLatin1Char('<'))) {
@@ -388,6 +404,7 @@ static inline QString formattedValue(const WatchData &data, int format)
                      WatchHandler::tr("<%n items>", 0, size);
         }
     }
+
     return result;
 }
 
@@ -396,16 +413,11 @@ static inline QString formattedValue(const WatchData &data, int format)
 // "0x00000000`000003fd "Hallo"", or check gdb formatting of characters.
 static inline quint64 pointerValue(QString data)
 {
-    if (data.isEmpty() || !data.startsWith(QLatin1String("0x")))
-        return 0;
-    data.remove(0, 2);
     const int blankPos = data.indexOf(QLatin1Char(' '));
     if (blankPos != -1)
         data.truncate(blankPos);
     data.remove(QLatin1Char('`'));
-    bool ok;
-    const quint64 address = data.toULongLong(&ok, 16);
-    return ok ? address : quint64(0);
+    return data.toULongLong(0, 0);
 }
 
 // Return the type used for editing
@@ -441,7 +453,7 @@ static inline QVariant editValue(const WatchData &d)
         break;
     }
     // Replace newlines, which will cause line edit troubles.
-    QString stringValue;
+    QString stringValue = d.value;
     stringValue.replace(QLatin1String("\n"), QLatin1String("\\n"));
     return QVariant(stringValue);
 }
@@ -576,23 +588,23 @@ int WatchModel::itemFormat(const WatchData &data) const
     const int individualFormat = m_handler->m_individualFormats.value(data.iname, -1);
     if (individualFormat != -1)
         return individualFormat;
-    return m_handler->m_typeFormats.value(data.type, -1);
+    return m_handler->m_typeFormats.value(stripTemplate(data.type), -1);
 }
 
 static inline QString expression(const WatchItem *item)
 {
     if (!item->exp.isEmpty())
          return QString::fromAscii(item->exp);
-     if (item->address && !item->type.isEmpty()) {
-         return QString::fromAscii("*(%1*)%2").
-                 arg(QLatin1String(item->type), QLatin1String(item->hexAddress()));
-     }
-     if (const WatchItem *parent = item->parent) {
-         if (!parent->exp.isEmpty())
-            return QString::fromAscii("(%1).%2")
-             .arg(QString::fromLatin1(parent->exp), item->name);
-     }
-     return QString();
+    if (item->address && !item->type.isEmpty()) {
+        return QString::fromAscii("*(%1*)%2").
+                arg(QLatin1String(item->type), QLatin1String(item->hexAddress()));
+    }
+    if (const WatchItem *parent = item->parent) {
+        if (!parent->exp.isEmpty())
+           return QString::fromAscii("(%1).%2")
+            .arg(QString::fromLatin1(parent->exp), item->name);
+    }
+    return QString();
 }
 
 QVariant WatchModel::data(const QModelIndex &idx, int role) const
@@ -603,6 +615,9 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
     switch (role) {
         case LocalsEditTypeRole:
             return QVariant(editType(data));
+
+        case LocalsNameRole:
+            return QVariant(data.name);
 
         case LocalsIntegerBaseRole:
             if (isPointerType(data.type)) // Pointers using 0x-convention
@@ -626,7 +641,7 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
         }
 
         case Qt::DisplayRole: {
-            const QByteArray ns = engine()->qtNamespace();
+            const QByteArray qtNameSpace = engine()->qtNamespace();
             QString result;
             switch (idx.column()) {
                 case 0:
@@ -635,14 +650,18 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
                     else if (data.name == QLatin1String("*") && item->parent)
                         result = QLatin1Char('*') + item->parent->name;
                     else
-                        result = removeInitialNamespace(data.name, ns);
+                        result = removeInitialNamespace(data.name, qtNameSpace);
                     break;
                 case 1:
                     result = removeInitialNamespace(truncateValue(
-                            formattedValue(data, itemFormat(data))), ns);
+                            formattedValue(data, itemFormat(data))), qtNameSpace);
+                    if (data.referencingAddress) {
+                        result += QLatin1String(" @");
+                        result += QString::fromLatin1(data.hexAddress());
+                    }
                     break;
                 case 2:
-                    result = removeNamespaces(displayType(data), ns);
+                    result = removeNamespaces(displayType(data), qtNameSpace);
                     break;
                 default:
                     break;
@@ -691,29 +710,42 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
             return m_handler->m_expandedINames.contains(data.iname);
 
         case LocalsTypeFormatListRole: {
-            if (isIntType(data.type) && data.type != "bool")
-                return QStringList() << tr("decimal") << tr("hexadecimal")
-                    << tr("binary") << tr("octal");
-            if (data.type.endsWith('*'))
+            if (data.referencingAddress || isPointerType(data.type))
                 return QStringList()
                     << tr("Raw pointer")
                     << tr("Latin1 string")
                     << tr("UTF8 string")
                     << tr("UTF16 string")
                     << tr("UCS4 string");
+            if (data.type.contains("char[") || data.type.contains("char ["))
+                return QStringList()
+                    << tr("Latin1 string")
+                    << tr("UTF8 string");
+            bool ok = false;
+            (void)data.value.toULongLong(&ok, 0);
+            if ((isIntType(data.type) && data.type != "bool") || ok)
+                return QStringList()
+                    << tr("Decimal")
+                    << tr("Hexadecimal")
+                    << tr("Binary")
+                    << tr("Octal");
             // Hack: Compensate for namespaces.
-            QString type = data.type;
+            QString type = stripTemplate(data.type);
             int pos = type.indexOf("::Q");
             if (pos >= 0 && type.count(':') == 2)
                 type = type.mid(pos + 2);
             pos = type.indexOf('<');
             if (pos >= 0)
                 type = type.left(pos);
+            type.replace(':', '_');
             return m_handler->m_reportedTypeFormats.value(type);
         }
-
+        case LocalsTypeRole:
+           return removeNamespaces(displayType(data), engine()->qtNamespace());
+        case LocalsRawTypeRole:
+           return QString::fromLatin1(data.type);
         case LocalsTypeFormatRole:
-            return m_handler->m_typeFormats.value(data.type, -1);
+            return m_handler->m_typeFormats.value(stripTemplate(data.type), -1);
 
         case LocalsIndividualFormatRole:
             return m_handler->m_individualFormats.value(data.iname, -1);
@@ -727,17 +759,21 @@ QVariant WatchModel::data(const QModelIndex &idx, int role) const
             return QVariant(quint64(0));
 
         case LocalsIsWatchpointAtAddressRole: {
-            BreakpointParameters bp(Watchpoint);
+            BreakpointParameters bp(WatchpointAtAddress);
             bp.address = data.coreAddress();
             return engine()->breakHandler()->findWatchpoint(bp) != 0;
         }
 
         case LocalsAddressRole:
-            return data.coreAddress();
+            return QVariant(data.coreAddress());
+        case LocalsReferencingAddressRole:
+            return QVariant(data.referencingAddress);
+        case LocalsSizeRole:
+            return QVariant(data.size);
 
         case LocalsIsWatchpointAtPointerValueRole:
             if (isPointerType(data.type)) {
-                BreakpointParameters bp(Watchpoint);
+                BreakpointParameters bp(WatchpointAtAddress);
                 bp.address = pointerValue(data.value);
                 return engine()->breakHandler()->findWatchpoint(bp) != 0;
             }
@@ -805,7 +841,7 @@ Qt::ItemFlags WatchModel::flags(const QModelIndex &idx) const
     // source of a drag and drop operation and as a drop target.
 
     static const Qt::ItemFlags notEditable
-        = /* Qt::ItemIsSelectable | */ Qt::ItemIsEnabled;
+        = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
     static const Qt::ItemFlags editable = notEditable | Qt::ItemIsEditable;
 
     // Disable editing if debuggee is positively running.
@@ -853,7 +889,8 @@ QVariant WatchModel::headerData(int section, Qt::Orientation orientation, int ro
 // Set this before using any of the below according to action
 static bool sortWatchDataAlphabetically = true;
 
-static bool watchDataLessThan(const QByteArray &iname1, int sortId1, const QByteArray &iname2, int sortId2)
+static bool watchDataLessThan(const QByteArray &iname1, int sortId1,
+    const QByteArray &iname2, int sortId2)
 {
     if (!sortWatchDataAlphabetically)
         return sortId1 < sortId2;
@@ -880,9 +917,10 @@ static bool watchDataLessThan(const QByteArray &iname1, int sortId1, const QByte
 }
 
 // Sort key for watch data consisting of iname and numerical sort id.
-struct WatchDataSortKey {
-    explicit WatchDataSortKey(const WatchData &wd) :
-             iname(wd.iname), sortId(wd.sortId) {}
+struct WatchDataSortKey
+{
+    explicit WatchDataSortKey(const WatchData &wd)
+        : iname(wd.iname), sortId(wd.sortId) {}
     QByteArray iname;
     int sortId;
 };
@@ -907,13 +945,6 @@ static int findInsertPosition(const QList<WatchItem *> &list, const WatchItem *i
 
 void WatchModel::insertData(const WatchData &data)
 {
-    //qDebug() << "WMI:" << data.toString();
-    //static int bulk = 0;
-    //qDebug() << "SINGLE: " << ++bulk << data.toString();
-    if (data.iname.isEmpty()) {
-        int x;
-        x = 1;
-    }
     QTC_ASSERT(!data.iname.isEmpty(), qDebug() << data.toString(); return);
     WatchItem *parent = findItem(parentName(data.iname), m_root);
     if (!parent) {
@@ -1095,7 +1126,7 @@ void WatchModel::formatRequests(QByteArray *out, const WatchItem *item) const
 {
     int format = m_handler->m_individualFormats.value(item->iname, -1);
     if (format == -1)
-        format = m_handler->m_typeFormats.value(item->type, -1);
+        format = m_handler->m_typeFormats.value(stripTemplate(item->type), -1);
     if (format != -1)
         *out += item->iname + ":format=" + QByteArray::number(format) + ',';
     foreach (const WatchItem *child, item->children)
@@ -1552,8 +1583,9 @@ QModelIndex WatchHandler::itemIndex(const QByteArray &iname) const
     return QModelIndex();
 }
 
-void WatchHandler::setFormat(const QByteArray &type, int format)
+void WatchHandler::setFormat(const QByteArray &type0, int format)
 {
+    const QByteArray type = stripTemplate(type0);
     if (format == -1)
         m_typeFormats.remove(type);
     else
@@ -1571,7 +1603,7 @@ int WatchHandler::format(const QByteArray &iname) const
     if (const WatchData *item = findItem(iname)) {
         int result = m_individualFormats.value(item->iname, -1);
         if (result == -1)
-            result = m_typeFormats.value(item->type, -1);
+            result = m_typeFormats.value(stripTemplate(item->type), -1);
     }
     return result;
 }
@@ -1629,7 +1661,7 @@ QByteArray WatchHandler::individualFormatRequests() const
 
 void WatchHandler::addTypeFormats(const QByteArray &type, const QStringList &formats)
 {
-    m_reportedTypeFormats.insert(type, formats);
+    m_reportedTypeFormats.insert(stripTemplate(type), formats);
 }
 
 QString WatchHandler::editorContents()

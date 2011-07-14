@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -564,8 +564,8 @@ void ManhattanStyle::drawPrimitive(PrimitiveElement element, const QStyleOption 
             bool horizontal = option->state & State_Horizontal;
             painter->save();
             QPainterPath path;
-            int x = option->rect.x() + horizontal ? 2 : 6;
-            int y = option->rect.y() + horizontal ? 6 : 2;
+            int x = option->rect.x() + (horizontal ? 2 : 6);
+            int y = option->rect.y() + (horizontal ? 6 : 2);
             static const int RectHeight = 2;
             if (horizontal) {
                 while (y < option->rect.height() - RectHeight - 6) {

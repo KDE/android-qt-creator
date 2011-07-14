@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -64,6 +64,7 @@ public:
 
     bool operator()(QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *objects);
     QString errorMessage() const;
+    QString warningMessage() const;
 
 private:
     void readDocument(AST::UiProgram *ast);
@@ -76,12 +77,17 @@ private:
 
     QString readStringBinding(AST::UiScriptBinding *ast);
     bool readBoolBinding(AST::UiScriptBinding *ast);
+    double readNumericBinding(AST::UiScriptBinding *ast);
+    int readIntBinding(AST::UiScriptBinding *ast);
     void readExports(AST::UiScriptBinding *ast, LanguageUtils::FakeMetaObject::Ptr fmo);
     void readEnumValues(AST::UiScriptBinding *ast, LanguageUtils::FakeMetaEnum *fme);
+
     void addError(const AST::SourceLocation &loc, const QString &message);
+    void addWarning(const AST::SourceLocation &loc, const QString &message);
 
     QString _source;
     QString _errorMessage;
+    QString _warningMessage;
     QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *_objects;
 };
 

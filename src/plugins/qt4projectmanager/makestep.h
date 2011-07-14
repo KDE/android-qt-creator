@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -128,7 +128,6 @@ public:
     virtual ~MakeStepConfigWidget();
 
     QString displayName() const;
-    void init();
     QString summaryText() const;
 private slots:
     // User changes to our widgets

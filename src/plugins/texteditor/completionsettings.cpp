@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,12 +34,12 @@
 
 #include <QtCore/QSettings>
 
-static const char * const groupPostfix = "Completion";
-static const char * const caseSensitivityKey = "CaseSensitivity";
-static const char * const completionTriggerKey = "CompletionTrigger";
-static const char * const autoInsertBracesKey = "AutoInsertBraces";
-static const char * const partiallyCompleteKey = "PartiallyComplete";
-static const char * const spaceAfterFunctionNameKey = "SpaceAfterFunctionName";
+static const char groupPostfix[] = "Completion";
+static const char caseSensitivityKey[] = "CaseSensitivity";
+static const char completionTriggerKey[] = "CompletionTrigger";
+static const char autoInsertBracesKey[] = "AutoInsertBraces";
+static const char partiallyCompleteKey[] = "PartiallyComplete";
+static const char spaceAfterFunctionNameKey[] = "SpaceAfterFunctionName";
 
 using namespace TextEditor;
 

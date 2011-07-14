@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,9 +36,15 @@
 
 using namespace ProjectExplorer;
 
-///
-/// RunConfigurationsModel
-///
+/*!
+    \class ProjectExplorer::BuildConfigurationModel
+    \brief A model to represent the build configurations of a target.
+
+    To be used in for the drop down of comboboxes.
+    Does automatically adjust itself to added and removed BuildConfigurations
+    Very similar to the Run Configuration Model.
+    TODO might it possible to share code without making the code a complete mess.
+*/
 
 class BuildConfigurationComparer
 {

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -138,12 +138,10 @@ bool SessionFile::load(const QString &fileName)
 
     // NPE: Load the session in the background?
     // NPE: Let FileManager monitor filename
-    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
 
     PersistentSettingsReader reader;
     if (!reader.load(m_fileName)) {
         qWarning() << "SessionManager::load failed!" << fileName;
-        QApplication::restoreOverrideCursor();
         return false;
     }
 
@@ -216,7 +214,6 @@ bool SessionFile::load(const QString &fileName)
 
 
     future.reportFinished();
-    QApplication::restoreOverrideCursor();
     return true;
 }
 
@@ -279,7 +276,7 @@ bool SessionFile::save()
     writer.saveValue("valueKeys", keys);
 
 
-    if (writer.save(m_fileName, "QtCreatorSession"))
+    if (writer.save(m_fileName, "QtCreatorSession", Core::ICore::instance()->mainWindow()))
         return true;
 
     return false;
@@ -305,7 +302,16 @@ void SessionFile::clearFailedProjectFileNames()
     m_failedProjects.clear();
 }
 
-/* --------------------------------- */
+/*!
+     \class ProjectExplorer::SessionManager
+
+     \brief Session management.
+
+     TODO the interface of this class is not really great.
+     The implementation suffers that all the functions from the
+     public interface just wrap around functions which do the actual work
+     This could be improved.
+*/
 
 SessionManager::SessionManager(QObject *parent)
   : QObject(parent),
@@ -554,9 +560,6 @@ bool SessionManager::createImpl(const QString &fileName)
 
     if (debug)
         qDebug() << "SessionManager - creating new session returns " << success;
-
-    if (success)
-        emit sessionLoaded();
 
     return success;
 }
@@ -824,15 +827,14 @@ void SessionManager::configureEditor(Core::IEditor *editor, const QString &fileN
     if (TextEditor::ITextEditor *textEditor = qobject_cast<TextEditor::ITextEditor*>(editor)) {
         Project *project = projectForFile(fileName);
         // Global settings are the default.
-        if (project && !project->editorConfiguration()->useGlobalSettings()) {
-            project->editorConfiguration()->apply(textEditor);
-        }
+        if (project)
+            project->editorConfiguration()->configureEditor(textEditor);
     }
 }
 
 QString SessionManager::currentSession() const
 {
-    return m_file->fileName();
+    return QFileInfo(m_file->fileName()).completeBaseName();
 }
 
 void SessionManager::updateWindowTitle()
@@ -920,6 +922,10 @@ void SessionManager::removeProjects(QList<Project *> remove)
             setStartupProject(m_file->m_projects.first());
 }
 
+/*!
+    \brief Let other plugins store persistent values within the session file.
+*/
+
 void SessionManager::setValue(const QString &name, const QVariant &value)
 {
     if (!m_file)
@@ -964,11 +970,21 @@ QString SessionManager::sessionNameToFileName(const QString &session) const
     return m_core->userResourcePath() + '/' + session + ".qws";
 }
 
+/*!
+    \brief Creates a new default session and switches to it.
+*/
+
 void SessionManager::createAndLoadNewDefaultSession()
 {
+    emit aboutToLoadSession();
     updateName("default");
     createImpl(sessionNameToFileName(m_sessionName));
+    emit sessionLoaded();
 }
+
+/*!
+    \brief Just creates a new session (Does not actually create the file).
+*/
 
 bool SessionManager::createSession(const QString &session)
 {
@@ -987,6 +1003,10 @@ bool SessionManager::renameSession(const QString &original, const QString &newNa
         loadSession(newName);
     return deleteSession(original);
 }
+
+/*!
+     \brief Deletes session name from session list and file from disk.
+*/
 
 bool SessionManager::deleteSession(const QString &session)
 {
@@ -1014,6 +1034,10 @@ bool SessionManager::cloneSession(const QString &original, const QString &clone)
     return false;
 }
 
+/*!
+     \brief Loads a session, takes a session name (not filename).
+*/
+
 bool SessionManager::loadSession(const QString &session)
 {
     // Do nothing if we have that session already loaded,
@@ -1024,6 +1048,7 @@ bool SessionManager::loadSession(const QString &session)
 
     if (!sessions().contains(session))
         return false;
+    emit aboutToLoadSession();
     QString fileName = sessionNameToFileName(session);
     if (QFileInfo(fileName).exists()) {
         if (loadImpl(fileName)) {

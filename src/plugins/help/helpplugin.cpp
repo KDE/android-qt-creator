@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -69,7 +69,6 @@
 #include <find/findplugin.h>
 #include <texteditor/texteditorconstants.h>
 #include <utils/styledbar.h>
-#include <welcome/welcomemode.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -255,6 +254,19 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     action->setSeparator(true);
     cmd = am->registerAction(action, Core::Id("Help.Separator"), globalcontext);
     am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+#endif
+
+    action = new QAction(tr("Technical Support"), this);
+    cmd = am->registerAction(action, Core::Id("Help.TechSupport"), globalcontext);
+    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    connect(action, SIGNAL(triggered()), this, SLOT(slotOpenSupportPage()));
+
+#ifndef Q_WS_MAC
+    action = new QAction(this);
+    action->setSeparator(true);
+    cmd = am->registerAction(action, Core::Id("Help.Separator2"), globalcontext);
+    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    connect(action, SIGNAL(triggered()), this, SLOT(activateContext()));
 #endif
 
     action = new QAction(this);
@@ -579,8 +591,10 @@ void HelpPlugin::createRightPaneContextViewer()
     agg->add(new HelpViewerFindSupport(m_helpViewerForSideBar));
 
     Core::Context context(Constants::C_HELP_SIDEBAR);
-    m_core->addContextObject(new Core::BaseContext(m_helpViewerForSideBar,
-        context, this));
+    Core::IContext *icontext = new Core::IContext(this);
+    icontext->setContext(context);
+    icontext->setWidget(m_helpViewerForSideBar);
+    m_core->addContextObject(icontext);
 
     QAction *copy = new QAction(this);
     Core::Command *cmd = m_core->actionManager()->registerAction(copy,
@@ -1120,7 +1134,7 @@ void HelpPlugin::handleHelpRequest(const QUrl &url)
         if (address.startsWith(HelpViewer::NsNokia)
             || address.startsWith(HelpViewer::NsTrolltech)) {
                 // local help not installed, resort to external web help
-                QString urlPrefix = QLatin1String("http://doc.trolltech.com/");
+                QString urlPrefix = QLatin1String("http://doc.qt.nokia.com/");
                 if (url.authority() == QLatin1String("com.nokia.qtcreator")) {
                     urlPrefix.append(QString::fromLatin1("qtcreator"));
                 } else {
@@ -1189,6 +1203,11 @@ void HelpPlugin::slotOpenActionUrl(QAction *action)
 #else
     Q_UNUSED(action)
 #endif
+}
+
+void HelpPlugin::slotOpenSupportPage()
+{
+    switchToHelpMode(QUrl("qthelp://com.nokia.qtcreator/doc/technical-support.html"));
 }
 
 void HelpPlugin::openFindToolBar()

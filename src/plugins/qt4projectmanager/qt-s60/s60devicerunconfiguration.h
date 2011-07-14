@@ -26,36 +26,36 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef S60DEVICERUNCONFIGURATION_H
 #define S60DEVICERUNCONFIGURATION_H
 
-#include <debugger/debuggerrunner.h>
 #include <projectexplorer/runconfiguration.h>
+#include <qt4projectmanager/qt4projectmanager_global.h>
 
 #include <QtCore/QFutureInterface>
 #include <QtCore/QScopedPointer>
 #include <QtCore/QStringList>
 
 QT_BEGIN_NAMESPACE
-class QMessageBox;
 class QWidget;
 QT_END_NAMESPACE
 
 namespace Qt4ProjectManager {
-class QtVersion;
 class Qt4BaseTarget;
+class Qt4ProFileNode;
 
 namespace Internal {
+class SymbianQtVersion;
 class Qt4SymbianTarget;
-class Qt4ProFileNode;
+}
+
 class S60DeviceRunConfigurationFactory;
 
-class S60DeviceRunConfiguration : public ProjectExplorer::RunConfiguration
-{
+class QT4PROJECTMANAGER_EXPORT S60DeviceRunConfiguration : public ProjectExplorer::RunConfiguration {
     Q_OBJECT
     friend class S60DeviceRunConfigurationFactory;
 
@@ -63,17 +63,15 @@ public:
     S60DeviceRunConfiguration(Qt4ProjectManager::Qt4BaseTarget *parent, const QString &proFilePath);
     virtual ~S60DeviceRunConfiguration();
 
-    Qt4SymbianTarget *qt4Target() const;
-    const QtVersion *qtVersion() const;
-
-    using ProjectExplorer::RunConfiguration::isEnabled;
-    bool isEnabled(ProjectExplorer::BuildConfiguration *configuration) const;
+    bool isEnabled() const;
+    QString disabledReason() const;
     QWidget *createConfigurationWidget();
 
-    ProjectExplorer::OutputFormatter *createOutputFormatter() const;
+    Utils::OutputFormatter *createOutputFormatter() const;
 
     QString commandLineArguments() const;
     void setCommandLineArguments(const QString &args);
+    QString qmlCommandLineArguments() const;
 
     QString projectFilePath() const;
 
@@ -94,17 +92,19 @@ protected:
     S60DeviceRunConfiguration(Qt4ProjectManager::Qt4BaseTarget *parent, S60DeviceRunConfiguration *source);
     QString defaultDisplayName() const;
     virtual bool fromMap(const QVariantMap &map);
+
 private slots:
-    void proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro);
-    void proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode *pro, bool success);
+    void proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success, bool parseInProgress);
 
 private:
     void ctor();
-    void handleParserState(bool success);
+    Internal::Qt4SymbianTarget *qt4Target() const;
+    Internal::SymbianQtVersion *qtVersion() const;
 
     QString m_proFilePath;
     QString m_commandLineArguments;
     bool m_validParse;
+    bool m_parseInProgress;
 };
 
 class S60DeviceRunConfigurationFactory : public ProjectExplorer::IRunConfigurationFactory
@@ -127,32 +127,6 @@ public:
     QString displayNameForId(const QString &id) const;
 };
 
-// S60DeviceDebugRunControl starts debugging
-
-class S60DeviceDebugRunControl : public Debugger::DebuggerRunControl
-{
-    Q_DISABLE_COPY(S60DeviceDebugRunControl)
-    Q_OBJECT
-public:
-    explicit S60DeviceDebugRunControl(S60DeviceRunConfiguration *runConfiguration,
-                                      const Debugger::DebuggerStartParameters &sp,
-                                      const QPair<Debugger::DebuggerEngineType, Debugger::DebuggerEngineType> &masterSlaveEngineTypes);
-    virtual void start();
-    virtual bool promptToStop(bool *optionalPrompt = 0) const;
-};
-
-class S60DeviceDebugRunControlFactory : public ProjectExplorer::IRunControlFactory
-{
-public:
-    explicit S60DeviceDebugRunControlFactory(QObject *parent = 0);
-    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration, const QString &mode) const;
-
-    ProjectExplorer::RunControl* create(ProjectExplorer::RunConfiguration *runConfiguration, const QString &mode);
-    QString displayName() const;
-    ProjectExplorer::RunConfigWidget *createConfigurationWidget(ProjectExplorer::RunConfiguration * /*runConfiguration */);
-};
-
-} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // S60DEVICERUNCONFIGURATION_H

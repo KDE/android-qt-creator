@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -282,8 +282,12 @@ void OpenEditorsWindow::selectEditor(QTreeWidgetItem *item)
         EditorView *view = item->data(0, Qt::UserRole+1).value<EditorView*>();
         EditorManager::instance()->activateEditorForFile(view, file, Core::EditorManager::ModeSwitch);
     } else {
-        EditorManager::instance()->openEditor(item->toolTip(0), item->data(0, Qt::UserRole+2).toByteArray(),
-                                              Core::EditorManager::ModeSwitch);
+        if (!EditorManager::instance()->openEditor(
+                    item->toolTip(0), item->data(0, Qt::UserRole+2).toByteArray(),
+                    Core::EditorManager::ModeSwitch)) {
+            EditorManager::instance()->openedEditorsModel()->removeEditor(item->toolTip(0));
+            delete item;
+        }
     }
 }
 

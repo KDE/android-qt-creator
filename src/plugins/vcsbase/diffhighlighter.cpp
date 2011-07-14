@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,28 @@
 #include <QtCore/QtAlgorithms>
 #include <QtCore/QRegExp>
 #include <QtGui/QBrush>
+
+/*!
+    \class VCSBase::DiffHighlighter
+
+    \brief A highlighter for diffs.
+
+    Parametrizable by the file indicator, which is for example '^====' in case of p4:
+    \code
+    ==== //depot/research/main/qdynamicmainwindow3/qdynamicdockwidgetlayout_p.h#34 (text) ====
+    \endcode
+
+    Or  '--- a/|'+++ b/' in case of git:
+    \code
+    diff --git a/src/plugins/plugins.pro b/src/plugins/plugins.pro
+    index 9401ee7..ef35c3b 100644
+    --- a/src/plugins/plugins.pro
+    +++ b/src/plugins/plugins.pro
+    @@ -10,6 +10,7 @@ SUBDIRS   = plugin_coreplugin
+    \endcode
+
+    Also highlights trailing blanks.
+ */
 
 static const int BASE_LEVEL = 0;
 static const int FILE_LEVEL = 1;
@@ -130,6 +152,12 @@ static inline int trimmedLength(const QString &in)
     return 0;
 }
 
+/*
+ * This sets the folding indent:
+ * 0 for the first line of the diff header.
+ * 1 for all the following lines of the diff header and all @@ lines.
+ * 2 for everything else
+ */
 void DiffHighlighter::highlightBlock(const QString &text)
 {
     if (text.isEmpty())

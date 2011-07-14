@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #include "s60publishingresultspageovi.h"
@@ -35,6 +35,7 @@
 
 #include <QtGui/QDesktopServices>
 #include <QtGui/QAbstractButton>
+#include <QtGui/QScrollBar>
 #include <QtCore/QProcess>
 
 namespace Qt4ProjectManager {
@@ -57,7 +58,8 @@ S60PublishingResultsPageOvi::~S60PublishingResultsPageOvi()
 void S60PublishingResultsPageOvi::initializePage()
 {
     wizard()->setButtonText(QWizard::FinishButton, tr("Open Containing Folder"));
-    connect(m_publisher, SIGNAL(succeeded()), SIGNAL(completeChanged()));
+    connect(m_publisher, SIGNAL(finished()), SIGNAL(completeChanged()));
+    connect(m_publisher, SIGNAL(finished()), SLOT(packageCreationFinished()));
     connect(wizard()->button(QWizard::FinishButton), SIGNAL(clicked()), SLOT(openFileLocation()));
     m_publisher->buildSis();
 }
@@ -67,13 +69,37 @@ bool S60PublishingResultsPageOvi::isComplete() const
     return m_publisher->hasSucceeded();
 }
 
+void S60PublishingResultsPageOvi::packageCreationFinished()
+{
+    wizard()->setButtonText(QWizard::CancelButton, tr("Close"));
+}
+
 void S60PublishingResultsPageOvi::updateResultsPage(const QString& status, QColor c)
 {
+    const bool atBottom = isScrollbarAtBottom();
     QTextCursor cur(ui->resultsTextBrowser->document());
     QTextCharFormat tcf = cur.charFormat();
     tcf.setForeground(c);
     cur.movePosition(QTextCursor::End);
     cur.insertText(status, tcf);
+    if (atBottom)
+        scrollToBottom();
+}
+
+bool S60PublishingResultsPageOvi::isScrollbarAtBottom() const
+{
+    QScrollBar *scrollBar = ui->resultsTextBrowser->verticalScrollBar();
+    return scrollBar->value() == scrollBar->maximum();
+}
+
+void S60PublishingResultsPageOvi::scrollToBottom()
+{
+    QScrollBar *scrollBar = ui->resultsTextBrowser->verticalScrollBar();
+    scrollBar->setValue(scrollBar->maximum());
+    // QPlainTextEdit destroys the first calls value in case of multiline
+    // text, so make sure that the scroll bar actually gets the value set.
+    // Is a noop if the first call succeeded.
+    scrollBar->setValue(scrollBar->maximum());
 }
 
 void S60PublishingResultsPageOvi::openFileLocation()

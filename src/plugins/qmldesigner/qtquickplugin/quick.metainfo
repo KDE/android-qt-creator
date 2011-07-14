@@ -13,25 +13,18 @@
     </itemlibraryentry>
   </node>
   <node name="QtQuick.Text" icon=":/qtquickplugin/images/text-icon16.png">
-    <itemlibraryentry name="Text" category="Qt Quick - Basic" libraryIcon=":/qtquickplugin/images/text-icon.png" version="1.0">
-      <property name="text" type="QString" value="text"/>
-      <property name="font.pixelSize" type="int" value="12"/>
+    <itemlibraryentry name="Text" category="Qt Quick - Basic" libraryIcon=":/qtquickplugin/images/text-icon.png" version="1.0">      
+      <qml source=":/qtquickplugin/source/text.qml"/>
     </itemlibraryentry>
   </node>
   <node name="QtQuick.TextEdit" icon=":/qtquickplugin/images/text-edit-icon16.png">
-    <itemlibraryentry name="Text Edit" category="Qt Quick - Basic" libraryIcon=":/qtquickplugin/images/text-edit-icon.png" version="1.0">
-      <property name="width" type="int" value="80"/>
-      <property name="height" type="int" value="20"/>
-      <property name="text" type="QString" value="textEdit"/>
-      <property name="font.pixelSize" type="int" value="12"/>
+    <itemlibraryentry name="Text Edit" category="Qt Quick - Basic" libraryIcon=":/qtquickplugin/images/text-edit-icon.png" version="1.0">      
+      <qml source=":/qtquickplugin/source/textedit.qml"/>
     </itemlibraryentry>
   </node>
   <node name="QtQuick.TextInput" icon=":/qtquickplugin/images/text-input-icon16.png">
     <itemlibraryentry name="Text Input" category="Qt Quick - Basic" libraryIcon=":/qtquickplugin/images/text-input-icon.png" version="1.0">
-      <property name="width" type="int" value="80"/>
-      <property name="height" type="int" value="20"/>
-      <property name="text" type="QString" value="textInput"/>
-      <property name="font.pixelSize" type="int" value="12"/>
+        <qml source=":/qtquickplugin/source/textinput.qml"/>
     </itemlibraryentry>
   </node>
   <node name="QtQuick.MouseArea" icon=":/qtquickplugin/images/mouse-area-icon16.png">
@@ -68,22 +61,19 @@
   </node>
   <node name="QtQuick.GridView" icon=":/qtquickplugin/images/gridview-icon16.png">
     <itemlibraryentry name="Grid View" category="Qt Quick - Views" libraryIcon=":/qtquickplugin/images/gridview-icon.png" version="1.0">
-      <property name="width" type="int" value="300"/>
-      <property name="height" type="int" value="300"/>
+      <qml source=":/qtquickplugin/source/gridview.qml"/>
     </itemlibraryentry>
   </node>
 
   <node name="QtQuick.ListView" icon=":/qtquickplugin/images/listview-icon16.png">
     <itemlibraryentry name="List View" category="Qt Quick - Views" libraryIcon=":/qtquickplugin/images/listview-icon.png" version="1.0">
-      <property name="width" type="int" value="300"/>
-      <property name="height" type="int" value="300"/>
+      <qml source=":/qtquickplugin/source/listview.qml"/>
     </itemlibraryentry>
   </node>
 
   <node name="QtQuick.PathView" icon=":/qtquickplugin/images/pathview-icon16.png">
     <itemlibraryentry name="Path View" category="Qt Quick - Views" libraryIcon=":/qtquickplugin/images/pathview-icon.png" version="1.0">
-      <property name="width" type="int" value="300"/>
-      <property name="height" type="int" value="300"/>
+    <qml source=":/qtquickplugin/source/pathview.qml"/>
     </itemlibraryentry>
   </node>
 
@@ -94,7 +84,7 @@
     </itemlibraryentry>
   </node>
   <node name="QtWebKit.WebView" icon=":/qtquickplugin/images/webview-icon16.png">
-    <itemlibraryentry name="Web View" category="Qt Quick - Basic" libraryIcon=":/qtquickplugin/images/webview-icon.png" version="1.0">
+    <itemlibraryentry name="Web View" category="Qt Quick - Basic" libraryIcon=":/qtquickplugin/images/webview-icon.png" version="1.0" requiredImport="QtWebKit" forceImport="true">
       <property name="width" type="int" value="300"/>
       <property name="height" type="int" value="300"/>
       <property name="url" type="QString" value="qrc:/qtquickplugin/html/welcome.html"/>

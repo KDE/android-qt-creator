@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 #include "snapshothandler.h"
 
 #include "debuggeractions.h"
+#include "debuggerinternalconstants.h"
 #include "debuggercore.h"
 #include "debuggerengine.h"
 
@@ -45,7 +46,6 @@
 #include <QtGui/QHeaderView>
 #include <QtGui/QMenu>
 #include <QtGui/QKeyEvent>
-
 
 namespace Debugger {
 namespace Internal {
@@ -133,6 +133,16 @@ void SnapshotWindow::contextMenuEvent(QContextMenuEvent *ev)
 void SnapshotWindow::removeSnapshot(int i)
 {
     m_snapshotHandler->at(i)->quitDebugger();
+}
+
+void SnapshotWindow::setModel(QAbstractItemModel *model)
+{
+    QTreeView::setModel(model);
+    setAlwaysResizeColumnsToContents(true);
+    if (header()) {
+        bool adjust = debuggerCore()->boolSetting(AlwaysAdjustSnapshotsColumnWidths);
+        setAlwaysResizeColumnsToContents(adjust);
+    }
 }
 
 void SnapshotWindow::resizeColumnsToContents()

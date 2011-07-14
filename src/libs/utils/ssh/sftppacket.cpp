@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,7 +42,6 @@ const quint32 AbstractSftpPacket::MaxPacketSize = 34000;
 const int AbstractSftpPacket::TypeOffset = 4;
 const int AbstractSftpPacket::RequestIdOffset = TypeOffset + 1;
 const int AbstractSftpPacket::PayloadOffset = RequestIdOffset + 4;
-
 
 AbstractSftpPacket::AbstractSftpPacket()
 {

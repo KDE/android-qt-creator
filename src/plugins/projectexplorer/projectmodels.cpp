@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -289,7 +289,15 @@ Qt::ItemFlags FlatModel::flags(const QModelIndex &index) const
     // We claim that everything is editable
     // That's slightly wrong
     // We control the only view, and that one does the checks
-    return Qt::ItemIsSelectable|Qt::ItemIsEnabled | Qt::ItemIsEditable;
+    Qt::ItemFlags f = Qt::ItemIsSelectable|Qt::ItemIsEnabled;
+    if (Node *node = nodeForIndex(index)) {
+        if (!qobject_cast<ProjectNode *>(node)) {
+            // either folder or file node
+            if (node->projectNode()->supportedActions(node).contains(ProjectNode::Rename))
+                f = f | Qt::ItemIsEditable;
+        }
+    }
+    return f;
 }
 
 bool FlatModel::setData(const QModelIndex &index, const QVariant &value, int role)

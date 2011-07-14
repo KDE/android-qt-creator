@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -89,6 +89,11 @@ QString TypeDescriptionReader::errorMessage() const
     return _errorMessage;
 }
 
+QString TypeDescriptionReader::warningMessage() const
+{
+    return _warningMessage;
+}
+
 void TypeDescriptionReader::readDocument(UiProgram *ast)
 {
     if (!ast) {
@@ -114,8 +119,8 @@ void TypeDescriptionReader::readDocument(UiProgram *ast)
         version = ComponentVersion(versionString.left(dotIdx).toInt(),
                                    versionString.mid(dotIdx + 1).toInt());
     }
-    if (version != ComponentVersion(1, 0)) {
-        addError(import->versionToken, "Expected version 1.0");
+    if (version > ComponentVersion(1, 1)) {
+        addError(import->versionToken, "Expected version 1.1 or lower");
         return;
     }
 
@@ -144,8 +149,8 @@ void TypeDescriptionReader::readModule(UiObjectDefinition *ast)
         UiObjectMember *member = it->member;
         UiObjectDefinition *component = dynamic_cast<UiObjectDefinition *>(member);
         if (!component || Bind::toString(component->qualifiedTypeNameId) != "Component") {
-            addError(member->firstSourceLocation(), "Expected only 'Component' object definitions");
-            return;
+            addWarning(member->firstSourceLocation(), "Expected only 'Component' object definitions");
+            continue;
         }
 
         readComponent(component);
@@ -155,6 +160,14 @@ void TypeDescriptionReader::readModule(UiObjectDefinition *ast)
 void TypeDescriptionReader::addError(const SourceLocation &loc, const QString &message)
 {
     _errorMessage += QString("%1:%2: %3\n").arg(
+                QString::number(loc.startLine),
+                QString::number(loc.startColumn),
+                message);
+}
+
+void TypeDescriptionReader::addWarning(const SourceLocation &loc, const QString &message)
+{
+    _warningMessage += QString("%1:%2: %3\n").arg(
                 QString::number(loc.startLine),
                 QString::number(loc.startColumn),
                 message);
@@ -177,8 +190,7 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
             } else if (name == "Enum") {
                 readEnum(component, fmo);
             } else {
-                addError(component->firstSourceLocation(), "Expected only Property, Method, Signal and Enum object definitions");
-                return;
+                addWarning(component->firstSourceLocation(), "Expected only Property, Method, Signal and Enum object definitions");
             }
         } else if (script) {
             QString name = Bind::toString(script->qualifiedId);
@@ -193,12 +205,10 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
             } else if (name == "attachedType") {
                 fmo->setAttachedTypeName(readStringBinding(script));
             } else {
-                addError(script->firstSourceLocation(), "Expected only name, prototype, defaultProperty, attachedType and exports script bindings");
-                return;
+                addWarning(script->firstSourceLocation(), "Expected only name, prototype, defaultProperty, attachedType and exports script bindings");
             }
         } else {
-            addError(member->firstSourceLocation(), "Expected only script bindings and object definitions");
-            return;
+            addWarning(member->firstSourceLocation(), "Expected only script bindings and object definitions");
         }
     }
 
@@ -230,8 +240,7 @@ void TypeDescriptionReader::readSignalOrMethod(UiObjectDefinition *ast, bool isM
             if (name == "Parameter") {
                 readParameter(component, &fmm);
             } else {
-                addError(component->firstSourceLocation(), "Expected only Parameter object definitions");
-                return;
+                addWarning(component->firstSourceLocation(), "Expected only Parameter object definitions");
             }
         } else if (script) {
             QString name = Bind::toString(script->qualifiedId);
@@ -239,14 +248,14 @@ void TypeDescriptionReader::readSignalOrMethod(UiObjectDefinition *ast, bool isM
                 fmm.setMethodName(readStringBinding(script));
             } else if (name == "type") {
                 fmm.setReturnType(readStringBinding(script));
+            } else if (name == "revision") {
+                fmm.setRevision(readIntBinding(script));
             } else {
-                addError(script->firstSourceLocation(), "Expected only name and type script bindings");
-                return;
+                addWarning(script->firstSourceLocation(), "Expected only name and type script bindings");
             }
 
         } else {
-            addError(member->firstSourceLocation(), "Expected only script bindings and object definitions");
-            return;
+            addWarning(member->firstSourceLocation(), "Expected only script bindings and object definitions");
         }
     }
 
@@ -265,13 +274,14 @@ void TypeDescriptionReader::readProperty(UiObjectDefinition *ast, FakeMetaObject
     bool isPointer = false;
     bool isReadonly = false;
     bool isList = false;
+    int revision = 0;
 
     for (UiObjectMemberList *it = ast->initializer->members; it; it = it->next) {
         UiObjectMember *member = it->member;
         UiScriptBinding *script = dynamic_cast<UiScriptBinding *>(member);
         if (!script) {
-            addError(member->firstSourceLocation(), "Expected script binding");
-            return;
+            addWarning(member->firstSourceLocation(), "Expected script binding");
+            continue;
         }
 
         QString id = Bind::toString(script->qualifiedId);
@@ -285,9 +295,10 @@ void TypeDescriptionReader::readProperty(UiObjectDefinition *ast, FakeMetaObject
             isReadonly = readBoolBinding(script);
         } else if (id == "isList") {
             isList = readBoolBinding(script);
+        } else if (id == "revision") {
+            revision = readIntBinding(script);
         } else {
-            addError(script->firstSourceLocation(), "Expected only type, name, isPointer, isReadonly and isList script bindings");
-            return;
+            addWarning(script->firstSourceLocation(), "Expected only type, name, revision, isPointer, isReadonly and isList script bindings");
         }
     }
 
@@ -296,7 +307,7 @@ void TypeDescriptionReader::readProperty(UiObjectDefinition *ast, FakeMetaObject
         return;
     }
 
-    fmo->addProperty(FakeMetaProperty(name, type, isList, !isReadonly, isPointer));
+    fmo->addProperty(FakeMetaProperty(name, type, isList, !isReadonly, isPointer, revision));
 }
 
 void TypeDescriptionReader::readEnum(UiObjectDefinition *ast, FakeMetaObject::Ptr fmo)
@@ -307,8 +318,8 @@ void TypeDescriptionReader::readEnum(UiObjectDefinition *ast, FakeMetaObject::Pt
         UiObjectMember *member = it->member;
         UiScriptBinding *script = dynamic_cast<UiScriptBinding *>(member);
         if (!script) {
-            addError(member->firstSourceLocation(), "Expected script binding");
-            return;
+            addWarning(member->firstSourceLocation(), "Expected script binding");
+            continue;
         }
 
         QString name = Bind::toString(script->qualifiedId);
@@ -317,8 +328,7 @@ void TypeDescriptionReader::readEnum(UiObjectDefinition *ast, FakeMetaObject::Pt
         } else if (name == "values") {
             readEnumValues(script, &fme);
         } else {
-            addError(script->firstSourceLocation(), "Expected only name and values script bindings");
-            return;
+            addWarning(script->firstSourceLocation(), "Expected only name and values script bindings");
         }
     }
 
@@ -334,8 +344,8 @@ void TypeDescriptionReader::readParameter(UiObjectDefinition *ast, FakeMetaMetho
         UiObjectMember *member = it->member;
         UiScriptBinding *script = dynamic_cast<UiScriptBinding *>(member);
         if (!script) {
-            addError(member->firstSourceLocation(), "Expected script binding");
-            return;
+            addWarning(member->firstSourceLocation(), "Expected script binding");
+            continue;
         }
 
         QString id = Bind::toString(script->qualifiedId);
@@ -350,8 +360,7 @@ void TypeDescriptionReader::readParameter(UiObjectDefinition *ast, FakeMetaMetho
         } else if (id == "isList") {
             // ### unhandled
         } else {
-            addError(script->firstSourceLocation(), "Expected only name and type script bindings");
-            return;
+            addWarning(script->firstSourceLocation(), "Expected only name and type script bindings");
         }
     }
 
@@ -401,6 +410,41 @@ bool TypeDescriptionReader::readBoolBinding(AST::UiScriptBinding *ast)
     }
 
     return trueLit;
+}
+
+double TypeDescriptionReader::readNumericBinding(AST::UiScriptBinding *ast)
+{
+    if (!ast || !ast->statement) {
+        addError(ast->colonToken, "Expected numeric literal after colon");
+        return 0;
+    }
+
+    ExpressionStatement *expStmt = AST::cast<ExpressionStatement *>(ast->statement);
+    if (!expStmt) {
+        addError(ast->statement->firstSourceLocation(), "Expected numeric literal after colon");
+        return 0;
+    }
+
+    NumericLiteral *numericLit = AST::cast<NumericLiteral *>(expStmt->expression);
+    if (!numericLit) {
+        addError(expStmt->firstSourceLocation(), "Expected numeric literal after colon");
+        return 0;
+    }
+
+    return numericLit->value;
+}
+
+int TypeDescriptionReader::readIntBinding(AST::UiScriptBinding *ast)
+{
+    double v = readNumericBinding(ast);
+    int i = static_cast<int>(v);
+
+    if (i != v) {
+        addError(ast->firstSourceLocation(), "Expected integer after colon");
+        return 0;
+    }
+
+    return i;
 }
 
 void TypeDescriptionReader::readExports(UiScriptBinding *ast, FakeMetaObject::Ptr fmo)

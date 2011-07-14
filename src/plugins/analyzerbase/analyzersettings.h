@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,12 +44,10 @@
 
 namespace Analyzer {
 
-class AnalyzerSettings;
-
 /**
  * Utility function to set @p val if @p key is present in @p map.
  */
-template <typename T> static void setIfPresent(const QVariantMap &map, const QString &key, T *val)
+template <typename T> void setIfPresent(const QVariantMap &map, const QString &key, T *val)
 {
     if (!map.contains(key))
         return;
@@ -58,59 +56,30 @@ template <typename T> static void setIfPresent(const QVariantMap &map, const QSt
 
 /**
  * Subclass this to add configuration to your analyzer tool.
+ *
+ * If global and project-specific settings differ for your tool,
+ * create one subclass for each.
  */
 class ANALYZER_EXPORT AbstractAnalyzerSubConfig : public QObject
 {
     Q_OBJECT
-public:
-    AbstractAnalyzerSubConfig(QObject *parent);
-    virtual ~AbstractAnalyzerSubConfig();
 
+public:
+    AbstractAnalyzerSubConfig() {}
+
+    /// return a list of default values
     virtual QVariantMap defaults() const = 0;
+    /// convert current configuration into map for storage
     virtual QVariantMap toMap() const = 0;
+    /// read configuration from @p map
     virtual bool fromMap(const QVariantMap &map) = 0;
 
+    /// unique ID for this configuration
     virtual QString id() const = 0;
+    /// user readable display name for this configuration
     virtual QString displayName() const = 0;
+    /// create a configuration widget for this configuration
     virtual QWidget *createConfigWidget(QWidget *parent) = 0;
-};
-
-/**
- * Interface for registering configuration to the Manager.
- * You probably want to use the template class below.
- */
-class ANALYZER_EXPORT AbstractAnalyzerSubConfigFactory
-{
-public:
-    AbstractAnalyzerSubConfigFactory(){}
-    ~AbstractAnalyzerSubConfigFactory(){}
-
-    virtual AbstractAnalyzerSubConfig *createGlobalSubConfig(QObject *parent) = 0;
-    virtual AbstractAnalyzerSubConfig *createProjectSubConfig(QObject *parent) = 0;
-};
-
-/**
- * Makes it easy to register configuration for a tool:
- *
- * @code
- * manager->registerSubConfigFactory(new AnalyzerSubConfigFactory<MemcheckGlobalSettings, MemcheckProjectSettings>);
- * @endcode
- */
-template<class GlobalConfigT, class ProjectConfigT>
-class ANALYZER_EXPORT AnalyzerSubConfigFactory : public AbstractAnalyzerSubConfigFactory
-{
-public:
-    AnalyzerSubConfigFactory(){}
-
-    AbstractAnalyzerSubConfig *createGlobalSubConfig(QObject *parent)
-    {
-        return new GlobalConfigT(parent);
-    }
-
-    AbstractAnalyzerSubConfig *createProjectSubConfig(QObject *parent)
-    {
-        return new ProjectConfigT(parent);
-    }
 };
 
 /**
@@ -121,11 +90,10 @@ public:
 class ANALYZER_EXPORT AnalyzerSettings : public QObject
 {
     Q_OBJECT
-public:
-    virtual ~AnalyzerSettings();
 
+public:
     template<class T>
-    T* subConfig() const
+    T *subConfig() const
     {
         return findChild<T *>();
     }
@@ -139,25 +107,28 @@ public:
     virtual QVariantMap toMap() const;
 
 protected:
-    void addSubConfig(AbstractAnalyzerSubConfig *config)
-    {
-        config->setParent(this);
-    }
-
     virtual bool fromMap(const QVariantMap &map);
 
     AnalyzerSettings(QObject *parent);
 };
 
 
+typedef AbstractAnalyzerSubConfig *(*AnalyzerSubConfigFactory)();
+
 // global and local settings are loaded and saved differently, and they also handle suppressions
 // differently.
 /**
  * Global settings
+ *
+ * To access your custom configuration use:
+ * @code
+ * AnalyzerGlobalSettings::instance()->subConfig<YourGlobalConfig>()->...
+ * @endcode
  */
 class ANALYZER_EXPORT AnalyzerGlobalSettings : public AnalyzerSettings
 {
     Q_OBJECT
+
 public:
     static AnalyzerGlobalSettings *instance();
     ~AnalyzerGlobalSettings();
@@ -165,33 +136,39 @@ public:
     void writeSettings() const;
     void readSettings();
 
-    void registerSubConfigFactory(AbstractAnalyzerSubConfigFactory *factory);
-    QList<AbstractAnalyzerSubConfigFactory *> subConfigFactories() const;
+    void registerSubConfigs(AnalyzerSubConfigFactory globalFactory, AnalyzerSubConfigFactory projectFactory);
+    QList<AnalyzerSubConfigFactory> projectSubConfigs() const;
 
 private:
     AnalyzerGlobalSettings(QObject *parent);
     static AnalyzerGlobalSettings *m_instance;
-    QList<AbstractAnalyzerSubConfigFactory *> m_subConfigFactories;
+    QList<AnalyzerSubConfigFactory> m_projectSubConfigs;
 };
 
 /**
  * Settings associated with a single project/run configuration
+ *
+ * To access your custom configuration use:
+ * @code
+ * ProjectExplorer::RunConfiguration *rc = ...;
+ * rc->extraAspect<AnalyzerProjectSettings>()->subConfig<YourProjectConfig>()->...
+ * @endcode
  */
-class ANALYZER_EXPORT AnalyzerProjectSettings : public AnalyzerSettings, public ProjectExplorer::IRunConfigurationAspect
+class ANALYZER_EXPORT AnalyzerProjectSettings
+    : public AnalyzerSettings, public ProjectExplorer::IRunConfigurationAspect
 {
     Q_OBJECT
+
 public:
     AnalyzerProjectSettings(QObject *parent = 0);
-    virtual ~AnalyzerProjectSettings();
 
     QString displayName() const;
-
     virtual QVariantMap toMap() const;
 
 protected:
     virtual bool fromMap(const QVariantMap &map);
 };
 
-}
+} // namespace Analyzer
 
 #endif // ANALYZER_INTERNAL_ANALYZERSETTINGS_H

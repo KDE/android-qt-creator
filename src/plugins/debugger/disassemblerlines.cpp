@@ -26,19 +26,22 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "disassemblerlines.h"
+#include "debuggerstringutils.h"
 
 #include <QtCore/QDebug>
 #include <QtCore/QRegExp>
+#include <QtCore/QFile>
+#include <QtCore/QTextStream>
 
 namespace Debugger {
 namespace Internal {
 
-DisassemblerLine::DisassemblerLine(const QString &unparsed)
+void DisassemblerLine::fromString(const QString &unparsed)
 {
     int pos = -1;
     for (int i = 0; i != unparsed.size(); ++i) {
@@ -70,6 +73,29 @@ DisassemblerLine::DisassemblerLine(const QString &unparsed)
         data = unparsed;
 }
 
+quint64 DisassemblerLine::addressFromDisassemblyLine(const QString &line)
+{
+    DisassemblerLine l;
+    l.fromString(line);
+    return l.address;
+}
+
+quint64 DisassemblerLines::startAddress() const
+{
+    for (int i = 0; i < m_data.size(); ++i)
+        if (m_data.at(i).address)
+            return m_data.at(i).address;
+    return 0;
+}
+
+quint64 DisassemblerLines::endAddress() const
+{
+    for (int i = m_data.size()- 1; i >= 0; --i)
+        if (m_data.at(i).address)
+            return m_data.at(i).address;
+    return 0;
+}
+
 int DisassemblerLines::lineForAddress(quint64 address) const
 {
     return m_rowCache.value(address);
@@ -80,17 +106,113 @@ bool DisassemblerLines::coversAddress(quint64 address) const
     return m_rowCache.value(address) != 0;
 }
 
-void DisassemblerLines::appendComment(const QString &comment)
-{
-    DisassemblerLine dl;
-    dl.data = comment;
-    m_data.append(dl);
-}
-
 void DisassemblerLines::appendLine(const DisassemblerLine &dl)
 {
     m_data.append(dl);
     m_rowCache[dl.address] = m_data.size();
+}
+
+// Append source line: Cache current file
+struct SourceFileCache
+{
+    QString fileName;
+    QStringList lines;
+};
+
+Q_GLOBAL_STATIC(SourceFileCache, sourceFileCache)
+
+void DisassemblerLines::appendSourceLine(const QString &fileName, uint lineNumber)
+{
+
+    if (fileName.isEmpty() || lineNumber == 0)
+        return;
+    lineNumber--; // fix 1..n range.
+    SourceFileCache *cache = sourceFileCache();
+    if (fileName != cache->fileName) {
+        cache->fileName = fileName;
+        cache->lines.clear();
+        QFile file(fileName);
+        if (file.open(QIODevice::ReadOnly)) {
+            QTextStream ts(&file);
+            cache->lines = ts.readAll().split(QLatin1Char('\n'));
+        } // open
+    }     // different file
+    if (lineNumber >= uint(cache->lines.size()))
+        return;
+    DisassemblerLine dl;
+    dl.lineNumber = lineNumber;
+    dl.data = cache->lines.at(lineNumber);
+    appendLine(dl);
+}
+
+void DisassemblerLines::appendUnparsed(const QString &unparsed)
+{
+    QString line = unparsed.trimmed();
+    if (line.isEmpty())
+        return;
+    if (line.startsWith("Current language:"))
+        return;
+    if (line.startsWith("Dump of assembler")) {
+        m_lastFunction.clear();
+        return;
+    }
+    if (line.startsWith("The current source"))
+        return;
+    if (line.startsWith("End of assembler")) {
+        m_lastFunction.clear();
+        return;
+    }
+    if (line.startsWith("=> "))
+        line = line.mid(3);
+    if (line.startsWith("0x")) {
+        // Address line.
+        int pos1 = line.indexOf('<') + 1;
+        int pos2 = line.indexOf('+', pos1);
+        int pos3 = line.indexOf('>', pos1);
+        if (pos1 < pos2 && pos2 < pos3) {
+            QString function = line.mid(pos1, pos2 - pos1);
+            if (function != m_lastFunction) {
+                DisassemblerLine dl;
+                dl.data = _("Function: ") + function;
+                m_data.append(dl);
+                m_lastFunction = function;
+            }
+            //line.replace(pos1, pos2 - pos1, "");
+        }
+        DisassemblerLine dl;
+        dl.address = line.left(pos1 - 1).toULongLong(0, 0);
+        dl.function = m_lastFunction;
+        dl.offset = line.mid(pos2, pos3 - pos2).toUInt();
+        dl.data = line.mid(pos3 + 3).trimmed();
+        m_rowCache[dl.address] = m_data.size() + 1;
+        m_data.append(dl);
+    } else {
+        // Comment line.
+        DisassemblerLine dl;
+        dl.data = line;
+        m_data.append(dl);
+    }
+}
+
+QString DisassemblerLine::toString() const
+{
+    const QString someSpace = _("        ");
+    QString str;
+    if (isAssembler()) {
+        if (address)
+            str += _("0x%1  ").arg(address, 0, 16);
+        if (offset)
+            str += _("<+0x%1> ").arg(offset, 4, 16, QLatin1Char('0'));
+        str += _("        ");
+        str += data;
+    } else if (isCode()) {
+        str += someSpace;
+        str += data;
+    } else {
+        str += someSpace;
+        str += data;
+    }
+    return str;
 }
 
 } // namespace Internal

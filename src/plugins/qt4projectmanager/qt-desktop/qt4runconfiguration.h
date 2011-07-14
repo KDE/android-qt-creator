@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,8 +38,9 @@
 #include <utils/environment.h>
 
 #include <QtCore/QStringList>
-#include <QtGui/QWidget>
 #include <QtCore/QMetaType>
+#include <QtGui/QLabel>
+#include <QtGui/QWidget>
 
 QT_BEGIN_NAMESPACE
 class QCheckBox;
@@ -62,11 +63,11 @@ namespace Qt4ProjectManager {
 
 class Qt4Project;
 class Qt4BaseTarget;
+class Qt4ProFileNode;
 
 namespace Internal {
 class Qt4DesktopTarget;
 class Qt4PriFileNode;
-class Qt4ProFileNode;
 class Qt4RunConfigurationFactory;
 
 class Qt4RunConfiguration : public ProjectExplorer::LocalApplicationRunConfiguration
@@ -82,8 +83,8 @@ public:
 
     Qt4DesktopTarget *qt4Target() const;
 
-    virtual bool isEnabled(ProjectExplorer::BuildConfiguration *configuration) const;
-    using ProjectExplorer::LocalApplicationRunConfiguration::isEnabled;
+    virtual bool isEnabled() const;
+    virtual QString disabledReason() const;
     virtual QWidget *createConfigurationWidget();
 
     virtual QString executable() const;
@@ -102,8 +103,9 @@ public:
     // TODO detectQtShadowBuild() ? how did this work ?
     QVariantMap toMap() const;
 
-    ProjectExplorer::OutputFormatter *createOutputFormatter() const;
+    Utils::OutputFormatter *createOutputFormatter() const;
 
+    void setRunMode(RunMode runMode);
 signals:
     void commandLineArgumentsChanged(const QString&);
     void baseWorkingDirectoryChanged(const QString&);
@@ -116,16 +118,13 @@ signals:
     void effectiveTargetInformationChanged();
 
 private slots:
-    void proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro, bool success);
-    void proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro);
+    void proFileUpdated(Qt4ProjectManager::Qt4ProFileNode *pro, bool success, bool parseInProgress);
 
 protected:
     Qt4RunConfiguration(Qt4BaseTarget *parent, Qt4RunConfiguration *source);
     virtual bool fromMap(const QVariantMap &map);
 
 private:
-    void handleParseState(bool success);
-    void setRunMode(RunMode runMode);
     void setBaseWorkingDirectory(const QString &workingDirectory);
     QString baseWorkingDirectory() const;
     void setCommandLineArguments(const QString &argumentsString);
@@ -156,6 +155,7 @@ private:
     QList<Utils::EnvironmentItem> m_userEnvironmentChanges;
     BaseEnvironmentBase m_baseEnvironmentBase;
     bool m_parseSuccess;
+    bool m_parseInProgress;
 };
 
 class Qt4RunConfigurationWidget : public QWidget
@@ -195,6 +195,8 @@ private slots:
 private:
     Qt4RunConfiguration *m_qt4RunConfiguration;
     bool m_ignoreChange;
+    QLabel *m_disabledIcon;
+    QLabel *m_disabledReason;
     QLineEdit *m_executableLineEdit;
     Utils::PathChooser *m_workingDirectoryEdit;
     QLineEdit *m_argumentsLineEdit;

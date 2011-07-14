@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,13 @@ public:
     BazaarSettings();
     BazaarSettings& operator=(const BazaarSettings& other);
     bool sameUserId(const BazaarSettings& other) const;
+
+    virtual void writeSettings(QSettings *settings) const;
+    virtual void readSettings(const QSettings *settings);
+    virtual bool equals(const VCSBaseClientSettings &rhs) const;
+
+    bool diffIgnoreWhiteSpace;
+    bool diffIgnoreBlankLines;
 };
 
 } // namespace Internal

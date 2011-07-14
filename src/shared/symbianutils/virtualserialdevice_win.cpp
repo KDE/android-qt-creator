@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -341,7 +341,7 @@ bool VirtualSerialDevice::waitForBytesWritten(int msecs)
         return true;
     }
     else {
-        setErrorString(QString("An error occured in waitForBytesWritten() for %1: %2").
+        setErrorString(QString("An error occurred in waitForBytesWritten() for %1: %2").
                        arg(portName, winErrorMessage(GetLastError())));
         return false;
     }

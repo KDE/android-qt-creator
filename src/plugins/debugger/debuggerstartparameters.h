@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,36 +55,38 @@ public:
         CommunicationChannelUsb
     };
 
-    enum DebugClient {
-        DebugClientTrk,
-        DebugClientCoda
+    enum SymbianDebugClient {
+        SymbianDebugClientCoda
     };
 
     DebuggerStartParameters()
       : isSnapshot(false),
         attachPID(-1),
         useTerminal(false),
+        breakOnMain(false),
         qmlServerAddress(QLatin1String("127.0.0.1")),
         qmlServerPort(0),
         useServerStartScript(false),
         connParams(Utils::SshConnectionParameters::NoProxy),
         startMode(NoStartMode),
         executableUid(0),
-        communicationChannel(CommunicationChannelUsb),
+        communicationChannel(CommunicationChannelTcpIp),
         serverPort(0),
-        debugClient(DebugClientTrk)
+        debugClient(SymbianDebugClientCoda)
     {}
 
     QString executable;
     QString displayName; // Used in the Snapshots view.
     QString startMessage; // First status message shown.
     QString coreFile;
+    QString overrideStartScript; // Used in attach to core and remote debugging
     bool isSnapshot; // Set if created internally.
     QString processArgs;
     Utils::Environment environment;
     QString workingDirectory;
     qint64 attachPID;
     bool useTerminal;
+    bool breakOnMain;
 
     // Used by AttachCrashedExternal.
     QString crashParameter;
@@ -92,8 +94,9 @@ public:
     // Used by Qml debugging.
     QString qmlServerAddress;
     quint16 qmlServerPort;
-    QString projectBuildDir;
-    QString projectDir;
+    QString projectSourceDirectory;
+    QString projectBuildDirectory;
+    QStringList projectSourceFiles;
 
     QString qtInstallPath;
     // Used by remote debugging.
@@ -103,7 +106,7 @@ public:
     QString symbolFileName;
     bool useServerStartScript;
     QString serverStartScript;
-    QString sysRoot;
+    QString sysroot;
     QByteArray remoteDumperLib;
     QByteArray remoteSourcesDir;
     QString remoteMountPoint;
@@ -123,7 +126,7 @@ public:
     CommunicationChannel communicationChannel;
     QString serverAddress;
     quint16 serverPort;
-    DebugClient debugClient;
+    SymbianDebugClient debugClient;
 };
 
 } // namespace Debugger

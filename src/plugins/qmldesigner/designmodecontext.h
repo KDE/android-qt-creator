@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,19 +34,9 @@
 #define DESIGNMODECONTEXT_H
 
 #include <coreplugin/icontext.h>
-#include <QList>
-
-QT_BEGIN_NAMESPACE
-class QWidget;
-QT_END_NAMESPACE
 
 namespace QmlDesigner {
-
-class FormEditorWidget;
-
 namespace Internal {
-
-class DesignModeWidget;
 
 /**
   * Bauhaus Design mode context object
@@ -54,33 +44,22 @@ class DesignModeWidget;
 class DesignModeContext : public Core::IContext
 {
 public:
-    DesignModeContext(DesignModeWidget *widget);
-    ~DesignModeContext();
-
-    Core::Context context() const;
-    QWidget *widget();
-
+    DesignModeContext(QWidget *widget);
     QString contextHelpId() const;
-
-private:
-    DesignModeWidget *m_widget;
-    const Core::Context m_context;
 };
 
 class FormEditorContext : public Core::IContext
 {
 public:
-    FormEditorContext(FormEditorWidget *widget);
-    ~FormEditorContext();
-
-    Core::Context context() const;
-    QWidget *widget();
-
+    FormEditorContext(QWidget *widget);
     QString contextHelpId() const;
+};
 
-private:
-    FormEditorWidget *m_widget;
-    const Core::Context m_context;
+class NavigatorContext : public Core::IContext
+{
+public:
+    NavigatorContext(QWidget *widget);
+    QString contextHelpId() const;
 };
 
 }

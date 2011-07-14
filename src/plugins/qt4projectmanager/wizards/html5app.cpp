@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -171,6 +171,81 @@ Core::GeneratedFiles Html5App::generateFiles(QString *errorMessage) const
 }
 #endif // CREATORLESSTEST
 
+QByteArray Html5App::appViewerCppFileCode(QString *errorMessage) const
+{
+    static const char* touchNavigavigationFiles[] = {
+        "webtouchphysicsinterface.h",
+        "webtouchphysics.h",
+        "webtouchevent.h",
+        "webtouchscroller.h",
+        "webtouchnavigation.h",
+        "webnavigation.h",
+        "navigationcontroller.h",
+        "webtouchphysicsinterface.cpp",
+        "webtouchphysics.cpp",
+        "webtouchevent.cpp",
+        "webtouchscroller.cpp",
+        "webtouchnavigation.cpp",
+        "webnavigation.cpp",
+        "navigationcontroller.cpp",
+    };
+    static const QString touchNavigavigationDir =
+            originsRoot() + appViewerOriginsSubDir + QLatin1String("touchnavigation/");
+    QByteArray touchNavigavigationCode;
+    for (size_t i = 0; i < sizeof(touchNavigavigationFiles) / sizeof(touchNavigavigationFiles[0]); ++i) {
+        QFile touchNavigavigationFile(touchNavigavigationDir + QLatin1String(touchNavigavigationFiles[i]));
+        if (!touchNavigavigationFile.open(QIODevice::ReadOnly)) {
+            if (errorMessage)
+                *errorMessage = QCoreApplication::translate("Qt4ProjectManager::AbstractMobileApp",
+                    "Could not open template file '%1'.").arg(touchNavigavigationFiles[i]);
+            return QByteArray();
+        }
+        QTextStream touchNavigavigationFileIn(&touchNavigavigationFile);
+        QString line;
+        while (!(line = touchNavigavigationFileIn.readLine()).isNull()) {
+            if (line.startsWith(QLatin1String("#include")) ||
+                    ((line.startsWith(QLatin1String("#ifndef"))
+                      || line.startsWith(QLatin1String("#define"))
+                      || line.startsWith(QLatin1String("#endif")))
+                    && line.endsWith(QLatin1String("_H"))))
+                continue;
+            touchNavigavigationCode.append(line.toLatin1());
+            touchNavigavigationCode.append('\n');
+        }
+    }
+
+    QFile appViewerCppFile(path(AppViewerCppOrigin));
+    if (!appViewerCppFile.open(QIODevice::ReadOnly)) {
+        if (errorMessage)
+            *errorMessage = QCoreApplication::translate("Qt4ProjectManager::AbstractMobileApp",
+                "Could not open template file '%1'.").arg(path(AppViewerCppOrigin));
+        return QByteArray();
+    }
+    QTextStream in(&appViewerCppFile);
+    QByteArray appViewerCppCode;
+    bool touchNavigavigationCodeInserted = false;
+    QString line;
+    while (!(line = in.readLine()).isNull()) {
+        if (!touchNavigavigationCodeInserted && line == QLatin1String("#ifdef TOUCH_OPTIMIZED_NAVIGATION")) {
+            appViewerCppCode.append(line.toLatin1());
+            appViewerCppCode.append('\n');
+            while (!(line = in.readLine()).isNull()
+                && !line.contains(QLatin1String("#endif // TOUCH_OPTIMIZED_NAVIGATION")))
+            {
+                if (!line.startsWith(QLatin1String("#include \""))) {
+                    appViewerCppCode.append(line.toLatin1());
+                    appViewerCppCode.append('\n');
+                }
+            }
+            appViewerCppCode.append(touchNavigavigationCode);
+            touchNavigavigationCodeInserted = true;
+        }
+        appViewerCppCode.append(line.toLatin1());
+        appViewerCppCode.append('\n');
+    }
+    return appViewerCppCode;
+}
+
 QByteArray Html5App::generateFileExtended(int fileType,
     bool *versionAndCheckSum, QString *comment, QString *errorMessage) const
 {
@@ -186,7 +261,7 @@ QByteArray Html5App::generateFileExtended(int fileType,
             *versionAndCheckSum = true;
             break;
         case Html5AppGeneratedFileInfo::AppViewerCppFile:
-            data = readBlob(path(AppViewerCppOrigin), errorMessage);
+            data = appViewerCppFileCode(errorMessage);
             *versionAndCheckSum = true;
             break;
         case Html5AppGeneratedFileInfo::AppViewerHFile:

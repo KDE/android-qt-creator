@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -77,8 +77,6 @@ protected:
     void addChangeSetIfNotExists(const ModelNode &node);
     static QmlModelState createBaseState(const QmlModelView *view);
 
-private:
-    bool m_isBaseState;
 };
 
 } //QmlDesigner

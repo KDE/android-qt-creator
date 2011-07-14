@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <utils/reloadpromptutils.h>
+#include <utils/fileutils.h>
 
 #include <QtCore/QTemporaryFile>
 #include <QtCore/QFileInfo>
@@ -72,16 +73,22 @@ QString ResourceEditorFile::mimeType() const
 ResourceEditorW::ResourceEditorW(const Core::Context &context,
                                ResourceEditorPlugin *plugin,
                                QWidget *parent)
-        : m_context(context),
-        m_resourceEditor(new SharedTools::QrcEditor(parent)),
+      : m_resourceEditor(new SharedTools::QrcEditor(parent)),
         m_resourceFile(new ResourceEditorFile(this)),
-        m_plugin(plugin)
+        m_plugin(plugin),
+        m_shouldAutoSave(false),
+        m_diskIo(false)
 {
+    setContext(context);
+    setWidget(m_resourceEditor);
+
     m_resourceEditor->setResourceDragEnabled(true);
 
     connect(m_resourceEditor, SIGNAL(dirtyChanged(bool)), this, SLOT(dirtyChanged(bool)));
     connect(m_resourceEditor, SIGNAL(undoStackChanged(bool, bool)),
             this, SLOT(onUndoStackChanged(bool, bool)));
+    connect(m_resourceEditor->commandHistory(), SIGNAL(indexChanged(int)),
+            this, SLOT(setShouldAutoSave()));
     connect(m_resourceFile, SIGNAL(changed()), this, SIGNAL(changed()));
     if (debugResourceEditorW)
         qDebug() <<  "ResourceEditorW::ResourceEditorW()";
@@ -95,22 +102,20 @@ ResourceEditorW::~ResourceEditorW()
 
 bool ResourceEditorW::createNew(const QString &contents)
 {
-    QTemporaryFile tempFile(0);
-    tempFile.setAutoRemove(true);
-    if (!tempFile.open())
+    Utils::TempFileSaver saver;
+    saver.write(contents.toUtf8());
+    if (!saver.finalize(Core::ICore::instance()->mainWindow()))
         return false;
-    const QString tempFileName =  tempFile.fileName();
-    tempFile.write(contents.toUtf8());
-    tempFile.close();
 
-    const bool rc = m_resourceEditor->load(tempFileName);
+    const bool rc = m_resourceEditor->load(saver.fileName());
     m_resourceEditor->setFileName(QString());
+    m_shouldAutoSave = false;
     if (debugResourceEditorW)
-        qDebug() <<  "ResourceEditorW::createNew: " << contents << " (" << tempFileName << ") returns " << rc;
+        qDebug() <<  "ResourceEditorW::createNew: " << contents << " (" << saver.fileName() << ") returns " << rc;
     return rc;
 }
 
-bool ResourceEditorW::open(const QString &fileName /* = QString() */)
+bool ResourceEditorW::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     if (debugResourceEditorW)
         qDebug() <<  "ResourceEditorW::open: " << fileName;
@@ -122,21 +127,24 @@ bool ResourceEditorW::open(const QString &fileName /* = QString() */)
 
     const QFileInfo fi(fileName);
 
-    const QString absFileName = fi.absoluteFilePath();
-
-    if (!fi.isReadable())
+    m_diskIo = true;
+    if (!m_resourceEditor->load(realFileName)) {
+        *errorString = m_resourceEditor->errorMessage();
+        m_diskIo = false;
         return false;
+    }
 
-    if (!m_resourceEditor->load(absFileName))
-        return false;
-
+    m_resourceEditor->setFileName(fileName);
+    m_resourceEditor->setDirty(fileName != realFileName);
     setDisplayName(fi.fileName());
+    m_shouldAutoSave = false;
+    m_diskIo = false;
 
     emit changed();
     return true;
 }
 
-bool ResourceEditorFile::save(const QString &name /* = QString() */)
+bool ResourceEditorFile::save(QString *errorString, const QString &name, bool autoSave)
 {
     if (debugResourceEditorW)
         qDebug(">ResourceEditorW::save: %s", qPrintable(name));
@@ -146,14 +154,25 @@ bool ResourceEditorFile::save(const QString &name /* = QString() */)
     if (actualName.isEmpty())
         return false;
 
+    m_parent->m_diskIo = true;
     m_parent->m_resourceEditor->setFileName(actualName);
     if (!m_parent->m_resourceEditor->save()) {
+        *errorString = m_parent->m_resourceEditor->errorMessage();
         m_parent->m_resourceEditor->setFileName(oldFileName);
+        m_parent->m_diskIo = false;
         return false;
     }
 
-    m_parent->m_resourceEditor->setDirty(false);
+    m_parent->m_shouldAutoSave = false;
+    if (autoSave) {
+        m_parent->m_resourceEditor->setFileName(oldFileName);
+        m_parent->m_resourceEditor->setDirty(true);
+        m_parent->m_diskIo = false;
+        return true;
+    }
+
     m_parent->setDisplayName(QFileInfo(actualName).fileName());
+    m_parent->m_diskIo = false;
 
     emit changed();
     return true;
@@ -172,6 +191,11 @@ QString ResourceEditorW::id() const {
 QString ResourceEditorFile::fileName() const
 {
     return m_parent->m_resourceEditor->fileName();
+}
+
+bool ResourceEditorFile::shouldAutoSave() const
+{
+    return m_parent->m_shouldAutoSave;
 }
 
 bool ResourceEditorFile::isModified() const
@@ -193,29 +217,20 @@ bool ResourceEditorFile::isSaveAsAllowed() const
     return true;
 }
 
-Core::IFile::ReloadBehavior ResourceEditorFile::reloadBehavior(ChangeTrigger state, ChangeType type) const
-{
-    if (type == TypePermissions)
-        return BehaviorSilent;
-    if (type == TypeContents) {
-        if (state == TriggerInternal && !isModified())
-            return BehaviorSilent;
-        return BehaviorAsk;
-    }
-    return BehaviorAsk;
-}
-
-void ResourceEditorFile::reload(ReloadFlag flag, ChangeType type)
+bool ResourceEditorFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
     if (flag == FlagIgnore)
-        return;
+        return true;
     if (type == TypePermissions) {
         emit changed();
     } else {
         emit aboutToReload();
-        if (m_parent->open(m_parent->m_resourceEditor->fileName()))
-            emit reloaded();
+        QString fn = m_parent->m_resourceEditor->fileName();
+        if (!m_parent->open(errorString, fn, fn))
+            return false;
+        emit reloaded();
     }
+    return true;
 }
 
 QString ResourceEditorFile::defaultPath() const
@@ -235,15 +250,12 @@ QString ResourceEditorFile::suggestedFileName() const
 
 void ResourceEditorW::dirtyChanged(bool dirty)
 {
+    if (m_diskIo)
+        return; // We emit changed() afterwards, unless it was an autosave
+
     if (debugResourceEditorW)
         qDebug() << " ResourceEditorW::dirtyChanged" <<  dirty;
-    if (dirty)
-        emit changed();
-}
-
-QWidget *ResourceEditorW::widget()
-{
-    return m_resourceEditor; /* we know it's a subclass of QWidget...*/
+    emit changed();
 }
 
 void ResourceEditorW::onUndoStackChanged(bool canUndo, bool canRedo)

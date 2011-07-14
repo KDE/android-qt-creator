@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,13 +37,9 @@
 
 #include <QtGui/QWidget>
 
-QT_BEGIN_NAMESPACE
-class QPixmap;
-QT_END_NAMESPACE
-
 namespace Utils {
 
-struct DetailsWidgetPrivate;
+class DetailsWidgetPrivate;
 class FadingPanel;
 
 class QTCREATOR_UTILS_EXPORT DetailsWidget : public QWidget
@@ -93,6 +89,8 @@ public:
 
 signals:
     void checked(bool);
+    void linkActivated(const QString &link);
+
 private slots:
     void setExpanded(bool);
 
@@ -102,12 +100,7 @@ protected:
     virtual void leaveEvent(QEvent *event);
 
 private:
-    void updateControls();
-    QPixmap cacheBackground(const QSize &size, bool expanded);
-    void changeHoverState(bool hovered);
-
     DetailsWidgetPrivate *d;
-    QString m_additionalSummaryText;
 };
 
 } // namespace Utils

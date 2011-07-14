@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -112,6 +112,7 @@ public:
 
     quint64    coreAddress() const;
     QByteArray hexAddress()  const;
+    QByteArray hexReferencingAddress()  const;
 
 public:
     quint64    id;           // Token for the engine for internal mapping
@@ -127,6 +128,8 @@ public:
     QByteArray type;         // Type for further processing
     QString    displayedType;// Displayed type (optional)
     quint64    address;      // Displayed address
+    quint64    referencingAddress; // Address of the pointer referencing this item (gdb auto-deref)
+    uint       size;         // Size
     uint       bitpos;       // Position within bit fields
     uint       bitsize;      // Size in case of bit fields
     qint32     generation;   // When updated?

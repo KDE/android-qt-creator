@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -87,13 +87,13 @@
   (see addToRecentFiles() and recentFiles()).
  */
 
-static const char * const settingsGroupC = "RecentFiles";
-static const char * const filesKeyC = "Files";
-static const char * const editorsKeyC = "EditorIds";
+static const char settingsGroupC[] = "RecentFiles";
+static const char filesKeyC[] = "Files";
+static const char editorsKeyC[] = "EditorIds";
 
-static const char * const directoryGroupC = "Directories";
-static const char * const projectDirectoryKeyC = "Projects";
-static const char * const useProjectDirectoryKeyC = "UseProjectsDirectory";
+static const char directoryGroupC[] = "Directories";
+static const char projectDirectoryKeyC[] = "Projects";
+static const char useProjectDirectoryKeyC[] = "UseProjectsDirectory";
 
 namespace Core {
 namespace Internal {
@@ -113,10 +113,12 @@ struct FileState
 
 struct FileManagerPrivate {
     explicit FileManagerPrivate(FileManager *q, QMainWindow *mw);
+    QFileSystemWatcher *fileWatcher();
+    QFileSystemWatcher *linkWatcher();
 
     static FileManager *m_instance;
     QMap<QString, FileState> m_states;
-    QStringList m_changedFiles;
+    QSet<QString> m_changedFiles;
     QList<IFile *> m_filesWithoutWatch;
     QMap<IFile *, QStringList> m_filesWithWatch;
     QSet<QString> m_expectedFileNames;
@@ -127,8 +129,8 @@ struct FileManagerPrivate {
     QString m_currentFile;
 
     QMainWindow *m_mainWindow;
-    QFileSystemWatcher *m_fileWatcher;
-    QFileSystemWatcher *m_linkWatcher;
+    QFileSystemWatcher *m_fileWatcher; // Delayed creation.
+    QFileSystemWatcher *m_linkWatcher; // Delayed creation (only UNIX/if a link is seen).
     bool m_blockActivated;
     QString m_lastVisitedDirectory;
     QString m_projectsDirectory;
@@ -140,11 +142,37 @@ struct FileManagerPrivate {
     IFile *m_blockedIFile;
 };
 
+QFileSystemWatcher *FileManagerPrivate::fileWatcher()
+{
+    if (!m_fileWatcher) {
+        m_fileWatcher= new QFileSystemWatcher(m_instance);
+        QObject::connect(m_fileWatcher, SIGNAL(fileChanged(QString)),
+                         m_instance, SLOT(changedFile(QString)));
+    }
+    return m_fileWatcher;
+}
+
+QFileSystemWatcher *FileManagerPrivate::linkWatcher()
+{
+#ifdef Q_OS_UNIX
+    if (!m_linkWatcher) {
+        m_linkWatcher = new QFileSystemWatcher(m_instance);
+        m_linkWatcher->setObjectName(QLatin1String("_qt_autotest_force_engine_poller"));
+        QObject::connect(m_linkWatcher, SIGNAL(fileChanged(QString)),
+                         m_instance, SLOT(changedFile(QString)));
+    }
+    return m_linkWatcher;
+#else
+    return fileWatcher();
+#endif
+}
+
 FileManager *FileManagerPrivate::m_instance = 0;
 
 FileManagerPrivate::FileManagerPrivate(FileManager *q, QMainWindow *mw) :
     m_mainWindow(mw),
-    m_fileWatcher(new QFileSystemWatcher(q)),
+    m_fileWatcher(0),
+    m_linkWatcher(0),
     m_blockActivated(false),
     m_lastVisitedDirectory(QDir::currentPath()),
 #ifdef Q_OS_MAC  // Creator is in bizarre places when launched via finder.
@@ -155,16 +183,6 @@ FileManagerPrivate::FileManagerPrivate(FileManager *q, QMainWindow *mw) :
     m_blockedIFile(0)
 {
     m_instance = q;
-    q->connect(m_fileWatcher, SIGNAL(fileChanged(QString)),
-        q, SLOT(changedFile(QString)));
-#ifdef Q_OS_UNIX
-    m_linkWatcher = new QFileSystemWatcher(q);
-    m_linkWatcher->setObjectName(QLatin1String("_qt_autotest_force_engine_poller"));
-    q->connect(m_linkWatcher, SIGNAL(fileChanged(QString)),
-        q, SLOT(changedFile(QString)));
-#else
-    m_linkWatcher = m_fileWatcher;
-#endif
 }
 
 } // namespace Internal
@@ -247,32 +265,18 @@ void FileManager::addFileInfo(const QString &fileName, IFile *file, bool isLink)
         if (!d->m_states.contains(fileName)) {
             d->m_states.insert(fileName, Internal::FileState());
 
-            if (isLink)
-                d->m_linkWatcher->addPath(fileName);
-            else
-                d->m_fileWatcher->addPath(fileName);
         }
+        QFileSystemWatcher *watcher = 0;
+        if (isLink)
+            watcher = d->linkWatcher();
+        else
+            watcher = d->fileWatcher();
+        if (!watcher->files().contains(fileName))
+            watcher->addPath(fileName);
+
         d->m_states[fileName].lastUpdatedState.insert(file, state);
     }
     d->m_filesWithWatch[file].append(fileName); // inserts a new QStringList if not already there
-}
-
-/* Updates the time stamp and permission information of the files
-   registered for this IFile (in m_filesWithWatch; can be the IFile's file + final link target) */
-void FileManager::updateFileInfo(IFile *file)
-{
-    foreach (const QString &fileName, d->m_filesWithWatch.value(file)) {
-        // If the filename is empty there's nothing to do
-        if (fileName.isEmpty())
-            continue;
-        const QFileInfo fi(fileName);
-        Internal::FileStateItem item;
-        item.modified = fi.lastModified();
-        item.permissions = fi.permissions();
-        QTC_ASSERT(d->m_states.contains(fileName), continue);
-        QTC_ASSERT(d->m_states.value(fileName).lastUpdatedState.contains(file), continue);
-        d->m_states[fileName].lastUpdatedState.insert(file, item);
-    }
 }
 
 /// Dumps the state of the file manager's map
@@ -299,13 +303,15 @@ void FileManager::dump()
         qDebug() << key->fileName() << d->m_filesWithWatch.value(key);
     }
     qDebug() << "------- dumping watch list";
-    qDebug() << d->m_fileWatcher->files();
+    if (d->m_fileWatcher)
+        qDebug() << d->m_fileWatcher->files();
     qDebug() << "------- dumping link watch list";
-    qDebug() << d->m_linkWatcher->files();
+    if (d->m_linkWatcher)
+        qDebug() << d->m_linkWatcher->files();
 }
 
 /*!
-    \fn void FileManager::renamedFile(const QString &from, QString &to)
+    \fn void FileManager::renamedFile(const QString &from, const QString &to)
     \brief Tells the file manager that a file has been renamed on disk from within Qt Creator.
 
     Needs to be called right after the actual renaming on disk (i.e. before the file system
@@ -351,9 +357,9 @@ void FileManager::removeFileInfo(IFile *file)
             continue;
         d->m_states[fileName].lastUpdatedState.remove(file);
         if (d->m_states.value(fileName).lastUpdatedState.isEmpty()) {
-            if (d->m_fileWatcher->files().contains(fileName))
+            if (d->m_fileWatcher && d->m_fileWatcher->files().contains(fileName))
                 d->m_fileWatcher->removePath(fileName);
-            if (d->m_linkWatcher->files().contains(fileName))
+            if (d->m_linkWatcher && d->m_linkWatcher->files().contains(fileName))
                 d->m_linkWatcher->removePath(fileName);
             d->m_states.remove(fileName);
         }
@@ -377,11 +383,8 @@ void FileManager::fileDestroyed(QObject *obj)
 {
     IFile *file = static_cast<IFile*>(obj);
     // Check the special unwatched first:
-    if (d->m_filesWithoutWatch.contains(file)) {
-        d->m_filesWithoutWatch.removeOne(file);
-        return;
-    }
-    removeFileInfo(file);
+    if (!d->m_filesWithoutWatch.removeOne(file))
+        removeFileInfo(file);
 }
 
 /*!
@@ -389,22 +392,21 @@ void FileManager::fileDestroyed(QObject *obj)
 
     Removes a IFile object from the collection.
 
-    Returns true if the file specified by \a file has been part of the file list.
+    Returns true if the file specified by \a file had the addWatcher argument to addFile() set.
 */
-void FileManager::removeFile(IFile *file)
+bool FileManager::removeFile(IFile *file)
 {
-    QTC_ASSERT(file, return);
+    QTC_ASSERT(file, return false);
 
+    bool addWatcher = false;
     // Special casing unwatched files
-    if (d->m_filesWithoutWatch.contains(file)) {
-        disconnect(file, SIGNAL(destroyed(QObject *)), this, SLOT(fileDestroyed(QObject *)));
-        d->m_filesWithoutWatch.removeOne(file);
-        return;
+    if (!d->m_filesWithoutWatch.removeOne(file)) {
+        addWatcher = true;
+        removeFileInfo(file);
+        disconnect(file, SIGNAL(changed()), this, SLOT(checkForNewFileName()));
     }
-
-    removeFileInfo(file);
-    disconnect(file, SIGNAL(changed()), this, SLOT(checkForNewFileName()));
     disconnect(file, SIGNAL(destroyed(QObject *)), this, SLOT(fileDestroyed(QObject *)));
+    return addWatcher;
 }
 
 /* Slot reacting on IFile::changed. We need to check if the signal was sent
@@ -470,39 +472,6 @@ QList<IFile *> FileManager::modifiedFiles() const
     }
 
     return modifiedFiles;
-}
-
-/*!
-    \fn void FileManager::blockFileChange(IFile *file)
-
-    Blocks the monitoring of the file the \a file argument points to.
-*/
-void FileManager::blockFileChange(IFile *file)
-{
-    // Nothing to do
-    Q_UNUSED(file);
-}
-
-/*!
-    \fn void FileManager::unblockFileChange(IFile *file)
-
-    Enables the monitoring of the file the \a file argument points to, and update the status of the corresponding IFile's.
-*/
-void FileManager::unblockFileChange(IFile *file)
-{
-    // We are updating the lastUpdated time to the current modification time
-    // in changedFile we'll compare the modification time with the last updated
-    // time, and if they are the same, then we don't deliver that notification
-    // to corresponding IFile
-    //
-    // Also we are updating the expected time of the file
-    // in changedFile we'll check if the modification time
-    // is the same as the saved one here
-    // If so then it's a expected change
-
-    updateFileInfo(file);
-    foreach (const QString &fileName, d->m_filesWithWatch.value(file))
-        updateExpectedState(fileName);
 }
 
 /*!
@@ -647,6 +616,35 @@ QList<IFile *> FileManager::saveModifiedFiles(const QList<IFile *> &files,
     return notSaved;
 }
 
+bool FileManager::saveFile(IFile *file, const QString &fileName, bool *isReadOnly)
+{
+    bool ret = true;
+    QString effName = fileName.isEmpty() ? file->fileName() : fileName;
+    expectFileChange(effName); // This only matters to other IFiles which refer to this file
+    bool addWatcher = removeFile(file); // So that our own IFile gets no notification at all
+
+    QString errorString;
+    if (!file->save(&errorString, fileName, false)) {
+        if (isReadOnly) {
+            QFile ofi(effName);
+            // Check whether the existing file is writable
+            if (ofi.exists() && !ofi.open(QIODevice::ReadWrite)
+                && ofi.error() == QFile::PermissionsError) {
+                *isReadOnly = true;
+                goto out;
+            }
+            *isReadOnly = false;
+        }
+        QMessageBox::critical(d->m_mainWindow, tr("File Error"), errorString);
+      out:
+        ret = false;
+    }
+
+    addFile(file, addWatcher);
+    unexpectFileChange(effName);
+    return ret;
+}
+
 QString FileManager::getSaveFileName(const QString &title, const QString &pathIn,
                                      const QString &filter, QString *selectedFilter)
 {
@@ -702,7 +700,7 @@ QString FileManager::getSaveFileNameWithExtension(const QString &title, const QS
 }
 
 /*!
-    \fn QString FileManager::getSaveAsFileName(IFile *file)
+    \fn QString FileManager::getSaveAsFileName(IFile *file, const QString &filter, QString *selectedFilter)
 
     Asks the user for a new file name (Save File As) for /arg file.
 */
@@ -738,7 +736,9 @@ QString FileManager::getSaveAsFileName(IFile *file, const QString &filter, QStri
 }
 
 /*!
-    \fn QString FileManager::getOpenFileNames(const QString &filters, const QString &pathIn, QString *selectedFilter) const
+    \fn QStringList FileManager::getOpenFileNames(const QString &filters,
+                                                  const QString pathIn,
+                                                  QString *selectedFilter)
 
     Asks the user for a set of file names to be opened. The \a filters
     and \a selectedFilter parameters is interpreted like in
@@ -793,7 +793,7 @@ FileManager::ReadOnlyAction
 
     QPushButton *saveAsButton = 0;
     if (displaySaveAsButton)
-        saveAsButton = msgBox.addButton(tr("Save as ..."), QMessageBox::ActionRole);
+        saveAsButton = msgBox.addButton(tr("Save as..."), QMessageBox::ActionRole);
 
     msgBox.setDefaultButton(vcsButton ? vcsButton : makeWritableButton);
     msgBox.exec();
@@ -812,8 +812,8 @@ void FileManager::changedFile(const QString &fileName)
 {
     const bool wasempty = d->m_changedFiles.isEmpty();
 
-    if (!d->m_changedFiles.contains(fileName) && d->m_states.contains(fileName))
-        d->m_changedFiles.append(fileName);
+    if (d->m_states.contains(fileName))
+        d->m_changedFiles.insert(fileName);
 
     if (wasempty && !d->m_changedFiles.isEmpty()) {
         QTimer::singleShot(200, this, SLOT(checkForReload()));
@@ -884,8 +884,9 @@ void FileManager::checkForReload()
     }
 
     // handle the IFiles
+    QStringList errorStrings;
     foreach (IFile *file, changedIFiles) {
-        IFile::ChangeTrigger behavior = IFile::TriggerInternal;
+        IFile::ChangeTrigger trigger = IFile::TriggerInternal;
         IFile::ChangeType type = IFile::TypePermissions;
         bool changed = false;
         // find out the type & behavior from the two possible files
@@ -899,6 +900,7 @@ void FileManager::checkForReload()
             Internal::FileStateItem currentState = currentStates.value(fileName);
             Internal::FileStateItem expectedState = d->m_states.value(fileName).expected;
             Internal::FileStateItem lastState = d->m_states.value(fileName).lastUpdatedState.value(file);
+
             // did the file actually change?
             if (lastState.modified == currentState.modified && lastState.permissions == currentState.permissions)
                 continue;
@@ -911,14 +913,13 @@ void FileManager::checkForReload()
             // was the change unexpected?
             if ((currentState.modified != expectedState.modified || currentState.permissions != expectedState.permissions)
                     && !expectedFileNames.contains(fileName)) {
-                behavior = IFile::TriggerExternal;
+                trigger = IFile::TriggerExternal;
             }
 
             // find out the type
             IFile::ChangeType fileChange = changeTypes.value(fileName);
             if (fileChange == IFile::TypeRemoved) {
                 type = IFile::TypeRemoved;
-                behavior = IFile::TriggerExternal; // removed files always trigger externally
             } else if (fileChange == IFile::TypeContents && type == IFile::TypePermissions) {
                 type = IFile::TypeContents;
             }
@@ -930,49 +931,56 @@ void FileManager::checkForReload()
         // handle it!
         d->m_blockedIFile = file;
 
+        bool success = true;
+        QString errorString;
         // we've got some modification
         // check if it's contents or permissions:
         if (type == IFile::TypePermissions) {
             // Only permission change
-            file->reload(IFile::FlagReload, IFile::TypePermissions);
+            success = file->reload(&errorString, IFile::FlagReload, IFile::TypePermissions);
         // now we know it's a content change or file was removed
         } else if (defaultBehavior == IFile::ReloadUnmodified
                    && type == IFile::TypeContents && !file->isModified()) {
             // content change, but unmodified (and settings say to reload in this case)
-            file->reload(IFile::FlagReload, type);
+            success = file->reload(&errorString, IFile::FlagReload, type);
         // file was removed or it's a content change and the default behavior for
         // unmodified files didn't kick in
+        } else if (defaultBehavior == IFile::ReloadUnmodified
+                   && type == IFile::TypeRemoved && !file->isModified()) {
+            // file removed, but unmodified files should be reloaded
+            // so we close the file
+            editorsToClose << EditorManager::instance()->editorsForFile(file);
         } else if (defaultBehavior == IFile::IgnoreAll) {
             // content change or removed, but settings say ignore
-            file->reload(IFile::FlagIgnore, type);
+            success = file->reload(&errorString, IFile::FlagIgnore, type);
         // either the default behavior is to always ask,
         // or the ReloadUnmodified default behavior didn't kick in,
         // so do whatever the IFile wants us to do
         } else {
             // check if IFile wants us to ask
-            if (file->reloadBehavior(behavior, type) == IFile::BehaviorSilent) {
+            if (file->reloadBehavior(trigger, type) == IFile::BehaviorSilent) {
                 // content change or removed, IFile wants silent handling
-                file->reload(IFile::FlagReload, type);
+                success = file->reload(&errorString, IFile::FlagReload, type);
             // IFile wants us to ask
             } else if (type == IFile::TypeContents) {
                 // content change, IFile wants to ask user
                 if (previousAnswer == Utils::ReloadNone) {
                     // answer already given, ignore
-                    file->reload(IFile::FlagIgnore, IFile::TypeContents);
+                    success = file->reload(&errorString, IFile::FlagIgnore, IFile::TypeContents);
                 } else if (previousAnswer == Utils::ReloadAll) {
                     // answer already given, reload
-                    file->reload(IFile::FlagReload, IFile::TypeContents);
+                    success = file->reload(&errorString, IFile::FlagReload, IFile::TypeContents);
                 } else {
                     // Ask about content change
                     previousAnswer = Utils::reloadPrompt(file->fileName(), file->isModified(), QApplication::activeWindow());
                     switch (previousAnswer) {
                     case Utils::ReloadAll:
                     case Utils::ReloadCurrent:
-                        file->reload(IFile::FlagReload, IFile::TypeContents);
+                        success = file->reload(&errorString, IFile::FlagReload, IFile::TypeContents);
                         break;
                     case Utils::ReloadSkipCurrent:
                     case Utils::ReloadNone:
-                        file->reload(IFile::FlagIgnore, IFile::TypeContents);
+                        success = file->reload(&errorString, IFile::FlagIgnore, IFile::TypeContents);
                         break;
                     }
                 }
@@ -981,7 +989,7 @@ void FileManager::checkForReload()
                 // Ask about removed file
                 bool unhandled = true;
                 while (unhandled) {
-                    switch (Utils::fileDeletedPrompt(file->fileName(), QApplication::activeWindow())) {
+                    switch (Utils::fileDeletedPrompt(file->fileName(), trigger == IFile::TriggerExternal, QApplication::activeWindow())) {
                     case Utils::FileDeletedSave:
                         filesToSave.insert(file, file->fileName());
                         unhandled = false;
@@ -1003,21 +1011,28 @@ void FileManager::checkForReload()
                 }
             }
         }
+        if (!success) {
+            if (errorString.isEmpty())
+                errorStrings << tr("Cannot reload %1").arg(QDir::toNativeSeparators(file->fileName()));
+            else
+                errorStrings << errorString;
+        }
 
         // update file info, also handling if e.g. link target has changed
         removeFileInfo(file);
         addFileInfo(file);
         d->m_blockedIFile = 0;
     }
+    if (!errorStrings.isEmpty())
+        QMessageBox::critical(d->m_mainWindow, tr("File Error"),
+                              errorStrings.join(QLatin1String("\n")));
 
     // handle deleted files
     EditorManager::instance()->closeEditors(editorsToClose, false);
     QMapIterator<IFile *, QString> it(filesToSave);
     while (it.hasNext()) {
         it.next();
-        blockFileChange(it.key());
-        it.key()->save(it.value());
-        unblockFileChange(it.key());
+        saveFile(it.key(), it.value());
         it.key()->checkPermissions();
     }
 
@@ -1038,7 +1053,7 @@ void FileManager::syncWithEditor(Core::IContext *context)
 }
 
 /*!
-    \fn void FileManager::addToRecentFiles(const QString &fileName, , const QString &editorId)
+    \fn void FileManager::addToRecentFiles(const QString &fileName, const QString &editorId)
 
     Adds the \a fileName to the list of recent files. Associates the file to
     be reopened with an editor of the given \a editorId, if possible.
@@ -1060,6 +1075,17 @@ void FileManager::addToRecentFiles(const QString &fileName, const QString &edito
     if (d->m_recentFiles.count() > d->m_maxRecentFiles)
         d->m_recentFiles.removeLast();
     d->m_recentFiles.prepend(RecentFile(fileName, editorId));
+}
+
+/*!
+    \fn void FileManager::clearRecentFiles()
+
+    Clears the list of recent files. Should only be called by
+    the core plugin when the user chooses to clear it.
+*/
+void FileManager::clearRecentFiles()
+{
+    d->m_recentFiles.clear();
 }
 
 /*!

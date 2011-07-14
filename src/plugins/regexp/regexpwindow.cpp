@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -145,8 +145,8 @@ RegExpWindow::RegExpWindow(QWidget *parent) :
     refresh();
 }
 
-static const char *escapedBackSlash = "\\\\";
-static const char *escapedDoubleQuote = "\\\"";
+static const char escapedBackSlash[] = "\\\\";
+static const char escapedDoubleQuote[] = "\\\"";
 
 static QString escapePattern(const QString &pattern)
 {

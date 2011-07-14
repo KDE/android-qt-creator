@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,6 +50,7 @@ class QTCREATOR_UTILS_EXPORT CrumblePath : public QWidget
 public:
     explicit CrumblePath(QWidget *parent = 0);
     ~CrumblePath();
+
     void selectIndex(int index);
     QVariant dataForIndex(int index) const;
 
@@ -57,16 +58,16 @@ public slots:
     void pushElement(const QString &title, const QVariant &data = QVariant());
     void addChild(const QString &title, const QVariant &data = QVariant());
     void popElement();
-    void clear();
+    virtual void clear();
 
 signals:
-    void elementClicked(int debugId);
+    void elementClicked(const QVariant &data);
 
 protected:
     void resizeEvent(QResizeEvent *);
 
 private slots:
-    void mapClickToIndex();
+    void emitElementClicked();
 
 private:
     void resizeButtons();

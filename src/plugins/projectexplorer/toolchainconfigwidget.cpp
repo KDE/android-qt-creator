@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -80,6 +80,12 @@ void ToolChainConfigWidget::setDisplayName(const QString &name)
 ToolChain *ToolChainConfigWidget::toolChain() const
 {
     return m_d->m_toolChain;
+}
+
+void ToolChainConfigWidget::makeReadOnly()
+{
+    if (m_d->m_debuggerPathChooser)
+        m_d->m_debuggerPathChooser->setEnabled(false);
 }
 
 void ToolChainConfigWidget::emitDirty()

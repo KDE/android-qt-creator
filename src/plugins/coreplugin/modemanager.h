@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -62,14 +62,15 @@ public:
     void init();
     static ModeManager *instance();
 
-    IMode* currentMode() const;
-    IMode* mode(const QString &id) const;
+    IMode *currentMode() const;
+    IMode *mode(const QString &id) const;
 
     void addAction(QAction *action, int priority);
     void addProjectSelector(QAction *action);
     void addWidget(QWidget *widget);
 
     void activateModeType(const QString &type);
+    void setModeBarHidden(bool hidden);
 
 signals:
     void currentModeAboutToChange(Core::IMode *mode);

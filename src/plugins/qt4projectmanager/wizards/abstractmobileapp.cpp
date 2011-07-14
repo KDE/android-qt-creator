@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,8 @@
 #ifndef CREATORLESSTEST
 #include <coreplugin/icore.h>
 #endif // CREATORLESSTEST
+
+#include <utils/fileutils.h>
 
 namespace Qt4ProjectManager {
 
@@ -57,7 +59,7 @@ const QString AbstractMobileApp::ProFileComment(QLatin1String("#"));
 const QString AbstractMobileApp::DeploymentPriFileName(QLatin1String("deployment.pri"));
 const QString AbstractMobileApp::FileChecksum(QLatin1String("checksum"));
 const QString AbstractMobileApp::FileStubVersion(QLatin1String("version"));
-const int AbstractMobileApp::StubVersion = 4;
+const int AbstractMobileApp::StubVersion = 6;
 
 AbstractMobileApp::AbstractMobileApp()
     : m_orientation(ScreenOrientationAuto)
@@ -113,14 +115,24 @@ QString AbstractMobileApp::symbianSvgIcon() const
     return path(SymbianSvgIconOrigin);
 }
 
-void AbstractMobileApp::setMaemoPngIcon(const QString &icon)
+void AbstractMobileApp::setMaemoPngIcon64(const QString &icon)
 {
-    m_maemoPngIcon = icon;
+    m_maemoPngIcon64 = icon;
 }
 
-QString AbstractMobileApp::maemoPngIcon() const
+QString AbstractMobileApp::maemoPngIcon64() const
 {
-    return path(MaemoPngIconOrigin);
+    return path(MaemoPngIconOrigin64);
+}
+
+void AbstractMobileApp::setMaemoPngIcon80(const QString &icon)
+{
+    m_maemoPngIcon80 = icon;
+}
+
+QString AbstractMobileApp::maemoPngIcon80() const
+{
+    return path(MaemoPngIconOrigin80);
 }
 
 void AbstractMobileApp::setSymbianTargetUid(const QString &uid)
@@ -158,43 +170,55 @@ QString AbstractMobileApp::path(int fileType) const
         case AppPro:                return outputPathBase() + cleanProjectName + QLatin1String(".pro");
         case AppProOrigin:          return originsRootApp + QLatin1String("app.pro");
         case AppProPath:            return outputPathBase();
-        case Desktop:               return outputPathBase() + cleanProjectName + QLatin1String(".desktop");
+        case DesktopFremantle:      return outputPathBase() + cleanProjectName + QLatin1String(".desktop");
+        case DesktopHarmattan:      return outputPathBase() + cleanProjectName + QLatin1String("_harmattan.desktop");
         case DesktopOrigin:         return originsRootShared + QLatin1String("app.desktop");
         case DeploymentPri:         return outputPathBase() + DeploymentPriFileName;
         case DeploymentPriOrigin:   return originsRootShared + DeploymentPriFileName;
         case SymbianSvgIcon:        return outputPathBase() + cleanProjectName + QLatin1String(".svg");
         case SymbianSvgIconOrigin:  return !m_symbianSvgIcon.isEmpty() ? m_symbianSvgIcon
                                         : originsRootShared + symbianIconFileName;
-        case MaemoPngIcon:          return outputPathBase() + cleanProjectName +  QLatin1String(".png");
-        case MaemoPngIconOrigin:    return !m_maemoPngIcon.isEmpty() ? m_maemoPngIcon
-                                        : originsRootShared + QLatin1String("maemoicon.png");
+        case MaemoPngIcon64:        return outputPathBase() + cleanProjectName +  QLatin1String("64.png");
+        case MaemoPngIconOrigin64:  return !m_maemoPngIcon64.isEmpty() ? m_maemoPngIcon64
+                                        : originsRootShared + QLatin1String("maemoicon64.png");
+        case MaemoPngIcon80:        return outputPathBase() + cleanProjectName +  QLatin1String("80.png");
+        case MaemoPngIconOrigin80:  return !m_maemoPngIcon80.isEmpty() ? m_maemoPngIcon80
+                                        : originsRootShared + QLatin1String("maemoicon80.png");
         default:                    return pathExtended(fileType);
     }
     return QString();
 }
 
-QByteArray AbstractMobileApp::generateDesktopFile(QString *errorMessage) const
+bool AbstractMobileApp::readTemplate(int fileType, QByteArray *data, QString *errorMessage) const
 {
-    QFile desktopTemplate(path(DesktopOrigin));
-    if (!desktopTemplate.open(QIODevice::ReadOnly)) {
-        *errorMessage = QCoreApplication::translate("Qt4ProjectManager::AbstractMobileApp",
-            "Could not open desktop file template");
+    Utils::FileReader reader;
+    if (!reader.fetch(path(fileType), errorMessage))
+        return false;
+    *data = reader.data();
+    return true;
+}
+
+QByteArray AbstractMobileApp::generateDesktopFile(QString *errorMessage, int fileType) const
+{
+    QByteArray desktopFileContent;
+    if (!readTemplate(DesktopOrigin, &desktopFileContent, errorMessage))
         return QByteArray();
+    if (fileType == AbstractGeneratedFileInfo::DesktopFileFremantle) {
+        desktopFileContent.replace("Icon=thisApp",
+            "Icon=" + projectName().toUtf8() + "64");
+    } else if (fileType == AbstractGeneratedFileInfo::DesktopFileHarmattan) {
+        desktopFileContent.replace("Icon=thisApp",
+            "Icon=/usr/share/icons/hicolor/80x80/apps/" + projectName().toUtf8() + "80.png");
     }
-    QByteArray desktopFileContent = desktopTemplate.readAll();
     return desktopFileContent.replace("thisApp", projectName().toUtf8());
 }
 
 QByteArray AbstractMobileApp::generateMainCpp(QString *errorMessage) const
 {
-    QFile sourceFile(path(MainCppOrigin));
-    if (!sourceFile.open(QIODevice::ReadOnly)) {
-        *errorMessage = QCoreApplication::translate("Qt4ProjectManager::AbstractMobileApp",
-                                                    "Could not open main.cpp template '%1'.")
-            .arg(sourceFile.fileName());
+    QByteArray mainCppInput;
+    if (!readTemplate(MainCppOrigin, &mainCppInput, errorMessage))
         return QByteArray();
-    }
-    QTextStream in(&sourceFile);
+    QTextStream in(&mainCppInput);
 
     QByteArray mainCppContent;
     QTextStream out(&mainCppContent, QIODevice::WriteOnly);
@@ -214,6 +238,9 @@ QByteArray AbstractMobileApp::generateMainCpp(QString *errorMessage) const
             case ScreenOrientationAuto:
                 orientationString = "ScreenOrientationAuto";
                 break;
+            case ScreenOrientationImplicit:
+            default:
+                continue; // omit line
             }
             insertParameter(line, mainWindowClassName() + QLatin1String("::")
                 + QLatin1String(orientationString));
@@ -236,14 +263,10 @@ QByteArray AbstractMobileApp::generateMainCpp(QString *errorMessage) const
 QByteArray AbstractMobileApp::generateProFile(QString *errorMessage) const
 {
     const QChar comment = QLatin1Char('#');
-    QFile proFile(path(AppProOrigin));
-    if (!proFile.open(QIODevice::ReadOnly)) {
-        *errorMessage = QCoreApplication::translate("Qt4ProjectManager::AbstractMobileApp",
-                                                    "Could not open project file template '%1'.")
-            .arg(proFile.fileName());
+    QByteArray proFileInput;
+    if (!readTemplate(AppProOrigin, &proFileInput, errorMessage))
         return QByteArray();
-    }
-    QTextStream in(&proFile);
+    QTextStream in(&proFileInput);
 
     QByteArray proFileContent;
     QTextStream out(&proFileContent, QIODevice::WriteOnly);
@@ -279,8 +302,8 @@ QByteArray AbstractMobileApp::generateProFile(QString *errorMessage) const
             }
             if (foldersCount > 0)
                 out << "DEPLOYMENTFOLDERS = " << folders.join(QLatin1String(" ")) << endl;
-        } else if (line.contains(QLatin1String("# INCLUDE_DEPLOYMENT_PRI"))) {
-            in.readLine(); // eats 'include(deployment.pri)'
+        } else if (line.contains(QLatin1String("# REMOVE_NEXT_LINE"))) {
+            in.readLine(); // eats the following line
         } else {
             handleCurrentProFileTemplateLine(line, in, out, commentOutNextLine);
         }
@@ -346,14 +369,10 @@ bool AbstractMobileApp::updateFiles(const QList<AbstractGeneratedFileInfo> &list
         const QByteArray data = generateFile(info.fileType, &error);
         if (!error.isEmpty())
             return false;
-        QFile file(info.fileInfo.absoluteFilePath());
-        if (!file.open(QIODevice::WriteOnly) || file.write(data) == -1) {
-            error = QCoreApplication::translate(
-                        "Qt4ProjectManager::Internal::QtQuickApp",
-                        "Could not write file '%1'.").
-                    arg(QDir::toNativeSeparators(info.fileInfo.canonicalFilePath()));
+        Utils::FileSaver saver(QDir::cleanPath(info.fileInfo.absoluteFilePath()));
+        saver.write(data);
+        if (!saver.finalize(&error))
             return false;
-        }
     }
     return true;
 }
@@ -383,8 +402,10 @@ Core::GeneratedFiles AbstractMobileApp::generateFiles(QString *errorMessage) con
     files.last().setAttributes(Core::GeneratedFile::OpenProjectAttribute);
     files << file(generateFile(AbstractGeneratedFileInfo::MainCppFile, errorMessage), path(MainCpp));
     files << file(generateFile(AbstractGeneratedFileInfo::SymbianSvgIconFile, errorMessage), path(SymbianSvgIcon));
-    files << file(generateFile(AbstractGeneratedFileInfo::MaemoPngIconFile, errorMessage), path(MaemoPngIcon));
-    files << file(generateFile(AbstractGeneratedFileInfo::DesktopFile, errorMessage), path(Desktop));
+    files << file(generateFile(AbstractGeneratedFileInfo::MaemoPngIconFile64, errorMessage), path(MaemoPngIcon64));
+    files << file(generateFile(AbstractGeneratedFileInfo::MaemoPngIconFile80, errorMessage), path(MaemoPngIcon80));
+    files << file(generateFile(AbstractGeneratedFileInfo::DesktopFileFremantle, errorMessage), path(DesktopFremantle));
+    files << file(generateFile(AbstractGeneratedFileInfo::DesktopFileHarmattan, errorMessage), path(DesktopHarmattan));
     return files;
 }
 #endif // CREATORLESSTEST
@@ -397,13 +418,10 @@ QString AbstractMobileApp::error() const
 QByteArray AbstractMobileApp::readBlob(const QString &filePath,
     QString *errorMsg) const
 {
-    QFile sourceFile(filePath);
-    if (!sourceFile.open(QIODevice::ReadOnly)) {
-        *errorMsg = QCoreApplication::translate("Qt4ProjectManager::AbstractMobileApp",
-            "Could not open template file '%1'.").arg(filePath);
+    Utils::FileReader reader;
+    if (!reader.fetch(filePath, errorMsg))
         return QByteArray();
-    }
-    return sourceFile.readAll();
+    return reader.data();
 }
 
 QByteArray AbstractMobileApp::generateFile(int fileType,
@@ -423,11 +441,15 @@ QByteArray AbstractMobileApp::generateFile(int fileType,
         case AbstractGeneratedFileInfo::SymbianSvgIconFile:
             data = readBlob(path(SymbianSvgIconOrigin), errorMessage);
             break;
-        case AbstractGeneratedFileInfo::MaemoPngIconFile:
-            data = readBlob(path(MaemoPngIconOrigin), errorMessage);
+        case AbstractGeneratedFileInfo::MaemoPngIconFile64:
+            data = readBlob(path(MaemoPngIconOrigin64), errorMessage);
             break;
-        case AbstractGeneratedFileInfo::DesktopFile:
-            data = generateDesktopFile(errorMessage);
+        case AbstractGeneratedFileInfo::MaemoPngIconFile80:
+            data = readBlob(path(MaemoPngIconOrigin80), errorMessage);
+            break;
+        case AbstractGeneratedFileInfo::DesktopFileFremantle:
+        case AbstractGeneratedFileInfo::DesktopFileHarmattan:
+            data = generateDesktopFile(errorMessage, fileType);
             break;
         case AbstractGeneratedFileInfo::DeploymentPriFile:
             data = readBlob(path(DeploymentPriOrigin), errorMessage);

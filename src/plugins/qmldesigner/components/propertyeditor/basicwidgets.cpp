@@ -26,11 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "basicwidgets.h"
+#include <utils/fileutils.h>
 #include <qlayoutobject.h>
 #include <QDeclarativeContext>
 #include <QDeclarativeEngine>
@@ -442,14 +443,11 @@ public:
             fileName = (QLatin1Char(':') + _styleSheetFile.toLocalFile().split(QLatin1Char(':')).last()); //try if it is a resource
         else
             fileName = (_styleSheetFile.toLocalFile());
-        QFile file(fileName);
-        file.open(QIODevice::ReadOnly);
-        if (file.isOpen()) {
-            QString styleSheet(file.readAll());
-            q->setStyleSheet(styleSheet);
-        } else {
-            qWarning() << QLatin1String("setStyleSheetFile: ") << url << QLatin1String(" not found!");
-        }
+        Utils::FileReader reader;
+        if (reader.fetch(fileName))
+            q->setStyleSheet(QString::fromLatin1(reader.data()));
+        else
+            qWarning() << QString::fromLatin1("setStyleSheetFile: %1").arg(reader.errorString());
 
     }
 
@@ -634,14 +632,13 @@ private:
         }
 
         QFile file(path);
-        file.open(QIODevice::ReadOnly);
-        if (file.exists() && file.isOpen()) {
+        if (file.open(QIODevice::ReadOnly)) {
             QPixmap pixmap(path);
             if (pixmap.isNull())
-                qWarning() << QLatin1String("setIconFromFile: ") << url << QLatin1String(" not found!");
+                qWarning() << "setIconFromFile: failed to load" << path;
             pb->setIcon(pixmap);
         } else {
-            qWarning() << QLatin1String("setIconFromFile: ") << url << QLatin1String(" not found!");
+            qWarning() << QString::fromLatin1("setIconFromFile: %1: %2").arg(path, file.errorString());
         }
 
     }
@@ -660,11 +657,11 @@ protected:
     void paintEvent(QPaintEvent *event)
     {
         QFontMetrics fm(font());
-        if (fm.width(text()) > (contentsRect().width() - 6) && text().length() > 4) {
+        if (fm.width(text()) > (contentsRect().width() - 8) && text().length() > 4) {
             QPainter p(this);
-            QString elided_txt;
-            elided_txt = this->fontMetrics().elidedText(text(), Qt::ElideRight, rect().width() - 6, Qt::TextShowMnemonic);
-            p.drawText(rect().adjusted(12, 0, 0, 0), elided_txt);
+            QString elided_txt;            
+            elided_txt = fm.elidedText(text(), Qt::ElideRight, contentsRect().width() - 8, Qt::TextShowMnemonic);
+            p.drawText(contentsRect().adjusted(12, 0, 0, 0), Qt::TextSingleLine, elided_txt);
         }
         else
             QLabel::paintEvent(event);
@@ -700,14 +697,13 @@ private:
         }
 
         QFile file(path);
-        file.open(QIODevice::ReadOnly);
-        if (file.exists() && file.isOpen()) {
+        if (file.open(QIODevice::ReadOnly)) {
             QPixmap pixmap(path);
             if (pixmap.isNull())
-                qWarning() << QLatin1String("setIconFromFile: ") << url << QLatin1String(" not found!");
+                qWarning() << "setIconFromFile: failed to load" << path;
             lb->setPixmap(pixmap);
         } else {
-            qWarning() << QLatin1String("setIconFromFile: ") << url << QLatin1String(" not found!");
+            qWarning() << QString::fromLatin1("setIconFromFile: %1: %2").arg(path, file.errorString());
         }
 
     }
@@ -773,14 +769,13 @@ private:
         }
 
         QFile file(path);
-        file.open(QIODevice::ReadOnly);
-        if (file.exists() && file.isOpen()) {
+        if (file.open(QIODevice::ReadOnly)) {
             QPixmap pixmap(path);
             if (pixmap.isNull())
-                qWarning() << QLatin1String("setIconFromFile: ") << url << QLatin1String(" not found!");
+                qWarning() << "setIconFromFile: failed to load" << path;
             pb->setIcon(pixmap);
         } else {
-            qWarning() << QLatin1String("setIconFromFile: ") << url << QLatin1String(" not found!");
+            qWarning() << QString::fromLatin1("setIconFromFile: %1: %2").arg(path, file.errorString());
         }
 
     }

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,22 +45,12 @@
 using namespace GenericProjectManager::Internal;
 
 Manager::Manager()
-{
-    m_projectContext  = Core::Context(GenericProjectManager::Constants::PROJECTCONTEXT);
-    m_projectLanguage = Core::Context(ProjectExplorer::Constants::LANG_CXX);
-}
-
-Manager::~Manager()
 { }
 
-Core::Context Manager::projectContext() const
-{ return m_projectContext; }
-
-Core::Context Manager::projectLanguage() const
-{ return m_projectLanguage; }
-
 QString Manager::mimeType() const
-{ return QLatin1String(Constants::GENERICMIMETYPE); }
+{
+    return QLatin1String(Constants::GENERICMIMETYPE);
+}
 
 ProjectExplorer::Project *Manager::openProject(const QString &fileName)
 {
@@ -82,19 +72,22 @@ ProjectExplorer::Project *Manager::openProject(const QString &fileName)
 }
 
 void Manager::registerProject(GenericProject *project)
-{ m_projects.append(project); }
+{
+    m_projects.append(project);
+}
 
 void Manager::unregisterProject(GenericProject *project)
-{ m_projects.removeAll(project); }
+{
+    m_projects.removeAll(project);
+}
 
 void Manager::notifyChanged(const QString &fileName)
 {
     foreach (GenericProject *project, m_projects) {
         if (fileName == project->filesFileName()) {
             project->refresh(GenericProject::Files);
-        }
-        else if (fileName == project->includesFileName() ||
-                 fileName == project->configFileName()) {
+        } else if (fileName == project->includesFileName()
+                   || fileName == project->configFileName()) {
             project->refresh(GenericProject::Configuration);
         }
     }

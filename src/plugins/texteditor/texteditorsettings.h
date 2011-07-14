@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,6 +36,11 @@
 #include "texteditor_global.h"
 
 #include <QtCore/QObject>
+
+QT_BEGIN_NAMESPACE
+template <class Key, class T>
+class QMap;
+QT_END_NAMESPACE
 
 namespace TextEditor {
 
@@ -48,6 +53,8 @@ class DisplaySettings;
 class CompletionSettings;
 class HighlighterSettings;
 class ExtraEncodingSettings;
+class TabPreferences;
+class IFallbackPreferences;
 
 namespace Internal {
 class TextEditorSettingsPrivate;
@@ -71,7 +78,6 @@ public:
     void initializeEditor(BaseTextEditorWidget *editor);
 
     const FontSettings &fontSettings() const;
-    const TabSettings &tabSettings() const;
     const StorageSettings &storageSettings() const;
     const BehaviorSettings &behaviorSettings() const;
     const DisplaySettings &displaySettings() const;
@@ -81,9 +87,17 @@ public:
 
     void setCompletionSettings(const TextEditor::CompletionSettings &);
 
+    TabPreferences *tabPreferences() const;
+    TabPreferences *tabPreferences(const QString &languageId) const;
+    QMap<QString, TabPreferences *> languageTabPreferences() const;
+    void registerLanguageTabPreferences(const QString &languageId, TabPreferences *prefs);
+
+    IFallbackPreferences *codeStylePreferences(const QString &languageId) const;
+    QMap<QString, IFallbackPreferences *> languageCodeStylePreferences() const;
+    void registerLanguageCodeStylePreferences(const QString &languageId, IFallbackPreferences *prefs);
+
 signals:
     void fontSettingsChanged(const TextEditor::FontSettings &);
-    void tabSettingsChanged(const TextEditor::TabSettings &);
     void storageSettingsChanged(const TextEditor::StorageSettings &);
     void behaviorSettingsChanged(const TextEditor::BehaviorSettings &);
     void displaySettingsChanged(const TextEditor::DisplaySettings &);

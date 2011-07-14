@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,6 @@ const char * const M_OPTIONS_TR_PAGE =
     QT_TRANSLATE_NOOP("Macros", "Macros");
 
 const char * const M_STATUS_BUFFER = "Macros.Status";
-const char * const M_INFO_BUFFER = "Macros.Info";
 
 const char * const M_EXTENSION = "mac";
 

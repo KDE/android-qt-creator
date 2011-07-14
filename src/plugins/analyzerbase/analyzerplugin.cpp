@@ -28,15 +28,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "analyzerplugin.h"
 #include "analyzerconstants.h"
 #include "analyzermanager.h"
-#include "analyzeroutputpane.h"
+#include "ianalyzertool.h"
 
+#include <coreplugin/icore.h>
 #include <coreplugin/imode.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -53,88 +54,48 @@
 using namespace Analyzer;
 using namespace Analyzer::Internal;
 
+static AnalyzerPlugin *m_instance = 0;
 
-AnalyzerPlugin *AnalyzerPlugin::m_instance = 0;
+////////////////////////////////////////////////////////////////////////
+//
+// AnalyzerPlugin
+//
+////////////////////////////////////////////////////////////////////////
 
-
-// AnalyzerPluginPrivate ////////////////////////////////////////////////////
-class AnalyzerPlugin::AnalyzerPluginPrivate
-{
-public:
-    AnalyzerPluginPrivate(AnalyzerPlugin *qq):
-        q(qq),
-        m_manager(0)
-    {}
-
-    void initialize(const QStringList &arguments, QString *errorString);
-
-    AnalyzerPlugin *q;
-    AnalyzerManager *m_manager;
-};
-
-void AnalyzerPlugin::AnalyzerPluginPrivate::initialize(const QStringList &arguments, QString *errorString)
-{
-    Q_UNUSED(arguments)
-    Q_UNUSED(errorString)
-    AnalyzerOutputPane *outputPane =  new AnalyzerOutputPane;
-    q->addAutoReleasedObject(outputPane);
-    m_manager = new AnalyzerManager(outputPane, q);
-}
-
-
-// AnalyzerPlugin ////////////////////////////////////////////////////
 AnalyzerPlugin::AnalyzerPlugin()
-    : d(new AnalyzerPluginPrivate(this))
 {
     m_instance = this;
 }
 
 AnalyzerPlugin::~AnalyzerPlugin()
 {
-    // Unregister objects from the plugin manager's object pool
-    // Delete members
-    delete d;
     m_instance = 0;
 }
 
 bool AnalyzerPlugin::initialize(const QStringList &arguments, QString *errorString)
 {
-    // Register objects in the plugin manager's object pool
-    // Load settings
-    // connect to other plugins' signals
-    // "In the initialize method, a plugin can be sure that the plugins it
-    //  depends on have initialized their members."
-
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
 
-    d->initialize(arguments, errorString);
+    (void) new AnalyzerManager(this);
 
-    // Task integration
+    // Task integration.
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
     ProjectExplorer::TaskHub *hub = pm->getObject<ProjectExplorer::TaskHub>();
     //: Category under which Analyzer tasks are listed in build issues view
     hub->addCategory(QLatin1String(Constants::ANALYZERTASK_ID), tr("Analyzer"));
-
-    ///TODO: select last used tool or default tool
-//     d->m_manager->selectTool(memcheckTool);
 
     return true;
 }
 
 void AnalyzerPlugin::extensionsInitialized()
 {
-    // Retrieve objects from the plugin manager's object pool
-    // "In the extensionsInitialized method, a plugin can be sure that all
-    //  plugins that depend on it are completely initialized."
+    AnalyzerManager::extensionsInitialized();
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag AnalyzerPlugin::aboutToShutdown()
 {
-    d->m_manager->shutdown();
-    // Save settings
-    // Disconnect from signals that are not needed during shutdown
-    // Hide UI (if you add UI that is not in the main window directly)
+    AnalyzerManager::shutdown();
     return SynchronousShutdown;
 }
 

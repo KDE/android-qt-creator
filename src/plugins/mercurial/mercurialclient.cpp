@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,21 +35,30 @@
 
 #include <vcsbase/vcsbaseoutputwindow.h>
 #include <vcsbase/vcsbaseplugin.h>
+#include <vcsbase/vcsbaseeditor.h>
+#include <vcsbase/vcsbaseeditorparameterwidget.h>
 #include <vcsbase/vcsjobrunner.h>
 #include <utils/synchronousprocess.h>
+#include <utils/fileutils.h>
+#include <utils/qtcassert.h>
 
-#include <QDir>
-#include <QFileInfo>
-#include <QTextCodec>
-#include <QTextStream>
-#include <QVariant>
+#include <QtCore/QDir>
+#include <QtCore/QFileInfo>
+#include <QtCore/QTextCodec>
+#include <QtCore/QTextStream>
+#include <QtCore/QVariant>
 
 namespace Mercurial {
 namespace Internal  {
 
-MercurialClient::MercurialClient(const VCSBase::VCSBaseClientSettings &settings) :
+MercurialClient::MercurialClient(MercurialSettings *settings) :
     VCSBase::VCSBaseClient(settings)
 {
+}
+
+MercurialSettings *MercurialClient::settings() const
+{
+    return dynamic_cast<MercurialSettings *>(VCSBase::VCSBaseClient::settings());
 }
 
 bool MercurialClient::manifestSync(const QString &repository, const QString &relativeFilename)
@@ -75,7 +84,7 @@ bool MercurialClient::manifestSync(const QString &repository, const QString &rel
 bool MercurialClient::synchronousClone(const QString &workingDir,
                                        const QString &srcLocation,
                                        const QString &dstLocation,
-                                       const ExtraCommandOptions &extraOptions)
+                                       const QStringList &extraOptions)
 {
     Q_UNUSED(workingDir);
     Q_UNUSED(extraOptions);
@@ -102,10 +111,12 @@ bool MercurialClient::synchronousClone(const QString &workingDir,
         }
 
         // By now, there is no hgrc file -> create it
-        QFile hgrc(workingDirectory.path()+"/.hg/hgrc");
-        hgrc.open(QIODevice::WriteOnly);
-        hgrc.write(QString("[paths]\ndefault = %1\n").arg(dstLocation).toUtf8());
-        hgrc.close();
+        Utils::FileSaver saver(workingDirectory.path()+"/.hg/hgrc");
+        saver.write(QString("[paths]\ndefault = %1\n").arg(dstLocation).toUtf8());
+        if (!saver.finalize()) {
+            VCSBase::VCSBaseOutputWindow::instance()->appendError(saver.errorString());
+            return false;
+        }
 
         // And last update repository
         arguments.clear();
@@ -314,7 +325,7 @@ QString MercurialClient::vcsEditorKind(VCSCommand cmd) const
 
 QStringList MercurialClient::cloneArguments(const QString &srcLocation,
                                             const QString &dstLocation,
-                                            const ExtraCommandOptions &extraOptions) const
+                                            const QStringList &extraOptions) const
 {
     Q_UNUSED(srcLocation);
     Q_UNUSED(dstLocation);
@@ -324,7 +335,7 @@ QStringList MercurialClient::cloneArguments(const QString &srcLocation,
 }
 
 QStringList MercurialClient::pullArguments(const QString &srcLocation,
-                                           const ExtraCommandOptions &extraOptions) const
+                                           const QStringList &extraOptions) const
 {
     Q_UNUSED(extraOptions);
     QStringList args;
@@ -335,7 +346,7 @@ QStringList MercurialClient::pullArguments(const QString &srcLocation,
 }
 
 QStringList MercurialClient::pushArguments(const QString &dstLocation,
-                                           const ExtraCommandOptions &extraOptions) const
+                                           const QStringList &extraOptions) const
 {
     Q_UNUSED(extraOptions);
     QStringList args;
@@ -347,36 +358,11 @@ QStringList MercurialClient::pushArguments(const QString &dstLocation,
 
 QStringList MercurialClient::commitArguments(const QStringList &files,
                                              const QString &commitMessageFile,
-                                             const ExtraCommandOptions &extraOptions) const
+                                             const QStringList &extraOptions) const
 {
     QStringList args(QLatin1String("--noninteractive"));
-    // Fetch extra options
-    foreach (int iOption, extraOptions.keys())
-    {
-        const QVariant iOptValue = extraOptions[iOption];
-        switch (iOption)
-        {
-        case AuthorCommitOptionId :
-        {
-            Q_ASSERT(iOptValue.canConvert(QVariant::String));
-            const QString committerInfo = iOptValue.toString();
-            if (!committerInfo.isEmpty())
-                args << QLatin1String("-u") << committerInfo;
-            break;
-        }
-        case AutoAddRemoveCommitOptionId :
-        {
-            Q_ASSERT(iOptValue.canConvert(QVariant::Bool));
-            const bool autoAddRemove = iOptValue.toBool();
-            if (autoAddRemove)
-                args << QLatin1String("-A");
-            break;
-        }
-        default :
-            Q_ASSERT(false); // Invalid option !
-        }
-    } // end foreach ()
-    // Add arguments for common options
+    if (!args.isEmpty())
+        args.append(extraOptions);
     args << QLatin1String("-l") << commitMessageFile;
     args << files;
     return args;
@@ -428,17 +414,22 @@ QStringList MercurialClient::annotateArguments(const QString &file,
     return args << file;
 }
 
-QStringList MercurialClient::diffArguments(const QStringList &files) const
+QStringList MercurialClient::diffArguments(const QStringList &files,
+                                           const QStringList &extraOptions) const
 {
     QStringList args;
     args << QLatin1String("-g") << QLatin1String("-p") << QLatin1String("-U 8");
+    if (!args.isEmpty())
+        args.append(extraOptions);
     if (!files.isEmpty())
         args.append(files);
     return args;
 }
 
-QStringList MercurialClient::logArguments(const QStringList &files) const
+QStringList MercurialClient::logArguments(const QStringList &files,
+                                          const QStringList &extraOptions) const
 {
+    Q_UNUSED(extraOptions);
     QStringList args;
     if (!files.empty())
         args.append(files);
@@ -486,5 +477,51 @@ QPair<QString, QString> MercurialClient::parseStatusLine(const QString &line) co
     return status;
 }
 
+// Collect all parameters required for a diff to be able to associate them
+// with a diff editor and re-run the diff with parameters.
+struct MercurialDiffParameters
+{
+    QString workingDir;
+    QStringList files;
+    QStringList extraOptions;
+};
+
+// Parameter widget controlling whitespace diff mode, associated with a parameter
+class MercurialDiffParameterWidget : public VCSBase::VCSBaseEditorParameterWidget
+{
+    Q_OBJECT
+public:
+    MercurialDiffParameterWidget(MercurialClient *client,
+                                 const MercurialDiffParameters &p, QWidget *parent = 0) :
+        VCSBase::VCSBaseEditorParameterWidget(parent), m_client(client), m_params(p)
+    {
+        mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore whitespace")),
+                   &client->settings()->diffIgnoreWhiteSpace);
+        mapSetting(addToggleButton(QLatin1String("-B"), tr("Ignore blank lines")),
+                   &client->settings()->diffIgnoreBlankLines);
+    }
+
+    void executeCommand()
+    {
+        m_client->diff(m_params.workingDir, m_params.files, m_params.extraOptions);
+    }
+
+private:
+    MercurialClient *m_client;
+    const MercurialDiffParameters m_params;
+};
+
+VCSBase::VCSBaseEditorParameterWidget *MercurialClient::createDiffEditor(
+    const QString &workingDir, const QStringList &files, const QStringList &extraOptions)
+{
+    MercurialDiffParameters parameters;
+    parameters.workingDir = workingDir;
+    parameters.files = files;
+    parameters.extraOptions = extraOptions;
+    return new MercurialDiffParameterWidget(this, parameters);
+}
+
 } // namespace Internal
 } // namespace Mercurial
+
+#include "mercurialclient.moc"

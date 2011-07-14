@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,50 +35,34 @@
 
 #include <vcsbase/vcsbaseclientsettings.h>
 #include <vcsbase/vcsbaseplugin.h>
+#include <vcsbase/vcsbaseeditor.h>
+#include <vcsbase/vcsbaseeditorparameterwidget.h>
+
+#include <utils/qtcassert.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 #include <QtCore/QTextStream>
 #include <QtCore/QtDebug>
 
-namespace {
-
-void addBoolArgument(const QVariant &optionValue,
-                     const QString &optionName,
-                     QStringList *arguments)
-{
-    if (arguments == 0)
-        return;
-    Q_ASSERT(optionValue.canConvert(QVariant::Bool));
-    if (optionValue.toBool())
-        arguments->append(optionName);
-}
-
-void addRevisionArgument(const QVariant &optionValue, QStringList *arguments)
-{
-    if (arguments == 0)
-        return;
-    Q_ASSERT(optionValue.canConvert(QVariant::String));
-    const QString revision = optionValue.toString();
-    if (!revision.isEmpty())
-        (*arguments) << QLatin1String("-r") << revision;
-}
-
-} // Anonymous namespace
-
 namespace Bazaar {
 namespace Internal {
 
-BazaarClient::BazaarClient(const VCSBase::VCSBaseClientSettings &settings) :
+BazaarClient::BazaarClient(BazaarSettings *settings) :
     VCSBase::VCSBaseClient(settings)
 {
+}
+
+BazaarSettings *BazaarClient::settings() const
+{
+    return dynamic_cast<BazaarSettings *>(VCSBase::VCSBaseClient::settings());
 }
 
 bool BazaarClient::synchronousSetUserId()
 {
     QStringList args;
     args << QLatin1String("whoami")
-         << QString("%1 <%2>").arg(settings().userName()).arg(settings().email());
+         << QString("%1 <%2>").arg(settings()->userName()).arg(settings()->email());
     QByteArray stdOut;
     return vcsFullySynchronousExec(QDir::currentPath(), args, &stdOut);
 }
@@ -135,42 +119,9 @@ QString BazaarClient::vcsEditorKind(VCSCommand cmd) const
 
 QStringList BazaarClient::cloneArguments(const QString &srcLocation,
                                          const QString &dstLocation,
-                                         const ExtraCommandOptions &extraOptions) const
+                                         const QStringList &extraOptions) const
 {
-    QStringList args;
-    // Fetch extra options
-    foreach (int iOption, extraOptions.keys()) {
-        const QVariant iOptValue = extraOptions[iOption];
-        switch (iOption) {
-        case UseExistingDirCloneOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--use-existing-dir"), &args);
-            break;
-        case StackedCloneOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--stacked"), &args);
-            break;
-        case StandAloneCloneOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--standalone"), &args);
-            break;
-        case BindCloneOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--bind"), &args);
-            break;
-        case SwitchCloneOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--switch"), &args);
-            break;
-        case HardLinkCloneOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--hardlink"), &args);
-            break;
-        case NoTreeCloneOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--no-tree"), &args);
-            break;
-        case RevisionCloneOptionId :
-            ::addRevisionArgument(iOptValue, &args);
-            break;
-        default :
-            Q_ASSERT(false); // Invalid option !
-        }
-    } // end foreach ()
-    // Add arguments for common options
+    QStringList args(extraOptions);
     args << srcLocation;
     if (!dstLocation.isEmpty())
         args << dstLocation;
@@ -178,51 +129,18 @@ QStringList BazaarClient::cloneArguments(const QString &srcLocation,
 }
 
 QStringList BazaarClient::pullArguments(const QString &srcLocation,
-                                        const ExtraCommandOptions &extraOptions) const
+                                        const QStringList &extraOptions) const
 {
-    // Fetch extra options
-    QStringList args(commonPullOrPushArguments(extraOptions));
-    foreach (int iOption, extraOptions.keys()) {
-        const QVariant iOptValue = extraOptions[iOption];
-        switch (iOption) {
-        case RememberPullOrPushOptionId : break;
-        case OverwritePullOrPushOptionId : break;
-        case RevisionPullOrPushOptionId : break;
-        case LocalPullOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--local"), &args);
-            break;
-        default :
-            Q_ASSERT(false); // Invalid option !
-        }
-    } // end foreach ()
-    // Add arguments for common options
+    QStringList args(extraOptions);
     if (!srcLocation.isEmpty())
         args << srcLocation;
     return args;
 }
 
 QStringList BazaarClient::pushArguments(const QString &dstLocation,
-                                        const ExtraCommandOptions &extraOptions) const
+                                        const QStringList &extraOptions) const
 {
-    // Fetch extra options
-    QStringList args(commonPullOrPushArguments(extraOptions));
-    foreach (int iOption, extraOptions.keys()) {
-        const QVariant iOptValue = extraOptions[iOption];
-        switch (iOption) {
-        case RememberPullOrPushOptionId : break;
-        case OverwritePullOrPushOptionId : break;
-        case RevisionPullOrPushOptionId : break;
-        case UseExistingDirPushOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--use-existing-dir"), &args);
-            break;
-        case CreatePrefixPushOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--create-prefix"), &args);
-            break;
-        default :
-            Q_ASSERT(false); // Invalid option !
-        }
-    } // end foreach ()
-    // Add arguments for common options
+    QStringList args(extraOptions);
     if (!dstLocation.isEmpty())
         args << dstLocation;
     return args;
@@ -230,38 +148,9 @@ QStringList BazaarClient::pushArguments(const QString &dstLocation,
 
 QStringList BazaarClient::commitArguments(const QStringList &files,
                                           const QString &commitMessageFile,
-                                          const ExtraCommandOptions &extraOptions) const
+                                          const QStringList &extraOptions) const
 {
-    QStringList args;
-    // Fetch extra options
-    foreach (int iOption, extraOptions.keys()) {
-        const QVariant iOptValue = extraOptions[iOption];
-        switch (iOption) {
-        case AuthorCommitOptionId :
-        {
-            Q_ASSERT(iOptValue.canConvert(QVariant::String));
-            const QString committerInfo = iOptValue.toString();
-            if (!committerInfo.isEmpty())
-                args << QString("--author=%1").arg(committerInfo);
-            break;
-        }
-        case FixesCommitOptionId :
-        {
-            Q_ASSERT(iOptValue.canConvert(QVariant::StringList));
-            foreach (const QString& iFix, iOptValue.toStringList()) {
-                if (!iFix.isEmpty())
-                    args << QLatin1String("--fixes") << iFix;
-            }
-            break;
-        }
-        case LocalCommitOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--local"), &args);
-            break;
-        default :
-            Q_ASSERT(false); // Invalid option !
-        }
-    } // end foreach ()
-    // Add arguments for common options
+    QStringList args(extraOptions);
     args << QLatin1String("-F") << commitMessageFile;
     args << files;
     return args;
@@ -313,17 +202,19 @@ QStringList BazaarClient::annotateArguments(const QString &file,
     return args << file;
 }
 
-QStringList BazaarClient::diffArguments(const QStringList &files) const
+QStringList BazaarClient::diffArguments(const QStringList &files,
+                                        const QStringList &extraOptions) const
 {
-    QStringList args;
+    QStringList args(extraOptions);
     if (!files.isEmpty())
         args.append(files);
     return args;
 }
 
-QStringList BazaarClient::logArguments(const QStringList &files) const
+QStringList BazaarClient::logArguments(const QStringList &files,
+                                       const QStringList &extraOptions) const
 {
-    return diffArguments(files);
+    return diffArguments(files, extraOptions);
 }
 
 QStringList BazaarClient::statusArguments(const QString &file) const
@@ -338,7 +229,7 @@ QStringList BazaarClient::statusArguments(const QString &file) const
 QStringList BazaarClient::viewArguments(const QString &revision) const
 {
     QStringList args(QLatin1String("log"));
-    args << QLatin1String("-p") << QLatin1String("--gnu-changelog")
+    args << QLatin1String("-p") << QLatin1String("-v")
          << QLatin1String("-r") << revision;
     return args;
 }
@@ -387,27 +278,68 @@ QPair<QString, QString> BazaarClient::parseStatusLine(const QString &line) const
     return status;
 }
 
-QStringList BazaarClient::commonPullOrPushArguments(const ExtraCommandOptions &extraOptions) const
+// Collect all parameters required for a diff or log to be able to associate
+// them with an editor and re-run the command with parameters.
+struct BazaarCommandParameters
 {
-    QStringList args;
-    foreach (int iOption, extraOptions.keys()) {
-        const QVariant iOptValue = extraOptions[iOption];
-        switch (iOption) {
-        case RememberPullOrPushOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--remember"), &args);
-            break;
-        case OverwritePullOrPushOptionId :
-            ::addBoolArgument(iOptValue, QLatin1String("--overwrite"), &args);
-            break;
-        case RevisionPullOrPushOptionId :
-            ::addRevisionArgument(iOptValue, &args);
-            break;
-        default :
-            break; // Unknown option, do nothing
+    BazaarCommandParameters(const QString &workDir,
+                            const QStringList &inFiles,
+                            const QStringList &options) :
+        workingDir(workDir), files(inFiles), extraOptions(options)
+    {
+    }
+
+    QString workingDir;
+    QStringList files;
+    QStringList extraOptions;
+};
+
+// Parameter widget controlling whitespace diff mode, associated with a parameter
+class BazaarDiffParameterWidget : public VCSBase::VCSBaseEditorParameterWidget
+{
+    Q_OBJECT
+public:
+    BazaarDiffParameterWidget(BazaarClient *client,
+                              const BazaarCommandParameters &p, QWidget *parent = 0) :
+        VCSBase::VCSBaseEditorParameterWidget(parent), m_client(client), m_params(p)
+    {
+        mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore whitespace")),
+                   &client->settings()->diffIgnoreWhiteSpace);
+        mapSetting(addToggleButton(QLatin1String("-B"), tr("Ignore blank lines")),
+                   &client->settings()->diffIgnoreBlankLines);
+    }
+
+    QStringList arguments() const
+    {
+        QStringList args;
+        // Bazaar wants "--diff-options=-w -B.."
+        const QStringList formatArguments = VCSBaseEditorParameterWidget::arguments();
+        if (!formatArguments.isEmpty()) {
+            const QString a = QLatin1String("--diff-options=")
+                              + formatArguments.join(QString(QLatin1Char(' ')));
+            args.append(a);
         }
-    } // end foreach ()
-    return args;
+        return args;
+    }
+
+    void executeCommand()
+    {
+        m_client->diff(m_params.workingDir, m_params.files, m_params.extraOptions);
+    }
+
+private:
+    BazaarClient *m_client;
+    const BazaarCommandParameters m_params;
+};
+
+VCSBase::VCSBaseEditorParameterWidget *BazaarClient::createDiffEditor(
+    const QString &workingDir, const QStringList &files, const QStringList &extraOptions)
+{
+    const BazaarCommandParameters parameters(workingDir, files, extraOptions);
+    return new BazaarDiffParameterWidget(this, parameters);
 }
 
 } //namespace Internal
 } // namespace Bazaar
+
+#include "bazaarclient.moc"

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -58,7 +58,7 @@ private:
 };
 
 Html5AppWizardDialog::Html5AppWizardDialog(QWidget *parent)
-    : AbstractMobileAppWizardDialog(parent, QtVersionNumber())
+    : AbstractMobileAppWizardDialog(parent, QtSupport::QtVersionNumber())
     , m_htmlOptionsPage(0)
 {
     setWindowTitle(tr("New HTML5 Application"));
@@ -66,6 +66,7 @@ Html5AppWizardDialog::Html5AppWizardDialog(QWidget *parent)
 
     m_htmlOptionsPage = new Html5AppWizardOptionsPage;
     addPageWithTitle(m_htmlOptionsPage, tr("HTML Options"));
+    addMobilePages();
 }
 
 

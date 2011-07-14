@@ -26,14 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef NAVIGATORVIEW_H
 #define NAVIGATORVIEW_H
 
-#include <abstractview.h>
+#include <qmlmodelview.h>
 
 #include <QWeakPointer>
 
@@ -51,7 +51,7 @@ class NavigatorTreeModel;
 class IconCheckboxItemDelegate;
 class IdItemDelegate;
 
-class NavigatorView : public AbstractView
+class NavigatorView : public QmlModelView
 {
     Q_OBJECT
 
@@ -59,7 +59,7 @@ public:
     NavigatorView(QObject* parent = 0);
     ~NavigatorView();
 
-    QWidget *widget();
+    NavigatorWidget *widget();
 
     // AbstractView
     void modelAttached(Model *model);
@@ -88,10 +88,11 @@ public:
     void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void instancesCompleted(const QVector<ModelNode> &completedNodeList);
-    void instanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     void instancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     void instancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource);
 
     void rewriterBeginTransaction();
     void rewriterEndTransaction();
@@ -103,6 +104,11 @@ private slots:
     void changeSelection(const QItemSelection &selected, const QItemSelection &deselected);
     void updateItemSelection();
     void changeToComponent(const QModelIndex &index);
+
+    void leftButtonClicked();
+    void rightButtonClicked();
+    void upButtonClicked();
+    void downButtonClicked();
 
 protected: //functions
     QTreeView *treeWidget();

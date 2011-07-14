@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,6 +41,7 @@
 
 namespace Core {
 class IFile;
+class Context;
 }
 
 namespace ProjectExplorer {
@@ -50,9 +51,9 @@ class IProjectManager;
 class EditorConfiguration;
 class ProjectNode;
 class Target;
-class ITargetFactory;
 class ProjectPrivate;
 
+// Documentation inside.
 class PROJECTEXPLORER_EXPORT Project
     : public QObject
 {
@@ -104,19 +105,14 @@ public:
 
     static QString makeUnique(const QString &preferedName, const QStringList &usedNames);
 
-    // Serialize all data into a QVariantMap. This map is then saved
-    // in the .user file of the project.
-    //
-    // Just put all your data into the map.
-    //
-    // Note: Do not forget to call your base class' toMap method.
-    // Note: Do not forget to call setActiveBuildConfiguration when
-    //       creating new BuilConfigurations.
     virtual QVariantMap toMap() const;
 
     // The directory that holds the project file. This includes the absolute path.
     QString projectDirectory() const;
     static QString projectDirectory(const QString &proFile);
+
+    virtual Core::Context projectContext() const;
+    virtual Core::Context projectLanguage() const;
 
 signals:
     void fileListChanged();
@@ -128,14 +124,7 @@ signals:
     void removedTarget(ProjectExplorer::Target *target);
     void addedTarget(ProjectExplorer::Target *target);
 
-    /// convenience signal emitted if the activeBuildConfiguration emits environmentChanged
-    /// or if the activeBuildConfiguration changes
-    /// (including due to the active target changing).
     void environmentChanged();
-
-    /// convenience signal emitted if the activeBuildConfiguration emits isEnabledChanged()
-    /// or if the activeBuildConfiguration changes
-    /// (including due to the active target changing).
     void buildConfigurationEnabledChanged();
 
 protected:
@@ -143,6 +132,9 @@ protected:
     //
     // Note: Do not forget to call your base class' fromMap method!
     virtual bool fromMap(const QVariantMap &map);
+
+    virtual void setProjectContext(Core::Context context);
+    virtual void setProjectLanguage(Core::Context language);
 
 private slots:
     void changeEnvironment();

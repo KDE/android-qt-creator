@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,12 +35,12 @@
 #include "qmljseditorconstants.h"
 #include "qmljshighlighter.h"
 #include "qmljseditorplugin.h"
-#include "qmljsquickfix.h"
 #include "qmloutlinemodel.h"
 #include "qmljsfindreferences.h"
 #include "qmljssemantichighlighter.h"
-#include "qmljsindenter.h"
 #include "qmljsautocompleter.h"
+#include "qmljscompletionassist.h"
+#include "qmljsquickfixassist.h"
 
 #include <qmljs/qmljsbind.h>
 #include <qmljs/qmljsevaluate.h>
@@ -52,6 +52,7 @@
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/parser/qmljsengine_p.h>
 
+#include <qmljstools/qmljsindenter.h>
 #include <qmljstools/qmljsqtstylecodeformatter.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -70,6 +71,8 @@
 #include <texteditor/syntaxhighlighter.h>
 #include <texteditor/refactoroverlay.h>
 #include <texteditor/tooltip/tooltip.h>
+#include <texteditor/codeassist/genericproposal.h>
+#include <texteditor/codeassist/basicproposalitemlistmodel.h>
 #include <qmldesigner/qmldesignerconstants.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/changeset.h>
@@ -78,6 +81,7 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QSignalMapper>
 #include <QtCore/QTimer>
+#include <QtCore/QScopedPointer>
 
 #include <QtGui/QMenu>
 #include <QtGui/QComboBox>
@@ -540,7 +544,7 @@ LookupContext::Ptr SemanticInfo::lookupContext(const QList<QmlJS::AST::Node *> &
     if (m_context.isNull())
         return LookupContext::create(document, snapshot, path);
 
-    return LookupContext::create(document, snapshot, *m_context, path);
+    return LookupContext::create(document, *m_context, path);
 }
 
 static bool importContainsCursor(UiImport *importAst, unsigned cursorPosition)
@@ -635,7 +639,7 @@ QmlJSTextEditorWidget::QmlJSTextEditorWidget(QWidget *parent) :
     m_semanticRehighlightTimer = new QTimer(this);
     m_semanticRehighlightTimer->setInterval(UPDATE_DOCUMENT_DEFAULT_INTERVAL);
     m_semanticRehighlightTimer->setSingleShot(true);
-    connect(m_semanticRehighlightTimer, SIGNAL(timeout()), this, SLOT(forceSemanticRehighlight()));
+    connect(m_semanticRehighlightTimer, SIGNAL(timeout()), this, SLOT(forceSemanticRehighlightIfCurrentEditor()));
 
     connect(this, SIGNAL(textChanged()), this, SLOT(updateDocument()));
 
@@ -740,16 +744,11 @@ QString QmlJSEditorEditable::id() const
     return QLatin1String(QmlJSEditor::Constants::C_QMLJSEDITOR_ID);
 }
 
-bool QmlJSEditorEditable::open(const QString &fileName)
+bool QmlJSEditorEditable::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
-    bool b = TextEditor::BaseTextEditor::open(fileName);
+    bool b = TextEditor::BaseTextEditor::open(errorString, fileName, realFileName);
     editorWidget()->setMimeType(Core::ICore::instance()->mimeDatabase()->findByFile(QFileInfo(fileName)).type());
     return b;
-}
-
-Core::Context QmlJSEditorEditable::context() const
-{
-    return m_context;
 }
 
 void QmlJSTextEditorWidget::updateDocument()
@@ -808,6 +807,9 @@ void QmlJSTextEditorWidget::onDocumentUpdated(QmlJS::Document::Ptr doc)
 {
     if (file()->fileName() != doc->fileName()
             || doc->editorRevision() != document()->revision()) {
+        // maybe a dependency changed: schedule a potential rehighlight
+        // will not rehighlight if the current editor changes away from this file
+        m_semanticRehighlightTimer->start();
         return;
     }
 
@@ -1352,20 +1354,29 @@ void QmlJSTextEditorWidget::contextMenuEvent(QContextMenuEvent *e)
         connect(a, SIGNAL(triggered()), this, SLOT(renameIdUnderCursor()));
     }
 
-    // Add other refactoring actions:
-    QmlJSQuickFixCollector *quickFixCollector = QmlJSEditorPlugin::instance()->quickFixCollector();
     QSignalMapper mapper;
     connect(&mapper, SIGNAL(mapped(int)), this, SLOT(performQuickFix(int)));
-
     if (! isOutdated()) {
-        if (quickFixCollector->startCompletion(editor()) != -1) {
-            m_quickFixes = quickFixCollector->quickFixes();
-
-            for (int index = 0; index < m_quickFixes.size(); ++index) {
-                TextEditor::QuickFixOperation::Ptr op = m_quickFixes.at(index);
-                QAction *action = refactoringMenu->addAction(op->description());
-                mapper.setMapping(action, index);
-                connect(action, SIGNAL(triggered()), &mapper, SLOT(map()));
+        TextEditor::IAssistInterface *interface =
+                createAssistInterface(TextEditor::QuickFix, TextEditor::ExplicitlyInvoked);
+        if (interface) {
+            QScopedPointer<TextEditor::IAssistProcessor> processor(
+                        QmlJSEditorPlugin::instance()->quickFixAssistProvider()->createProcessor());
+            QScopedPointer<TextEditor::IAssistProposal> proposal(processor->perform(interface));
+            if (!proposal.isNull()) {
+                TextEditor::BasicProposalItemListModel *model =
+                        static_cast<TextEditor::BasicProposalItemListModel *>(proposal->model());
+                for (int index = 0; index < model->size(); ++index) {
+                    TextEditor::BasicProposalItem *item =
+                            static_cast<TextEditor::BasicProposalItem *>(model->proposalItem(index));
+                    TextEditor::QuickFixOperation::Ptr op =
+                            item->data().value<TextEditor::QuickFixOperation::Ptr>();
+                    m_quickFixes.append(op);
+                    QAction *action = refactoringMenu->addAction(op->description());
+                    mapper.setMapping(action, index);
+                    connect(action, SIGNAL(triggered()), &mapper, SLOT(map()));
+                }
+                delete model;
             }
         }
     }
@@ -1385,7 +1396,6 @@ void QmlJSTextEditorWidget::contextMenuEvent(QContextMenuEvent *e)
 
     menu->exec(e->globalPos());
     menu->deleteLater();
-    quickFixCollector->cleanup();
     m_quickFixes.clear();
 }
 
@@ -1439,6 +1449,14 @@ void QmlJSTextEditorWidget::resizeEvent(QResizeEvent *event)
 void QmlJSTextEditorWidget::unCommentSelection()
 {
     Utils::unCommentSelection(this);
+}
+
+void QmlJSTextEditorWidget::setTabSettings(const TextEditor::TabSettings &ts)
+{
+    QmlJSTools::QtStyleCodeFormatter formatter(ts);
+    formatter.invalidateCache(document());
+
+    TextEditor::BaseTextEditorWidget::setTabSettings(ts);
 }
 
 void QmlJSTextEditorWidget::forceSemanticRehighlight()
@@ -1582,4 +1600,20 @@ SemanticHighlighterSource QmlJSTextEditorWidget::currentSource(bool force)
                                        line, column, revision);
     source.force = force;
     return source;
+}
+
+TextEditor::IAssistInterface *QmlJSTextEditorWidget::createAssistInterface(
+    TextEditor::AssistKind assistKind,
+    TextEditor::AssistReason reason) const
+{
+    if (assistKind == TextEditor::Completion) {
+        return new QmlJSCompletionAssistInterface(document(),
+                                                  position(),
+                                                  editor()->file(),
+                                                  reason,
+                                                  m_semanticInfo);
+    } else if (assistKind == TextEditor::QuickFix) {
+        return new QmlJSQuickFixAssistInterface(const_cast<QmlJSTextEditorWidget *>(this), reason);
+    }
+    return 0;
 }

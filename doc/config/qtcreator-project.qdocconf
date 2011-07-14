@@ -13,14 +13,14 @@ include(macros.qdocconf)
 include(qt-cpp-ignore.qdocconf)
 include(qt-defines.qdocconf)
 
-sources.fileextensions  = "qtcreator.qdoc maemodev.qdoc symbiandev.qdoc addressbook-sdk.qdoc qtcreator-faq.qdoc"
+sources.fileextensions  = "qtcreator.qdoc maemodev.qdoc symbiandev.qdoc addressbook-sdk.qdoc qtcreator-faq.qdoc linuxdev.qdoc"
 
 
 qhp.projects            = QtCreator
 qhp.QtCreator.file             = qtcreator.qhp
 qhp.QtCreator.namespace        = com.nokia.qtcreator.$QTC_VERSION_TAG
 qhp.QtCreator.virtualFolder    = doc
-qhp.QtCreator.indexTitle       = Qt Creator
+qhp.QtCreator.indexTitle       = Qt Creator Manual $QTC_VERSION
 qhp.QtCreator.filterAttributes = qtcreator $QTC_VERSION
 qhp.QtCreator.customFilters.QtCreator.name = Qt Creator $QTC_VERSION
 qhp.QtCreator.customFilters.QtCreator.filterAttributes = qtcreator $QTC_VERSION

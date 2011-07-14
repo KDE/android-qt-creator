@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -278,12 +278,12 @@ static inline InamePathEntrySet expandEntrySet(const std::vector<std::string> &n
     InamePathEntrySet pathEntries;
     const std::string::size_type rootSize = root.size();
     const VectorIndexType nodeCount = nodes.size();
-    for (VectorIndexType i= 0; i < nodeCount; i++) {
+    for (VectorIndexType i= 0; i < nodeCount; ++i) {
         const std::string &iname = nodes.at(i); // Silently skip items of another group
         if (iname.size() >= rootSize && iname.compare(0, rootSize, root) == 0) {
             std::string::size_type pos = 0;
             // Split a path 'local.foo' and insert (0,'local'), (1,'local.foo') (see above)
-            for (unsigned level = 0; pos < iname.size(); level++) {
+            for (unsigned level = 0; pos < iname.size(); ++level) {
                 std::string::size_type dotPos = iname.find(SymbolGroupNodeVisitor::iNamePathSeparator, pos);
                 if (dotPos == std::string::npos)
                     dotPos = iname.size();
@@ -441,35 +441,26 @@ void SymbolGroup::markUninitialized(const std::vector<std::string> &uniniNodes)
     }
 }
 
-static inline std::string msgAssignError(const std::string &nodeName,
-                                         const std::string &value,
-                                         const std::string &why)
-{
-    std::ostringstream str;
-    str << "Unable to assign '" << value << "' to '" << nodeName << "': " << why;
-    return str.str();
-}
-
-bool SymbolGroup::assign(const std::string &nodeName, const std::string &value,
+bool SymbolGroup::assign(const std::string &nodeName,
+                         int valueEncoding,
+                         const std::string &value,
+                         const SymbolGroupValueContext &ctx,
                          std::string *errorMessage)
 {
     AbstractSymbolGroupNode *aNode = find(nodeName);
     if (aNode == 0) {
-        *errorMessage = msgAssignError(nodeName, value, "No such node");
+        *errorMessage = SymbolGroupNode::msgAssignError(nodeName, value, "No such node");
         return false;
     }
     SymbolGroupNode *node = aNode->resolveReference()->asSymbolGroupNode();
     if (node == 0) {
-        *errorMessage = msgAssignError(nodeName, value, "Invalid node type");
+        *errorMessage = SymbolGroupNode::msgAssignError(nodeName, value, "Invalid node type");
         return false;
     }
 
-    const HRESULT hr = m_symbolGroup->WriteSymbol(node->index(), const_cast<char *>(value.c_str()));
-    if (FAILED(hr)) {
-        *errorMessage = msgAssignError(nodeName, value, msgDebugEngineComFailed("WriteSymbol", hr));
-        return false;
-    }
-    return true;
+    return (node->dumperType() & KT_Editable) ? // Edit complex types
+        assignType(node, valueEncoding, value, ctx, errorMessage) :
+        node->assign(value, errorMessage);
 }
 
 bool SymbolGroup::accept(SymbolGroupNodeVisitor &visitor) const
@@ -797,7 +788,7 @@ WatchesSymbolGroup::InameExpressionMap
     // Skip additional, expanded nodes
     InameExpressionMap rc;
     if (unsigned size = unsigned(root()->children().size())) {
-        for (unsigned i = 0; i < size; i++) {
+        for (unsigned i = 0; i < size; ++i) {
             const AbstractSymbolGroupNode *n = root()->childAt(i);
             if (n->testFlags(SymbolGroupNode::WatchNode))
                 rc.insert(InameExpressionMap::value_type(n->iName(), n->name()));

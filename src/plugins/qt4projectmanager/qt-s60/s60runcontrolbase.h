@@ -26,22 +26,22 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef S60RUNCONTROLBASE_H
 #define S60RUNCONTROLBASE_H
 
+#include <qt4projectmanager/qt4projectmanager_global.h>
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/toolchain.h>
 
 #include <QtCore/QFutureInterface>
 
 namespace Qt4ProjectManager {
-namespace Internal {
 
-class S60RunControlBase : public ProjectExplorer::RunControl
+class QT4PROJECTMANAGER_EXPORT S60RunControlBase : public ProjectExplorer::RunControl
 {
     Q_OBJECT
 public:
@@ -77,6 +77,7 @@ protected:
 private:
     void startLaunching();
 
+
 protected slots:
     void reportLaunchFinished();
 
@@ -95,7 +96,6 @@ private:
     char m_installationDrive;
 };
 
-} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // S60RUNCONTROLBASE_H

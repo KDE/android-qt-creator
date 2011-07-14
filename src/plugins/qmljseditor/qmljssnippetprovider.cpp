@@ -26,14 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "qmljssnippetprovider.h"
 #include "qmljshighlighter.h"
 #include "qmljseditor.h"
-#include "qmljsindenter.h"
 #include "qmljsautocompleter.h"
 #include "qmljseditorconstants.h"
 
@@ -41,6 +40,8 @@
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/snippets/snippeteditor.h>
+
+#include <qmljstools/qmljsindenter.h>
 
 #include <QtCore/QLatin1String>
 #include <QtCore/QCoreApplication>

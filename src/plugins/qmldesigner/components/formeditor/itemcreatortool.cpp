@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -70,7 +70,6 @@ void ItemCreatorTool::mousePressEvent(const QList<QGraphicsItem*> &/*itemList*/,
 void ItemCreatorTool::mouseMoveEvent(const QList<QGraphicsItem*> &/*itemList*/,
                                    QGraphicsSceneMouseEvent *event)
 {
-    view()->setCursor(Qt::CrossCursor);
     if (m_rubberbandSelectionManipulator.isActive()) {
         m_rubberbandSelectionManipulator.update(event->scenePos());
     } else {
@@ -143,6 +142,10 @@ void ItemCreatorTool::formEditorItemsChanged(const QList<FormEditorItem*> &/*ite
 }
 
 void ItemCreatorTool::instancesCompleted(const QList<FormEditorItem*> &/*itemList*/)
+{
+}
+
+void ItemCreatorTool::instancesParentChanged(const QList<FormEditorItem *> &/*itemList*/)
 {
 }
 

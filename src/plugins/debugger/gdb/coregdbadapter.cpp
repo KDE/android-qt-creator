@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -64,8 +64,8 @@ static QByteArray coreName(const DebuggerStartParameters &sp)
     return fi.absoluteFilePath().toLocal8Bit();
 }
 
-CoreGdbAdapter::CoreGdbAdapter(GdbEngine *engine, QObject *parent)
-  : AbstractGdbAdapter(engine, parent),
+CoreGdbAdapter::CoreGdbAdapter(GdbEngine *engine)
+  : AbstractGdbAdapter(engine),
     m_executable(startParameters().executable),
     m_coreName(coreName(startParameters()))
 {}
@@ -124,16 +124,16 @@ void CoreGdbAdapter::handleTemporaryTargetCore(const GdbResponse &response)
         return;
     }
 
-    GdbMi console = response.data.findChild("consolestreamoutput");
-    int pos1 = console.data().indexOf('`');
-    int pos2 = console.data().indexOf('\'');
+    QByteArray console = response.consoleStreamOutput;
+    int pos1 = console.indexOf('`');
+    int pos2 = console.indexOf('\'');
     if (pos1 == -1 || pos2 == -1) {
         showMessage(tr("Attach to core failed."), StatusBar);
         m_engine->notifyEngineSetupFailed();
         return;
     }
 
-    m_executable = console.data().mid(pos1 + 1, pos2 - pos1 - 1);
+    m_executable = console.mid(pos1 + 1, pos2 - pos1 - 1);
     // Strip off command line arguments. FIXME: make robust.
     int idx = m_executable.indexOf(_c(' '));
     if (idx >= 0)
@@ -164,7 +164,10 @@ void CoreGdbAdapter::setupInferior()
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
     // Do that first, otherwise no symbols are loaded.
     QFileInfo fi(m_executable);
+    const QByteArray sysroot = startParameters().sysroot.toLocal8Bit();
     QByteArray path = fi.absoluteFilePath().toLocal8Bit();
+    if (!sysroot.isEmpty())
+        m_engine->postCommand("set sysroot " + sysroot);
     m_engine->postCommand("-file-exec-and-symbols \"" + path + '"',
          CB(handleFileExecAndSymbols));
 }

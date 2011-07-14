@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -126,7 +126,8 @@ public: // must be public to make Q_GADGET introspection work
 
         binding_or_objectdefinition, // after an identifier
 
-        binding_assignment, // after :
+        binding_assignment, // after : in a binding
+        property_initializer, // after : in a property
         objectdefinition_open, // after {
 
         expression,
@@ -137,6 +138,8 @@ public: // must be public to make Q_GADGET introspection work
         paren_open, // opening ( in expression
         bracket_open, // opening [ in expression
         objectliteral_open, // opening { in expression
+
+        objectliteral_assignment, // after : in object literal
 
         bracket_element_start, // after starting bracket_open or after ',' in bracket_open
         bracket_element_maybe_objectdefinition, // after an identifier in bracket_element_start

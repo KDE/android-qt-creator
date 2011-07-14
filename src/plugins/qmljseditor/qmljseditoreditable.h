@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,19 +45,14 @@ class QMLJSEDITOR_EXPORT QmlJSEditorEditable : public TextEditor::BaseTextEditor
 
 public:
     explicit QmlJSEditorEditable(QmlJSTextEditorWidget *);
-    Core::Context context() const;
 
     bool duplicateSupported() const { return true; }
     Core::IEditor *duplicate(QWidget *parent);
     QString id() const;
     bool isTemporary() const { return false; }
-    virtual bool open(const QString & fileName);
+    virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     virtual QString preferredModeType() const;
     void setTextCodec(QTextCodec *codec, TextCodecReason = TextCodecOtherReason);
-
-
-private:
-    Core::Context m_context;
 };
 
 } // namespace QmlJSEditor

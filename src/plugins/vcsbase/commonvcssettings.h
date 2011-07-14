@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,6 +56,8 @@ struct CommonVcsSettings
 
     // Executable run to graphically prompt for a SSH-password.
     QString sshPasswordPrompt;
+
+    QString patchCommand;
 
     bool lineWrap;
     int lineWrapWidth;

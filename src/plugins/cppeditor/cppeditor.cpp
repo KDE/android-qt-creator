@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,11 +35,9 @@
 #include "cppplugin.h"
 #include "cpphighlighter.h"
 #include "cppchecksymbols.h"
-#include "cppquickfix.h"
 #include "cpplocalsymbols.h"
-#include "cppquickfixcollector.h"
-#include "cppqtstyleindenter.h"
 #include "cppautocompleter.h"
+#include "cppquickfixassistant.h"
 
 #include <AST.h>
 #include <Control.h>
@@ -66,6 +64,9 @@
 #include <cpptools/cpptoolsplugin.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/cppcodeformatter.h>
+#include <cpptools/cppcompletionassist.h>
+#include <cpptools/cppqtstyleindenter.h>
+#include <cpptools/cppcodestylesettings.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -83,6 +84,9 @@
 #include <texteditor/fontsettings.h>
 #include <texteditor/tabsettings.h>
 #include <texteditor/texteditorconstants.h>
+#include <texteditor/codeassist/basicproposalitemlistmodel.h>
+#include <texteditor/codeassist/basicproposalitem.h>
+#include <texteditor/codeassist/genericproposal.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QTime>
@@ -101,6 +105,7 @@
 #include <QtGui/QToolBar>
 #include <QtGui/QTreeView>
 #include <QtGui/QSortFilterProxyModel>
+#include <QtGui/QMainWindow>
 
 #include <sstream>
 
@@ -156,7 +161,26 @@ public:
     void sync()
     {
         expandAll();
-        setMinimumWidth(qMax(sizeHintForColumn(0), minimumSizeHint().width()));
+    }
+
+    void adjustWidth()
+    {
+        const int w = Core::ICore::instance()->mainWindow()->geometry().width();
+        setMaximumWidth(w);
+        setMinimumWidth(qMin(qMax(sizeHintForColumn(0), minimumSizeHint().width()), w));
+    }
+};
+
+class OverviewCombo : public QComboBox
+{
+public:
+    OverviewCombo(QWidget *parent = 0) : QComboBox(parent)
+    {}
+
+    void showPopup()
+    {
+        static_cast<OverviewTreeView *>(view())->adjustWidth();
+        QComboBox::showPopup();
     }
 };
 
@@ -420,7 +444,7 @@ CPPEditorWidget::CPPEditorWidget(QWidget *parent)
     setParenthesesMatchingEnabled(true);
     setMarksVisible(true);
     setCodeFoldingSupported(true);
-    setIndenter(new CppQtStyleIndenter);
+    setIndenter(new CppTools::CppQtStyleIndenter);
     setAutoCompleter(new CppAutoCompleter);
 
     baseTextDocument()->setSyntaxHighlighter(new CppHighlighter);
@@ -444,9 +468,6 @@ CPPEditorWidget::CPPEditorWidget(QWidget *parent)
 
 CPPEditorWidget::~CPPEditorWidget()
 {
-    if (Core::EditorManager *em = Core::EditorManager::instance())
-        em->hideEditorInfoBar(QLatin1String("CppEditor.Rename"));
-
     m_semanticHighlighter->abort();
     m_semanticHighlighter->wait();
 
@@ -466,7 +487,7 @@ TextEditor::BaseTextEditor *CPPEditorWidget::createEditor()
 
 void CPPEditorWidget::createToolBar(CPPEditor *editor)
 {
-    m_outlineCombo = new QComboBox;
+    m_outlineCombo = new OverviewCombo;
     m_outlineCombo->setMinimumContentsLength(22);
 
     // Make the combo box prefer to expand
@@ -478,7 +499,7 @@ void CPPEditorWidget::createToolBar(CPPEditor *editor)
     outlineView->header()->hide();
     outlineView->setItemsExpandable(false);
     m_outlineCombo->setView(outlineView);
-    m_outlineCombo->setMaxVisibleItems(20);
+    m_outlineCombo->setMaxVisibleItems(40);
 
     m_outlineModel = new OverviewModel(this);
     m_proxyModel = new OverviewProxyModel(m_outlineModel, this);
@@ -682,52 +703,14 @@ void CPPEditorWidget::renameUsagesNow(const QString &replacement)
     info.snapshot.insert(info.doc);
 
     CanonicalSymbol cs(this, info);
-    if (Symbol *canonicalSymbol = cs(textCursor())) {
-        if (canonicalSymbol->identifier() != 0) {
-            if (showWarningMessage()) {
-                Core::EditorManager::instance()->showEditorInfoBar(QLatin1String("CppEditor.Rename"),
-                                                                   tr("This change cannot be undone."),
-                                                                   tr("Yes, I know what I am doing."),
-                                                                   this, SLOT(hideRenameNotification()));
-            }
-
+    if (Symbol *canonicalSymbol = cs(textCursor()))
+        if (canonicalSymbol->identifier() != 0)
             m_modelManager->renameUsages(canonicalSymbol, cs.context(), replacement);
-        }
-    }
 }
 
 void CPPEditorWidget::renameUsages()
 {
     renameUsagesNow();
-}
-
-bool CPPEditorWidget::showWarningMessage() const
-{
-    // Restore settings
-    QSettings *settings = Core::ICore::instance()->settings();
-    settings->beginGroup(QLatin1String("CppEditor"));
-    settings->beginGroup(QLatin1String("Rename"));
-    const bool showWarningMessage = settings->value(QLatin1String("ShowWarningMessage"), true).toBool();
-    settings->endGroup();
-    settings->endGroup();
-    return showWarningMessage;
-}
-
-void CPPEditorWidget::setShowWarningMessage(bool showWarningMessage)
-{
-    // Restore settings
-    QSettings *settings = Core::ICore::instance()->settings();
-    settings->beginGroup(QLatin1String("CppEditor"));
-    settings->beginGroup(QLatin1String("Rename"));
-    settings->setValue(QLatin1String("ShowWarningMessage"), showWarningMessage);
-    settings->endGroup();
-    settings->endGroup();
-}
-
-void CPPEditorWidget::hideRenameNotification()
-{
-    setShowWarningMessage(false);
-    Core::EditorManager::instance()->hideEditorInfoBar(QLatin1String("CppEditor.Rename"));
 }
 
 void CPPEditorWidget::markSymbolsNow()
@@ -1380,33 +1363,36 @@ CPPEditorWidget::Link CPPEditorWidget::findLinkAt(const QTextCursor &cursor,
     if (!m_modelManager)
         return link;
 
-    const Snapshot snapshot = m_modelManager->snapshot();
+    const Snapshot &snapshot = m_modelManager->snapshot();
+    Document::Ptr doc = m_lastSemanticInfo.doc;
+    if (!doc) {
+        doc = snapshot.document(file()->fileName());
+        if (!doc)
+            return link;
+    }
 
-    if (m_lastSemanticInfo.doc){
-        Link l = attemptFuncDeclDef(cursor, m_lastSemanticInfo.doc, snapshot);
-        if (l.isValid()) {
-            return l;
+    QTextCursor tc = cursor;
+    QChar ch = characterAt(tc.position());
+    while (ch.isLetterOrNumber() || ch == QLatin1Char('_')) {
+        tc.movePosition(QTextCursor::NextCharacter);
+        ch = characterAt(tc.position());
+    }
+
+    if (doc->translationUnit() && doc->translationUnit()->ast()) {
+        int pos = tc.position();
+        while (characterAt(pos).isSpace())
+            ++pos;
+        if (characterAt(pos) == QLatin1Char('(')) {
+            link = attemptFuncDeclDef(cursor, doc, snapshot);
+            if (link.isValid())
+                return link;
         }
     }
 
     int lineNumber = 0, positionInBlock = 0;
     convertPosition(cursor.position(), &lineNumber, &positionInBlock);
-    Document::Ptr doc = snapshot.document(file()->fileName());
-    if (!doc)
-        return link;
-
     const unsigned line = lineNumber;
     const unsigned column = positionInBlock + 1;
-
-    QTextCursor tc = cursor;
-
-    // Make sure we're not at the start of a word
-    {
-        const QChar c = characterAt(tc.position());
-        if (c.isLetter() || c == QLatin1Char('_'))
-            tc.movePosition(QTextCursor::Right);
-    }
-
 
     int beginOfToken = 0;
     int endOfToken = 0;
@@ -1658,22 +1644,29 @@ void CPPEditorWidget::contextMenuEvent(QContextMenuEvent *e)
     QMenu *quickFixMenu = new QMenu(tr("&Refactor"), menu);
     quickFixMenu->addAction(am->command(Constants::RENAME_SYMBOL_UNDER_CURSOR)->action());
 
-    CppQuickFixCollector *quickFixCollector = CppPlugin::instance()->quickFixCollector();
     QSignalMapper mapper;
     connect(&mapper, SIGNAL(mapped(int)), this, SLOT(performQuickFix(int)));
-
     if (! isOutdated()) {
-        if (quickFixCollector->startCompletion(editor()) != -1) {
-            m_quickFixes = quickFixCollector->quickFixes();
-
-            if (! m_quickFixes.isEmpty())
-                quickFixMenu->addSeparator();
-
-            for (int index = 0; index < m_quickFixes.size(); ++index) {
-                TextEditor::QuickFixOperation::Ptr op = m_quickFixes.at(index);
-                QAction *action = quickFixMenu->addAction(op->description());
-                mapper.setMapping(action, index);
-                connect(action, SIGNAL(triggered()), &mapper, SLOT(map()));
+        TextEditor::IAssistInterface *interface =
+            createAssistInterface(TextEditor::QuickFix, TextEditor::ExplicitlyInvoked);
+        if (interface) {
+            QScopedPointer<TextEditor::IAssistProcessor> processor(
+                        CppPlugin::instance()->quickFixProvider()->createProcessor());
+            QScopedPointer<TextEditor::IAssistProposal> proposal(processor->perform(interface));
+            if (!proposal.isNull()) {
+                TextEditor::BasicProposalItemListModel *model =
+                        static_cast<TextEditor::BasicProposalItemListModel *>(proposal->model());
+                for (int index = 0; index < model->size(); ++index) {
+                    TextEditor::BasicProposalItem *item =
+                            static_cast<TextEditor::BasicProposalItem *>(model->proposalItem(index));
+                    TextEditor::QuickFixOperation::Ptr op =
+                            item->data().value<TextEditor::QuickFixOperation::Ptr>();
+                    m_quickFixes.append(op);
+                    QAction *action = quickFixMenu->addAction(op->description());
+                    mapper.setMapping(action, index);
+                    connect(action, SIGNAL(triggered()), &mapper, SLOT(map()));
+                }
+                delete model;
             }
         }
     }
@@ -1687,7 +1680,6 @@ void CPPEditorWidget::contextMenuEvent(QContextMenuEvent *e)
     appendStandardContextMenuActions(menu);
 
     menu->exec(e->globalPos());
-    quickFixCollector->cleanup();
     m_quickFixes.clear();
     delete menu;
 }
@@ -1774,11 +1766,6 @@ void CPPEditorWidget::keyPressEvent(QKeyEvent *e)
     finishRename();
 }
 
-Core::Context CPPEditor::context() const
-{
-    return m_context;
-}
-
 Core::IEditor *CPPEditor::duplicate(QWidget *parent)
 {
     CPPEditorWidget *newEditor = new CPPEditorWidget(parent);
@@ -1792,9 +1779,9 @@ QString CPPEditor::id() const
     return QLatin1String(CppEditor::Constants::CPPEDITOR_ID);
 }
 
-bool CPPEditor::open(const QString & fileName)
+bool CPPEditor::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
-    bool b = TextEditor::BaseTextEditor::open(fileName);
+    bool b = TextEditor::BaseTextEditor::open(errorString, fileName, realFileName);
     editorWidget()->setMimeType(Core::ICore::instance()->mimeDatabase()->findByFile(QFileInfo(fileName)).type());
     return b;
 }
@@ -1849,6 +1836,12 @@ void CPPEditorWidget::setTabSettings(const TextEditor::TabSettings &ts)
 void CPPEditorWidget::unCommentSelection()
 {
     Utils::unCommentSelection(this);
+}
+
+void CPPEditorWidget::slotCodeStyleSettingsChanged(const QVariant &)
+{
+    CppTools::QtStyleCodeFormatter formatter;
+    formatter.invalidateCache(document());
 }
 
 CPPEditorWidget::Link CPPEditorWidget::linkToSymbol(CPlusPlus::Symbol *symbol)
@@ -1965,6 +1958,7 @@ void CPPEditorWidget::updateSemanticInfo(const SemanticInfo &semanticInfo)
                                                            m_keywordFormat));
 #endif
     }
+
 
 
     setExtraSelections(UnusedSymbolSelection, unusedSelections);
@@ -2249,6 +2243,34 @@ QVector<QString> CPPEditorWidget::highlighterFormatCategories()
                    << QLatin1String(TextEditor::Constants::C_VISUAL_WHITESPACE);
     }
     return categories;
+}
+
+TextEditor::IAssistInterface *CPPEditorWidget::createAssistInterface(
+    TextEditor::AssistKind kind,
+    TextEditor::AssistReason reason) const
+{
+    if (kind == TextEditor::Completion) {
+        QStringList includePaths;
+        QStringList frameworkPaths;
+        if (ProjectExplorer::Project *project =
+                ProjectExplorer::ProjectExplorerPlugin::instance()->currentProject()) {
+            includePaths = m_modelManager->projectInfo(project).includePaths;
+            frameworkPaths = m_modelManager->projectInfo(project).frameworkPaths;
+        }
+        return new CppTools::Internal::CppCompletionAssistInterface(
+                    document(),
+                    position(),
+                    editor()->file(),
+                    reason,
+                    m_modelManager->snapshot(),
+                    includePaths,
+                    frameworkPaths);
+    } else if (kind == TextEditor::QuickFix) {
+        if (!semanticInfo().doc || semanticInfo().revision != editorRevision())
+            return 0;
+        return new CppQuickFixAssistInterface(const_cast<CPPEditorWidget *>(this), reason);
+    }
+    return 0;
 }
 
 #include "cppeditor.moc"

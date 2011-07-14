@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,7 +45,7 @@ class RemotePlainGdbAdapter : public AbstractPlainGdbAdapter
 
 public:
     friend class RemoteGdbProcess;
-    explicit RemotePlainGdbAdapter(GdbEngine *engine, QObject *parent = 0);
+    explicit RemotePlainGdbAdapter(GdbEngine *engine);
 
 private slots:
     void handleGdbStarted();

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,6 +36,7 @@
 #include "qmljsbind.h"
 #include "qmljsscopebuilder.h"
 #include "qmljstypedescriptionreader.h"
+#include "qmljsscopeastpath.h"
 #include "parser/qmljsast_p.h"
 
 #include <languageutils/fakemetaobject.h>
@@ -150,438 +151,6 @@ public:
     }
 };
 
-class QmlXmlReader
-{
-    Q_DECLARE_TR_FUNCTIONS(QmlJS::Interpreter::QmlXmlReader)
-
-public:
-    QmlXmlReader(QIODevice *dev)
-        : _xml(dev)
-        , _objects(0)
-    {}
-
-    QmlXmlReader(const QByteArray &data)
-        : _xml(data)
-    {}
-
-    bool operator()(QMap<QString, FakeMetaObject::Ptr> *objects) {
-        Q_ASSERT(objects);
-        _objects = objects;
-
-        if (_xml.readNextStartElement()) {
-            if (_xml.name() == "module")
-                readModule();
-            else
-                _xml.raiseError(tr("The file is not module file."));
-        }
-
-        return !_xml.error();
-    }
-
-    QString errorMessage() const {
-        return _xml.errorString();
-    }
-
-private:
-    void unexpectedElement(const QStringRef &child, const QString &parent) {
-        _xml.raiseError(tr("Unexpected element <%1> in <%2>").arg(child.toString(), parent));
-    }
-
-    void ignoreAttr(const QXmlStreamAttribute &attr) {
-        qDebug() << "** ignoring attribute" << attr.name().toString()
-                 << "in tag" << _xml.name();
-    }
-
-    void invalidAttr(const QString &value, const QString &attrName, const QString &tag) {
-        _xml.raiseError(tr("invalid value '%1' for attribute %2 in <%3>").arg(value, attrName, tag));
-    }
-
-    void noValidAttr(const QString &attrName, const QString &tag) {
-        _xml.raiseError(tr("<%1> has no valid %2 attribute").arg(tag, attrName));
-    }
-
-    void readModule()
-    {
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == QLatin1String("module"));
-
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes())
-            ignoreAttr(attr);
-
-        while (_xml.readNextStartElement()) {
-            if (_xml.name() == QLatin1String("type"))
-                readType();
-            else
-                unexpectedElement(_xml.name(), QLatin1String("module"));
-        }
-    }
-
-    void readType()
-    {
-        const QLatin1String tag("type");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        bool doInsert = true;
-        QString name, defaultPropertyName;
-        ComponentVersion version;
-        QString extends;
-        QString id;
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-            if (attr.name() == QLatin1String("name")) {
-                id = attr.value().toString();
-                if (id.isEmpty()) {
-                    invalidAttr(name, QLatin1String("name"), tag);
-                    return;
-                }
-            } else if (attr.name() == QLatin1String("defaultProperty")) {
-                defaultPropertyName = attr.value().toString();
-            } else if (attr.name() == QLatin1String("extends")) {
-                if (! attr.value().isEmpty())
-                    extends = attr.value().toString();
-
-                if (extends == name) {
-                    invalidAttr(extends, QLatin1String("extends"), tag);
-                    doInsert = false;
-                }
-            } else {
-                ignoreAttr(attr);
-            }
-        }
-
-        FakeMetaObject::Ptr metaObject = FakeMetaObject::Ptr(new FakeMetaObject);
-        if (! extends.isEmpty())
-            metaObject->setSuperclassName(extends);
-        if (! defaultPropertyName.isEmpty())
-            metaObject->setDefaultPropertyName(defaultPropertyName);
-
-        while (_xml.readNextStartElement()) {
-            if (_xml.name() == QLatin1String("property"))
-                readProperty(metaObject);
-            else if (_xml.name() == QLatin1String("enum"))
-                readEnum(metaObject);
-            else if (_xml.name() == QLatin1String("signal"))
-                readSignal(metaObject);
-            else if (_xml.name() == QLatin1String("method"))
-                readMethod(metaObject);
-            else if (_xml.name() == QLatin1String("exports"))
-                readExports(metaObject);
-            else
-                unexpectedElement(_xml.name(), tag);
-        }
-
-        metaObject->addExport(id, QString(), ComponentVersion());
-
-        if (doInsert)
-            _objects->insert(id, metaObject);
-    }
-
-    bool split(const QString &name, QString *packageName, QString *className) {
-        int dotIdx = name.lastIndexOf(QLatin1Char('.'));
-        if (dotIdx != -1) {
-            if (packageName)
-                *packageName = name.left(dotIdx);
-            if (className)
-                *className = name.mid(dotIdx + 1);
-            return true;
-        } else {
-            if (packageName)
-                packageName->clear();
-            if (className)
-                *className = name;
-            return false;
-        }
-    }
-
-    void readProperty(FakeMetaObject::Ptr metaObject)
-    {
-        const QLatin1String tag("property");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        QString name, type;
-        bool isList = false;
-        bool isWritable = false;
-        bool isPointer = false;
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-            if (attr.name() == QLatin1String("name")) {
-                name = attr.value().toString();
-            } else if (attr.name() == QLatin1String("type")) {
-                type = attr.value().toString();
-            } else if (attr.name() == QLatin1String("isList")) {
-                if (attr.value() == QLatin1String("true")) {
-                    isList = true;
-                } else if (attr.value() == QLatin1String("false")) {
-                    isList = false;
-                } else {
-                    invalidAttr(attr.value().toString(), QLatin1String("isList"), tag);
-                    return;
-                }
-            } else if (attr.name() == QLatin1String("isWritable")) {
-                if (attr.value() == QLatin1String("true")) {
-                    isWritable = true;
-                } else if (attr.value() == QLatin1String("false")) {
-                    isWritable = false;
-                } else {
-                    invalidAttr(attr.value().toString(), QLatin1String("isWritable"), tag);
-                    return;
-                }
-            } else if (attr.name() == QLatin1String("isPointer")) {
-                if (attr.value() == QLatin1String("true")) {
-                    isPointer = true;
-                } else if (attr.value() == QLatin1String("false")) {
-                    isPointer = false;
-                } else {
-                    invalidAttr(attr.value().toString(), QLatin1String("isPointer"), tag);
-                    return;
-                }
-            } else {
-                ignoreAttr(attr);
-            }
-        }
-
-        if (name.isEmpty())
-            noValidAttr(QLatin1String("name"), tag);
-        else if (type.isEmpty())
-            noValidAttr(QLatin1String("type"), tag);
-        else
-            createProperty(metaObject, name, type, isList, isWritable, isPointer);
-
-        while (_xml.readNextStartElement()) {
-            unexpectedElement(_xml.name(), tag);
-        }
-    }
-
-    void createProperty(FakeMetaObject::Ptr metaObject, const QString &name,
-                        const QString &type, bool isList, bool isWritable, bool isPointer) {
-        Q_ASSERT(metaObject);
-
-        metaObject->addProperty(FakeMetaProperty(name, type, isList, isWritable, isPointer));
-    }
-
-    void readEnum(FakeMetaObject::Ptr metaObject)
-    {
-        Q_ASSERT(metaObject);
-
-        QLatin1String tag("enum");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        QString name;
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-            if (attr.name() == QLatin1String("name")) {
-                name = attr.value().toString();
-            } else {
-                ignoreAttr(attr);
-            }
-        }
-
-        if (name.isEmpty()) {
-            noValidAttr(QLatin1String("name"), tag);
-            return;
-        }
-
-        FakeMetaEnum metaEnum(name);
-
-        while (_xml.readNextStartElement()) {
-            if (_xml.name() == QLatin1String("enumerator"))
-                readEnumerator(&metaEnum);
-            else
-                unexpectedElement(_xml.name(), tag);
-        }
-
-        metaObject->addEnum(metaEnum);
-    }
-
-    void readEnumerator(FakeMetaEnum *metaEnum)
-    {
-        Q_ASSERT(metaEnum);
-
-        QLatin1String tag("enumerator");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        QString name;
-        int value = 0;
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-            if (attr.name() == QLatin1String("name")) {
-                name = attr.value().toString();
-            } else if (attr.name() == QLatin1String("value")) {
-                const QString valueStr = attr.value().toString();
-                bool ok = false;
-                value = valueStr.toInt(&ok);
-                if (!ok) {
-                    invalidAttr(valueStr, QLatin1String("value"), tag);
-                }
-            } else {
-                ignoreAttr(attr);
-            }
-        }
-
-        if (name.isEmpty())
-            noValidAttr(QLatin1String("name"), tag);
-        else
-            metaEnum->addKey(name, value);
-
-        while (_xml.readNextStartElement()) {
-            unexpectedElement(_xml.name(), tag);
-        }
-    }
-
-    void readSignal(FakeMetaObject::Ptr metaObject)
-    {
-        Q_ASSERT(metaObject);
-        QLatin1String tag("signal");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        QString name;
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-            if (attr.name() == QLatin1String("name")) {
-                name = attr.value().toString();
-            } else {
-                ignoreAttr(attr);
-            }
-        }
-
-        if (name.isEmpty()) {
-            noValidAttr(QLatin1String("name"), tag);
-            return;
-        }
-
-        FakeMetaMethod method(name);
-        method.setMethodType(FakeMetaMethod::Signal);
-
-        while (_xml.readNextStartElement()) {
-            if (_xml.name() == QLatin1String("param")) {
-                readParam(&method);
-            } else {
-                unexpectedElement(_xml.name(), tag);
-            }
-        }
-
-        metaObject->addMethod(method);
-    }
-
-    void readParam(FakeMetaMethod *method)
-    {
-        Q_ASSERT(method);
-        QLatin1String tag("param");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        QString name, type;
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-            if (attr.name() == QLatin1String("name")) {
-                name = attr.value().toString();
-            } else if (attr.name() == QLatin1String("type")) {
-                type = attr.value().toString();
-            } else if (attr.name() == QLatin1String("isPointer")) {
-            } else {
-                ignoreAttr(attr);
-            }
-        }
-
-        // note: name attribute is optional
-        if (type.isEmpty())
-            noValidAttr(QLatin1String("type"), tag);
-
-        method->addParameter(name, type);
-
-        while (_xml.readNextStartElement()) {
-            unexpectedElement(_xml.name(), tag);
-        }
-    }
-
-    void readMethod(FakeMetaObject::Ptr metaObject)
-    {
-        Q_ASSERT(metaObject);
-        QLatin1String tag("method");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        QString name, type;
-        foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-            if (attr.name() == QLatin1String("name")) {
-                name = attr.value().toString();
-            } else if (attr.name() == QLatin1String("type")) {
-                type = attr.value().toString();
-            } else {
-                ignoreAttr(attr);
-            }
-        }
-
-        // note: type attribute is optional, in which case it's a void method.
-        if (name.isEmpty()) {
-            noValidAttr(QLatin1String("name"), tag);
-            return;
-        }
-
-        FakeMetaMethod method(name, type);
-        method.setMethodType(FakeMetaMethod::Slot);
-
-        while (_xml.readNextStartElement()) {
-            if (_xml.name() == QLatin1String("param")) {
-                readParam(&method);
-            } else {
-                unexpectedElement(_xml.name(), tag);
-            }
-        }
-
-        metaObject->addMethod(method);
-    }
-
-    void readExports(FakeMetaObject::Ptr metaObject)
-    {
-        Q_ASSERT(metaObject);
-        QLatin1String tag("exports");
-        QLatin1String childTag("export");
-        Q_ASSERT(_xml.isStartElement() && _xml.name() == tag);
-
-        while (_xml.readNextStartElement()) {
-            if (_xml.name() == childTag) {
-                QString type;
-                QString package;
-                ComponentVersion version;
-                foreach (const QXmlStreamAttribute &attr, _xml.attributes()) {
-                    if (attr.name() == QLatin1String("module")) {
-                        package = attr.value().toString();
-                    } else if (attr.name() == QLatin1String("type")) {
-                        type = attr.value().toString();
-                    } else if (attr.name() == QLatin1String("version")) {
-                        QString versionStr = attr.value().toString();
-                        int dotIdx = versionStr.indexOf('.');
-                        if (dotIdx == -1) {
-                            bool ok = false;
-                            const int major = versionStr.toInt(&ok);
-                            if (!ok) {
-                                invalidAttr(versionStr, QLatin1String("version"), childTag);
-                                continue;
-                            }
-                            version = ComponentVersion(major, ComponentVersion::NoVersion);
-                        } else {
-                            bool ok = false;
-                            const int major = versionStr.left(dotIdx).toInt(&ok);
-                            if (!ok) {
-                                invalidAttr(versionStr, QLatin1String("version"), childTag);
-                                continue;
-                            }
-                            const int minor = versionStr.mid(dotIdx + 1).toInt(&ok);
-                            if (!ok) {
-                                invalidAttr(versionStr, QLatin1String("version"), childTag);
-                                continue;
-                            }
-                            version = ComponentVersion(major, minor);
-                        }
-                    } else {
-                        ignoreAttr(attr);
-                    }
-                }
-                metaObject->addExport(type, package, version);
-            } else {
-                unexpectedElement(_xml.name(), childTag);
-            }
-            _xml.skipCurrentElement(); // the <export> tag should be empty anyhow
-        }
-    }
-
-private:
-    QXmlStreamReader _xml;
-    QMap<QString, FakeMetaObject::Ptr> *_objects;
-};
-
 } // end of anonymous namespace
 
 QmlObjectValue::QmlObjectValue(FakeMetaObject::ConstPtr metaObject, const QString &className,
@@ -620,16 +189,15 @@ void QmlObjectValue::processMembers(MemberProcessor *processor) const
         }
     }
 
-    // process the meta properties
-    for (int index = 0; index < _metaObject->propertyCount(); ++index) {
-        FakeMetaProperty prop = _metaObject->property(index);
-
-        processor->processProperty(prop.name(), propertyValue(prop));
-    }
+    // all explicitly defined signal names
+    QSet<QString> explicitSignals;
 
     // process the meta methods
     for (int index = 0; index < _metaObject->methodCount(); ++index) {
-        FakeMetaMethod method = _metaObject->method(index);
+        const FakeMetaMethod method = _metaObject->method(index);
+        if (_componentVersion.isValid() && _componentVersion.minorVersion() < method.revision())
+            continue;
+
         QString methodName;
         const Value *signature = findOrCreateSignature(index, method, &methodName);
 
@@ -639,14 +207,37 @@ void QmlObjectValue::processMembers(MemberProcessor *processor) const
         } else if (method.methodType() == FakeMetaMethod::Signal && method.access() != FakeMetaMethod::Private) {
             // process the signal
             processor->processSignal(methodName, signature);
+            explicitSignals.insert(methodName);
 
-            QString slotName;
-            slotName += QLatin1String("on");
+            QString slotName = QLatin1String("on");
             slotName += methodName.at(0).toUpper();
             slotName += methodName.midRef(1);
 
             // process the generated slot
             processor->processGeneratedSlot(slotName, signature);
+        }
+    }
+
+    // process the meta properties
+    for (int index = 0; index < _metaObject->propertyCount(); ++index) {
+        const FakeMetaProperty prop = _metaObject->property(index);
+        if (_componentVersion.isValid() && _componentVersion.minorVersion() < prop.revision())
+            continue;
+
+        const QString propertyName = prop.name();
+        processor->processProperty(propertyName, propertyValue(prop));
+
+        // every property always has a onXyzChanged slot, even if the NOTIFY
+        // signal has a different name
+        QString signalName = propertyName;
+        signalName += QLatin1String("Changed");
+        if (!explicitSignals.contains(signalName)) {
+            QString slotName = QLatin1String("on");
+            slotName += signalName.at(0).toUpper();
+            slotName += signalName.midRef(1);
+
+            // process the generated slot
+            processor->processGeneratedSlot(slotName, engine()->undefinedValue());
         }
     }
 
@@ -658,7 +249,7 @@ void QmlObjectValue::processMembers(MemberProcessor *processor) const
 
 const Value *QmlObjectValue::propertyValue(const FakeMetaProperty &prop) const
 {
-    const QString typeName = prop.typeName();
+    QString typeName = prop.typeName();
 
     // ### Verify type resolving.
     QmlObjectValue *objectValue = engine()->cppQmlTypes().typeByCppName(typeName);
@@ -707,10 +298,16 @@ const Value *QmlObjectValue::propertyValue(const FakeMetaProperty &prop) const
     }
 
     // might be an enum
-    int enumIndex = _metaObject->enumeratorIndex(prop.typeName());
-    if (enumIndex != -1) {
-        const FakeMetaEnum &metaEnum = _metaObject->enumerator(enumIndex);
-        value = new QmlEnumValue(metaEnum, engine());
+    const QmlObjectValue *base = this;
+    const QStringList components = typeName.split(QLatin1String("::"));
+    if (components.size() == 2) {
+        base = engine()->cppQmlTypes().typeByCppName(components.first());
+        typeName = components.last();
+    }
+    if (base) {
+        const FakeMetaEnum &metaEnum = base->getEnum(typeName);
+        if (metaEnum.isValid())
+            value = new QmlEnumValue(metaEnum, engine());
     }
 
     return value;
@@ -773,6 +370,15 @@ bool QmlObjectValue::isListProperty(const QString &propertyName) const
 bool QmlObjectValue::isEnum(const QString &typeName) const
 {
     return _metaObject->enumeratorIndex(typeName) != -1;
+}
+
+FakeMetaEnum QmlObjectValue::getEnum(const QString &typeName) const
+{
+    const int index = _metaObject->enumeratorIndex(typeName);
+    if (index == -1)
+        return FakeMetaEnum();
+
+    return _metaObject->enumerator(index);
 }
 
 bool QmlObjectValue::isWritable(const QString &propertyName) const
@@ -845,18 +451,18 @@ QStringList QmlObjectValue::keysForEnum(const QString &enumName) const
 // has this one in its prototype chain and is itself in a package.
 bool QmlObjectValue::hasChildInPackage() const
 {
-    if (!packageName().isEmpty())
+    if (!packageName().isEmpty()
+            && packageName() != CppQmlTypes::cppPackage)
         return true;
     QHashIterator<QString, QmlObjectValue *> it(engine()->cppQmlTypes().types());
     while (it.hasNext()) {
         it.next();
-        FakeMetaObject::ConstPtr other = it.value()->_metaObject;
-        // if it has only the default no-package export, it is not really exported
-        if (other->exports().size() <= 1)
+        FakeMetaObject::ConstPtr otherMeta = it.value()->_metaObject;
+        // if it has only a cpp-package export, it is not really exported
+        if (otherMeta->exports().size() <= 1)
             continue;
-        for (const QmlObjectValue *it = this; it; it = it->prototype()) {
-            FakeMetaObject::ConstPtr iter = it->_metaObject;
-            if (iter == _metaObject) // this object is a parent of other
+        for (const QmlObjectValue *other = it.value(); other; other = other->prototype()) {
+            if (other->metaObject() == _metaObject) // this object is a parent of other
                 return true;
         }
     }
@@ -1012,7 +618,7 @@ const Value *ObjectCtor::invoke(const Activation *activation) const
 
     thisObject->setClassName("Object");
     thisObject->setPrototype(engine()->objectPrototype());
-    thisObject->setProperty("length", engine()->numberValue());
+    thisObject->setMember("length", engine()->numberValue());
     return thisObject;
 }
 
@@ -1024,7 +630,7 @@ const Value *FunctionCtor::invoke(const Activation *activation) const
 
     thisObject->setClassName("Function");
     thisObject->setPrototype(engine()->functionPrototype());
-    thisObject->setProperty("length", engine()->numberValue());
+    thisObject->setMember("length", engine()->numberValue());
     return thisObject;
 }
 
@@ -1036,7 +642,7 @@ const Value *ArrayCtor::invoke(const Activation *activation) const
 
     thisObject->setClassName("Array");
     thisObject->setPrototype(engine()->arrayPrototype());
-    thisObject->setProperty("length", engine()->numberValue());
+    thisObject->setMember("length", engine()->numberValue());
     return thisObject;
 }
 
@@ -1048,7 +654,7 @@ const Value *StringCtor::invoke(const Activation *activation) const
     ObjectValue *thisObject = activation->thisObject();
     thisObject->setClassName("String");
     thisObject->setPrototype(engine()->stringPrototype());
-    thisObject->setProperty("length", engine()->numberValue());
+    thisObject->setMember("length", engine()->numberValue());
     return thisObject;
 }
 
@@ -1093,11 +699,11 @@ const Value *RegExpCtor::invoke(const Activation *activation) const
 
     thisObject->setClassName("RegExp");
     thisObject->setPrototype(engine()->regexpPrototype());
-    thisObject->setProperty("source", engine()->stringValue());
-    thisObject->setProperty("global", engine()->booleanValue());
-    thisObject->setProperty("ignoreCase", engine()->booleanValue());
-    thisObject->setProperty("multiline", engine()->booleanValue());
-    thisObject->setProperty("lastIndex", engine()->numberValue());
+    thisObject->setMember("source", engine()->stringValue());
+    thisObject->setMember("global", engine()->booleanValue());
+    thisObject->setMember("ignoreCase", engine()->booleanValue());
+    thisObject->setMember("multiline", engine()->booleanValue());
+    thisObject->setMember("lastIndex", engine()->numberValue());
     return thisObject;
 }
 
@@ -1307,6 +913,7 @@ void StringValue::accept(ValueVisitor *visitor) const
 ScopeChain::ScopeChain()
     : globalScope(0)
     , qmlTypes(0)
+    , jsImports(0)
 {
 }
 
@@ -1368,7 +975,8 @@ void ScopeChain::update()
         _all += ids;
     if (qmlTypes)
         _all += qmlTypes;
-    // qmlTypes are not added on purpose
+    if (jsImports)
+        _all += jsImports;
     _all += jsScopes;
 }
 
@@ -1378,8 +986,9 @@ QList<const ObjectValue *> ScopeChain::all() const
 }
 
 
-Context::Context()
-    : _engine(new Engine),
+Context::Context(const QmlJS::Snapshot &snapshot)
+    : _snapshot(snapshot),
+      _engine(new Engine),
       _qmlScopeObjectIndex(-1),
       _qmlScopeObjectSet(false)
 {
@@ -1395,6 +1004,11 @@ Engine *Context::engine() const
     return _engine.data();
 }
 
+QmlJS::Snapshot Context::snapshot() const
+{
+    return _snapshot;
+}
+
 const ScopeChain &Context::scopeChain() const
 {
     return _scopeChain;
@@ -1405,18 +1019,18 @@ ScopeChain &Context::scopeChain()
     return _scopeChain;
 }
 
-const TypeEnvironment *Context::typeEnvironment(const QmlJS::Document *doc) const
+const Imports *Context::imports(const QmlJS::Document *doc) const
 {
     if (!doc)
         return 0;
-    return _typeEnvironments.value(doc, 0);
+    return _imports.value(doc).data();
 }
 
-void Context::setTypeEnvironment(const QmlJS::Document *doc, const TypeEnvironment *typeEnvironment)
+void Context::setImports(const QmlJS::Document *doc, const Imports *imports)
 {
     if (!doc)
         return;
-    _typeEnvironments[doc] = typeEnvironment;
+    _imports[doc] = QSharedPointer<const Imports>(imports);
 }
 
 const Value *Context::lookup(const QString &name, const ObjectValue **foundInScope) const
@@ -1437,17 +1051,22 @@ const Value *Context::lookup(const QString &name, const ObjectValue **foundInSco
     return _engine->undefinedValue();
 }
 
-const ObjectValue *Context::lookupType(const QmlJS::Document *doc, UiQualifiedId *qmlTypeName) const
+const ObjectValue *Context::lookupType(const QmlJS::Document *doc, UiQualifiedId *qmlTypeName,
+                                       UiQualifiedId *qmlTypeNameEnd) const
 {
-    const ObjectValue *objectValue = typeEnvironment(doc);
+    const Imports *importsObj = imports(doc);
+    if (!importsObj)
+        return 0;
+    const ObjectValue *objectValue = importsObj->typeScope();
     if (!objectValue)
         return 0;
 
-    for (UiQualifiedId *iter = qmlTypeName; objectValue && iter; iter = iter->next) {
+    for (UiQualifiedId *iter = qmlTypeName; objectValue && iter && iter != qmlTypeNameEnd;
+         iter = iter->next) {
         if (! iter->name)
             return 0;
 
-        const Value *value = objectValue->property(iter->name->asString(), this);
+        const Value *value = objectValue->lookupMember(iter->name->asString(), this);
         if (!value)
             return 0;
 
@@ -1459,13 +1078,18 @@ const ObjectValue *Context::lookupType(const QmlJS::Document *doc, UiQualifiedId
 
 const ObjectValue *Context::lookupType(const QmlJS::Document *doc, const QStringList &qmlTypeName) const
 {
-    const ObjectValue *objectValue = typeEnvironment(doc);
+    const Imports *importsObj = imports(doc);
+    if (!importsObj)
+        return 0;
+    const ObjectValue *objectValue = importsObj->typeScope();
+    if (!objectValue)
+        return 0;
 
     foreach (const QString &name, qmlTypeName) {
         if (!objectValue)
             return 0;
 
-        const Value *value = objectValue->property(name, this);
+        const Value *value = objectValue->lookupMember(name, this);
         if (!value)
             return 0;
 
@@ -1475,8 +1099,12 @@ const ObjectValue *Context::lookupType(const QmlJS::Document *doc, const QString
     return objectValue;
 }
 
-const Value *Context::lookupReference(const Reference *reference) const
+const Value *Context::lookupReference(const Value *value) const
 {
+    const Reference *reference = value_cast<const Reference *>(value);
+    if (!reference)
+        return value;
+
     if (_referenceStack.contains(reference))
         return 0;
 
@@ -1623,6 +1251,11 @@ void ObjectValue::setClassName(const QString &className)
     _className = className;
 }
 
+const Value *ObjectValue::prototype() const
+{
+    return _prototype;
+}
+
 const ObjectValue *ObjectValue::prototype(const Context *context) const
 {
     const ObjectValue *prototypeObject = value_cast<const ObjectValue *>(_prototype);
@@ -1636,16 +1269,15 @@ const ObjectValue *ObjectValue::prototype(const Context *context) const
 
 void ObjectValue::setPrototype(const Value *prototype)
 {
-    // ### FIXME: Check for cycles.
     _prototype = prototype;
 }
 
-void ObjectValue::setProperty(const QString &name, const Value *value)
+void ObjectValue::setMember(const QString &name, const Value *value)
 {
     _members[name] = value;
 }
 
-void ObjectValue::removeProperty(const QString &name)
+void ObjectValue::removeMember(const QString &name)
 {
     _members.remove(name);
 }
@@ -1658,11 +1290,6 @@ const ObjectValue *ObjectValue::asObjectValue() const
 void ObjectValue::accept(ValueVisitor *visitor) const
 {
     visitor->visit(this);
-}
-
-const Value *ObjectValue::property(const QString &name, const Context *context) const
-{
-    return lookupMember(name, context);
 }
 
 bool ObjectValue::checkPrototype(const ObjectValue *, QSet<const ObjectValue *> *) const
@@ -1733,6 +1360,7 @@ PrototypeIterator::PrototypeIterator(const ObjectValue *start, const Context *co
     : m_current(0)
     , m_next(start)
     , m_context(context)
+    , m_error(NoError)
 {
     if (start)
         m_prototypes.reserve(10);
@@ -1744,8 +1372,19 @@ bool PrototypeIterator::hasNext()
         return true;
     if (!m_current)
         return false;
-    m_next = m_current->prototype(m_context);
-    if (!m_next || m_prototypes.contains(m_next)) {
+    const Value *proto = m_current->prototype();
+    if (!proto)
+        return false;
+
+    m_next = value_cast<const ObjectValue *>(proto);
+    if (! m_next)
+        m_next = value_cast<const ObjectValue *>(m_context->lookupReference(proto));
+    if (!m_next) {
+        m_error = ReferenceResolutionError;
+        return false;
+    }
+    if (m_prototypes.contains(m_next)) {
+        m_error = CycleError;
         m_next = 0;
         return false;
     }
@@ -1769,6 +1408,11 @@ const ObjectValue *PrototypeIterator::peekNext()
         return m_next;
     }
     return 0;
+}
+
+PrototypeIterator::Error PrototypeIterator::error() const
+{
+    return m_error;
 }
 
 QList<const ObjectValue *> PrototypeIterator::all()
@@ -1951,12 +1595,16 @@ const Value *Function::argument(int index) const
     return _arguments.at(index);
 }
 
-const Value *Function::property(const QString &name, const Context *context) const
+const Value *Function::lookupMember(const QString &name, const Context *context,
+                                    const ObjectValue **foundInScope, bool examinePrototypes) const
 {
-    if (name == "length")
+    if (name == "length") {
+        if (foundInScope)
+            *foundInScope = this;
         return engine()->numberValue();
+    }
 
-    return FunctionValue::property(name, context);
+    return FunctionValue::lookupMember(name, context, foundInScope, examinePrototypes);
 }
 
 const Value *Function::invoke(const Activation *activation) const
@@ -1971,31 +1619,37 @@ const Value *Function::invoke(const Activation *activation) const
 QHash<QString, FakeMetaObject::ConstPtr> CppQmlTypesLoader::builtinObjects;
 QHash<QString, QList<LanguageUtils::ComponentVersion> > CppQmlTypesLoader::builtinPackages;
 
-QStringList CppQmlTypesLoader::loadQmlTypes(const QFileInfoList &qmlTypeFiles)
+void CppQmlTypesLoader::loadQmlTypes(const QFileInfoList &qmlTypeFiles, QStringList *errors, QStringList *warnings)
 {
     QHash<QString, FakeMetaObject::ConstPtr> newObjects;
-    QStringList errorMsgs;
 
     foreach (const QFileInfo &qmlTypeFile, qmlTypeFiles) {
+        QString error, warning;
         QFile file(qmlTypeFile.absoluteFilePath());
         if (file.open(QIODevice::ReadOnly)) {
             QString contents = QString::fromUtf8(file.readAll());
             file.close();
 
             QmlJS::TypeDescriptionReader reader(contents);
-            if (!reader(&newObjects)) {
-                errorMsgs.append(reader.errorMessage());
-            }
+            if (!reader(&newObjects))
+                error = reader.errorMessage();
+            warning = reader.warningMessage();
         } else {
-            errorMsgs.append(QmlJS::TypeDescriptionReader::tr("%1: %2")
-                             .arg(qmlTypeFile.absoluteFilePath(),
-                                  file.errorString()));
+            error = file.errorString();
+        }
+        if (!error.isEmpty()) {
+            errors->append(TypeDescriptionReader::tr(
+                               "Errors while loading qmltypes from %1:\n%2").arg(
+                               qmlTypeFile.absoluteFilePath(), error));
+        }
+        if (!warning.isEmpty()) {
+            warnings->append(TypeDescriptionReader::tr(
+                                 "Warnings while loading qmltypes from %1:\n%2").arg(
+                                 qmlTypeFile.absoluteFilePath(), error));
         }
     }
 
-    if (errorMsgs.isEmpty()) {
-        builtinObjects.unite(newObjects);
-    }
+    builtinObjects.unite(newObjects);
 
     QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr>::const_iterator iter
             = builtinObjects.constBegin();
@@ -2008,18 +1662,24 @@ QStringList CppQmlTypesLoader::loadQmlTypes(const QFileInfoList &qmlTypeFiles)
             }
         }
     }
-    return errorMsgs;
 }
 
-QString CppQmlTypesLoader::parseQmlTypeDescriptions(const QByteArray &xml, QHash<QString, FakeMetaObject::ConstPtr> *newObjects)
+void CppQmlTypesLoader::parseQmlTypeDescriptions(const QByteArray &xml,
+                                                 QHash<QString, FakeMetaObject::ConstPtr> *newObjects,
+                                                 QString *errorMessage,
+                                                 QString *warningMessage)
 {
+    errorMessage->clear();
+    warningMessage->clear();
     QmlJS::TypeDescriptionReader reader(QString::fromUtf8(xml));
     if (!reader(newObjects)) {
-        if (reader.errorMessage().isEmpty())
-            return QLatin1String("unknown error");
-        return reader.errorMessage();
+        if (reader.errorMessage().isEmpty()) {
+            *errorMessage = QLatin1String("unknown error");
+        } else {
+            *errorMessage = reader.errorMessage();
+        }
     }
-    return QString();
+    *warningMessage = reader.warningMessage();
 }
 
 const QLatin1String CppQmlTypes::defaultPackage("<default>");
@@ -2029,12 +1689,15 @@ template <typename T>
 QList<QmlObjectValue *> CppQmlTypes::load(Engine *engine, const T &objects)
 {
     // load
+    QList<QmlObjectValue *> loadedObjects;
     QList<QmlObjectValue *> newObjects;
     foreach (FakeMetaObject::ConstPtr metaObject, objects) {
         foreach (const FakeMetaObject::Export &exp, metaObject->exports()) {
-            QmlObjectValue *newObject = makeObject(engine, metaObject, exp);
-            if (newObject)
-                newObjects += newObject;
+            bool wasCreated;
+            QmlObjectValue *loadedObject = getOrCreate(engine, metaObject, exp, &wasCreated);
+            loadedObjects += loadedObject;
+            if (wasCreated)
+                newObjects += loadedObject;
         }
     }
 
@@ -2043,7 +1706,7 @@ QList<QmlObjectValue *> CppQmlTypes::load(Engine *engine, const T &objects)
         setPrototypes(object);
     }
 
-    return newObjects;
+    return loadedObjects;
 }
 // explicitly instantiate load for list and hash
 template QList<QmlObjectValue *> CppQmlTypes::load< QList<FakeMetaObject::ConstPtr> >(Engine *, const QList<FakeMetaObject::ConstPtr> &);
@@ -2101,19 +1764,26 @@ QmlObjectValue *CppQmlTypes::typeByQualifiedName(const QString &package, const Q
     return typeByQualifiedName(qualifiedName(package, type, version));
 }
 
-QmlObjectValue *CppQmlTypes::makeObject(
+QmlObjectValue *CppQmlTypes::getOrCreate(
     Engine *engine,
     FakeMetaObject::ConstPtr metaObject,
-    const LanguageUtils::FakeMetaObject::Export &exp)
+    const LanguageUtils::FakeMetaObject::Export &exp,
+    bool *wasCreated)
 {
     // make sure we're not loading duplicate objects
-    if (_typesByFullyQualifiedName.contains(exp.packageNameVersion))
-        return 0;
+    if (QmlObjectValue *existing = _typesByFullyQualifiedName.value(exp.packageNameVersion)) {
+        if (wasCreated)
+            *wasCreated = false;
+        return existing;
+    }
 
     QmlObjectValue *objectValue = new QmlObjectValue(
                 metaObject, exp.type, exp.package, exp.version, engine);
     _typesByPackage[exp.package].append(objectValue);
     _typesByFullyQualifiedName[exp.packageNameVersion] = objectValue;
+
+    if (wasCreated)
+        *wasCreated = true;
     return objectValue;
 }
 
@@ -2141,7 +1811,7 @@ void CppQmlTypes::setPrototypes(QmlObjectValue *object)
     // needs to create Positioner (Qt) and Positioner (QtQuick)
     QmlObjectValue *v = object;
     while (!v->prototype() && !fmo->superclassName().isEmpty()) {
-        QmlObjectValue *superValue = getOrCreate(targetPackage, fmo->superclassName());
+        QmlObjectValue *superValue = getOrCreateForPackage(targetPackage, fmo->superclassName());
         if (!superValue)
             return;
         v->setPrototype(superValue);
@@ -2150,7 +1820,7 @@ void CppQmlTypes::setPrototypes(QmlObjectValue *object)
     }
 }
 
-QmlObjectValue *CppQmlTypes::getOrCreate(const QString &package, const QString &cppName)
+QmlObjectValue *CppQmlTypes::getOrCreateForPackage(const QString &package, const QString &cppName)
 {
     // first get the cpp object value
     QmlObjectValue *cppObject = typeByCppName(cppName);
@@ -2164,10 +1834,9 @@ QmlObjectValue *CppQmlTypes::getOrCreate(const QString &package, const QString &
     FakeMetaObject::Export exp = metaObject->exportInPackage(package);
     QmlObjectValue *object = 0;
     if (exp.isValid()) {
-        object = typeByQualifiedName(exp.packageNameVersion);
-        if (!object)
-            object = makeObject(cppObject->engine(), metaObject, exp);
+        object = getOrCreate(cppObject->engine(), metaObject, exp);
     } else {
+        // make a convenience object that does not get added to _typesByPackage
         const QString qname = qualifiedName(package, cppName, ComponentVersion());
         object = typeByQualifiedName(qname);
         if (!object) {
@@ -2677,7 +2346,7 @@ void Engine::addFunction(ObjectValue *object, const QString &name, const Value *
     function->setReturnValue(result);
     for (int i = 0; i < argumentCount; ++i)
         function->addArgument(undefinedValue()); // ### introduce unknownValue
-    object->setProperty(name, function);
+    object->setMember(name, function);
 }
 
 void Engine::addFunction(ObjectValue *object, const QString &name, int argumentCount)
@@ -2685,7 +2354,7 @@ void Engine::addFunction(ObjectValue *object, const QString &name, int argumentC
     Function *function = newFunction();
     for (int i = 0; i < argumentCount; ++i)
         function->addArgument(undefinedValue()); // ### introduce unknownValue
-    object->setProperty(name, function);
+    object->setMember(name, function);
 }
 
 void Engine::initializePrototypes()
@@ -2706,42 +2375,42 @@ void Engine::initializePrototypes()
     // set up the default Object prototype
     _objectCtor = new ObjectCtor(this);
     _objectCtor->setPrototype(_functionPrototype);
-    _objectCtor->setProperty("prototype", _objectPrototype);
+    _objectCtor->setMember("prototype", _objectPrototype);
     _objectCtor->setReturnValue(newObject());
 
     _functionCtor = new FunctionCtor(this);
     _functionCtor->setPrototype(_functionPrototype);
-    _functionCtor->setProperty("prototype", _functionPrototype);
+    _functionCtor->setMember("prototype", _functionPrototype);
     _functionCtor->setReturnValue(newFunction());
 
     _arrayCtor = new ArrayCtor(this);
     _arrayCtor->setPrototype(_functionPrototype);
-    _arrayCtor->setProperty("prototype", _arrayPrototype);
+    _arrayCtor->setMember("prototype", _arrayPrototype);
     _arrayCtor->setReturnValue(newArray());
 
     _stringCtor = new StringCtor(this);
     _stringCtor->setPrototype(_functionPrototype);
-    _stringCtor->setProperty("prototype", _stringPrototype);
+    _stringCtor->setMember("prototype", _stringPrototype);
     _stringCtor->setReturnValue(stringValue());
 
     _booleanCtor = new BooleanCtor(this);
     _booleanCtor->setPrototype(_functionPrototype);
-    _booleanCtor->setProperty("prototype", _booleanPrototype);
+    _booleanCtor->setMember("prototype", _booleanPrototype);
     _booleanCtor->setReturnValue(booleanValue());
 
     _numberCtor = new NumberCtor(this);
     _numberCtor->setPrototype(_functionPrototype);
-    _numberCtor->setProperty("prototype", _numberPrototype);
+    _numberCtor->setMember("prototype", _numberPrototype);
     _numberCtor->setReturnValue(numberValue());
 
     _dateCtor = new DateCtor(this);
     _dateCtor->setPrototype(_functionPrototype);
-    _dateCtor->setProperty("prototype", _datePrototype);
+    _dateCtor->setMember("prototype", _datePrototype);
     _dateCtor->setReturnValue(_datePrototype);
 
     _regexpCtor = new RegExpCtor(this);
     _regexpCtor->setPrototype(_functionPrototype);
-    _regexpCtor->setProperty("prototype", _regexpPrototype);
+    _regexpCtor->setMember("prototype", _regexpPrototype);
     _regexpCtor->setReturnValue(_regexpPrototype);
 
     addFunction(_objectCtor, "getPrototypeOf", 1);
@@ -2766,7 +2435,7 @@ void Engine::initializePrototypes()
     addFunction(_objectPrototype, "propertyIsEnumerable", booleanValue(), 1);
 
     // set up the default Function prototype
-    _functionPrototype->setProperty("constructor", _functionCtor);
+    _functionPrototype->setMember("constructor", _functionCtor);
     addFunction(_functionPrototype, "toString", stringValue(), 0);
     addFunction(_functionPrototype, "apply", 2);
     addFunction(_functionPrototype, "call", 1);
@@ -2775,7 +2444,7 @@ void Engine::initializePrototypes()
     // set up the default Array prototype
     addFunction(_arrayCtor, "isArray", booleanValue(), 1);
 
-    _arrayPrototype->setProperty("constructor", _arrayCtor);
+    _arrayPrototype->setMember("constructor", _arrayCtor);
     addFunction(_arrayPrototype, "toString", stringValue(), 0);
     addFunction(_arrayPrototype, "toLocalString", stringValue(), 0);
     addFunction(_arrayPrototype, "concat", 0);
@@ -2801,7 +2470,7 @@ void Engine::initializePrototypes()
     // set up the default String prototype
     addFunction(_stringCtor, "fromCharCode", stringValue(), 0);
 
-    _stringPrototype->setProperty("constructor", _stringCtor);
+    _stringPrototype->setMember("constructor", _stringCtor);
     addFunction(_stringPrototype, "toString", stringValue(), 0);
     addFunction(_stringPrototype, "valueOf", stringValue(), 0);
     addFunction(_stringPrototype, "charAt", stringValue(), 1);
@@ -2825,20 +2494,20 @@ void Engine::initializePrototypes()
     // set up the default Boolean prototype
     addFunction(_booleanCtor, "fromCharCode", 0);
 
-    _booleanPrototype->setProperty("constructor", _booleanCtor);
+    _booleanPrototype->setMember("constructor", _booleanCtor);
     addFunction(_booleanPrototype, "toString", stringValue(), 0);
     addFunction(_booleanPrototype, "valueOf", booleanValue(), 0);
 
     // set up the default Number prototype
-    _numberCtor->setProperty("MAX_VALUE", numberValue());
-    _numberCtor->setProperty("MIN_VALUE", numberValue());
-    _numberCtor->setProperty("NaN", numberValue());
-    _numberCtor->setProperty("NEGATIVE_INFINITY", numberValue());
-    _numberCtor->setProperty("POSITIVE_INFINITY", numberValue());
+    _numberCtor->setMember("MAX_VALUE", numberValue());
+    _numberCtor->setMember("MIN_VALUE", numberValue());
+    _numberCtor->setMember("NaN", numberValue());
+    _numberCtor->setMember("NEGATIVE_INFINITY", numberValue());
+    _numberCtor->setMember("POSITIVE_INFINITY", numberValue());
 
     addFunction(_numberCtor, "fromCharCode", 0);
 
-    _numberPrototype->setProperty("constructor", _numberCtor);
+    _numberPrototype->setMember("constructor", _numberCtor);
     addFunction(_numberPrototype, "toString", stringValue(), 0);
     addFunction(_numberPrototype, "toLocaleString", stringValue(), 0);
     addFunction(_numberPrototype, "valueOf", numberValue(), 0);
@@ -2848,14 +2517,14 @@ void Engine::initializePrototypes()
 
     // set up the Math object
     _mathObject = newObject();
-    _mathObject->setProperty("E", numberValue());
-    _mathObject->setProperty("LN10", numberValue());
-    _mathObject->setProperty("LN2", numberValue());
-    _mathObject->setProperty("LOG2E", numberValue());
-    _mathObject->setProperty("LOG10E", numberValue());
-    _mathObject->setProperty("PI", numberValue());
-    _mathObject->setProperty("SQRT1_2", numberValue());
-    _mathObject->setProperty("SQRT2", numberValue());
+    _mathObject->setMember("E", numberValue());
+    _mathObject->setMember("LN10", numberValue());
+    _mathObject->setMember("LN2", numberValue());
+    _mathObject->setMember("LOG2E", numberValue());
+    _mathObject->setMember("LOG10E", numberValue());
+    _mathObject->setMember("PI", numberValue());
+    _mathObject->setMember("SQRT1_2", numberValue());
+    _mathObject->setMember("SQRT2", numberValue());
 
     addFunction(_mathObject, "abs", numberValue(), 1);
     addFunction(_mathObject, "acos", numberValue(), 1);
@@ -2880,7 +2549,7 @@ void Engine::initializePrototypes()
     addFunction(_dateCtor, "parse", numberValue(), 1);
     addFunction(_dateCtor, "now", numberValue(), 0);
 
-    _datePrototype->setProperty("constructor", _dateCtor);
+    _datePrototype->setMember("constructor", _dateCtor);
     addFunction(_datePrototype, "toString", stringValue(), 0);
     addFunction(_datePrototype, "toDateString", stringValue(), 0);
     addFunction(_datePrototype, "toTimeString", stringValue(), 0);
@@ -2924,21 +2593,21 @@ void Engine::initializePrototypes()
     addFunction(_datePrototype, "toJSON", stringValue(), 1);
 
     // set up the default Boolean prototype
-    _regexpPrototype->setProperty("constructor", _regexpCtor);
+    _regexpPrototype->setMember("constructor", _regexpCtor);
     addFunction(_regexpPrototype, "exec", newArray(), 1);
     addFunction(_regexpPrototype, "test", booleanValue(), 1);
     addFunction(_regexpPrototype, "toString", stringValue(), 0);
 
     // fill the Global object
-    _globalObject->setProperty("Math", _mathObject);
-    _globalObject->setProperty("Object", objectCtor());
-    _globalObject->setProperty("Function", functionCtor());
-    _globalObject->setProperty("Array", arrayCtor());
-    _globalObject->setProperty("String", stringCtor());
-    _globalObject->setProperty("Boolean", booleanCtor());
-    _globalObject->setProperty("Number", numberCtor());
-    _globalObject->setProperty("Date", dateCtor());
-    _globalObject->setProperty("RegExp", regexpCtor());
+    _globalObject->setMember("Math", _mathObject);
+    _globalObject->setMember("Object", objectCtor());
+    _globalObject->setMember("Function", functionCtor());
+    _globalObject->setMember("Array", arrayCtor());
+    _globalObject->setMember("String", stringCtor());
+    _globalObject->setMember("Boolean", booleanCtor());
+    _globalObject->setMember("Number", numberCtor());
+    _globalObject->setMember("Date", dateCtor());
+    _globalObject->setMember("RegExp", regexpCtor());
 
 
     // global Qt object, in alphabetic order
@@ -2966,55 +2635,60 @@ void Engine::initializePrototypes()
     addFunction(_qtObject, QLatin1String("size"), 2);
     addFunction(_qtObject, QLatin1String("tint"), 2);
     addFunction(_qtObject, QLatin1String("vector3d"), 3);
+    _globalObject->setMember(QLatin1String("Qt"), _qtObject);
 
-
-    //firebug/webkit compat
+    // firebug/webkit compat
     ObjectValue *consoleObject = newObject(/*prototype */ 0);
     addFunction(consoleObject, QLatin1String("log"), 1);
     addFunction(consoleObject, QLatin1String("debug"), 1);
+    _globalObject->setMember(QLatin1String("console"), consoleObject);
 
-    _globalObject->setProperty(QLatin1String("console"), consoleObject);
-
-    _globalObject->setProperty(QLatin1String("Qt"), _qtObject);
+    // translation functions
+    addFunction(_globalObject, QLatin1String("qsTr"), 3);
+    addFunction(_globalObject, QLatin1String("QT_TR_NOOP"), 1);
+    addFunction(_globalObject, QLatin1String("qsTranslate"), 5);
+    addFunction(_globalObject, QLatin1String("QT_TRANSLATE_NOOP"), 2);
+    addFunction(_globalObject, QLatin1String("qsTrId"), 2);
+    addFunction(_globalObject, QLatin1String("QT_TRID_NOOP"), 1);
 
     // QML objects
     _qmlFontObject = newObject(/*prototype =*/ 0);
     _qmlFontObject->setClassName(QLatin1String("Font"));
-    _qmlFontObject->setProperty("family", stringValue());
-    _qmlFontObject->setProperty("weight", undefinedValue()); // ### make me an object
-    _qmlFontObject->setProperty("capitalization", undefinedValue()); // ### make me an object
-    _qmlFontObject->setProperty("bold", booleanValue());
-    _qmlFontObject->setProperty("italic", booleanValue());
-    _qmlFontObject->setProperty("underline", booleanValue());
-    _qmlFontObject->setProperty("overline", booleanValue());
-    _qmlFontObject->setProperty("strikeout", booleanValue());
-    _qmlFontObject->setProperty("pointSize", intValue());
-    _qmlFontObject->setProperty("pixelSize", intValue());
-    _qmlFontObject->setProperty("letterSpacing", realValue());
-    _qmlFontObject->setProperty("wordSpacing", realValue());
+    _qmlFontObject->setMember("family", stringValue());
+    _qmlFontObject->setMember("weight", undefinedValue()); // ### make me an object
+    _qmlFontObject->setMember("capitalization", undefinedValue()); // ### make me an object
+    _qmlFontObject->setMember("bold", booleanValue());
+    _qmlFontObject->setMember("italic", booleanValue());
+    _qmlFontObject->setMember("underline", booleanValue());
+    _qmlFontObject->setMember("overline", booleanValue());
+    _qmlFontObject->setMember("strikeout", booleanValue());
+    _qmlFontObject->setMember("pointSize", intValue());
+    _qmlFontObject->setMember("pixelSize", intValue());
+    _qmlFontObject->setMember("letterSpacing", realValue());
+    _qmlFontObject->setMember("wordSpacing", realValue());
 
     _qmlPointObject = newObject(/*prototype =*/ 0);
     _qmlPointObject->setClassName(QLatin1String("Point"));
-    _qmlPointObject->setProperty("x", numberValue());
-    _qmlPointObject->setProperty("y", numberValue());
+    _qmlPointObject->setMember("x", numberValue());
+    _qmlPointObject->setMember("y", numberValue());
 
     _qmlSizeObject = newObject(/*prototype =*/ 0);
     _qmlSizeObject->setClassName(QLatin1String("Size"));
-    _qmlSizeObject->setProperty("width", numberValue());
-    _qmlSizeObject->setProperty("height", numberValue());
+    _qmlSizeObject->setMember("width", numberValue());
+    _qmlSizeObject->setMember("height", numberValue());
 
     _qmlRectObject = newObject(/*prototype =*/ 0);
     _qmlRectObject->setClassName("Rect");
-    _qmlRectObject->setProperty("x", numberValue());
-    _qmlRectObject->setProperty("y", numberValue());
-    _qmlRectObject->setProperty("width", numberValue());
-    _qmlRectObject->setProperty("height", numberValue());
+    _qmlRectObject->setMember("x", numberValue());
+    _qmlRectObject->setMember("y", numberValue());
+    _qmlRectObject->setMember("width", numberValue());
+    _qmlRectObject->setMember("height", numberValue());
 
     _qmlVector3DObject = newObject(/*prototype =*/ 0);
     _qmlVector3DObject->setClassName(QLatin1String("Vector3D"));
-    _qmlVector3DObject->setProperty("x", realValue());
-    _qmlVector3DObject->setProperty("y", realValue());
-    _qmlVector3DObject->setProperty("z", realValue());
+    _qmlVector3DObject->setMember("x", realValue());
+    _qmlVector3DObject->setMember("y", realValue());
+    _qmlVector3DObject->setMember("z", realValue());
 }
 
 const ObjectValue *Engine::qmlKeysObject()
@@ -3260,10 +2934,23 @@ bool ASTPropertyReference::getSourceLocation(QString *fileName, int *line, int *
 
 const Value *ASTPropertyReference::value(const Context *context) const
 {
-    if (_ast->expression
-            && (!_ast->memberType || _ast->memberType->asString() == QLatin1String("variant"))) {
-        Evaluate check(context);
-        return check(_ast->expression);
+    if (_ast->statement
+            && (!_ast->memberType || _ast->memberType->asString() == QLatin1String("variant")
+                || _ast->memberType->asString() == QLatin1String("alias"))) {
+
+        // Adjust the context for the current location - expensive!
+        // ### Improve efficiency by caching the 'use chain' constructed in ScopeBuilder.
+
+        QmlJS::Document::Ptr doc = _doc->ptr();
+        Context localContext(*context);
+        QmlJS::ScopeBuilder builder(&localContext, doc);
+        builder.initializeRootScope();
+
+        int offset = _ast->statement->firstSourceLocation().begin();
+        builder.push(ScopeAstPath(doc)(offset));
+
+        Evaluate check(&localContext);
+        return check(_ast->statement);
     }
 
     if (_ast->memberType)
@@ -3345,20 +3032,29 @@ UiImport *ImportInfo::ast() const
     return _ast;
 }
 
-TypeEnvironment::TypeEnvironment(Engine *engine)
+Import::Import()
+    : object(0)
+{}
+
+TypeScope::TypeScope(const Imports *imports, Engine *engine)
     : ObjectValue(engine)
+    , _imports(imports)
 {
 }
 
-const Value *TypeEnvironment::lookupMember(const QString &name, const Context *context,
+const Value *TypeScope::lookupMember(const QString &name, const Context *context,
                                            const ObjectValue **foundInObject, bool) const
 {
-    QListIterator<Import> it(_imports);
+    QListIterator<Import> it(_imports->all());
     it.toBack();
     while (it.hasPrevious()) {
         const Import &i = it.previous();
         const ObjectValue *import = i.object;
         const ImportInfo &info = i.info;
+
+        // JS import has no types
+        if (info.type() == ImportInfo::FileImport)
+            continue;
 
         if (!info.id().isEmpty()) {
             if (info.id() == name) {
@@ -3369,15 +3065,59 @@ const Value *TypeEnvironment::lookupMember(const QString &name, const Context *c
             continue;
         }
 
-        if (info.type() == ImportInfo::FileImport) {
-            if (import->className() == name) {
-                if (foundInObject)
-                    *foundInObject = this;
-                return import;
-            }
+        if (const Value *v = import->lookupMember(name, context, foundInObject))
+            return v;
+    }
+    if (foundInObject)
+        *foundInObject = 0;
+    return 0;
+}
+
+void TypeScope::processMembers(MemberProcessor *processor) const
+{
+    QListIterator<Import> it(_imports->all());
+    it.toBack();
+    while (it.hasPrevious()) {
+        const Import &i = it.previous();
+        const ObjectValue *import = i.object;
+        const ImportInfo &info = i.info;
+
+        // JS import has no types
+        if (info.type() == ImportInfo::FileImport)
+            continue;
+
+        if (!info.id().isEmpty()) {
+            processor->processProperty(info.id(), import);
         } else {
-            if (const Value *v = import->lookupMember(name, context, foundInObject))
-                return v;
+            import->processMembers(processor);
+        }
+    }
+}
+
+JSImportScope::JSImportScope(const Imports *imports, Engine *engine)
+    : ObjectValue(engine)
+    , _imports(imports)
+{
+}
+
+const Value *JSImportScope::lookupMember(const QString &name, const Context *,
+                                         const ObjectValue **foundInObject, bool) const
+{
+    QListIterator<Import> it(_imports->all());
+    it.toBack();
+    while (it.hasPrevious()) {
+        const Import &i = it.previous();
+        const ObjectValue *import = i.object;
+        const ImportInfo &info = i.info;
+
+        // JS imports are always: import "somefile.js" as Foo
+        if (info.type() != ImportInfo::FileImport)
+            continue;
+
+        if (info.id() == name) {
+            if (foundInObject)
+                *foundInObject = this;
+            return import;
         }
     }
     if (foundInObject)
@@ -3385,35 +3125,44 @@ const Value *TypeEnvironment::lookupMember(const QString &name, const Context *c
     return 0;
 }
 
-void TypeEnvironment::processMembers(MemberProcessor *processor) const
+void JSImportScope::processMembers(MemberProcessor *processor) const
 {
-    QListIterator<Import> it(_imports);
+    QListIterator<Import> it(_imports->all());
     it.toBack();
     while (it.hasPrevious()) {
         const Import &i = it.previous();
         const ObjectValue *import = i.object;
         const ImportInfo &info = i.info;
 
-        if (!info.id().isEmpty()) {
+        if (info.type() == ImportInfo::FileImport)
             processor->processProperty(info.id(), import);
-        } else {
-            if (info.type() == ImportInfo::FileImport)
-                processor->processProperty(import->className(), import);
-            else
-                import->processMembers(processor);
-        }
     }
 }
 
-void TypeEnvironment::addImport(const ObjectValue *import, const ImportInfo &info)
+Imports::Imports(Engine *engine)
+    : _typeScope(new TypeScope(this, engine))
+    , _jsImportScope(new JSImportScope(this, engine))
+{}
+
+void Imports::append(const Import &import)
 {
-    Import i;
-    i.object = import;
-    i.info = info;
-    _imports.append(i);
+    // when doing lookup, imports with 'as' clause are looked at first
+    if (!import.info.id().isEmpty()) {
+        _imports.append(import);
+    } else {
+        // find first as-import and prepend
+        for (int i = 0; i < _imports.size(); ++i) {
+            if (!_imports.at(i).info.id().isEmpty()) {
+                _imports.insert(i, import);
+                return;
+            }
+        }
+        // not found, append
+        _imports.append(import);
+    }
 }
 
-ImportInfo TypeEnvironment::importInfo(const QString &name, const Context *context) const
+ImportInfo Imports::info(const QString &name, const Context *context) const
 {
     QString firstId = name;
     int dotIdx = firstId.indexOf(QLatin1Char('.'));
@@ -3437,9 +3186,80 @@ ImportInfo TypeEnvironment::importInfo(const QString &name, const Context *conte
             if (import->className() == firstId)
                 return info;
         } else {
-            if (import->property(firstId, context))
+            if (import->lookupMember(firstId, context))
                 return info;
         }
     }
     return ImportInfo();
 }
+
+QList<Import> Imports::all() const
+{
+    return _imports;
+}
+
+const TypeScope *Imports::typeScope() const
+{
+    return _typeScope;
+}
+
+const JSImportScope *Imports::jsImportScope() const
+{
+    return _jsImportScope;
+}
+
+#ifdef QT_DEBUG
+
+class MemberDumper: public MemberProcessor
+{
+public:
+    MemberDumper() {}
+
+    virtual bool processProperty(const QString &name, const Value *)
+    {
+        qDebug() << "property: " << name;
+        return true;
+    }
+
+    virtual bool processEnumerator(const QString &name, const Value *)
+    {
+        qDebug() << "enumerator: " << name;
+        return true;
+    }
+
+    virtual bool processSignal(const QString &name, const Value *)
+    {
+        qDebug() << "signal: " << name;
+        return true;
+    }
+
+    virtual bool processSlot(const QString &name, const Value *)
+    {
+        qDebug() << "slot: " << name;
+        return true;
+    }
+
+    virtual bool processGeneratedSlot(const QString &name, const Value *)
+    {
+        qDebug() << "generated slot: " << name;
+        return true;
+    }
+};
+
+void Imports::dump() const
+{
+    qDebug() << "Imports contents, in search order:";
+    QListIterator<Import> it(_imports);
+    it.toBack();
+    while (it.hasPrevious()) {
+        const Import &i = it.previous();
+        const ObjectValue *import = i.object;
+        const ImportInfo &info = i.info;
+
+        qDebug() << "  " << info.name() << " " << info.version().toString() << " as " << info.id() << " : " << import;
+        MemberDumper dumper;
+        import->processMembers(&dumper);
+    }
+}
+
+#endif

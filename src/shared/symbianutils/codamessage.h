@@ -26,12 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
-#ifndef TRCFTRKMESSAGE_H
-#define TRCFTRKMESSAGE_H
+#ifndef CODAMESSAGE_H
+#define CODAMESSAGE_H
 
 #include "symbianutils_global.h"
 
@@ -52,13 +52,14 @@ enum Services {
     RunControlService,
     ProcessesService,
     MemoryService,
-    SettingsService,  // non-standard, trk specific
+    SettingsService,  // non-standard, CODA specific
     BreakpointsService,
     RegistersService,
-    LoggingService,    // non-standard, trk specific
+    LoggingService,    // non-standard, CODA specific
     FileSystemService,
-    SymbianInstallService,    // non-standard, trk specific
-    SymbianOSData,    // non-standard, trk specific
+    SymbianInstallService,    // non-standard, CODA specific
+    SymbianOSData,    // non-standard, CODA specific
+    DebugSessionControl,    // non-standard, CODA specific
     UnknownService
 }; // Note: Check string array 'serviceNamesC' of same size when modifying this.
 
@@ -104,11 +105,11 @@ struct SYMBIANUTILS_EXPORT RunControlContext {
     void format(QTextStream &str) const;
     QString toString() const;
 
-    // Helper for converting the TCF ids ("p12" or "p12.t34")
-    static Type typeFromTcfId(const QByteArray &id);
+    // Helper for converting the CODA ids ("p12" or "p12.t34")
+    static Type typeFromCodaId(const QByteArray &id);
     static unsigned processIdFromTcdfId(const QByteArray &id);
     static unsigned threadIdFromTcdfId(const QByteArray &id);
-    static QByteArray tcfId(unsigned processId,  unsigned threadId = 0);
+    static QByteArray codaId(unsigned processId,  unsigned threadId = 0);
 
     unsigned flags;
     unsigned resumeFlags;
@@ -167,7 +168,8 @@ public:
                 RunControlBreakpointSuspended,
                 RunControlModuleLoadSuspended,
                 RunControlResumed,
-                LoggingWriteEvent // Non-standard
+                LoggingWriteEvent, // Non-standard
+                ProcessExitedEvent // Non-standard
               };
 
     virtual ~CodaEvent();
@@ -189,14 +191,14 @@ class SYMBIANUTILS_EXPORT CodaLocatorHelloEvent : public CodaEvent {
 public:
     explicit CodaLocatorHelloEvent(const QStringList &);
 
-    const QStringList &services() { return m_services; }
+    const QStringList &services() const { return m_services; }
     virtual QString toString() const;
 
 private:
     QStringList m_services;
 };
 
-// Logging event (non-standard, trk specific)
+// Logging event (non-standard, CODA specific)
 class SYMBIANUTILS_EXPORT CodaLoggingWriteEvent : public CodaEvent {
 public:
     explicit CodaLoggingWriteEvent(const QByteArray &console, const QByteArray &message);
@@ -305,5 +307,18 @@ private:
     const ModuleLoadEventInfo m_mi;
 };
 
+// Process exited event
+class SYMBIANUTILS_EXPORT CodaProcessExitedEvent : public CodaEvent {
+public:
+    explicit CodaProcessExitedEvent(const QByteArray &id);
+
+    QByteArray id() const { return m_id; }
+    QString idString() const { return QString::fromUtf8(m_id); }
+    virtual QString toString() const;
+
+private:
+    const QByteArray m_id;
+};
+
 } // namespace Coda
-#endif // TRCFTRKMESSAGE_H
+#endif // CODAMESSAGE_H

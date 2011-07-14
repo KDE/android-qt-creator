@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -95,6 +95,7 @@ public:
     StopResult stop(); // Called from SnapshotWindow.
     bool isRunning() const;
     QString displayName() const;
+    QIcon icon() const;
 
     void setCustomEnvironment(Utils::Environment env);
     void startFailed();

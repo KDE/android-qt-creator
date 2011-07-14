@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,8 @@
 #include <QtCore/QList>
 #include <QtCore/QSharedPointer>
 #include <QtCore/QFutureWatcher>
-#include <QtNetwork/QNetworkAccessManager>
+
+#include <coreplugin/networkaccessmanager.h>
 
 QT_BEGIN_NAMESPACE
 class QFileInfo;
@@ -114,7 +115,7 @@ private:
     QSet<QString> m_isBuilding;
 
     QList<DefinitionDownloader *> m_downloaders;
-    QNetworkAccessManager m_networkManager;
+    Core::NetworkAccessManager m_networkManager;
 
     QFutureWatcher<void> m_downloadWatcher;
     QFutureWatcher<Core::MimeType> m_mimeTypeWatcher;

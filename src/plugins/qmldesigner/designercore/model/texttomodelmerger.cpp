@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,6 +54,7 @@
 
 #include <QtCore/QSet>
 #include <QtGui/QMessageBox>
+#include <QDir>
 
 using namespace LanguageUtils;
 using namespace QmlJS;
@@ -202,16 +203,21 @@ static bool isLiteralValue(ExpressionNode *expr)
         return false;
 }
 
+static bool isLiteralValue(Statement *stmt)
+{
+    ExpressionStatement *exprStmt = cast<ExpressionStatement *>(stmt);
+    if (exprStmt)
+        return isLiteralValue(exprStmt->expression);
+    else
+        return false;
+}
+
 static inline bool isLiteralValue(UiScriptBinding *script)
 {
     if (!script || !script->statement)
         return false;
 
-    ExpressionStatement *exprStmt = cast<ExpressionStatement *>(script->statement);
-    if (exprStmt)
-        return isLiteralValue(exprStmt->expression);
-    else
-        return false;
+    return isLiteralValue(script->statement);
 }
 
 static inline int propertyType(const QString &typeName)
@@ -264,11 +270,54 @@ static bool isComponentType(const QString &type)
     return  type == QLatin1String("Component") || type == QLatin1String("Qt.Component") || type == QLatin1String("QtQuick.Component");
 }
 
-static bool isPropertyChangesType(const QString &type)
+static bool isCustomParserType(const QString &type)
 {
+    return type == "QtQuick.VisualItemModel" || type == "Qt.VisualItemModel" ||
+           type == "QtQuick.VisualDataModel" || type == "Qt.VisualDataModel" ||
+           type == "QtQuick.ListModel" || type == "Qt.ListModel" ||
+           type == "QtQuick.XmlListModel" || type == "Qt.XmlListModel";
+}
+
+
+static bool isPropertyChangesType(const QString &type)
+{    
     return  type == QLatin1String("PropertyChanges") || type == QLatin1String("QtQuick.PropertyChanges") || type == QLatin1String("Qt.PropertyChanges");
 }
 
+static bool propertyIsComponentType(const QmlDesigner::NodeAbstractProperty &property, const QString &type)
+{
+    if (property.parentModelNode().model()->metaInfo(type, -1, -1).isSubclassOf(QLatin1String("QtQuick.Component"), -1, -1) && !isComponentType(type)) {
+        return false; //If the type is already a subclass of Component keep it
+    }
+
+    return property.parentModelNode().isValid() &&
+            isComponentType(property.parentModelNode().metaInfo().propertyTypeName(property.name()));
+}
+
+static inline QString extractComponentFromQml(const QString &source)
+{
+    if (source.isEmpty())
+        return QString();
+
+    QString result;
+    if (source.contains("Component")) { //explicit component
+        QmlDesigner::FirstDefinitionFinder firstDefinitionFinder(source);
+        int offset = firstDefinitionFinder(0);
+        if (offset < 0) {
+            return QString(); //No object definition found
+        }
+        QmlDesigner::ObjectLengthCalculator objectLengthCalculator;
+        unsigned length;
+        if (objectLengthCalculator(source, offset, length)) {
+            result = source.mid(offset, length);
+        } else {
+            result = source;
+        }
+    } else {
+        result = source; //implicit component
+    }
+    return result;
+}
 
 } // anonymous namespace
 
@@ -282,11 +331,14 @@ public:
                    const QStringList importPaths)
         : m_snapshot(snapshot)
         , m_doc(doc)
-        , m_context(new Interpreter::Context)
-        , m_link(m_context, doc, snapshot, importPaths)
-        , m_lookupContext(LookupContext::create(doc, snapshot, *m_context, QList<AST::Node*>()))
-        , m_scopeBuilder(m_context, doc, snapshot)
+        , m_context(new Interpreter::Context(snapshot))
+        , m_link(m_context, snapshot, importPaths)
+        , m_scopeBuilder(m_context, doc)
     {
+        m_link(doc, &m_diagnosticLinkMessages);
+        m_lookupContext = LookupContext::create(doc, *m_context, QList<AST::Node*>());
+        // cheaper than calling m_scopeBuilder.initializeRootScope()
+        *m_context = *m_lookupContext->context();
     }
 
     ~ReadingContext()
@@ -318,8 +370,33 @@ public:
             for (UiQualifiedId *iter = astTypeNode; iter; iter = iter->next)
                 if (!iter->next && iter->name)
                     typeName = iter->name->asString();
+
+            QString fullTypeName;
+            for (UiQualifiedId *iter = astTypeNode; iter; iter = iter->next)
+                if (iter->name)
+                    fullTypeName += iter->name->asString() + ".";
+
+            if (fullTypeName.endsWith("."))
+                fullTypeName.chop(1);
+
             majorVersion = ComponentVersion::NoVersion;
             minorVersion = ComponentVersion::NoVersion;
+
+            const Interpreter::Imports *imports = m_lookupContext->context()->imports(m_lookupContext->document().data());
+            Interpreter::ImportInfo importInfo = imports->info(fullTypeName, m_context);
+            if (importInfo.isValid() && importInfo.type() == Interpreter::ImportInfo::LibraryImport) {
+                QString name = importInfo.name().replace("\\", ".");
+                majorVersion = importInfo.version().majorVersion();
+                minorVersion = importInfo.version().minorVersion();
+                typeName.prepend(name + ".");
+            } else if (importInfo.isValid() && importInfo.type() == Interpreter::ImportInfo::DirectoryImport) {
+                QString path = importInfo.name();
+                QDir dir(m_doc->path());
+                QString relativeDir = dir.relativeFilePath(path);
+                QString name = relativeDir.replace("/", ".");               
+                if (!name.isEmpty())
+                    typeName.prepend(name + ".");
+            }
         }
     }
 
@@ -381,6 +458,10 @@ public:
         if (isAttachedProperty)
             return false;
 
+        // resolve references
+        if (const Interpreter::Reference *ref = value->asReference())
+            value = m_context->lookupReference(ref);
+
         // member lookup
         const UiQualifiedId *idPart = id;
         if (prefix.isEmpty())
@@ -432,7 +513,7 @@ public:
         Interpreter::PrototypeIterator iter(containingObject, m_context);
         while (iter.hasNext()) {
             const Interpreter::ObjectValue *proto = iter.next();
-            if (proto->property(name, m_context) == m_context->engine()->arrayPrototype())
+            if (proto->lookupMember(name, m_context) == m_context->engine()->arrayPrototype())
                 return true;
             if (const Interpreter::QmlObjectValue *qmlIter = dynamic_cast<const Interpreter::QmlObjectValue *>(proto)) {
                 if (qmlIter->isListProperty(name))
@@ -542,12 +623,13 @@ public:
     { return m_lookupContext; }
 
     QList<DiagnosticMessage> diagnosticLinkMessages() const
-    { return m_link.diagnosticMessages(); }
+    { return m_diagnosticLinkMessages; }
 
 private:
     Snapshot m_snapshot;
     Document::Ptr m_doc;
     Interpreter::Context *m_context;
+    QList<DiagnosticMessage> m_diagnosticLinkMessages;
     Link m_link;
     LookupContext::Ptr m_lookupContext;
     ScopeBuilder m_scopeBuilder;
@@ -559,19 +641,35 @@ private:
 using namespace QmlDesigner;
 using namespace QmlDesigner::Internal;
 
+
+static inline bool smartVeryFuzzyCompare(QVariant value1, QVariant value2)
+{ //we ignore slight changes on doubles and only check three digits
+    if ((value1.type() == QVariant::Double) && (value2.type() == QVariant::Double)) {
+        int a = value1.toDouble() * 1000;
+        int b = value2.toDouble() * 1000;
+
+        if (qFuzzyCompare((qreal(a) / 1000), (qreal(b) / 1000))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static inline bool equals(const QVariant &a, const QVariant &b)
 {
     if (a.type() == QVariant::Double && b.type() == QVariant::Double)
-        return qFuzzyCompare(a.toDouble(), b.toDouble());
+        return smartVeryFuzzyCompare(a.toDouble(), b.toDouble());
     else
         return a == b;
 }
 
-TextToModelMerger::TextToModelMerger(RewriterView *reWriterView):
+TextToModelMerger::TextToModelMerger(RewriterView *reWriterView) :
         m_rewriterView(reWriterView),
         m_isActive(false)
 {
     Q_ASSERT(reWriterView);
+    m_setupTimer.setSingleShot(true);
+    RewriterView::connect(&m_setupTimer, SIGNAL(timeout()), reWriterView, SLOT(delayedSetup()));
 }
 
 void TextToModelMerger::setActive(bool active)
@@ -662,8 +760,15 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
             errors.append(RewriterView::Error(diagnosticMessage, QUrl::fromLocalFile(doc->fileName())));
         }
 
+        setupImports(doc, differenceHandler);
+
+        if (m_rewriterView->model()->imports().isEmpty()) {
+            const QmlJS::DiagnosticMessage diagnosticMessage(QmlJS::DiagnosticMessage::Error, AST::SourceLocation(0, 0, 0, 0), QCoreApplication::translate("QmlDesigner::TextToModelMerger error message", "No import statements found"));
+            errors.append(RewriterView::Error(diagnosticMessage, QUrl::fromLocalFile(doc->fileName())));
+        }
+
         if (view()->checkSemanticErrors()) {
-            Check check(doc, snapshot, m_lookupContext->context());
+            Check check(doc, m_lookupContext->context());
             check.setOptions(check.options() & ~Check::ErrCheckTypeErrors);
             foreach (const QmlJS::DiagnosticMessage &diagnosticMessage, check())
                 if (diagnosticMessage.isError())
@@ -675,8 +780,6 @@ bool TextToModelMerger::load(const QString &data, DifferenceHandler &differenceH
                 return false;
             }
         }
-
-        setupImports(doc, differenceHandler);
 
         UiObjectMember *astRootNode = 0;
         if (UiProgram *program = doc->qmlProgram())
@@ -735,9 +838,12 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
         return;
     }
 
-    if (modelNode.type() != typeName
-            /*|| modelNode.majorVersion() != domObject.objectTypeMajorVersion()
-            || modelNode.minorVersion() != domObject.objectTypeMinorVersion()*/) {
+    bool isImplicitComponent = modelNode.parentProperty().isValid() && propertyIsComponentType(modelNode.parentProperty(), typeName);
+
+
+    if (modelNode.type() != typeName //If there is no valid parentProperty                                                                                                      //the node has just been created. The type is correct then.
+            || modelNode.majorVersion() != majorVersion
+            || modelNode.minorVersion() != minorVersion) {
         const bool isRootNode = m_rewriterView->rootModelNode() == modelNode;
         differenceHandler.typeDiffers(isRootNode, modelNode, typeName,
                                       majorVersion, minorVersion,
@@ -745,6 +851,12 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
         if (!isRootNode)
             return; // the difference handler will create a new node, so we're done.
     }
+
+    if (isComponentType(typeName) || isImplicitComponent)
+        setupComponentDelayed(modelNode, !differenceHandler.isValidator());
+
+    if (isCustomParserType(typeName))
+        setupCustomParserNodeDelayed(modelNode, !differenceHandler.isValidator());
 
     context->enterScope(astNode);
 
@@ -818,13 +930,13 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
 
             const QString astName = property->name->asString();
             QString astValue;
-            if (property->expression)
+            if (property->statement)
                 astValue = textAt(context->doc(),
-                                  property->expression->firstSourceLocation(),
-                                  property->expression->lastSourceLocation());
+                                  property->statement->firstSourceLocation(),
+                                  property->statement->lastSourceLocation());
             const QString astType = property->memberType->asString();
             AbstractProperty modelProperty = modelNode.property(astName);
-            if (!property->expression || isLiteralValue(property->expression)) {
+            if (!property->statement || isLiteralValue(property->statement)) {
                 const QVariant variantValue = convertDynamicPropertyValueToVariant(astValue, astType);
                 syncVariantProperty(modelProperty, variantValue, astType, differenceHandler);
             } else {
@@ -837,13 +949,10 @@ void TextToModelMerger::syncNode(ModelNode &modelNode,
     }
 
     if (!defaultPropertyItems.isEmpty()) {
+        if (isComponentType(modelNode.type()))
+            setupComponentDelayed(modelNode, !differenceHandler.isValidator());
         if (defaultPropertyName.isEmpty()) {
-            if (!isComponentType(modelNode.type())) {
-                qWarning() << "No default property for node type" << modelNode.type() << ", ignoring child items.";
-            } else {
-                setupComponent(modelNode);
-                modelPropertyNames.remove(QLatin1String("__component_data"));
-            }
+            qWarning() << "No default property for node type" << modelNode.type() << ", ignoring child items.";
         } else {
             AbstractProperty modelProperty = modelNode.property(defaultPropertyName);
             if (modelProperty.isNodeListProperty()) {
@@ -1056,11 +1165,6 @@ void TextToModelMerger::syncNodeListProperty(NodeListProperty &modelListProperty
         // more elements in the dom-list, so add them to the model
         UiObjectMember *arrayMember = arrayMembers.at(j);
         const ModelNode newNode = differenceHandler.listPropertyMissingModelNode(modelListProperty, context, arrayMember);
-        QString name;
-        if (UiObjectDefinition *definition = cast<UiObjectDefinition *>(arrayMember))
-            name = flatten(definition->qualifiedTypeNameId);
-        if (isComponentType(name))
-            setupComponent(newNode);
     }
 
     for (int j = i; j < modelNodes.size(); ++j) {
@@ -1073,13 +1177,50 @@ void TextToModelMerger::syncNodeListProperty(NodeListProperty &modelListProperty
 ModelNode TextToModelMerger::createModelNode(const QString &typeName,
                                              int majorVersion,
                                              int minorVersion,
+                                             bool isImplicitComponent,
                                              UiObjectMember *astNode,
                                              ReadingContext *context,
                                              DifferenceHandler &differenceHandler)
 {
+    QString nodeSource;
+
+    UiQualifiedId *astObjectType = 0;
+    if (UiObjectDefinition *def = cast<UiObjectDefinition *>(astNode)) {
+        astObjectType = def->qualifiedTypeNameId;
+    } else if (UiObjectBinding *bin = cast<UiObjectBinding *>(astNode)) {
+        astObjectType = bin->qualifiedTypeNameId;
+    }
+
+    if (isCustomParserType(typeName))
+        nodeSource = textAt(context->doc(),
+                                    astObjectType->identifierToken.offset,
+                                    astNode->lastSourceLocation());
+
+
+    if (isComponentType(typeName) || isImplicitComponent) {
+        QString componentSource = extractComponentFromQml(textAt(context->doc(),
+                                  astObjectType->identifierToken.offset,
+                                  astNode->lastSourceLocation()));
+
+
+        nodeSource = componentSource;
+    }
+
+    ModelNode::NodeSourceType nodeSourceType = ModelNode::NodeWithoutSource;
+
+    if (isComponentType(typeName) || isImplicitComponent)
+        nodeSourceType = ModelNode::NodeWithComponentSource;
+    else if (isCustomParserType(typeName))
+        nodeSourceType = ModelNode::NodeWithCustomParserSource;
+
     ModelNode newNode = m_rewriterView->createModelNode(typeName,
                                                         majorVersion,
-                                                        minorVersion);
+                                                        minorVersion,
+                                                        PropertyListType(),
+                                                        PropertyListType(),
+                                                        nodeSource,
+                                                        nodeSourceType);
+
     syncNode(newNode, astNode, context, differenceHandler);
     return newNode;
 }
@@ -1107,11 +1248,13 @@ QStringList TextToModelMerger::syncGroupedProperties(ModelNode &modelNode,
 
 void ModelValidator::modelMissesImport(const Import &import)
 {
+    Q_UNUSED(import)
     Q_ASSERT(m_merger->view()->model()->imports().contains(import));
 }
 
 void ModelValidator::importAbsentInQMl(const Import &import)
 {
+    Q_UNUSED(import)
     Q_ASSERT(! m_merger->view()->model()->imports().contains(import));
 }
 
@@ -1119,6 +1262,9 @@ void ModelValidator::bindingExpressionsDiffer(BindingProperty &modelProperty,
                                               const QString &javascript,
                                               const QString &astType)
 {
+    Q_UNUSED(modelProperty)
+    Q_UNUSED(javascript)
+    Q_UNUSED(astType)
     Q_ASSERT(modelProperty.expression() == javascript);
     Q_ASSERT(modelProperty.dynamicTypeName() == astType);
     Q_ASSERT(0);
@@ -1128,6 +1274,7 @@ void ModelValidator::shouldBeBindingProperty(AbstractProperty &modelProperty,
                                              const QString &/*javascript*/,
                                              const QString &/*astType*/)
 {
+    Q_UNUSED(modelProperty)
     Q_ASSERT(modelProperty.isBindingProperty());
     Q_ASSERT(0);
 }
@@ -1136,12 +1283,17 @@ void ModelValidator::shouldBeNodeListProperty(AbstractProperty &modelProperty,
                                               const QList<UiObjectMember *> /*arrayMembers*/,
                                               ReadingContext * /*context*/)
 {
+    Q_UNUSED(modelProperty)
     Q_ASSERT(modelProperty.isNodeListProperty());
     Q_ASSERT(0);
 }
 
 void ModelValidator::variantValuesDiffer(VariantProperty &modelProperty, const QVariant &qmlVariantValue, const QString &dynamicTypeName)
 {
+    Q_UNUSED(modelProperty)
+    Q_UNUSED(qmlVariantValue)
+    Q_UNUSED(dynamicTypeName)
+
     Q_ASSERT(modelProperty.isDynamic() == !dynamicTypeName.isEmpty());
     if (modelProperty.isDynamic()) {
         Q_ASSERT(modelProperty.dynamicTypeName() == dynamicTypeName);
@@ -1153,6 +1305,8 @@ void ModelValidator::variantValuesDiffer(VariantProperty &modelProperty, const Q
 
 void ModelValidator::shouldBeVariantProperty(AbstractProperty &modelProperty, const QVariant &/*qmlVariantValue*/, const QString &/*dynamicTypeName*/)
 {
+    Q_UNUSED(modelProperty)
+
     Q_ASSERT(modelProperty.isVariantProperty());
     Q_ASSERT(0);
 }
@@ -1164,12 +1318,16 @@ void ModelValidator::shouldBeNodeProperty(AbstractProperty &modelProperty,
                                           UiObjectMember * /*astNode*/,
                                           ReadingContext * /*context*/)
 {
+    Q_UNUSED(modelProperty)
+
     Q_ASSERT(modelProperty.isNodeProperty());
     Q_ASSERT(0);
 }
 
 void ModelValidator::modelNodeAbsentFromQml(ModelNode &modelNode)
 {
+    Q_UNUSED(modelNode)
+
     Q_ASSERT(!modelNode.isValid());
     Q_ASSERT(0);
 }
@@ -1190,6 +1348,11 @@ void ModelValidator::typeDiffers(bool /*isRootNode*/,
                                  QmlJS::AST::UiObjectMember * /*astNode*/,
                                  ReadingContext * /*context*/)
 {
+    Q_UNUSED(modelNode)
+    Q_UNUSED(typeName)
+    Q_UNUSED(minorVersion)
+    Q_UNUSED(majorVersion)
+
     Q_ASSERT(modelNode.type() == typeName);
     Q_ASSERT(modelNode.majorVersion() == majorVersion);
     Q_ASSERT(modelNode.minorVersion() == minorVersion);
@@ -1198,12 +1361,16 @@ void ModelValidator::typeDiffers(bool /*isRootNode*/,
 
 void ModelValidator::propertyAbsentFromQml(AbstractProperty &modelProperty)
 {
+    Q_UNUSED(modelProperty)
+
     Q_ASSERT(!modelProperty.isValid());
     Q_ASSERT(0);
 }
 
 void ModelValidator::idsDiffer(ModelNode &modelNode, const QString &qmlId)
 {
+    Q_UNUSED(modelNode)
+
     Q_ASSERT(modelNode.id() == qmlId);
     Q_ASSERT(0);
 }
@@ -1289,12 +1456,22 @@ void ModelAmender::shouldBeNodeProperty(AbstractProperty &modelProperty,
 {
     ModelNode theNode = modelProperty.parentModelNode();
     NodeProperty newNodeProperty = theNode.nodeProperty(modelProperty.name());
-    newNodeProperty.setModelNode(m_merger->createModelNode(typeName,
-                                                           majorVersion,
-                                                           minorVersion,
-                                                           astNode,
-                                                           context,
-                                                           *this));
+
+    const bool propertyTakesComponent = propertyIsComponentType(newNodeProperty, typeName);
+
+    const ModelNode &newNode = m_merger->createModelNode(typeName,
+                                                          majorVersion,
+                                                          minorVersion,
+                                                          propertyTakesComponent,
+                                                          astNode,
+                                                          context,
+                                                          *this);
+
+    newNodeProperty.setModelNode(newNode);
+
+    if (propertyTakesComponent)
+        m_merger->setupComponentDelayed(newNode, true);
+
 }
 
 void ModelAmender::modelNodeAbsentFromQml(ModelNode &modelNode)
@@ -1319,7 +1496,7 @@ ModelNode ModelAmender::listPropertyMissingModelNode(NodeListProperty &modelProp
     if (!astObjectType || !astInitializer)
         return ModelNode();
 
-    QString typeName, dummy;
+    QString typeName, fullTypeName, dummy;
     int majorVersion;
     int minorVersion;
     context->lookup(astObjectType, typeName, majorVersion, minorVersion, dummy);
@@ -1329,13 +1506,31 @@ ModelNode ModelAmender::listPropertyMissingModelNode(NodeListProperty &modelProp
         return ModelNode();
     }
 
+    const bool propertyTakesComponent = propertyIsComponentType(modelProperty, typeName);
+
+
     const ModelNode &newNode = m_merger->createModelNode(typeName,
                                                          majorVersion,
                                                          minorVersion,
+                                                         propertyTakesComponent,
                                                          arrayMember,
                                                          context,
                                                          *this);
-    modelProperty.reparentHere(newNode);
+
+
+    if (propertyTakesComponent)
+        m_merger->setupComponentDelayed(newNode, true);
+
+    if (modelProperty.isDefaultProperty() || isComponentType(modelProperty.parentModelNode().type())) { //In the default property case we do some magic
+        if (modelProperty.isNodeListProperty()) {
+            modelProperty.reparentHere(newNode);
+        } else { //The default property could a NodeProperty implicitly (delegate:)
+            modelProperty.parentModelNode().removeProperty(modelProperty.name());
+            modelProperty.reparentHere(newNode); 
+        }
+    } else {
+        modelProperty.reparentHere(newNode);
+    }
     return newNode;
 }
 
@@ -1347,6 +1542,8 @@ void ModelAmender::typeDiffers(bool isRootNode,
                                QmlJS::AST::UiObjectMember *astNode,
                                ReadingContext *context)
 {
+    const bool propertyTakesComponent = propertyIsComponentType(modelNode.parentProperty(), typeName);
+
     if (isRootNode) {
         modelNode.view()->changeRootNodeType(typeName, majorVersion, minorVersion);
     } else {
@@ -1362,11 +1559,12 @@ void ModelAmender::typeDiffers(bool isRootNode,
         const ModelNode &newNode = m_merger->createModelNode(typeName,
                                                              majorVersion,
                                                              minorVersion,
+                                                             propertyTakesComponent,
                                                              astNode,
                                                              context,
                                                              *this);
         parentProperty.reparentHere(newNode);
-        if (nodeIndex >= 0) {
+        if (parentProperty.isNodeListProperty()) {
             int currentIndex = parentProperty.toNodeListProperty().toModelNodeList().indexOf(newNode);
             if (nodeIndex != currentIndex)
                 parentProperty.toNodeListProperty().slide(currentIndex, nodeIndex);
@@ -1386,37 +1584,70 @@ void ModelAmender::idsDiffer(ModelNode &modelNode, const QString &qmlId)
 
 void TextToModelMerger::setupComponent(const ModelNode &node)
 {
-    Q_ASSERT(isComponentType(node.type()));
+    if (!node.isValid())
+        return;
 
     QString componentText = m_rewriterView->extractText(QList<ModelNode>() << node).value(node);
 
     if (componentText.isEmpty())
         return;
 
-    QString result;
-    if (componentText.contains("Component")) { //explicit component
-        FirstDefinitionFinder firstDefinitionFinder(componentText);
-        int offset = firstDefinitionFinder(0);
-        if (offset < 0) {
-            node.variantProperty("__component_data").setValue(QLatin1String(""));
-            return; //No object definition found
-        }
-        ObjectLengthCalculator objectLengthCalculator;
-        unsigned length;
-        if (objectLengthCalculator(componentText, offset, length)) {
-            result = componentText.mid(offset, length);
-        } else {
-            result = componentText;
-        }
-    } else {
-        result = componentText; //implicit component
+    QString result = extractComponentFromQml(componentText);
+
+    if (result.isEmpty()) {
+        return; //No object definition found
     }
 
-    if (node.hasVariantProperty("__component_data")
-            && node.variantProperty("__component_data").value().toString() == result)
+    if (node.nodeSource() != result)
+        ModelNode(node).setNodeSource(result);
+}
+
+void TextToModelMerger::setupComponentDelayed(const ModelNode &node, bool synchron)
+{
+    if (synchron) {
+        setupComponent(node);
+    } else {
+        m_setupComponentList.insert(node);
+        m_setupTimer.start();
+    }
+}
+
+void TextToModelMerger::setupCustomParserNode(const ModelNode &node)
+{
+    if (!node.isValid())
         return;
 
-    node.variantProperty("__component_data").setValue(result);
+    QString modelText = m_rewriterView->extractText(QList<ModelNode>() << node).value(node);
+
+    if (modelText.isEmpty())
+        return;
+
+    if (node.nodeSource() != modelText)
+        ModelNode(node).setNodeSource(modelText);
+
+}
+
+void TextToModelMerger::setupCustomParserNodeDelayed(const ModelNode &node, bool synchron)
+{
+    Q_ASSERT(isCustomParserType(node.type()));
+
+    if (synchron) {
+        setupCustomParserNode(node);
+    } else {
+        m_setupCustomParserList.insert(node);
+        m_setupTimer.start();
+    }
+}
+
+void TextToModelMerger::delayedSetup()
+{
+    foreach (const ModelNode node, m_setupComponentList)
+        setupComponent(node);
+
+    foreach (const ModelNode node, m_setupCustomParserList)
+        setupCustomParserNode(node);
+        m_setupCustomParserList.clear();
+        m_setupComponentList.clear();
 }
 
 QString TextToModelMerger::textAt(const Document::Ptr &doc,

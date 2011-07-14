@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -75,7 +75,7 @@ FutureProgress *ProgressView::addTask(const QFuture<void> &future,
     if (flags.testFlag(ProgressManager::KeepOnFinish)) {
         progress->setKeepOnFinish(FutureProgress::KeepOnFinishTillUserInteraction);
     } else {
-        progress->setKeepOnFinish(FutureProgress::DontKeepOnFinish);
+        progress->setKeepOnFinish(FutureProgress::HideOnFinish);
     }
     connect(progress, SIGNAL(removeMe()), this, SLOT(slotRemoveTask()));
     return progress;
@@ -88,7 +88,7 @@ void ProgressView::removeOldTasks(const QString &type, bool keepOne)
     while (i != m_taskList.begin()) {
         --i;
         if ((*i)->type() == type) {
-            if (firstFound && (*i)->future().isFinished()) {
+            if (firstFound && ((*i)->future().isFinished() || (*i)->future().isCanceled())) {
                 deleteTask(*i);
                 i = m_taskList.erase(i);
             }

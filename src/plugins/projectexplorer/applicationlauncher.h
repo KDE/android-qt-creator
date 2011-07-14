@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,7 +34,8 @@
 #define APPLICATIONLAUNCHER_H
 
 #include "projectexplorer_export.h"
-#include "outputformat.h"
+
+#include <utils/outputformat.h>
 
 #include <QtCore/QProcess>
 
@@ -45,6 +46,7 @@ class Environment;
 namespace ProjectExplorer {
 struct ApplicationLauncherPrivate;
 
+// Documentation inside.
 class PROJECTEXPLORER_EXPORT ApplicationLauncher : public QObject
 {
     Q_OBJECT
@@ -67,24 +69,24 @@ public:
     bool isRunning() const;
     qint64 applicationPID() const;
 
+    static QString msgWinCannotRetrieveDebuggingOutput();
+
 signals:
-    void appendMessage(const QString &message, ProjectExplorer::OutputFormat format);
+    void appendMessage(const QString &message, Utils::OutputFormat format);
     void processExited(int exitCode);
     void bringToForegroundRequested(qint64 pid);
 
 private slots:
     void processStopped();
-    void appendProcessMessage(const QString &output, bool onStdErr);
-#ifdef Q_OS_WIN
-    void readWinDebugOutput(const QString &output, bool onStdErr);
-    void processFinished(int exitCode);
-#else
     void guiProcessError();
+    void consoleProcessError(const QString &error);
     void readStandardOutput();
     void readStandardError();
-    void processDone(int, QProcess::ExitStatus);
+#ifdef Q_OS_WIN
+    void cannotRetrieveDebugOutput();
+    void checkDebugOutput(qint64 pid, const QString &message);
 #endif
-
+    void processDone(int, QProcess::ExitStatus);
     void bringToForeground();
 
 private:

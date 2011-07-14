@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -46,15 +46,21 @@ QT_FORWARD_DECLARE_CLASS(QTextStream)
 namespace Qt4ProjectManager {
 
 /// \internal
-struct QT4PROJECTMANAGER_EXPORT AbstractGeneratedFileInfo
+struct
+#ifndef CREATORLESSTEST
+    QT4PROJECTMANAGER_EXPORT
+#endif // CREATORLESSTEST
+    AbstractGeneratedFileInfo
 {
     enum FileType {
         MainCppFile,
         AppProFile,
         DeploymentPriFile,
         SymbianSvgIconFile,
-        MaemoPngIconFile,
-        DesktopFile,
+        MaemoPngIconFile64,
+        MaemoPngIconFile80,
+        DesktopFileFremantle,
+        DesktopFileHarmattan,
         ExtendedFile
     };
 
@@ -71,7 +77,11 @@ struct QT4PROJECTMANAGER_EXPORT AbstractGeneratedFileInfo
 typedef QPair<QString, QString> DeploymentFolder; // QPair<.source, .target>
 
 /// \internal
-class QT4PROJECTMANAGER_EXPORT AbstractMobileApp : public QObject
+class
+#ifndef CREATORLESSTEST
+    QT4PROJECTMANAGER_EXPORT
+#endif // CREATORLESSTEST
+    AbstractMobileApp : public QObject
 {
     Q_OBJECT
 
@@ -79,7 +89,8 @@ public:
     enum ScreenOrientation {
         ScreenOrientationLockLandscape,
         ScreenOrientationLockPortrait,
-        ScreenOrientationAuto
+        ScreenOrientationAuto,
+        ScreenOrientationImplicit // Don't set in application at all (used by Symbian components)
     };
 
     enum FileType {
@@ -88,14 +99,17 @@ public:
         AppPro,
         AppProOrigin,
         AppProPath,
-        Desktop,
+        DesktopFremantle,
+        DesktopHarmattan,
         DesktopOrigin,
         DeploymentPri,
         DeploymentPriOrigin,
         SymbianSvgIcon,
         SymbianSvgIconOrigin,
-        MaemoPngIcon,
-        MaemoPngIconOrigin,
+        MaemoPngIcon64,
+        MaemoPngIconOrigin64,
+        MaemoPngIcon80,
+        MaemoPngIconOrigin80,
         ExtendedFile
     };
 
@@ -108,8 +122,10 @@ public:
     void setProjectPath(const QString &path);
     void setSymbianSvgIcon(const QString &icon);
     QString symbianSvgIcon() const;
-    void setMaemoPngIcon(const QString &icon);
-    QString maemoPngIcon() const;
+    void setMaemoPngIcon64(const QString &icon);
+    QString maemoPngIcon64() const;
+    void setMaemoPngIcon80(const QString &icon);
+    QString maemoPngIcon80() const;
     void setSymbianTargetUid(const QString &uid);
     QString symbianTargetUid() const;
     void setNetworkEnabled(bool enabled);
@@ -136,6 +152,7 @@ protected:
     static void insertParameter(QString &line, const QString &parameter);
 
     QByteArray readBlob(const QString &filePath, QString *errorMsg) const;
+    bool readTemplate(int fileType, QByteArray *data, QString *errorMessage) const;
     QByteArray generateFile(int fileType, QString *errorMessage) const;
     QString outputPathBase() const;
 
@@ -152,7 +169,7 @@ protected:
 
     QString m_error;
 private:
-    QByteArray generateDesktopFile(QString *errorMessage) const;
+    QByteArray generateDesktopFile(QString *errorMessage, int fileType) const;
     QByteArray generateMainCpp(QString *errorMessage) const;
     QByteArray generateProFile(QString *errorMessage) const;
 
@@ -172,7 +189,8 @@ private:
     QString m_projectName;
     QFileInfo m_projectPath;
     QString m_symbianSvgIcon;
-    QString m_maemoPngIcon;
+    QString m_maemoPngIcon64;
+    QString m_maemoPngIcon80;
     QString m_symbianTargetUid;
     ScreenOrientation m_orientation;
     bool m_networkEnabled;

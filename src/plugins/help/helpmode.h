@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,20 +45,6 @@ class HelpMode : public Core::IMode
 {
 public:
     explicit HelpMode(QObject *parent = 0);
-
-    QString displayName() const;
-    QIcon icon() const { return m_icon; }
-    int priority() const;
-    QWidget *widget() { return m_widget; }
-    QString id() const;
-    QString type() const { return QString(); }
-    Core::Context context() const;
-    QString contextHelpId() const { return QString(); }
-    void setWidget(QWidget *widget) { m_widget = widget; }
-
-private:
-    QWidget *m_widget;
-    QIcon m_icon;
 };
 
 } // namespace Internal

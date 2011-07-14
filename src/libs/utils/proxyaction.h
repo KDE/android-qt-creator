@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -81,6 +81,7 @@ private:
     Attributes m_attributes;
     bool m_showShortcut;
     QString m_toolTip;
+    bool m_block;
 };
 
 } // namespace Utils

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 #include <modelnode.h>
 #include <abstractproperty.h>
 #include <rewritertransaction.h>
+#include <commondefines.h>
 
 #include <QObject>
 
@@ -85,7 +86,10 @@ public:
     ModelNode createModelNode(const QString &typeString,
                          int majorVersion,
                          int minorVersion,
-                         const PropertyListType &propertyList = PropertyListType());
+                         const PropertyListType &propertyList = PropertyListType(),
+                         const PropertyListType &auxPropertyList = PropertyListType(),
+                         const QString &nodeSource = QString(),
+                         ModelNode::NodeSourceType nodeSourceType = ModelNode::NodeWithoutSource);
 
     const ModelNode rootModelNode() const;
     ModelNode rootModelNode();
@@ -111,13 +115,15 @@ public:
 
     void emitInstancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void emitInstancesCompleted(const QVector<ModelNode> &nodeList);
-    void emitInstanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void emitInstanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     void emitInstancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     void emitInstancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     void emitInstancesChildrenChanged(const QVector<ModelNode> &nodeList);
     void emitRewriterBeginTransaction();
     void emitRewriterEndTransaction();
-    void emitActualStateChanged(const ModelNode &node);
+    void emitInstanceToken(const QString &token, int number, const QVector<ModelNode> &nodeVector);
+
+    void sendTokenToInstances(const QString &token, int number, const QVector<ModelNode> &nodeVector);
 
     virtual void modelAttached(Model *model);
     virtual void modelAboutToBeDetached(Model *model);
@@ -136,10 +142,13 @@ public:
 
     virtual void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList) = 0;
     virtual void instancesCompleted(const QVector<ModelNode> &completedNodeList) = 0;
-    virtual void instanceInformationsChange(const QVector<ModelNode> &nodeList) = 0;
+    virtual void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash) = 0;
     virtual void instancesRenderImageChanged(const QVector<ModelNode> &nodeList) = 0;
     virtual void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList) = 0;
     virtual void instancesChildrenChanged(const QVector<ModelNode> &nodeList) = 0;
+    virtual void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector) = 0;
+
+    virtual void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource) = 0;
 
     virtual void rewriterBeginTransaction() = 0;
     virtual void rewriterEndTransaction() = 0;
@@ -167,6 +176,11 @@ public:
 
     NodeInstanceView *nodeInstanceView() const;
     RewriterView *rewriterView() const;
+
+    void setAcutalStateNode(const ModelNode &node);
+    ModelNode actualStateNode() const;
+
+    void resetView();
 
 protected:
     void setModel(Model * model);

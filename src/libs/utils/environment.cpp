@@ -26,19 +26,19 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "environment.h"
 
-#include <QtCore/QProcess>
 #include <QtCore/QDir>
+#include <QtCore/QProcess>
 #include <QtCore/QString>
 
-using namespace Utils;
+namespace Utils {
 
-QList<EnvironmentItem> EnvironmentItem::fromStringList(QStringList list)
+QList<EnvironmentItem> EnvironmentItem::fromStringList(const QStringList &list)
 {
     QList<EnvironmentItem> result;
     foreach (const QString &string, list) {
@@ -55,7 +55,7 @@ QList<EnvironmentItem> EnvironmentItem::fromStringList(QStringList list)
     return result;
 }
 
-QStringList EnvironmentItem::toStringList(QList<EnvironmentItem> list)
+QStringList EnvironmentItem::toStringList(const QList<EnvironmentItem> &list)
 {
     QStringList result;
     foreach (const EnvironmentItem &item, list) {
@@ -67,14 +67,10 @@ QStringList EnvironmentItem::toStringList(QList<EnvironmentItem> list)
     return result;
 }
 
-Environment::Environment()
-{
-}
-
-Environment::Environment(QStringList env)
+Environment::Environment(const QStringList &env)
 {
     foreach (const QString &s, env) {
-        int i = s.indexOf("=");
+        int i = s.indexOf(QLatin1Char('='));
         if (i >= 0) {
 #ifdef Q_OS_WIN
             m_values.insert(s.left(i).toUpper(), s.mid(i+1));
@@ -174,6 +170,21 @@ void Environment::prependOrSetPath(const QString &value)
     prependOrSet(QLatin1String("PATH"), QDir::toNativeSeparators(value), QString(sep));
 }
 
+void Environment::prependOrSetLibrarySearchPath(const QString &value)
+{
+#ifdef Q_OS_MAC
+    // we could set DYLD_LIBRARY_PATH on Mac but it is unnecessary in practice
+#elif defined(Q_OS_WIN)
+    const QChar sep = QLatin1Char(';');
+    const QLatin1String path("PATH");
+    prependOrSet(path, QDir::toNativeSeparators(value), QString(sep));
+#elif defined(Q_OS_UNIX)
+    const QChar sep = QLatin1Char(':');
+    const QLatin1String path("LD_LIBRARY_PATH");
+    prependOrSet(path, QDir::toNativeSeparators(value), QString(sep));
+#endif
+}
+
 Environment Environment::systemEnvironment()
 {
     return Environment(QProcess::systemEnvironment());
@@ -203,15 +214,16 @@ QString Environment::searchInPath(const QString &executable,
 QString Environment::searchInPath(const QStringList &executables,
                                   const QStringList &additionalDirs) const
 {
+    const QChar slash = QLatin1Char('/');
     foreach (const QString &executable, executables) {
-        QString exec = expandVariables(executable);
+        QString exec = QDir::cleanPath(expandVariables(executable));
 
         if (exec.isEmpty())
             continue;
 
         QFileInfo baseFi(exec);
         if (baseFi.isAbsolute() && baseFi.exists())
-            return QDir::toNativeSeparators(exec);
+            return exec;
 
         // Check in directories:
         foreach (const QString &dir, additionalDirs) {
@@ -223,7 +235,6 @@ QString Environment::searchInPath(const QStringList &executables,
         }
 
         // Check in path:
-        const QChar slash = QLatin1Char('/');
         if (exec.indexOf(slash) != -1)
             continue;
         foreach (const QString &p, path()) {
@@ -446,7 +457,9 @@ QString Environment::expandVariables(const QString &input) const
 QStringList Environment::expandVariables(const QStringList &variables) const
 {
     QStringList results;
-    foreach (const QString & i, variables)
+    foreach (const QString &i, variables)
         results << expandVariables(i);
     return results;
 }
+
+} // namespace Utils

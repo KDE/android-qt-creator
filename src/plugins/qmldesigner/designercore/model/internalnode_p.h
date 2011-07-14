@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -92,6 +92,7 @@ public:
     QVariant auxiliaryData(const QString &name) const;
     void setAuxiliaryData(const QString &name, const QVariant &data);
     bool hasAuxiliaryData(const QString &name) const;
+    QHash<QString, QVariant> auxiliaryData() const;
 
     InternalProperty::Pointer property(const QString &name) const;
     InternalBindingProperty::Pointer bindingProperty(const QString &name) const;
@@ -121,6 +122,12 @@ public:
 
     qint32 internalId() const;
 
+    void setNodeSource(const QString&);
+    QString nodeSource() const;
+
+    int nodeSourceType() const;
+    void setNodeSourceType(int i);
+
 protected:
     Pointer internalPointer() const;
     void setInternalWeakPointer(const Pointer &pointer);
@@ -144,6 +151,9 @@ private:
 
     QHash<QString, InternalPropertyPointer> m_namePropertyHash;
     QStringList m_scriptFunctionList;
+
+    QString m_nodeSource;
+    int m_nodeSourceType;
 };
 
 uint qHash(const InternalNodePointer& node);

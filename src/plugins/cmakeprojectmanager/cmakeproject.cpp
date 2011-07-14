@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,6 +51,7 @@
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcassert.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/infobar.h>
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <QtCore/QMap>
@@ -96,9 +97,11 @@ CMakeProject::CMakeProject(CMakeManager *manager, const QString &fileName)
     : m_manager(manager),
       m_fileName(fileName),
       m_rootNode(new CMakeProjectNode(m_fileName)),
-      m_insideFileChanged(false),
       m_lastEditor(0)
 {
+    setProjectContext(Core::Context(CMakeProjectManager::Constants::PROJECTCONTEXT));
+    setProjectLanguage(Core::Context(ProjectExplorer::Constants::LANG_CXX));
+
     m_file = new CMakeFile(this, fileName);
 
     connect(this, SIGNAL(addedTarget(ProjectExplorer::Target*)),
@@ -125,15 +128,8 @@ CMakeProject::~CMakeProject()
 void CMakeProject::fileChanged(const QString &fileName)
 {
     Q_UNUSED(fileName)
-    if (!activeTarget() ||
-        !activeTarget()->activeBuildConfiguration())
-        return;
 
-    if (m_insideFileChanged)
-        return;
-    m_insideFileChanged = true;
-    changeActiveBuildConfiguration(activeTarget()->activeBuildConfiguration());
-    m_insideFileChanged = false;
+    parseCMakeLists();
 }
 
 void CMakeProject::changeActiveBuildConfiguration(ProjectExplorer::BuildConfiguration *bc)
@@ -200,6 +196,10 @@ bool CMakeProject::parseCMakeLists()
         !activeTarget()->activeBuildConfiguration())
         return false;
 
+    foreach (Core::IEditor *editor, Core::EditorManager::instance()->openedEditors())
+        if (isProjectFile(editor->file()->fileName()))
+            editor->file()->infoBar()->removeInfo(QLatin1String("CMakeEditor.RunCMake"));
+
     // Find cbp file
     CMakeBuildConfiguration *activeBC = activeTarget()->activeBuildConfiguration();
     QString cbpFile = CMakeManager::findCbpFile(activeBC->buildDirectory());
@@ -211,11 +211,16 @@ bool CMakeProject::parseCMakeLists()
     //qDebug()<<"Parsing file "<<cbpFile;
     if (!cbpparser.parseCbpFile(cbpFile)) {
         // TODO report error
-        qDebug()<<"Parsing failed";
-        // activeBC->updateToolChain(QString::null);
         emit buildTargetsChanged();
         return false;
     }
+
+    foreach (const QString &file, m_watcher->files())
+        if (file != cbpFile)
+            m_watcher->removePath(file);
+
+    // how can we ensure that it is completely written?
+    m_watcher->addPath(cbpFile);
 
     // ToolChain
     // activeBC->updateToolChain(cbpparser.compilerName());
@@ -237,12 +242,6 @@ bool CMakeProject::parseCMakeLists()
         projectFiles.insert(cmakeListTxt);
     }
 
-    QSet<QString> added = projectFiles;
-    added.subtract(m_watchedFiles);
-    foreach(const QString &add, added)
-        m_watcher->addFile(add);
-    foreach(const QString &remove, m_watchedFiles.subtract(projectFiles))
-        m_watcher->removeFile(remove);
     m_watchedFiles = projectFiles;
 
     m_files.clear();
@@ -278,7 +277,6 @@ bool CMakeProject::parseCMakeLists()
     }
     cmakeCache.close();
 
-    //qDebug()<<"Updating CodeModel";
     createUiCodeModelSupport();
 
     if (!activeBC->toolChain())
@@ -316,10 +314,14 @@ bool CMakeProject::parseCMakeLists()
             m_codeModelFuture = modelmanager->updateSourceFiles(pinfo.sourceFiles);
         }
     }
-
     emit buildTargetsChanged();
     emit fileListChanged();
     return true;
+}
+
+bool CMakeProject::isProjectFile(const QString &fileName)
+{
+    return m_watchedFiles.contains(fileName);
 }
 
 QList<CMakeBuildTarget> CMakeProject::buildTargets() const
@@ -561,7 +563,7 @@ bool CMakeProject::fromMap(const QVariantMap &map)
         }
     }
 
-    m_watcher = new ProjectExplorer::FileWatcher(this);
+    m_watcher = new QFileSystemWatcher(this);
     connect(m_watcher, SIGNAL(fileChanged(QString)), this, SLOT(fileChanged(QString)));
 
     if (!parseCMakeLists()) // Gets the directory from the active buildconfiguration
@@ -736,11 +738,13 @@ CMakeFile::CMakeFile(CMakeProject *parent, QString fileName)
 
 }
 
-bool CMakeFile::save(const QString &fileName)
+bool CMakeFile::save(QString *errorString, const QString &fileName, bool autoSave)
 {
     // Once we have an texteditor open for this file, we probably do
     // need to implement this, don't we.
+    Q_UNUSED(errorString)
     Q_UNUSED(fileName)
+    Q_UNUSED(autoSave)
     return false;
 }
 
@@ -794,10 +798,12 @@ Core::IFile::ReloadBehavior CMakeFile::reloadBehavior(ChangeTrigger state, Chang
     return BehaviorSilent;
 }
 
-void CMakeFile::reload(ReloadFlag flag, ChangeType type)
+bool CMakeFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
+    Q_UNUSED(errorString)
     Q_UNUSED(flag)
     Q_UNUSED(type)
+    return true;
 }
 
 CMakeBuildSettingsWidget::CMakeBuildSettingsWidget(CMakeTarget *target)

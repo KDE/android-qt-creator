@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,9 @@ FakeMetaEnum::FakeMetaEnum()
 FakeMetaEnum::FakeMetaEnum(const QString &name)
     : m_name(name)
 {}
+
+bool FakeMetaEnum::isValid() const
+{ return !m_name.isEmpty(); }
 
 QString FakeMetaEnum::name() const
 { return m_name; }
@@ -64,11 +67,13 @@ FakeMetaMethod::FakeMetaMethod(const QString &name, const QString &returnType)
     , m_returnType(returnType)
     , m_methodTy(FakeMetaMethod::Method)
     , m_methodAccess(FakeMetaMethod::Public)
+    , m_revision(0)
 {}
 
 FakeMetaMethod::FakeMetaMethod()
     : m_methodTy(FakeMetaMethod::Method)
     , m_methodAccess(FakeMetaMethod::Public)
+    , m_revision(0)
 {}
 
 QString FakeMetaMethod::methodName() const
@@ -98,9 +103,21 @@ void FakeMetaMethod::setMethodType(int methodType)
 int FakeMetaMethod::access() const
 { return m_methodAccess; }
 
+int FakeMetaMethod::revision() const
+{ return m_revision; }
 
-FakeMetaProperty::FakeMetaProperty(const QString &name, const QString &type, bool isList, bool isWritable, bool isPointer)
-    : m_propertyName(name), m_type(type), m_isList(isList), m_isWritable(isWritable), m_isPointer(isPointer)
+void FakeMetaMethod::setRevision(int r)
+{ m_revision = r; }
+
+
+FakeMetaProperty::FakeMetaProperty(const QString &name, const QString &type, bool isList,
+                                   bool isWritable, bool isPointer, int revision)
+    : m_propertyName(name)
+    , m_type(type)
+    , m_isList(isList)
+    , m_isWritable(isWritable)
+    , m_isPointer(isPointer)
+    , m_revision(revision)
 {}
 
 QString FakeMetaProperty::name() const
@@ -117,6 +134,9 @@ bool FakeMetaProperty::isWritable() const
 
 bool FakeMetaProperty::isPointer() const
 { return m_isPointer; }
+
+int FakeMetaProperty::revision() const
+{ return m_revision; }
 
 
 FakeMetaObject::FakeMetaObject()

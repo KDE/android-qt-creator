@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,8 +35,10 @@
 
 #include "cpptools_global.h"
 
-#include <cplusplus/SimpleLexer.h>
 #include <Token.h>
+#include <cplusplus/SimpleLexer.h>
+#include <texteditor/tabsettings.h>
+#include <cpptools/cppcodestylesettings.h>
 
 #include <QtCore/QChar>
 #include <QtCore/QStack>
@@ -48,10 +50,6 @@ QT_BEGIN_NAMESPACE
 class QTextDocument;
 class QTextBlock;
 QT_END_NAMESPACE
-
-namespace TextEditor {
-    class TabSettings;
-}
 
 namespace CppTools {
 namespace Internal {
@@ -134,6 +132,9 @@ public: // must be public to make Q_GADGET introspection work
         namespace_start, // after the namespace token, before the opening brace.
         namespace_open, // Brace that opens a C++ namespace block.
 
+        extern_start, // after the extern token, before the opening brace.
+        extern_open, // Brace that opens a C++ extern block.
+
         declaration_start, // shifted a token which could start a declaration.
         operator_declaration, // after 'operator' in declaration_start
 
@@ -173,7 +174,7 @@ public: // must be public to make Q_GADGET introspection work
         assign_open, // after an assignment token
 
         expression, // after a '=' in a declaration_start once we're sure it's not '= {'
-        initializer // after a '=' in a declaration start
+        assign_open_or_initializer // after a '=' in a declaration start
     };
     Q_ENUMS(StateType)
 
@@ -258,14 +259,11 @@ class CPPTOOLS_EXPORT QtStyleCodeFormatter : public CodeFormatter
 {
 public:
     QtStyleCodeFormatter();
-    explicit QtStyleCodeFormatter(const TextEditor::TabSettings &tabSettings);
+    QtStyleCodeFormatter(const TextEditor::TabSettings &tabSettings,
+                         const CppCodeStyleSettings &settings);
 
-    void setIndentSize(int size);
-
-    void setIndentSubstatementBraces(bool onOff);
-    void setIndentSubstatementStatements(bool onOff);
-    void setIndentDeclarationBraces(bool onOff);
-    void setIndentDeclarationMembers(bool onOff);
+    void setTabSettings(const TextEditor::TabSettings &tabSettings);
+    void setCodeStyleSettings(const CppCodeStyleSettings &settings);
 
 protected:
     virtual void onEnter(int newState, int *indentDepth, int *savedIndentDepth, int *paddingDepth, int *savedPaddingDepth) const;
@@ -280,11 +278,10 @@ protected:
     static bool shouldClearPaddingOnEnter(int state);
 
 private:
-    int m_indentSize;
-    bool m_indentSubstatementBraces;
-    bool m_indentSubstatementStatements;
-    bool m_indentDeclarationBraces;
-    bool m_indentDeclarationMembers;
+    void addContinuationIndent(int *paddingDepth) const;
+
+    TextEditor::TabSettings m_tabSettings;
+    CppCodeStyleSettings m_styleSettings;
 };
 
 } // namespace CppTools

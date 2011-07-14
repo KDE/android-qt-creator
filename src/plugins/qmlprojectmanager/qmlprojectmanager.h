@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,10 +48,6 @@ class Manager: public ProjectExplorer::IProjectManager
 
 public:
     Manager();
-    virtual ~Manager();
-
-    virtual Core::Context projectContext() const;
-    virtual Core::Context projectLanguage() const;
 
     virtual QString mimeType() const;
     virtual ProjectExplorer::Project *openProject(const QString &fileName);
@@ -62,8 +58,6 @@ public:
     void unregisterProject(QmlProject *project);
 
 private:
-    Core::Context m_projectContext;
-    Core::Context m_projectLanguage;
     QList<QmlProject *> m_projects;
 };
 

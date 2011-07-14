@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -219,7 +219,17 @@ bool QmlItemNode::instanceIsInPositioner() const
      return nodeInstance().isInPositioner();
 }
 
+bool QmlItemNode::instanceHasRotationTransform() const
+{
+    return nodeInstance().transform().type() > QTransform::TxScale;
+}
+
 QRectF  QmlItemNode::instanceBoundingRect() const
+{
+    return QRectF(QPointF(0, 0), nodeInstance().size());
+}
+
+QRectF QmlItemNode::instancePaintedBoundingRect() const
 {
     return nodeInstance().boundingRect();
 }

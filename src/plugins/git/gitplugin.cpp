@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,7 @@
 #include "gitsubmiteditor.h"
 #include "gitversioncontrol.h"
 #include "branchdialog.h"
+#include "remotedialog.h"
 #include "clonewizard.h"
 #include "gitoriousclonewizard.h"
 #include "stashdialog.h"
@@ -58,6 +59,7 @@
 
 #include <utils/qtcassert.h>
 #include <utils/parameteraction.h>
+#include <utils/fileutils.h>
 
 #include <vcsbase/basevcseditorfactory.h>
 #include <vcsbase/vcsbaseeditor.h>
@@ -277,13 +279,14 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     Q_UNUSED(arguments)
     Q_UNUSED(errorMessage)
 
+    m_core = Core::ICore::instance();
+    m_gitClient = new GitClient(this);
+
     typedef VCSBase::VCSEditorFactory<GitEditor> GitEditorFactory;
     typedef VCSBase::VCSSubmitEditorFactory<GitSubmitEditor> GitSubmitEditorFactory;
 
-    VCSBase::VCSBasePlugin::initialize(new GitVersionControl(m_gitClient));
+    initializeVcs(new GitVersionControl(m_gitClient));
 
-    m_core = Core::ICore::instance();
-    m_gitClient = new GitClient(this);
     // Create the globalcontext list to register actions accordingly
     Core::Context globalcontext(Core::Constants::C_GLOBAL);
 
@@ -430,6 +433,10 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
                            tr("Branches..."), QLatin1String("Git.BranchList"),
                            globalcontext, false, SLOT(branchList()));
 
+    createRepositoryAction(actionManager, gitContainer,
+                           tr("Remotes..."), QLatin1String("Git.RemoteList"),
+                           globalcontext, false, SLOT(remoteList()));
+
     m_showAction = new QAction(tr("Show Commit..."), this);
     Core::Command *showCommitCommand = actionManager->registerAction(m_showAction, "Git.ShowCommit", globalcontext);
     connect(m_showAction, SIGNAL(triggered()), this, SLOT(showCommit()));
@@ -544,7 +551,7 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     command->setAttribute(Core::Command::CA_UpdateText);
     connect(m_submitCurrentAction, SIGNAL(triggered()), this, SLOT(submitCurrentLog()));
 
-    m_diffSelectedFilesAction = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff Selected Files"), this);
+    m_diffSelectedFilesAction = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff &Selected Files"), this);
     command = actionManager->registerAction(m_diffSelectedFilesAction, Constants::DIFF_SELECTED, submitContext);
 
     m_undoAction = new QAction(tr("&Undo"), this);
@@ -692,18 +699,15 @@ void GitPlugin::startCommit(bool amend)
         qDebug() << Q_FUNC_INFO << data << commitTemplate;
 
     // Start new temp file with message template
-    QTemporaryFile changeTmpFile;
-    changeTmpFile.setAutoRemove(false);
-    if (!changeTmpFile.open()) {
-        VCSBase::VCSBaseOutputWindow::instance()->append(tr("Cannot create temporary file: %1").arg(changeTmpFile.errorString()));
+    Utils::TempFileSaver saver;
+    // Keep the file alive, else it removes self and forgets its name
+    saver.setAutoRemove(false);
+    saver.write(commitTemplate.toLocal8Bit());
+    if (!saver.finalize()) {
+        VCSBase::VCSBaseOutputWindow::instance()->append(saver.errorString());
         return;
     }
-    m_commitMessageFileName = changeTmpFile.fileName();
-    changeTmpFile.write(commitTemplate.toLocal8Bit());
-    changeTmpFile.flush();
-    // Keep the file alive, else it removes self and forgets
-    // its name
-    changeTmpFile.close();
+    m_commitMessageFileName = saver.fileName();
     openSubmitEditor(m_commitMessageFileName, data, amend);
 }
 
@@ -780,9 +784,8 @@ bool GitPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submitEdi
     bool closeEditor = true;
     if (!fileList.empty() || !m_commitAmendSHA1.isEmpty()) {
         // get message & commit
-        m_core->fileManager()->blockFileChange(fileIFace);
-        fileIFace->save();
-        m_core->fileManager()->unblockFileChange(fileIFace);
+        if (!m_core->fileManager()->saveFile(fileIFace))
+            return false;
 
         closeEditor = m_gitClient->addAndCommit(m_submitRepository,
                                                 editor->panelData(),
@@ -799,7 +802,7 @@ bool GitPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submitEdi
 
 void GitPlugin::fetch()
 {
-    m_gitClient->synchronousFetch(currentState().topLevel());
+    m_gitClient->synchronousFetch(currentState().topLevel(), QString());
 }
 
 void GitPlugin::pull()
@@ -1002,6 +1005,11 @@ void GitPlugin::branchList()
    showNonModalDialog(currentState().topLevel(), m_branchDialog);
 }
 
+void GitPlugin::remoteList()
+{
+    showNonModalDialog(currentState().topLevel(), m_remoteDialog);
+}
+
 void GitPlugin::stashList()
 {
     showNonModalDialog(currentState().topLevel(), m_stashDialog);
@@ -1014,6 +1022,8 @@ void GitPlugin::updateActions(VCSBase::VCSBasePlugin::ActionState as)
         m_stashDialog->refresh(currentState().topLevel(), false);
     if (m_branchDialog)
         m_branchDialog->refresh(currentState().topLevel(), false);
+    if (m_remoteDialog)
+        m_remoteDialog->refresh(currentState().topLevel(), false);
 
     m_commandLocator->setEnabled(repositoryEnabled);
     if (!enableMenuAction(as, m_menuAction))

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -65,9 +65,6 @@ class CMakeManager : public ProjectExplorer::IProjectManager
 public:
     CMakeManager(CMakeSettingsPage *cmakeSettingsPage);
 
-    virtual Core::Context projectContext() const;
-    virtual Core::Context projectLanguage() const;
-
     virtual ProjectExplorer::Project *openProject(const QString &fileName);
     virtual QString mimeType() const;
 
@@ -94,8 +91,6 @@ private:
     void runCMake(ProjectExplorer::Project *project);
     static QString qtVersionForQMake(const QString &qmakePath);
     static QPair<QString, QString> findQtDir(const Utils::Environment &env);
-    Core::Context m_projectContext;
-    Core::Context m_projectLanguage;
     CMakeSettingsPage *m_settingsPage;
     QAction *m_runCMakeAction;
     QAction *m_runCMakeActionContextMenu;

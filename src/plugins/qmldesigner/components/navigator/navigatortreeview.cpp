@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,7 @@
 #include <QLineEdit>
 #include <QPen>
 #include <QPixmapCache>
+#include <QMouseEvent>
 
 
 static QPixmap generateWavyPixmap(qreal maxRadius, const QPen &pen)
@@ -177,6 +178,19 @@ NavigatorTreeView::NavigatorTreeView(QWidget *parent)
     TreeViewStyle *style = new TreeViewStyle;
     setStyle(style);
     style->setParent(this);
+}
+
+bool NameItemDelegate::editorEvent(QEvent *event, QAbstractItemModel *, const QStyleOptionViewItem &, const QModelIndex &)
+{
+    if (event->type() == QEvent::MouseButtonRelease) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+        if (mouseEvent->button() == Qt::RightButton) {
+            m_TreeModel->openContextMenu(mouseEvent->globalPos());
+            mouseEvent->accept();
+            return true;
+        }
+    }
+    return false;
 }
 
 QSize IconCheckboxItemDelegate::sizeHint(const QStyleOptionViewItem &option,

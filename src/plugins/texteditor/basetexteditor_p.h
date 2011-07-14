@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,6 +54,7 @@ namespace TextEditor {
 
 class BaseTextDocument;
 class TextEditorActionHandler;
+class CodeAssistant;
 
 namespace Internal {
 
@@ -207,6 +208,9 @@ public:
 
     QWidget *m_extraArea;
 
+    QString m_tabSettingsId;
+    TabPreferences *m_tabPreferences;
+    IFallbackPreferences *m_codeStylePreferences;
     DisplaySettings m_displaySettings;
     FontSettings m_fontSettings;
     BehaviorSettings m_behaviorSettings;
@@ -288,9 +292,8 @@ public:
     BaseTextEditorPrivateHighlightBlocks m_highlightBlocksInfo;
     QTimer *m_highlightBlocksTimer;
 
-    int m_requestAutoCompletionRevision;
-    int m_requestAutoCompletionPosition;
-    QTimer *m_requestAutoCompletionTimer;
+    QScopedPointer<CodeAssistant> m_codeAssistant;
+    bool m_assistRelevantContentAdded;
 
     QPointer<BaseTextEditorAnimator> m_animator;
     int m_cursorBlockNumber;

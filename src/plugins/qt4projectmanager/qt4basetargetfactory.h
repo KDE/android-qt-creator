@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,9 +40,12 @@
 
 #include <QtCore/QList>
 
+namespace QtSupport {
+class QtVersionNumber;
+}
+
 namespace Qt4ProjectManager {
 class Qt4TargetSetupWidget;
-class QtVersionNumber;
 struct BuildConfigurationInfo;
 
 class QT4PROJECTMANAGER_EXPORT Qt4BaseTargetFactory : public ProjectExplorer::ITargetFactory
@@ -54,27 +57,34 @@ public:
 
     virtual Qt4TargetSetupWidget *createTargetSetupWidget(const QString &id,
                                                           const QString &proFilePath,
-                                                          const QtVersionNumber &minimumQtVersion,
+                                                          const QtSupport::QtVersionNumber &minimumQtVersion,
                                                           bool importEnabled,
                                                           QList<BuildConfigurationInfo> importInfos);
 
-    virtual QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id) =0;
+    /// suffix should be unique
+    virtual QString shadowBuildDirectory(const QString &profilePath, const QString &id, const QString &suffix);
+    /// used by the default implementation of shadowBuildDirectory
+    virtual QString buildNameForId(const QString &id) const;
+
     /// used by the default implementation of createTargetSetupWidget
     /// not needed otherwise
-    virtual QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion) = 0;
+    /// by default creates one debug + one release buildconfiguration per qtversion
+    virtual QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtSupport::QtVersionNumber &minimumQtVersion);
 
     virtual QList<ProjectExplorer::Task> reportIssues(const QString &proFile);
     /// only used in the TargetSetupPage
     virtual QIcon iconForId(const QString &id) const = 0;
 
-    virtual bool isMobileTarget(const QString &id) = 0;
-    virtual bool supportsShadowBuilds(const QString &id) = 0;
+    virtual QSet<QString> targetFeatures(const QString &id) const = 0;
+    virtual bool selectByDefault(const QString &id) const;
 
     virtual ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id) = 0;
     virtual ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos) = 0;
     virtual ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id, Qt4TargetSetupWidget *widget);
 
     static Qt4BaseTargetFactory *qt4BaseTargetFactoryForId(const QString &id);
+
+    static QList<Qt4BaseTargetFactory *> qt4BaseTargetFactoriesForIds(const QStringList &ids);
 
 protected:
     static QString msgBuildConfigurationName(const BuildConfigurationInfo &info);

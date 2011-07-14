@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,12 +36,10 @@
 #include <QtGui/QToolButton>
 
 QT_BEGIN_NAMESPACE
-class QMenu;
 class QVBoxLayout;
 QT_END_NAMESPACE
 
 namespace Core {
-    class IMode;
 namespace Internal {
 
 class FancyToolButton : public QToolButton

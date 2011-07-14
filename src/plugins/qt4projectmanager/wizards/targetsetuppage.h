@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,8 @@
 #define TARGETSETUPPAGE_H
 
 #include "../qt4target.h"
-#include "../qtversionmanager.h"
 #include "../qt4projectmanager_global.h"
+#include <qtsupport/qtversionmanager.h>
 
 #include <QtCore/QString>
 #include <QtGui/QWizard>
@@ -72,13 +72,15 @@ public:
     /// Initializes the TargetSetupPage
     /// \note The import information is gathered in initializePage(), make sure that the right proFilePath is set before
     void initializePage();
-    /// Changes the default set of checked targets. For mobile Symbian, maemo5, simulator is checked
-    /// For non mobile, destkop is checked
+    /// Changes the default set of checked targets.
     /// call this before \sa initializePage()
-    void setPreferMobile(bool mobile);
+    void setPreferredFeatures(const QSet<QString> &featureIds);
+    /// Sets the features a target must support
+    /// call this before \sa initializePage()
+    void setRequiredFeatures(const QSet<QString> &featureIds);
     /// Sets the minimum qt version
     /// calls this before \sa initializePage()
-    void setMinimumQtVersion(const QtVersionNumber &number);
+    void setMinimumQtVersion(const QtSupport::QtVersionNumber &number);
     /// Sets whether the TargetSetupPage looks on disk for builds of this project
     /// call this before \sa initializePage()
     void setImportSearch(bool b);
@@ -96,9 +98,10 @@ private:
     void setupWidgets();
     void deleteWidgets();
 
-    bool m_preferMobile;
+    QSet<QString> m_preferredFeatures;
+    QSet<QString> m_requiredFeatures;
     bool m_importSearch;
-    QtVersionNumber m_minimumQtVersionNumber;
+    QtSupport::QtVersionNumber m_minimumQtVersionNumber;
     QString m_proFilePath;
     QString m_defaultShadowBuildLocation;
     QMap<QString, Qt4TargetSetupWidget *> m_widgets;

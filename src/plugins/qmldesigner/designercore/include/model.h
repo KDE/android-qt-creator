@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -104,6 +104,7 @@ public:
     // Imports:
     QList<Import> imports() const;
     void changeImports(const QList<Import> &importsToBeAdded, const QList<Import> &importsToBeRemoved);
+    bool hasImport(const Import &import, bool ignoreAlias = true, bool allowHigherVersion = false);
 
     RewriterView *rewriterView() const;
 

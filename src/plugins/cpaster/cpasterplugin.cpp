@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,6 +52,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <utils/qtcassert.h>
+#include <utils/fileutils.h>
 #include <texteditor/basetexteditor.h>
 
 #include <QtCore/QtPlugin>
@@ -65,19 +66,57 @@
 #include <QtGui/QMenu>
 #include <QtGui/QMainWindow>
 
-using namespace CodePaster;
 using namespace Core;
 using namespace TextEditor;
+
+namespace CodePaster {
+
+/*!
+   \class CodePaster::CodePasterService
+   \brief Service registered with PluginManager providing CodePaster
+          post() functionality.
+
+   \sa ExtensionSystem::PluginManager::getObjectByClassName, ExtensionSystem::invoke
+   \sa VCSBase::VCSBaseEditorWidget
+*/
+
+CodePasterService::CodePasterService(QObject *parent) :
+    QObject(parent)
+{
+}
+
+void CodePasterService::postText(const QString &text, const QString &mimeType)
+{
+    QTC_ASSERT(CodepasterPlugin::instance(), return; )
+    CodepasterPlugin::instance()->post(text, mimeType);
+}
+
+void CodePasterService::postCurrentEditor()
+{
+    QTC_ASSERT(CodepasterPlugin::instance(), return; )
+    CodepasterPlugin::instance()->postEditor();
+}
+
+void CodePasterService::postClipboard()
+{
+    QTC_ASSERT(CodepasterPlugin::instance(), return; )
+    CodepasterPlugin::instance()->postClipboard();
+}
+
+// ---------- CodepasterPlugin
+CodepasterPlugin *CodepasterPlugin::m_instance = 0;
 
 CodepasterPlugin::CodepasterPlugin() :
     m_settings(new Settings),
     m_postEditorAction(0), m_postClipboardAction(0), m_fetchAction(0)
 {
+    CodepasterPlugin::m_instance = this;
 }
 
 CodepasterPlugin::~CodepasterPlugin()
 {
     qDeleteAll(m_protocols);
+    CodepasterPlugin::m_instance = 0;
 }
 
 bool CodepasterPlugin::initialize(const QStringList &arguments, QString *error_message)
@@ -140,6 +179,8 @@ bool CodepasterPlugin::initialize(const QStringList &arguments, QString *error_m
     command->setDefaultKeySequence(QKeySequence(tr("Alt+C,Alt+F")));
     connect(m_fetchAction, SIGNAL(triggered()), this, SLOT(fetch()));
     cpContainer->addAction(command);
+
+    addAutoReleasedObject(new CodePasterService);
 
     return true;
 }
@@ -214,10 +255,14 @@ void CodepasterPlugin::post(QString data, const QString &mimeType)
     view.setProtocol(m_settings->protocol);
 
     const FileDataList diffChunks = splitDiffToFiles(data.toLatin1());
-    if (diffChunks.isEmpty()) {
-        view.show(username, QString(), QString(), data);
-    } else {
+    const int dialogResult = diffChunks.isEmpty() ?
+        view.show(username, QString(), QString(), data) :
         view.show(username, QString(), QString(), diffChunks);
+    // Save new protocol in case user changed it.
+    if (dialogResult == QDialog::Accepted
+        && m_settings->protocol != view.protocol()) {
+        m_settings->protocol = view.protocol();
+        m_settings->toSettings(Core::ICore::instance()->settings());
     }
 }
 
@@ -228,6 +273,12 @@ void CodepasterPlugin::fetch()
 
     if (dialog.exec() != QDialog::Accepted)
         return;
+    // Save new protocol in case user changed it.
+    if (m_settings->protocol != dialog.protocol()) {
+        m_settings->protocol = dialog.protocol();
+        m_settings->toSettings(Core::ICore::instance()->settings());
+    }
+
     const QString pasteID = dialog.pasteId();
     if (pasteID.isEmpty())
         return;
@@ -277,23 +328,6 @@ static inline QString tempFilePattern(const QString &prefix, const QString &exte
     return pattern;
 }
 
-typedef QSharedPointer<QTemporaryFile> TemporaryFilePtr;
-
-// Write an a temporary file.
-TemporaryFilePtr writeTemporaryFile(const QString &namePattern,
-                                    const QString &contents,
-                                    QString *errorMessage)
-{
-    TemporaryFilePtr tempFile(new QTemporaryFile(namePattern));
-    if (!tempFile->open()) {
-        *errorMessage = QString::fromLatin1("Unable to open temporary file %1").arg(tempFile->errorString());
-        return TemporaryFilePtr();
-    }
-    tempFile->write(contents.toUtf8());
-    tempFile->close();
-    return tempFile;
-}
-
 void CodepasterPlugin::finishFetch(const QString &titleDescription,
                                    const QString &content,
                                    bool error)
@@ -313,23 +347,21 @@ void CodepasterPlugin::finishFetch(const QString &titleDescription,
     // for the user and also to be able to tell a patch or diff in the VCS plugins
     // by looking at the file name of FileManager::currentFile() without expensive checking.
     // Default to "txt".
+    QByteArray byteContent = content.toUtf8();
     QString suffix;
-    if (const Core::MimeType mimeType = Core::ICore::instance()->mimeDatabase()->findByData(content.toUtf8()))
+    if (const Core::MimeType mimeType = Core::ICore::instance()->mimeDatabase()->findByData(byteContent))
         suffix = mimeType.preferredSuffix();
     if (suffix.isEmpty())
          suffix = QLatin1String("txt");
     const QString filePrefix = filePrefixFromTitle(titleDescription);
-    QString errorMessage;
-    TemporaryFilePtr tempFile = writeTemporaryFile(tempFilePattern(filePrefix, suffix), content, &errorMessage);
-    if (tempFile.isNull()) {
-        messageManager->printToOutputPane(errorMessage);
+    Utils::TempFileSaver saver(tempFilePattern(filePrefix, suffix));
+    saver.setAutoRemove(false);
+    saver.write(byteContent);
+    if (!saver.finalize()) {
+        messageManager->printToOutputPane(saver.errorString());
         return;
     }
-    // Keep the file and store in list of files to be removed.
-    tempFile->setAutoRemove(false);
-    const QString fileName = tempFile->fileName();
-    // Discard to temporary file to make sure it is closed and no changes are triggered.
-    tempFile = TemporaryFilePtr();
+    const QString fileName = saver.fileName();
     m_fetchedSnippets.push_back(fileName);
     // Open editor with title.
     Core::IEditor* editor = EditorManager::instance()->openEditor(fileName, QString(), EditorManager::ModeSwitch);
@@ -337,4 +369,11 @@ void CodepasterPlugin::finishFetch(const QString &titleDescription,
     editor->setDisplayName(titleDescription);
 }
 
-Q_EXPORT_PLUGIN(CodepasterPlugin)
+CodepasterPlugin *CodepasterPlugin::instance()
+{
+    return m_instance;
+}
+
+} // namespace CodePaster
+
+Q_EXPORT_PLUGIN(CodePaster::CodepasterPlugin)

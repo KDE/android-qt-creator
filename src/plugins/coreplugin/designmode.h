@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,6 @@
 #include <coreplugin/imode.h>
 
 namespace Core {
-class EditorManager;
 class IEditor;
 
 namespace Internal {
@@ -50,14 +49,14 @@ class DesignModeCoreListener;
   * to the main editor widget itself.
   */
 
-struct DesignModePrivate;
+class DesignModePrivate;
 
 class CORE_EXPORT DesignMode : public Core::IMode
 {
     Q_OBJECT
 
 public:
-    explicit DesignMode(EditorManager *editorManager);
+    explicit DesignMode();
     virtual ~DesignMode();
 
     void registerDesignWidget(QWidget *widget,
@@ -66,17 +65,6 @@ public:
     void unregisterDesignWidget(QWidget *widget);
 
     QStringList registeredMimeTypes() const;
-
-    // IContext
-    Context context() const;
-    QWidget *widget();
-
-    // IMode
-    QString displayName() const;
-    QIcon icon() const;
-    int priority() const;
-    QString id() const;
-    QString type() const;
 
 signals:
     void actionsUpdated(Core::IEditor *editor);

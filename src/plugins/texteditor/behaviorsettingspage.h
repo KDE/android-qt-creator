@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,6 +43,8 @@ class TabSettings;
 class StorageSettings;
 class BehaviorSettings;
 class ExtraEncodingSettings;
+
+class TabPreferences;
 
 class BehaviorSettingsPageParameters
 {
@@ -69,20 +71,19 @@ public:
     void finish();
     bool matches(const QString &s) const;
 
-    const TabSettings &tabSettings() const;
     const StorageSettings &storageSettings() const;
     const BehaviorSettings &behaviorSettings() const;
     const ExtraEncodingSettings &extraEncodingSettings() const;
 
+    TabPreferences *tabPreferences() const;
+
 signals:
-    void tabSettingsChanged(const TextEditor::TabSettings &);
     void storageSettingsChanged(const TextEditor::StorageSettings &);
     void behaviorSettingsChanged(const TextEditor::BehaviorSettings &);
     void extraEncodingSettingsChanged(const TextEditor::ExtraEncodingSettings &);
 
 private:
-    void settingsFromUI(TabSettings *tabSettings,
-                        StorageSettings *storageSettings,
+    void settingsFromUI(StorageSettings *storageSettings,
                         BehaviorSettings *behaviorSettings,
                         ExtraEncodingSettings *extraEncodingSettings) const;
     void settingsToUI();

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@ ComponentTextModifier::ComponentTextModifier(TextModifier *originalModifier, int
         m_componentEndOffset(componentEndOffset),
         m_rootStartOffset(rootStartOffset)
 {
-    connect(m_originalModifier->textDocument(), SIGNAL(contentsChange(int,int,int)), this, SLOT(contentsChange(int,int,int)));
+    connect(m_originalModifier, SIGNAL(replaced(int, int, int)), this, SLOT(contentsChange(int,int,int)));
     connect(m_originalModifier, SIGNAL(textChanged()), this, SIGNAL(textChanged()));
 
     connect(m_originalModifier, SIGNAL(replaced(int, int, int)), this, SIGNAL(replaced(int, int, int)));

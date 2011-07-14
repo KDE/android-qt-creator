@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,9 +41,9 @@
 #include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
-#include <qt4projectmanager/qtversionmanager.h>
-#include <qt4projectmanager/qtoutputformatter.h>
-#include <qt4projectmanager/qt4projectmanagerconstants.h>
+#include <qtsupport/qtversionmanager.h>
+#include <qtsupport/qtoutputformatter.h>
+#include <qtsupport/qtsupportconstants.h>
 
 #ifdef Q_OS_WIN
 #include <utils/winutils.h>
@@ -52,7 +52,7 @@
 using Core::EditorManager;
 using Core::ICore;
 using Core::IEditor;
-using Qt4ProjectManager::QtVersionManager;
+using QtSupport::QtVersionManager;
 
 using namespace QmlProjectManager::Internal;
 
@@ -86,11 +86,16 @@ QmlProjectRunConfiguration::QmlProjectRunConfiguration(QmlProjectTarget *parent,
     updateQtVersions();
 }
 
-bool QmlProjectRunConfiguration::isEnabled(ProjectExplorer::BuildConfiguration *bc) const
+bool QmlProjectRunConfiguration::isEnabled() const
 {
-    Q_UNUSED(bc);
-
     return m_isEnabled;
+}
+
+QString QmlProjectRunConfiguration::disabledReason() const
+{
+    if (!m_isEnabled)
+        return tr("No qmlviewer or qmlobserver found.");
+    return QString();
 }
 
 void QmlProjectRunConfiguration::ctor()
@@ -120,7 +125,7 @@ QmlProjectTarget *QmlProjectRunConfiguration::qmlTarget() const
 
 QString QmlProjectRunConfiguration::viewerPath() const
 {
-    Qt4ProjectManager::QtVersion *version = qtVersion();
+    QtSupport::BaseQtVersion *version = qtVersion();
     if (!version) {
         return QString();
     } else {
@@ -130,10 +135,12 @@ QString QmlProjectRunConfiguration::viewerPath() const
 
 QString QmlProjectRunConfiguration::observerPath() const
 {
-    Qt4ProjectManager::QtVersion *version = qtVersion();
+    QtSupport::BaseQtVersion *version = qtVersion();
     if (!version) {
         return QString();
     } else {
+        if (!version->needsQmlDebuggingLibrary())
+            return version->qmlviewerCommand();
         return version->qmlObserverTool();
     }
 }
@@ -193,13 +200,13 @@ QString QmlProjectRunConfiguration::canonicalCapsPath(const QString &fileName)
 }
 
 
-Qt4ProjectManager::QtVersion *QmlProjectRunConfiguration::qtVersion() const
+QtSupport::BaseQtVersion *QmlProjectRunConfiguration::qtVersion() const
 {
     if (m_qtVersionId == -1)
         return 0;
 
-    QtVersionManager *versionManager = QtVersionManager::instance();
-    Qt4ProjectManager::QtVersion *version = versionManager->version(m_qtVersionId);
+    QtSupport::QtVersionManager *versionManager = QtSupport::QtVersionManager::instance();
+    QtSupport::BaseQtVersion *version = versionManager->version(m_qtVersionId);
     QTC_ASSERT(version, return 0);
 
     return version;
@@ -212,9 +219,9 @@ QWidget *QmlProjectRunConfiguration::createConfigurationWidget()
     return m_configurationWidget.data();
 }
 
-ProjectExplorer::OutputFormatter *QmlProjectRunConfiguration::createOutputFormatter() const
+Utils::OutputFormatter *QmlProjectRunConfiguration::createOutputFormatter() const
 {
-    return new Qt4ProjectManager::QtOutputFormatter(qmlTarget()->qmlProject());
+    return new QtSupport::QtOutputFormatter(qmlTarget()->qmlProject());
 }
 
 QmlProjectRunConfiguration::MainScriptSource QmlProjectRunConfiguration::mainScriptSource() const
@@ -381,7 +388,7 @@ void QmlProjectRunConfiguration::updateQtVersions()
             || !isValidVersion(qtVersions->version(m_qtVersionId))) {
         int newVersionId = -1;
         // take first one you find
-        foreach (Qt4ProjectManager::QtVersion *version, qtVersions->validVersions()) {
+        foreach (QtSupport::BaseQtVersion *version, qtVersions->validVersions()) {
             if (isValidVersion(version)) {
                 newVersionId = version->uniqueId();
                 break;
@@ -393,11 +400,11 @@ void QmlProjectRunConfiguration::updateQtVersions()
     updateEnabled();
 }
 
-bool QmlProjectRunConfiguration::isValidVersion(Qt4ProjectManager::QtVersion *version)
+bool QmlProjectRunConfiguration::isValidVersion(QtSupport::BaseQtVersion *version)
 {
     if (version
-            && (version->supportsTargetId(Qt4ProjectManager::Constants::DESKTOP_TARGET_ID)
-                || version->supportsTargetId(Qt4ProjectManager::Constants::QT_SIMULATOR_TARGET_ID))
+            && (version->type() == QtSupport::Constants::DESKTOPQT
+                || version->type() == QtSupport::Constants::SIMULATORQT)
             && !version->qmlviewerCommand().isEmpty()) {
         return true;
     }

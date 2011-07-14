@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,12 +42,13 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectnodes.h>
 #include <projectexplorer/buildstep.h>
-#include <projectexplorer/filewatcher.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <coreplugin/ifile.h>
+#include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 
 #include <QtCore/QXmlStreamReader>
+#include <QtCore/QFileSystemWatcher>
 #include <QtGui/QPushButton>
 #include <QtGui/QLineEdit>
 
@@ -104,6 +105,8 @@ public:
 
     QString uicCommand() const;
 
+    bool isProjectFile(const QString &fileName);
+
 signals:
     /// emitted after parsing
     void buildTargetsChanged();
@@ -141,8 +144,7 @@ private:
     CMakeProjectNode *m_rootNode;
     QStringList m_files;
     QList<CMakeBuildTarget> m_buildTargets;
-    ProjectExplorer::FileWatcher *m_watcher;
-    bool m_insideFileChanged;
+    QFileSystemWatcher *m_watcher;
     QSet<QString> m_watchedFiles;
     QFuture<void> m_codeModelFuture;
 
@@ -197,7 +199,7 @@ class CMakeFile : public Core::IFile
 public:
     CMakeFile(CMakeProject *parent, QString fileName);
 
-    bool save(const QString &fileName = QString());
+    bool save(QString *errorString, const QString &fileName, bool autoSave);
     QString fileName() const;
 
     QString defaultPath() const;
@@ -209,7 +211,7 @@ public:
     bool isSaveAsAllowed() const;
 
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
 
     void rename(const QString &newName);
 

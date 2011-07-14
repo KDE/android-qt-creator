@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,10 @@
 #include "stackhandler.h"
 
 #include "debuggeractions.h"
-#include "debuggerconstants.h"
 #include "debuggercore.h"
 #include "debuggerengine.h"
+#include "debuggerdialogs.h"
+#include "memoryagent.h"
 
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
@@ -104,6 +105,10 @@ void StackWindow::setModel(QAbstractItemModel *model)
     //resizeColumnsToContents();
     resizeColumnToContents(0);
     resizeColumnToContents(3);
+    if (header()) {
+        bool adjust = debuggerCore()->boolSetting(AlwaysAdjustStackColumnWidths);
+        setAlwaysResizeColumnsToContents(adjust);
+    }
 }
 
 void StackWindow::contextMenuEvent(QContextMenuEvent *ev)
@@ -136,13 +141,15 @@ void StackWindow::contextMenuEvent(QContextMenuEvent *ev)
         actShowMemory->setEnabled(engineCapabilities & ShowMemoryCapability);
     }
 
-    QAction *actShowDisassembler = menu.addAction(QString());
+    QAction *actShowDisassemblerAt = menu.addAction(QString());
+    QAction *actShowDisassembler = menu.addAction(tr("Open Disassembler..."));
+    actShowDisassembler->setEnabled(engineCapabilities & DisassemblerCapability);
     if (address == 0) {
-        actShowDisassembler->setText(tr("Open Disassembler"));
-        actShowDisassembler->setEnabled(false);
+        actShowDisassemblerAt->setText(tr("Open Disassembler"));
+        actShowDisassemblerAt->setEnabled(false);
     } else {
-        actShowDisassembler->setText(tr("Open Disassembler at 0x%1").arg(address, 0, 16));
-        actShowDisassembler->setEnabled(engineCapabilities & DisassemblerCapability);
+        actShowDisassemblerAt->setText(tr("Open Disassembler at 0x%1").arg(address, 0, 16));
+        actShowDisassemblerAt->setEnabled(engineCapabilities & DisassemblerCapability);
     }
 
     QAction *actLoadSymbols = 0;
@@ -169,9 +176,20 @@ void StackWindow::contextMenuEvent(QContextMenuEvent *ev)
         copyContentsToClipboard();
     else if (act == actAdjust)
         resizeColumnsToContents();
-    else if (act == actShowMemory)
-        engine->openMemoryView(address);
-    else if (act == actShowDisassembler)
+    else if (act == actShowMemory) {
+        const QString title = tr("Memory at Frame #%1 (%2) 0x%3").
+        arg(row).arg(frame.function).arg(address, 0, 16);
+        QList<MemoryMarkup> ml;
+        ml.push_back(MemoryMarkup(address, 1, QColor(Qt::blue).lighter(),
+                                  tr("Frame #%1 (%2)").arg(row).arg(frame.function)));
+        engine->openMemoryView(address, 0, ml, QPoint(), title);
+    } else if (act == actShowDisassembler) {
+        AddressDialog dialog;
+        if (address)
+            dialog.setAddress(address);
+        if (dialog.exec() == QDialog::Accepted)
+            currentEngine()->openDisassemblerView(Location(dialog.address()));
+    } else if (act == actShowDisassemblerAt)
         engine->openDisassemblerView(frame);
     else if (act == actLoadSymbols)
         engine->loadSymbolsForStack();

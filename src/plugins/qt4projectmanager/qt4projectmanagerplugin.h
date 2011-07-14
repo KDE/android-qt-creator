@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,7 +53,6 @@ class QtVersionManager;
 namespace Internal {
 
 class ProFileEditorFactory;
-class GettingStartedWelcomePage;
 
 class Qt4ProjectManagerPlugin : public ExtensionSystem::IPlugin
 {
@@ -64,23 +63,18 @@ public:
     bool initialize(const QStringList &arguments, QString *error_message);
     void extensionsInitialized();
 
-    Core::Context projectContext() const { return m_projectContext; }
-
 private slots:
     void updateContextMenu(ProjectExplorer::Project *project,
                            ProjectExplorer::Node *node);
     void currentProjectChanged();
+    void currentNodeChanged(ProjectExplorer::Node *node);
     void buildStateChanged(ProjectExplorer::Project *pro);
-    void addLibrary();
     void jumpToFile();
 
 #ifdef WITH_TESTS
     void testBasicProjectLoading(); // Test fails!
-
     void testAbldOutputParsers_data();
     void testAbldOutputParsers();
-    void testQtOutputParser_data();
-    void testQtOutputParser();
     void testSbsV2OutputParsers_data();
     void testSbsV2OutputParsers();
     void testRvctOutputParser_data();
@@ -99,7 +93,8 @@ private:
     QAction *m_buildSubProjectContextMenu;
     QAction *m_rebuildSubProjectContextMenu;
     QAction *m_cleanSubProjectContextMenu;
-    GettingStartedWelcomePage *m_welcomePage;
+    QAction *m_addLibraryAction;
+    QAction *m_addLibraryActionContextMenu;
     Core::Context m_projectContext;
 };
 

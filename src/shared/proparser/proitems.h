@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef PROITEMS_H
 #define PROITEMS_H
 
+#include "proparser_global.h"
 #include <QtCore/QString>
 #include <QtCore/QVector>
 
@@ -57,6 +58,7 @@ enum OmitPreHashing { NoHash };
 }
 
 class ProStringList;
+class ProFile;
 
 class ProString {
 public:
@@ -70,6 +72,11 @@ public:
     ProString(const QString &str, int offset, int length);
     ProString(const QString &str, int offset, int length, uint hash);
     ProString(const QString &str, int offset, int length, ProStringConstants::OmitPreHashing);
+    void setValue(const QString &str);
+    void setValue(const QString &str, ProStringConstants::OmitPreHashing);
+    ProString &setSource(const ProString &other) { m_file = other.m_file; return *this; }
+    ProString &setSource(const ProFile *pro) { m_file = pro; return *this; }
+    const ProFile *sourceFile() const { return m_file; }
     QString toQString() const;
     QString &toQString(QString &tmp) const;
     ProString &operator+=(const ProString &other);
@@ -95,6 +102,7 @@ public:
 private:
     QString m_string;
     int m_offset, m_length;
+    const ProFile *m_file;
     mutable uint m_hash;
     QChar *prepareAppend(int extraLen);
     uint updatedHash() const;
@@ -183,7 +191,7 @@ enum ProToken {
     TokNewStr = 0x200   // Next stringlist element
 };
 
-class ProFile
+class PROPARSER_EXPORT ProFile
 {
 public:
     explicit ProFile(const QString &fileName);

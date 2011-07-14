@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -46,6 +46,7 @@ enum KnownType
     KT_ContainerType = 0x200000,
     KT_HasSimpleDumper = 0x400000,
     KT_HasComplexDumper = 0x800000, // Non-container complex dumper
+    KT_Editable = 0x1000000, // Editable complex type
     // Types: PODs
     KT_Char = KT_POD_Type + 1,
     KT_UnsignedChar = KT_POD_Type + 2,
@@ -56,8 +57,8 @@ enum KnownType
     KT_PointerType = KT_POD_Type + 7,     // pointer to class or complex type
     // Types: Qt Basic
     KT_QChar = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 1,
-    KT_QByteArray = KT_Qt_Type + KT_Qt_MovableType + KT_HasComplexDumper + KT_HasSimpleDumper + 2,
-    KT_QString = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 3,
+    KT_QByteArray = KT_Qt_Type + KT_Editable + KT_Qt_MovableType + KT_HasComplexDumper + KT_HasSimpleDumper + 2,
+    KT_QString = KT_Qt_Type + KT_Editable + KT_Qt_MovableType + KT_HasSimpleDumper + 3,
     KT_QColor = KT_Qt_Type + KT_HasSimpleDumper + 4,
     KT_QFlags = KT_Qt_Type + KT_HasSimpleDumper + 5,
     KT_QDate = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 6,
@@ -75,21 +76,22 @@ enum KnownType
     KT_QAtomicInt = KT_Qt_Type + KT_HasSimpleDumper + 19,
     KT_QObject = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 20,
     KT_QWidget = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 21,
+    KT_QSharedPointer = KT_Qt_Type + KT_HasSimpleDumper + KT_HasComplexDumper + 22,
     // Types: Various QT movable types
     KT_QPen = KT_Qt_Type + KT_Qt_MovableType + 30,
-    KT_QUrl = KT_Qt_Type + KT_Qt_MovableType + 31,
+    KT_QUrl = KT_Qt_Type + KT_Qt_MovableType + 31 + KT_HasSimpleDumper,
     KT_QIcon = KT_Qt_Type + KT_Qt_MovableType + 32,
     KT_QBrush = KT_Qt_Type + KT_Qt_MovableType + 33,
     KT_QImage = KT_Qt_Type + KT_Qt_MovableType + 35,
     KT_QLocale = KT_Qt_Type + KT_Qt_MovableType + 36,
     KT_QMatrix = KT_Qt_Type + KT_Qt_MovableType + 37,
-    KT_QRegExp = KT_Qt_Type + KT_Qt_MovableType + 38,
+    KT_QRegExp = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 38,
     KT_QMargins = KT_Qt_Type + KT_Qt_MovableType + 39,
     KT_QXmltem = KT_Qt_Type + KT_Qt_MovableType + 40,
     KT_QXmlName = KT_Qt_Type + KT_Qt_MovableType + 41,
     KT_QBitArray = KT_Qt_Type + KT_Qt_MovableType + 42,
     KT_QDateTime = KT_Qt_Type + KT_Qt_MovableType + 43,
-    KT_QFileInfo = KT_Qt_Type + KT_Qt_MovableType + 44,
+    KT_QFileInfo = KT_Qt_Type + KT_Qt_MovableType + KT_HasSimpleDumper + 44,
     KT_QMetaEnum = KT_Qt_Type + KT_Qt_MovableType + 45,
     KT_QVector2D = KT_Qt_Type + KT_Qt_MovableType + 46,
     KT_QVector3D = KT_Qt_Type + KT_Qt_MovableType + 47,
@@ -134,6 +136,11 @@ enum KnownType
     KT_QPatternist_ItemSequenceCacheCell = KT_Qt_Type + KT_Qt_MovableType + 86,
     KT_QNetworkHeadersPrivate_RawHeaderPair = KT_Qt_Type + KT_Qt_MovableType + 87,
     KT_QPatternist_AccelTree_BasicNodeData = KT_Qt_Type + KT_Qt_MovableType + 88,
+    KT_QFile = KT_Qt_Type + KT_HasSimpleDumper + 89,
+    KT_QDir  = KT_Qt_Type + KT_HasSimpleDumper + 90,
+    KT_QScriptValue = KT_Qt_Type + KT_HasSimpleDumper + 91,
+    KT_QHostAddress = KT_Qt_Type + KT_HasSimpleDumper + 92,
+    KT_QProcess = KT_Qt_Type + KT_HasSimpleDumper + 93,
     // Types: Qt primitive types
     KT_QFixed = KT_Qt_Type + KT_Qt_PrimitiveType + 90,
     KT_QTextItem = KT_Qt_Type + KT_Qt_PrimitiveType + 91,
@@ -157,8 +164,8 @@ enum KnownType
     KT_QMap = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 10,
     KT_QMultiMap = KT_Qt_Type + KT_ContainerType + KT_HasSimpleDumper + 11,
     // Types: STL
-    KT_StdString = KT_STL_Type + KT_HasSimpleDumper + 1,
-    KT_StdWString = KT_STL_Type + KT_HasSimpleDumper + 2,
+    KT_StdString = KT_STL_Type + KT_Editable + KT_HasSimpleDumper + 1,
+    KT_StdWString = KT_STL_Type + KT_Editable + KT_HasSimpleDumper + 2,
     // Types: STL containers
     KT_StdVector =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 1,
     KT_StdList =  KT_STL_Type + KT_ContainerType + KT_HasSimpleDumper + 2,

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,8 +54,8 @@ public:
     void setTitle(const QString &title);
     QString title() const { return m_title; }
 
-    void addTab(const QString &name, const QStringList &subTabs);
-    void insertTab(int index, const QString &name, const QStringList &subTabs);
+    void addTab(const QString &name, const QString &fullName, const QStringList &subTabs);
+    void insertTab(int index, const QString &name, const QString &fullName, const QStringList &subTabs);
     void removeTab(int index);
     int tabCount() const;
 
@@ -71,14 +71,25 @@ protected:
     void paintEvent(QPaintEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void changeEvent(QEvent *e);
+    bool event(QEvent *event);
     QSize minimumSizeHint() const;
 
 private:
     struct Tab {
         QString name;
+        QString fullName;
+        bool nameIsUnique;
         QStringList subTabs;
         int currentSubTab;
+        QString displayName() const {
+            return nameIsUnique ? name : fullName;
+        }
     };
+    void updateNameIsUniqueAdd(Tab *tab);
+    void updateNameIsUniqueRemove(const Tab &tab);
+
+    enum HitArea { HITNOTHING, HITOVERFLOW, HITTAB, HITSUBTAB };
+    QPair<DoubleTabWidget::HitArea, int> convertPosToTab(QPoint pos);
 
     const QPixmap m_left;
     const QPixmap m_mid;

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -65,16 +65,10 @@ const char * const CLEANPROJECTONLY     = "ProjectExplorer.CleanProjectOnly";
 const char * const CLEAN                = "ProjectExplorer.Clean";
 const char * const CLEANCM              = "ProjectExplorer.CleanCM";
 const char * const CLEANSESSION         = "ProjectExplorer.CleanSession";
-const char * const BUILDPROJECTONLYMENU = "ProjectExplorer.BuildProjectOnlyMenu";
-const char * const BUILDCONFIGURATIONMENU = "ProjectExplorer.BuildConfigurationMenu";
 const char * const CANCELBUILD          = "ProjectExplorer.CancelBuild";
-const char * const RUNCONFIGURATIONMENU = "ProjectExplorer.RunConfigurationMenu";
 const char * const RUN                  = "ProjectExplorer.Run";
 const char * const RUNCONTEXTMENU       = "ProjectExplorer.RunContextMenu";
 const char * const STOP                 = "ProjectExplorer.Stop";
-const char * const DEPENDENCIES         = "ProjectExplorer.Dependencies";
-const char * const FINDINALLPROJECTS    = "ProjectExplorer.FindInAllProjects";
-const char * const SHOWPROPERTIES       = "ProjectExplorer.ShowProperties";
 const char * const ADDNEWFILE           = "ProjectExplorer.AddNewFile";
 const char * const ADDEXISTINGFILES     = "ProjectExplorer.AddExistingFiles";
 const char * const ADDNEWSUBPROJECT     = "ProjectExplorer.AddNewSubproject";
@@ -99,11 +93,13 @@ const char * const SELECTTARGET         = "ProjectExplorer.SelectTarget";
 
 // action priorities
 const int          P_ACTION_RUN            = 100;
-const int          P_ACTION_BUILDSESSION   = 80;
+const int          P_ACTION_BUILDPROJECT   = 80;
 
 // context
 const char * const C_PROJECTEXPLORER    = "Project Explorer";
 const char * const C_PROJECT_TREE       = "ProjectExplorer.ProjectTreeContext";
+const char * const C_APP_OUTPUT         = "ProjectExplorer.ApplicationOutput";
+const char * const C_COMPILE_OUTPUT     = "ProjectExplorer.CompileOutput";
 
 // languages
 const char * const LANG_CXX             = "CXX";
@@ -116,21 +112,12 @@ const char * const M_DEBUG              = "ProjectExplorer.Menu.Debug";
 const char * const M_DEBUG_STARTDEBUGGING = "ProjectExplorer.Menu.Debug.StartDebugging";
 const char * const M_SESSION            = "ProjectExplorer.Menu.Session";
 
-// toolbars
-const char * const T_BUILDPROJECT       = "ProjectExplorer.ToolBar.Build";
-
 // menu groups
 const char * const G_BUILD_SESSION      = "ProjectExplorer.Group.BuildSession";
 const char * const G_BUILD_PROJECT      = "ProjectExplorer.Group.Build";
 const char * const G_BUILD_OTHER        = "ProjectExplorer.Group.Other";
 const char * const G_BUILD_RUN          = "ProjectExplorer.Group.Run";
 const char * const G_BUILD_CANCEL       = "ProjectExplorer.Group.BuildCancel";
-
-// toolbar groups
-const char * const G_TOOLBAR_CUSTOM     = "ProjectExplorer.ToolBarGroup.Custom";
-const char * const G_TOOLBAR_BUILD      = "ProjectExplorer.ToolBarGroup.Build";
-const char * const G_TOOLBAR_RUN        = "ProjectExplorer.ToolBarGroup.Run";
-const char * const G_TOOLBAR_OTHER      = "ProjectExplorer.ToolBarGroup.Other";
 
 // context menus
 const char * const M_SESSIONCONTEXT     = "Project.Menu.Session";
@@ -146,12 +133,11 @@ const char * const G_SESSION_FILES      = "Session.Group.Files";
 const char * const G_SESSION_OTHER      = "Session.Group.Other";
 const char * const G_SESSION_CONFIG     = "Session.Group.Config";
 
-const char * const G_PROJECT_FILES      = "Project.Group.Files";
 const char * const G_PROJECT_FIRST      = "Project.Group.Open";
 const char * const G_PROJECT_BUILD      = "Project.Group.Build";
-const char * const G_PROJECT_OTHER      = "Project.Group.Other";
 const char * const G_PROJECT_RUN        = "Project.Group.Run";
-const char * const G_PROJECT_CONFIG     = "Project.Group.Config";
+const char * const G_PROJECT_FILES      = "Project.Group.Files";
+const char * const G_PROJECT_LAST       = "Project.Group.Last";
 
 const char * const G_FOLDER_FILES       = "ProjectFolder.Group.Files";
 const char * const G_FOLDER_OTHER       = "ProjectFolder.Group.Other";
@@ -166,9 +152,6 @@ const char * const RUNMENUCONTEXTMENU   = "Project.RunMenu";
 // file id
 const char * const FILE_FACTORY_ID      = "ProjectExplorer.FileFactoryId";
 
-// wizard kind
-const char * const WIZARD_TYPE_PROJECT  = "ProjectExplorer.WizardType.Project";
-
 // icons
 const char * const ICON_BUILD           = ":/projectexplorer/images/build.png";
 const char * const ICON_BUILD_SMALL     = ":/projectexplorer/images/build_small.png";
@@ -178,27 +161,20 @@ const char * const ICON_REBUILD         = ":/projectexplorer/images/rebuild.png"
 const char * const ICON_REBUILD_SMALL   = ":/projectexplorer/images/rebuild_small.png";
 const char * const ICON_RUN             = ":/projectexplorer/images/run.png";
 const char * const ICON_RUN_SMALL       = ":/projectexplorer/images/run_small.png";
-const char * const ICON_SESSION         = ":/projectexplorer/images/session.png";
-const char * const ICON_DEBUG           = ":/projectexplorer/images/debugger_start.png";
 const char * const ICON_DEBUG_SMALL     = ":/projectexplorer/images/debugger_start_small.png";
-const char * const ICON_CLOSETAB        = ":/projectexplorer/images/closetab.png";
 const char * const ICON_STOP            = ":/projectexplorer/images/stop.png";
+const char * const ICON_STOP_SMALL      = ":/projectexplorer/images/stop_small.png";
 const char * const ICON_TOOLCHAIN_SETTINGS_CATEGORY = ":projectexplorer/images/build.png"; // FIXME: Need an icon!
-
-// find filters
-const char * const FIND_CUR_PROJECT     = "ProjectExplorer.FindFilter.CurrentProject";
-const char * const FIND_ALL_PROJECTS    = "ProjectExplorer.FindFilter.AllProjects";
+const char * const ICON_WINDOW          = ":/projectexplorer/images/window.png";
 
 const char * const TASK_BUILD           = "ProjectExplorer.Task.Build";
-const char * const SESSIONFILE_MIMETYPE = "application/vnd.nokia.xml.qt.creator.session";
 
-
-const char * const PROFILE_MIMETYPE  = "application/vnd.nokia.qt.qmakeprofile";
 const char * const C_SOURCE_MIMETYPE = "text/x-csrc";
 const char * const C_HEADER_MIMETYPE = "text/x-chdr";
 const char * const CPP_SOURCE_MIMETYPE = "text/x-c++src";
 const char * const CPP_HEADER_MIMETYPE = "text/x-c++hdr";
 const char * const FORM_MIMETYPE = "application/x-designer";
+const char * const QML_MIMETYPE = "application/x-qml";
 const char * const RESOURCE_MIMETYPE = "application/vnd.nokia.xml.qt.resource";
 
 // settings page
@@ -227,9 +203,10 @@ const char * const BUILDSTEPS_DEPLOY = "ProjectExplorer.BuildSteps.Deploy";
 const char * const DEFAULT_DEPLOYCONFIGURATION_ID = "ProjectExplorer.DefaultDeployConfiguration";
 
 // ToolChain Ids
+const char * const CLANG_TOOLCHAIN_ID = "ProjectExplorer.ToolChain.Clang";
 const char * const GCC_TOOLCHAIN_ID = "ProjectExplorer.ToolChain.Gcc";
-const char * const MINGW_TOOLCHAIN_ID = "ProjectExplorer.ToolChain.Mingw";
 const char * const LINUXICC_TOOLCHAIN_ID = "ProjectExplorer.ToolChain.LinuxIcc";
+const char * const MINGW_TOOLCHAIN_ID = "ProjectExplorer.ToolChain.Mingw";
 const char * const MSVC_TOOLCHAIN_ID = "ProjectExplorer.ToolChain.Msvc";
 
 // Run Configuration defaults:

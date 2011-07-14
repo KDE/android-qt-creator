@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,10 +52,6 @@ namespace Utils {
     class IpAddressLineEdit;
 }
 
-namespace trk {
-    class Launcher;
-}
-
 namespace SymbianUtils {
 class SymbianDevice;
 }
@@ -67,9 +63,10 @@ namespace Coda {
 }
 
 namespace Qt4ProjectManager {
-namespace Internal {
 
 class S60DeployConfiguration;
+
+namespace Internal {
 
 /* Configuration widget for S60 devices on serial ports that are
  * provided by the SerialDeviceLister class. Has an info/test
@@ -95,8 +92,6 @@ private slots:
     void setSerialPort(int index);
     void updateDeviceInfo();
     void clearDeviceInfo();
-    void slotLauncherStateChanged(int);
-    void slotWaitingForTrkClosed();
     void silentInstallChanged(int);
     void updateCommunicationChannel();
     void updateCommunicationChannelUi();
@@ -128,15 +123,11 @@ private:
     QToolButton *m_deviceInfoButton;
     QLabel *m_deviceInfoDescriptionLabel;
     QLabel *m_deviceInfoLabel;
-    QPointer<trk::Launcher> m_infoLauncher;
     QComboBox *m_installationDriveCombo;
     QCheckBox *m_silentInstallCheckBox;
     QRadioButton *m_serialRadioButton;
     QRadioButton *m_wlanRadioButton;
     Utils::IpAddressLineEdit *m_ipAddress;
-    QRadioButton *m_trkRadioButton;
-    QRadioButton *m_codaRadioButton;
-    QLabel *m_codaInfoLabel;
     QSharedPointer<Coda::CodaDevice> m_codaInfoDevice;
     QString m_deviceInfo;
     QTimer *m_codaTimeout;

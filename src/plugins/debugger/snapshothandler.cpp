@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "snapshothandler.h"
 
 #include "debuggerconstants.h"
+#include "debuggerinternalconstants.h"
 #include "debuggercore.h"
 #include "debuggerengine.h"
 #include "debuggerrunner.h"

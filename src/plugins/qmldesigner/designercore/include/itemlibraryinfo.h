@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -72,6 +72,7 @@ public:
     QIcon dragIcon() const;
     QString qml() const;
     QString requiredImport() const;
+    bool forceImport() const;
 
     ItemLibraryEntry(const ItemLibraryEntry &other);
     ItemLibraryEntry& operator=(const ItemLibraryEntry &other);
@@ -90,6 +91,7 @@ public:
     void setCategory(const QString &category);
     void setQml(const QString &qml);
     void setRequiredImport(const QString &requiredImport);
+    void setForceImport(bool b);
 private:
     QExplicitlySharedDataPointer<Internal::ItemLibraryEntryData> m_data;
 };

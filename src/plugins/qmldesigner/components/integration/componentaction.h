@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,14 +50,15 @@ class ComponentAction : public QWidgetAction
 {
     Q_OBJECT
 public:
-    ComponentAction(QObject *parent);
-    void setModel(Model* model);
+    ComponentAction(ComponentView  *componentView);
+    void setCurrentIndex(int);
 
 protected:
     QWidget  *createWidget(QWidget *parent);
 
 signals:
     void currentComponentChanged(const ModelNode &node);
+    void currentIndexChanged(int);
 
 private slots:
     void emitCurrentComponentChanged(int index);

@@ -26,14 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef QMAKESTEP_H
 #define QMAKESTEP_H
 
-#include "ui_qmakestep.h"
+#include <QtCore/qglobal.h>
+
+QT_BEGIN_NAMESPACE
+namespace Ui { class QMakeStep; }
+QT_END_NAMESPACE
 
 #include <projectexplorer/abstractprocessstep.h>
 
@@ -76,6 +80,12 @@ class QMakeStep : public ProjectExplorer::AbstractProcessStep
     Q_OBJECT
     friend class Internal::QMakeStepFactory;
 
+    enum QmlLibraryLink {
+        DoNotLink = 0,
+        DoLink,
+        DebugLink
+    };
+
 public:
     explicit QMakeStep(ProjectExplorer::BuildStepList *parent);
     virtual ~QMakeStep();
@@ -93,6 +103,7 @@ public:
     QStringList moreArguments();
     QStringList parserArguments();
     QString userArguments();
+    QString mkspec();
     void setUserArguments(const QString &arguments);
     bool linkQmlDebuggingLibrary() const;
     void setLinkQmlDebuggingLibrary(bool enable);
@@ -120,7 +131,7 @@ private:
     bool m_forced;
     bool m_needToRunQMake; // set in init(), read in run()
     QString m_userArgs;
-    bool m_linkQmlDebuggingLibrary;
+    QmlLibraryLink m_linkQmlDebuggingLibrary;
     bool m_scriptTemplate;
     QList<ProjectExplorer::Task> m_tasks;
 };
@@ -131,12 +142,13 @@ class QMakeStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
     Q_OBJECT
 public:
     QMakeStepConfigWidget(QMakeStep *step);
-    void init();
+    ~QMakeStepConfigWidget();
     QString summaryText() const;
     QString displayName() const;
 private slots:
     // slots for handling buildconfiguration/step signals
     void qtVersionChanged();
+    void qtVersionsDumpUpdated(const QString &qmakeCommand);
     void qmakeBuildConfigChanged();
     void userArgumentsChanged();
     void linkQmlDebuggingLibraryChanged();
@@ -148,13 +160,12 @@ private slots:
 
     // other
     void buildQmlDebuggingHelper();
-    void debuggingHelperBuildFinished(int qtVersionId, const QString &output);
 
 private:
     void updateSummaryLabel();
-    void updateQmlDebuggingWarningsLabel();
+    void updateQmlDebuggingOption();
     void updateEffectiveQMakeCall();
-    Ui::QMakeStep m_ui;
+    Ui::QMakeStep *m_ui;
     QMakeStep *m_step;
     QString m_summaryText;
     bool m_ignoreChange;

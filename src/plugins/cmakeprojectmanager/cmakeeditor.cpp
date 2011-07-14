@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,11 @@
 #include "cmakehighlighter.h"
 #include "cmakeeditorfactory.h"
 #include "cmakeprojectconstants.h"
+#include "cmakeproject.h"
 
+#include <coreplugin/infobar.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/session.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditorconstants.h>
@@ -51,14 +55,11 @@ using namespace CMakeProjectManager::Internal;
 //
 
 CMakeEditor::CMakeEditor(CMakeEditorWidget *editor)
-  : BaseTextEditor(editor),
-    m_context(CMakeProjectManager::Constants::C_CMAKEEDITOR,
-              TextEditor::Constants::C_TEXTEDITOR)
-{ }
-
-Core::Context CMakeEditor::context() const
+  : BaseTextEditor(editor)
 {
-    return m_context;
+    setContext(Core::Context(CMakeProjectManager::Constants::C_CMAKEEDITOR,
+              TextEditor::Constants::C_TEXTEDITOR));
+    connect(this, SIGNAL(changed()), this, SLOT(markAsChanged()));
 }
 
 Core::IEditor *CMakeEditor::duplicate(QWidget *parent)
@@ -73,6 +74,29 @@ Core::IEditor *CMakeEditor::duplicate(QWidget *parent)
 QString CMakeEditor::id() const
 {
     return QLatin1String(CMakeProjectManager::Constants::CMAKE_EDITOR_ID);
+}
+
+void CMakeEditor::markAsChanged()
+{
+    Core::InfoBarEntry info(QLatin1String("CMakeEditor.RunCMake"),
+                            tr("Changes to cmake files are shown in the project tree after building."));
+    info.setCustomButtonInfo(tr("Build now"), this, SLOT(build()));
+    file()->infoBar()->addInfo(info);
+}
+
+void CMakeEditor::build()
+{
+    QList<ProjectExplorer::Project *> projects =
+            ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projects();
+    foreach (ProjectExplorer::Project *p, projects) {
+        CMakeProject *cmakeProject = qobject_cast<CMakeProject *>(p);
+        if (cmakeProject) {
+            if (cmakeProject->isProjectFile(file()->fileName())) {
+                ProjectExplorer::ProjectExplorerPlugin::instance()->buildProject(cmakeProject);
+                break;
+            }
+        }
+    }
 }
 
 //
@@ -91,10 +115,6 @@ CMakeEditorWidget::CMakeEditorWidget(QWidget *parent, CMakeEditorFactory *factor
     baseTextDocument()->setSyntaxHighlighter(new CMakeHighlighter);
 }
 
-CMakeEditorWidget::~CMakeEditorWidget()
-{
-}
-
 TextEditor::BaseTextEditor *CMakeEditorWidget::createEditor()
 {
     return new CMakeEditor(this);
@@ -110,7 +130,7 @@ void CMakeEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
     static QVector<QString> categories;
     if (categories.isEmpty()) {
         categories << QLatin1String(TextEditor::Constants::C_LABEL)  // variables
-                << QLatin1String(TextEditor::Constants::C_LINK)   // functions
+                << QLatin1String(TextEditor::Constants::C_KEYWORD)   // functions
                 << QLatin1String(TextEditor::Constants::C_COMMENT)
                 << QLatin1String(TextEditor::Constants::C_STRING)
                 << QLatin1String(TextEditor::Constants::C_VISUAL_WHITESPACE);

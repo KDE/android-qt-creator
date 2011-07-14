@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -93,7 +93,7 @@ ProFileOption::ProFileOption()
     dirlist_sep = QLatin1Char(':');
     dir_sep = QLatin1Char('/');
 #endif
-    qmakespec = QString::fromLocal8Bit(qgetenv("QMAKESPEC").data());
+    qmakespec = getEnv(QLatin1String("QMAKESPEC"));
 
     host_mode = HOST_UNKNOWN_MODE;
     target_mode = TARG_UNKNOWN_MODE;
@@ -163,6 +163,48 @@ void ProFileOption::applyHostMode()
    }
 }
 
+QString ProFileOption::getEnv(const QString &var) const
+{
+#ifndef QT_BOOTSTRAPPED
+    if (!environment.isEmpty())
+        return environment.value(var);
+#endif
+    return QString::fromLocal8Bit(qgetenv(var.toLocal8Bit().constData()));
+}
+
+#ifdef PROEVALUATOR_INIT_PROPS
+bool ProFileOption::initProperties(const QString &qmake)
+{
+    QByteArray data;
+#ifndef QT_BOOTSTRAPPED
+    QProcess proc;
+    proc.start(qmake, QStringList() << QLatin1String("-query"));
+    if (!proc.waitForFinished())
+        return false;
+    data = proc.readAll();
+#else
+    if (FILE *proc = QT_POPEN(QString(IoUtils::shellQuote(qmake) + QLatin1String(" -query"))
+                              .toLocal8Bit(), "r")) {
+        char buff[1024];
+        while (!feof(proc))
+            data.append(buff, int(fread(buff, 1, 1023, proc)));
+        QT_PCLOSE(proc);
+    }
+#endif
+    foreach (QByteArray line, data.split('\n'))
+        if (!line.startsWith("QMAKE_")) {
+            int off = line.indexOf(':');
+            if (off < 0) // huh?
+                continue;
+            if (line.endsWith('\r'))
+                line.chop(1);
+            properties.insert(QString::fromLatin1(line.left(off)),
+                              QString::fromLocal8Bit(line.mid(off + 1)));
+        }
+    return true;
+}
+#endif
+
 ///////////////////////////////////////////////////////////////////////
 //
 // ProFileEvaluator::Private
@@ -213,7 +255,7 @@ public:
     ProStringList values(const ProString &variableName) const;
     QString propertyValue(const QString &val, bool complain) const;
 
-    static ProStringList split_value_list(const QString &vals);
+    ProStringList split_value_list(const QString &vals, const ProFile *source = 0);
     bool isActiveConfig(const QString &config, bool regex = false);
     ProStringList expandVariableReferences(const ProString &value, int *pos = 0, bool joined = false);
     ProStringList expandVariableReferences(const ushort *&tokPtr, int sizeHint = 0, bool joined = false);
@@ -256,11 +298,27 @@ public:
     QStringList qmakeMkspecPaths() const;
     QStringList qmakeFeaturePaths() const;
 
+    void populateDeps(
+            const ProStringList &deps, const ProString &prefix,
+            QHash<ProString, QSet<ProString> > &dependencies,
+            QHash<ProString, ProStringList> &dependees,
+            ProStringList &rootSet) const;
+
+    QString expandEnvVars(const QString &str) const;
+    QString fixPathToLocalOS(const QString &str) const;
     QString sysrootify(const QString &path, const QString &baseDir) const;
+
+#ifndef QT_BOOTSTRAPPED
+    void runProcess(QProcess *proc, const QString &command, QProcess::ProcessChannel chan) const;
+#endif
 
     int m_skipLevel;
     int m_loopLevel; // To report unexpected break() and next()s
+#ifdef PROEVALUATOR_CUMULATIVE
     bool m_cumulative;
+#else
+    enum { m_cumulative = 0 };
+#endif
 
     struct Location {
         Location() : pro(0), line(0) {}
@@ -279,7 +337,6 @@ public:
     FunctionDefs m_functionDefs;
     ProStringList m_returnValue;
     QStack<QHash<ProString, ProStringList> > m_valuemapStack;         // VariableName must be us-ascii, the content however can be non-us-ascii.
-    QHash<const ProFile*, QHash<ProString, ProStringList> > m_filevaluemap; // Variables per include file
     QString m_tmp1, m_tmp2, m_tmp3, m_tmp[2]; // Temporaries for efficient toQString
 
     ProFileOption *m_option;
@@ -291,7 +348,7 @@ public:
         E_SPRINTF, E_JOIN, E_SPLIT, E_BASENAME, E_DIRNAME, E_SECTION,
         E_FIND, E_SYSTEM, E_UNIQUE, E_QUOTE, E_ESCAPE_EXPAND,
         E_UPPER, E_LOWER, E_FILES, E_PROMPT, E_RE_ESCAPE,
-        E_REPLACE
+        E_REPLACE, E_SORT_DEPENDS, E_RESOLVE_DEPENDS
     };
 
     enum TestFunc {
@@ -392,7 +449,9 @@ void ProFileEvaluator::Private::initStatics()
         { "re_escape", E_RE_ESCAPE },
         { "files", E_FILES },
         { "prompt", E_PROMPT }, // interactive, so cannot be implemented
-        { "replace", E_REPLACE }
+        { "replace", E_REPLACE },
+        { "sort_depends", E_SORT_DEPENDS },
+        { "resolve_depends", E_RESOLVE_DEPENDS }
     };
     for (unsigned i = 0; i < sizeof(expandInits)/sizeof(expandInits[0]); ++i)
         statics.expands.insert(ProString(expandInits[i].name), expandInits[i].func);
@@ -488,7 +547,9 @@ ProFileEvaluator::Private::Private(ProFileEvaluator *q_, ProFileOption *option,
     initStatics();
 
     // Configuration, more or less
+#ifdef PROEVALUATOR_CUMULATIVE
     m_cumulative = true;
+#endif
 
     // Evaluator state
     m_skipLevel = 0;
@@ -514,6 +575,7 @@ ProString ProFileEvaluator::Private::getStr(const ushort *&tokPtr)
 {
     uint len = *tokPtr++;
     ProString ret(m_current.pro->items(), tokPtr - m_current.pro->tokPtr(), len, NoHash);
+    ret.setSource(m_current.pro);
     tokPtr += len;
     return ret;
 }
@@ -542,7 +604,7 @@ void ProFileEvaluator::Private::skipHashStr(const ushort *&tokPtr)
 
 // FIXME: this should not build new strings for direct sections.
 // Note that the E_SPRINTF and E_LIST implementations rely on the deep copy.
-ProStringList ProFileEvaluator::Private::split_value_list(const QString &vals)
+ProStringList ProFileEvaluator::Private::split_value_list(const QString &vals, const ProFile *source)
 {
     QString build;
     ProStringList ret;
@@ -554,6 +616,9 @@ ProStringList ProFileEvaluator::Private::split_value_list(const QString &vals)
     const ushort SINGLEQUOTE = '\'';
     const ushort DOUBLEQUOTE = '"';
     const ushort BACKSLASH = '\\';
+
+    if (!source)
+        source = currentProFile();
 
     ushort unicode;
     const QChar *vals_data = vals.data();
@@ -574,14 +639,14 @@ ProStringList ProFileEvaluator::Private::split_value_list(const QString &vals)
         }
 
         if (!parens && quote.isEmpty() && vals_data[x] == SPACE) {
-            ret << ProString(build, NoHash);
+            ret << ProString(build, NoHash).setSource(source);
             build.clear();
         } else {
             build += vals_data[x];
         }
     }
     if (!build.isEmpty())
-        ret << ProString(build, NoHash);
+        ret << ProString(build, NoHash).setSource(source);
     return ret;
 }
 
@@ -624,7 +689,7 @@ static void replaceInList(ProStringList *varlist,
             if (val.isEmpty()) {
                 varit = varlist->erase(varit);
             } else {
-                *varit = ProString(val);
+                (*varit).setValue(val, NoHash);
                 ++varit;
             }
             if (!global)
@@ -635,19 +700,19 @@ static void replaceInList(ProStringList *varlist,
     }
 }
 
-static QString expandEnvVars(const QString &str)
+QString ProFileEvaluator::Private::expandEnvVars(const QString &str) const
 {
     QString string = str;
     int rep;
     QRegExp reg_variableName = statics.reg_variableName; // Copy for thread safety
     while ((rep = reg_variableName.indexIn(string)) != -1)
         string.replace(rep, reg_variableName.matchedLength(),
-                       QString::fromLocal8Bit(qgetenv(string.mid(rep + 2, reg_variableName.matchedLength() - 3).toLatin1().constData()).constData()));
+                       m_option->getEnv(string.mid(rep + 2, reg_variableName.matchedLength() - 3)));
     return string;
 }
 
 // This is braindead, but we want qmake compat
-static QString fixPathToLocalOS(const QString &str)
+QString ProFileEvaluator::Private::fixPathToLocalOS(const QString &str) const
 {
     QString string = expandEnvVars(str);
 
@@ -747,11 +812,12 @@ void ProFileEvaluator::Private::evaluateExpression(
             break;
         case TokProperty:
             addStr(ProString(propertyValue(
-                    getStr(tokPtr).toQString(m_tmp1), true), NoHash), ret, pending, joined);
+                      getStr(tokPtr).toQString(m_tmp1), true), NoHash).setSource(currentProFile()),
+                   ret, pending, joined);
             break;
         case TokEnvVar:
-            addStrList(split_value_list(QString::fromLocal8Bit(qgetenv(
-                    getStr(tokPtr).toQString(m_tmp1).toLatin1().constData()))), tok, ret, pending, joined);
+            addStrList(split_value_list(m_option->getEnv(getStr(tokPtr).toQString(m_tmp1))),
+                       tok, ret, pending, joined);
             break;
         case TokFuncName: {
             ProString func = getHashStr(tokPtr);
@@ -1107,7 +1173,6 @@ void ProFileEvaluator::Private::visitProVariable(
             // We could make a union of modified and unmodified values,
             // but this will break just as much as it fixes, so leave it as is.
             replaceInList(&valuesRef(varName), regexp, replace, global, m_tmp2);
-            replaceInList(&m_filevaluemap[currentProFile()][varName], regexp, replace, global, m_tmp2);
         }
     } else {
         ProStringList varVal = expandVariableReferences(tokPtr, sizeHint);
@@ -1118,7 +1183,6 @@ void ProFileEvaluator::Private::visitProVariable(
                 if (!m_skipLevel) {
                     zipEmpty(&varVal);
                     m_valuemapStack.top()[varName] = varVal;
-                    m_filevaluemap[currentProFile()][varName] = varVal;
                 }
             } else {
                 zipEmpty(&varVal);
@@ -1139,31 +1203,23 @@ void ProFileEvaluator::Private::visitProVariable(
                             if (!has.contains(s))
                                 v << s;
                     }
-                    // These values will not be used for further processing inside
-                    // the evaluator. Duplicate elimination happens later.
-                    m_filevaluemap[currentProFile()][varName] += varVal;
                 }
             }
             break;
         case TokAppendUnique:    // *=
-            if (!m_skipLevel || m_cumulative) {
+            if (!m_skipLevel || m_cumulative)
                 insertUnique(&valuesRef(varName), varVal);
-                insertUnique(&m_filevaluemap[currentProFile()][varName], varVal);
-            }
             break;
         case TokAppend:          // +=
             if (!m_skipLevel || m_cumulative) {
                 zipEmpty(&varVal);
                 valuesRef(varName) += varVal;
-                m_filevaluemap[currentProFile()][varName] += varVal;
             }
             break;
         case TokRemove:       // -=
             if (!m_cumulative) {
-                if (!m_skipLevel) {
+                if (!m_skipLevel)
                     removeEach(&valuesRef(varName), varVal);
-                    removeEach(&m_filevaluemap[currentProFile()][varName], varVal);
-                }
             } else {
                 // We are stingy with our values, too.
             }
@@ -1209,8 +1265,10 @@ ProFileEvaluator::Private::VisitReturn ProFileEvaluator::Private::visitProFile(
                 locker.unlock();
 #endif
 
+#ifdef PROEVALUATOR_CUMULATIVE
                 bool cumulative = m_cumulative;
                 m_cumulative = false;
+#endif
 
                 // ### init QMAKE_QMAKE, QMAKE_SH
                 // ### init QMAKE_EXT_{C,H,CPP,OBJ}
@@ -1324,7 +1382,9 @@ ProFileEvaluator::Private::VisitReturn ProFileEvaluator::Private::visitProFile(
                 m_option->base_valuemap = m_valuemapStack.top();
                 m_option->base_functions = m_functionDefs;
 
+#ifdef PROEVALUATOR_CUMULATIVE
                 m_cumulative = cumulative;
+#endif
 
 #ifdef PROEVALUATOR_THREAD_SAFE
                 locker.relock();
@@ -1386,9 +1446,9 @@ QStringList ProFileEvaluator::Private::qmakeMkspecPaths() const
     QStringList ret;
     const QString concat = QLatin1String("/mkspecs");
 
-    QByteArray qmakepath = qgetenv("QMAKEPATH");
+    QString qmakepath = m_option->getEnv(QLatin1String("QMAKEPATH"));
     if (!qmakepath.isEmpty())
-        foreach (const QString &it, QString::fromLocal8Bit(qmakepath).split(m_option->dirlist_sep))
+        foreach (const QString &it, qmakepath.split(m_option->dirlist_sep))
             ret << QDir::cleanPath(it) + concat;
 
     QString builtIn = propertyValue(QLatin1String("QT_INSTALL_DATA"), false) + concat;
@@ -1426,9 +1486,9 @@ QStringList ProFileEvaluator::Private::qmakeFeaturePaths() const
 
     QStringList feature_roots;
 
-    QByteArray mkspec_path = qgetenv("QMAKEFEATURES");
+    QString mkspec_path = m_option->getEnv(QLatin1String("QMAKEFEATURES"));
     if (!mkspec_path.isEmpty())
-        foreach (const QString &f, QString::fromLocal8Bit(mkspec_path).split(m_option->dirlist_sep))
+        foreach (const QString &f, mkspec_path.split(m_option->dirlist_sep))
             feature_roots += resolvePath(f);
 
     feature_roots += propertyValue(QLatin1String("QMAKEFEATURES"), false).split(
@@ -1440,9 +1500,9 @@ QStringList ProFileEvaluator::Private::qmakeFeaturePaths() const
             feature_roots << (path + concat_it);
     }
 
-    QByteArray qmakepath = qgetenv("QMAKEPATH");
+    QString qmakepath = m_option->getEnv(QLatin1String("QMAKEPATH"));
     if (!qmakepath.isNull()) {
-        const QStringList lst = QString::fromLocal8Bit(qmakepath).split(m_option->dirlist_sep);
+        const QStringList lst = qmakepath.split(m_option->dirlist_sep);
         foreach (const QString &item, lst) {
             QString citem = resolvePath(item);
             foreach (const QString &concat_it, concat)
@@ -1522,6 +1582,28 @@ QString ProFileEvaluator::Private::sysrootify(const QString &path, const QString
         || path.startsWith(baseDir) || path.startsWith(m_outputDir);
     return isHostSystemPath ? path : m_option->sysroot + path;
 }
+
+#ifndef QT_BOOTSTRAPPED
+void ProFileEvaluator::Private::runProcess(QProcess *proc, const QString &command,
+                                           QProcess::ProcessChannel chan) const
+{
+    proc->setWorkingDirectory(currentDirectory());
+    if (!m_option->environment.isEmpty())
+        proc->setProcessEnvironment(m_option->environment);
+# ifdef Q_OS_WIN
+    proc->setNativeArguments(QLatin1String("/v:off /s /c \"") + command + QLatin1Char('"'));
+    proc->start(m_option->getEnv(QLatin1String("COMSPEC")), QStringList());
+# else
+    proc->start(QLatin1String("/bin/sh"), QStringList() << QLatin1String("-c") << command);
+# endif
+    proc->waitForFinished(-1);
+    proc->setReadChannel(chan);
+    QByteArray errout = proc->readAll();
+    if (errout.endsWith('\n'))
+        errout.chop(1);
+    m_handler->evalError(QString(), 0, QString::fromLocal8Bit(errout));
+}
+#endif
 
 // The (QChar*)current->constData() constructs below avoid pointless detach() calls
 // FIXME: This is inefficient. Should not make new string if it is a straight subsegment
@@ -1710,8 +1792,7 @@ ProStringList ProFileEvaluator::Private::expandVariableReferences(
 
                 ProStringList replacement;
                 if (var_type == ENVIRON) {
-                    replacement = split_value_list(QString::fromLocal8Bit(qgetenv(
-                            var.toQString(m_tmp1).toLocal8Bit().constData())));
+                    replacement = split_value_list(m_option->getEnv(var.toQString(m_tmp1)));
                 } else if (var_type == PROPERTY) {
                     replacement << ProString(propertyValue(var.toQString(m_tmp1), true), NoHash);
                 } else if (var_type == FUNCTION) {
@@ -1956,6 +2037,27 @@ ProStringList ProFileEvaluator::Private::expandVariableReferences(
     }
 }
 
+void ProFileEvaluator::Private::populateDeps(
+        const ProStringList &deps, const ProString &prefix,
+        QHash<ProString, QSet<ProString> > &dependencies, QHash<ProString, ProStringList> &dependees,
+        ProStringList &rootSet) const
+{
+    foreach (const ProString &item, deps)
+        if (!dependencies.contains(item)) {
+            QSet<ProString> &dset = dependencies[item]; // Always create entry
+            ProStringList depends = valuesDirect(ProString(prefix + item + QString::fromLatin1(".depends")));
+            if (depends.isEmpty()) {
+                rootSet << item;
+            } else {
+                foreach (const ProString &dep, depends) {
+                    dset.insert(dep);
+                    dependees[dep] << item;
+                }
+                populateDeps(depends, prefix, dependencies, dependees, rootSet);
+            }
+        }
+}
+
 QList<ProStringList> ProFileEvaluator::Private::prepareFunctionArgs(const ushort *&tokPtr)
 {
     QList<ProStringList> args_list;
@@ -2119,12 +2221,12 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                     QRegExp sepRx(sep);
                     foreach (const ProString &str, values(map(var))) {
                         const QString &rstr = str.toQString(m_tmp1).section(sepRx, beg, end);
-                        ret << (rstr.isSharedWith(m_tmp1) ? str : ProString(rstr, NoHash));
+                        ret << (rstr.isSharedWith(m_tmp1) ? str : ProString(rstr, NoHash).setSource(str));
                     }
                 } else {
                     foreach (const ProString &str, values(map(var))) {
                         const QString &rstr = str.toQString(m_tmp1).section(sep, beg, end);
-                        ret << (rstr.isSharedWith(m_tmp1) ? str : ProString(rstr, NoHash));
+                        ret << (rstr.isSharedWith(m_tmp1) ? str : ProString(rstr, NoHash).setSource(str));
                     }
                 }
             }
@@ -2154,8 +2256,15 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                 if (args.count() == 4)
                     after = args[3];
                 const ProStringList &var = values(map(args.at(0)));
-                if (!var.isEmpty())
-                    ret.append(ProString(before + var.join(glue) + after, NoHash));
+                if (!var.isEmpty()) {
+                    const ProFile *src = currentProFile();
+                    foreach (const ProString &v, var)
+                        if (const ProFile *s = v.sourceFile()) {
+                            src = s;
+                            break;
+                        }
+                    ret.append(ProString(before + var.join(glue) + after, NoHash).setSource(src));
+                }
             }
             break;
         }
@@ -2166,7 +2275,7 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                 const QString &sep = (args.count() == 2) ? args.at(1).toQString(m_tmp1) : statics.field_sep;
                 foreach (const ProString &var, values(map(args.at(0))))
                     foreach (const QString &splt, var.toQString(m_tmp2).split(sep))
-                        ret << (splt.isSharedWith(m_tmp2) ? var : ProString(splt, NoHash));
+                        ret << (splt.isSharedWith(m_tmp2) ? var : ProString(splt, NoHash).setSource(var));
             }
             break;
         case E_MEMBER:
@@ -2232,7 +2341,7 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
             }
             break;
         case E_SIZE:
-            if(args.count() != 1)
+            if (args.count() != 1)
                 evalError(fL1S("size(var) requires one argument."));
             else
                 ret.append(ProString(QString::number(values(map(args.at(0))).size()), NoHash));
@@ -2284,7 +2393,7 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
             ret = ProStringList(ProString(tmp, NoHash));
             ProStringList lst;
             foreach (const ProString &arg, args)
-                lst += split_value_list(arg.toQString(m_tmp1)); // Relies on deep copy
+                lst += split_value_list(arg.toQString(m_tmp1), arg.sourceFile()); // Relies on deep copy
             m_valuemapStack.top()[ret.at(0)] = lst;
             break; }
         case E_FIND:
@@ -2305,14 +2414,22 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                 if (args.count() < 1 || args.count() > 2) {
                     evalError(fL1S("system(execute) requires one or two arguments."));
                 } else {
+                    bool singleLine = true;
+                    if (args.count() > 1)
+                        singleLine = isTrue(args.at(1), m_tmp2);
+                    QByteArray output;
+#ifndef QT_BOOTSTRAPPED
+                    QProcess proc;
+                    runProcess(&proc, args.at(0).toQString(m_tmp2), QProcess::StandardError);
+                    output = proc.readAllStandardOutput();
+                    output.replace('\t', ' ');
+                    if (singleLine)
+                        output.replace('\n', ' ');
+#else
                     char buff[256];
                     FILE *proc = QT_POPEN(QString(QLatin1String("cd ")
                                            + IoUtils::shellQuote(currentDirectory())
                                            + QLatin1String(" && ") + args[0]).toLocal8Bit(), "r");
-                    bool singleLine = true;
-                    if (args.count() > 1)
-                        singleLine = isTrue(args.at(1), m_tmp2);
-                    QString output;
                     while (proc && !feof(proc)) {
                         int read_in = int(fread(buff, 1, 255, proc));
                         if (!read_in)
@@ -2321,12 +2438,12 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                             if ((singleLine && buff[i] == '\n') || buff[i] == '\t')
                                 buff[i] = ' ';
                         }
-                        buff[read_in] = '\0';
-                        output += QString::fromLocal8Bit(buff);
+                        output.append(buff, read_in);
                     }
-                    ret += split_value_list(output);
                     if (proc)
                         QT_PCLOSE(proc);
+#endif
+                    ret += split_value_list(QString::fromLocal8Bit(output));
                 }
             }
             break;
@@ -2371,13 +2488,13 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                         }
                     }
                 }
-                ret.append(ProString(QString(i_data, i_len), NoHash));
+                ret.append(ProString(QString(i_data, i_len), NoHash).setSource(args.at(i)));
             }
             break;
         case E_RE_ESCAPE:
             for (int i = 0; i < args.size(); ++i) {
                 const QString &rstr = QRegExp::escape(args.at(i).toQString(m_tmp1));
-                ret << (rstr.isSharedWith(m_tmp1) ? args.at(i) : ProString(rstr, NoHash));
+                ret << (rstr.isSharedWith(m_tmp1) ? args.at(i) : ProString(rstr, NoHash).setSource(args.at(i)));
             }
             break;
         case E_UPPER:
@@ -2385,7 +2502,7 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
             for (int i = 0; i < args.count(); ++i) {
                 QString rstr = args.at(i).toQString(m_tmp1);
                 rstr = (func_t == E_UPPER) ? rstr.toUpper() : rstr.toLower();
-                ret << (rstr.isSharedWith(m_tmp1) ? args.at(i) : ProString(rstr, NoHash));
+                ret << (rstr.isSharedWith(m_tmp1) ? args.at(i) : ProString(rstr, NoHash).setSource(args.at(i)));
             }
             break;
         case E_FILES:
@@ -2425,7 +2542,7 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                                 dirs.append(fname + QDir::separator());
                         }
                         if (regex.exactMatch(qdir[i]))
-                            ret += ProString(fname, NoHash);
+                            ret += ProString(fname, NoHash).setSource(currentProFile());
                     }
                 }
             }
@@ -2440,7 +2557,31 @@ ProStringList ProFileEvaluator::Private::evaluateExpandFunction(
                     QString rstr = val.toQString(m_tmp1);
                     QString copy = rstr; // Force a detach on modify
                     rstr.replace(before, after);
-                    ret << (rstr.isSharedWith(m_tmp1) ? val : ProString(rstr, NoHash));
+                    ret << (rstr.isSharedWith(m_tmp1) ? val : ProString(rstr, NoHash).setSource(val));
+                }
+            }
+            break;
+        case E_SORT_DEPENDS:
+        case E_RESOLVE_DEPENDS:
+            if (args.count() < 1 || args.count() > 2) {
+                evalError(fL1S("%1(var, prefix) requires one or two arguments").arg(func.toQString(m_tmp1)));
+            } else {
+                QHash<ProString, QSet<ProString> > dependencies;
+                QHash<ProString, ProStringList> dependees;
+                ProStringList rootSet;
+                ProStringList orgList = valuesDirect(args.at(0));
+                populateDeps(orgList, (args.count() < 2 ? ProString() : args.at(1)),
+                             dependencies, dependees, rootSet);
+                for (int i = 0; i < rootSet.size(); ++i) {
+                    const ProString &item = rootSet.at(i);
+                    if ((func_t == E_RESOLVE_DEPENDS) || orgList.contains(item))
+                        ret.prepend(item);
+                    foreach (const ProString &dep, dependees[item]) {
+                        QSet<ProString> &dset = dependencies[dep];
+                        dset.remove(item);
+                        if (dset.isEmpty())
+                            rootSet << dep;
+                    }
                 }
             }
             break;
@@ -2895,11 +3036,18 @@ ProFileEvaluator::Private::VisitReturn ProFileEvaluator::Private::evaluateCondit
         case T_SYSTEM: {
             if (args.count() != 1) {
                 evalError(fL1S("system(exec) requires one argument."));
-                ReturnFalse;
+                return ReturnFalse;
             }
+#ifndef QT_BOOTSTRAPPED
+            QProcess proc;
+            proc.setProcessChannelMode(QProcess::MergedChannels);
+            runProcess(&proc, args.at(0).toQString(m_tmp2), QProcess::StandardOutput);
+            return returnBool(proc.exitStatus() == QProcess::NormalExit && proc.exitCode() == 0);
+#else
             return returnBool(system((QLatin1String("cd ")
                                       + IoUtils::shellQuote(currentDirectory())
                                       + QLatin1String(" && ") + args.at(0)).toLocal8Bit().constData()) == 0);
+#endif
         }
 #endif
         case T_ISEMPTY: {
@@ -3185,14 +3333,18 @@ bool ProFileEvaluator::Private::evaluateFeatureFile(const QString &fileName)
         fn = resolvePath(fn);
     }
 
+#ifdef PROEVALUATOR_CUMULATIVE
     bool cumulative = m_cumulative;
     m_cumulative = false;
+#endif
 
     // The path is fully normalized already.
     bool ok = evaluateFileDirect(fn, ProFileEvaluatorHandler::EvalFeatureFile,
                                  ProFileEvaluator::LoadProOnly);
 
+#ifdef PROEVALUATOR_CUMULATIVE
     m_cumulative = cumulative;
+#endif
     return ok;
 }
 
@@ -3201,7 +3353,9 @@ bool ProFileEvaluator::Private::evaluateFileInto(
         QHash<ProString, ProStringList> *values, FunctionDefs *funcs, EvalIntoMode mode)
 {
     ProFileEvaluator visitor(m_option, m_parser, m_handler);
+#ifdef PROEVALUATOR_CUMULATIVE
     visitor.d->m_cumulative = false;
+#endif
     visitor.d->m_outputDir = m_outputDir;
 //    visitor.d->m_valuemapStack.top() = *values;
     if (funcs)
@@ -3252,14 +3406,6 @@ bool ProFileEvaluator::contains(const QString &variableName) const
     return d->m_valuemapStack.top().contains(ProString(variableName));
 }
 
-static QStringList expandEnvVars(const ProStringList &x)
-{
-    QStringList ret;
-    foreach (const ProString &str, x)
-        ret << expandEnvVars(str.toQString());
-    return ret;
-}
-
 QString ProFileEvaluator::value(const QString &variable) const
 {
     const QStringList &vals = values(variable);
@@ -3271,13 +3417,24 @@ QString ProFileEvaluator::value(const QString &variable) const
 
 QStringList ProFileEvaluator::values(const QString &variableName) const
 {
-    return expandEnvVars(d->values(ProString(variableName)));
+    const ProStringList &values = d->values(ProString(variableName));
+    QStringList ret;
+    ret.reserve(values.size());
+    foreach (const ProString &str, values)
+        ret << d->expandEnvVars(str.toQString());
+    return ret;
 }
 
 QStringList ProFileEvaluator::values(const QString &variableName, const ProFile *pro) const
 {
     // It makes no sense to put any kind of magic into expanding these
-    return expandEnvVars(d->m_filevaluemap.value(pro).value(ProString(variableName)));
+    const ProStringList &values = d->m_valuemapStack.at(0).value(ProString(variableName));
+    QStringList ret;
+    ret.reserve(values.size());
+    foreach (const ProString &str, values)
+        if (str.sourceFile() == pro)
+            ret << d->expandEnvVars(str.toQString());
+    return ret;
 }
 
 QStringList ProFileEvaluator::absolutePathValues(
@@ -3351,6 +3508,8 @@ ProFileEvaluator::TemplateType ProFileEvaluator::templateType() const
             return TT_Library;
         if (!t.compare(QLatin1String("script"), Qt::CaseInsensitive))
             return TT_Script;
+        if (!t.compare(QLatin1String("aux"), Qt::CaseInsensitive))
+            return TT_Aux;
         if (!t.compare(QLatin1String("subdirs"), Qt::CaseInsensitive))
             return TT_Subdirs;
     }
@@ -3367,10 +3526,12 @@ QString ProFileEvaluator::propertyValue(const QString &name) const
     return d->propertyValue(name, false);
 }
 
+#ifdef PROEVALUATOR_CUMULATIVE
 void ProFileEvaluator::setCumulative(bool on)
 {
     d->m_cumulative = on;
 }
+#endif
 
 void ProFileEvaluator::setOutputDir(const QString &dir)
 {

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -60,9 +60,9 @@
 
 enum { OptionIndent = 4, DescriptionIndent = 34 };
 
-static const char *appNameC = "Necessitas Qt Creator";
-static const char *corePluginNameC = "Core";
-static const char *fixedOptionsC =
+static const char appNameC[] = "Necessitas Qt Creator";
+static const char corePluginNameC[] = "Core";
+static const char fixedOptionsC[] =
 " [OPTION]... [FILE]...\n"
 "Options:\n"
 "    -help                         Display this help\n"
@@ -70,13 +70,13 @@ static const char *fixedOptionsC =
 "    -client                       Attempt to connect to already running instance\n"
 "    -settingspath <path>          Override the default path where user settings are stored.\n";
 
-static const char *HELP_OPTION1 = "-h";
-static const char *HELP_OPTION2 = "-help";
-static const char *HELP_OPTION3 = "/h";
-static const char *HELP_OPTION4 = "--help";
-static const char *VERSION_OPTION = "-version";
-static const char *CLIENT_OPTION = "-client";
-static const char *SETTINGS_OPTION = "-settingspath";
+static const char HELP_OPTION1[] = "-h";
+static const char HELP_OPTION2[] = "-help";
+static const char HELP_OPTION3[] = "/h";
+static const char HELP_OPTION4[] = "--help";
+static const char VERSION_OPTION[] = "-version";
+static const char CLIENT_OPTION[] = "-client";
+static const char SETTINGS_OPTION[] = "-settingspath";
 
 typedef QList<ExtensionSystem::PluginSpec *> PluginSpecSet;
 
@@ -143,9 +143,13 @@ static inline QString msgCoreLoadFailure(const QString &why)
     return QCoreApplication::translate("Application", "Failed to load core: %1").arg(why);
 }
 
-static inline QString msgSendArgumentFailed()
+static inline int askMsgSendFailed()
 {
-    return QCoreApplication::translate("Application", "Unable to send command line arguments to the already running instance. It appears to be not responding.");
+    return QMessageBox::question(0, QApplication::translate("Application","Could not send message"),
+                                 QCoreApplication::translate("Application", "Unable to send command line arguments to the already running instance."
+                                                             "It appears to be not responding. Do you want to start a new instance of Creator?"),
+                                 QMessageBox::Yes | QMessageBox::No | QMessageBox::Retry,
+                                 QMessageBox::Retry);
 }
 
 static inline QStringList getPluginPaths()
@@ -228,11 +232,15 @@ int main(int argc, char **argv)
     setrlimit(RLIMIT_NOFILE, &rl);
 #endif
 
+#ifdef Q_WS_X11
+    // QML is unusable with the xlib backend
+    QApplication::setGraphicsSystem("raster");
+#endif
+
     SharedTools::QtSingleApplication app((QLatin1String(appNameC)), argc, argv);
 
     const int threadCount = QThreadPool::globalInstance()->maxThreadCount();
     QThreadPool::globalInstance()->setMaxThreadCount(qMax(4, 2 * threadCount));
-
 
 #ifdef ENABLE_QT_BREAKPAD
     QtSystemExceptionHandler systemExceptionHandler;
@@ -364,11 +372,24 @@ int main(int argc, char **argv)
 
     const bool isFirstInstance = !app.isRunning();
     if (!isFirstInstance && foundAppOptions.contains(QLatin1String(CLIENT_OPTION))) {
-        if (!app.sendMessage(pluginManager.serializedArguments())) {
-            displayError(msgSendArgumentFailed());
-            return -1;
+        if (app.sendMessage(pluginManager.serializedArguments()))
+            return 0;
+
+        // Message could not be send, maybe it was in the process of quitting
+        if (app.isRunning()) {
+            // Nah app is still running, ask the user
+            int button = askMsgSendFailed();
+            while(button == QMessageBox::Retry) {
+                if (app.sendMessage(pluginManager.serializedArguments()))
+                    return 0;
+                if (!app.isRunning()) // App quit while we were trying so start a new creator
+                    button = QMessageBox::Yes;
+                else
+                    button = askMsgSendFailed();
+            }
+            if (button == QMessageBox::No)
+                return -1;
         }
-        return 0;
     }
 
     pluginManager.loadPlugins();

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,11 +55,11 @@ namespace Coda {
 struct CodaDevicePrivate;
 struct Breakpoint;
 
-/* Command error handling in TCF:
- * 1) 'Severe' errors (JSON format, parameter format): Trk emits a
+/* Command error handling in CODA:
+ * 1) 'Severe' errors (JSON format, parameter format): Coda emits a
  *     nonstandard message (\3\2 error parameters) and closes the connection.
  * 2) Protocol errors: 'N' without error message is returned.
- * 3) Errors in command execution: 'R' with a TCF error hash is returned
+ * 3) Errors in command execution: 'R' with a CODA error hash is returned
  *    (see CodaCommandError). */
 
 /* Error code return in 'R' reply to command
@@ -81,7 +81,7 @@ struct SYMBIANUTILS_EXPORT CodaCommandError {
     qint64 alternativeCode;
 };
 
-/* Answer to a Tcf command passed to the callback. */
+/* Answer to a CODA command passed to the callback. */
 struct SYMBIANUTILS_EXPORT CodaCommandResult {
     enum Type
     {
@@ -101,7 +101,7 @@ struct SYMBIANUTILS_EXPORT CodaCommandResult {
     QString errorString() const;
     operator bool() const { return type == SuccessReply || type == ProgressReply; }
 
-    static QDateTime tcfTimeToQDateTime(quint64 tcfTimeMS);
+    static QDateTime codaTimeToQDateTime(quint64 codaTimeMS);
 
     Type type;
     Services service;
@@ -121,10 +121,10 @@ struct SYMBIANUTILS_EXPORT CodaStatResponse
     QDateTime accessTime;
 };
 
-typedef trk::Callback<const CodaCommandResult &> CodaCallback;
+typedef Coda::Callback<const CodaCommandResult &> CodaCallback;
 
-/* CodaDevice: TCF communication helper using an asynchronous QIODevice
- * implementing the TCF protocol according to:
+/* CodaDevice: CODA communication helper using an asynchronous QIODevice
+ * implementing the CODA protocol according to:
 http://dev.eclipse.org/svnroot/dsdp/org.eclipse.tm.tcf/trunk/docs/TCF%20Specification.html
 http://dev.eclipse.org/svnroot/dsdp/org.eclipse.tm.tcf/trunk/docs/TCF%20Services.html
  * Commands can be sent along with callbacks that are passed a
@@ -213,11 +213,13 @@ public:
                                QStringList arguments = QStringList(),
                                const QVariant &cookie = QVariant());
 
-    // Preferred over Processes:Terminate by TCF TRK.
+    // Preferred over Processes:Terminate by CODA.
     void sendRunControlTerminateCommand(const CodaCallback &callBack,
                                         const QByteArray &id,
                                         const QVariant &cookie = QVariant());
 
+    // TODO: In CODA 4.1.13 the Terminate option does order CODA to kill
+    // a process and CODA reports contextRemoved but does not kill the process
     void sendProcessTerminateCommand(const CodaCallback &callBack,
                                      const QByteArray &id,
                                      const QVariant &cookie = QVariant());
@@ -352,6 +354,10 @@ public:
     void sendLoggingAddListenerCommand(const CodaCallback &callBack,
                                        const QVariant &cookie = QVariant());
 
+    void sendSymbianUninstallCommand(const Coda::CodaCallback &callBack,
+                                                 const quint32 package,
+                                                 const QVariant &cookie = QVariant());
+
     // SymbianOs Data
     void sendSymbianOsDataGetThreadsCommand(const CodaCallback &callBack,
                                             const QVariant &cookie = QVariant());
@@ -371,6 +377,13 @@ public:
                                             const QStringList &keys = QStringList(),
                                             const QVariant &cookie = QVariant());
 
+    // DebugSessionControl
+    void sendDebugSessionControlSessionStartCommand(const CodaCallback &callBack,
+                                            const QVariant &cookie = QVariant());
+
+    void sendDebugSessionControlSessionEndCommand(const CodaCallback &callBack,
+                                            const QVariant &cookie = QVariant());
+
     // Settings
     void sendSettingsEnableLogCommand();
 
@@ -381,8 +394,8 @@ public:
     static CodaStatResponse parseStat(const CodaCommandResult &r);
 
 signals:
-    void genericTcfEvent(int service, const QByteArray &name, const QVector<JsonValue> &value);
-    void tcfEvent(const Coda::CodaEvent &knownEvent);
+    void genericCodaEvent(int service, const QByteArray &name, const QVector<JsonValue> &value);
+    void codaEvent(const Coda::CodaEvent &knownEvent);
     void unknownEvent(uchar protocolId, const QByteArray& data);
     void serialPong(const QString &codaVersion);
 
@@ -408,8 +421,8 @@ private:
     inline int parseMessage(const QByteArray &);
     void processMessage(const QByteArray &message);
     inline void processSerialMessage(const QByteArray &message);
-    int parseTcfCommandReply(char type, const QVector<QByteArray> &tokens);
-    int parseTcfEvent(const QVector<QByteArray> &tokens);
+    int parseCodaCommandReply(char type, const QVector<QByteArray> &tokens);
+    int parseCodaEvent(const QVector<QByteArray> &tokens);
 
 private:
     QPair<int, int> findSerialHeader(QByteArray &in);

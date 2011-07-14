@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,6 +48,9 @@ namespace ProjectExplorer {
 class Project;
 class ProjectExplorerPlugin;
 class Node;
+}
+
+namespace QtSupport {
 class QtVersionManager;
 }
 
@@ -77,10 +80,6 @@ public:
 
     ProjectExplorer::ProjectExplorerPlugin *projectExplorer() const;
 
-    // ProjectExplorer::IProjectManager
-    Core::Context projectContext() const;
-    Core::Context projectLanguage() const;
-
     virtual QString mimeType() const;
     ProjectExplorer::Project *openProject(const QString &fileName);
 
@@ -96,6 +95,8 @@ public:
     enum Action { BUILD, REBUILD, CLEAN };
 
 public slots:
+    void addLibrary();
+    void addLibraryContextMenu();
     void runQMake();
     void runQMakeContextMenu();
     void buildSubDirContextMenu();
@@ -111,6 +112,7 @@ private slots:
 private:
     QList<Qt4Project *> m_projects;
     void handleSubDirContexMenu(Action action);
+    void addLibrary(const QString &fileName, Internal::ProFileEditorWidget *editor = 0);
     void runQMake(ProjectExplorer::Project *p, ProjectExplorer::Node *node);
 
     Internal::Qt4ProjectManagerPlugin *m_plugin;

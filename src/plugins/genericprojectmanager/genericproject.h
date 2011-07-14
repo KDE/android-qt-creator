@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -96,6 +96,7 @@ public:
 
     bool addFiles(const QStringList &filePaths);
     bool removeFiles(const QStringList &filePaths);
+    bool setFiles(const QStringList &filePaths);
 
     enum RefreshOptions {
         Files         = 0x01,
@@ -159,7 +160,7 @@ public:
     GenericProjectFile(GenericProject *parent, QString fileName);
     virtual ~GenericProjectFile();
 
-    virtual bool save(const QString &fileName = QString());
+    virtual bool save(QString *errorString, const QString &fileName, bool autoSave);
     virtual QString fileName() const;
 
     virtual QString defaultPath() const;
@@ -172,7 +173,7 @@ public:
     virtual void rename(const QString &newName);
 
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
 
 private:
     GenericProject *m_project;

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,7 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/mimedatabase.h>
+#include <coreplugin/messagemanager.h>
 #include <cplusplus/ModelManagerInterface.h>
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/TypeOfExpression.h>
@@ -118,9 +119,15 @@ void ModelManager::loadQmlTypeDescriptions(const QString &resourcePath)
                 QDir::Files,
                 QDir::Name);
 
-    const QStringList errors = Interpreter::CppQmlTypesLoader::loadQmlTypes(qmlTypesFiles);
+    QStringList errors;
+    QStringList warnings;
+    Interpreter::CppQmlTypesLoader::loadQmlTypes(qmlTypesFiles, &errors, &warnings);
+
+    Core::MessageManager *messageManager = Core::MessageManager::instance();
     foreach (const QString &error, errors)
-        qWarning() << qPrintable(error);
+        messageManager->printToOutputPane(error);
+    foreach (const QString &warning, warnings)
+        messageManager->printToOutputPane(warning);
 
     // disabled for now: Prefer the xml file until the type dumping functionality
     // has been moved into Qt.
@@ -181,7 +188,7 @@ QFuture<void> ModelManager::refreshSourceFiles(const QStringList &sourceFiles,
 
         m_synchronizer.clearFutures();
 
-        foreach (QFuture<void> future, futures) {
+        foreach (const QFuture<void> &future, futures) {
             if (! (future.isFinished() || future.isCanceled()))
                 m_synchronizer.addFuture(future);
         }
@@ -265,6 +272,8 @@ void ModelManager::updateProjectInfo(const ProjectInfo &pinfo)
             newFiles += file;
     }
     updateSourceFiles(newFiles, false);
+
+    emit projectInfoUpdated(pinfo);
 }
 
 void ModelManager::emitDocumentChangedOnDisk(Document::Ptr doc)
@@ -285,7 +294,9 @@ void ModelManager::updateLibraryInfo(const QString &path, const LibraryInfo &inf
         QMutexLocker locker(&m_mutex);
         _snapshot.insertLibraryInfo(path, info);
     }
-    emit libraryInfoUpdated(path, info);
+    // only emit if we got new useful information
+    if (info.isValid())
+        emit libraryInfoUpdated(path, info);
 }
 
 static QStringList qmlFilesInDirectory(const QString &path)
@@ -356,15 +367,22 @@ static bool findNewQmlLibraryInPath(const QString &path,
                                     QSet<QString> *newLibraries)
 {
     // if we know there is a library, done
-    if (snapshot.libraryInfo(path).isValid())
+    const LibraryInfo &existingInfo = snapshot.libraryInfo(path);
+    if (existingInfo.isValid())
         return true;
     if (newLibraries->contains(path))
         return true;
+    // if we looked at the path before, done
+    if (existingInfo.wasScanned())
+        return false;
 
     const QDir dir(path);
     QFile qmldirFile(dir.filePath(QLatin1String("qmldir")));
-    if (!qmldirFile.exists())
+    if (!qmldirFile.exists()) {
+        LibraryInfo libraryInfo(LibraryInfo::NotFound);
+        modelManager->updateLibraryInfo(path, libraryInfo);
         return false;
+    }
 
 #ifdef Q_OS_WIN
     // QTCREATORBUG-3402 - be case sensitive even here?
@@ -380,8 +398,7 @@ static bool findNewQmlLibraryInPath(const QString &path,
 
     const QString libraryPath = QFileInfo(qmldirFile).absolutePath();
     newLibraries->insert(libraryPath);
-    modelManager->updateLibraryInfo(libraryPath,
-                                    LibraryInfo(qmldirParser));
+    modelManager->updateLibraryInfo(libraryPath, LibraryInfo(qmldirParser));
 
     // scan the qml files in the library
     foreach (const QmlDirParser::Component &component, qmldirParser.components()) {
@@ -398,30 +415,62 @@ static bool findNewQmlLibraryInPath(const QString &path,
     return true;
 }
 
+static void findNewQmlLibrary(
+    const QString &path,
+    const LanguageUtils::ComponentVersion &version,
+    const Snapshot &snapshot,
+    ModelManager *modelManager,
+    QStringList *importedFiles,
+    QSet<QString> *scannedPaths,
+    QSet<QString> *newLibraries)
+{
+    QString libraryPath = QString("%1.%2.%3").arg(
+                path,
+                QString::number(version.majorVersion()),
+                QString::number(version.minorVersion()));
+    findNewQmlLibraryInPath(
+                libraryPath, snapshot, modelManager,
+                importedFiles, scannedPaths, newLibraries);
+
+    libraryPath = QString("%1.%2").arg(
+                path,
+                QString::number(version.majorVersion()));
+    findNewQmlLibraryInPath(
+                libraryPath, snapshot, modelManager,
+                importedFiles, scannedPaths, newLibraries);
+
+    findNewQmlLibraryInPath(
+                path, snapshot, modelManager,
+                importedFiles, scannedPaths, newLibraries);
+}
+
 static void findNewLibraryImports(const Document::Ptr &doc, const Snapshot &snapshot,
                            ModelManager *modelManager,
                            QStringList *importedFiles, QSet<QString> *scannedPaths, QSet<QString> *newLibraries)
 {
-    // scan library imports
+    // scan current dir
+    findNewQmlLibraryInPath(doc->path(), snapshot, modelManager,
+                            importedFiles, scannedPaths, newLibraries);
+
+    // scan dir and lib imports
     const QStringList importPaths = modelManager->importPaths();
     foreach (const Interpreter::ImportInfo &import, doc->bind()->imports()) {
-        if (import.type() == Interpreter::ImportInfo::LibraryImport) {
-            foreach (const QString &importPath, importPaths) {
-                const QString targetPath = QDir(importPath).filePath(import.name());
-
-                if (findNewQmlLibraryInPath(targetPath, snapshot, modelManager,
-                                            importedFiles, scannedPaths, newLibraries))
-                    break;
-            }
-        } else if (import.type() == Interpreter::ImportInfo::DirectoryImport) {
+        if (import.type() == Interpreter::ImportInfo::DirectoryImport) {
             const QString targetPath = import.name();
             findNewQmlLibraryInPath(targetPath, snapshot, modelManager,
                                     importedFiles, scannedPaths, newLibraries);
         }
-    }
 
-    findNewQmlLibraryInPath(doc->path(), snapshot, modelManager,
-                            importedFiles, scannedPaths, newLibraries);
+        if (import.type() == Interpreter::ImportInfo::LibraryImport) {
+            if (!import.version().isValid())
+                continue;
+            foreach (const QString &importPath, importPaths) {
+                const QString targetPath = QDir(importPath).filePath(import.name());
+                findNewQmlLibrary(targetPath, import.version(), snapshot, modelManager,
+                                  importedFiles, scannedPaths, newLibraries);
+            }
+        }
+    }
 }
 
 static bool suffixMatches(const QString &fileName, const Core::MimeType &mimeType)
@@ -450,8 +499,6 @@ void ModelManager::parse(QFutureInterface<void> &future,
 
     int progressRange = files.size();
     future.setProgressRange(0, progressRange);
-
-    Snapshot snapshot = modelManager->_snapshot;
 
     // paths we have scanned for files and added to the files list
     QSet<QString> scannedPaths;
@@ -499,6 +546,10 @@ void ModelManager::parse(QFutureInterface<void> &future,
         doc->setSource(contents);
         doc->parse();
 
+        // update snapshot. requires synchronization, but significantly reduces amount of file
+        // system queries for library imports because queries are cached in libraryInfo
+        const Snapshot snapshot = modelManager->snapshot();
+
         // get list of referenced files not yet in snapshot or in directories already scanned
         QStringList importedFiles;
         findNewImplicitImports(doc, snapshot, &importedFiles, &scannedPaths);
@@ -526,7 +577,7 @@ bool ModelManager::matchesMimeType(const Core::MimeType &fileMimeType, const Cor
 
     const QStringList knownTypeNames = QStringList(knownMimeType.type()) + knownMimeType.aliases();
 
-    foreach (const QString knownTypeName, knownTypeNames)
+    foreach (const QString &knownTypeName, knownTypeNames)
         if (fileMimeType.matchesType(knownTypeName))
             return true;
 
@@ -643,4 +694,23 @@ ModelManagerInterface::CppQmlTypeHash ModelManager::cppQmlTypes() const
 ModelManagerInterface::BuiltinPackagesHash ModelManager::builtinPackages() const
 {
     return Interpreter::CppQmlTypesLoader::builtinPackages;
+}
+
+void ModelManager::resetCodeModel()
+{
+    QStringList documents;
+
+    {
+        QMutexLocker locker(&m_mutex);
+
+        // find all documents currently in the code model
+        foreach (Document::Ptr doc, _snapshot)
+            documents.append(doc->fileName());
+
+        // reset the snapshot
+        _snapshot = Snapshot();
+    }
+
+    // start a reparse thread
+    updateSourceFiles(documents, false);
 }

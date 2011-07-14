@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,6 +54,7 @@ QT_END_NAMESPACE
 
 namespace Utils {
     class ParameterAction;
+    class TempFileSaver;
 }
 
 namespace Locator {
@@ -62,7 +63,7 @@ namespace Locator {
 
 namespace Perforce {
 namespace Internal {
-
+struct PerforceDiffParameters;
 class PerforceVersionControl;
 
 struct PerforceResponse
@@ -110,6 +111,7 @@ public:
 public slots:
     void describe(const QString &source, const QString &n);
     void vcsAnnotate(const QString &file, const QString &revision /* = QString() */, int lineNumber);
+    void p4Diff(const Perforce::Internal::PerforceDiffParameters &p);
 
 private slots:
     void openCurrentFile();
@@ -189,7 +191,8 @@ private:
                  bool enableAnnotationContextMenu = false);
     void cleanCommitMessageFile();
     bool isCommitEditorOpen() const;
-    QSharedPointer<QTemporaryFile> createTemporaryArgumentFile(const QStringList &extraArgs) const;
+    QSharedPointer<Utils::TempFileSaver> createTemporaryArgumentFile(const QStringList &extraArgs,
+                                                                     QString *errorString) const;
     void getTopLevel();
     QString pendingChangesData();
 

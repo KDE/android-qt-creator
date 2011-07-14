@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -75,6 +75,11 @@ void S60PublishingSisSettingsPageOvi::initializePage()
     m_publisher->completeCreation();
 
     showWarningsForUnenforcableChecks();
+
+    //Check Display Name
+    ui->displayNameLineEdit->setText(m_publisher->displayName());
+    displayNameChanged();
+    connect(ui->displayNameLineEdit,SIGNAL(textChanged(QString)),SLOT(displayNameChanged()));
 
     //Check Global Vendor Name
     ui->globalVendorNameLineEdit->setText(m_publisher->globalVendorName());
@@ -131,18 +136,41 @@ void S60PublishingSisSettingsPageOvi::reflectSettingState(bool settingState, QLa
     wizard()->setTitleFormat(wizard()->titleFormat());
 }
 
+void S60PublishingSisSettingsPageOvi::displayNameChanged()
+{
+    reflectSettingState(!ui->displayNameLineEdit->text().isEmpty(),
+                        ui->displayNameOkLabel,
+                        ui->displayNameErrorLabel,
+                        ui->displayNameErrorReasonLabel,
+                        tr("This should be application's display name. <br>"
+                           "It cannot be empty.<br>"));
+
+    const int visibleCharacters = 12;
+    if (ui->displayNameLineEdit->text().length() > visibleCharacters) {
+        ui->displayNameWarningLabel->show();
+        ui->displayNameWarningReasonLabel->setText(tr("The display name is quite long.<br>"
+                                                   "It might not be fully visible in the phone's menu.<br>"));
+        ui->displayNameWarningReasonLabel->show();
+    } else {
+        ui->displayNameWarningLabel->hide();
+        ui->displayNameWarningReasonLabel->hide();
+    }
+
+    m_publisher->setDisplayName(ui->displayNameLineEdit->text());
+}
+
 void S60PublishingSisSettingsPageOvi::globalVendorNameChanged()
 {
     reflectSettingState(m_publisher->isVendorNameValid(ui->globalVendorNameLineEdit->text()),
                         ui->globalVendorNameOkLabel,
                         ui->globalVendorNameErrorLabel,
                         ui->globalVendorNameErrorReasonLabel,
-                        tr("%1 is a default vendor name used for testing and development. <br>"
+                        tr("\"%1\" is a default vendor name used for testing and development. <br>"
                            "The Vendor_Name field cannot contain the name 'Nokia'. <br>"
                            "You are advised against using the default names 'Vendor' and 'Vendor-EN'. <br>"
                            "You should also not leave the entry blank. <br>"
                            "see <a href=\"http://www.forum.nokia.com/Distribute/Packaging_and_signing.xhtml\">Packaging and Signing</a> for guidelines.<br>")
-                        .arg("\"" + ui->globalVendorNameLineEdit->text() + "\""));
+                        .arg(ui->globalVendorNameLineEdit->text()));
     m_publisher->setVendorName(ui->globalVendorNameLineEdit->text());
 }
 
@@ -275,7 +303,8 @@ void S60PublishingSisSettingsPageOvi::showWarningsForUnenforcableChecks()
     //Warn about use of unreleased Qt Versions
     //ui->qtVersionWarningLabel->show(); //looks better without...
     ui->qtVersionWarningReasonLabel->setText(tr("Please verify that you have a released version of Qt. <br>"
-                                                "<a href=\"http://wiki.forum.nokia.com/index.php/Nokia_Smart_Installer_for_Symbian\">Qt Packages Distributed by Smart Installer</a> has a list of released Qt versions."));
+                                                "<a href=\"http://wiki.forum.nokia.com/index.php/Nokia_Smart_Installer_for_Symbian\">"
+                                                "Qt Packages Distributed by Smart Installer</a> has a list of released Qt versions."));
 }
 
 } // namespace Internal

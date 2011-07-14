@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,14 +49,15 @@ GenericProjectNode::GenericProjectNode(GenericProject *project, Core::IFile *pro
     setDisplayName(QFileInfo(projectFile->fileName()).completeBaseName());
 }
 
-GenericProjectNode::~GenericProjectNode()
-{ }
-
 Core::IFile *GenericProjectNode::projectFile() const
-{ return m_projectFile; }
+{
+    return m_projectFile;
+}
 
 QString GenericProjectNode::projectFilePath() const
-{ return m_projectFile->fileName(); }
+{
+    return m_projectFile->fileName();
+}
 
 void GenericProjectNode::refresh()
 {
@@ -114,8 +115,10 @@ void GenericProjectNode::refresh()
         filesInPath[relativeFilePath].append(absoluteFileName);
     }
 
+    FolderByName folderByName;
     foreach (const QString &filePath, filePaths) {
-        FolderNode *folder = findOrCreateFolderByName(filePath);
+        QStringList components = filePath.split(QLatin1Char('/'));
+        FolderNode *folder = findOrCreateFolderByName(&folderByName, components, components.size());
 
         QList<FileNode *> fileNodes;
         foreach (const QString &file, filesInPath.value(filePath)) {
@@ -126,13 +129,12 @@ void GenericProjectNode::refresh()
 
         addFileNodes(fileNodes, folder);
     }
-
-    m_folderByName.clear();
 }
 
-ProjectExplorer::FolderNode *GenericProjectNode::findOrCreateFolderByName(const QStringList &components, int end)
+ProjectExplorer::FolderNode *GenericProjectNode::findOrCreateFolderByName
+    (FolderByName *folderByName, const QStringList &components, int end)
 {
-    if (! end)
+    if (!end)
         return 0;
 
     QString folderName;
@@ -146,26 +148,20 @@ ProjectExplorer::FolderNode *GenericProjectNode::findOrCreateFolderByName(const 
     if (component.isEmpty())
         return this;
 
-    else if (FolderNode *folder = m_folderByName.value(folderName))
+    else if (FolderNode *folder = folderByName->value(folderName))
         return folder;
 
     const QString baseDir = QFileInfo(path()).path();
     FolderNode *folder = new FolderNode(baseDir + QLatin1Char('/') + folderName);
     folder->setDisplayName(component);
-    m_folderByName.insert(folderName, folder);
+    folderByName->insert(folderName, folder);
 
-    FolderNode *parent = findOrCreateFolderByName(components, end - 1);
-    if (! parent)
+    FolderNode *parent = findOrCreateFolderByName(folderByName, components, end - 1);
+    if (!parent)
         parent = this;
     addFolderNodes(QList<FolderNode*>() << folder, parent);
 
     return folder;
-}
-
-ProjectExplorer::FolderNode *GenericProjectNode::findOrCreateFolderByName(const QString &filePath)
-{
-    QStringList components = filePath.split(QLatin1Char('/'));
-    return findOrCreateFolderByName(components, components.length());
 }
 
 bool GenericProjectNode::hasBuildTargets() const

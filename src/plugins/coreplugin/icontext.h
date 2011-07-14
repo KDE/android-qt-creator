@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,10 +37,8 @@
 
 #include <QtCore/QList>
 #include <QtCore/QObject>
-
-QT_BEGIN_NAMESPACE
-class QWidget;
-QT_END_NAMESPACE
+#include <QtCore/QPointer>
+#include <QtGui/QWidget>
 
 namespace Core {
 
@@ -79,31 +77,20 @@ class CORE_EXPORT IContext : public QObject
 {
     Q_OBJECT
 public:
-    IContext(QObject *parent = 0) : QObject(parent) {}
-    virtual ~IContext() {}
+    IContext(QObject *parent = 0) : QObject(parent), m_widget(0) {}
 
-    virtual Context context() const = 0;
-    virtual QWidget *widget() = 0;
-    virtual QString contextHelpId() const { return QString(); }
-};
+    virtual Context context() const { return m_context; }
+    virtual QWidget *widget() const { return m_widget; }
+    virtual QString contextHelpId() const { return m_contextHelpId; }
 
-class BaseContext : public Core::IContext
-{
-public:
-    BaseContext(QWidget *widget, const Context &context, QObject *parent = 0)
-        : Core::IContext(parent),
-        m_widget(widget),
-        m_context(context)
-    {
-    }
+    virtual void setContext(const Context &context) { m_context = context; }
+    virtual void setWidget(QWidget *widget) { m_widget = widget; }
+    virtual void setContextHelpId(const QString &id) { m_contextHelpId = id; }
 
-    Context context() const { return m_context; }
-
-    QWidget *widget() { return m_widget; }
-
-private:
-    QWidget *m_widget;
+protected:
     Context m_context;
+    QPointer<QWidget> m_widget;
+    QString m_contextHelpId;
 };
 
 } // namespace Core

@@ -26,21 +26,21 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "subcomponentmasklayeritem.h"
-#include "qmlobserverconstants.h"
-#include "qdeclarativeviewobserver.h"
+#include "qmlinspectorconstants.h"
+#include "qdeclarativeviewinspector.h"
 #include <QtGui/QPolygonF>
 
 namespace QmlJSDebugger {
 
-SubcomponentMaskLayerItem::SubcomponentMaskLayerItem(QDeclarativeViewObserver *observer,
+SubcomponentMaskLayerItem::SubcomponentMaskLayerItem(QDeclarativeViewInspector *inspector,
                                                      QGraphicsItem *parentItem) :
     QGraphicsPolygonItem(parentItem),
-    m_observer(observer),
+    m_inspector(inspector),
     m_currentItem(0),
     m_borderRect(new QGraphicsRectItem(this))
 {
@@ -75,6 +75,13 @@ static QRectF resizeRect(const QRectF &newRect, const QRectF &oldRect)
     return result;
 }
 
+static QPolygonF regionToPolygon(const QRegion &region)
+{
+    QPainterPath path;
+    foreach (const QRect &rect, region.rects())
+        path.addRect(rect);
+    return path.toFillPolygon();
+}
 
 void SubcomponentMaskLayerItem::setCurrentItem(QGraphicsItem *item)
 {
@@ -84,25 +91,24 @@ void SubcomponentMaskLayerItem::setCurrentItem(QGraphicsItem *item)
     if (!m_currentItem)
         return;
 
-    QPolygonF viewPoly(QRectF(m_observer->declarativeView()->rect()));
-    viewPoly = m_observer->declarativeView()->mapToScene(viewPoly.toPolygon());
+    QRect viewRect = m_inspector->declarativeView()->rect();
+    viewRect = m_inspector->declarativeView()->mapToScene(viewRect).boundingRect().toRect();
 
     QRectF itemRect = item->boundingRect() | item->childrenBoundingRect();
-    QPolygonF itemPoly(itemRect);
-    itemPoly = item->mapToScene(itemPoly);
+    itemRect = item->mapRectToScene(itemRect);
 
     // if updating the same item as before, resize the rectangle only bigger, not smaller.
     if (prevItem == item && prevItem != 0) {
-        m_itemPolyRect = resizeRect(itemPoly.boundingRect(), m_itemPolyRect);
+        m_itemPolyRect = resizeRect(itemRect, m_itemPolyRect);
     } else {
-        m_itemPolyRect = itemPoly.boundingRect();
+        m_itemPolyRect = itemRect;
     }
     QRectF borderRect = m_itemPolyRect;
     borderRect.adjust(-1, -1, 1, 1);
     m_borderRect->setRect(borderRect);
 
-    itemPoly = viewPoly.subtracted(QPolygonF(m_itemPolyRect));
-    setPolygon(itemPoly);
+    const QRegion externalRegion = QRegion(viewRect).subtracted(m_itemPolyRect.toRect());
+    setPolygon(regionToPolygon(externalRegion));
 }
 
 QGraphicsItem *SubcomponentMaskLayerItem::currentItem() const

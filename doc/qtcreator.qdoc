@@ -15,7 +15,7 @@
 ** file.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 ****************************************************************************/
 
@@ -65,7 +65,8 @@
                 \o \l{Creating a Project}
                 \o \l{Opening a Project}
                 \o \l{Adding Libraries to Projects}
-                \o \l{Connecting Maemo Devices}
+                \o \l{Connecting Maemo and MeeGo Harmattan Devices}
+                \o \l{Connecting Generic Linux Devices}
                 \o \l{Connecting Symbian Devices}
                 \o \l{Managing Sessions}
             \endlist
@@ -75,6 +76,7 @@
                 \o \l{Semantic Highlighting}
                 \o \l{Checking Code Syntax}
                 \o \l{Completing Code}
+                \o \l{Indenting Code}
                 \o \l{Finding and Replacing}
                 \o \l{Refactoring}
                 \o \l{Using Qt Quick Toolbars}
@@ -98,6 +100,7 @@
                     \o \l {Adding User Interaction Methods}
                     \o \l {Exporting Designs from Graphics Software}
                     \o \l {Implementing Application Logic}
+                    \o \l {Using QML Modules with Plugins}
                 \endlist
            \o \l{Developing Widget Based Applications}
            \o \l{Optimizing Applications for Mobile Devices}
@@ -113,6 +116,7 @@
                    \endlist
                 \o \l{Specifying Run Settings}
                 \o \l{Specifying Editor Settings}
+                \o \l{Specifying Code Style Settings}
                 \o \l{Specifying Dependencies}
             \endlist
        \o \l{Debugging}
@@ -123,13 +127,19 @@
                 \o \l{Setting Up Debugger}
                 \o \l{Using Debugging Helpers}
                 \o \l{Debugging Qt Quick Projects}
-                \o \l{Detecting Memory Leaks}
                 \o \l{Troubleshooting Debugger}
             \endlist
+       \o \l{Analyzing Code}
+           \list
+                \o \l{Profiling QML Applications}
+                \o \l{Detecting Memory Leaks}
+                \o \l{Profiling Function Execution}
+                \o \l{Running Valgrind Tools Remotely}
+           \endlist
        \o \l{Deploying Applications to Mobile Devices}
             \list
                 \o \l{Deploying Applications to Symbian Devices}
-                \o \l{Deploying Applications to Maemo Devices}
+                \o \l{Deploying Applications to Maemo or MeeGo Harmattan Devices}
                 \o \l{Publishing Maemo Applications to Extras-devel}
                 \o \l{Publishing Applications to Ovi Store}
                 \o \l{Building with Remote Compiler}
@@ -144,7 +154,7 @@
                \o \l{Using Version Control Systems}
                \o \l{Adding Qt Designer Plugins}
                \o \l{Using External Tools}
-               \o \l{Using the Maemo Emulator}
+               \o \l{Using Maemo or MeeGo Harmattan Emulator}
                \o \l{Editing MIME Types}
                \o \l{Showing Task List Files in the Build Issues Pane}
                \o \l{Using Command Line Options}
@@ -153,6 +163,7 @@
        \o \l{FAQ}
        \o \l{Tips and Tricks}
        \o \l{Known Issues}
+       \o \l{Technical Support}
        \o \l{Glossary}
        \o \l{Acknowledgements}
     \endlist
@@ -198,7 +209,7 @@
     \l{http://qt.nokia.com/doc/4.7/qmake-tutorial.html#adding-platform-specific-source-files}{scopes}
     to select the file to process depending on which platform qmake is run on.
 
-    Items such as open files, breakpoints, and watchers are stored in
+    Items such as open files, breakpoints, and evaluated expressions are stored in
     sessions. They are not considered to be part of the
     information shared across platforms.
 
@@ -337,10 +348,12 @@
     or CMake, and specify that Qt Creator ignores your build system.
 
     Qt Creator provides support for building and running Qt applications for
-    desktop environment (Windows, Linux, and Mac OS) and mobile devices (Symbian and Maemo).
+    desktop environment (Windows, Linux, and Mac OS) and mobile devices
+    (Symbian, Maemo, and MeeGo Harmattan).
     Build settings allow you to quickly switch between build targets.
 
-    When you install the \QSDK, the build and run settings for the Maemo and Symbian
+    When you install the \QSDK, the build and run settings for the Harmattan,
+    Maemo, and Symbian
     targets are set up automatically. However, you need to install and configure some
     additional software on the devices to be able to connect to them from the
     development PC.
@@ -357,8 +370,12 @@
     You can connect mobile devices to your development PC and debug processes
     running on the devices.
 
+    You can use code analysis tools to detect memory leaks, profile cache usage,
+    and profile Qt Quick applications.
+
     You can test applications that are intended for mobile devices in the Qt
-    Simulator and Maemo Emulator, but you also need to test the applications
+    Simulator and Maemo or MeeGo Harmattan emulator, but you also need to test
+    the applications
     on real devices.
 
     \section2 Debuggers
@@ -398,7 +415,7 @@
     as much as possible without losing the power of the native debuggers.
 
     In addition to the generic IDE functionality provided by stack view, views for
-    locals and watchers, registers, and so on, Qt Creator includes
+    locals and expressions, registers, and so on, Qt Creator includes
     features to make debugging Qt-based applications easy. The debugger
     plugin understands the internal layout of several Qt classes, for
     example, QString, the Qt containers, and most importantly QObject
@@ -411,7 +428,7 @@
 
     You can use the Qt Creator \gui Debug mode to inspect the state of
     the application while debugging JavaScript functions. You can set breakpoints,
-    view call stack trace, and examine locals and watchers.
+    view call stack trace, and examine locals and expressions.
 
     When the application is interrupted by a breakpoint, you can use the \gui {QML
     Script Console} to execute JavaScript expressions in the current context. You can
@@ -421,12 +438,25 @@
     If you change property values or add properties in the code editor, the
     changes are updated in the running application when they are saved.
 
-    \section3 QML Observer
+    \section3 QML Inspector
 
-    While the application is running, you can use the \gui {QML Observer} view to
+    While the application is running, you can use the \gui {QML Inspector} view to
     explore the object structure, debug animations, and inspect colors. When debugging
-    complex applications, you can use the observe mode to jump to the position in code
+    complex applications, you can use the inspection mode to jump to the position in code
     where an element is defined.
+
+    \section2 Code Analysis Tools
+
+    The memory available on devices is limited and you should use it carefully.
+    Qt Creator integrates Valgrind code analysis tools for detecting memory
+    leaks and profiling function execution. These tools are only supported on
+    Linux and Mac OS, but you can run them remotely from Windows. You must
+    download and install them separately to use them from Qt
+    Creator.
+
+    The QML Profiler is installed as part of Qt Creator. It allows you
+    to profile your Qt Quick applications and is available on all supported
+    development platforms.
 
     \section2 Qt Simulator
 
@@ -438,16 +468,21 @@
     The Qt Simulator is installed as part of the \QSDK. After it is
     installed, you can select it as a build target in Qt Creator.
 
-    \section2 Maemo Emulator
+    \section2 Maemo and MeeGo Harmattan Emulator
+
+    The Maemo 5 (Fremantle) and MeeGo Harmattan emulator are installed as part
+    of the \QSDK. After they are installed, you can start them from Qt Creator.
 
     The Maemo 5 emulator emulates the Nokia N900 device environment. You can test
     applications in conditions practically identical to running the application
     on a Nokia N900 device with the software update release 1.3 (V20.2010.36-2).
-    However, it is faster to test on a real device connected to the development
-    PC.
 
-    The Maemo Emulator is installed as part of the \QSDK. After it is
-    installed, you can start it from Qt Creator.
+    The Harmattan emulator emulates the Nokia N9 device environment.
+
+    With the emulators, you can test how your application reacts to hardware
+    controls, such as the power button, and to the touch screen.
+    Usually, it is faster to test on a real device connected to the development
+    PC than to use the emulators.
 
     \section1 Deploying
 
@@ -456,7 +491,8 @@
     The files can be copied to a location in the file system of the development PC
     or to a mobile device.
 
-    Qt Creator allows you to create installation packages for Symbian and Maemo
+    Qt Creator allows you to create installation packages for Symbian, Maemo,
+    and MeeGo Harmattan
     devices that are suitable for publishing on Ovi Store and other channels.
 
 */
@@ -521,6 +557,10 @@
 
         \o Maemo 5
 
+        \o MeeGo Harmattan
+
+        \o Generic remote Linux
+
         \o Symbian
 
     \endlist
@@ -530,16 +570,20 @@
 
     \table
         \header
-            \o {1,4} Operating system
-            \o {4,1} Platform
+            \o {1,6} Operating system
+            \o {6,1} Platform
         \header
             \o Desktop
             \o Qt Simulator
-            \o Maemo
+            \o Maemo 5
+            \o MeeGo Harmattan
+            \o Generic Remote Linux
             \o Symbian
 
         \row
             \o Windows
+            \o Yes
+            \o Yes
             \o Yes
             \o Yes
             \o Yes
@@ -549,9 +593,13 @@
             \o Yes
             \o Yes
             \o Yes
+            \o Yes
+            \o Yes
             \o Yes (by using Remote Compiler for building)
         \row
             \o Mac OS X
+            \o Yes
+            \o Yes
             \o Yes
             \o Yes
             \o Yes
@@ -574,19 +622,15 @@
 
     \list
 
-        \o Open tutorials and example projects
+        \o Read news from the Qt labs
 
-        \o View tips and hints on using Qt Creator
+        \o Open tutorials and example projects
 
         \o Create and open projects
 
         \o Send feedback to the development team
 
         \o Open recent sessions and projects
-
-        \o Read news from the Qt labs
-
-        \o Ask for support
 
     \endlist
 
@@ -621,6 +665,8 @@
            debugging.
         \o \gui{\l{Specifying Build Settings}{Projects}} mode for configuring project building and
            execution. This mode is available when a project is open.
+        \o \gui{\l{Analyzing Code}{Analyze}} mode for using code analysis tools
+            to detect memory leaks and profile C++ or QML code.
         \o \gui{\l{Getting Help}{Help}} mode for viewing Qt documentation.
     \endlist
 
@@ -739,7 +785,6 @@
        \o  \gui{Application Output}
        \o  \gui{Compile Output}
        \o  \gui{General Messages}
-       \o  \gui{Analysis}
        \o  \gui{Version Control}
     \endlist
 
@@ -753,7 +798,7 @@
     criteria in the \gui Find field and click the left and right arrows to
     search down and up in the pane.
 
-    To open the \gui{General Messages}, \gui{Analysis}, and \gui{Version Control}
+    To open the \gui{General Messages} and \gui{Version Control}
     panes, select \gui {Window > Output Panes}.
 
 
@@ -1015,7 +1060,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage quick-application-logic.html
+    \previouspage creator-qml-modules-with-plugins.html
     \page creator-using-qt-designer.html
     \nextpage creator-usability.html
 
@@ -1144,14 +1189,15 @@
     as tree structure.
 
     \o \gui {Library} pane displays the building blocks that you can use to design
-    applications: predefined QML elements, your own QML components, and other
+    applications: predefined QML elements, your own QML components, Qt Quick
+    components for Symbian or MeeGo that you import to the project, and other
     resources.
 
     \o \gui Canvas is the working area where you create QML components and
     design applications.
 
     \o \gui {Properties} pane organizes the properties of the selected QML element
-    or QML component. You can also change the properties in the code editor.
+    or QML component. You can change the properties also in the code editor.
 
     \o \gui {State} pane displays the different states of the component. QML
     states typically describe user interface configurations, such as the UI
@@ -1170,7 +1216,8 @@
 
     You can select elements in the \gui Navigator to edit their properties
     in the \gui Properties pane. Elements can access the properties of their
-    parent element.
+    parent element. To select elements on the canvas, right-click an element,
+    and select another element in the context menu.
 
     Typically, child elements are located within the parent element on the
     canvas. However, they do not necessarily have to fit inside the parent element.
@@ -1201,6 +1248,20 @@
     \inlineimage qtcreator-splitbar.png
     .
 
+    \section2 Setting the Stacking Order
+
+    The \l{http://doc.qt.nokia.com/4.7/qml-item.html#z-prop}{z property} of an
+    element determines its position in relation to its sibling elements in the
+    element hierarchy. By default, elements with a higher stacking value are
+    drawn on top of siblings with a lower stacking value. Elements with the same
+    stacking value are drawn in the order they are listed, from the last item
+    up.
+
+    To change the stacking order of an item, right-click it on the canvas and
+    select \gui {Stack (z)}. You can raise or lower the stack value of an item
+    or move the item to the front or back of all its siblings. To remove the
+    \c z property, select \gui Reset.
+
     \section2 Switching Parent Elements
 
     When you drag and drop QML elements to the canvas, Qt Quick Designer
@@ -1213,21 +1274,32 @@
     element under the cursor becomes the new parent of the element.
 
     You can change the parent of an element also in the \gui Navigator pane.
-    Drag and drop the element to another position in the tree.
+    Drag and drop the element to another position in the tree or use the arrow
+    buttons to move the element in the tree.
+
+    \image qmldesigner-navigator-arrows.png "Navigator arrow buttons"
 
     \section1 Element Library
 
     The \gui {Library} pane contains two tabs: \gui {Items} and \gui {Resources}.
     The \gui Items pane displays the QML elements grouped by type: your own QML
-    components, basic elements, interaction elements, views, and widgets.
+    components, basic elements, positioner elements, and views.
 
-    \omit
     Sets of UI components with the MeeGo and Symbian look and feel have been
     defined for Qt Quick. They are based on standard QML elements. To view the
-    UI components in \gui {QML Components}, click
-    \inlineimage qtcreator-filter.png
-    and select \gui {MeeGo Components} or \gui {Symbian Components}.
-    \endomit
+    UI components in the \gui {Library} pane, add import statements to the .pro
+    file of your project:
+
+    \list
+
+        \o \c  {import com.nokia.symbian 1.0} for Symbian
+
+        \o \c  {import com.meego 1.0} for MeeGo
+
+    \endlist
+
+    The Qt Quick Application wizard adds the import statements automatically
+    when you select the component set to use for your project.
 
     \image qmldesigner-qml-components.png "QML Components pane"
 
@@ -1251,6 +1323,11 @@
     that you specify explicitly are highlighted with blue color. In addition, property
     changes in states are highlighted with blue.
 
+    You can use a context-menu to reset some element properties. To reset the
+    position or size property of an element, right-click the element and select
+    \gui {Edit > Reset Position} or \gui {Reset Size} in the context menu. To
+    set the visibility of the component, select \gui {Edit > Visibility}.
+
     For more information on the properties available for an element, press \key {F1}.
 
     \section2 Setting Expressions
@@ -1273,6 +1350,17 @@
 
     For more information on the JavaScript environment provided by QML, see
     \l{http://doc.qt.nokia.com/4.7/qdeclarativejavascript.html}{Integrating JavaScript}.
+
+    \section2 Marking Text Elements for Translation
+
+    To support translators, mark each text element that should be translated.
+    In the \gui Properties pane, \gui Text field, select \gui tr.
+
+    \image qmldesigner-text-property-tr.png "Text properties"
+
+    The text string is enclosed in a \c qsTr call.
+
+    \image qml-translate.png "Text marked for translation"
 
     \section2 Loading Placeholder Data
 
@@ -1383,7 +1471,8 @@
 
     \section2 Building Transformations on Items
 
-    The \gui Advanced pane allows you configure advanced transformations, such as
+    The \gui Advanced pane allows you to configure advanced transformations,
+    such as
     rotation, scale, and translation. You can assign any number of transformations
     to an item. Each transformation is applied in order, one at a time.
 
@@ -1556,6 +1645,9 @@
         \o  \l{Completing Code} describes how code and code snippets are
             completed for elements, properties, an IDs.
 
+        \o  \l{Indenting Code} describes how to specify indentation either
+            globally for all files or separately for: text, C++, or QML files.
+
         \o  \l{Finding and Replacing} describes the incremental search that
             highlights the matching strings in the window while typing and the
             advanced search that allows you to search from currently open
@@ -1583,7 +1675,8 @@
         \o  \l{Configuring the Editor} describes how to change the text editor
             options to suit your specific needs.
 
-        \o  \l{Using FakeVim Mode} run the main editor in a manner similar to
+        \o  \l{Using FakeVim Mode} describes how to run the main editor in a
+            manner similar to
             the Vim editor.
 
     \endlist
@@ -1596,6 +1689,7 @@
     \previouspage creator-coding.html
     \page creator-editor-using.html
     \nextpage creator-highlighting.html
+
 
     \title Using the Editor
 
@@ -1842,7 +1936,7 @@
     \contentspage index.html
     \previouspage creator-checking-code-syntax.html
     \page creator-completing-code.html
-    \nextpage creator-editor-finding.html
+    \nextpage creator-indenting-code.html
 
     \title Completing Code
 
@@ -2267,6 +2361,10 @@
     open project, select \gui {Projects > Editor Settings}. For more
     information, see \l{Specifying Editor Settings}.
 
+    You can also specify indentation settings separately for C++ and QML files
+    either globally or for the open project. For more information, see
+    \l{Indenting Code}.
+
     \image qtcreator-font-colors.png "Text editor options"
 
     You can perform the following configuration actions:
@@ -2278,7 +2376,7 @@
            for other types of files than
              C++ or QML in \gui{Generic Highlighter}.
         \o Set tabs, indentation, the handling of whitespace, and mouse operations in
-           \gui Behavior.
+           \gui Behavior. For more information, see \l{Indenting Code}.
         \o Set various display properties, for example,
            \l{Highlighting and folding blocks}{highlighting and folding blocks},
            text wrapping or \l{Moving to symbol definition or declaration}
@@ -2333,73 +2431,7 @@
     format. The latter makes sure that syntax highlighting is preserved when
     pasting to a rich-text editor.
 
-    \section2 Indenting Code
-
-    \image qtcreator-indentation.png "Text Editor Behavior options"
-
-    When you type code, it is indented automatically according to the selected
-    options. Select a block to indent it when you press \key Tab.
-    Press \key {Shift+Tab} to decrease the indentation.
-
-    When you press \gui Backspace the indentation is decreased by one level,
-    instead of one space, by default.
-
-    By default, the tab-length in code editor is 8 spaces, but you can change
-    it. The code editor can also determine whether tabs or spaces are used
-    on the previous or next line and copy the style.
-
-    You can determine whether the block indent style includes braces,
-    or you can use the GNU indent style. The GNU style places braces on a separate
-    line, indented by 2 spaces, except when they open a function definition, where
-    they are not indented.
-
-    You can also specify whether continuation lines are aligned with the previous
-    code or just indented to the logical depth. You can always use spaces for
-    alignment or use spaces or tabs depending on the other options you selected.
-
-    The following code snippet illustrates excluding braces from the indented block:
-
-    \code
-
-    void foobar(bool zoo)
-    {
-        if (zoo)
-        {
-            foo();
-        }
-    }
-
-    \endcode
-
-    The following code snippet illustrates including braces in the indented block:
-
-    \code
-
-    void foobar(bool zoo)
-    {
-        if (zoo)
-            {
-            foo();
-            }
-    }
-
-    \endcode
-
-    The following code snippet illustrates the GNU style:
-
-    \code
-
-    void foobar(bool zoo)
-    {
-      if (zoo)
-        {
-          foo();
-        }
-    }
-
-    \endcode
-
-\section2 File Encoding
+    \section2 File Encoding
 
     To define the default file encoding, select the desired encoding in
     \gui {Default encoding}. By default, Qt Creator uses the file encoding
@@ -2411,6 +2443,165 @@
 /*!
     \contentspage index.html
     \previouspage creator-completing-code.html
+    \page creator-indenting-code.html
+    \nextpage creator-editor-finding.html
+
+    \title Indenting Code
+
+    When you type code, it is indented automatically according to the selected
+    text editor and code style options. Select a block to indent it when you
+    press \key Tab. Press \key {Shift+Tab} to decrease the indentation. You
+    can disable automatic indentation.
+
+    When you press \gui Backspace, the indentation is decreased by one level
+    in leading white space, by default. You can disable this setting.
+
+    Continuation lines are aligned with the previous line by using spaces. You
+    can disable automatic alignment to have them indented to the logical depth.
+    You can always use spaces for alignment or use spaces or tabs depending on
+    the other options you selected.
+
+    You can specify indentation either globally for all files or separately
+    for:
+
+    \list
+
+        \o  Text files
+
+        \o  C++ files
+
+        \o  QML files
+
+    \endlist
+
+    You can specify indentation either globally for all files of a particular
+    type or separately for each project.
+
+    \section1 Indenting Text Files
+
+    To specify global indentation settings for the text editor, select
+    \gui {Tools > Options... > Text Editor > Behavior}. You can also use these
+    settings globally for all editors and files.
+
+    \image qtcreator-indentation.png "Text Editor Behavior options"
+
+    To specify settings for a particular project, select \gui {Projects >
+    Editor Settings}.
+
+    \section1 Indenting C++ Files
+
+    To specify global indentation settings for the C++ editor, select
+    \gui {Tools > Options... > C++}.
+
+    \image qtcreator-options-code-style-cpp.png "C++ Code Style options"
+
+    To specify the settings for a particular project, select \gui {Projects >
+    Code Style Settings}.
+
+    You can specify how to:
+
+    \list
+
+        \o  Interpret the \key Tab and \key Backspace key presses.
+
+        \o  Indent the contents of classes, methods, blocks, and namespaces.
+
+        \o  Indent braces in classes, namespaces, enums, methods, and blocks.
+
+        \o  Control switch statements and their contents.
+
+        \o  Align continuation lines.
+
+    \endlist
+
+    You can use the live preview to see how the options change the indentation.
+
+    \section1 Indenting QML Files
+
+    To specify global settings for the Qt Quick editor, select \gui {Tools >
+    Options... > Qt Quick}.
+
+    \image qtcreator-options-code-style-qml.png "QML Code Style options"
+
+    To specify the settings for a particular project, select \gui {Projects >
+    Code Style Settings}.
+
+    You can specify how to interpret the \key Tab and \key Backspace key
+    presses.
+
+    \section1 Specifying Tab Settings
+
+    You can specify tab settings at the following levels:
+
+    \list
+
+        \o  Global settings for all files
+
+        \o  Global C++ settings for C++ files
+
+        \o  Global Qt Quick settings for QML files
+
+        \o  Project specific settings for all editors of files in the project
+
+        \o  Project specific settings for C++ files in the project
+
+        \o  Project specific settings for QML files in the project
+
+    \endlist
+
+    By default, the tab-length in code editor is 8 spaces. You can specify the
+    tab length separately for each project and for
+    different types of files.
+
+    The code editor can also determine whether tabs or spaces are used
+    on the previous or next line and copy the style.
+
+    The \key Tab key can automatically indent text when you press it, or only
+    when the cursor is located within leading white space.
+
+    \section1 Specifying Settings for Content
+
+    You can indent public, protected, and private statements and declarations
+    related to them within classes.
+
+    You can also indent statements within methods and blocks and declarations
+    within namespaces.
+
+    \image qtcreator-code-style-content.png "Content options"
+
+    \section1 Specifying Settings for Braces
+
+    You can indent class, namespace, enum and method declarations and code
+    blocks.
+
+    \image qtcreator-code-style-braces.png "Braces options"
+
+    \section1 Specifying Settings for Switch Statements
+
+    You can indent case or default statements, or statements or blocks related
+    to them within switch statements.
+
+    \image qtcreator-code-style-switch.png "Switch options"
+
+    \section1 Specifying Alignment
+
+    To align continuation lines to tokens after assignments, such as = or
+    +=, select the \gui {Align after assignments} check box. You can specify
+    additional settings for aligning continuation lines in the \gui General
+    tab.
+
+    You can also add spaces to conditional statements, so that they are not
+    aligned with the following line. Usually, this only affects \c if
+    statements.
+
+    \image qtcreator-code-style-alignment.png "Alignment options"
+
+*/
+
+
+/*!
+    \contentspage index.html
+    \previouspage creator-indenting-code.html
     \page creator-editor-finding.html
     \nextpage creator-editor-refactoring.html
 
@@ -2923,7 +3114,7 @@
             without delimiter characters and the initial character of each element is
             capitalized. For example, rewrites \c an_example_symbol
             as \c anExampleSymbol and \c AN_EXAMPLE_SYMBOL as \c AnExampleSymbol
-            \i Indentifier
+            \i Identifier
         \row
             \i Complete Switch Statement
             \i Adds all possible cases to a switch statement of the type \c enum
@@ -3035,13 +3226,14 @@
 
     To develop applications for Symbian devices, you use
     qmake and the local Symbian compiler (on Windows) or qmake and a compilation
-    service at Forum Nokia (on Linux and Mac OS) to build the applications for
+    service at Nokia Developer (on Linux and Mac OS) to build the applications for
     the Symbian devices target. The interface to the compilation service, Remote
     Compiler, is installed as a part of the \QSDK. For more information, see
     \l{Building with Remote Compiler}.
 
-    When you install the \QSDK, the build and run settings for the Maemo and
-    Symbian targets are set up automatically. However, you need to install and
+    You can install Maemo, MeeGo Harmattan, and Symbian targets as parts of
+    the \QSDK. The build and run settings for the selected targets are set up
+    automatically. However, you need to install and
     configure some additional software on the devices to be able to connect to
     them from the development PC.
 
@@ -3056,7 +3248,8 @@
         \o \l{Creating a Project}
         \o \l{Opening a Project}
         \o \l{Adding Libraries to Projects}
-        \o \l{Connecting Maemo Devices}
+        \o \l{Connecting Maemo and MeeGo Harmattan Devices}
+        \o \l{Connecting Generic Linux Devices}
         \o \l{Connecting Symbian Devices}
         \o \l{Managing Sessions}
     \endlist
@@ -3088,8 +3281,10 @@
 
         \o Qt Quick Project
 
-        Use QML to define the user interface and,
-        optionally, C++ or JavaScript to define the application logic
+        Use QML elements or Qt Quick Components to define the user interface and,
+        optionally, C++ or JavaScript to define the application logic.
+
+
 
         \o Qt Widget Project
 
@@ -3285,7 +3480,7 @@
 
     By default, Qt Creator does a \l{glossary-shadow-build}{shadow build} and also
     creates the directory. However, shadow building is not supported for the Symbian
-    Devices or Maemo5 target on Windows.
+    Devices, Maemo5, or Harmattan target on Windows.
 
     If you have built the project before, Qt Creator can use the existing build
     configuration to make the exact same build as found in the directory available to
@@ -3316,9 +3511,7 @@
 
     Qt Creator parses all the source files in the project and performs a semantic
     analysis to build up the information that it needs for functions such as
-    navigation and finding usages. Qt Creator also scans for all include files in
-    your include path recursively, so that it can complete them.
-    Progress bars are displayed during parsing and scanning.
+    navigation and finding usages. A progress bar is displayed during parsing.
 
 */
 
@@ -3796,7 +3989,7 @@
     Qt Creator allows you to have multiple versions of Qt installed on
     your development PC and use different versions to build your projects for
     different targets. For example, \QSDK contains special Qt versions for
-    Maemo and Symbian development.
+    MeeGo Harmattan, Maemo, and Symbian development.
 
     Qt Creator checks the directories listed in the \c{PATH} environment
     variable for the qmake executable. If a qmake executable is found, it is
@@ -3895,31 +4088,37 @@
 
     \list
 
-        \o  GNU Compiler Collection (GCC) is a cross compiler for Linux and
+        \o  GNU Compiler Collection (GCC) is a compiler for Linux and
             Mac OS X.
 
         \o  MinGW (Minimalist GNU for Windows) is a native software port of GCC
             and GNU Binutils for use in the development of native Microsoft
-            Windows applications on Windows or as cross compiler. MinGW is
+            Windows applications on Windows. MinGW is
             distributed together with Qt Creator and Qt SDK for Windows.
 
-        \o  GCCE (GNU Compiler Collection for Embedded) is an ARM-based
-            compiler used in Symbian OS 9 and distributed together with the
-            Symbian OS 9 SDKs.
+        \o  Linux ICC (Intel C++ Compiler) is a group of C and C++ compilers
+            for Linux.
 
-        \o  RVCT is an ARM-bases compiler for building applications for Symbian
+        \o  Clang is a C, C++, Objective C, and Objective C++ front-end for the
+            LLVM compiler for Windows, Linux, Mac OS X, and Symbian.
+
+        \o  GCCE (GNU Compiler Collection for Embedded) is an ARM-based
+            compiler used in Symbian OS 9 and distributed together with \QSDK.
+
+        \o  RVCT is an ARM-based compiler for building applications for Symbian
             devices (requires a license).
 
         \o  WINSCW is a compiler for building applications that can be run or
             debugged on the Symbian Emulator. It is distributed together with
-            Symbian SDKs.
+            Symbian SDKs (but not with the \QSDK).
 
     \endlist
 
-    To build an application using MinGW or GCCE, specify the paths to the
+    To build an application using GCC, MinGW, GCCE, or Clang, specify the paths
+    to the
     directories where the compiler and debugger are located and select the
     application binary interface (ABI) version from the list of available
-    versions.
+    versions. You can also create a custom ABI definition.
 
     Qt Creator allows you to select a tool chain that matches the Qt version
     in the \gui Projects mode \gui {Build Settins}.
@@ -3931,6 +4130,8 @@
         \o  Select \gui {Tools > Options... Tool Chains > Add} and select a
             compiler in the list.
 
+            \image qtcreator-toolchains.png
+
             To clone the selected tool chain, select \gui {Clone}.
 
         \o  In the \gui Name column, double-click the name to change it.
@@ -3938,8 +4139,6 @@
         \o  In the \gui{Compiler path} field, enter the path to the directory
             where the compiler is located. For WINSCW, enter the path to the
             Carbide C++ installation directory here.
-
-            \image qtcreator-toolchains.png
 
             The other settings to specify depend on the tool chain.
 
@@ -4172,6 +4371,7 @@
        \o \l{Specifying Build Settings}{Build Settings}
        \o \l{Specifying Run Settings}{Run Settings}
        \o \l{Specifying Editor Settings}{Editor Settings}
+       \o \l{Specifying Code Style Settings}{Code Style Settings}
        \o \l{Specifying Dependencies}{Dependencies}
     \endlist
 
@@ -4230,7 +4430,7 @@
     The tool chain for building applications locally on the development PC for
     the \gui {Symbian Device} target is only supported on Windows.
     If you develop on Linux or Mac OS, you must use the Remote Compiler
-    interface to a compilation service at Forum Nokia. For more information,
+    interface to a compilation service at Nokia Developer. For more information,
     see \l{Building with Remote Compiler}.
 
     \section2 Troubleshooting Build Issues
@@ -4303,21 +4503,22 @@
     For more information about using the Qt Simulator, see the
     \l{http://doc.qt.nokia.com/qtsimulator/index.html}{Qt Simulator Manual}.
 
-    \section1 Running on Maemo
+    \section1 Running on Maemo or MeeGo Harmattan
 
     \list 1
 
         \o Build and run the application for \l{Running on Qt Simulator}{Qt Simulator}.
 
-        \o Build and run the application for \l{Using the Maemo Emulator}{Maemo Emulator}.
+        \o  Build and run the application for
+            \l{Using Maemo or MeeGo Harmattan Emulator}
+            {the Maemo or MeeGo Harmattan emulator}.
 
         \o Alternatively, you can build and run the application for a device:
 
         \list 1
 
-        \o Set up the MADDE development environment and specify a connection
-        to the device. For more information, see
-        \l{Connecting Maemo Devices}.
+        \o  Configure the device and specify a connection to it. For more
+            information, see \l{Connecting Maemo and MeeGo Harmattan Devices}.
 
         \o Connect the device to the development PC.
 
@@ -4332,15 +4533,52 @@
 
         Qt Creator generates an installation package, installs it on the device,
         and executes the selected application.
-        The application views are displayed on the Nokia N900.
+        The application views are displayed on the device.
         Command-line
         output is visible in the Qt Creator \gui {Application Output} view.
 
         Choose \gui {Projects > Maemo Run} to view the settings for deploying the
         application on the connected device and creating the installation package.
-        For more information, see \l{Specifying Run Settings for Maemo Devices}.
+        For more information, see
+        \l{Specifying Run Settings for Maemo and MeeGo Harmattan Devices}.
 
         Debugging also works transparently.
+
+    \section1 Running on Generic Linux Devices
+
+    \list 1
+
+        \o  Build and run the application for \l{Running on Qt Simulator}
+            {Qt Simulator}.
+
+        \o  Build and run the application for a device:
+
+        \list 1
+
+        \o  Specify a connection to the device. For more information, see
+            \l{Connecting Generic Linux Devices}.
+
+        \o  Click the \gui Run button.
+
+        \endlist
+
+    \endlist
+
+    Qt Creator uses the compiler specified in the project build settings
+    (tool chain) to build the application.
+
+    Qt Creator generates an installation package, installs it on the
+    device, and executes the selected application. The application views are
+    displayed on the device. Command-line output is visible in the Qt
+    Creator \gui {Application Output} view.
+
+    Choose \gui {Projects > Desktop > Run} to view the settings for deploying
+    the application on the connected device and creating the installation
+    package. For more information, see
+    \l{Specifying Run Settings for Generic Linux Devices}.
+
+    Debugging works transparently if GDB server is installed on the device and
+    it is compatible with the GDB on the host.
 
     \section1 Running on Symbian
 
@@ -4371,7 +4609,7 @@
         The tool tip of the target selector shows more details about the actual
         device that will be used when you run your application.
 
-        \o Start the debugging agent (CODA or App TRK) application on your device.
+        \o Start the CODA debugging agent on the device.
 
         \note If you use CODA over an USB connection, it starts up
         automatically when you connect the device to the development PC.
@@ -4394,7 +4632,7 @@
         \o The Nokia USB drivers that come with \e{PC Suite} or \e{Ovi Suite}
         have been installed on the development PC.
         \o The device is connected through USB cable in \e{PC Suite} mode.
-        \o The debugging agent (App TRK or CODA) is running on the device with
+        \o The CODA debugging agent is running on the device with
            the status \e connected.
 
            \note If you use the CODA debugging agent over WLAN, you must enter
@@ -4442,14 +4680,15 @@
     \title Building with Remote Compiler
 
     The \gui {Remote Compiler} target is an interface to a compilation service at
-    Forum Nokia. It provides a simple, standardized environment for building Qt
-    applications and creating installation packages for Symbian and Maemo devices
+    Nokia Developer. It provides a simple, standardized environment for building Qt
+    applications and creating installation packages for Symbian, Maemo, and
+    MeeGo Harmattan devices
     when you do not have the necessary tool chains and SDKs installed or they are
     not supported on the development PC. You can choose from a set of supported
     devices, such as S60 3rd Edition or S60 5th Edition devices.
 
-    You need a Forum Nokia user account to use the Remote Compiler. You can
-    create an account for free at \l{http://www.forum.nokia.com/}{Forum Nokia}.
+    You need a Nokia Developer user account to use the Remote Compiler. You can
+    create an account for free at \l{http://www.developer.nokia.com/}{Nokia Developer}.
 
     \note Remote Compiler is an experimental component that is installed as
     part of \QSDK.
@@ -4463,7 +4702,7 @@
         Remote Compiler} to install Remote Compiler.
 
         \o In Qt Creator, choose \gui {Tools > Options > Projects > Remote Compiler}
-        to log on to Forum Nokia.
+        to log on to Nokia Developer.
 
         \image remotecompiler-fn-logon.png "Remote Compiler options"
 
@@ -4540,7 +4779,8 @@
                This keeps the files generated for each target platform separate.
 
                \note Shadow building is not supported by the Symbian build system.
-               Also, shadow building on Windows is not supported for Maemo.
+               Also, shadow building on Windows is not supported for Maemo or
+               MeeGo Harmattan.
                If you only build for one target platform, you can deselect
                the \gui{Shadow build} checkbox.
     \endlist
@@ -4741,30 +4981,46 @@
     publishing and installing applications on Symbian devices. For more information,
     see \l{Deploying Applications to Symbian Devices}.
 
-    \section2 Specifying Run Settings for Maemo Devices
+    \section2 Specifying Run Settings for Maemo and MeeGo Harmattan Devices
 
-    To run an application on a Maemo device, create and select
-    a device configuration in the Maemo run settings for your project.
+    To run an application on a Maemo or MeeGo Harmattan device, create and
+    select a device configuration in the Maemo 5 or Harmattan run settings for
+    your project.
     You can also pass command line arguments to your application.
 
     \image qtcreator-screenshot-run-settings-maemo.png "Run settings for Maemo devices"
 
-    To run and debug applications on Maemo devices, you must create connections
+    To run and debug applications on Maemo or MeeGo Harmattan devices, you must
+    create connections
     from the development PC to the devices. Click \gui {Manage device
     configurations} to create connections. For more information, see
     \l {Configuring Connections in Qt Creator}.
 
-    By default, Qt Creator runs the remote gdbserver daemon on the device for
-    debugging. However, if the sysroot does not match that of the device, you
-    can run remote GDB, instead. Select the \gui {Use remote GDB} option in
-    \gui {Debugging details}. Select the \gui {Set debugger} link to specify
-    settings for GDB.
-
-    When you run the application on the \gui{Maemo} target, Qt Creator generates
+    When you run the application on the \gui{Maemo5} or \gui Harmattan target,
+    Qt Creator generates
     a Debian installation package in the build directory by default. You can deliver
-    the installation package to users for installation on Maemo devices that are of
+    the installation package to users for installation on devices that are of
     the same type and run the same firmware as the connected device. For more
-    information, see \l{Deploying Applications to Maemo Devices}.
+    information, see
+    \l{Deploying Applications to Maemo or MeeGo Harmattan Devices}.
+
+    \section2 Specifying Run Settings for Generic Linux Devices
+
+    To run an application on a generic Linux device (without MADDE support),
+    create and select a device configuration in the Desktop run settings for
+    your project. You can also pass command line arguments to your application.
+
+    \image qtcreator-run-settings-linux-devices.png "Run settings for Generic Linux devices"
+
+    In addition, you must create a connection from the development PC to the
+    device.  Click \gui {Manage device configurations} to create connections.
+    For more information, see \l {Connecting Generic Linux Devices}.
+
+    When you run the application on the \gui Desktop target, Qt Creator
+    generates an installation package in the build directory. The name of the
+    directory is displayed in the \gui {Create tarball} step. Qt Creator copies
+    the tarball to devices by using the SSH file transfer protocol (SFTP) and
+    extracts it.
 
     \section1 Specifying a Custom Executable to Run
 
@@ -4817,9 +5073,10 @@
     \page creator-deployment-maemo.html
     \nextpage creator-publishing-to-maemo-extras.html
 
-    \title Deploying Applications to Maemo Devices
+    \title Deploying Applications to Maemo or MeeGo Harmattan Devices
 
-    You can specify settings for deploying applications to Maemo devices in the
+    You can specify settings for deploying applications to Maemo 5 and MeeGo
+    Harmattan devices in the
     project .pro file. You can view the settings in the \gui {Run Settings}.
 
     \image qtcreator-maemo-deployment.png "Deploy to device"
@@ -4847,9 +5104,10 @@
 
     \section1 Creating Debian Installation Packages
 
-    When you run the application on the \gui{Maemo} target, Qt Creator generates
+    When you run the application on the \gui{Maemo5} or \gui Harmattan target,
+    Qt Creator generates
     a Debian installation package in the build directory by default. You can deliver
-    the installation package to users for installation on Maemo devices that are of
+    the installation package to users for installation on devices that are of
     the same type and run the same firmware as the connected device.
 
     \image qtcreator-maemo-deb-package.png "Create installation package"
@@ -4872,7 +5130,8 @@
     \note Qt Creator automates this process for you.
 
     Qt Creator provides templates for a set of files that must be included
-    in Debian packages. When you create a Maemo target for a project, Qt Creator
+    in Debian packages. When you create a \gui Maemo5 or \gui Harmattan target
+    for a project, Qt Creator
     asks whether packaging files are to be added to the project and to version
     control. If you plan to edit the packaging files, add them to version
     control.
@@ -4952,7 +5211,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-troubleshooting-debugging.html
+    \previouspage creator-running-valgrind-remotely.html
     \page creator-deployment.html
     \nextpage creator-deployment-symbian.html
 
@@ -4967,11 +5226,13 @@
     channel, you must make sure that the installation file meets the requirements for
     publishing and installing applications to Symbian or Maemo devices. The following
     sections describe the steps that you have to take to create installation packages
-    for Symbian and Maemo devices and for publishing on Ovi Store:
+    for Symbian, Maemo, or MeeGo Harmattan devices and for publishing on Ovi
+    Store:
+
 
     \list
         \o \l{Deploying Applications to Symbian Devices}
-        \o \l{Deploying Applications to Maemo Devices}
+        \o \l{Deploying Applications to Maemo or MeeGo Harmattan Devices}
         \o \l{Publishing Maemo Applications to Extras-devel}
         \o \l{Publishing Applications to Ovi Store}
         \o \l{Building with Remote Compiler}
@@ -5044,7 +5305,7 @@
     (Express Signing). Participants can submit an unsigned SIS file to Ovi
     Publishing for signing. For more information about how
     to participate, see
-    \l {http://wiki.forum.nokia.com/index.php/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store}.
+    \l {http://www.developer.nokia.com/Community/Wiki/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store}.
 
     There are also options that do not require you to get a Publisher ID. For
     more detail about how the Symbian Signed process works, see
@@ -5135,7 +5396,7 @@
 
     You can either install the Nokia Smart Installer for Symbian as part of
     the \QSDK, or download and install it from the
-    \l{http://wiki.forum.nokia.com/index.php/Nokia_Smart_Installer_for_Symbian}{Nokia Smart Installer for Symbian}
+    \l{http://www.developer.nokia.com/Community/Wiki/Nokia_Smart_Installer_for_Symbian}{Nokia Smart Installer for Symbian}
     wiki.
 
     To package Nokia Smart Installer with the application, select the \gui {Create Smart Installer
@@ -5161,7 +5422,7 @@
 
     \list 1
 
-        \o Make sure that the source directory is clean. For example, if you use git,
+        \o Make sure that the source directory is clean. For example, if you use Git,
         enter the following command:
 
         \c {git clean -dfx}
@@ -5217,7 +5478,7 @@
 
     \list 1
 
-        \o Make sure that the source directory is clean. For example, if you use git,
+        \o Make sure that the source directory is clean. For example, if you use Git,
         enter the following command:
 
         \c {git clean -dfx}
@@ -5349,7 +5610,7 @@
 
     The process and requirements to publish Qt applications to Ovi Store are
     described in the
-    \l {http://wiki.forum.nokia.com/index.php/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store} wiki.
+    \l {http://www.developer.nokia.com/Community/Wiki/Guide_to_Publishing_Qt_Applications_to_the_Ovi_Store}{Guide to Publishing Qt Applications to the Ovi Store} wiki.
 
     This section describes how to
     generate installation packages that
@@ -5415,7 +5676,7 @@
     device if you use UIDs from the trusted range (0x2xxxxxxx) in a self-signed
     application: \gui {Unable to install a trusted application from a trusted
     supplier.} For more
-    information, see \l{http://wiki.forum.nokia.com/index.php/UID}{UID}.
+    information, see \l{http://www.developer.nokia.com/Community/Wiki/UID}{UID}.
 
     If you try to use more capabilites than the certificate permits, the
     following error message is displayed on the device: \gui {Requested
@@ -5492,7 +5753,7 @@
 
     The applications that you publish on Ovi Store, must meet the testing criteria
     listed in
-    \l{http://www.forum.nokia.com/info/sw.nokia.com/id/9cd1eb18-821b-4228-a0a3-36b049c5d608/Maemo_5_Application_OVI_Store_Entry_Requirements.pdf.html}
+    \l{http://www.developer.nokia.com/info/sw.nokia.com/id/9cd1eb18-821b-4228-a0a3-36b049c5d608/Maemo_5_Application_OVI_Store_Entry_Requirements.pdf.html}
     {Maemo 5 Applications: Ovi Store Entry Requirements}.
 
     Make sure that your application passes the following most commonly
@@ -5516,14 +5777,25 @@
 
     You set the application name and installation folder in the
     \gui {Run Settings} for the project. For more information, see
-    \l{Deploying Applications to Maemo Devices}. Qt Creator specifies the correct
+    \l{Deploying Applications to Maemo or MeeGo Harmattan Devices}. Qt Creator
+    specifies the correct
     category settings by default when it creates the Debian directory and
     the necessary files.
 
-    You can test the application on Qt Simulator and Maemo Emulator to make
+    You can test the application on Qt Simulator and Maemo emulator to make
     sure that it does not crash or hang and to check how it handles different
     memory situations. Before you submit the application to Ovi Publishing, you
     must also fully test it on a Maemo device.
+
+    \section1 Publishing Qt Content for MeeGo Harmattan Devices
+
+    You cannot publish applications that are built with the beta version of the
+    MeeGo Harmattan tool chain to Ovi Store.
+
+    However, you can prepare for publishing by making sure that your application
+    meets the
+    \l{http://www.developer.nokia.com/info/sw.nokia.com/id/44affcd1-ceba-4aca-8b65-670ce2cbbd1e/MeeGo_1_2_Harmattan_Applications_Ovi_Store_Entry_Requirements.html}
+    {MeeGo 1.2 Harmattan Applications: Ovi Store Entry Requirements}.
 
 */
 
@@ -5531,18 +5803,34 @@
     \contentspage index.html
     \previouspage creator-run-settings.html
     \page creator-editor-settings.html
-    \nextpage creator-build-dependencies.html
+    \nextpage creator-code-style-settings.html
 
     \title Specifying Editor Settings
 
-    You can configure the code editor according to your needs. You can specify
+    Qt Creator uses the \l{Editing MIME Types}{MIME type} of the file to
+    determine which mode and editor to use for opening the file. For example,
+    Qt Creator opens .txt files in \gui Edit mode in the text editor.
+
+    You can configure the text editor according to your needs. You can specify
     editor behavior either globally for all projects or separately for each
     project. To specify global editor behavior, select \gui {Tools > Options...
     > Text Editor > Behavior}.
 
-    To configure the editor behavior for the current project, deselect the
-    \gui {Use global settings} check box in the \gui {Editor Settings} for the
-    project. For more information about the settings, see:
+    To configure the text editor behavior for the current project:
+
+    \list
+
+        \o  Select \gui {Projects > Editor Settings}.
+
+        \o  Deselect the \gui {Use global settings} check box.
+
+        \o  Specify text editor settings for the project.
+
+    \endlist
+
+    \image qtcreator-editor-settings.png "Editor Settings view"
+
+    For more information about the settings, see:
 
     \list
 
@@ -5556,14 +5844,57 @@
 
     \endlist
 
-    \image qtcreator-editor-settings.png "Editor Settings view"
-
 */
 
 
 /*!
     \contentspage index.html
     \previouspage creator-editor-settings.html
+    \page creator-code-style-settings.html
+    \nextpage creator-build-dependencies.html
+
+    \title Specifying Code Style Settings
+
+    Qt Creator uses the \l{Editing MIME Types}{MIME type} of the file to
+    determine which mode and editor to use for opening the file.
+    Qt Creator opens C++ files in \gui Edit mode in the C++ code editor and
+    QML files in the Qt Quick editor.
+
+    You can configure the code style according to your needs. You can specify
+    code style either globally for all projects or separately for each
+    project. To specify global code style for C++ files, select \gui {Tools >
+    Options... > C++}.
+
+    To specify global code style for QML files, select \gui {Tools > Options...
+    > Qt Quick}.
+
+    To configure the editor behavior for the current project:
+
+    \list
+
+        \o  Select \gui {Projects > Code Style Settings}.
+
+        \o  In the \gui Language field, select \gui C++ or \gui Qt Quick.
+
+        \o  Deselect the \gui {Use global settings} check box.
+
+        \o  In the \gui Settings field, select \gui Custom.
+
+        \o  Specify code style settings for the project. Only \gui General
+            settings are available for QML files.
+
+    \endlist
+
+    \image qtcreator-code-style-settings.png "Code Style Settings view"
+
+    For more information about the settings, see \l{Indenting Code}.
+
+*/
+
+
+/*!
+    \contentspage index.html
+    \previouspage creator-code-style-settings.html
     \page creator-build-dependencies.html
     \nextpage creator-debugging.html
 
@@ -5663,8 +5994,8 @@
 
         \image qtcreator-mobile-project-qt-versions.png "Target Setup dialog"
 
-        \o Select \gui {Maemo5}, \gui {Qt Simulator}, and \gui {Symbian
-        Device} targets,
+        \o Select \gui {Symbian Device}, \gui {Maemo5}, \gui Harmattan, and
+        \gui {Qt Simulator} targets,
         and click \gui{Next}.
 
         \note Targets are listed if you installed the appropriate development
@@ -5680,7 +6011,9 @@
         and landscape, and then click \gui{Next}.
 
         \note This dialog opens only if you select \gui Maemo5 or
-        \gui {Symbian Device} target in the \gui {Target Setup} dialog.
+        \gui {Symbian Device} target in the \gui {Target Setup} dialog. On
+        Harmattan, the Qt Quick Components for MeeGo provide native-looking
+        rotation.
 
         The \gui {Symbian Specific} dialog opens.
 
@@ -5696,8 +6029,9 @@
 
         \image qtcreator-mobile-project-maemo-options.png "Maemo Specific dialog"
 
-        \o In the \gui {Application icon (64x64)} field, select the application
-         icon to use on Maemo targets, or click \gui Next to use the default icon.
+        \o In the \gui {Application icon} field, select the application
+         icon to use on Maemo 5 or Harmattan targets, or click \gui Next to use
+         the default icon.
 
         The \gui{Project Management} dialog opens.
 
@@ -5851,7 +6185,7 @@
         debugging agent on the device. For more information,
         see \l{Connecting Symbian Devices}.
 
-        \o Start the debugging agent, App TRK or CODA, on the device.
+        \o Start the CODA debugging agent on the device.
 
         \o Click the \gui {Target Selector} and select \gui {Symbian Device}.
 
@@ -5859,13 +6193,18 @@
 
     \endlist
 
-    \section1 Testing on the Maemo Emulator
+    \section1 Testing on the Maemo or MeeGo Harmattan Emulator
+
+    The Maemo 5 (Fremantle) and MeeGo Harmattan emulator are installed as part
+    of the \QSDK. After they are installed, you can start them from Qt Creator.
 
     The Maemo emulator emulates the Nokia N900 device environment. You can test
     applications in conditions practically identical to running the application
     on a Nokia N900 device with the software update release 1.3 (V20.2010.36-2).
 
-    For more information, see \l{Using the Maemo Emulator}.
+    The MeeGo Harmattan emulator emulates the Nokia N9 device environment.
+
+    For more information, see \l{Using Maemo or MeeGo Harmattan Emulator}.
 
 */
 
@@ -5889,7 +6228,8 @@
         \image qtcreator-gs-build-example-open.png "Selecting an example"
 
         \o Select targets for the project. Select at least Qt Simulator
-        and one of the mobile targets, Maemo or Symbian Device, depending on
+        and one of the mobile targets, Symbian Device, Maemo 5, or Harmattan,
+        depending on
         the device you develop for.
 
         \image qtcreator-gs-build-example-targets.png "Selecting targets"
@@ -6850,17 +7190,12 @@
         \row
             \i  \gui{Launch gitk}
             \i  Start the commit viewer for Git, gitk.
-
         \row
             \i  \gui{Branches...}
-            \i  Display the \gui Branch dialog that shows the local branches at the
-                top and remote branches at the bottom. To switch to a local branch,
-                double-click it. Double-clicking on a remote branch first creates a local
-                branch with the same name that tracks the remote branch, and then switches
-                to it.
-
-                \image qtcreator-vcs-gitbranch.png
-
+            \i  Manage local and remote branches.
+        \row
+            \i  \gui Remotes...
+            \i  Manage remote repositories available in Git.
         \row
             \i  \gui {Stage File for Commit}
             \i  Mark new or modified files for committing to the repository.
@@ -6870,10 +7205,75 @@
             \i  Select a commit to view. Enter the SHA of the commit
                 in the \gui Change field.
         \row
+            \i  \gui Stash
+            \i  Store local changes temporarily.
+        \row
             \i  \gui{Amend Last Commit...}
             \i  Revert the last commit.
 
     \endtable
+
+    \section3 Working with Branches
+
+    To work with Git branches, select \gui{Branches...}. The checked out branch
+    is shown in bold and underlined in the list of branches. Double-click branch
+    names to edit them.
+
+    \image qtcreator-vcs-gitbranch.png "Branches dialog"
+
+    The following operations are supported:
+
+    \table
+        \header
+            \o  Menu Item
+            \o  Description
+        \row
+            \i  \gui{Add...}
+            \i  Create new tracking and non-tracking branches.
+        \row
+            \i  \gui{Checkout}
+            \i  Check out the selected branch and make it current.
+        \row
+            \i  \gui{Remove}
+            \i  Remove a local branch. You cannot delete remote branches.
+        \row
+            \i  \gui{Diff}
+            \i  Show the differences between the selected and the current
+                branch.
+        \row
+            \i  \gui{Log}
+            \i  Show the changes in a branch.
+        \row
+            \i  \gui{Refresh}
+            \i  Refresh the list of branches.
+    \endtable
+
+    \section3 Working with Remote Repositories
+
+    To manage remote repositories available in Git, select \gui{Remotes...}.
+    Double-click the names and URLs of the remote repositories to edit them.
+
+    The following operations are supported:
+
+    \table
+        \header
+            \o  Menu Item
+            \o  Description
+        \row
+            \i  \gui{Add...}
+            \i  Add a new remote repository.
+        \row
+            \i  \gui{Fetch}
+            \i  Fetch all the branches and change information from a remote
+                repository.
+        \row
+            \i  \gui{Remove}
+            \i  Remove a remote repository.
+        \row
+            \i  \gui{Refresh}
+            \i  Refresh the list of remote repositories.
+    \endtable
+
 
     \section3 Using Stashes
 
@@ -7235,7 +7635,7 @@
     \list
         \o Open projects with their dependencies (including SUBDIRS projects)
         \o Open editors
-        \o Breakpoints and watches
+        \o Breakpoints and expressions
         \o Bookmarks
     \endlist
 
@@ -7305,9 +7705,6 @@
         \o  \l{Debugging Qt Quick Projects} describes how to debug Qt Quick
             projects.
 
-        \o  \l{Detecting Memory Leaks} describes how to use the Valgrind
-            Memcheck tool to detect problems in memory management.
-
         \o  \l{Troubleshooting Debugger} lists some typical problems that you
             might encounter while debugging and solutions to them.
 
@@ -7367,11 +7764,6 @@
     \endlist
 
     \note Debugging QML and JavaScript is supported only in plain mode.
-
-    When you click the \gui {Start Debugging} button, the debugger is launched
-    in the appropriate operating mode (plain, terminal, or on-device), based on the
-    build and run settings for the active project. Select \gui Debug menu options
-    to launch the debugger in the other modes.
 
     \section2 Launching in Plain Mode
 
@@ -7531,7 +7923,7 @@
     The on-device mode is a special mode available for run configurations
     targeting mobile devices. It debugs processes running on mobile
     devices using on-device debugging agents, such as CODA on Symbian and
-    gdbserver on Maemo and MeeGo.
+    gdbserver on Linux-based devices.
 
     To launch the debugger in the on-device mode, open the project, select a
     run configuration that targets a mobile device, and click the
@@ -7569,7 +7961,8 @@
     with and without the ability to use Python scripting. The Python enabled
     versions are preferred, but they are not available on Mac and on older
     versions of Linux.
-    On Windows, Symbian, and Maemo, only the Python version is supported.
+    On Windows, Symbian, Maemo, and MeeGo Harmattan, only the Python version is
+    supported.
 
     The non-Python versions use the compiled version of the debugging helpers,
     that you must enable separately. For more information, see
@@ -7629,6 +8022,12 @@
             \o On-device
         \row
             \o Maemo
+            \o GCC
+            \o GDB
+            \o Yes
+            \o On-device
+        \row
+            \o MeeGo Harmattan
             \o GCC
             \o GDB
             \o Yes
@@ -7807,7 +8206,7 @@
         \o Retrieves data representing the call stack at the program's current
            position.
         \o Retrieves the contents of local variables.
-        \o Examines \gui Watchers.
+        \o Examines \gui Expressions.
         \o Updates the \gui Registers, \gui Modules, and \gui Disassembler
            views if you are debugging the C++ based applications.
     \endlist
@@ -7860,10 +8259,10 @@
 
         \o  Executing some system calls
 
-    \endlist
+        \o  Changes in a block of memory at a particular address when a
+            program is running
 
-    You can also set watchpoints to monitor the changes in a block of memory
-    at a particular address when a program is running.
+    \endlist
 
     The interruption of a program by a breakpoint can be restricted with
     certain conditions.
@@ -7871,7 +8270,7 @@
     To set a breakpoint at a particular line you want the program to stop,
     click the left margin or press \key F9 (\key F8 for Mac OS X).
 
-    To set breakpoints and watchpoints select \gui {Add Breakpoint...} in
+    To set breakpoints, select \gui {Add Breakpoint...} in
     the context menu in the \gui Breakpoints view.
 
     \image qtcreator-add-breakpoint.png "Add Breakpoints" dialog
@@ -7889,17 +8288,17 @@
     while it is running under the debugger's control. Breakpoints are saved
     together with a session.
 
-    \section2 Setting Watchpoints
+    \section2 Setting Data Breakpoints
 
-    To set a watchpoint at an address:
+    To set a data breakpoint at an address:
 
     \list 1
 
         \o  Right-click in the \gui Breakpoints view to open the context menu,
             and select \gui {Add Breakpoint...}.
 
-        \o  In the \gui {Breakpoint type} field, select \gui {Address
-            (Watchpoint)}.
+        \o  In the \gui {Breakpoint type} field, select \gui {Break on data
+            access at fixed address}.
 
         \o  In the \gui Address field, specify the address of the memory block.
 
@@ -7907,9 +8306,9 @@
 
     \endlist
 
-    If the address is displayed in the \gui {Locals and Watchers} view, you can
-    select \gui {Add Watchpoint at Object's Address} in the context menu to set
-    the watchpoint.
+    If the address is displayed in the \gui {Locals and Expressions} view, you can
+    select \gui {Add Data Breakpoint at Object's Address} in the context menu to set
+    the data breakpoint.
 
     \section1 Viewing Call Stack Trace
 
@@ -7928,19 +8327,19 @@
     corresponding source locations are grayed out in the \gui{Stack} view.
 
     If you click a frame with a known source location, the text editor
-    jumps to the corresponding location and updates the \gui{Locals and Watchers}
+    jumps to the corresponding location and updates the \gui{Locals and Expressions}
     view, making it seem like the program was interrupted before entering the
     function.
 
-    \section1 Locals and Watchers
+    \section1 Locals and Expressions
 
     Whenever a program stops under the control of the debugger, it retrieves
     information about the topmost stack frame and displays it in the
-    \gui{Locals and Watchers} view. The \gui{Locals and Watchers} view
+    \gui{Locals and Expressions} view. The \gui{Locals and Expressions} view
     typically includes information about parameters of the function in that
     frame as well as the local variables.
 
-    \image qtcreator-watcher.png "Locals and Watchers view"
+    \image qtcreator-watcher.png "Locals and Expressions view"
 
     Compound variables of struct or class type are displayed as
     expandable in the view. Expand entries to show
@@ -7956,7 +8355,7 @@
             \i  GDB, and therefore Qt Creator's debugger works for optimized
                 builds on Linux and Mac OS X. Optimization can lead to
                 re-ordering of instructions or removal of some local variables,
-                causing the \gui{Locals and Watchers} view to show unexpected
+                causing the \gui{Locals and Expressions} view to show unexpected
                 data.
         \row
             \i  The debug information provided by GCC does not include enough
@@ -7969,7 +8368,7 @@
     \endtable
 
 
-    The \gui{Locals and Watchers} view also provides access to the most
+    The \gui{Locals and Expressions} view also provides access to the most
     powerful feature of the debugger: comprehensive display of data belonging
     to Qt's basic objects.
 
@@ -7978,7 +8377,7 @@
        \o  Select \gui Tools > \gui {Options...} > \gui Debugger >
            \gui{Debugging Helper} and check the \gui{Use Debugging Helper}
            checkbox.
-       \o  The \gui{Locals and Watchers} view is reorganized to provide a
+       \o  The \gui{Locals and Expressions} view is reorganized to provide a
            high-level view of the objects.
     \endlist
 
@@ -7990,7 +8389,7 @@
     Also, the debugger displays access data for QFileInfo and provides
     access to the "real" contents of QVariant.
 
-    You can use the \gui{Locals and Watchers} view to change the contents of
+    You can use the \gui{Locals and Expressions} view to change the contents of
     variables of simple data types, for example, \c int or \c float when the
     program is interrupted. To do so, click the \gui Value column, modify
     the value with the inplace editor, and press \key Enter (or \key Return).
@@ -7998,7 +8397,7 @@
     You can enable tooltips in the main editor displaying this information.
     For more information, see \l{Showing Tooltips in Debug Mode}.
 
-    \note The set of watched items is saved in your session.
+    \note The set of evaluated expressions is saved in your session.
 
     \section1 Directly Interacting with Native Debuggers
 
@@ -8012,8 +8411,8 @@
 
     \note Usually, you do not need this feature, because Qt Creator provides
     you with better ways to handle the task. For example, instead of using the
-    GDB \c print command from the command line, you can create a watcher item
-    in the \gui{Locals and Watchers} view and examine the expression there.
+    GDB \c print command from the command line, you can evaluate an expression
+    in the \gui{Locals and Expressions} view.
 
     \section1 Debugging C++ Based Applications
 
@@ -8129,7 +8528,7 @@
     QString and then displays it with QTextEdit.
     To look at the example QString, \c{line}, and see the
     stored data, place a breakpoint and view the QString object
-    data, as follows:
+    data in textfinder.cpp, as follows:
 
     \list 1
         \o Click in between the line number and the window border on the line
@@ -8149,7 +8548,7 @@
 
 
         \o To view the contents of \c{line}, go to the \gui{Locals and
-    Watchers} view.
+    Expressions} view.
 
         \image qtcreator-watcher.png
 
@@ -8236,7 +8635,7 @@
     \section1 Debugging Helpers Based on Python
 
     Qt Creator uses GDB builds that enable Python scripting to display
-    information in the \gui {Locals and Watchers} view. When Python scripting
+    information in the \gui {Locals and Expressions} view. When Python scripting
     is used, code (Debugging helpers) does not need to be injected into the
     debugged process to nicely display QStringList or \c std::map contents, for
     example.
@@ -8291,7 +8690,7 @@
 
     The function has to feed the Dumper object with certain information
     which is used to build up the object and its children's display in the
-    \gui{Locals and Watchers} view.
+    \gui{Locals and Expressions} view.
 
 
     Example:
@@ -8320,7 +8719,7 @@
     \section2 Item Class
 
     The Item Python class is a thin wrapper around values corresponding to one
-    line in the \gui{Locals and Watchers} view. The Item members are as follows :
+    line in the \gui{Locals and Expressions} view. The Item members are as follows :
 
     \list
 
@@ -8345,7 +8744,7 @@
 
     \section2 Dumper Class
 
-    For each line in the \gui{Locals and Watchers} view, a string like the
+    For each line in the \gui{Locals and Expressions} view, a string like the
     following needs to be created and channeled to the debugger plugin.
     \code
     "{iname='some internal name',
@@ -8543,16 +8942,17 @@
     The debugging helpers for QML provide you with code completion for custom modules
     (\c qmldump) and debugging Qt Quick UI projects (\c qmlobserver).
 
-    You have to build the QML Observer once for each Qt version that you want to debug
+    You have to build the QML Inspector once for each Qt version that you want
+    to debug
     with. Select \gui{Tools > Options... > Qt4 > Qt Versions}.
 
-    \note QML Observer requires Qt 4.7.1 or later.
+    \note QML Inspector requires Qt 4.7.1 or later.
 
     \section1 Enabling Debugging Helpers for Qt's Bootstrapped Applications
 
     Qt's bootstrapped applications (such as moc and qmake) are built in a way
     that is incompatible with the default build of the debugging helpers. To
-    work around this, add gdbmacros.cpp to the compiled sources in the
+    work around this, add \c{dumper.cpp} to the compiled sources in the
     application Makefile.
 
     Choose \gui {Tools > Options > Debugger > Debugging Helper > Use debugging
@@ -8673,11 +9073,12 @@
     \contentspage index.html
     \previouspage creator-debugging-helpers.html
     \page creator-debugging-qml.html
-    \nextpage creator-analyzer.html
+    \nextpage creator-troubleshooting-debugging.html
 
     \title Debugging Qt Quick Projects
 
-    \note You need Qt 4.7.1 or later to debug Qt Quick projects.
+    \note You need Qt 4.7.1 or later to debug Qt Quick projects. Debugging projects
+    not created with the Qt Quick wizards is only supported with Qt 4.8, or later.
 
     \section1 Setting Up QML Debugging
 
@@ -8691,7 +9092,7 @@
         \o Select \gui Projects, and then select the \gui QML check box in the
         \gui {Run Settings}, to enable QML debugging.
 
-        \o Compile the QML Observer debugging helper. For more information, see
+        \o Compile the QML Inspector debugging helper. For more information, see
         \l{Debugging Helpers for QML}.
 
     \endlist
@@ -8750,7 +9151,7 @@
 
         \o \l{Viewing Call Stack Trace}
 
-        \o \l{Locals and Watchers}
+        \o \l{Locals and Expressions}
 
     \endlist
 
@@ -8767,7 +9168,7 @@
 
     You can see the current value of a property by hovering over it in the code editor.
 
-    \section1 Previewing QML Changes at Runtime
+    \section1 Applying QML Changes at Runtime
 
     If you change property values or add properties in the code editor, the changes
     are updated in the running application when you save them. If live preview is not supported
@@ -8779,36 +9180,45 @@
 
     \section1 Inspecting QML at Runtime
 
-    While the application is running, you can use the \gui {QML Observer} view to
+    While the application is running, you can use the \gui {QML Inspector} view to
     explore the object structure, debug animations, and inspect colors.
-    To open the \gui {QML Observer} view, choose \gui {Window > View > QML Observer}.
+    To open the \gui {QML Inspector} view, choose \gui {Window > View >
+    QML Inspector}.
     The view shows the properties of the currently selected QML element.
 
-    \image qml-observer-view.png "QML Observer view"
+    \image qml-observer-view.png "QML Inspector view"
 
-    When you debug complex applications, you can use the observe
-    mode to jump to the position in code where an element is defined. To switch to
-    the observe mode, click
-    \inlineimage qml-observer-bar-observe.png
+    When you debug complex applications, you can use the inspection
+    mode to jump to the position in code where an element is defined. You are
+    switched to the inspection mode, when you click the \gui Select, \gui Zoom,
+    or \gui {Color Picker} button
     on the toolbar.
 
-    Click elements in the running application to jump to their definitions in the code.
-    Double-click elements to browse the element hierarchy. The hierarchy is displayed
-    as bread crumbs in the \gui {QML Observer} view.
+    \image qml-observer-buttons.png "QML Inspector toolbar"
 
-    To move the application running in \QQV to the front, select the
-    \gui {Show Application on Top} button.
+    When the \gui Select tool is enabled, you can click elements in the running
+    application to jump to their definitions in the code. The properties of the
+    selected element are displayed in the \gui {QML Inspector} view. The element
+    hierarchy is displayed as a bread crumb path.
 
     You can also right-click an element in the running application to view the element
-    hierarchy as a context menu. Select an element to jump to its definition in code.
+    hierarchy as a context menu.
 
-    \image qml-observer-context-menu.png "QML Observer"
+    \image qml-observer-context-menu.png "QML Inspector"
 
-    To zoom in and out of the application, click the \gui Zoom button.
+    To switch to the zoom mode, click the \gui Zoom button. Click in the
+    running application to zoom in. Right-click to open a context menu that
+    contains zoom controls.
 
     To inspect colors, click the \gui {Color Picker} button. You can also click
     \inlineimage qml-observer-bar-copy-color.png "Copy Color button"
     to copy the color definition to the clipboard.
+
+    To switch out of the inspection mode, deselect the \gui Select, \gui Zoom,
+    and \gui {Color Picker} button.
+
+    To move the application running in \QQV to the front, select the
+    \gui {Show Application on Top} button.
 
     \section1 Debugging Animations
 
@@ -8966,6 +9376,7 @@
         \o \l {Adding User Interaction Methods}
         \o \l {Exporting Designs from Graphics Software}
         \o \l {Implementing Application Logic}
+        \o \l {Using QML Modules with Plugins}
 
     \endlist
 
@@ -9075,6 +9486,20 @@
 
         \o Click \gui{Next}.
 
+        The \gui {Application Type} dialog opens.
+
+        \image qmldesigner-new-project-qml-sources.png "Application Type dialog"
+
+        \o Select the Qt Quick Component Set to use in your application. The
+        built-in elements allow you to write cross-platform applications with
+        custom look and feel. The components for Symbian and MeeGo Harmattan
+        allow you to create applications with a native look and feel for the
+        selected mobile platform.
+
+        You can also import an existing QML file in this dialog.
+
+        \o Click \gui{Next}.
+
         The \gui {Target Setup} dialog opens.
 
         \image qmldesigner-new-project-qt-versions.png "Target Setup dialog"
@@ -9095,7 +9520,9 @@
         and landscape, and then click \gui Next.
 
         \note This dialog opens only if you select \gui Maemo5 or
-        \gui {Symbian Device} target in the \gui {Target Setup} dialog.
+        \gui {Symbian Device} target in the \gui {Target Setup} dialog. On
+        Harmattan, the Qt Quick Components for MeeGo provide native-looking
+        rotation.
 
         The \gui {Symbian Specific} dialog opens.
 
@@ -9117,15 +9544,8 @@
 
         \image qmldesigner-new-project-maemo-options.png "Maemo Specific dialog"
 
-        \o In the \gui {Application icon (64x64)} field, select the application
-         icon to use on Maemo targets, or use the default icon.
-
-        The \gui {QML Sources} dialog opens.
-
-        \image qmldesigner-new-project-qml-sources.png "QML Sources" dialog
-
-        \o In the \gui {QML Main File} group, select \gui {Generate a .qml file},
-        and then click \gui{Next}.
+        \o In the \gui {Application icon} field, select the application
+         icon to use on Maemo or Harmattan targets, or use the default icon.
 
         The \gui {Project Management} dialog opens.
 
@@ -9142,7 +9562,7 @@
     \endlist
 
     Qt Creator creates the necessary boilerplate files. Some of the files are
-    specific to the Symbian or Maemo platform.
+    specific to the Symbian, Maemo, or MeeGo Harmattan platform.
 
     \section1 Importing QML Applications
 
@@ -9160,18 +9580,19 @@
 
         \o Name the project and set its path, and then click \gui Next.
 
+        \o In the \gui {Application Type} dialog, select the \gui {Use an
+        existing .qml file}
+        option and specify the main .qml file of the project you want to import.
+
+        \image qmldesigner-import-project.png "Application Type dialog"
+
+        \o Click \gui Next.
+
         \o Select the Qt versions to use as build targets for your project, and click
         \gui{Next}.
 
         \o Specify options for deploying the application to mobile device targets, and
         click \gui{Next}.
-
-        \o In the \gui {QML Sources} dialog, select the \gui {Import an existing .qml file}
-        option and specify the main .qml file of the project you want to import.
-
-        \image qmldesigner-import-project.png "QML Sources" dialog
-
-        \o Click \gui Next.
 
         \o Review the project settings, and click \gui{Finish} to create the project.
 
@@ -9223,10 +9644,17 @@
 
     \endlist
 
-    You can experiment with a set of Qt Quick components that are designed to
-    appear native to the Symbian devices target platform. For more information,
-    see
-    \l{http://labs.qt.nokia.com/2011/04/08/qt-quick-components-for-symbian-technology-preview/}{Qt Quick components for Symbian Technology Preview}.
+    QML elements allow you to write cross-platform applications with custom look
+    and feel. You can also use ready-made Qt Quick Components for Symbian and
+    MeeGo Harmattan that allow you to create applications with a native look and
+    feel for the selected mobile platform. You can install the components as
+    part of \QSDK.
+
+    When you use the Qt Creator project wizard to create Qt Quick applications,
+    you can select which component set to use in your application.
+
+    Even if you use the Qt Quick Components, you can still write cross-platform
+    applications, by using different sets of QML files for each platform.
 
     You can dowload a set of commonly used UI-components for generic use in
     Qt Quick projects from
@@ -9506,8 +9934,13 @@
     The QML files in the project folder are displayed in \gui {QML Components} in the
     \gui Library pane.
 
+    You can also use ready-made Qt Quick Components for Symbian and
+    MeeGo Harmattan that allow you to create screens with a native look and
+    feel for the selected mobile platform. You can install the components as
+    part of \QSDK.
+
     You can dowload QML templates that specify different types of screens from
-    \l{https://projects.forum.nokia.com/QMLTemplates}{QML Templates} for use in
+    \l{https://projects.developer.nokia.com/QMLTemplates}{QML Templates} for use in
     your Qt Quick projects. You can open and edit the templates in \QD.
 
     \section1 Adding Components to Screens
@@ -9541,7 +9974,11 @@
 
     \endlist
 
-    In the code editor, write the code to use the data models.
+    When you add a List View element, the
+    \l{http://doc.qt.nokia.com/4.7/qml-listmodel.html}{ListModel} is added
+    automatically. You can edit its properties in the \gui Properties pane or in
+    the code editor. For the Grid View and Path Views elements, you must write
+    the code to use the data models.
 
     \section1 Positioning Items on Screens
 
@@ -9838,7 +10275,7 @@
     \contentspage index.html
     \previouspage quick-export-to-qml.html
     \page quick-application-logic.html
-    \nextpage creator-using-qt-designer.html
+    \nextpage creator-qml-modules-with-plugins.html
 
     \title Implementing Application Logic
 
@@ -9852,6 +10289,59 @@
 
  */
 
+
+/*!
+    \contentspage index.html
+    \previouspage quick-application-logic.html
+    \page creator-qml-modules-with-plugins.html
+    \nextpage creator-using-qt-designer.html
+
+    \title Using QML Modules with Plugins
+
+    QML modules may use plugins to expose components defined in C++ to
+    QML applications. Since Qt Creator cannot load the plugins to determine
+    the details of the contained components, these modules need to provide
+    extra type information for code completion and the semantic checks to work
+    correctly.
+
+    Ideally, QML modules have a \c{plugins.qmltypes} file in the same directory
+    as the \c qmldir file. The \c qmltypes file contains a description of the
+    components exported by the module's plugins and is loaded by Qt Creator
+    when the module is imported.
+
+    For Qt 4.8 and later, one or more \c qmltypes files can be listed in the
+    \c qmldir file under the \c typeinfo header. These files will be read in addition
+    to \c{plugins.qmltypes}. For more information, see
+    \l{http://doc.qt.nokia.com/4.8-snapshot/qdeclarativemodules.html#writing-a-qmldir-file}{Writing a qmldir File}.
+
+    \section1 Generating qmltypes Files
+
+    You can create and edit \c qmltypes files manually, but you are recommended
+    to use the \c qmlplugindump tool shipped with Qt 4.8 and later to generate
+    them automatically. For earlier versions of Qt, you can compile a version
+    of the tool called \c qmldump from the sources in
+    \c{<QtCreator>/share/qtcreator/qml/qmldump} if the Qt version contains private headers.
+
+    Once you have obtained qmlplugindump for the Qt version the QML module's
+    plugins were compiled with, run the following command to load My.Module
+    version 1.0 from \c{/import/path/my/module} including all its plugins and
+    output a description of the plugins' types to
+    \c{/import/path/my/module/plugins.qmltypes}:
+
+    \code
+    qmlplugindump My.Module 1.0 /import/path > /import/path/my/module/plugins.qmltypes
+    \endcode
+
+    You can safely ignore the debug output.
+
+    \section1 Dumping Plugins Automatically
+
+    If a module with plugins lacks the \c qmltypes file, Qt Creator tries to
+    generate a temporary file itself by running the \c qmldump program in the
+    background. However, this automatic dumping is a fallback mechanism with
+    many points of failure and cannot be relied upon.
+
+*/
 
 /*!
     \contentspage index.html
@@ -9946,40 +10436,48 @@
     \page creator-maemo-emulator.html
     \nextpage creator-mime-types.html
 
-    \title Using the Maemo Emulator
+    \title Using Maemo or MeeGo Harmattan Emulator
+
+    The Maemo 5 (Fremantle) and MeeGo Harmattan emulator are installed as part
+    of the \QSDK. After they are installed, you can start them from Qt Creator.
 
     The Maemo 5 emulator emulates the Nokia N900 device environment. You can test
     applications in conditions practically identical to running the application
     on a Nokia N900 device with software update release 1.3 (V20.2010.36-2).
-    You can test user interaction by using the keypad and
-    touch emulation.
+
+    The MeeGo Harmattan emulator emulates the Nokia N9 device environment.
+
+    With the emulators, you can test how your application reacts to hardware
+    controls, such as the power button, and to the touch screen.
 
     To test the application UI, user interaction with the application, and
     functionality that uses the mobility APIs, use the Qt Simulator,
     instead. For more information, see the
     \l{http://doc.qt.nokia.com/qtsimulator/index.html}{Qt Simulator Manual}.
 
-    The Maemo 5 emulator is installed and configured as part of the \QSDK
-    package. You can also install and configure the MADDE environment and
-    Maemo emulator separately. For more information, see
-    \l{Connecting Maemo Devices}.
+    The difference between Qt Simulator and the emulators is that when you
+    compile your application binary for Qt Simulator, it is compiled against a
+    host library. The binary run on the emulator is compiled for the actual
+    device, using the Maemo 5 or Harmattan tool chain.
 
-    \section1 Starting the Maemo Emulator
+    \section1 Starting the Emulator
 
-    The \gui {Start Maemo Emulator} button is visible if you have a project
-    open in Qt Creator for which you have added the Maemo build target.
+    The \gui {Start MeeGo Emulator} button is visible if you have a project
+    open in Qt Creator for which you have added the Maemo or MeeGo Harmattan
+    build target. It starts the Maemo or MeeGo Harmattan emulator, depending
+    on the selected target.
 
-    To start the Maemo emulator, click
-    \inlineimage qtcreator-maemo-emulator-button.png "Start Maemo Emulator button"
+    To start the emulator, click
+    \inlineimage qtcreator-maemo-emulator-button.png "Start MeeGo Emulator button"
     .
 
-    Test your application on the Maemo emulator as on a device. For a list of
-    keyboard shortcuts that you can use to emulate Nokia N900 keys and functions, see
-    \l {Emulating Nokia N900 Keys}.
+    Test your application on the emulator as on a device. For a list of
+    keyboard shortcuts that you can use to emulate keys and functions, see
+    \l {Emulating Device Keys}.
 
     \section1 Rendering Graphics
 
-    The Maemo emulator supports OpenGL to improve graphics rendering. Hardware
+    The emulators support OpenGL to improve graphics rendering. Hardware
     acceleration produces better results than software rendering. By default,
     Qt Creator automatically detects, whether hardware acceleration is
     supported on the development PC and tries to use it. However, sometimes
@@ -9987,20 +10485,21 @@
     hardware acceleration might be selected even if it is actually not
     available on the development PC. This causes the emulator to crash.
 
-    If the Maemo emulator crashes, you are asked whether you want to try
-    software rendering, instead.
+    If the emulator crashes, you are asked whether you want to try software
+    rendering, instead.
 
-    To specify the OpenGL mode, select \gui {Tools > Options... > Maemo > Qemu
+    To specify the OpenGL mode, select \gui {Tools > Options... > Linux Devices
+    > Maemo Qemu
     Settings}.
 
-    \section1 Emulating Nokia N900 Keys
+    \section1 Emulating Device Keys
 
     The following table summarizes the keyboard shortcuts that you can use
-    to emulate Nokia N900 keys and functions.
+    to emulate device keys and functions.
 
     \table
         \header
-            \o Nokia N900 Key
+            \o Device Key
             \o Keyboard Shortcut
         \row
             \o \list
@@ -10015,13 +10514,19 @@
             \o Respective keys on the development PC keyboard.
         \row
             \o Shift
-            \o Left Shift key
+            \o Left Shift key (Maemo 5)
+
+               Shift (Harmattan)
         \row
             \o Ctrl
-            \o Left Ctrl key
+            \o Left Ctrl key (Maemo 5)
+
+               Ctrl (Harmattan)
         \row
             \o Mode
-            \o Left Alt key
+            \o Left Alt key (Maemo 5)
+
+               Alt (Harmattan)
         \row
             \o Power
             \o Esc
@@ -10029,10 +10534,10 @@
             \o Keypad slider open and close
             \o F1
         \row
-            \o Keypad lock
+            \o Keypad lock (Maemo 5 only)
             \o F2
         \row
-            \o Camera lens open and close
+            \o Camera lens open and close (Maemo 5 only)
             \o F3
         \row
             \o Camera focus
@@ -10040,9 +10545,10 @@
         \row
             \o Camera take picture
             \o F5
+
             \note The actual camera functionality is not emulated.
         \row
-            \o Stereo headphones connect and disconnect
+            \o Stereo headphones connect and disconnect (Maemo 5 only)
             \o F6
         \row
             \o Volume down
@@ -10071,6 +10577,20 @@
 
     \endtable
 
+    \note Each press of the accelerometer key turns the acceleration by 50
+    percent.
+
+    \section1 Closing the Emulator
+
+    To close the emulator, click the X at the top right corner of the device
+    emulator view. The emulator interprets this as a press of the power button
+    and displays the text \e {Shutting down} in the emulator window title pane.
+    The emulator closes shortly after this.
+
+    You can also select the \gui {Start MeeGo Emulator} button to close the
+    emulator. This is a faster way to close the emulator, because it does not
+    wait for the operating system running on the emulated machine to shut down,
+    but this also means that it is less safe.
 
 */
 
@@ -10266,6 +10786,7 @@
 
        \o Remember the processing limits of the device
 
+
        The memory available on devices is limited
        and you should use it carefully. Although all mobile devices have common functionality,
        each device is individual in terms of both the resources available and extra features.
@@ -10274,8 +10795,7 @@
        \endlist
 
        For more information about user experience techniques for mobile devices, see the
-       \l{http://library.forum.nokia.com/topic/Design_and_User_Experience_Library/GUID-A8DF3EB8-E97C-4DA0-95F6-F464ECC995BC_cover.html}{Design and User Experience Library}
-       on Forum Nokia.
+       \l{http://www.developer.nokia.com/Resources/Library/Design_and_UX} on Nokia Developer.
 
  */
 
@@ -10419,12 +10939,12 @@
     Qt's signals and slots mechanism, select \gui Tools > \gui Options...
     > \gui{Debugger} > \gui{Debugging Helper} > \gui{Use Debugging Helper}.
 
-    In the \gui{Locals and Watchers} view, expand the object's entry and open
+    In the \gui{Locals and Expressions} view, expand the object's entry and open
     the slot in the \e slots subitem. The objects connected to this slot are
     shown as children of the slot. This method works with signals too.
 
-    For more information about the \gui{Locals and Watchers} view, see
-    \l{Locals and Watchers}.
+    For more information about the \gui{Locals and Expressions} view, see
+    \l{Locals and Expressions}.
 
 
     \section1 Displaying Low Level Data
@@ -10460,7 +10980,7 @@
 
     Pinned tooltips are stored in the session. To close all pinned tooltips,
     select \gui {Close Editor Tooltips} in the context menu in the \gui {Locals
-    and Watchers} view.
+    and Expressions} view.
 
 
     \section1 Locating Files
@@ -10811,6 +11331,12 @@
         \row
             \o Switch between header and source file
             \o F4
+        \row
+            \o Turn selected text into lowercase
+            \o Alt+U
+        \row
+            \o Turn selected text into uppercase
+            \o Alt+Shift+U
     \endtable
 
     \section2 Debugging Keyboard Shortcuts
@@ -11010,7 +11536,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-known-issues.html
+    \previouspage technical-support.html
     \page creator-glossary.html
     \nextpage creator-acknowledgements.html
 
@@ -11064,7 +11590,7 @@
     \contentspage index.html
     \previouspage creator-tips.html
     \page creator-known-issues.html
-    \nextpage creator-glossary.html
+    \nextpage technical-support.html
 
     \title Known Issues
 
@@ -11132,9 +11658,8 @@
 
         \o Creating new CMake projects with Qt Creator is not supported.
 
-        \o Building and packaging subprojects is not supported for Maemo devices.
-
-        \o You must create projects for Maemo targets on the same partition where
+        \o On Windows, you must create projects for Maemo 5 and Harmattan
+        targets on the same partition where
         you installed \QSDK, Qt Creator, and MADDE.
 
         \o If error messages displayed in the \gui {Compile Output} pane contain
@@ -11170,7 +11695,7 @@
 
         \o When debugging executables created by the GNU Compiler version 4.5.0
            (all platforms), some data types will not be displayed in the
-           \gui{Locals and Watchers} view due to missing debug information.
+           \gui{Locals and Expressions} view due to missing debug information.
 
         \o GDB on Windows may not work if the 'Embassy \reg Security Center' software
            by 'Wave \reg Systems' is installed and active (causing crashes in \c{vxvault.dll)}).
@@ -11543,9 +12068,9 @@
 
     /*!
     \contentspage index.html
-    \previouspage creator-analyzer.html
+    \previouspage creator-debugging-qml.html
     \page creator-troubleshooting-debugging.html
-    \nextpage creator-deployment.html
+    \nextpage creator-analyze-mode.html
 
     \title Troubleshooting Debugger
 
@@ -11599,11 +12124,11 @@
 
     \section1 Pointer Variable Members Are Not Displayed Directly
 
-    When you use the \gui {Locals and Watchers} view to inspect a pointer
+    When you use the \gui {Locals and Expressions} view to inspect a pointer
     variable and expand the variable tree item, another tree item level
     is displayed. To directly display the members of the pointer variable,
     select \gui {Dereference Pointers Automatically} in the context menu in the
-    \gui {Locals and Watchers} view.
+    \gui {Locals and Expressions} view.
 
     \section1 Built-in Debugger Is Slow During Startup and Runtime
 
@@ -11659,9 +12184,9 @@
 
     /*!
     \contentspage index.html
-    \previouspage creator-debugging-qml.html
+    \previouspage creator-qml-performance-monitor.html
     \page creator-analyzer.html
-    \nextpage creator-troubleshooting-debugging.html
+    \nextpage creator-cache-profiler.html
 
     \title Detecting Memory Leaks
 
@@ -11669,20 +12194,181 @@
     \l{http://valgrind.org/info/tools.html}{Valgrind tool suite} to detect
     problems that are related to memory management in applications.
 
-    \note Memcheck is supported on Linux and Mac OS.
+    \note Memcheck is supported locally on Linux and Mac OS. You can run it on
+    a remote host from Windows.
 
-    After you download and install Memcheck, you can use it from Qt Creator.
-    To analyze applications, select \gui {Debug > Start Analyzer > Start}.
+    After you download and install Valgrind tools, you can use Memcheck from Qt
+    Creator.
+    To analyze applications:
+
+    \list 1
+
+        \o  In the \gui Projects mode, select a release build configuration.
+
+        \o  Select \gui Analyze to open the \gui Analyze mode.
+
+        \o  Select \gui {Analyze Memory} on the toolbar.
+
+        \o  Select the
+            \inlineimage qtcreator-analyze-start-button.png "Start button"
+            button to start the application.
+
+        \o  Use the application to analyze it.
+
+        \o  Select the
+            \inlineimage qtcreator-analyzer-stop-button.png "Stop button"
+            button to view the results of the analysis in the
+            \gui {Analysis} view.
+
+    \endlist
+
     While the application is running, Memcheck checks all reads and writes of
     memory and intercepts calls that allocate or free memory or create or
-    delete memory blocks.
+    delete memory blocks. When you stop Memcheck, it displays the results in
+    the \gui Analysis view. Click a line to view where a memory leak
+    occurred and a stack trace that shows what caused it.
 
-    If problems are found, they are listed in the \gui Analysis output pane.
-    Select a link to move to the problematic code.
+    \image analyzer-issues.png "Analysis view"
 
-    \image analyzer_issues.png "Analysis output pane"
+    Move the mouse on on a row to view more information about the function.
+
+    For more information about using Memcheck, see
+    \l{http://valgrind.org/docs/manual/quick-start.html#quick-start.mcrun}
+    {Interpreting Memcheck's Output} in the Valgrind documentation.
+
+    \section1 Selecting Options for Memory Analysis
+
+    Stack traces can get quite large and confusing, and therefore, reading them
+    from the bottom up can help. If the stack trace is not big enough or it is
+    too big, select \gui {Tools > Options... > Analyzer > Memory Analysis}.
+    Define the length of the stack trace in the \gui {Backtrace frame count}
+    field.
+
+    Memcheck also reports uses of uninitialised values, most commonly with the
+    message \gui {Conditional jump or move depends on uninitialised value(s).}
+    To determine the root cause of these errors, the \gui {Track origins of
+    uninitialized memory} check box is selected by default. You can deselect it
+    to make Memcheck run faster.
+
+    Memcheck detects numerous problems in the system libraries, such as the C
+    library, which come pre-installed with your OS. As you cannot easily fix
+    them, you want to suppress them. Valgrind reads a list of errors to suppress
+    at startup. A default suppression file is created by the ./configure script
+    when the system is built.
+
+    You can write your own suppression files if parts of your project contain
+    errors you cannot fix and you do not want to be reminded of them. Click
+    \gui Add in the \gui {Memory Analysis} dialog to add the suppression files.
+    For more information about writing suppression files, see
+    \l{http://valgrind.org/docs/manual/manual-core.html#manual-core.suppress}
+    {Suppressing Errors} in the Valgrind documentation.
+
+    \image qtcreator-valgrind-memcheck-options.png "Memory Analysis options"
+
+
 
     */
+
+/*!
+    \contentspage index.html
+    \previouspage creator-analyzer.html
+    \page creator-cache-profiler.html
+    \nextpage creator-running-valgrind-remotely.html
+
+    \title Profiling Function Execution
+
+    You can use the Callgrind tool included in the
+    \l{http://valgrind.org/info/tools.html}{Valgrind tool suite} to detect
+    problems that are related to executing functions.
+
+    After you download and install Valgrind tools, you can use Callgrind from Qt
+    Creator.
+
+    \note Callgrind is supported locally on Linux and Mac OS. You can run it on
+    a remote host from Windows.
+
+    To analyze applications:
+
+    \list 1
+
+        \o  In the \gui Projects mode, select a release build configuration.
+
+        \o  Select \gui Analyze to open the \gui Analyze mode.
+
+        \o  Select \gui Profile on the toolbar.
+
+        \o  Select the
+            \inlineimage qtcreator-analyze-start-button.png "Start button"
+            button to start the application.
+
+        \o  Use the application to analyze it.
+
+        \o  Select the
+            \inlineimage qtcreator-analyzer-stop-button.png "Stop button"
+            button to view the results of the analysis in the \gui Profile
+            view.
+
+    \endlist
+
+    Callgrind records the call history of functions that are executed when the
+    application is run. It collects the number of instructions that are
+    executed, their relationship to source lines, the relationships of the
+    caller and callee between functions, and the numbers of such calls. You can
+    also use cache simulation or branch prediction to gather information about
+    the runtime behavior of an application.
+
+    Double-click a function to view information about the calling functions in
+    the \gui Callers view and about the called functions in the \gui Callees
+    view.
+
+    \image qtcreator-valgrind-callgrind.png "Profile view"
+
+    \section1 Selecting Profiling Options
+
+    To specify settings for Callgrind, select \gui {Tools > Options... >
+    Analyzer > Profiling}.
+
+    \image qtcreator-valgrind-callgrind-options.png "Profiling options"
+
+    In the \gui {Result view: Show events with inclusive costs higher than}
+    field, limit the amount of results the profiler gives you to increase
+    profiler performance.
+
+    You can collect information about the system call times and the number of
+    global bus events of the event type \c Ge that are executed.
+
+    \section2 Enabling Full Cache Simulation
+
+    By default, only instruction read accesses (Ir) are counted. To fully
+    simulate the cache, select the \gui {Enable cache simulation} check box.
+    This enables the following additional event counters:
+
+    \list
+
+        \o  Cache misses on instruction reads (I1mr/I2mr)
+
+        \o  Data read accesses (Dr) and related cache misses (D1mr/D2mr)
+
+        \o  Data write accesses (Dw) and related cache misses (D1mw/D2mw)
+
+    \endlist
+
+    \section2 Enabling Branch Prediction Simulation
+
+    To enable the following additional event counters, select the
+    \gui {Enable branch prediction simulation} check box:
+
+    \list
+
+        \o  Number of conditional branches executed and related predictor misses
+            (Bc/Bcm)
+
+        \o  Executed indirect jumps and related misses of the jump address
+            predictor (Bi/Bim)
+
+    \endlist
+
+*/
 
 
     /*!
@@ -11716,7 +12402,7 @@
         \o \l{Using Version Control Systems}
         \o \l{Adding Qt Designer Plugins}
         \o \l{Using External Tools}
-        \o \l{Using the Maemo Emulator}
+        \o \l{Using Maemo or MeeGo Harmattan Emulator}
         \o \l{Editing MIME Types}
         \o \l{Showing Task List Files in the Build Issues Pane}
         \o \l{Using Command Line Options}
@@ -11725,3 +12411,298 @@
     \endlist
 
     */
+
+    /*!
+    \contentspage index.html
+    \previouspage creator-known-issues.html
+    \page technical-support.html
+    \nextpage creator-glossary.html
+
+    \title Technical Support
+
+    The following table lists Qt support sites and other useful links.
+
+    \table
+        \header
+            \o  What Do You Want to Do
+            \o  Where to Go
+
+        \row
+            \o  Learn more about Qt
+            \o  \l{http://qt.nokia.com/developer/learning/online/training/specialized-elearning/}
+                {Specialized eLearning Modules Based on Qt Training Modules}
+
+        \row
+            \o  Develop Qt applications for desktop and mobile devices
+            \o  \l{http://developer.qt.nokia.com/}{Qt Developer Network}
+
+        \row
+            \o  Develop Qt applications for Nokia mobile devices
+            \o  \l{http://www.developer.nokia.com/Develop/Qt/}{Nokia Developer - Qt}
+
+        \row
+            \o  Participate in Qt development
+            \o  \l{http://qt.gitorious.org/}{Qt Git Hosting}
+
+        \row
+            \o  Find free Qt-based applications
+            \o  \l{http://qt-apps.org/}{Qt Apps}
+
+        \row
+            \o  Buy commercial Qt support from Digia
+            \o  \l{http://qt.digia.com/}{Qt Commercial}
+    \endtable
+
+    */
+
+
+/*!
+    \contentspage index.html
+    \previouspage creator-troubleshooting-debugging.html
+    \page creator-analyze-mode.html
+    \nextpage creator-qml-performance-monitor.html
+
+    \title Analyzing Code
+
+    The memory available on mobile devices is limited and you should use it
+    carefully. Qt Creator contains tools that you can use to analyze your code.
+
+    The \gui {QML Profiler} allows you to profile your Qt
+    Quick applications. You can inspect binding evaluations, signal handling,
+    and painting operations when running QML code. This is useful for
+    identifying potential bottlenecks, especially in the evaluation of bindings.
+
+    In addition, Qt Creator integrates Valgrind code analysis tools for
+    detecting memory leaks and profiling function execution. These tools are
+    supported locally only on Linux and Mac OS. You can run them on a remote
+    host from Windows. You have to download and install them
+    separately to use them from Qt Creator.
+
+    You can use the code analysis tools in the \gui Analyze mode. To switch to
+    \gui Analyze mode, select \gui Analyze in the mode selector, or select the
+    \gui {Analyze} menu and then select a tool. When you are in the
+    \gui Analyze mode, you can switch
+    between tools by selecting them in the menu on the toolbar.
+
+    \image qtcreator-analyze-menu "Analyze mode menu"
+
+    To run the Valgrind tools on a remote host over SSH, select \gui {Analyze
+    > Valgring Analyze Memory (Remote)} or \gui {Valgring Function Profile
+    (Remote)}.
+
+    To stop the currently running analyzer, select \gui {Analyze
+    > Stop}.
+
+    To select options for the Valgrind tools, select \gui {Tools > Options... >
+    Analyzer}.
+
+    The following sections describe how to use the code analysis tools:
+
+    \list
+
+         \o \l{Profiling QML Applications} describes how to inspect binding
+            evaluations, signal handling, and painting operations when running
+            QML code.
+
+        \o  \l{Detecting Memory Leaks} describes how to use the Valgrind
+            Memcheck tool to detect problems in memory management.
+
+        \o  \l{Profiling Function Execution} describes how to use the Valgrind Callgrind
+            tool to find cache misses in the code.
+
+        \o  \l{Running Valgrind Tools Remotely} describes how to run the
+            Valgrind tools on a remote host.
+
+    \endlist
+
+*/
+
+
+/*!
+    \contentspage index.html
+    \previouspage creator-analyze-mode.html
+    \page creator-qml-performance-monitor.html
+    \nextpage creator-analyzer.html
+
+    \title Profiling QML Applications
+
+    To monitor the performance of an application in the QML Profiler:
+
+    \list 1
+
+        \o  To be able to profile an application, you must set up QML debugging
+            for the project. For more information, see
+            \l{Setting Up QML Debugging}.
+
+        \o  In the \gui Projects mode, select Qt 4.7.4 in the \gui {Qt version}
+            field.
+
+            \note To profile applications on devices, you must install Qt 4.7.4
+            or later libraries on them.
+
+        \o  Select \gui {Analyze > QML Profiler} to profile the current
+            application.
+
+            \image qtcreator-qml-performance-monitor-toolbar.png "QML Profiler toolbar"
+
+        \o  Select the
+            \inlineimage qtcreator-analyze-start-button.png "Start button"
+            button to start the application from the QML Profiler.
+
+            \note If data collection does not start automatically, select the
+            \inlineimage qtcreator-analyzer-button.png "Analyzer button"
+            button.
+
+    \endlist
+
+    When you start analyzing an application, the application is launched, and
+    the QML Profiler immediately begins to collect data. This is indicated by
+    the time running in the \gui Elapsed field.
+
+    Data is collected until you select the
+    \inlineimage qtcreator-analyzer-stop-button.png "Stop button"
+    button. Data collection takes time, and therefore, there might be a delay
+    before the data is displayed.
+
+    Do not use application commands to exit the application, because data is
+    sent to the QML Profiler when you select the \gui Stop button.
+    The application continues to run for some seconds, after which it is stopped
+    automatically. If you exit the application, the data is not sent.
+
+    Select the \inlineimage qtcreator-analyzer-button.png "Analyzer button"
+    button to disable the automatic start of the data collection when an
+    application is launched. Data collection starts when you select the button
+    again.
+
+    \section1 Analyzing Collected Data
+
+    The \gui Timeline view displays graphical representations of:
+
+    \list
+
+        \o  Painting operations
+
+        \o  Compiling the QML sources
+
+        \o  Creating elements
+
+        \o  Binding evaluations
+
+        \o  Signal handling
+
+        \o  Summary of the recorded period
+
+    \endlist
+
+    \image qtcreator-qml-performance-monitor.png "QML Profiler"
+
+    The outline summarizes the period for which data was collected. Drag the
+    zoom range or click the outline to move on the outline. You can also move
+    between events by clicking the \gui Previous and \gui Next buttons.
+
+    Click the zoom buttons or drag the zoom handles to zoom in and out.
+
+    You can define an event range to view the frame rate of events and to
+    compare it with the frame rate of similar events. Click on the timeline to
+    specify the beginning of the event range. Drag the cursor to define the end
+    of the range. The length of the range indicates the frame rate of the event.
+    You can drag the timeline below the event range to compare events.
+
+    Additional information is displayed on the rows above the outline.
+    Each row in the timeline describes a type of QML events that were recorded.
+    Move the cursor on an event on a row to see how long it takes and where
+    in the source it is being called.
+
+    On the \gui Binding row, you can see when a binding is evaluated and how
+    long the evaluation takes. Move the mouse over the binding for details
+    about the binding: location in the source code, duration, and source
+    code.
+
+    Click the binding to move the cursor in the code editor to the part of the
+    code where the binding is called.
+
+    The time bar at the top of the \gui Timeline view displays the time in
+    seconds. To see the time in milliseconds, move the mouse on the time bar.
+
+    \section1 Viewing Events
+
+    The \gui Events view displays the number of times each binding is called
+    and the time the calls take. This allows you to examine which events you
+    need to optimize. A high number of calls might indicate that a binding is
+    called unnecessarily. Click on a binding to move to it in the source code
+    in the code editor.
+
+    \image qtcreator-analyzer-bindings.png "Events view"
+
+    \section1 Viewing Calling and Called Events
+
+    The \gui Callees and \gui Callers views show dependencies between events.
+    They allow you to examine the internal functions of the application.
+
+    The \gui Callees view summarizes the QML events that a binding triggers.
+    This tells you which QML events are affected if you change a binding.
+
+    \image qtcreator-qml-performance-monitor-callees.png "Callees view"
+
+    The \gui Callers view summarizes the QML events that trigger a binding.
+    This tells you what caused a change in a binding.
+
+    \image qtcreator-qml-performance-monitor-callers.png "Callers view"
+
+    Click on a binding to move to it in the source code in the code editor.
+
+    \section2 Viewing More Data
+
+    The QML JavaScript engine optimizes trivial bindings. The QML Profiler
+    does not receive information about optimized bindings, and
+    therefore, it displays the text \gui {<bytecode>} and the message
+    \gui {Source code not available} in the \gui Callees and \gui {Callers}
+    views.
+
+    To inspect the optimized bindings, turn off the QML optimizer by setting the
+    environment variable QML_DISABLE_OPTIMIZER to 1. To set the environment
+    variable for the current project in the project settings:
+
+    \list 1
+
+        \o  Select \gui {Projects > Run}.
+
+        \o  In \gui {Run Environment}, click \gui Add.
+
+        \o  Add the QML_DISABLE_OPTIMIZER variable and set its value to 1.
+
+    \endlist
+
+*/
+
+
+/*!
+    \contentspage index.html
+    \previouspage creator-cache-profiler.html
+    \page creator-running-valgrind-remotely.html
+    \nextpage creator-deployment.html
+
+    \title Running Valgrind Tools Remotely
+
+    Qt Creator integrates Valgrind code analysis tools for detecting memory
+    leaks and profiling function execution. These tools are supported locally
+    only on Linux and Mac OS, but you can run them on a remote host from
+    Windows.
+
+    To run the Valgrind tools on a remote host over SSH:
+
+    \list 1
+
+        \o  Select \gui {Analyze > Valgring Analyze Memory (Remote)} or
+            \gui {Valgring Function Profile (Remote)}.
+
+            \image qtcreator-valgrind-remote-settings.png "Start Debugger dialog"
+
+        \o  In the \gui Remote group, specify the connection to the remote host.
+
+        \o  In the \gui Target group, specify the application to run and analyze
+            on the remote host.
+
+    \endlist
+
+*/

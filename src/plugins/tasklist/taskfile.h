@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,7 +48,7 @@ public:
     TaskFile(QObject *parent);
     ~TaskFile();
 
-    bool save(const QString &fileName = QString());
+    bool save(QString *errorString, const QString &fileName, bool autoSave);
     QString fileName() const;
 
     QString defaultPath() const;
@@ -60,10 +60,10 @@ public:
     bool isSaveAsAllowed() const;
 
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
     void rename(const QString &newName);
 
-    bool open(const QString &fileName);
+    bool open(QString *errorString, const QString &fileName);
 
     ProjectExplorer::Project *context() const;
     void setContext(ProjectExplorer::Project *context);

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,16 +34,16 @@
 
 #include <QtCore/QSettings>
 
-static const char *syntaxKey = "Syntax";
-static const char *minimalKey = "Minimal";
-static const char *caseSensitiveKey = "CaseSensitive";
-static const char *patternKey = "Patterns";
-static const char *currentPatternKey = "CurrentPattern";
-static const char *matchKey = "Matches";
-static const char *currentMatchKey = "CurrentMatch";
-static const char *patternDefault = "[A-Za-z_]+([A-Za-z_0-9]*)";
-static const char *matchDefault = "(10 + delta4) * 32";
-static const char *settingsGroup = "RegExp";
+static const char syntaxKey[] = "Syntax";
+static const char minimalKey[] = "Minimal";
+static const char caseSensitiveKey[] = "CaseSensitive";
+static const char patternKey[] = "Patterns";
+static const char currentPatternKey[] = "CurrentPattern";
+static const char matchKey[] = "Matches";
+static const char currentMatchKey[] = "CurrentMatch";
+static const char patternDefault[] = "[A-Za-z_]+([A-Za-z_0-9]*)";
+static const char matchDefault[] = "(10 + delta4) * 32";
+static const char settingsGroup[] = "RegExp";
 
 namespace RegExp {
 namespace Internal {

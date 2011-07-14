@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -70,14 +70,14 @@ public:
     ITextMarkable *documentMarker() const;
 
     // IFile implementation.
-    virtual bool save(const QString &fileName = QString());
+    virtual bool save(QString *errorString, const QString &fileName, bool autoSave);
     virtual QString fileName() const;
+    virtual bool shouldAutoSave() const;
     virtual bool isReadOnly() const;
     virtual bool isModified() const;
     virtual bool isSaveAsAllowed() const;
     virtual void checkPermissions();
-    ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
     virtual QString mimeType() const;
     void setMimeType(const QString &mt);
     virtual void rename(const QString &newName);
@@ -88,8 +88,8 @@ public:
     void setDefaultPath(const QString &defaultPath);
     void setSuggestedFileName(const QString &suggestedFileName);
 
-    virtual bool open(const QString &fileName = QString());
-    virtual void reload();
+    virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
+    virtual bool reload(QString *errorString);
 
     QTextDocument *document() const;
     void setSyntaxHighlighter(SyntaxHighlighter *highlighter);
@@ -100,8 +100,11 @@ public:
     void setCodec(QTextCodec *c);
     QByteArray decodingErrorSample() const;
 
-    void reload(QTextCodec *codec);
+    bool reload(QString *errorString, QTextCodec *codec);
     void cleanWhitespace(const QTextCursor &cursor);
+
+    bool hasHighlightWarning() const;
+    void setHighlightWarning(bool has);
 
 signals:
     void titleChanged(QString title);

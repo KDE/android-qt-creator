@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -83,7 +83,7 @@ QDataStream &operator>>(QDataStream &stream, Threads &threads)
     quint64 count;
     stream >> count;
     threads.clear();
-    for (quint64 i = 0; i < count; i++)
+    for (quint64 i = 0; i < count; ++i)
     {
         ThreadData d;
         stream >> d;
@@ -136,7 +136,7 @@ QDataStream &operator>>(QDataStream &stream, StackFrames &frames)
     quint64 count;
     stream >> count;
     frames.clear();
-    for (quint64 i = 0; i < count; i++)
+    for (quint64 i = 0; i < count; ++i)
     {
         StackFrame s;
         stream >> s;
@@ -147,31 +147,33 @@ QDataStream &operator>>(QDataStream &stream, StackFrames &frames)
 
 QDataStream &operator<<(QDataStream &stream, const BreakpointResponse &s)
 {
-    stream << s.number;
+    stream << s.id.majorPart();
     stream << s.condition;
     stream << s.ignoreCount;
     stream << s.fileName;
-    stream << s.fullName;
     stream << s.lineNumber;
     //stream << s.bpCorrectedLineNumber;
     stream << s.threadSpec;
     stream << s.functionName;
     stream << s.address;
+    stream << s.hitCount;
     return stream;
 }
 
 QDataStream &operator>>(QDataStream &stream, BreakpointResponse &s)
 {
-    stream >> s.number;
+    int majorPart;
+    stream >> majorPart;
+    s.id = BreakpointResponseId(majorPart);
     stream >> s.condition;
     stream >> s.ignoreCount;
     stream >> s.fileName;
-    stream >> s.fullName;
     stream >> s.lineNumber;
     //stream >> s.bpCorrectedLineNumber;
     stream >> s.threadSpec;
     stream >> s.functionName;
     stream >> s.address;
+    stream >> s.hitCount;
     return stream;
 }
 
@@ -187,6 +189,7 @@ QDataStream &operator<<(QDataStream &stream, const BreakpointParameters &s)
     stream << s.tracepoint;
     stream << s.module;
     stream << s.command;
+    stream << s.message;
     return stream;
 }
 
@@ -206,6 +209,7 @@ QDataStream &operator>>(QDataStream &stream, BreakpointParameters &s)
     stream >> b; s.tracepoint = b;
     stream >> str ; s.module = str;
     stream >> str ; s.command = str;
+    stream >> str ; s.message = str;
     return stream;
 }
 
@@ -224,6 +228,7 @@ QDataStream &operator<<(QDataStream &stream, const WatchData &wd)
     stream << wd.displayedType;
     stream << wd.variable;
     stream << wd.address;
+    stream << wd.size;
     stream << wd.hasChildren;
     stream << wd.generation;
     stream << wd.valueEnabled;
@@ -249,6 +254,7 @@ QDataStream &operator>>(QDataStream &stream, WatchData &wd)
     stream >> wd.displayedType;
     stream >> wd.variable;
     stream >> wd.address;
+    stream >> wd.size;
     stream >> wd.hasChildren;
     stream >> wd.generation;
     stream >> wd.valueEnabled;
@@ -262,6 +268,9 @@ QDataStream &operator>>(QDataStream &stream, WatchData &wd)
 QDataStream &operator<<(QDataStream& stream, const DisassemblerLine &o)
 {
     stream << o.address;
+    stream << o.function;
+    stream << o.offset;
+    stream << o.lineNumber;
     stream << o.data;
     return stream;
 }
@@ -269,6 +278,9 @@ QDataStream &operator<<(QDataStream& stream, const DisassemblerLine &o)
 QDataStream &operator>>(QDataStream& stream, DisassemblerLine &o)
 {
     stream >> o.address;
+    stream >> o.function;
+    stream >> o.offset;
+    stream >> o.lineNumber;
     stream >> o.data;
     return stream;
 }
@@ -276,7 +288,7 @@ QDataStream &operator>>(QDataStream& stream, DisassemblerLine &o)
 QDataStream &operator<<(QDataStream& stream, const DisassemblerLines &o)
 {
     stream << quint64(o.size());
-    for (int i = 0; i < o.size(); i++)
+    for (int i = 0; i < o.size(); ++i)
     {
         stream << o.at(i);
     }
@@ -288,7 +300,7 @@ QDataStream &operator>>(QDataStream& stream, DisassemblerLines &o)
     DisassemblerLines r;
     quint64 count;
     stream >> count;
-    for (quint64 i = 0; i < count; i++)
+    for (quint64 i = 0; i < count; ++i)
     {
         DisassemblerLine line;
         stream >> line;

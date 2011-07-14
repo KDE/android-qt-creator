@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,6 +37,7 @@
 #include "glslhighlighter.h"
 #include "glslautocompleter.h"
 #include "glslindenter.h"
+#include "glslcompletionassist.h"
 
 #include <glsl/glsllexer.h>
 #include <glsl/glslparser.h>
@@ -205,16 +206,11 @@ QString GLSLEditorEditable::id() const
     return QLatin1String(GLSLEditor::Constants::C_GLSLEDITOR_ID);
 }
 
-bool GLSLEditorEditable::open(const QString &fileName)
+bool GLSLEditorEditable::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     editorWidget()->setMimeType(Core::ICore::instance()->mimeDatabase()->findByFile(QFileInfo(fileName)).type());
-    bool b = TextEditor::BaseTextEditor::open(fileName);
+    bool b = TextEditor::BaseTextEditor::open(errorString, fileName, realFileName);
     return b;
-}
-
-Core::Context GLSLEditorEditable::context() const
-{
-    return m_context;
 }
 
 void GLSLTextEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
@@ -416,4 +412,18 @@ int GLSLTextEditorWidget::languageVariant() const
 Document::Ptr GLSLTextEditorWidget::glslDocument() const
 {
     return m_glslDocument;
+}
+
+TextEditor::IAssistInterface *GLSLTextEditorWidget::createAssistInterface(
+    TextEditor::AssistKind kind,
+    TextEditor::AssistReason reason) const
+{
+    if (kind == TextEditor::Completion)
+        return new GLSLCompletionAssistInterface(document(),
+                                                 position(),
+                                                 editor()->file(),
+                                                 reason,
+                                                 mimeType(),
+                                                 glslDocument());
+    return BaseTextEditorWidget::createAssistInterface(kind, reason);
 }

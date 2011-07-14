@@ -26,12 +26,23 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "corelistener.h"
 #include "vcsbasesubmiteditor.h"
+
+/*!
+    \class VCSBase::Internal::CoreListener
+
+    \brief CoreListener catching closing of a submit editor.
+
+    Catch the closing of a submit editor to trigger the submit.
+    One instance of this class exists, connected to the instances
+    of VCSBasePlugin, which dispatch if the editor kind matches theirs
+    (which is why the approach of passing the bool result was chosen).
+*/
 
 namespace VCSBase {
 namespace Internal {

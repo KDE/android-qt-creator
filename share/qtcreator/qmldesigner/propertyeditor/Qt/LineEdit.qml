@@ -1,3 +1,35 @@
+/**************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (info@qt.nokia.com)
+**
+**
+** GNU Lesser General Public License Usage
+**
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** In addition, as a special exception, Nokia gives you certain additional
+** rights. These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at info@qt.nokia.com.
+**
+**************************************************************************/
+
 import Qt 4.7
 import Bauhaus 1.0
 
@@ -9,6 +41,8 @@ QWidget {
     property variant baseStateFlag
     property alias text: lineEditWidget.text
     property alias readOnly: lineEditWidget.readOnly
+    property alias translation: trCheckbox.visible
+    property alias inputMask: lineEditWidget.inputMask
 
     minimumHeight: 24;
 
@@ -68,7 +102,11 @@ QWidget {
         }
 
         onEditingFinished: {
-            backendValue.value = text
+            if (backendValue.isTranslated) {
+                backendValue.expression = "qsTr(\"" + text + "\")"
+            } else {
+                backendValue.value = text
+            }
             evaluate();
         }
 
@@ -86,5 +124,31 @@ QWidget {
         y: 6
         x: 0
         visible: lineEdit.enabled
+    }
+    QCheckBox {
+        id: trCheckbox
+        y: 2
+        styleSheetFile: "checkbox_tr.css";
+        toolTip: qsTr("Translate this string")
+        x: lineEditWidget.width - 22
+        height: lineEdit.height - 2;
+        width: 24
+        visible: false
+        checked: backendValue.isTranslated
+        onToggled: {
+            if (trCheckbox.checked) {
+                backendValue.expression = "qsTr(\"" + lineEditWidget.text + "\")"
+            } else {
+                backendValue.value = lineEditWidget.text
+            }
+            evaluate();
+        }
+
+        onVisibleChanged: {
+            if (trCheckbox.visible) {
+                trCheckbox.raise();
+                lineEditWidget.styleSheet =  "QLineEdit { padding-left: 32; padding-right: 62;}"
+            }
+        }
     }
 }

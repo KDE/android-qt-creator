@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -89,39 +89,13 @@ bool RunSettingsPanelFactory::supports(Target *target)
     return true;
 }
 
-IPropertiesPanel *RunSettingsPanelFactory::createPanel(Target *target)
+PropertiesPanel *RunSettingsPanelFactory::createPanel(Target *target)
 {
-    return new RunSettingsPanel(target);
-}
-
-///
-/// RunSettingsPanel
-///
-
-RunSettingsPanel::RunSettingsPanel(Target *target) :
-     m_widget(new RunSettingsWidget(target)),
-     m_icon(":/projectexplorer/images/RunSettings.png")
-{
-}
-
-RunSettingsPanel::~RunSettingsPanel()
-{
-    delete m_widget;
-}
-
-QString RunSettingsPanel::displayName() const
-{
-    return QCoreApplication::translate("RunSettingsPanel", "Run Settings");
-}
-
-QWidget *RunSettingsPanel::widget() const
-{
-    return m_widget;
-}
-
-QIcon RunSettingsPanel::icon() const
-{
-    return m_icon;
+    PropertiesPanel *panel = new PropertiesPanel;
+    panel->setWidget(new RunSettingsWidget(target));
+    panel->setIcon(QIcon(":/projectexplorer/images/RunSettings.png"));
+    panel->setDisplayName(QCoreApplication::translate("RunSettingsPanel", "Run Settings"));
+    return panel;
 }
 
 ///
@@ -318,10 +292,9 @@ void RunSettingsWidget::currentDeployConfigurationChanged(int index)
 void RunSettingsWidget::aboutToShowDeployMenu()
 {
     m_addDeployMenu->clear();
-    DeployConfigurationFactory *factory = m_target->deployConfigurationFactory();
-    QStringList ids = factory->availableCreationIds(m_target);
+    QStringList ids = m_target->availableDeployConfigurationIds();
     foreach (const QString &id, ids) {
-        QAction *action = m_addDeployMenu->addAction(factory->displayNameForId(id));;
+        QAction *action = m_addDeployMenu->addAction(m_target->displayNameForDeployConfigurationId(id));
         action->setData(QVariant(id));
         connect(action, SIGNAL(triggered()),
                 this, SLOT(addDeployConfiguration()));
@@ -334,7 +307,7 @@ void RunSettingsWidget::addDeployConfiguration()
     if (!act)
         return;
     QString id = act->data().toString();
-    DeployConfiguration *newDc = m_target->deployConfigurationFactory()->create(m_target, id);
+    DeployConfiguration *newDc = m_target->createDeployConfiguration(id);
     if (!newDc)
         return;
     m_target->addDeployConfiguration(newDc);

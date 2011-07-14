@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -84,16 +84,12 @@ public:
     bool promptToDelete(const QString &fileName);
     bool promptToDelete(IVersionControl *versionControl, const QString &fileName);
 
-    friend CORE_EXPORT QDebug operator<<(QDebug in, const VcsManager &);
-
 signals:
     void repositoryChanged(const QString &repository);
 
 private:
     VcsManagerPrivate *m_d;
 };
-
-CORE_EXPORT QDebug operator<<(QDebug in, const VcsManager &);
 
 } // namespace Core
 

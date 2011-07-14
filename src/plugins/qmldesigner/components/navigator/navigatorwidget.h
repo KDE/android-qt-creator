@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,25 +35,37 @@
 
 #include <QFrame>
 #include <QAbstractItemModel>
+#include <QtGui/QToolButton>
 
 #include "navigatortreeview.h"
 
 namespace QmlDesigner {
 
 class Model;
+class NavigatorView;
 
 class NavigatorWidget: public QFrame
 {
     Q_OBJECT
 public:
-    NavigatorWidget(QWidget* parent = 0);
+    NavigatorWidget(NavigatorView *view);
     virtual ~NavigatorWidget();
 
     void setTreeModel(QAbstractItemModel *model);
     QTreeView *treeView() const { return m_treeView; }
+    QList<QToolButton *> createToolBarWidgets();
+    QString contextHelpId() const;
+
+signals:
+    void leftButtonClicked();
+    void rightButtonClicked();
+    void upButtonClicked();
+    void downButtonClicked();
 
 private:
+    NavigatorView *navigatorView() const;
     NavigatorTreeView *m_treeView;
+    QWeakPointer<NavigatorView> m_navigatorView;
 };
 
 }

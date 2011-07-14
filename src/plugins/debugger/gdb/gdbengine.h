@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -69,7 +69,6 @@ class AttachGdbAdapter;
 class CoreGdbAdapter;
 class LocalPlainGdbAdapter;
 class RemoteGdbServerAdapter;
-class TrkGdbAdapter;
 
 enum DebuggingHelperState
 {
@@ -79,6 +78,137 @@ enum DebuggingHelperState
     DebuggingHelperUnavailable
 };
 
+
+enum GdbTestCase
+{
+    GdbTestNoBoundsOfCurrentFunction = 1
+};
+
+class UpdateParameters
+{
+public:
+    UpdateParameters() { tryPartial = tooltipOnly = false; }
+
+    bool tryPartial;
+    bool tooltipOnly;
+    QByteArray varList;
+};
+
+/* This is only used with Mac gdb since 2.2
+ *
+ * "Custom dumper" is a library compiled against the current
+ * Qt containing functions to evaluate values of Qt classes
+ * (such as QString, taking pointers to their addresses).
+ * The library must be loaded into the debuggee.
+ * It provides a function that takes input from an input buffer
+ * and some parameters and writes output into an output buffer.
+ * Parameter 1 is the protocol:
+ * 1) Query. Fills output buffer with known types, Qt version and namespace.
+ *    This information is parsed and stored by this class (special type
+ *    enumeration).
+ * 2) Evaluate symbol, taking address and some additional parameters
+ *    depending on type. */
+
+class DumperHelper
+{
+public:
+    enum Type {
+        UnknownType,
+        SupportedType, // A type that requires no special handling by the dumper
+        // Below types require special handling
+        QAbstractItemType,
+        QObjectType, QWidgetType, QObjectSlotType, QObjectSignalType,
+        QVectorType, QMapType, QMultiMapType, QMapNodeType, QStackType,
+        StdVectorType, StdDequeType, StdSetType, StdMapType, StdStackType,
+        StdStringType
+    };
+
+    // Type/Parameter struct required for building a value query
+    struct TypeData {
+        TypeData();
+        void clear();
+
+        Type type;
+        bool isTemplate;
+        QByteArray tmplate;
+        QByteArray inner;
+    };
+
+    DumperHelper();
+    void clear();
+
+    double dumperVersion() const { return m_dumperVersion; }
+
+    int typeCount() const;
+    // Look up a simple, non-template  type
+    Type simpleType(const QByteArray &simpleType) const;
+    // Look up a (potentially) template type and fill parameter struct
+    TypeData typeData(const QByteArray &typeName) const;
+    Type type(const QByteArray &typeName) const;
+
+    int qtVersion() const;
+    QByteArray qtVersionString() const;
+    QByteArray qtNamespace() const;
+    void setQtNamespace(const QByteArray &ba)
+        { if (!ba.isEmpty()) m_qtNamespace = ba; }
+
+    // Complete parse of "query" (protocol 1) response from debuggee buffer.
+    // 'data' excludes the leading indicator character.
+    bool parseQuery(const GdbMi &data);
+    // Sizes can be added as the debugger determines them
+    void addSize(const QByteArray &type, int size);
+
+    // Determine the parameters required for an "evaluate" (protocol 2) call
+    void evaluationParameters(const WatchData &data,
+                              const TypeData &td,
+                              QByteArray *inBuffer,
+                              QList<QByteArray> *extraParameters) const;
+
+    QString toString(bool debug = false) const;
+
+    static QString msgDumperOutdated(double requiredVersion, double currentVersion);
+
+private:
+    typedef QMap<QString, Type> NameTypeMap;
+    typedef QMap<QByteArray, int> SizeCache;
+
+    // Look up a simple (namespace) type
+    QByteArray evaluationSizeofTypeExpression(const QByteArray &typeName) const;
+
+    NameTypeMap m_nameTypeMap;
+    SizeCache m_sizeCache;
+
+    // The initial dumper query function returns sizes of some special
+    // types to aid CDB since it cannot determine the size of classes.
+    // They are not complete (std::allocator<X>).
+    enum SpecialSizeType { IntSize, PointerSize, StdAllocatorSize,
+                           QSharedPointerSize, QSharedDataPointerSize,
+                           QWeakPointerSize, QPointerSize,
+                           QListSize, QLinkedListSize, QVectorSize, QQueueSize,
+                           SpecialSizeCount };
+
+    // Resolve name to enumeration or SpecialSizeCount (invalid)
+    SpecialSizeType specialSizeType(const QByteArray &type) const;
+
+    int m_specialSizes[SpecialSizeCount];
+
+    typedef QMap<QByteArray, QByteArray> ExpressionCache;
+    ExpressionCache m_expressionCache;
+    int m_qtVersion;
+    double m_dumperVersion;
+    QByteArray m_qtNamespace;
+
+    void setQClassPrefixes(const QByteArray &qNamespace);
+
+    QByteArray m_qPointerPrefix;
+    QByteArray m_qSharedPointerPrefix;
+    QByteArray m_qSharedDataPointerPrefix;
+    QByteArray m_qWeakPointerPrefix;
+    QByteArray m_qListPrefix;
+    QByteArray m_qLinkedListPrefix;
+    QByteArray m_qVectorPrefix;
+    QByteArray m_qQueuePrefix;
+};
 
 class GdbEngine : public Debugger::DebuggerEngine
 {
@@ -99,7 +229,6 @@ private:
     friend class TermGdbAdapter;
     friend class RemoteGdbServerAdapter;
     friend class RemotePlainGdbAdapter;
-    friend class TrkGdbAdapter;
     friend class CodaGdbAdapter;
 
 private: ////////// General Interface //////////
@@ -263,6 +392,9 @@ private: ////////// Gdb Command Management //////////
     Q_SLOT void commandTimeout();
     void setTokenBarrier();
 
+    // Sets up an "unexpected result" for the following commeand.
+    void scheduleTestResponse(int testCase, const QByteArray &response);
+
     QHash<int, GdbCommand> m_cookieForToken;
     int commandTimeoutTime() const;
     QTimer m_commandTimer;
@@ -287,7 +419,7 @@ private: ////////// Gdb Command Management //////////
 
 private: ////////// Gdb Output, State & Capability Handling //////////
 
-    void handleResponse(const QByteArray &buff);
+    Q_SLOT void handleResponse(const QByteArray &buff);
     void handleStopResponse(const GdbMi &data);
     void handleResultRecord(GdbResponse *response);
     void handleStop0(const GdbMi &data);
@@ -303,11 +435,13 @@ private: ////////// Gdb Output, State & Capability Handling //////////
 
     // Gdb initialization sequence
     void handleShowVersion(const GdbResponse &response);
+    void handleListFeatures(const GdbResponse &response);
     void handleHasPython(const GdbResponse &response);
 
     int m_gdbVersion; // 6.8.0 is 60800
     int m_gdbBuildVersion; // MAC only?
     bool m_isMacGdb;
+    bool m_hasBreakpointNotifications;
     bool m_hasPython;
     bool m_hasInferiorThreadList;
 
@@ -315,10 +449,10 @@ private: ////////// Inferior Management //////////
 
     // This should be always the last call in a function.
     bool stateAcceptsBreakpointChanges() const;
-    bool acceptsBreakpoint(BreakpointId id) const;
-    void insertBreakpoint(BreakpointId id);
-    void removeBreakpoint(BreakpointId id);
-    void changeBreakpoint(BreakpointId id);
+    bool acceptsBreakpoint(BreakpointModelId id) const;
+    void insertBreakpoint(BreakpointModelId id);
+    void removeBreakpoint(BreakpointModelId id);
+    void changeBreakpoint(BreakpointModelId id);
 
     void executeStep();
     void executeStepOut();
@@ -360,6 +494,7 @@ private: ////////// View & Data Stuff //////////
     //
     void handleBreakList(const GdbResponse &response);
     void handleBreakList(const GdbMi &table);
+    void handleBreakModifications(const GdbMi &bkpts);
     void handleBreakListMultiple(const GdbResponse &response);
     void handleBreakIgnore(const GdbResponse &response);
     void handleBreakDisable(const GdbResponse &response);
@@ -368,18 +503,17 @@ private: ////////// View & Data Stuff //////////
     void handleBreakInsert2(const GdbResponse &response);
     void handleTraceInsert2(const GdbResponse &response);
     void handleBreakCondition(const GdbResponse &response);
-    void handleBreakInfo(const GdbResponse &response);
     void handleBreakThreadSpec(const GdbResponse &response);
     void handleWatchInsert(const GdbResponse &response);
     void handleCatchInsert(const GdbResponse &response);
     void handleInfoLine(const GdbResponse &response);
-    void extractDataFromInfoBreak(const QString &output, BreakpointId);
-    void updateBreakpointDataFromOutput(BreakpointId id, const GdbMi &bkpt);
-    QByteArray breakpointLocation(BreakpointId id); // For gdb/MI.
-    QByteArray breakpointLocation2(BreakpointId id); // For gdb/CLI fallback.
+    void extractDataFromInfoBreak(const QString &output, BreakpointModelId);
+    void updateResponse(BreakpointResponse &response, const GdbMi &bkpt);
+    QByteArray breakpointLocation(BreakpointModelId id); // For gdb/MI.
+    QByteArray breakpointLocation2(BreakpointModelId id); // For gdb/CLI fallback.
     QString breakLocation(const QString &file) const;
     void reloadBreakListInternal();
-    void attemptAdjustBreakpointLocation(BreakpointId id);
+    void attemptAdjustBreakpointLocation(BreakpointModelId id);
 
     //
     // Modules specific stuff
@@ -434,9 +568,9 @@ private: ////////// View & Data Stuff //////////
     //void handleFetchDisassemblerByMiRangePlain(const GdbResponse &response);
     void handleDisassemblerCheck(const GdbResponse &response);
     void handleBreakOnQFatal(const GdbResponse &response);
-    DisassemblerLines parseDisassembler(const GdbMi &data);
-    DisassemblerLines parseCliDisassembler(const GdbMi &lines);
-    DisassemblerLines parseMiDisassembler(const GdbMi &lines);
+    DisassemblerLines parseDisassembler(const GdbResponse &response);
+    DisassemblerLines parseCliDisassembler(const QByteArray &response);
+    DisassemblerLines parseMiDisassembler(const GdbMi &response);
 
     bool m_disassembleUsesComma;
 
@@ -528,9 +662,9 @@ private: ////////// View & Data Stuff //////////
     Q_SLOT void createFullBacktrace();
     void handleCreateFullBacktrace(const GdbResponse &response);
 
-    void updateLocals(const QVariant &cookie = QVariant());
-        void updateLocalsClassic(const QVariant &cookie);
-        void updateLocalsPython(bool tryPartial, const QByteArray &varList);
+    void updateLocals();
+        void updateLocalsClassic();
+        void updateLocalsPython(const UpdateParameters &parameters);
             void handleStackFramePython(const GdbResponse &response);
 
     void handleStackListLocalsClassic(const GdbResponse &response);
@@ -543,6 +677,14 @@ private: ////////// View & Data Stuff //////////
     void handleStackListArgumentsClassic(const GdbResponse &response);
 
     QSet<QByteArray> m_processedNames;
+    struct TypeInfo
+    {
+        TypeInfo(uint s = 0) : size(s) {}
+
+        uint size;
+    };
+
+    QHash<QByteArray, TypeInfo> m_typeInfoCache;
 
     //
     // Dumper Management
@@ -554,7 +696,7 @@ private: ////////// View & Data Stuff //////////
     Q_SLOT void setUseDebuggingHelpers(const QVariant &on);
 
     DebuggingHelperState m_debuggingHelperState;
-    QtDumperHelper m_dumperHelper;
+    DumperHelper m_dumperHelper;
     QString m_gdb;
 
     //
@@ -577,19 +719,25 @@ private: ////////// View & Data Stuff //////////
     //
     // Qml
     //
-    QHash<int, int> m_qmlBreakpointNumbers;
+    BreakpointResponseId m_qmlBreakpointResponseId1;
+    BreakpointResponseId m_qmlBreakpointResponseId2;
     bool m_preparedForQmlBreak;
     bool setupQmlStep(bool on);
     void handleSetQmlStepBreakpoint(const GdbResponse &response);
-    bool isQmlStepBreakpoint1(int bpnr) const;
-    bool isQmlStepBreakpoint2(int bpnr) const;
-    bool isQFatalBreakpoint(int bpnr) const;
+    bool isQmlStepBreakpoint(const BreakpointResponseId &id) const;
+    bool isQmlStepBreakpoint1(const BreakpointResponseId &id) const;
+    bool isQmlStepBreakpoint2(const BreakpointResponseId &id) const;
+    bool isQFatalBreakpoint(const BreakpointResponseId &id) const;
+    bool isHiddenBreakpoint(const BreakpointResponseId &id) const;
 
     // HACK:
-    StackFrame m_targetFrame;
     QByteArray m_currentThread;
     QString m_lastWinException;
-    int m_qFatalBreakpointNumber;
+    BreakpointResponseId m_qFatalBreakpointResponseId;
+    bool m_actingOnExpectedStop;
+
+    QHash<int, QByteArray> m_scheduledTestResponses;
+    QSet<int> m_testCases;
 };
 
 } // namespace Internal

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,8 +50,9 @@ namespace Internal {
 class SshConnectionPrivate;
 } // namespace Internal
 
-struct QTCREATOR_UTILS_EXPORT SshConnectionParameters
+class QTCREATOR_UTILS_EXPORT SshConnectionParameters
 {
+public:
     enum ProxyType { DefaultProxy, NoProxy };
     enum AuthenticationType { AuthenticationByPassword, AuthenticationByKey };
     SshConnectionParameters(ProxyType proxyType);
@@ -77,9 +78,9 @@ public:
     enum State { Unconnected, Connecting, Connected };
     typedef QSharedPointer<SshConnection> Ptr;
 
-    static Ptr create();
+    static Ptr create(const SshConnectionParameters &serverInfo);
 
-    void connectToHost(const SshConnectionParameters &serverInfo);
+    void connectToHost();
     void disconnectFromHost();
     State state() const;
     SshError errorState() const;
@@ -97,11 +98,11 @@ signals:
     void error(Utils::SshError);
 
 private:
-    SshConnection();
+    SshConnection(const SshConnectionParameters &serverInfo);
 
     Internal::SshConnectionPrivate *d;
 };
 
-} // namespace Internal
+} // namespace Utils
 
 #endif // SSHCONNECTION_H

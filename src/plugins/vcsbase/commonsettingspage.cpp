@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -57,6 +57,10 @@ CommonSettingsWidget::CommonSettingsWidget(QWidget *parent) :
     m_ui->nickNameFieldsFileChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->nickNameMailMapChooser->setExpectedKind(Utils::PathChooser::File);
     m_ui->sshPromptChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
+    const QString patchToolTip = tr("Command used for reverting diff chunks");
+    m_ui->patchCommandLabel->setToolTip(patchToolTip);
+    m_ui->patchChooser->setToolTip(patchToolTip);
+    m_ui->patchChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
 }
 
 CommonSettingsWidget::~CommonSettingsWidget()
@@ -73,6 +77,7 @@ CommonVcsSettings CommonSettingsWidget::settings() const
     rc.lineWrap= m_ui->lineWrapCheckBox->isChecked();
     rc.lineWrapWidth = m_ui->lineWrapSpinBox->value();
     rc.sshPasswordPrompt = m_ui->sshPromptChooser->path();
+    rc.patchCommand = m_ui->patchChooser->path();
     return rc;
 }
 
@@ -84,6 +89,7 @@ void CommonSettingsWidget::setSettings(const CommonVcsSettings &s)
     m_ui->lineWrapCheckBox->setChecked(s.lineWrap);
     m_ui->lineWrapSpinBox->setValue(s.lineWrapWidth);
     m_ui->sshPromptChooser->setPath(s.sshPasswordPrompt);
+    m_ui->patchChooser->setPath(s.patchCommand);
 }
 
 QString CommonSettingsWidget::searchKeyWordMatchString() const

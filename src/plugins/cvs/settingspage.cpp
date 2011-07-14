@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -111,7 +111,7 @@ QString SettingsPage::displayName() const
 QWidget *SettingsPage::createPage(QWidget *parent)
 {
     m_widget = new SettingsPageWidget(parent);
-    m_widget->setSettings(CVSPlugin::cvsPluginInstance()->settings());
+    m_widget->setSettings(CVSPlugin::instance()->settings());
     if (m_searchKeywords.isEmpty())
         m_searchKeywords = m_widget->searchKeywords();
     return m_widget;
@@ -119,7 +119,7 @@ QWidget *SettingsPage::createPage(QWidget *parent)
 
 void SettingsPage::apply()
 {
-    CVSPlugin::cvsPluginInstance()->setSettings(m_widget->settings());
+    CVSPlugin::instance()->setSettings(m_widget->settings());
 }
 
 bool SettingsPage::matches(const QString &s) const

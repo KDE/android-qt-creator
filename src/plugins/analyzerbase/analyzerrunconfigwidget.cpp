@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,13 +43,12 @@
 #include <QtGui/QGroupBox>
 #include <QtGui/QVBoxLayout>
 
-using namespace Analyzer;
-using namespace Analyzer::Internal;
+namespace Analyzer {
 
 AnalyzerRunConfigWidget::AnalyzerRunConfigWidget()
     : m_detailsWidget(new Utils::DetailsWidget(this))
 {
-    QWidget* mainWidget = new QWidget(this);
+    QWidget *mainWidget = new QWidget(this);
     new QVBoxLayout(mainWidget);
     m_detailsWidget->setWidget(mainWidget);
 
@@ -72,17 +71,18 @@ void AnalyzerRunConfigWidget::setRunConfiguration(ProjectExplorer::RunConfigurat
 
     // update summary text
     QStringList tools;
-    foreach(AbstractAnalyzerSubConfig *config, settings->subConfigs()) {
+    foreach (AbstractAnalyzerSubConfig *config, settings->subConfigs()) {
         tools << QString("<strong>%1</strong>").arg(config->displayName());
     }
     m_detailsWidget->setSummaryText(tr("Available settings: %1").arg(tools.join(", ")));
 
     // add group boxes for each sub config
-    QLayout* layout = m_detailsWidget->widget()->layout();
-    foreach(AbstractAnalyzerSubConfig *config, settings->subConfigs()) {
-        QGroupBox* box = new QGroupBox(config->displayName());
-        Q_UNUSED(box)
-        QWidget* widget = config->createConfigWidget(this);
+    QLayout *layout = m_detailsWidget->widget()->layout();
+    foreach (AbstractAnalyzerSubConfig *config, settings->subConfigs()) {
+        (void) new QGroupBox(config->displayName());
+        QWidget *widget = config->createConfigWidget(this);
         layout->addWidget(widget);
     }
 }
+
+} // namespace Analyzer

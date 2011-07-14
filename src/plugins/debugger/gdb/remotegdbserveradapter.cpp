@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -58,11 +58,8 @@ namespace Internal {
 //
 ///////////////////////////////////////////////////////////////////////
 
-RemoteGdbServerAdapter::RemoteGdbServerAdapter(GdbEngine *engine,
-                                               const ProjectExplorer::Abi &abi,
-                                               QObject *parent) :
-    AbstractGdbAdapter(engine, parent),
-    m_abi(abi)
+RemoteGdbServerAdapter::RemoteGdbServerAdapter(GdbEngine *engine)
+    : AbstractGdbAdapter(engine)
 {
     connect(&m_uploadProc, SIGNAL(error(QProcess::ProcessError)),
         SLOT(uploadProcError(QProcess::ProcessError)));
@@ -76,9 +73,11 @@ RemoteGdbServerAdapter::RemoteGdbServerAdapter(GdbEngine *engine,
 
 AbstractGdbAdapter::DumperHandling RemoteGdbServerAdapter::dumperHandling() const
 {
-    if (m_abi.os() == ProjectExplorer::Abi::SymbianOS
-            || m_abi.os() == ProjectExplorer::Abi::WindowsOS
-            || m_abi.binaryFormat() == ProjectExplorer::Abi::ElfFormat)
+    using namespace ProjectExplorer;
+    const Abi abi = startParameters().toolChainAbi;
+    if (abi.os() == Abi::SymbianOS
+            || abi.os() == Abi::WindowsOS
+            || abi.binaryFormat() == Abi::ElfFormat)
         return DumperLoadedByGdb;
     return DumperLoadedByGdbPreload;
 }
@@ -172,7 +171,7 @@ void RemoteGdbServerAdapter::setupInferior()
         QFileInfo fi(startParameters().executable);
         fileName = fi.absoluteFilePath();
     }
-    const QByteArray sysRoot = startParameters().sysRoot.toLocal8Bit();
+    const QByteArray sysroot = startParameters().sysroot.toLocal8Bit();
     const QByteArray remoteArch = startParameters().remoteArchitecture.toLatin1();
     const QByteArray gnuTarget = startParameters().gnuTarget.toLatin1();
     QByteArray solibPath =
@@ -188,8 +187,8 @@ void RemoteGdbServerAdapter::setupInferior()
         m_engine->postCommand("set architecture " + remoteArch);
     if (!gnuTarget.isEmpty())
         m_engine->postCommand("set gnutarget " + gnuTarget);
-    if (!sysRoot.isEmpty())
-        m_engine->postCommand("set sysroot " + sysRoot);
+    if (!sysroot.isEmpty())
+        m_engine->postCommand("set sysroot " + sysroot);
     if (!solibPath.isEmpty())
         m_engine->postCommand("set solib-search-path " + solibPath);
     if (!args.isEmpty())

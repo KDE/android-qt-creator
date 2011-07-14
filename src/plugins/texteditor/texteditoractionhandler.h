@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,6 +41,7 @@
 #include <QtCore/QList>
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
+#include <QtCore/QList>
 
 namespace TextEditor {
 
@@ -101,6 +102,7 @@ private slots:
     void fold();
     void unfold();
     void cutLine();
+    void copyLine();
     void deleteLine();
     void selectEncoding();
     void increaseFontSize();
@@ -164,6 +166,7 @@ private:
     QAction *m_foldAction;
     QAction *m_unfoldAction;
     QAction *m_cutLineAction;
+    QAction *m_copyLineAction;
     QAction *m_deleteLineAction;
     QAction *m_selectEncodingAction;
     QAction *m_increaseFontSizeAction;
@@ -184,6 +187,7 @@ private:
     QAction *m_insertLineBelowAction;
     QAction *m_upperCaseSelectionAction;
     QAction *m_lowerCaseSelectionAction;
+    QList<QAction *> m_modifyingActions;
 
     uint m_optionalActions;
     QPointer<BaseTextEditorWidget> m_currentEditor;

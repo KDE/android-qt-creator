@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -60,6 +60,10 @@
 #endif
 
 QString pluginImportPath;
+bool verbose = false;
+
+QString currentProperty;
+QString inObjectInstantiation;
 
 void collectReachableMetaObjects(const QMetaObject *meta, QSet<const QMetaObject *> *metas)
 {
@@ -74,21 +78,21 @@ void collectReachableMetaObjects(const QMetaObject *meta, QSet<const QMetaObject
     collectReachableMetaObjects(meta->superClass(), metas);
 }
 
-QString currentProperty;
-
 void collectReachableMetaObjects(QObject *object, QSet<const QMetaObject *> *metas)
 {
     if (! object)
         return;
 
     const QMetaObject *meta = object->metaObject();
-    qDebug() << "Processing object" << meta->className();
+    if (verbose)
+        qDebug() << "Processing object" << meta->className();
     collectReachableMetaObjects(meta, metas);
 
     for (int index = 0; index < meta->propertyCount(); ++index) {
         QMetaProperty prop = meta->property(index);
         if (QDeclarativeMetaType::isQObject(prop.userType())) {
-            qDebug() << "  Processing property" << prop.name();
+            if (verbose)
+                qDebug() << "  Processing property" << prop.name();
             currentProperty = QString("%1::%2").arg(meta->className(), prop.name());
 
             // if the property was not initialized during construction,
@@ -151,29 +155,36 @@ QSet<const QMetaObject *> collectReachableMetaObjects(const QString &importCode,
         collectReachableMetaObjects(ty, &metas);
     }
 
-    // Adjust ids of extended objects.
-    // The chain ends up being:
-    // __extended__.originalname - the base object
-    // __extension_0_.originalname - first extension
-    // ..
-    // __extension_n-2_.originalname - second to last extension
-    // originalname - last extension
-    // ### does this actually work for multiple extensions? it seems like the prototypes might be wrong
-    foreach (const QByteArray &extendedCpp, extensions.keys()) {
-        cppToId.remove(extendedCpp);
-        const QByteArray extendedId = convertToId(extendedCpp);
-        cppToId.insert(extendedCpp, "__extended__." + extendedId);
-        QSet<QByteArray> extensionCppNames = extensions.value(extendedCpp);
-        int c = 0;
+    // Adjust exports of the base object if there are extensions.
+    // For each export of a base object there can be a single extension object overriding it.
+    // Example: QDeclarativeGraphicsWidget overrides the QtQuick/QGraphicsWidget export
+    //          of QGraphicsWidget.
+    foreach (const QByteArray &baseCpp, extensions.keys()) {
+        QSet<const QDeclarativeType *> baseExports = qmlTypesByCppName.value(baseCpp);
+
+        const QSet<QByteArray> extensionCppNames = extensions.value(baseCpp);
         foreach (const QByteArray &extensionCppName, extensionCppNames) {
-            if (c != extensionCppNames.size() - 1) {
-                QByteArray adjustedName = QString("__extension__%1.%2").arg(QString::number(c), QString(extendedId)).toAscii();
-                cppToId.insert(extensionCppName, adjustedName);
-            } else {
-                cppToId.insert(extensionCppName, extendedId);
+            const QSet<const QDeclarativeType *> extensionExports = qmlTypesByCppName.value(extensionCppName);
+
+            // remove extension exports from base imports
+            // unfortunately the QDeclarativeType pointers don't match, so can't use QSet::substract
+            QSet<const QDeclarativeType *> newBaseExports;
+            foreach (const QDeclarativeType *baseExport, baseExports) {
+                bool match = false;
+                foreach (const QDeclarativeType *extensionExport, extensionExports) {
+                    if (baseExport->qmlTypeName() == extensionExport->qmlTypeName()
+                            && baseExport->majorVersion() == extensionExport->majorVersion()
+                            && baseExport->minorVersion() == extensionExport->minorVersion()) {
+                        match = true;
+                        break;
+                    }
+                }
+                if (!match)
+                    newBaseExports.insert(baseExport);
             }
-            ++c;
+            baseExports = newBaseExports;
         }
+        qmlTypesByCppName[baseCpp] = baseExports;
     }
 
     // find even more QMetaObjects by instantiating QML types and running
@@ -181,9 +192,15 @@ QSet<const QMetaObject *> collectReachableMetaObjects(const QString &importCode,
     foreach (const QDeclarativeType *ty, QDeclarativeMetaType::qmlTypes()) {
         if (ty->isExtendedType())
             continue;
+        if (!ty->isCreatable())
+            continue;
+        if (ty->typeName() == "QDeclarativeComponent")
+            continue;
 
         QByteArray tyName = ty->qmlTypeName();
         tyName = tyName.mid(tyName.lastIndexOf('/') + 1);
+        if (tyName.isEmpty())
+            continue;
 
         QByteArray code = importCode.toUtf8();
         code += tyName;
@@ -192,11 +209,14 @@ QSet<const QMetaObject *> collectReachableMetaObjects(const QString &importCode,
         QDeclarativeComponent c(engine);
         c.setData(code, QUrl::fromLocalFile(pluginImportPath + "/typeinstance.qml"));
 
+        inObjectInstantiation = tyName;
         QObject *object = c.create();
+        inObjectInstantiation.clear();
+
         if (object)
             collectReachableMetaObjects(object, &metas);
         else
-            qDebug() << "Could not create" << tyName << ":" << c.errorString();
+            qWarning() << "Could not create" << tyName << ":" << c.errorString();
     }
 
     return metas;
@@ -245,6 +265,9 @@ public:
                     continue;
                 if (qmlTyName.startsWith(relocatableModuleUri + QLatin1Char('/'))) {
                     qmlTyName.remove(0, relocatableModuleUri.size() + 1);
+                }
+                if (qmlTyName.startsWith("./")) {
+                    qmlTyName.remove(0, 2);
                 }
                 exports += enquote(QString("%1 %2.%3").arg(
                                        qmlTyName,
@@ -330,6 +353,10 @@ private:
         qml->writeStartObject("Property");
 
         qml->writeScriptBinding(QLatin1String("name"), enquote(QString::fromUtf8(prop.name())));
+#if (QT_VERSION >= QT_VERSION_CHECK(4, 7, 4))
+        if (int revision = prop.revision())
+            qml->writeScriptBinding(QLatin1String("revision"), QString::number(revision));
+#endif
         writeTypeProperties(prop.typeName(), prop.isWritable());
 
         qml->writeEndObject();
@@ -357,6 +384,11 @@ private:
             qml->writeStartObject(QLatin1String("Method"));
 
         qml->writeScriptBinding(QLatin1String("name"), enquote(name));
+
+#if (QT_VERSION >= QT_VERSION_CHECK(4, 7, 4))
+        if (int revision = meth.revision())
+            qml->writeScriptBinding(QLatin1String("revision"), QString::number(revision));
+#endif
 
         const QString typeName = convertToId(meth.typeName());
         if (! typeName.isEmpty())
@@ -399,9 +431,11 @@ enum ExitCode {
 
 #ifdef Q_OS_UNIX
 void sigSegvHandler(int) {
-    fprintf(stderr, "Error: qmldump SEGV\n");
+    fprintf(stderr, "Error: SEGV\n");
     if (!currentProperty.isEmpty())
         fprintf(stderr, "While processing the property '%s', which probably has uninitialized data.\n", currentProperty.toLatin1().constData());
+    if (!inObjectInstantiation.isEmpty())
+        fprintf(stderr, "While instantiating the object '%s'.\n", inObjectInstantiation.toLatin1().constData());
     exit(EXIT_SEGV);
 }
 #endif
@@ -409,9 +443,9 @@ void sigSegvHandler(int) {
 void printUsage(const QString &appName)
 {
     qWarning() << qPrintable(QString(
-                                 "Usage: %1 [--notrelocatable] module.uri version [module/import/path]\n"
-                                 "       %1 --path path/to/qmldir/directory [version]\n"
-                                 "       %1 --builtins\n"
+                                 "Usage: %1 [-v] [-notrelocatable] module.uri version [module/import/path]\n"
+                                 "       %1 [-v] -path path/to/qmldir/directory [version]\n"
+                                 "       %1 [-v] -builtins\n"
                                  "Example: %1 Qt.labs.particles 4.7 /home/user/dev/qt-install/imports").arg(
                                  appName));
 }
@@ -421,13 +455,13 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_UNIX
     // qmldump may crash, but we don't want any crash handlers to pop up
     // therefore we intercept the segfault and just exit() ourselves
-    struct sigaction action;
+    struct sigaction sigAction;
 
-    sigemptyset(&action.sa_mask);
-    action.sa_handler = &sigSegvHandler;
-    action.sa_flags   = 0;
+    sigemptyset(&sigAction.sa_mask);
+    sigAction.sa_handler = &sigSegvHandler;
+    sigAction.sa_flags   = 0;
 
-    sigaction(SIGSEGV, &action, 0);
+    sigaction(SIGSEGV, &sigAction, 0);
 #endif
 
 #ifdef QT_SIMULATOR
@@ -437,35 +471,42 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     const QStringList args = app.arguments();
     const QString appName = QFileInfo(app.applicationFilePath()).baseName();
-    if (!(args.size() >= 3 || (args.size() == 2 && args.at(1) == QLatin1String("--builtins")))) {
+    if (args.size() < 2) {
         printUsage(appName);
         return EXIT_INVALIDARGUMENTS;
     }
 
     QString pluginImportUri;
     QString pluginImportVersion;
-
     bool relocatable = true;
-    bool pathImport = false;
-    if (args.size() >= 3) {
+    enum Action { Uri, Path, Builtins };
+    Action action = Uri;
+    {
         QStringList positionalArgs;
         foreach (const QString &arg, args) {
-            if (!arg.startsWith("--")) {
+            if (!arg.startsWith(QLatin1Char('-'))) {
                 positionalArgs.append(arg);
                 continue;
             }
 
-            if (arg == QLatin1String("--notrelocatable")) {
+            if (arg == QLatin1String("--notrelocatable")
+                    || arg == QLatin1String("-notrelocatable")) {
                 relocatable = false;
-            } else if (arg == QLatin1String("--path")) {
-                pathImport = true;
+            } else if (arg == QLatin1String("--path")
+                       || arg == QLatin1String("-path")) {
+                action = Path;
+            } else if (arg == QLatin1String("--builtins")
+                       || arg == QLatin1String("-builtins")) {
+                action = Builtins;
+            } else if (arg == QLatin1String("-v")) {
+                verbose = true;
             } else {
                 qWarning() << "Invalid argument: " << arg;
                 return EXIT_INVALIDARGUMENTS;
             }
         }
 
-        if (!pathImport) {
+        if (action == Uri) {
             if (positionalArgs.size() != 3 && positionalArgs.size() != 4) {
                 qWarning() << "Incorrect number of positional arguments";
                 return EXIT_INVALIDARGUMENTS;
@@ -474,7 +515,7 @@ int main(int argc, char *argv[])
             pluginImportVersion = positionalArgs[2];
             if (positionalArgs.size() >= 4)
                 pluginImportPath = positionalArgs[3];
-        } else {
+        } else if (action == Path) {
             if (positionalArgs.size() != 2 && positionalArgs.size() != 3) {
                 qWarning() << "Incorrect number of positional arguments";
                 return EXIT_INVALIDARGUMENTS;
@@ -482,13 +523,23 @@ int main(int argc, char *argv[])
             pluginImportPath = QDir::fromNativeSeparators(positionalArgs[1]);
             if (positionalArgs.size() == 3)
                 pluginImportVersion = positionalArgs[2];
+        } else if (action == Builtins) {
+            if (positionalArgs.size() != 1) {
+                qWarning() << "Incorrect number of positional arguments";
+                return EXIT_INVALIDARGUMENTS;
+            }
         }
     }
 
     QDeclarativeView view;
     QDeclarativeEngine *engine = view.engine();
-    if (!pluginImportPath.isEmpty())
+    if (!pluginImportPath.isEmpty()) {
+        QDir cur = QDir::current();
+        cur.cd(pluginImportPath);
+        pluginImportPath = cur.absolutePath();
+        QDir::setCurrent(pluginImportPath);
         engine->addImportPath(pluginImportPath);
+    }
 
     // find all QMetaObjects reachable from the builtin module
     QByteArray importCode("import QtQuick 1.0\n");
@@ -497,11 +548,11 @@ int main(int argc, char *argv[])
     // this will hold the meta objects we want to dump information of
     QSet<const QMetaObject *> metas;
 
-    if (pluginImportUri.isEmpty() && !pathImport) {
+    if (action == Builtins) {
         metas = defaultReachable;
     } else {
         // find all QMetaObjects reachable when the specified module is imported
-        if (!pathImport) {
+        if (action != Path) {
             importCode += QString("import %0 %1\n").arg(pluginImportUri, pluginImportVersion).toAscii();
         } else {
             // pluginImportVersion can be empty
@@ -548,7 +599,7 @@ int main(int argc, char *argv[])
     QmlStreamWriter qml(&bytes);
 
     qml.writeStartDocument();
-    qml.writeLibraryImport(QLatin1String("QtQuick.tooling"), 1, 0);
+    qml.writeLibraryImport(QLatin1String("QtQuick.tooling"), 1, 1);
     qml.write("\n"
               "// This file describes the plugin-supplied types contained in the library.\n"
               "// It is used for QML tooling purposes only.\n"

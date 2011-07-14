@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,6 @@ namespace QmlProjectManager {
 namespace Constants {
 
 const char * const QML_RC_ID = "QmlProjectManager.QmlRunConfiguration";
-const char * const QML_RC_DISPLAY_NAME = QT_TRANSLATE_NOOP("QmlProjectManager::Internal::QmlRunConfiguration", "QML Viewer");
 const char * const QML_VIEWER_QT_KEY = "QmlProjectManager.QmlRunConfiguration.QtVersion";
 const char * const QML_VIEWER_ARGUMENTS_KEY = "QmlProjectManager.QmlRunConfiguration.QDeclarativeViewerArguments";
 const char * const QML_VIEWER_TARGET_ID = "QmlProjectManager.QmlTarget";

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,56 +53,67 @@ uint ProString::hash(const QChar *p, int n)
 }
 
 ProString::ProString() :
-    m_offset(0), m_length(0), m_hash(0x80000000)
+    m_offset(0), m_length(0), m_file(0), m_hash(0x80000000)
 {
 }
 
 ProString::ProString(const ProString &other) :
-        m_string(other.m_string), m_offset(other.m_offset), m_length(other.m_length), m_hash(other.m_hash)
+    m_string(other.m_string), m_offset(other.m_offset), m_length(other.m_length), m_file(other.m_file), m_hash(other.m_hash)
 {
 }
 
 ProString::ProString(const ProString &other, OmitPreHashing) :
-        m_string(other.m_string), m_offset(other.m_offset), m_length(other.m_length), m_hash(0x80000000)
+    m_string(other.m_string), m_offset(other.m_offset), m_length(other.m_length), m_file(other.m_file), m_hash(0x80000000)
 {
 }
 
 ProString::ProString(const QString &str) :
-    m_string(str), m_offset(0), m_length(str.length())
+    m_string(str), m_offset(0), m_length(str.length()), m_file(0)
 {
     updatedHash();
 }
 
 ProString::ProString(const QString &str, OmitPreHashing) :
-    m_string(str), m_offset(0), m_length(str.length()), m_hash(0x80000000)
+    m_string(str), m_offset(0), m_length(str.length()), m_file(0), m_hash(0x80000000)
 {
 }
 
 ProString::ProString(const char *str) :
-    m_string(QString::fromLatin1(str)), m_offset(0), m_length(qstrlen(str))
+    m_string(QString::fromLatin1(str)), m_offset(0), m_length(qstrlen(str)), m_file(0)
 {
     updatedHash();
 }
 
 ProString::ProString(const char *str, OmitPreHashing) :
-    m_string(QString::fromLatin1(str)), m_offset(0), m_length(qstrlen(str)), m_hash(0x80000000)
+    m_string(QString::fromLatin1(str)), m_offset(0), m_length(qstrlen(str)), m_file(0), m_hash(0x80000000)
 {
 }
 
 ProString::ProString(const QString &str, int offset, int length) :
-        m_string(str), m_offset(offset), m_length(length)
+    m_string(str), m_offset(offset), m_length(length), m_file(0)
 {
     updatedHash();
 }
 
 ProString::ProString(const QString &str, int offset, int length, uint hash) :
-    m_string(str), m_offset(offset), m_length(length), m_hash(hash)
+    m_string(str), m_offset(offset), m_length(length), m_file(0), m_hash(hash)
 {
 }
 
 ProString::ProString(const QString &str, int offset, int length, ProStringConstants::OmitPreHashing) :
-    m_string(str), m_offset(offset), m_length(length), m_hash(0x80000000)
+    m_string(str), m_offset(offset), m_length(length), m_file(0), m_hash(0x80000000)
 {
+}
+
+void ProString::setValue(const QString &str)
+{
+    m_string = str, m_offset = 0, m_length = str.length();
+    updatedHash();
+}
+
+void ProString::setValue(const QString &str, OmitPreHashing)
+{
+    m_string = str, m_offset = 0, m_length = str.length(), m_hash = 0x80000000;
 }
 
 uint ProString::updatedHash() const
@@ -198,6 +209,8 @@ ProString &ProString::append(const ProString &other, bool *pending)
                 ptr = prepareAppend(other.m_length);
             }
             memcpy(ptr, other.m_string.constData() + other.m_offset, other.m_length * 2);
+            if (other.m_file)
+                m_file = other.m_file;
         }
         if (pending)
             *pending = true;
@@ -236,6 +249,8 @@ ProString &ProString::append(const ProStringList &other, bool *pending, bool ski
                 memcpy(ptr, str.m_string.constData() + str.m_offset, str.m_length * 2);
                 ptr += str.m_length;
             }
+            if (other.last().m_file)
+                m_file = other.last().m_file;
         }
         if (pending)
             *pending = true;

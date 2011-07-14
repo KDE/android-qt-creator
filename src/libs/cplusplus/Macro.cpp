@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 /*
@@ -73,7 +73,7 @@ QString Macro::toString() const
     if (f._functionLike) {
         text += QLatin1Char('(');
         bool first = true;
-        foreach (const QByteArray formal, _formals) {
+        foreach (const QByteArray &formal, _formals) {
             if (! first)
                 text += QLatin1String(", ");
             else

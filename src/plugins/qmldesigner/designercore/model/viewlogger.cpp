@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -224,12 +224,16 @@ void ViewLogger::instancesCompleted(const QVector<ModelNode> &completedNodeList)
 
 }
 
-void ViewLogger::instanceInformationsChange(const QVector<ModelNode> &nodeList)
+void ViewLogger::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     m_output << time() << indent("instanceInformationsChange:") << endl;
 
-    foreach(const ModelNode &node, nodeList)
-        m_output << time() << indent("node: ") << node << endl;
+    QHashIterator<ModelNode, InformationName> informationChangeHashIterator(informationChangeHash);
+
+    while (informationChangeHashIterator.hasNext()) {
+        informationChangeHashIterator.next();
+        m_output << time() << indent("node: ") << informationChangeHashIterator.key() << "\tinformation: " << informationChangeHashIterator.value() << endl;
+    }
 }
 
 void ViewLogger::instancesRenderImageChanged(const QVector<ModelNode> &nodeList)
@@ -254,6 +258,19 @@ void ViewLogger::instancesChildrenChanged(const QVector<ModelNode> &nodeList)
 
     foreach(const ModelNode &node, nodeList)
         m_output << time() << indent("node: ") << node << endl;
+}
+
+void ViewLogger::instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector)
+{
+    m_output << time() << indent("instancesToken:") << tokenName << tokenNumber << endl;
+    foreach (const ModelNode &node, nodeVector)
+        m_output << time() << indent("node: ") << node << endl;
+}
+
+void ViewLogger::nodeSourceChanged(const ModelNode &node, const QString & /*newNodeSource*/)
+{
+    m_output << time() << indent("nodeSourceChanged:") << endl;
+    m_output << time() << indent("node: ") << node << endl;
 }
 
 void ViewLogger::rewriterBeginTransaction()

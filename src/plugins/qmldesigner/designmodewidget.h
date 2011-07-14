@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,14 +40,15 @@
 
 #include <integrationcore.h>
 
-#include <allpropertiesbox.h>
 #include <designdocumentcontroller.h>
 #include <itemlibraryview.h>
 #include <navigatorwidget.h>
 #include <navigatorview.h>
 #include <stateseditorview.h>
+#include <componentview.h>
 #include <modelnode.h>
 #include <formeditorview.h>
+#include <propertyeditor.h>
 
 #include <QWeakPointer>
 #include <QDeclarativeError>
@@ -129,7 +130,7 @@ public:
     void saveSettings();
     void setAutoSynchronization(bool sync);
 
-    TextEditor::ITextEditor *textEditor() const {return m_textEditor; }
+    TextEditor::ITextEditor *textEditor() const {return m_textEditor.data(); }
 
 private slots:
     void undo();
@@ -156,6 +157,9 @@ private slots:
     void deleteSidebarWidgets();
     void qmlPuppetCrashed();
 
+    void onGoBackClicked();
+    void onGoForwardClicked();
+
 protected:
     void resizeEvent(QResizeEvent *event);
 
@@ -181,10 +185,11 @@ private:
     QAction *m_toggleRightSidebarAction;
 
     QWeakPointer<ItemLibraryView> m_itemLibraryView;
-    QWeakPointer<NavigatorView> m_navigator;
-    QWeakPointer<AllPropertiesBox> m_allPropertiesBox;
+    QWeakPointer<NavigatorView> m_navigatorView;
+    QWeakPointer<PropertyEditor> m_propertyEditorView;
     QWeakPointer<StatesEditorView> m_statesEditorView;
     QWeakPointer<FormEditorView> m_formEditorView;
+    QWeakPointer<ComponentView> m_componentView;
     QWeakPointer<NodeInstanceView> m_nodeInstanceView;
 
     bool m_syncWithTextEdit;
@@ -192,8 +197,10 @@ private:
     void setup();
     bool isInNodeDefinition(int nodeOffset, int nodeLength, int cursorPos) const;
     QmlDesigner::ModelNode nodeForPosition(int cursorPos) const;
+    void setupNavigatorHistory();
+    void addNavigatorHistoryEntry(const QString &fileName);
 
-    TextEditor::ITextEditor *m_textEditor;
+    QWeakPointer<TextEditor::ITextEditor> m_textEditor;
 
     QSplitter *m_mainSplitter;
     Core::SideBar *m_leftSideBar;
@@ -209,6 +216,9 @@ private:
     InitializeStatus m_initStatus;
 
     DocumentWarningWidget *m_warningWidget;
+    QStringList m_navigatorHistory;
+    int m_navigatorHistoryCounter;
+    bool m_keepNavigatorHistory;
 };
 
 } // namespace Internal

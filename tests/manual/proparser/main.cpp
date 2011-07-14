@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -91,7 +91,9 @@ static int evaluate(const QString &fileName, const QString &in_pwd, const QStrin
     visited.insert(fileName);
 
     ProFileEvaluator visitor(option, parser, &evalHandler);
+#ifdef PROEVALUATOR_CUMULATIVE
     visitor.setCumulative(cumulative);
+#endif
     visitor.setOutputDir(out_pwd);
 
     ProFile *pro;
@@ -158,32 +160,10 @@ int main(int argc, char **argv)
         qFatal("need at least two arguments: [-v] <cumulative?> <filenme> [<out_pwd> [<qmake options>]]");
 
     ProFileOption option;
+    option.initProperties(QLibraryInfo::location(QLibraryInfo::BinariesPath) + QLatin1String("/qmake"));
     if (args.count() >= 4)
         option.setCommandLineArguments(args.mid(3));
     ProFileParser parser(0, &parseHandler);
-
-    static const struct {
-        const char * const name;
-        QLibraryInfo::LibraryLocation index;
-    } props[] = {
-        { "QT_INSTALL_DATA", QLibraryInfo::DataPath },
-        { "QT_INSTALL_LIBS", QLibraryInfo::LibrariesPath },
-        { "QT_INSTALL_IMPORTS", QLibraryInfo::ImportsPath },
-        { "QT_INSTALL_HEADERS", QLibraryInfo::HeadersPath },
-        { "QT_INSTALL_DEMOS", QLibraryInfo::DemosPath },
-        { "QT_INSTALL_EXAMPLES", QLibraryInfo::ExamplesPath },
-        { "QT_INSTALL_CONFIGURATION", QLibraryInfo::SettingsPath },
-        { "QT_INSTALL_TRANSLATIONS", QLibraryInfo::TranslationsPath },
-        { "QT_INSTALL_PLUGINS", QLibraryInfo::PluginsPath },
-        { "QT_INSTALL_BINS", QLibraryInfo::BinariesPath },
-        { "QT_INSTALL_DOCS", QLibraryInfo::DocumentationPath },
-        { "QT_INSTALL_PREFIX", QLibraryInfo::PrefixPath }
-    };
-    for (unsigned i = 0; i < sizeof(props)/sizeof(props[0]); ++i)
-        option.properties.insert(QLatin1String(props[i].name),
-                                 QLibraryInfo::location(props[i].index));
-
-    option.properties.insert(QLatin1String("QT_VERSION"), QLatin1String(qVersion()));
 
     bool cumulative = args[0] == QLatin1String("true");
     QFileInfo infi(args[1]);

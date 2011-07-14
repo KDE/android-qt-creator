@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,10 +35,10 @@
 #include "mercurialplugin.h"
 #include "mercurialsettings.h"
 
+#include <coreplugin/iversioncontrol.h>
 #include <vcsbase/checkoutjobs.h>
 #include <vcsbase/vcsbaseconstants.h>
-
-#include <QtCore/QDebug>
+#include <vcsbase/vcsconfigurationpage.h>
 
 using namespace Mercurial::Internal;
 
@@ -67,9 +67,12 @@ QString CloneWizard::displayName() const
 QList<QWizardPage*> CloneWizard::createParameterPages(const QString &path)
 {
     QList<QWizardPage*> wizardPageList;
+    const Core::IVersionControl *vc = MercurialPlugin::instance()->versionControl();
+    if (!vc->isConfigured())
+        wizardPageList.append(new VCSBase::VcsConfigurationPage(vc));
     CloneWizardPage *page = new CloneWizardPage;
     page->setPath(path);
-    wizardPageList.push_back(page);
+    wizardPageList.append(page);
     return wizardPageList;
 }
 

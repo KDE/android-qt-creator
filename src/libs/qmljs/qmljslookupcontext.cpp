@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,30 +43,32 @@ class QmlJS::LookupContextData
 {
 public:
     LookupContextData(Document::Ptr doc, const Snapshot &snapshot, const QList<AST::Node *> &path)
-        : doc(doc),
-          snapshot(snapshot)
+        : context(snapshot),
+          doc(doc)
     {
         // since we keep the document and snapshot around, we don't need to keep the Link instance
-        Link link(&context, doc, snapshot, ModelManagerInterface::instance()->importPaths());
+        Link link(&context, snapshot, ModelManagerInterface::instance()->importPaths());
+        link();
 
-        ScopeBuilder scopeBuilder(&context, doc, snapshot);
+        ScopeBuilder scopeBuilder(&context, doc);
+        scopeBuilder.initializeRootScope();
         scopeBuilder.push(path);
     }
 
-    LookupContextData(Document::Ptr doc, const Snapshot &snapshot,
+    LookupContextData(Document::Ptr doc,
                       const Interpreter::Context &linkedContextWithoutScope,
                       const QList<AST::Node *> &path)
         : context(linkedContextWithoutScope),
-          doc(doc),
-          snapshot(snapshot)
+          doc(doc)
     {
-        ScopeBuilder scopeBuilder(&context, doc, snapshot);
+        ScopeBuilder scopeBuilder(&context, doc);
+        scopeBuilder.initializeRootScope();
         scopeBuilder.push(path);
     }
 
     Interpreter::Context context;
     Document::Ptr doc;
-    Snapshot snapshot;
+    // snapshot is in context
 };
 
 LookupContext::LookupContext(Document::Ptr doc, const Snapshot &snapshot, const QList<AST::Node *> &path)
@@ -74,10 +76,10 @@ LookupContext::LookupContext(Document::Ptr doc, const Snapshot &snapshot, const 
 {
 }
 
-LookupContext::LookupContext(const Document::Ptr doc, const Snapshot &snapshot,
+LookupContext::LookupContext(const Document::Ptr doc,
                              const Interpreter::Context &linkedContextWithoutScope,
                              const QList<AST::Node *> &path)
-    : d(new LookupContextData(doc, snapshot, linkedContextWithoutScope, path))
+    : d(new LookupContextData(doc, linkedContextWithoutScope, path))
 {
 }
 
@@ -91,11 +93,11 @@ LookupContext::Ptr LookupContext::create(Document::Ptr doc, const Snapshot &snap
     return ptr;
 }
 
-LookupContext::Ptr LookupContext::create(const Document::Ptr doc, const Snapshot &snapshot,
+LookupContext::Ptr LookupContext::create(const Document::Ptr doc,
                                          const Interpreter::Context &linkedContextWithoutScope,
                                          const QList<AST::Node *> &path)
 {
-    Ptr ptr(new LookupContext(doc, snapshot, linkedContextWithoutScope, path));
+    Ptr ptr(new LookupContext(doc, linkedContextWithoutScope, path));
     return ptr;
 }
 
@@ -112,7 +114,7 @@ Document::Ptr LookupContext::document() const
 
 Snapshot LookupContext::snapshot() const
 {
-    return d->snapshot;
+    return d->context.snapshot();
 }
 
 // the engine is only guaranteed to live as long as the LookupContext

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -223,6 +223,11 @@ void RvctToolChain::addToEnvironment(Utils::Environment &env) const
     if (!m_compilerPath.isEmpty())
         env.prependOrSetPath(QFileInfo(m_compilerPath).absolutePath());
     env.set(QLatin1String("LANG"), QString(QLatin1Char('C')));
+}
+
+QString RvctToolChain::mkspec() const
+{
+    return QString(); // Always use default from Qt version
 }
 
 QString RvctToolChain::makeCommand() const
@@ -439,6 +444,14 @@ bool RvctToolChainConfigWidget::isDirty() const
             || tc->armVersion() != static_cast<RvctToolChain::ArmVersion>(m_ui->versionComboBox->currentIndex())
             || tc->environmentChanges() != environmentChanges()
             || tc->debuggerCommand() != debuggerCommand();
+}
+
+void RvctToolChainConfigWidget::makeReadOnly()
+{
+    m_ui->versionComboBox->setEnabled(false);
+    m_ui->compilerPath->setEnabled(false);
+    m_ui->environmentView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ProjectExplorer::ToolChainConfigWidget::makeReadOnly();
 }
 
 QList<Utils::EnvironmentItem> RvctToolChainConfigWidget::environmentChanges() const

@@ -6,6 +6,7 @@
 **
 ** Contact: Nokia Corporation (info@qt.nokia.com)
 **
+**
 ** GNU Lesser General Public License Usage
 **
 ** This file may be used under the terms of the GNU Lesser General Public
@@ -25,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -77,12 +78,6 @@ public:
 uint qHash(const QmlJS::NameId &id);
 
 } // end of namespace QmlJS
-
-#if defined(Q_CC_MSVC) && _MSC_VER <= 1300
-//this ensures that code outside QmlJS can use the hash function
-//it also a workaround for some compilers
-inline uint qHash(const QmlJS::NameId &nameId) { return QmlJS::qHash(nameId); }
-#endif
 
 namespace QmlJS {
 

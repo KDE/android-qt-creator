@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -245,13 +245,18 @@ void runFileSearchRegExp(QFutureInterface<FileSearchResultList> &future,
         QString line;
         while (!stream.atEnd()) {
             line = stream.readLine();
+            int lengthOfLine = line.size();
             int pos = 0;
             while ((pos = expression.indexIn(line, pos)) != -1) {
                 results << FileSearchResult(s, lineNr, line,
                                               pos, expression.matchedLength(),
                                               expression.capturedTexts());
                 ++numMatches;
+                if (expression.matchedLength() == 0)
+                    break;
                 pos += expression.matchedLength();
+                if (pos >= lengthOfLine)
+                    break;
             }
             ++lineNr;
         }

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -228,19 +228,6 @@ void GdbMi::parseList(const char *&from, const char *to)
     }
 }
 
-void GdbMi::setStreamOutput(const QByteArray &name, const QByteArray &content)
-{
-    if (content.isEmpty())
-        return;
-    GdbMi child;
-    child.m_type = Const;
-    child.m_name = name;
-    child.m_data = content;
-    m_children += child;
-    if (m_type == Invalid)
-        m_type = Tuple;
-}
-
 static QByteArray ind(int indent)
 {
     return QByteArray(2 * indent, ' ');
@@ -371,6 +358,16 @@ GdbMi GdbMi::findChild(const char *name) const
         if (m_children.at(i).m_name == name)
             return m_children.at(i);
     return GdbMi();
+}
+
+qulonglong GdbMi::toAddress() const
+{
+    QByteArray ba = m_data;
+    if (ba.endsWith('L'))
+        ba.chop(1);
+    if (ba.startsWith('*') || ba.startsWith('@'))
+        ba = ba.mid(1);
+    return ba.toULongLong(0, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////////

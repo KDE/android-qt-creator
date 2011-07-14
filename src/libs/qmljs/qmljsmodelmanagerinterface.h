@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -137,11 +137,15 @@ public:
     virtual CppQmlTypeHash cppQmlTypes() const = 0;
     virtual BuiltinPackagesHash builtinPackages() const = 0;
 
+public slots:
+    virtual void resetCodeModel() = 0;
+
 signals:
     void documentUpdated(QmlJS::Document::Ptr doc);
     void documentChangedOnDisk(QmlJS::Document::Ptr doc);
     void aboutToRemoveFiles(const QStringList &files);
     void libraryInfoUpdated(const QString &path, const QmlJS::LibraryInfo &info);
+    void projectInfoUpdated(const ProjectInfo &pinfo);
 };
 
 } // namespace QmlJS

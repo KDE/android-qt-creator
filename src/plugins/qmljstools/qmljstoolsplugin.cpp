@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,16 +34,30 @@
 #include "qmljsmodelmanager.h"
 #include "qmljsfunctionfilter.h"
 #include "qmljslocatordata.h"
+#include "qmljscodestylesettingspage.h"
+#include "qmljstoolsconstants.h"
+#include "qmljstoolssettings.h"
+#include "qmljscodestylesettingsfactory.h"
+
+#include <texteditor/texteditorsettings.h>
+#include <texteditor/tabsettings.h>
+#include <texteditor/codestylepreferencesmanager.h>
 
 #include <extensionsystem/pluginmanager.h>
 
 #include <coreplugin/icore.h>
+#include <coreplugin/coreconstants.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/actioncontainer.h>
+#include <coreplugin/actionmanager/command.h>
+#include <coreplugin/progressmanager/progressmanager.h>
 
 #include <QtCore/QtPlugin>
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
 #include <QtCore/QDebug>
 #include <QtCore/QSettings>
+#include <QtGui/QMenu>
 
 using namespace QmlJSTools::Internal;
 
@@ -67,7 +81,11 @@ bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(error)
-//    Core::ICore *core = Core::ICore::instance();
+
+    Core::ICore *core = Core::ICore::instance();
+    Core::ActionManager *am = core->actionManager();
+
+    m_settings = new QmlJSToolsSettings(this); // force registration of qmljstools settings
 
     // Objects
     m_modelManager = new ModelManager(this);
@@ -82,6 +100,31 @@ bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
     LocatorData *locatorData = new LocatorData;
     addAutoReleasedObject(locatorData);
     addAutoReleasedObject(new FunctionFilter(locatorData));
+    addAutoReleasedObject(new QmlJSCodeStyleSettingsPage);
+
+    TextEditor::CodeStylePreferencesManager::instance()->registerFactory(
+                new QmlJSTools::QmlJSCodeStylePreferencesFactory());
+
+    // Menus
+    Core::ActionContainer *mtools = am->actionContainer(Core::Constants::M_TOOLS);
+    Core::ActionContainer *mqmljstools = am->createMenu(Constants::M_TOOLS_QMLJS);
+    QMenu *menu = mqmljstools->menu();
+    menu->setTitle(tr("&QML/JS"));
+    menu->setEnabled(true);
+    mtools->addMenu(mqmljstools);
+
+    // Update context in global context
+    m_resetCodeModelAction = new QAction(tr("Reset Code Model"), this);
+    Core::Context globalContext(Core::Constants::C_GLOBAL);
+    Core::Command *cmd = am->registerAction(m_resetCodeModelAction, Core::Id(Constants::RESET_CODEMODEL), globalContext);
+    connect(m_resetCodeModelAction, SIGNAL(triggered()), m_modelManager, SLOT(resetCodeModel()));
+    mqmljstools->addAction(cmd);
+
+    // watch task progress
+    connect(core->progressManager(), SIGNAL(taskStarted(QString)),
+            this, SLOT(onTaskStarted(QString)));
+    connect(core->progressManager(), SIGNAL(allTasksFinished(QString)),
+            this, SLOT(onAllTasksFinished(QString)));
 
     return true;
 }
@@ -94,6 +137,20 @@ void QmlJSToolsPlugin::extensionsInitialized()
 ExtensionSystem::IPlugin::ShutdownFlag QmlJSToolsPlugin::aboutToShutdown()
 {
     return SynchronousShutdown;
+}
+
+void QmlJSToolsPlugin::onTaskStarted(const QString &type)
+{
+    if (type == QmlJSTools::Constants::TASK_INDEX) {
+        m_resetCodeModelAction->setEnabled(false);
+    }
+}
+
+void QmlJSToolsPlugin::onAllTasksFinished(const QString &type)
+{
+    if (type == QmlJSTools::Constants::TASK_INDEX) {
+        m_resetCodeModelAction->setEnabled(true);
+    }
 }
 
 Q_EXPORT_PLUGIN(QmlJSToolsPlugin)

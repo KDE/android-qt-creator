@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -787,8 +787,7 @@ bool CheckSymbols::visit(FunctionDefinitionAST *ast)
     accept(ast->function_body);
 
     const LocalSymbols locals(_doc, ast);
-    QList<SemanticInfo::Use> uses;
-    foreach (uses, locals.uses) {
+    foreach (const QList<SemanticInfo::Use> &uses, locals.uses) {
         foreach (const SemanticInfo::Use &u, uses)
             addUse(u);
     }

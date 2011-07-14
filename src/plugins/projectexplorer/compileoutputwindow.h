@@ -26,15 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef COMPILEOUTPUTWINDOW_H
 #define COMPILEOUTPUTWINDOW_H
 
-#include "outputwindow.h"
 #include "buildstep.h"
+#include <coreplugin/outputwindow.h>
 #include <coreplugin/ioutputpane.h>
 
 #include <QtCore/QHash>
@@ -82,8 +82,11 @@ public:
     bool knowsPositionOf(const Task &task);
     void showPositionOf(const Task &task);
 
+private slots:
+    void updateWordWrapMode();
+
 private:
-    OutputWindow *m_outputWindow;
+    Core::OutputWindow *m_outputWindow;
     QHash<unsigned int, int> m_taskPositions;
     ShowOutputTaskHandler * m_handler;
 };

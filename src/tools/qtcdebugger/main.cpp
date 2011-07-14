@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -57,17 +57,17 @@ using namespace RegistryAccess;
 
 enum { debug = 0 };
 
-static const char *titleC = "Qt Creator Debugger";
+static const char titleC[] = "Qt Creator Debugger";
 // For some reason NQTC_SETTINGS_ORG is undefined even though it's -D
-static const char *organizationC = "eu.licentia.necessitas";
+static const char organizationC[] = "eu.licentia.necessitas";
 
 // Optional
-static const WCHAR *debuggerWow32RegistryKeyC = L"Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
+static const WCHAR debuggerWow32RegistryKeyC[] = L"Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
 
-static const WCHAR *debuggerRegistryDefaultValueNameC = L"Debugger.Default";
+static const WCHAR debuggerRegistryDefaultValueNameC[] = L"Debugger.Default";
 
-static const char *linkC = "http://msdn.microsoft.com/en-us/library/cc266343.aspx";
-static const char *creatorBinaryC = "qtcreator.exe";
+static const char linkC[] = "http://msdn.microsoft.com/en-us/library/cc266343.aspx";
+static const char creatorBinaryC[] = "qtcreator.exe";
 
 #ifdef __GNUC__
 #define RRF_RT_ANY             0x0000ffff  // no type restriction

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -86,12 +86,10 @@ SshPacketType AbstractSshPacket::type() const
     return static_cast<SshPacketType>(m_data.at(TypeOffset));
 }
 
-AbstractSshPacket::Payload AbstractSshPacket::payLoad() const
+QByteArray AbstractSshPacket::payLoad() const
 {
-    Payload p;
-    p.data = m_data.constData() + PayloadOffset;
-    p.size = length() - paddingLength() - 1;
-    return p;
+    return QByteArray(m_data.constData() + PayloadOffset,
+        length() - paddingLength() - 1);
 }
 
 void AbstractSshPacket::printRawBytes() const

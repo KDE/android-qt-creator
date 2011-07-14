@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -150,9 +150,20 @@ void MetaInfoParser::handleNodeItemLibraryEntryElement(QXmlStreamReader &reader,
         if (!requiredImport.isEmpty())
             entry.setRequiredImport(requiredImport);
 
+        if (reader.attributes().hasAttribute("forceImport")) {
+            QString forceImport = reader.attributes().value("forceImport").toString();
+            if (forceImport == QLatin1String("true") || forceImport == QLatin1String("True"))
+                entry.setForceImport(true);
+            else
+                entry.setForceImport(false);
+        } else {
+            entry.setForceImport(false);
+        }
+
         while (!reader.atEnd() && !(reader.isEndElement() && reader.name() == "itemlibraryentry")) {
             reader.readNext();
             handleItemLibraryEntryPropertyElement(reader, entry);
+            handleItemLibraryEntryQmlElement(reader, entry);
         }
 
         m_metaInfo.itemLibraryInfo()->addEntry(entry);
@@ -168,6 +179,18 @@ void MetaInfoParser::handleItemLibraryEntryPropertyElement(QXmlStreamReader &rea
         QString type = attributes.value("type").toString();
         QString value = attributes.value("value").toString();
         itemLibraryEntry.addProperty(name, type, value);
+
+        reader.readNext();
+    }
+}
+
+void MetaInfoParser::handleItemLibraryEntryQmlElement(QXmlStreamReader &reader, ItemLibraryEntry &itemLibraryEntry)
+{
+    if (reader.isStartElement() && reader.name() == "qml")
+    {
+        QXmlStreamAttributes attributes(reader.attributes());
+        QString source = attributes.value("source").toString();
+        itemLibraryEntry.setQml(source);
 
         reader.readNext();
     }

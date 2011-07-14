@@ -26,15 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "localapplicationruncontrol.h"
 #include "applicationrunconfiguration.h"
 #include "projectexplorerconstants.h"
-#include "outputformat.h"
 
+#include <utils/outputformat.h>
 #include <utils/qtcassert.h>
 #include <utils/environment.h>
 
@@ -89,8 +89,8 @@ LocalApplicationRunControl::LocalApplicationRunControl(LocalApplicationRunConfig
     m_runMode = static_cast<ApplicationLauncher::Mode>(rc->runMode());
     m_commandLineArguments = rc->commandLineArguments();
 
-    connect(&m_applicationLauncher, SIGNAL(appendMessage(QString,ProjectExplorer::OutputFormat)),
-            this, SLOT(slotAppendMessage(QString,ProjectExplorer::OutputFormat)));
+    connect(&m_applicationLauncher, SIGNAL(appendMessage(QString,Utils::OutputFormat)),
+            this, SLOT(slotAppendMessage(QString,Utils::OutputFormat)));
     connect(&m_applicationLauncher, SIGNAL(processExited(int)),
             this, SLOT(processExited(int)));
     connect(&m_applicationLauncher, SIGNAL(bringToForegroundRequested(qint64)),
@@ -103,11 +103,16 @@ LocalApplicationRunControl::~LocalApplicationRunControl()
 
 void LocalApplicationRunControl::start()
 {
-    m_applicationLauncher.start(m_runMode, m_executable, m_commandLineArguments);
     emit started();
-
-    QString msg = tr("Starting %1...").arg(QDir::toNativeSeparators(m_executable));
-    appendMessage(msg, NormalMessageFormat);
+    if (m_executable.isEmpty()) {
+        appendMessage(tr("No executable specified.\n"), Utils::ErrorMessageFormat);
+        emit finished();
+    }  else {
+        m_applicationLauncher.start(m_runMode, m_executable, m_commandLineArguments);
+        setApplicationProcessHandle(ProcessHandle(m_applicationLauncher.applicationPID()));
+        QString msg = tr("Starting %1...\n").arg(QDir::toNativeSeparators(m_executable));
+        appendMessage(msg, Utils::NormalMessageFormat);
+    }
 }
 
 LocalApplicationRunControl::StopResult LocalApplicationRunControl::stop()
@@ -121,17 +126,23 @@ bool LocalApplicationRunControl::isRunning() const
     return m_applicationLauncher.isRunning();
 }
 
+QIcon LocalApplicationRunControl::icon() const
+{
+    return QIcon(ProjectExplorer::Constants::ICON_RUN_SMALL);
+}
+
 void LocalApplicationRunControl::slotAppendMessage(const QString &err,
-                                                   OutputFormat format)
+                                                   Utils::OutputFormat format)
 {
     appendMessage(err, format);
 }
 
 void LocalApplicationRunControl::processExited(int exitCode)
 {
-    QString msg = tr("%1 exited with code %2")
+    setApplicationProcessHandle(ProcessHandle());
+    QString msg = tr("%1 exited with code %2\n")
         .arg(QDir::toNativeSeparators(m_executable)).arg(exitCode);
-    appendMessage(msg, NormalMessageFormat);
+    appendMessage(msg, Utils::NormalMessageFormat);
     emit finished();
 }
 

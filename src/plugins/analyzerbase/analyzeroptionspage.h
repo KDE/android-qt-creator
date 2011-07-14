@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -46,6 +46,7 @@ namespace Internal {
 class AnalyzerOptionsPage : public Core::IOptionsPage
 {
     Q_OBJECT
+
 public:
     explicit AnalyzerOptionsPage(AbstractAnalyzerSubConfig *config, QObject *parent = 0);
 
@@ -63,7 +64,6 @@ public:
 private:
     AbstractAnalyzerSubConfig *m_config;
 };
-
 
 } // namespace Internal
 } // namespace Analyzer

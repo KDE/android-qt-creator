@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,6 @@
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/taskwindow.h>
-
-#include <QtCore/QDir>
 
 using namespace Qt4ProjectManager;
 using namespace ProjectExplorer;
@@ -78,7 +76,7 @@ void AbldParser::stdOutput(const QString &line)
 
     if (m_perlIssue.indexIn(lne) > -1) {
         m_waitingForStdOutContinuation = true;
-        m_currentFile = QDir::fromNativeSeparators(m_perlIssue.cap(2));
+        m_currentFile = m_perlIssue.cap(2);
         m_currentLine = m_perlIssue.cap(3).toInt();
 
         Task task(Task::Unknown,
@@ -148,7 +146,7 @@ void AbldParser::stdError(const QString &line)
     }
 
     if (lne.startsWith(QLatin1String("MMPFILE \""))) {
-        m_currentFile = QDir::fromNativeSeparators(lne.mid(9, lne.size() - 10));
+        m_currentFile = lne.mid(9, lne.size() - 10);
         m_waitingForStdErrContinuation = false;
         return;
     }
@@ -210,12 +208,12 @@ void Qt4ProjectManagerPlugin::testAbldOutputParsers_data()
 
     QTest::newRow("pass-through stdout")
             << QString::fromLatin1("Sometext") << OutputParserTester::STDOUT
-            << QString::fromLatin1("Sometext") << QString()
+            << QString::fromLatin1("Sometext\n") << QString()
             << QList<ProjectExplorer::Task>()
             << QString();
     QTest::newRow("pass-through stderr")
             << QString::fromLatin1("Sometext") << OutputParserTester::STDERR
-            << QString() << QString::fromLatin1("Sometext")
+            << QString() << QString::fromLatin1("Sometext\n")
             << QList<ProjectExplorer::Task>()
             << QString();
 }

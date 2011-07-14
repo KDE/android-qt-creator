@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,9 +39,9 @@ namespace Constants {
 const char * const DELETE               = "QmlDesigner.Delete";
 
 // context
-const char * const C_DESIGN_MODE        = "QmlDesigner::DesignMode";
 const char * const C_QMLDESIGNER         = "QmlDesigner::QmlDesignerMain";
-const char * const C_QMLFORMEDITOR         = "QmlDesigner::FormEditor";
+const char * const C_QMLFORMEDITOR       = "QmlDesigner::FormEditor";
+const char * const C_QMLNAVIGATOR        = "QmlDesigner::Navigator";
 
 // special context for preview menu, shared b/w designer and text editor
 const char * const C_QT_QUICK_TOOLS_MENU = "QmlDesigner::ToolsMenu";
@@ -51,13 +51,6 @@ const char * const SWITCH_TEXT_DESIGN   = "QmlDesigner.SwitchTextDesign";
 const char * const RESTORE_DEFAULT_VIEW = "QmlDesigner.RestoreDefaultView";
 const char * const TOGGLE_LEFT_SIDEBAR = "QmlDesigner.ToggleLeftSideBar";
 const char * const TOGGLE_RIGHT_SIDEBAR = "QmlDesigner.ToggleRightSideBar";
-
-// mode
-const char * const DESIGN_MODE_NAME     = "Design";
-
-// Wizard type
-const char * const FORM_MIMETYPE        = "application/x-qmldesigner";
-
 
 // This setting is also accessed by the QMlJsEditor.
 const char * const QML_SETTINGS_GROUP = "QML";

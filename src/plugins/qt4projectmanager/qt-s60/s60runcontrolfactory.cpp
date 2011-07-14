@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,6 @@
 #include "codaruncontrol.h"
 #include "s60devicerunconfiguration.h"
 #include "s60deployconfiguration.h"
-#include "trkruncontrol.h"
 #include "qt4symbiantarget.h"
 
 #include <utils/qtcassert.h>
@@ -58,7 +57,7 @@ bool S60RunControlFactory::canRun(RunConfiguration *runConfiguration, const QStr
     S60DeviceRunConfiguration *rc = qobject_cast<S60DeviceRunConfiguration *>(runConfiguration);
     if (!rc)
         return false;
-    S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(rc->qt4Target()->activeDeployConfiguration());
+    S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(rc->target()->activeDeployConfiguration());
     return activeDeployConf != 0;
 }
 
@@ -69,12 +68,9 @@ RunControl* S60RunControlFactory::create(RunConfiguration *runConfiguration, con
     QTC_ASSERT(rc, return 0);
     QTC_ASSERT(mode == m_mode, return 0);
 
-    S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(rc->qt4Target()->activeDeployConfiguration());
+    S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(rc->target()->activeDeployConfiguration());
     if (!activeDeployConf)
         return 0;
-
-    if (activeDeployConf->communicationChannel() == S60DeployConfiguration::CommunicationTrkSerialConnection)
-        return new TrkRunControl(rc, mode);
     return new CodaRunControl(rc, mode);
 }
 

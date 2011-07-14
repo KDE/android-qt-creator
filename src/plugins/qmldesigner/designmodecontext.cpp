@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,63 +34,46 @@
 #include "qmldesignerconstants.h"
 #include "designmodewidget.h"
 #include "formeditorwidget.h"
-
-#include <QWidget>
+#include "navigatorwidget.h"
 
 namespace QmlDesigner {
 namespace Internal {
 
-DesignModeContext::DesignModeContext(DesignModeWidget *widget)
-  : IContext(widget),
-    m_widget(widget),
-    m_context(Constants::C_QMLDESIGNER, Constants::C_QT_QUICK_TOOLS_MENU)
+DesignModeContext::DesignModeContext(QWidget *widget)
+  : IContext(widget)
 {
-}
-
-DesignModeContext::~DesignModeContext()
-{
-}
-
-Core::Context DesignModeContext::context() const
-{
-    return m_context;
-}
-
-QWidget *DesignModeContext::widget()
-{
-    return m_widget;
+    setWidget(widget);
+    setContext(Core::Context(Constants::C_QMLDESIGNER, Constants::C_QT_QUICK_TOOLS_MENU));
 }
 
 QString DesignModeContext::contextHelpId() const
 {
-    return m_widget->contextHelpId();
+    return qobject_cast<DesignModeWidget *>(m_widget)->contextHelpId();
 }
 
 
-FormEditorContext::FormEditorContext(FormEditorWidget *widget)
-  : IContext(widget),
-    m_widget(widget),
-    m_context(Constants::C_QMLFORMEDITOR, Constants::C_QT_QUICK_TOOLS_MENU)
+FormEditorContext::FormEditorContext(QWidget *widget)
+  : IContext(widget)
 {
-}
-
-FormEditorContext::~FormEditorContext()
-{
-}
-
-Core::Context FormEditorContext::context() const
-{
-    return m_context;
-}
-
-QWidget *FormEditorContext::widget()
-{
-    return m_widget;
+    setWidget(widget);
+    setContext(Core::Context(Constants::C_QMLFORMEDITOR, Constants::C_QT_QUICK_TOOLS_MENU));
 }
 
 QString FormEditorContext::contextHelpId() const
 {
-    return m_widget->contextHelpId();
+    return qobject_cast<FormEditorWidget *>(m_widget)->contextHelpId();
+}
+
+NavigatorContext::NavigatorContext(QWidget *widget)
+  : IContext(widget)
+{
+    setWidget(widget);
+    setContext(Core::Context(Constants::C_QMLNAVIGATOR, Constants::C_QT_QUICK_TOOLS_MENU));
+}
+
+QString NavigatorContext::contextHelpId() const
+{
+    return qobject_cast<NavigatorWidget *>(m_widget)->contextHelpId();
 }
 
 }

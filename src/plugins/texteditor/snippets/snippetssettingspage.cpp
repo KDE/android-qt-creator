@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,8 @@
 #include "ui_snippetssettingspage.h"
 
 #include <coreplugin/icore.h>
+#include <texteditor/texteditorsettings.h>
+#include <texteditor/fontsettings.h>
 #include <extensionsystem/pluginmanager.h>
 
 #include <QtCore/QModelIndex>
@@ -49,6 +51,7 @@
 #include <QtCore/QTextStream>
 #include <QtCore/QHash>
 #include <QtGui/QMessageBox>
+#include <QtGui/QMainWindow>
 
 namespace TextEditor {
 namespace Internal {
@@ -289,6 +292,7 @@ private slots:
     void selectMovedSnippet(const QModelIndex &, int, int, const QModelIndex &, int row);
     void setSnippetContent();
     void updateCurrentSnippetDependent(const QModelIndex &modelIndex = QModelIndex());
+    void decorateEditors(const TextEditor::FontSettings &fontSettings);
 
 private:
     SnippetEditorWidget *currentEditor() const;
@@ -335,6 +339,7 @@ void SnippetsSettingsPagePrivate::configureUi(QWidget *w)
     foreach (ISnippetProvider *provider, providers) {
         m_ui.groupCombo->addItem(provider->displayName(), provider->groupId());
         SnippetEditorWidget *snippetEditor = new SnippetEditorWidget(w);
+        snippetEditor->setFontSettings(TextEditorSettings::instance()->fontSettings());
         provider->decorateEditor(snippetEditor);
         m_ui.snippetsEditorStack->insertWidget(m_ui.groupCombo->count() - 1, snippetEditor);
         connect(snippetEditor, SIGNAL(snippetContentChanged()), this, SLOT(setSnippetContent()));
@@ -379,6 +384,9 @@ void SnippetsSettingsPagePrivate::configureUi(QWidget *w)
     connect(m_ui.revertButton, SIGNAL(clicked()), this, SLOT(revertBuiltInSnippet()));
     connect(m_ui.snippetsTable->selectionModel(), SIGNAL(currentChanged(QModelIndex,QModelIndex)),
             this, SLOT(updateCurrentSnippetDependent(QModelIndex)));
+
+    connect(TextEditorSettings::instance(), SIGNAL(fontSettingsChanged(TextEditor::FontSettings)),
+            this, SLOT(decorateEditors(TextEditor::FontSettings)));
 }
 
 void SnippetsSettingsPagePrivate::apply()
@@ -390,8 +398,12 @@ void SnippetsSettingsPagePrivate::apply()
         setSnippetContent();
 
     if (m_snippetsCollectionChanged) {
-        SnippetsCollection::instance()->synchronize();
-        m_snippetsCollectionChanged = false;
+        QString errorString;
+        if (SnippetsCollection::instance()->synchronize(&errorString))
+            m_snippetsCollectionChanged = false;
+        else
+            QMessageBox::critical(Core::ICore::instance()->mainWindow(),
+                    tr("Error While Saving Snippet Collection"), errorString);
     }
 }
 
@@ -401,6 +413,8 @@ void SnippetsSettingsPagePrivate::finish()
         SnippetsCollection::instance()->reload();
         m_snippetsCollectionChanged = false;
     }
+
+    disconnect(TextEditorSettings::instance(), 0, this, 0);
 }
 
 void SnippetsSettingsPagePrivate::loadSettings()
@@ -528,6 +542,22 @@ void SnippetsSettingsPagePrivate::setSnippetContent()
     if (modelIndex.isValid()) {
         m_model->setSnippetContent(modelIndex, currentEditor()->toPlainText());
         markSnippetsCollection();
+    }
+}
+
+void SnippetsSettingsPagePrivate::decorateEditors(const TextEditor::FontSettings &fontSettings)
+{
+    const QList<ISnippetProvider *> &providers =
+        ExtensionSystem::PluginManager::instance()->getObjects<ISnippetProvider>();
+    for (int i = 0; i < m_ui.groupCombo->count(); ++i) {
+        SnippetEditorWidget *snippetEditor = editorAt(i);
+        snippetEditor->setFontSettings(fontSettings);
+        const QString &id = m_ui.groupCombo->itemData(i).toString();
+        // This list should be quite short... Re-iterating over it is ok.
+        foreach (const ISnippetProvider *provider, providers) {
+            if (provider->groupId() == id)
+                provider->decorateEditor(snippetEditor);
+        }
     }
 }
 

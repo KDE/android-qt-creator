@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,8 +54,8 @@
 #include <private/qabstractanimation_p.h>
 #endif
 
-#include <qdeclarativeviewobserver.h>
-#include <qdeclarativeobserverservice.h>
+#include <qdeclarativeviewinspector.h>
+#include <qdeclarativeinspectorservice.h>
 
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkCookieJar>
@@ -459,10 +459,10 @@ private:
         QMutexLocker lock(&mutex);
         QList<QNetworkCookie> list = allCookies();
         QByteArray data;
-        foreach (QNetworkCookie cookie, list) {
+        foreach (const QNetworkCookie &cookie, list) {
             if (!cookie.isSessionCookie()) {
                 data.append(cookie.toRawForm());
-                data.append("\n");
+                data.append('\n');
             }
         }
         QSettings settings;
@@ -648,7 +648,7 @@ QDeclarativeViewer::QDeclarativeViewer(QWidget *parent, Qt::WindowFlags flags)
     }
 
     canvas = new DragAndDropView(this);
-    observer = new QmlJSDebugger::QDeclarativeViewObserver(canvas, this);
+    inspector = new QmlJSDebugger::QDeclarativeViewInspector(canvas, this);
     new QmlJSDebugger::JSDebuggerAgent(canvas->engine());
 
     canvas->setAttribute(Qt::WA_OpaquePaintEvent);
@@ -698,7 +698,7 @@ void QDeclarativeViewer::setDesignModeBehavior(bool value)
 {
     if (designModeBehaviorAction)
         designModeBehaviorAction->setChecked(value);
-    observer->setDesignModeBehavior(value);
+    inspector->setDesignModeBehavior(value);
 }
 
 void QDeclarativeViewer::enableExperimentalGestures()
@@ -777,7 +777,7 @@ void QDeclarativeViewer::createMenu()
     speedAction->setData(10.0f);
     playSpeedMenuActions->addAction(speedAction);
 
-    pauseAnimationsAction = playSpeedMenu->addAction(tr("Pause"), observer, SLOT(setAnimationPaused(bool)));
+    pauseAnimationsAction = playSpeedMenu->addAction(tr("Pause"), inspector, SLOT(setAnimationPaused(bool)));
     pauseAnimationsAction->setCheckable(true);
     pauseAnimationsAction->setShortcut(QKeySequence("Ctrl+."));
 
@@ -790,30 +790,30 @@ void QDeclarativeViewer::createMenu()
     QAction *playSpeedAction = new QAction(tr("Animations"), this);
     playSpeedAction->setMenu(playSpeedMenu);
 
-    connect(observer, SIGNAL(animationSpeedChanged(qreal)), SLOT(animationSpeedChanged(qreal)));
-    connect(observer, SIGNAL(animationPausedChanged(bool)), pauseAnimationsAction, SLOT(setChecked(bool)));
+    connect(inspector, SIGNAL(animationSpeedChanged(qreal)), SLOT(animationSpeedChanged(qreal)));
+    connect(inspector, SIGNAL(animationPausedChanged(bool)), pauseAnimationsAction, SLOT(setChecked(bool)));
 
     showWarningsWindow = new QAction(tr("Show Warnings"), this);
     showWarningsWindow->setCheckable((true));
     showWarningsWindow->setChecked(loggerWindow->isVisible());
     connect(showWarningsWindow, SIGNAL(triggered(bool)), this, SLOT(showWarnings(bool)));
 
-    designModeBehaviorAction = new QAction(tr("&Observer Mode"), this);
+    designModeBehaviorAction = new QAction(tr("&Inspector Mode"), this);
     designModeBehaviorAction->setShortcut(QKeySequence("Ctrl+D"));
     designModeBehaviorAction->setCheckable(true);
-    designModeBehaviorAction->setChecked(observer->designModeBehavior());
-    designModeBehaviorAction->setEnabled(QmlJSDebugger::QDeclarativeObserverService::hasDebuggingClient());
+    designModeBehaviorAction->setChecked(inspector->designModeBehavior());
+    designModeBehaviorAction->setEnabled(QmlJSDebugger::QDeclarativeInspectorService::hasDebuggingClient());
     connect(designModeBehaviorAction, SIGNAL(triggered(bool)), this, SLOT(setDesignModeBehavior(bool)));
-    connect(observer, SIGNAL(designModeBehaviorChanged(bool)), designModeBehaviorAction, SLOT(setChecked(bool)));
-    connect(QmlJSDebugger::QDeclarativeObserverService::instance(), SIGNAL(debuggingClientChanged(bool)),
+    connect(inspector, SIGNAL(designModeBehaviorChanged(bool)), designModeBehaviorAction, SLOT(setChecked(bool)));
+    connect(QmlJSDebugger::QDeclarativeInspectorService::instance(), SIGNAL(debuggingClientChanged(bool)),
             designModeBehaviorAction, SLOT(setEnabled(bool)));
 
     appOnTopAction = new QAction(tr("Keep Window on Top"), this);
     appOnTopAction->setCheckable(true);
-    appOnTopAction->setChecked(observer->showAppOnTop());
+    appOnTopAction->setChecked(inspector->showAppOnTop());
 
-    connect(appOnTopAction, SIGNAL(triggered(bool)), observer, SLOT(setShowAppOnTop(bool)));
-    connect(observer, SIGNAL(showAppOnTopChanged(bool)), appOnTopAction, SLOT(setChecked(bool)));
+    connect(appOnTopAction, SIGNAL(triggered(bool)), inspector, SLOT(setShowAppOnTop(bool)));
+    connect(inspector, SIGNAL(showAppOnTopChanged(bool)), appOnTopAction, SLOT(setChecked(bool)));
 
     QAction *proxyAction = new QAction(tr("HTTP &Proxy..."), this);
     connect(proxyAction, SIGNAL(triggered()), this, SLOT(showProxySettings()));
@@ -1036,7 +1036,7 @@ void QDeclarativeViewer::chooseRecordingOptions()
         // Rate
         record_rate = recdlg->videoRate();
         // Profile
-        record_args = recdlg->arguments().split(" ",QString::SkipEmptyParts);
+        record_args = recdlg->arguments().split(QLatin1Char(' '),QString::SkipEmptyParts);
     }
 }
 
@@ -1070,12 +1070,12 @@ void QDeclarativeViewer::toggleRecording()
 
 void QDeclarativeViewer::pauseAnimations()
 {
-    observer->setAnimationPaused(true);
+    inspector->setAnimationPaused(true);
 }
 
 void QDeclarativeViewer::stepAnimations()
 {
-    observer->setAnimationPaused(false);
+    inspector->setAnimationPaused(false);
     QTimer::singleShot(m_stepSize, this, SLOT(pauseAnimations()));
  }
 
@@ -1090,7 +1090,7 @@ void QDeclarativeViewer::setAnimationStep()
 void QDeclarativeViewer::changeAnimationSpeed()
 {
    if (QAction *action = qobject_cast<QAction*>(sender()))
-       observer->setAnimationSpeed(action->data().toFloat());
+       inspector->setAnimationSpeed(action->data().toFloat());
 }
 
 void QDeclarativeViewer::addLibraryPath(const QString& lib)
@@ -1458,7 +1458,7 @@ void QDeclarativeViewer::setRecording(bool on)
             }
 
             progress.setValue(progress.maximum()-1);
-            foreach (QString name, inputs)
+            foreach (const QString &name, inputs)
                 QFile::remove(name);
 
             frames.clear();

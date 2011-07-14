@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -143,10 +143,12 @@ static void syncNodeListProperties(ModelNode &outputNode, const ModelNode &input
 static ModelNode createNodeFromNode(const ModelNode &modelNode,const QHash<QString, QString> &idRenamingHash, AbstractView *view)
 {
     QList<QPair<QString, QVariant> > propertyList;
+    QList<QPair<QString, QVariant> > variantPropertyList;
     foreach (const VariantProperty &variantProperty, modelNode.variantProperties()) {
         propertyList.append(QPair<QString, QVariant>(variantProperty.name(), variantProperty.value()));
     }
-    ModelNode newNode(view->createModelNode(modelNode.type(),modelNode.majorVersion(),modelNode.minorVersion(), propertyList));
+    ModelNode newNode(view->createModelNode(modelNode.type(),modelNode.majorVersion(),modelNode.minorVersion(),
+                                            propertyList, variantPropertyList, modelNode.nodeSource(), modelNode.nodeSourceType()));
     syncBindingProperties(newNode, modelNode, idRenamingHash);
     syncId(newNode, modelNode, idRenamingHash);
     syncNodeProperties(newNode, modelNode, idRenamingHash, view);
@@ -159,7 +161,15 @@ ModelNode ModelMerger::insertModel(const ModelNode &modelNode)
 {
     RewriterTransaction transaction(view()->beginRewriterTransaction());
 
-    view()->model()->changeImports(modelNode.model()->imports(), QList<Import>());
+    QList<Import> newImports;
+
+    foreach (const Import &import, modelNode.model()->imports()) {
+        if (!view()->model()->hasImport(import, true)) {
+            newImports.append(import);
+        }
+    }
+
+    view()->model()->changeImports(newImports, QList<Import>());
 
     QHash<QString, QString> idRenamingHash;
     setupIdRenamingHash(modelNode, idRenamingHash, view());

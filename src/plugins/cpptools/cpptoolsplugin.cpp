@@ -26,21 +26,25 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "cpptoolsplugin.h"
 #include "completionsettingspage.h"
 #include "cppfilesettingspage.h"
+#include "cppcodestylesettingspage.h"
 #include "cppclassesfilter.h"
-#include "cppcodecompletion.h"
 #include "cppfunctionsfilter.h"
 #include "cppcurrentdocumentfilter.h"
 #include "cppmodelmanager.h"
 #include "cpptoolsconstants.h"
 #include "cpplocatorfilter.h"
 #include "symbolsfindfilter.h"
+#include "cppcompletionassist.h"
+#include "cpptoolssettings.h"
+#include "cppcodestylesettingsfactory.h"
+#include "cppcodestylesettings.h"
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -56,6 +60,8 @@
 #include <coreplugin/vcsmanager.h>
 #include <coreplugin/filemanager.h>
 #include <texteditor/texteditorsettings.h>
+#include <texteditor/tabsettings.h>
+#include <texteditor/codestylepreferencesmanager.h>
 #include <cppeditor/cppeditorconstants.h>
 
 #include <QtCore/QtConcurrentRun>
@@ -100,8 +106,13 @@ bool CppToolsPlugin::initialize(const QStringList &arguments, QString *error)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(error)
+
+    qRegisterMetaType<CppTools::CppCodeStyleSettings>("CppTools::CppCodeStyleSettings");
+
     Core::ICore *core = Core::ICore::instance();
     Core::ActionManager *am = core->actionManager();
+
+    m_settings = new CppToolsSettings(this); // force registration of cpp tools settings
 
     // Objects
     m_modelManager = new CppModelManager(this);
@@ -113,9 +124,7 @@ bool CppToolsPlugin::initialize(const QStringList &arguments, QString *error)
             m_modelManager, SLOT(updateSourceFiles(QStringList)));
     addAutoReleasedObject(m_modelManager);
 
-    CppCodeCompletion *completion = new CppCodeCompletion(m_modelManager);
-    addAutoReleasedObject(completion);
-
+    addAutoReleasedObject(new CppCompletionAssistProvider);
     addAutoReleasedObject(new CppLocatorFilter(m_modelManager));
     addAutoReleasedObject(new CppClassesFilter(m_modelManager));
     addAutoReleasedObject(new CppFunctionsFilter(m_modelManager));
@@ -123,6 +132,10 @@ bool CppToolsPlugin::initialize(const QStringList &arguments, QString *error)
     addAutoReleasedObject(new CompletionSettingsPage);
     addAutoReleasedObject(new CppFileSettingsPage(m_fileSettings));
     addAutoReleasedObject(new SymbolsFindFilter(m_modelManager));
+    addAutoReleasedObject(new CppCodeStyleSettingsPage);
+
+    TextEditor::CodeStylePreferencesManager::instance()->registerFactory(
+                new CppTools::CppCodeStylePreferencesFactory());
 
     // Menus
     Core::ActionContainer *mtools = am->actionContainer(Core::Constants::M_TOOLS);
@@ -141,12 +154,6 @@ bool CppToolsPlugin::initialize(const QStringList &arguments, QString *error)
     mcpptools->addAction(command);
     connect(switchAction, SIGNAL(triggered()), this, SLOT(switchHeaderSource()));
 
-    // Set completion settings and keep them up to date
-    TextEditor::TextEditorSettings *textEditorSettings = TextEditor::TextEditorSettings::instance();
-    completion->setCompletionSettings(textEditorSettings->completionSettings());
-    connect(textEditorSettings, SIGNAL(completionSettingsChanged(TextEditor::CompletionSettings)),
-            completion, SLOT(setCompletionSettings(TextEditor::CompletionSettings)));
-
     return true;
 }
 
@@ -157,11 +164,6 @@ void CppToolsPlugin::extensionsInitialized()
     m_fileSettings->fromSettings(Core::ICore::instance()->settings());
     if (!m_fileSettings->applySuffixesToMimeDB())
         qWarning("Unable to apply cpp suffixes to mime database (cpp mime types not found).\n");
-
-    // Initialize header suffixes
-    const Core::MimeDatabase *mimeDatabase = Core::ICore::instance()->mimeDatabase();
-    const Core::MimeType mimeType = mimeDatabase->findByType(QLatin1String("text/x-c++hdr"));
-    m_modelManager->setHeaderSuffixes(mimeType.suffixes());
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag CppToolsPlugin::aboutToShutdown()

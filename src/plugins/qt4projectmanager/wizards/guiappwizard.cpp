@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,6 +41,8 @@
 #include <extensionsystem/pluginmanager.h>
 #include <extensionsystem/invoker.h>
 
+#include <utils/fileutils.h>
+
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QTextStream>
@@ -50,20 +52,20 @@
 
 #include <QtGui/QIcon>
 
-static const char *mainSourceFileC = "main";
-static const char *mainSourceShowC = "    w.show();\n";
-static const char *mainSourceMobilityShowC = "#if defined(Q_WS_S60)\n"
+static const char mainSourceFileC[] = "main";
+static const char mainSourceShowC[] = "    w.show();\n";
+static const char mainSourceMobilityShowC[] = "#if defined(Q_WS_S60)\n"
 "    w.showMaximized();\n"
 "#else\n"
 "    w.show();\n"
 "#endif\n";
 
-static const char *mainWindowUiContentsC =
+static const char mainWindowUiContentsC[] =
 "\n  <widget class=\"QMenuBar\" name=\"menuBar\" />"
 "\n  <widget class=\"QToolBar\" name=\"mainToolBar\" />"
 "\n  <widget class=\"QWidget\" name=\"centralWidget\" />"
 "\n  <widget class=\"QStatusBar\" name=\"statusBar\" />";
-static const char *mainWindowMobileUiContentsC =
+static const char mainWindowMobileUiContentsC[] =
 "\n  <widget class=\"QWidget\" name=\"centralWidget\" />";
 
 static const char *baseClassesC[] = { "QMainWindow", "QWidget", "QDialog" };
@@ -258,12 +260,10 @@ bool GuiAppWizard::parametrizeTemplate(const QString &templatePath, const QStrin
     QString fileName = templatePath;
     fileName += QDir::separator();
     fileName += templateName;
-    QFile inFile(fileName);
-    if (!inFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        *errorMessage = tr("The template file '%1' could not be opened for reading: %2").arg(fileName, inFile.errorString());
+    Utils::FileReader reader;
+    if (!reader.fetch(fileName, QIODevice::Text, errorMessage))
         return false;
-    }
-    QString contents = QString::fromUtf8(inFile.readAll());
+    QString contents = QString::fromUtf8(reader.data());
 
     contents.replace(QLatin1String("%QAPP_INCLUDE%"), QLatin1String("QtGui/QApplication"));
     contents.replace(QLatin1String("%INCLUDE%"), params.headerFileName);

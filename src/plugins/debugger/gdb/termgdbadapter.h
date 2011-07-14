@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,7 +52,7 @@ class TermGdbAdapter : public AbstractGdbAdapter
     Q_OBJECT
 
 public:
-    explicit TermGdbAdapter(GdbEngine *engine, QObject *parent = 0);
+    explicit TermGdbAdapter(GdbEngine *engine);
     ~TermGdbAdapter();
 
 private:
@@ -74,7 +74,7 @@ private:
 
     Q_SLOT void handleInferiorSetupOk();
     Q_SLOT void stubExited();
-    Q_SLOT void stubMessage(const QString &msg, bool isError);
+    Q_SLOT void stubError(const QString &msg);
 
     Utils::ConsoleProcess m_stubProc;
     LocalGdbProcess m_gdbProc;

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 
 #include "breakhandler.h"
 #include "debuggerengine.h"
+#include "debuggerinternalconstants.h"
 #include "debuggercore.h"
 #include "debuggerstringutils.h"
 #include "stackframe.h"
@@ -73,20 +74,6 @@ using namespace Core;
 namespace Debugger {
 namespace Internal {
 
-class LocationMarkFoo : public TextEditor::ITextMark
-{
-public:
-    LocationMarkFoo() {}
-
-    QIcon icon() const { return debuggerCore()->locationMarkIcon(); }
-    void updateLineNumber(int /*lineNumber*/) {}
-    void updateBlock(const QTextBlock & /*block*/) {}
-    void removedFromEditor() {}
-    void documentClosing() {}
-    TextEditor::ITextMark::Priority priority() const
-        { return TextEditor::ITextMark::HighPriority; }
-};
-
 class SourceAgentPrivate
 {
 public:
@@ -103,9 +90,11 @@ public:
 
 SourceAgentPrivate::SourceAgentPrivate()
   : editor(0)
-  , locationMark(new LocationMarkFoo)
   , producer("remote")
 {
+    locationMark = new TextEditor::ITextMark;
+    locationMark->setIcon(debuggerCore()->locationMarkIcon());
+    locationMark->setPriority(TextEditor::ITextMark::HighPriority);
 }
 
 SourceAgentPrivate::~SourceAgentPrivate()

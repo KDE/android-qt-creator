@@ -26,12 +26,11 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "symbiandevicemanager.h"
-#include "trkdevice.h"
 #include "codadevice.h"
 #include "virtualserialdevice.h"
 
@@ -48,6 +47,26 @@
 #include <QtCore/QThread>
 #include <QtCore/QWaitCondition>
 #include <QtCore/QTimer>
+
+#ifdef Q_OS_MACX
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/serial/IOSerialKeys.h>
+#include <IOKit/usb/USBSpec.h>
+
+// 10.5 doesn't have kUSBProductString or kUSBVendorString
+#ifndef kUSBProductString
+#define kUSBProductString  "USB Product Name"
+#endif
+#ifndef kUSBVendorString
+#define kUSBVendorString   "USB Vendor Name"
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_3) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_3)
+#include <IOKit/serial/ioss.h>
+#endif
+#include <IOKit/IOBSD.h>
+#endif
 
 namespace SymbianUtils {
 
@@ -74,7 +93,6 @@ public:
     QString additionalInformation;
 
     DeviceCommunicationType type;
-    QSharedPointer<trk::TrkDevice> device;
     QSharedPointer<Coda::CodaDevice> codaDevice;
     int deviceAcquired;
 };
@@ -87,11 +105,7 @@ SymbianDeviceData::SymbianDeviceData() :
 
 bool SymbianDeviceData::isOpen() const
 {
-    if (device)
-        return device->isOpen();
-    if (codaDevice)
-        return codaDevice->device()->isOpen();
-    return false;
+    return codaDevice && codaDevice->device()->isOpen();
 }
 
 SymbianDeviceData::~SymbianDeviceData()
@@ -109,10 +123,7 @@ void SymbianDeviceData::forcedClose()
         if (deviceAcquired)
             qWarning("Device on '%s' unplugged while an operation is in progress.",
                      qPrintable(portName));
-        if (device)
-            device->close();
-        else
-            codaDevice->device()->close();
+        codaDevice->device()->close();
     }
 }
 
@@ -164,41 +175,6 @@ QString SymbianDevice::additionalInformation() const
 void SymbianDevice::setAdditionalInformation(const QString &a)
 {
     m_data->additionalInformation = a;
-}
-
-SymbianDevice::TrkDevicePtr SymbianDevice::acquireDevice()
-{
-    if (debug)
-        qDebug() << "SymbianDevice::acquireDevice" << m_data->portName
-                << "acquired: " << m_data->deviceAcquired << " open: " << isOpen();
-    if (isNull() || m_data->deviceAcquired)
-        return TrkDevicePtr();
-    if (m_data->device.isNull()) {
-        m_data->device = TrkDevicePtr(new trk::TrkDevice);
-        m_data->device->setPort(m_data->portName);
-        m_data->device->setSerialFrame(m_data->type == SerialPortCommunication);
-    }
-    m_data->deviceAcquired = 1;
-    return m_data->device;
-}
-
-void SymbianDevice::releaseDevice(TrkDevicePtr *ptr /* = 0 */)
-{
-    if (debug)
-        qDebug() << "SymbianDevice::releaseDevice" << m_data->portName
-                << " open: " << isOpen();
-    if (m_data->deviceAcquired) {
-        if (m_data->device->isOpen())
-            m_data->device->clearWriteQueue();
-        // Release if a valid pointer was passed in.
-        if (ptr && !ptr->isNull()) {
-            ptr->data()->disconnect();
-            *ptr = TrkDevicePtr();
-        }
-        m_data->deviceAcquired = 0;
-    } else {
-        qWarning("Internal error: Attempt to release device that is not acquired.");
-    }
 }
 
 QString SymbianDevice::deviceDesc() const
@@ -266,20 +242,30 @@ SYMBIANUTILS_EXPORT QDebug operator<<(QDebug d, const SymbianDevice &cd)
 
 // ------------- SymbianDeviceManagerPrivate
 struct SymbianDeviceManagerPrivate {
-    SymbianDeviceManagerPrivate() : m_initialized(false), m_devicesLock(QMutex::Recursive) {}
+    SymbianDeviceManagerPrivate() :
+        m_initialized(false),
+        m_devicesLock(QMutex::Recursive)
+    {
+#ifdef Q_OS_MACX
+        m_deviceListChangedNotification = 0;
+#endif
+    }
 
     bool m_initialized;
     SymbianDeviceManager::SymbianDeviceList m_devices;
     QMutex m_devicesLock; // Used for protecting access to m_devices and serialising getCodaDevice/delayedClosePort
-    // The following 2 variables are needed to manage requests for a TCF port not coming from the main thread
-    int m_constructTcfPortEventType;
+    // The following 2 variables are needed to manage requests for a CODA port not coming from the main thread
+    int m_constructCodaPortEventType;
     QMutex m_codaPortWaitMutex;
+#ifdef Q_OS_MACX
+    IONotificationPortRef m_deviceListChangedNotification;
+#endif
 };
 
-class QConstructTcfPortEvent : public QEvent
+class QConstructCodaPortEvent : public QEvent
 {
 public:
-    QConstructTcfPortEvent(QEvent::Type eventId, const QString &portName, CodaDevicePtr *device, QWaitCondition *waiter) :
+    QConstructCodaPortEvent(QEvent::Type eventId, const QString &portName, CodaDevicePtr *device, QWaitCondition *waiter) :
         QEvent(eventId), m_portName(portName), m_device(device), m_waiter(waiter)
        {}
 
@@ -293,11 +279,15 @@ SymbianDeviceManager::SymbianDeviceManager(QObject *parent) :
     QObject(parent),
     d(new SymbianDeviceManagerPrivate)
 {
-    d->m_constructTcfPortEventType = QEvent::registerEventType();
+    d->m_constructCodaPortEventType = QEvent::registerEventType();
 }
 
 SymbianDeviceManager::~SymbianDeviceManager()
 {
+#ifdef Q_OS_MACX
+    if (d && d->m_deviceListChangedNotification)
+        IONotificationPortDestroy(d->m_deviceListChangedNotification);
+#endif
     delete d;
 }
 
@@ -340,23 +330,6 @@ QString SymbianDeviceManager::friendlyNameForPort(const QString &port) const
     return idx == -1 ? QString() : d->m_devices.at(idx).friendlyName();
 }
 
-SymbianDeviceManager::TrkDevicePtr
-        SymbianDeviceManager::acquireDevice(const QString &port)
-{
-    ensureInitialized();
-    const int idx = findByPortName(port);
-    if (idx == -1) {
-        qWarning("Attempt to acquire device '%s' that does not exist.", qPrintable(port));
-        if (debug)
-            qDebug() << *this;
-        return TrkDevicePtr();
-      }
-    const TrkDevicePtr rc = d->m_devices[idx].acquireDevice();
-    if (debug)
-        qDebug() << "SymbianDeviceManager::acquireDevice" << port << " returns " << !rc.isNull();
-    return rc;
-}
-
 CodaDevicePtr SymbianDeviceManager::getCodaDevice(const QString &port)
 {
     ensureInitialized();
@@ -369,10 +342,6 @@ CodaDevicePtr SymbianDeviceManager::getCodaDevice(const QString &port)
         return CodaDevicePtr();
     }
     SymbianDevice& device = d->m_devices[idx];
-    if (device.m_data->device && device.m_data->device.data()->isOpen()) {
-        qWarning("Attempting to open a port '%s' that is configured for TRK!", qPrintable(port));
-        return CodaDevicePtr();
-    }
     CodaDevicePtr& devicePtr = device.m_data->codaDevice;
     if (devicePtr.isNull() || !devicePtr->device()->isOpen()) {
         // Check we instanciate in the correct thread - we can't afford to create the CodaDevice (and more specifically, open the VirtualSerialDevice) in a thread that isn't guaranteed to be long-lived.
@@ -381,7 +350,7 @@ CodaDevicePtr SymbianDeviceManager::getCodaDevice(const QString &port)
             // SymbianDeviceManager is owned by the main thread
             d->m_codaPortWaitMutex.lock();
             QWaitCondition waiter;
-            QCoreApplication::postEvent(this, new QConstructTcfPortEvent((QEvent::Type)d->m_constructTcfPortEventType, port, &devicePtr, &waiter));
+            QCoreApplication::postEvent(this, new QConstructCodaPortEvent((QEvent::Type)d->m_constructCodaPortEventType, port, &devicePtr, &waiter));
             waiter.wait(&d->m_codaPortWaitMutex);
             // When the wait returns (due to the wakeAll in SymbianDeviceManager::customEvent), the CodaDevice will be fully set up
             d->m_codaPortWaitMutex.unlock();
@@ -415,8 +384,8 @@ void SymbianDeviceManager::constructCodaPort(CodaDevicePtr& device, const QStrin
 
 void SymbianDeviceManager::customEvent(QEvent *event)
 {
-    if (event->type() == d->m_constructTcfPortEventType) {
-        QConstructTcfPortEvent* constructEvent = static_cast<QConstructTcfPortEvent*>(event);
+    if (event->type() == d->m_constructCodaPortEventType) {
+        QConstructCodaPortEvent* constructEvent = static_cast<QConstructCodaPortEvent*>(event);
         constructCodaPort(*constructEvent->m_device, constructEvent->m_portName);
         constructEvent->m_waiter->wakeAll(); // Should only ever be one thing waiting on this
     }
@@ -460,17 +429,6 @@ void SymbianDeviceManager::delayedClosePort()
 void SymbianDeviceManager::update()
 {
     update(true);
-}
-
-void SymbianDeviceManager::releaseDevice(const QString &port)
-{
-    const int idx = findByPortName(port);
-    if (debug)
-        qDebug() << "SymbianDeviceManager::releaseDevice" << port << idx << sender();
-    if (idx != -1)
-        d->m_devices[idx].releaseDevice();
-    else
-        qWarning("Attempt to release non-existing device %s.", qPrintable(port));
 }
 
 void SymbianDeviceManager::setAdditionalInformation(const QString &port, const QString &ai)
@@ -551,10 +509,30 @@ void SymbianDeviceManager::update(bool emitSignals)
         qDebug("<SerialDeviceLister::update\n%s\n", qPrintable(toString()));
 }
 
+#ifdef Q_OS_MACX
+QString CFStringToQString(CFStringRef cfstring)
+{
+    QString result;
+    int len = CFStringGetLength(cfstring);
+    result.resize(len);
+    CFStringGetCharacters(cfstring, CFRangeMake(0, len), reinterpret_cast<UniChar *>(result.data()));
+    return result;
+}
+
+void deviceListChanged(void *refCon, io_iterator_t iter)
+{
+    // The way we're structured, it's easier to rescan rather than take advantage of the finer-grained device addition and removal info that OS X gives us
+    io_object_t obj;
+    while ((obj = IOIteratorNext(iter))) IOObjectRelease(obj);
+    static_cast<SymbianDeviceManager *>(refCon)->update();
+}
+
+#endif
+
 SymbianDeviceManager::SymbianDeviceList SymbianDeviceManager::serialPorts() const
 {
     SymbianDeviceList rc;
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN)
     const QSettings registry(REGKEY_CURRENT_CONTROL_SET, QSettings::NativeFormat);
     const QString usbSerialRootKey = QLatin1String(USBSER) + QLatin1Char('/');
     const int count = registry.value(usbSerialRootKey + QLatin1String("Count")).toInt();
@@ -575,6 +553,100 @@ SymbianDeviceManager::SymbianDeviceList SymbianDeviceManager::serialPorts() cons
             rc.append(SymbianDevice(device.take()));
         }
     }
+#elif defined(Q_OS_MACX)
+    CFMutableDictionaryRef classesToMatch = IOServiceMatching(kIOSerialBSDServiceValue);
+    if (!classesToMatch) return rc;
+
+    CFDictionarySetValue(classesToMatch,
+                         CFSTR(kIOSerialBSDTypeKey),
+                         CFSTR(kIOSerialBSDAllTypes));
+
+    // Setup notifier if necessary
+    if (d->m_deviceListChangedNotification == 0) {
+        d->m_deviceListChangedNotification = IONotificationPortCreate(kIOMasterPortDefault);
+        if (d->m_deviceListChangedNotification) {
+            CFRunLoopSourceRef runloopSource = IONotificationPortGetRunLoopSource(d->m_deviceListChangedNotification);
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), runloopSource, kCFRunLoopDefaultMode);
+            // IOServiceAddMatchingNotification eats a reference each time we call it, so make sure it's still valid for the IOServiceGetMatchingServices later
+            CFRetain(classesToMatch);
+            CFRetain(classesToMatch);
+            io_iterator_t devicesAddedIterator;
+            io_iterator_t devicesRemovedIterator;
+            IOServiceAddMatchingNotification(d->m_deviceListChangedNotification, kIOMatchedNotification, classesToMatch, &deviceListChanged, (void*)this, &devicesAddedIterator);
+            IOServiceAddMatchingNotification(d->m_deviceListChangedNotification, kIOTerminatedNotification, classesToMatch, &deviceListChanged, (void*)this, &devicesRemovedIterator);
+            // Arm the iterators - we're not interested in the lists at this point, and the API rather expects that we will be
+            io_object_t obj;
+            while ((obj = IOIteratorNext(devicesAddedIterator))) IOObjectRelease(obj);
+            while ((obj = IOIteratorNext(devicesRemovedIterator))) IOObjectRelease(obj);
+        }
+    }
+    io_iterator_t matchingServices;
+    kern_return_t kernResult = IOServiceGetMatchingServices(kIOMasterPortDefault, classesToMatch, &matchingServices);
+    if (kernResult != KERN_SUCCESS) {
+        if (debug)
+            qDebug("IOServiceGetMatchingServices returned %d", kernResult);
+        return rc;
+    }
+
+    io_object_t serialPort;
+    kernResult = KERN_FAILURE;
+    while ((serialPort = IOIteratorNext(matchingServices))) {
+        // Check if it's Bluetooth or USB, and if so we can apply additional filters to weed out things that definitely aren't valid ports
+        io_object_t parent, grandparent;
+        kernResult = IORegistryEntryGetParentEntry(serialPort, kIOServicePlane, &parent);
+        bool match = true;
+        DeviceCommunicationType deviceType = SerialPortCommunication;
+        CFStringRef name = NULL;
+        if (kernResult == KERN_SUCCESS) {
+            kernResult = IORegistryEntryGetParentEntry(parent, kIOServicePlane, &grandparent);
+            if (kernResult == KERN_SUCCESS) {
+                CFStringRef className = IOObjectCopyClass(grandparent);
+                if (CFStringCompare(className, CFSTR("IOBluetoothSerialClient"), 0) == 0) {
+                    // CODA doesn't support bluetooth
+                    match = false;
+                }
+                else if (CFStringCompare(className, CFSTR("AppleUSBCDCACMData"), 0) == 0) {
+                    match = false;
+                    CFNumberRef interfaceNumber = (CFNumberRef)IORegistryEntrySearchCFProperty(grandparent, kIOServicePlane, CFSTR(kUSBInterfaceNumber), kCFAllocatorDefault, kIORegistryIterateParents | kIORegistryIterateRecursively);
+                    if (interfaceNumber) {
+                        int val;
+                        if (CFNumberGetValue(interfaceNumber, kCFNumberIntType, &val) && val == 4) match = true;
+                        CFRelease(interfaceNumber);
+                    }
+                    if (match) {
+                        CFStringRef deviceName = (CFStringRef)IORegistryEntrySearchCFProperty(grandparent, kIOServicePlane, CFSTR(kUSBProductString), kCFAllocatorDefault, kIORegistryIterateParents | kIORegistryIterateRecursively);
+                        CFStringRef vendorName = (CFStringRef)IORegistryEntrySearchCFProperty(grandparent, kIOServicePlane, CFSTR(kUSBVendorString), kCFAllocatorDefault, kIORegistryIterateParents | kIORegistryIterateRecursively);
+                        if (deviceName && vendorName) name = CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR("%@ %@"), vendorName, deviceName);
+                        if (deviceName) CFRelease(deviceName);
+                        if (vendorName) CFRelease(vendorName);
+                    }
+                }
+                else {
+                    // We don't expect CODA on any other type of serial port
+                    match = false;
+                }
+                CFRelease(className);
+                IOObjectRelease(grandparent);
+            }
+            IOObjectRelease(parent);
+        }
+
+        if (match) {
+            CFStringRef devPath = (CFStringRef)IORegistryEntryCreateCFProperty(serialPort, CFSTR(kIODialinDeviceKey), kCFAllocatorDefault, 0);
+            if (name == NULL)
+                name = (CFStringRef)IORegistryEntryCreateCFProperty(serialPort, CFSTR(kIOTTYBaseNameKey), kCFAllocatorDefault, 0);
+            QScopedPointer<SymbianDeviceData> device(new SymbianDeviceData);
+            device->type = deviceType;
+            device->friendlyName = CFStringToQString(name);
+            device->portName = CFStringToQString(devPath);
+
+            CFRelease(devPath);
+            CFRelease(name);
+            rc.append(SymbianDevice(device.take()));
+        }
+        IOObjectRelease(serialPort);
+    }
+    IOObjectRelease(matchingServices);
 #endif
     return rc;
 }
@@ -596,8 +668,7 @@ SymbianDeviceManager::SymbianDeviceList SymbianDeviceManager::blueToothDevices()
             rc.push_back(SymbianDevice(device.take()));
         }
     }
-    // New kernel versions support /dev/ttyUSB0, /dev/ttyUSB1. Trk responds
-    // on the latter (usually), try first.
+    // New kernel versions support /dev/ttyUSB0, /dev/ttyUSB1.
     static const char *usbTtyDevices[] = {
         "/dev/ttyUSB3", "/dev/ttyUSB2", "/dev/ttyUSB1", "/dev/ttyUSB0",
         "/dev/ttyACM3", "/dev/ttyACM2", "/dev/ttyACM1", "/dev/ttyACM0"};
@@ -698,11 +769,12 @@ qint64 OstChannel::writeData(const char *data, qint64 maxSize)
 {
     static const qint64 KMaxOstPayload = 1024;
     // If necessary, split the packet up
-    while (maxSize) {
-        QByteArray dataBuf = QByteArray::fromRawData(data, qMin(KMaxOstPayload, maxSize));
+    qint64 remainder = maxSize;
+    while (remainder) {
+        QByteArray dataBuf = QByteArray::fromRawData(data, qMin(KMaxOstPayload, remainder));
         d->m_codaPtr->writeCustomData(d->m_channelId, dataBuf);
         data += dataBuf.length();
-        maxSize -= dataBuf.length();
+        remainder -= dataBuf.length();
     }
     return maxSize;
 }

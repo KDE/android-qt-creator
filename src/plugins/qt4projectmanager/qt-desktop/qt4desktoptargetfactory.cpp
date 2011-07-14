@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,7 +54,7 @@ using ProjectExplorer::idFromMap;
 Qt4DesktopTargetFactory::Qt4DesktopTargetFactory(QObject *parent) :
     Qt4BaseTargetFactory(parent)
 {
-    connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>)),
+    connect(QtSupport::QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>)),
             this, SIGNAL(supportedTargetIdsChanged()));
 }
 
@@ -71,7 +71,7 @@ QStringList Qt4DesktopTargetFactory::supportedTargetIds(ProjectExplorer::Project
 {
     if (parent && !qobject_cast<Qt4Project *>(parent))
         return QStringList();
-    if (!QtVersionManager::instance()->supportsTargetId(Constants::DESKTOP_TARGET_ID))
+    if (!QtSupport::QtVersionManager::instance()->supportsTargetId(Constants::DESKTOP_TARGET_ID))
         return QStringList();
     return QStringList() << QLatin1String(Constants::DESKTOP_TARGET_ID);
 }
@@ -80,6 +80,13 @@ QString Qt4DesktopTargetFactory::displayNameForId(const QString &id) const
 {
     if (id == QLatin1String(Constants::DESKTOP_TARGET_ID))
         return Qt4DesktopTarget::defaultDisplayName();
+    return QString();
+}
+
+QString Qt4DesktopTargetFactory::buildNameForId(const QString &id) const
+{
+    if (id == QLatin1String(Constants::DESKTOP_TARGET_ID))
+        return QLatin1String("desktop");
     return QString();
 }
 
@@ -116,45 +123,17 @@ ProjectExplorer::Target  *Qt4DesktopTargetFactory::restore(ProjectExplorer::Proj
     return 0;
 }
 
-QString Qt4DesktopTargetFactory::defaultShadowBuildDirectory(const QString &projectLocation, const QString &id)
+Qt4TargetSetupWidget *Qt4DesktopTargetFactory::createTargetSetupWidget(const QString &id, const QString &proFilePath, const QtSupport::QtVersionNumber &number, bool importEnabled, QList<BuildConfigurationInfo> importInfos)
 {
-    if (id != QLatin1String(Constants::DESKTOP_TARGET_ID))
-        return QString();
 
-    // currently we can't have the build directory to be deeper than the source directory
-    // since that is broken in qmake
-    // Once qmake is fixed we can change that to have a top directory and
-    // subdirectories per build. (Replacing "QChar('-')" with "QChar('/') )
-    return projectLocation + QLatin1String("-desktop");
-}
-
-QList<BuildConfigurationInfo> Qt4DesktopTargetFactory::availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion)
-{
-    Q_ASSERT(id == Constants::DESKTOP_TARGET_ID);
-    QList<BuildConfigurationInfo> infoList;
-    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion);
-
-    foreach (QtVersion *version, knownVersions) {
-        if (!version->isValid() || !version->toolChainAvailable(id))
-            continue;
-        QtVersion::QmakeBuildConfigs config = version->defaultBuildConfig();
-
-        QString dir = defaultShadowBuildDirectory(Qt4Project::defaultTopLevelBuildDirectory(proFilePath), id);
-        infoList.append(BuildConfigurationInfo(version, config, QString(), dir));
-        infoList.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
-    }
-    return infoList;
-}
-
- Qt4TargetSetupWidget *Qt4DesktopTargetFactory::createTargetSetupWidget(const QString &id, const QString &proFilePath, const QtVersionNumber &number, bool importEnabled, QList<BuildConfigurationInfo> importInfos)
-{
-    Qt4DefaultTargetSetupWidget *widget
-            = static_cast<Qt4DefaultTargetSetupWidget *>(
-                Qt4BaseTargetFactory::createTargetSetupWidget(id,  proFilePath,
-                                                              number,  importEnabled,
-                                                              importInfos));
-    if (widget)
-        widget->setShadowBuildCheckBoxVisible(true);
+    QList<BuildConfigurationInfo> infos = this->availableBuildConfigurations(id, proFilePath, number);
+    if (infos.isEmpty())
+        return 0;
+    Qt4DefaultTargetSetupWidget *widget = new Qt4DefaultTargetSetupWidget(this, id, proFilePath,  infos,
+                                                                          number,  importEnabled,
+                                                                          importInfos,
+                                                                          Qt4DefaultTargetSetupWidget::USER);
+    widget->setBuildConfiguraionComboBoxVisible(true);
     return widget;
 }
 
@@ -163,30 +142,29 @@ ProjectExplorer::Target *Qt4DesktopTargetFactory::create(ProjectExplorer::Projec
     if (!canCreate(parent, id))
         return 0;
 
-    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id);
+    QList<QtSupport::BaseQtVersion *> knownVersions = QtSupport::QtVersionManager::instance()->versionsForTargetId(id);
     if (knownVersions.isEmpty())
         return 0;
 
-    QtVersion *qtVersion = knownVersions.first();
-    QtVersion::QmakeBuildConfigs config = qtVersion->defaultBuildConfig();
+    QtSupport::BaseQtVersion *qtVersion = knownVersions.first();
+    QtSupport::BaseQtVersion::QmakeBuildConfigs config = qtVersion->defaultBuildConfig();
 
     QList<BuildConfigurationInfo> infos;
     infos.append(BuildConfigurationInfo(qtVersion, config, QString(), QString()));
-    infos.append(BuildConfigurationInfo(qtVersion, config ^ QtVersion::DebugBuild, QString(), QString()));
+    infos.append(BuildConfigurationInfo(qtVersion, config ^ QtSupport::BaseQtVersion::DebugBuild, QString(), QString()));
 
     return create(parent, id, infos);
 }
 
-bool Qt4DesktopTargetFactory::isMobileTarget(const QString &id)
+QSet<QString> Qt4DesktopTargetFactory::targetFeatures(const QString & /*id*/) const
 {
-    Q_UNUSED(id)
-    return false;
-}
-
-bool Qt4DesktopTargetFactory::supportsShadowBuilds(const QString &id)
-{
-    Q_UNUSED(id);
-    return true;
+    QSet<QString> features;
+    features << Constants::DESKTOP_TARGETFEATURE_ID;
+    features << Constants::SHADOWBUILD_TARGETFEATURE_ID;
+    // how to check check whether they component set is really installed?
+    features << Constants::QTQUICKCOMPONENTS_SYMBIAN_TARGETFEATURE_ID;
+    features << Constants::QTQUICKCOMPONENTS_MEEGO_TARGETFEATURE_ID;
+    return features;
 }
 
 ProjectExplorer::Target *Qt4DesktopTargetFactory::create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos)
@@ -198,11 +176,11 @@ ProjectExplorer::Target *Qt4DesktopTargetFactory::create(ProjectExplorer::Projec
     Qt4DesktopTarget *t = new Qt4DesktopTarget(static_cast<Qt4Project *>(parent), id);
 
     foreach (const BuildConfigurationInfo &info, infos)
-        t->addQt4BuildConfiguration(msgBuildConfigurationName(info),
+        t->addQt4BuildConfiguration(msgBuildConfigurationName(info), QString(),
                                     info.version, info.buildConfig,
                                     info.additionalArguments, info.directory);
 
-    t->addDeployConfiguration(t->deployConfigurationFactory()->create(t, ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
+    t->addDeployConfiguration(t->createDeployConfiguration(ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
 
     t->createApplicationProFiles();
 

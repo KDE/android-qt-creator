@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,18 +36,21 @@
 #include "registerhandler.h"
 #include "bytearrayinputstream.h"
 #include "gdb/gdbmi.h"
+#include "disassemblerlines.h"
 #ifdef Q_OS_WIN
 #    include "shared/dbgwinutils.h"
 #endif
+#include <utils/qtcassert.h>
+
 #include <QtCore/QByteArray>
 #include <QtCore/QVariant>
 #include <QtCore/QString>
 #include <QtCore/QDir>
 #include <QtCore/QDebug>
 
-#include <utils/qtcassert.h>
-
 #include <cctype>
+
+enum { debugDisAsm = 0 };
 
 namespace Debugger {
 namespace Internal {
@@ -101,9 +104,9 @@ static BreakpointParameters fixWinMSVCBreakpoint(const BreakpointParameters &p)
     case BreakpointByFunction:
     case BreakpointByAddress:
     case BreakpointAtFork:
-    //case BreakpointAtVFork:
+    case WatchpointAtExpression:
     case BreakpointAtSysCall:
-    case Watchpoint:
+    case WatchpointAtAddress:
         break;
     case BreakpointAtExec: { // Emulate by breaking on CreateProcessW().
         BreakpointParameters rc(BreakpointByFunction);
@@ -132,7 +135,7 @@ static BreakpointParameters fixWinMSVCBreakpoint(const BreakpointParameters &p)
 
 QByteArray cdbAddBreakpointCommand(const BreakpointParameters &bpIn,
                                    const QList<QPair<QString, QString> > &sourcePathMapping,
-                                   BreakpointId id /* = BreakpointId(-1) */,
+                                   BreakpointModelId id /* = BreakpointId() */,
                                    bool oneshot)
 {
     const BreakpointParameters bp = fixWinMSVCBreakpoint(bpIn);
@@ -145,16 +148,16 @@ QByteArray cdbAddBreakpointCommand(const BreakpointParameters &bpIn,
     // Currently use 'bu' so that the offset expression (including file name)
     // is kept when reporting back breakpoints (which is otherwise discarded
     // when resolving).
-    str << (bp.type == Watchpoint ? "ba" : "bu");
-    if (id != BreakpointId(-1))
-        str << id;
+    str << (bp.type == WatchpointAtAddress ? "ba" : "bu");
+    if (id.isValid())
+        str << id.toString();
     str << ' ';
     if (oneshot)
         str << "/1 ";
     switch (bp.type) {
     case BreakpointAtFork:
     case BreakpointAtExec:
-    //case BreakpointAtVFork:
+    case WatchpointAtExpression:
     case BreakpointAtSysCall:
     case UnknownType:
     case BreakpointAtCatch:
@@ -176,7 +179,7 @@ QByteArray cdbAddBreakpointCommand(const BreakpointParameters &bpIn,
             str << bp.module << '!';
         str << cdbBreakPointFileName(bp, sourcePathMapping) << ':' << bp.lineNumber << '`';
         break;
-    case Watchpoint: { // Read/write, no space here
+    case WatchpointAtAddress: { // Read/write, no space here
         const unsigned size = bp.size ? bp.size : 1;
         str << "r" << size << ' ' << hex << hexPrefixOn << bp.address << hexPrefixOff << dec;
     }
@@ -295,19 +298,18 @@ static inline bool gdbmiChildToBool(const GdbMi &parent, const char *childName, 
 // Parse extension command listing breakpoints.
 // Note that not all fields are returned, since file, line, function are encoded
 // in the expression (that is in addition deleted on resolving for a bp-type breakpoint).
-BreakpointId parseBreakPoint(const GdbMi &gdbmi, BreakpointResponse *r,
-                             QString *expression /*  = 0 */)
+void parseBreakPoint(const GdbMi &gdbmi, BreakpointResponse *r,
+                     QString *expression /*  = 0 */)
 {
-    BreakpointId id = BreakpointId(-1);
-    gdbmiChildToInt(gdbmi, "number", &(r->number));
     gdbmiChildToBool(gdbmi, "enabled", &(r->enabled));
     gdbmiChildToBool(gdbmi, "deferred", &(r->pending));
+    r->id = BreakpointResponseId();
     const GdbMi idG = gdbmi.findChild("id");
     if (idG.isValid()) { // Might not be valid if there is not id
         bool ok;
-        const BreakpointId cid = idG.data().toULongLong(&ok);
+        const int id = idG.data().toInt(&ok);
         if (ok)
-            id = cid;
+            r->id = BreakpointResponseId(id);
     }
     const GdbMi moduleG = gdbmi.findChild("module");
     if (moduleG.isValid())
@@ -323,7 +325,6 @@ BreakpointId parseBreakPoint(const GdbMi &gdbmi, BreakpointResponse *r,
     if (gdbmiChildToInt(gdbmi, "passcount", &(r->ignoreCount)))
         r->ignoreCount--;
     gdbmiChildToInt(gdbmi, "thread", &(r->threadSpec));
-    return id;
 }
 
 QByteArray cdbWriteMemoryCommand(quint64 addr, const QByteArray &data)
@@ -434,6 +435,173 @@ QDebug operator<<(QDebug s, const WinException &e)
         << ",address=0x" << QString::number(e.exceptionAddress, 16)
         << ",firstChance=" << e.firstChance;
     return s;
+}
+
+/*!
+    \fn DisassemblerLines parseCdbDisassembler(const QList<QByteArray> &a)
+
+    \brief Parse CDB disassembler output into DisassemblerLines (with helpers)
+
+    Expected options (prepend source file line):
+    \code
+    .asm source_line
+    .lines
+    \endcode
+
+    should cause the 'u' command to produce:
+
+    \code
+gitgui!Foo::MainWindow::on_actionPtrs_triggered+0x1f9 [c:\qt\projects\gitgui\app\mainwindow.cpp @ 758]:
+  225 00000001`3fcebfe9 488b842410050000 mov     rax,qword ptr [rsp+510h]
+  225 00000001`3fcebff1 8b4030          mov     eax,dword ptr [rax+30h]
+  226 00000001`3fcebff4 ffc0            inc     eax
+      00000001`3fcebff6 488b8c2410050000 mov     rcx,qword ptr [rsp+510h]
+...
+QtCored4!QTextStreamPrivate::putString+0x34:
+   10 00000000`6e5e7f64 90              nop
+...
+\endcode
+
+    The algorithm checks for a function line and grabs the function name, offset and (optional)
+    source file from it.
+    Instruction lines are checked for address and source line number.
+    When the source line changes, the source instruction is inserted.
+*/
+
+// Parse a function header line: Match: 'nsp::foo+0x<offset> [<file> @ <line>]:'
+// or 'nsp::foo+0x<offset>:', 'nsp::foo [<file> @ <line>]:'
+// Do not use regexp here as it is hard for functions like operator+, operator[].
+bool parseCdbDisassemblerFunctionLine(const QString &l,
+                                      QString *currentFunction, quint64 *functionOffset,
+                                      QString *sourceFile)
+{
+    if (l.isEmpty() || !l.endsWith(QLatin1Char(':')) || l.at(0).isDigit() || l.at(0).isSpace())
+        return false;
+    int functionEnd = l.indexOf(QLatin1Char(' '));
+    if (functionEnd < 0)
+        functionEnd = l.size() - 1; // Nothing at all, just ':'
+    const int offsetPos = l.indexOf(QLatin1String("+0x"));
+    if (offsetPos > 0) {
+        *currentFunction = l.left(offsetPos);
+        *functionOffset = l.mid(offsetPos + 3, functionEnd - offsetPos - 3).trimmed().toULongLong(0, 16);
+    } else { // No offset, directly at beginning.
+        *currentFunction = l.left(functionEnd);
+        *functionOffset = 0;
+    }
+    sourceFile->clear();
+    // Parse file and line.
+    const int filePos = l.indexOf(QLatin1Char('['), functionEnd);
+    if (filePos == -1)
+        return true; // No file
+    const int linePos = l.indexOf(QLatin1String(" @ "), filePos + 1);
+    if (linePos == -1)
+        return false;
+        *sourceFile = l.mid(filePos + 1, linePos - filePos - 1).trimmed();
+    if (debugDisAsm)
+        qDebug() << "Function with source: " << l << currentFunction
+                 << functionOffset << sourceFile;
+    return true;
+}
+
+/* Parse an instruction line, CDB 6.12:
+ *  0123456
+ * '   21 00000001`3fcebff1 8b4030          mov     eax,dword ptr [rax+30h]'
+ * or CDB 6.11 (source line and address joined, 725 being the source line number):
+ *  0123456
+ * '  725078bb291 8bec            mov     ebp,esp
+ * '<source_line>[ ]?<address> <raw data> <instruction> */
+
+bool parseCdbDisassemblerLine(const QString &line, DisassemblerLine *dLine, uint *sourceLine)
+{
+    *sourceLine = 0;
+    if (line.size() < 6)
+        return false;
+    const QChar blank = QLatin1Char(' ');
+    int addressPos = 0;
+    // Check for joined source and address in 6.11
+    const bool hasV611SourceLine = line.at(5).isDigit();
+    const bool hasV612SourceLine = !hasV611SourceLine && line.at(4).isDigit();
+    if (hasV611SourceLine) {
+        // v6.11: Fixed 5 source line columns, joined
+        *sourceLine = line.left(5).trimmed().toUInt();
+        addressPos = 5;
+    } else if (hasV612SourceLine) {
+        // v6.12: Free format columns
+        const int sourceLineEnd = line.indexOf(blank, 4);
+        if (sourceLineEnd == -1)
+              return false;
+        *sourceLine = line.left(sourceLineEnd).trimmed().toUInt();
+        addressPos = sourceLineEnd + 1;
+    } else {
+        // Skip source line column.
+        const int size = line.size();
+        for ( ; addressPos < size && line.at(addressPos).isSpace(); ++addressPos) ;
+        if (addressPos == size)
+            return false;
+    }
+    // Find positions of address/raw data/instruction
+    const int addressEnd = line.indexOf(blank, addressPos + 1);
+    if (addressEnd < 0)
+        return false;
+    const int rawDataPos = addressEnd + 1;
+    const int rawDataEnd = line.indexOf(blank, rawDataPos + 1);
+    if (rawDataEnd < 0)
+        return false;
+    const int instructionPos = rawDataEnd + 1;
+    bool ok;
+    QString addressS = line.mid(addressPos, addressEnd - addressPos);
+    if (addressS.size() > 9 && addressS.at(8) == QLatin1Char('`'))
+        addressS.remove(8, 1);
+    dLine->address = addressS.toULongLong(&ok, 16);
+    if (!ok)
+        return false;
+    dLine->rawData = QByteArray::fromHex(line.mid(rawDataPos, rawDataEnd - rawDataPos).toAscii());
+    dLine->data = line.right(line.size() - instructionPos).trimmed();
+    return true;
+}
+
+DisassemblerLines parseCdbDisassembler(const QList<QByteArray> &a)
+{
+    DisassemblerLines result;
+    quint64 functionAddress = 0;
+    uint lastSourceLine = 0;
+    QString currentFunction;
+    quint64 functionOffset = 0;
+    QString sourceFile;
+
+    foreach (const QByteArray &lineBA, a) {
+        const QString line = QString::fromLatin1(lineBA);
+        // New function. Append as comment line.
+        if (parseCdbDisassemblerFunctionLine(line, &currentFunction, &functionOffset, &sourceFile)) {
+            functionAddress = 0;
+            DisassemblerLine commentLine;
+            commentLine.data = line;
+            result.appendLine(commentLine);
+        } else {
+            DisassemblerLine disassemblyLine;
+            uint sourceLine;
+            if (parseCdbDisassemblerLine(line, &disassemblyLine, &sourceLine)) {
+                // New source line: Add source code if available.
+                if (sourceLine && sourceLine != lastSourceLine) {
+                    lastSourceLine = sourceLine;
+                    result.appendSourceLine(sourceFile, sourceLine);
+                }
+            } else {
+                qWarning("Unable to parse assembly line '%s'", lineBA.constData());
+                disassemblyLine.fromString(line);
+            }
+            // Determine address of function from the first assembler line after a
+            // function header line.
+            if (!functionAddress && disassemblyLine.address) {
+                functionAddress = disassemblyLine.address - functionOffset;
+            }
+            if (functionAddress && disassemblyLine.address)
+                disassemblyLine.offset = disassemblyLine.address - functionAddress;
+            disassemblyLine.function = currentFunction;
+            result.appendLine(disassemblyLine);
+        }
+    }
+    return result;
 }
 
 } // namespace Internal

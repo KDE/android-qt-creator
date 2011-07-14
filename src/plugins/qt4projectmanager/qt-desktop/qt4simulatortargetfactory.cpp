@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,7 +55,7 @@ using ProjectExplorer::idFromMap;
 Qt4SimulatorTargetFactory::Qt4SimulatorTargetFactory(QObject *parent) :
     Qt4BaseTargetFactory(parent)
 {
-    connect(QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>)),
+    connect(QtSupport::QtVersionManager::instance(), SIGNAL(qtVersionsChanged(QList<int>)),
             this, SIGNAL(supportedTargetIdsChanged()));
 }
 
@@ -72,7 +72,7 @@ QStringList Qt4SimulatorTargetFactory::supportedTargetIds(ProjectExplorer::Proje
 {
     if (parent && !qobject_cast<Qt4Project *>(parent))
         return QStringList();
-    if (!QtVersionManager::instance()->supportsTargetId(Constants::QT_SIMULATOR_TARGET_ID))
+    if (!QtSupport::QtVersionManager::instance()->supportsTargetId(Constants::QT_SIMULATOR_TARGET_ID))
         return QStringList();
     return QStringList() << QLatin1String(Constants::QT_SIMULATOR_TARGET_ID);
 }
@@ -89,6 +89,13 @@ QIcon Qt4SimulatorTargetFactory::iconForId(const QString &id) const
     if (id == QLatin1String(Constants::QT_SIMULATOR_TARGET_ID))
         return QIcon(":/projectexplorer/images/SymbianEmulator.png");
     return QIcon();
+}
+
+QString Qt4SimulatorTargetFactory::buildNameForId(const QString &id) const
+{
+    if (id == QLatin1String(Constants::QT_SIMULATOR_TARGET_ID))
+        return QLatin1String("simulator");
+    return QString();
 }
 
 bool Qt4SimulatorTargetFactory::canCreate(ProjectExplorer::Project *parent, const QString &id) const
@@ -116,45 +123,16 @@ ProjectExplorer::Target *Qt4SimulatorTargetFactory::restore(ProjectExplorer::Pro
     return 0;
 }
 
-QString Qt4SimulatorTargetFactory::defaultShadowBuildDirectory(const QString &projectLocation, const QString &id)
+QSet<QString> Qt4SimulatorTargetFactory::targetFeatures(const QString & /*id*/) const
 {
-    if (id != QLatin1String(Constants::QT_SIMULATOR_TARGET_ID))
-        return QString();
+    QSet<QString> features;
 
-    // currently we can't have the build directory to be deeper than the source directory
-    // since that is broken in qmake
-    // Once qmake is fixed we can change that to have a top directory and
-    // subdirectories per build. (Replacing "QChar('-')" with "QChar('/') )
-    return projectLocation + QLatin1String("-simulator");
-}
-
-QList<BuildConfigurationInfo> Qt4SimulatorTargetFactory::availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion)
-{
-    Q_ASSERT(id == Constants::QT_SIMULATOR_TARGET_ID);
-    QList<BuildConfigurationInfo> infos;
-    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion);
-
-    foreach (QtVersion *version, knownVersions) {
-        if (!version->isValid() || !version->toolChainAvailable(id))
-            continue;
-        QtVersion::QmakeBuildConfigs config = version->defaultBuildConfig();
-        QString dir = defaultShadowBuildDirectory(Qt4Project::defaultTopLevelBuildDirectory(proFilePath), id);
-        infos.append(BuildConfigurationInfo(version, config, QString(), dir));
-        infos.append(BuildConfigurationInfo(version, config ^ QtVersion::DebugBuild, QString(), dir));
-    }
-    return infos;
-}
-
-bool Qt4SimulatorTargetFactory::isMobileTarget(const QString &id)
-{
-    Q_UNUSED(id)
-    return true;
-}
-
-bool Qt4SimulatorTargetFactory::supportsShadowBuilds(const QString &id)
-{
-    Q_UNUSED(id);
-    return true;
+    features << Constants::MOBILE_TARGETFEATURE_ID;
+    features << Constants::SHADOWBUILD_TARGETFEATURE_ID;
+    // how to check check whether the component set is really installed?
+    features << Constants::QTQUICKCOMPONENTS_SYMBIAN_TARGETFEATURE_ID;
+    features << Constants::QTQUICKCOMPONENTS_MEEGO_TARGETFEATURE_ID;
+    return features;
 }
 
 ProjectExplorer::Target *Qt4SimulatorTargetFactory::create(ProjectExplorer::Project *parent, const QString &id)
@@ -162,15 +140,15 @@ ProjectExplorer::Target *Qt4SimulatorTargetFactory::create(ProjectExplorer::Proj
     if (!canCreate(parent, id))
         return 0;
 
-    QList<QtVersion *> knownVersions = QtVersionManager::instance()->versionsForTargetId(id);
+    QList<QtSupport::BaseQtVersion *> knownVersions = QtSupport::QtVersionManager::instance()->versionsForTargetId(id);
     if (knownVersions.isEmpty())
         return 0;
 
-    QtVersion *qtVersion = knownVersions.first();
-    QtVersion::QmakeBuildConfigs config = qtVersion->defaultBuildConfig();
+    QtSupport::BaseQtVersion *qtVersion = knownVersions.first();
+    QtSupport::BaseQtVersion::QmakeBuildConfigs config = qtVersion->defaultBuildConfig();
     QList<BuildConfigurationInfo> infos;
     infos.append(BuildConfigurationInfo(qtVersion, config, QString(), QString()));
-    infos.append(BuildConfigurationInfo(qtVersion, config ^ QtVersion::DebugBuild, QString(), QString()));
+    infos.append(BuildConfigurationInfo(qtVersion, config ^ QtSupport::BaseQtVersion::DebugBuild, QString(), QString()));
 
     return create(parent, id, infos);
 }
@@ -184,10 +162,10 @@ ProjectExplorer::Target *Qt4SimulatorTargetFactory::create(ProjectExplorer::Proj
     Qt4SimulatorTarget *t = new Qt4SimulatorTarget(static_cast<Qt4Project *>(parent), id);
 
     foreach (const BuildConfigurationInfo &info, infos)
-        t->addQt4BuildConfiguration(msgBuildConfigurationName(info), info.version, info.buildConfig,
+        t->addQt4BuildConfiguration(msgBuildConfigurationName(info), QString(), info.version, info.buildConfig,
                                     info.additionalArguments, info.directory);
 
-    t->addDeployConfiguration(t->deployConfigurationFactory()->create(t, ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
+    t->addDeployConfiguration(t->createDeployConfiguration(ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
 
     t->createApplicationProFiles();
 

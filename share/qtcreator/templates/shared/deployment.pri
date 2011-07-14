@@ -51,9 +51,16 @@ symbian {
     }
 } else:unix {
     maemo5 {
+        desktopfile.files = $${TARGET}.desktop
         desktopfile.path = /usr/share/applications/hildon
-    } else {
+        icon.files = $${TARGET}64.png
+        icon.path = /usr/share/icons/hicolor/64x64/apps
+    } else:!isEmpty(MEEGO_VERSION_MAJOR) {
+        desktopfile.files = $${TARGET}_harmattan.desktop
         desktopfile.path = /usr/share/applications
+        icon.files = $${TARGET}80.png
+        icon.path = /usr/share/icons/hicolor/80x80/apps
+    } else { # Assumed to be a Desktop Unix
         copyCommand =
         for(deploymentfolder, DEPLOYMENTFOLDERS) {
             source = $$MAINPROFILEPWD/$$eval($${deploymentfolder}.source)
@@ -93,24 +100,22 @@ symbian {
         export($$itempath)
         INSTALLS += $$item
     }
-    !CONFIG(android) {
-        icon.files = $${TARGET}.png
-        icon.path = /usr/share/icons/hicolor/64x64/apps
-        desktopfile.files = $${TARGET}.desktop
-        target.path = $${installPrefix}/bin
+
+    !CONFIG(android): !isEmpty(desktopfile.path) {
         export(icon.files)
         export(icon.path)
         export(desktopfile.files)
         export(desktopfile.path)
-        export(target.path)
-        INSTALLS += desktopfile icon target
+        INSTALLS += icon desktopfile
     }
+
+    !CONFIG(android): target.path = $${installPrefix}/bin
     else {
         CONFIG(armeabi-v7a) : target.path = /libs/armeabi-v7a
                        else : target.path = /libs/armeabi
-        export(target.path)
-        INSTALLS += target
     }
+    export(target.path)
+    INSTALLS += target
 }
 
 export (ICON)

@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -64,31 +64,25 @@ ImageViewerFile::~ImageViewerFile()
 {
 }
 
-Core::IFile::ReloadBehavior ImageViewerFile::reloadBehavior(Core::IFile::ChangeTrigger state,
-                                                            Core::IFile::ChangeType type) const
-{
-    if (type == TypePermissions)
-        return BehaviorSilent;
-    if (type == TypeContents && state == TriggerInternal)
-        return BehaviorSilent;
-    return BehaviorAsk;
-}
-
-void ImageViewerFile::reload(Core::IFile::ReloadFlag flag,
+bool ImageViewerFile::reload(QString *errorString,
+                             Core::IFile::ReloadFlag flag,
                              Core::IFile::ChangeType type)
 {
     if (flag == FlagIgnore)
-        return;
+        return true;
     if (type == TypePermissions) {
         emit changed();
+        return true;
     } else {
-        d_ptr->editor->open(d_ptr->fileName);
+        return d_ptr->editor->open(errorString, d_ptr->fileName, d_ptr->fileName);
     }
 }
 
-bool ImageViewerFile::save(const QString &fileName)
+bool ImageViewerFile::save(QString *errorString, const QString &fileName, bool autoSave)
 {
+    Q_UNUSED(errorString)
     Q_UNUSED(fileName);
+    Q_UNUSED(autoSave)
     return false;
 }
 

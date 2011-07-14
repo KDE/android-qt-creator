@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,7 +52,10 @@ public:
     Evaluate(const Interpreter::Context *context);
     virtual ~Evaluate();
 
+    // evaluate ast in the given context
     const Interpreter::Value *operator()(AST::Node *ast);
+
+    // evaluate, but stop when encountering a Reference
     const Interpreter::Value *reference(AST::Node *ast);
 
 protected:

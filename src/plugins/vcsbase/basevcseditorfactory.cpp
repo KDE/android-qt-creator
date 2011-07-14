@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,14 @@
 #include <texteditor/texteditorsettings.h>
 
 #include <QtCore/QCoreApplication>
+
+/*!
+    \class VCSBase::BaseVCSEditorFactory
+
+    \brief Base class for editor factories creating instances of VCSBaseEditor subclasses.
+
+    \sa VCSBase::VCSBaseEditorWidget
+*/
 
 namespace VCSBase {
 

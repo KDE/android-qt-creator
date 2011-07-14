@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,6 +41,7 @@
 namespace ProjectExplorer {
 
 namespace Internal {
+class ClangToolChainFactory;
 class GccToolChainFactory;
 class MingwToolChainFactory;
 class LinuxIccToolChainFactory;
@@ -63,6 +64,7 @@ public:
     QByteArray predefinedMacros() const;
     QList<HeaderPath> systemHeaderPaths() const;
     void addToEnvironment(Utils::Environment &env) const;
+    QString mkspec() const;
     QString makeCommand() const;
     void setDebuggerCommand(const QString &);
     QString debuggerCommand() const;
@@ -75,7 +77,7 @@ public:
 
     bool operator ==(const ToolChain &) const;
 
-    void setCompilerPath(const QString &);
+    virtual void setCompilerPath(const QString &);
     QString compilerPath() const;
 
     ToolChain *clone() const;
@@ -87,6 +89,8 @@ protected:
     QString defaultDisplayName() const;
 
     void updateId();
+
+    virtual QList<Abi> detectSupportedAbis() const;
 
     mutable QByteArray m_predefinedMacros;
 
@@ -107,6 +111,28 @@ private:
 };
 
 // --------------------------------------------------------------------------
+// ClangToolChain
+// --------------------------------------------------------------------------
+
+class PROJECTEXPLORER_EXPORT ClangToolChain : public GccToolChain
+{
+public:
+    QString typeName() const;
+    QString makeCommand() const;
+    QString mkspec() const;
+
+    IOutputParser *outputParser() const;
+
+    ToolChain *clone() const;
+
+private:
+    ClangToolChain(bool autodetect);
+
+    friend class Internal::ClangToolChainFactory;
+    friend class ToolChainFactory;
+};
+
+// --------------------------------------------------------------------------
 // MingwToolChain
 // --------------------------------------------------------------------------
 
@@ -114,6 +140,7 @@ class PROJECTEXPLORER_EXPORT MingwToolChain : public GccToolChain
 {
 public:
     QString typeName() const;
+    QString mkspec() const;
     QString makeCommand() const;
 
     ToolChain *clone() const;
@@ -136,6 +163,8 @@ public:
     QString typeName() const;
 
     IOutputParser *outputParser() const;
+
+    QString mkspec() const;
 
     ToolChain *clone() const;
 

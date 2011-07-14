@@ -14,7 +14,6 @@ HEADERS += cppplugin.h \
     cppeditorenums.h \
     cppeditor_global.h \
     cppclasswizard.h \
-    cppquickfix.h \
     cppchecksymbols.h \
     cppsemanticinfo.h \
     cppoutline.h \
@@ -22,12 +21,12 @@ HEADERS += cppplugin.h \
     cpplocalsymbols.h \
     cpptypehierarchy.h \
     cppelementevaluator.h \
-    cppquickfixcollector.h \
-    cppqtstyleindenter.h \
     cppautocompleter.h \
     cppcompleteswitch.h \
     cppsnippetprovider.h \
-    cppinsertqtpropertymembers.h
+    cppinsertqtpropertymembers.h \
+    cppquickfixassistant.h \
+    cppquickfix.h
 
 SOURCES += cppplugin.cpp \
     cppeditor.cpp \
@@ -35,7 +34,6 @@ SOURCES += cppplugin.cpp \
     cpphoverhandler.cpp \
     cppfilewizard.cpp \
     cppclasswizard.cpp \
-    cppquickfix.cpp \
     cppquickfixes.cpp \
     cppchecksymbols.cpp \
     cppsemanticinfo.cpp \
@@ -44,12 +42,12 @@ SOURCES += cppplugin.cpp \
     cpplocalsymbols.cpp \
     cpptypehierarchy.cpp \
     cppelementevaluator.cpp \
-    cppquickfixcollector.cpp \
-    cppqtstyleindenter.cpp \
     cppautocompleter.cpp \
     cppcompleteswitch.cpp \
     cppsnippetprovider.cpp \
-    cppinsertqtpropertymembers.cpp
+    cppinsertqtpropertymembers.cpp \
+    cppquickfixassistant.cpp \
+    cppquickfix.cpp
 
 RESOURCES += cppeditor.qrc
 OTHER_FILES += CppEditor.mimetypes.xml

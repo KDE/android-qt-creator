@@ -28,85 +28,56 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef ANALYZERRUNCONTROL_H
 #define ANALYZERRUNCONTROL_H
 
-#include "analyzerconstants.h"
+#include "analyzerbase_global.h"
 
-#include <valgrind/xmlprotocol/parser.h>
+#include <utils/ssh/sshconnection.h>
 
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/task.h>
 
-#include <QtCore/QScopedPointer>
-
 namespace Analyzer {
 
-class IAnalyzerEngine;
+class AnalyzerStartParameters;
+class IAnalyzerTool;
 
-namespace Internal {
-
-class AnalyzerRunControl;
-
-class AnalyzerRunControlFactory: public ProjectExplorer::IRunControlFactory
+class ANALYZER_EXPORT AnalyzerRunControl : public ProjectExplorer::RunControl
 {
     Q_OBJECT
 
 public:
-    AnalyzerRunControlFactory(QObject *parent = 0);
-
-    typedef ProjectExplorer::RunConfiguration RunConfiguration;
-    typedef ProjectExplorer::RunControl RunControl;
-
-    // virtuals from IRunControlFactory
-    bool canRun(RunConfiguration *runConfiguration, const QString &mode) const;
-    RunControl *create(RunConfiguration *runConfiguration, const QString &mode);
-    QString displayName() const;
-
-    ProjectExplorer::IRunConfigurationAspect *createRunConfigurationAspect();
-    ProjectExplorer::RunConfigWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
-
-signals:
-    void runControlCreated(Analyzer::Internal::AnalyzerRunControl *);
-};
-
-
-class AnalyzerRunControl: public ProjectExplorer::RunControl
-{
-    Q_OBJECT
-
-public:
-    typedef ProjectExplorer::RunConfiguration RunConfiguration;
-    // the constructor is likely to gain more arguments later
-    explicit AnalyzerRunControl(RunConfiguration *runConfiguration);
+    AnalyzerRunControl(IAnalyzerTool *tool, const AnalyzerStartParameters &sp,
+        ProjectExplorer::RunConfiguration *runConfiguration);
     ~AnalyzerRunControl();
 
-    // pure virtuals from ProjectExplorer::RunControl
+    // ProjectExplorer::RunControl
     void start();
     StopResult stop();
     bool isRunning() const;
     QString displayName() const;
+    QIcon icon() const;
 
 private slots:
-    void receiveStandardOutput(const QString &);
-    void receiveStandardError(const QString &);
+    void stopIt();
+    void receiveOutput(const QString &, Utils::OutputFormat format);
 
     void addTask(ProjectExplorer::Task::TaskType type, const QString &description,
                  const QString &file, int line);
 
     void engineFinished();
+    void runControlFinished();
 
 private:
-    bool m_isRunning;
-    IAnalyzerEngine *m_engine;
+    class Private;
+    Private *d;
 };
 
-
-} // namespace Internal
 } // namespace Analyzer
 
 #endif // ANALYZERRUNCONTROL_H

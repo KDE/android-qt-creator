@@ -26,12 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "subversioncontrol.h"
 #include "subversionplugin.h"
+#include "subversionsettings.h"
+
+#include <vcsbase/vcsbaseconstants.h>
 
 #include <QtCore/QFileInfo>
 
@@ -39,7 +42,6 @@ using namespace Subversion;
 using namespace Subversion::Internal;
 
 SubversionControl::SubversionControl(SubversionPlugin *plugin) :
-    m_enabled(true),
     m_plugin(plugin)
 {
 }
@@ -49,9 +51,23 @@ QString SubversionControl::displayName() const
     return QLatin1String("subversion");
 }
 
+QString SubversionControl::id() const
+{
+    return QLatin1String(VCSBase::Constants::VCS_ID_SUBVERSION);
+}
+
+bool SubversionControl::isConfigured() const
+{
+    const QString binary = m_plugin->settings().svnCommand;
+    if (binary.isEmpty())
+        return false;
+    QFileInfo fi(binary);
+    return fi.exists() && fi.isFile() && fi.isExecutable();
+}
+
 bool SubversionControl::supportsOperation(Operation operation) const
 {
-    bool rc = true;
+    bool rc = isConfigured();
     switch (operation) {
     case AddOperation:
     case DeleteOperation:
@@ -149,4 +165,9 @@ void SubversionControl::emitRepositoryChanged(const QString &s)
 void SubversionControl::emitFilesChanged(const QStringList &l)
 {
     emit filesChanged(l);
+}
+
+void SubversionControl::emitConfigurationChanged()
+{
+    emit configurationChanged();
 }

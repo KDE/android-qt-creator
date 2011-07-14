@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -78,7 +78,8 @@ private:
 
     void editItem(const QModelIndex &idx);
     void resetHelper(const QModelIndex &idx);
-    void setWatchpoint(quint64 address);
+    void setWatchpointAtAddress(quint64 address, unsigned size);
+    void setWatchpointAtExpression(const QString &exp);
 
     void setModelData(int role, const QVariant &value = QVariant(),
         const QModelIndex &index = QModelIndex());

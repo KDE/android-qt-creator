@@ -26,13 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "qmljsinspectorconstants.h"
 #include "qmljsinspector.h"
-#include "qmlinspectortoolbar.h"
+#include "qmljsinspectortoolbar.h"
 #include "qmljsclientproxy.h"
 #include "qmljslivetextpreview.h"
 #include "qmljsprivateapi.h"
@@ -157,7 +157,7 @@ InspectorUi::InspectorUi(QObject *parent)
     , m_cursorPositionChangedExternally(false)
 {
     m_instance = this;
-    m_toolBar = new QmlInspectorToolBar(this);
+    m_toolBar = new QmlJsInspectorToolBar(this);
 }
 
 InspectorUi::~InspectorUi()
@@ -168,6 +168,8 @@ void InspectorUi::setupUi()
 {
     setupDockWidgets();
     restoreSettings();
+
+    disable();
 }
 
 void InspectorUi::saveSettings() const
@@ -245,7 +247,7 @@ void InspectorUi::showDebuggerTooltip(const QPoint &mousePos, TextEditor::ITextE
                 if ((qmlNode->kind == QmlJS::AST::Node::Kind_IdentifierExpression) &&
                         (m_clientProxy->objectReferenceForId(refToLook).debugId() == -1)) {
                     query = doubleQuote + QString("local: ") + refToLook + doubleQuote;
-                    foreach (QDeclarativeDebugPropertyReference property, ref.properties()) {
+                    foreach (const QDeclarativeDebugPropertyReference &property, ref.properties()) {
                         if (property.name() == wordAtCursor
                                 && !property.valueTypeName().isEmpty()) {
                             query = doubleQuote + property.name() + QLatin1Char(':')
@@ -259,7 +261,7 @@ void InspectorUi::showDebuggerTooltip(const QPoint &mousePos, TextEditor::ITextE
                             + QLatin1Char('+') + refToLook;
             } else {
                 // show properties
-                foreach (QDeclarativeDebugPropertyReference property, ref.properties()) {
+                foreach (const QDeclarativeDebugPropertyReference &property, ref.properties()) {
                     if (property.name() == wordAtCursor && !property.valueTypeName().isEmpty()) {
                         query = doubleQuote + property.name() + QLatin1Char(':')
                                 + doubleQuote + QLatin1Char('+') + property.name();
@@ -336,7 +338,7 @@ void InspectorUi::disconnected()
     m_qmlEngine = 0;
     resetViews();
 
-    applyChangesToQmlObserverHelper(false);
+    applyChangesToQmlInspectorHelper(false);
 
     QHashIterator<QString, QmlJSLiveTextPreview *> iter(m_textPreviews);
     while (iter.hasNext()) {
@@ -415,7 +417,7 @@ void InspectorUi::initializeDocuments()
         createPreviewForEditor(editor);
     }
 
-    applyChangesToQmlObserverHelper(true);
+    applyChangesToQmlInspectorHelper(true);
 }
 
 void InspectorUi::serverReloaded()
@@ -630,6 +632,7 @@ void InspectorUi::enable()
     m_toolBar->enable();
     m_crumblePath->setEnabled(true);
     m_propertyInspector->setEnabled(true);
+    m_filterExp->setEnabled(true);
 }
 
 void InspectorUi::disable()
@@ -637,6 +640,7 @@ void InspectorUi::disable()
     m_toolBar->disable();
     m_crumblePath->setEnabled(false);
     m_propertyInspector->setEnabled(false);
+    m_filterExp->setEnabled(false);
 }
 
 QDeclarativeDebugObjectReference InspectorUi::objectReferenceForLocation(const QString &fileName, int cursorPosition) const
@@ -715,20 +719,20 @@ void InspectorUi::setupDockWidgets()
 {
     Debugger::DebuggerMainWindow *mw = Debugger::DebuggerPlugin::mainWindow();
 
-    m_toolBar->createActions(Core::Context(Debugger::Constants::C_QMLDEBUGGER));
+    m_toolBar->createActions();
     m_toolBar->setObjectName("QmlInspectorToolbar");
     mw->setToolBar(Debugger::QmlLanguage, m_toolBar->widget());
 
     m_crumblePath = new ContextCrumblePath;
     m_crumblePath->setObjectName("QmlContextPath");
     m_crumblePath->setWindowTitle(tr("Context Path"));
-    connect(m_crumblePath, SIGNAL(elementClicked(int)), SLOT(crumblePathElementClicked(int)));
+    connect(m_crumblePath, SIGNAL(elementClicked(QVariant)), SLOT(crumblePathElementClicked(QVariant)));
 
     m_propertyInspector = new QmlJSPropertyInspector;
 
-    QWidget *observerWidget = new QWidget;
-    observerWidget->setWindowTitle(tr("QML Observer"));
-    observerWidget->setObjectName(Debugger::Constants::DOCKWIDGET_QML_INSPECTOR);
+    QWidget *inspectorWidget = new QWidget;
+    inspectorWidget->setWindowTitle(tr("QML Inspector"));
+    inspectorWidget->setObjectName(Debugger::Constants::DOCKWIDGET_QML_INSPECTOR);
 
     QWidget *pathAndFilterWidget = new StyledBackground;
     pathAndFilterWidget->setMaximumHeight(m_crumblePath->height());
@@ -743,25 +747,30 @@ void InspectorUi::setupDockWidgets()
     pathAndFilterLayout->addWidget(m_crumblePath);
     pathAndFilterLayout->addWidget(m_filterExp);
 
-    QVBoxLayout *wlay = new QVBoxLayout(observerWidget);
+    QVBoxLayout *wlay = new QVBoxLayout(inspectorWidget);
     wlay->setMargin(0);
     wlay->setSpacing(0);
-    observerWidget->setLayout(wlay);
+    inspectorWidget->setLayout(wlay);
     wlay->addWidget(pathAndFilterWidget);
     wlay->addWidget(m_propertyInspector);
 
-    QDockWidget *dock = mw->createDockWidget(Debugger::QmlLanguage, observerWidget);
+    QDockWidget *dock = mw->createDockWidget(Debugger::QmlLanguage, inspectorWidget);
     dock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
     dock->setTitleBarWidget(new QWidget(dock));
 }
 
-void InspectorUi::crumblePathElementClicked(int debugId)
+void InspectorUi::crumblePathElementClicked(const QVariant &data)
 {
-    if (debugId != -1) {
-        QList<int> l;
-        l << debugId;
-        selectItems(l);
-    }
+    bool ok;
+    const int debugId = data.toInt(&ok);
+    if (!ok || debugId == -1)
+        return;
+
+    QList<int> debugIds;
+    debugIds << debugId;
+
+    selectItems(debugIds);
+    m_clientProxy->setSelectedItemsByDebugId(debugIds);
 }
 
 bool InspectorUi::showExperimentalWarning()
@@ -784,18 +793,18 @@ QString InspectorUi::findFileInProject(const QString &originalPath) const
     return m_projectFinder.findFile(originalPath);
 }
 
-void InspectorUi::setApplyChangesToQmlObserver(bool applyChanges)
+void InspectorUi::setApplyChangesToQmlInspector(bool applyChanges)
 {
     emit livePreviewActivated(applyChanges);
-    applyChangesToQmlObserverHelper(applyChanges);
+    applyChangesToQmlInspectorHelper(applyChanges);
 }
 
-void InspectorUi::applyChangesToQmlObserverHelper(bool applyChanges)
+void InspectorUi::applyChangesToQmlInspectorHelper(bool applyChanges)
 {
     QHashIterator<QString, QmlJSLiveTextPreview *> iter(m_textPreviews);
     while (iter.hasNext()) {
         iter.next();
-        iter.value()->setApplyChangesToQmlObserver(applyChanges);
+        iter.value()->setApplyChangesToQmlInspector(applyChanges);
     }
 }
 
@@ -824,7 +833,7 @@ void InspectorUi::updatePendingPreviewDocuments(QmlJS::Document::Ptr doc)
 
 void InspectorUi::disableLivePreview()
 {
-    setApplyChangesToQmlObserver(false);
+    setApplyChangesToQmlInspector(false);
 }
 
 void InspectorUi::connectSignals()
@@ -866,7 +875,7 @@ void InspectorUi::connectSignals()
             m_toolBar, SLOT(setAnimationPaused(bool)));
 
     connect(m_toolBar, SIGNAL(applyChangesFromQmlFileTriggered(bool)),
-            this, SLOT(setApplyChangesToQmlObserver(bool)));
+            this, SLOT(setApplyChangesToQmlInspector(bool)));
 
     connect(m_toolBar, SIGNAL(designModeSelected(bool)),
             m_clientProxy, SLOT(setDesignModeBehavior(bool)));

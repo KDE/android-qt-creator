@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,8 +43,8 @@
 namespace Debugger {
 namespace Internal {
 
-AbstractGdbAdapter::AbstractGdbAdapter(GdbEngine *engine, QObject *parent)
-  : QObject(parent), m_engine(engine)
+AbstractGdbAdapter::AbstractGdbAdapter(GdbEngine *engine)
+  : m_engine(engine)
 {
 }
 
@@ -74,7 +74,7 @@ void AbstractGdbAdapter::write(const QByteArray &data)
     gdbProc()->write(data);
 }
 
-bool AbstractGdbAdapter::isTrkAdapter() const
+bool AbstractGdbAdapter::isCodaAdapter() const
 {
     return false;
 }
@@ -90,7 +90,7 @@ bool AbstractGdbAdapter::prepareCommand()
         // perr == BadQuoting is never returned on Windows
         // FIXME? QTCREATORBUG-2809
         m_engine->handleAdapterStartFailed(QCoreApplication::translate("DebuggerEngine", // Same message in CdbEngine
-            "Debugging complex command lines is currently not supported under Windows"), QString());
+            "Debugging complex command lines is currently not supported on Windows."), QString());
         return false;
     }
 #endif

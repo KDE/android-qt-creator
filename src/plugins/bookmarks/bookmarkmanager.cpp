@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -299,21 +299,11 @@ void BookmarkView::gotoBookmark(const QModelIndex &index)
 // BookmarkContext
 ////
 
-BookmarkContext::BookmarkContext(BookmarkView *widget)
-    : Core::IContext(widget),
-      m_bookmarkView(widget),
-      m_context(Constants::BOOKMARKS_CONTEXT)
+BookmarkContext::BookmarkContext(QWidget *widget)
+    : Core::IContext(widget)
 {
-}
-
-Context BookmarkContext::context() const
-{
-    return m_context;
-}
-
-QWidget *BookmarkContext::widget()
-{
-    return m_bookmarkView;
+      setWidget(widget);
+      setContext(Core::Context(Constants::BOOKMARKS_CONTEXT));
 }
 
 ////
@@ -485,7 +475,7 @@ void BookmarkManager::removeBookmark(Bookmark *bookmark)
     saveBookmarks();
 }
 
-Bookmark *BookmarkManager::bookmarkForIndex(QModelIndex index)
+Bookmark *BookmarkManager::bookmarkForIndex(const QModelIndex &index)
 {
     if (!index.isValid() || index.row() >= m_bookmarksList.size())
         return 0;
@@ -493,7 +483,7 @@ Bookmark *BookmarkManager::bookmarkForIndex(QModelIndex index)
 }
 
 
-bool BookmarkManager::gotoBookmark(Bookmark* bookmark)
+bool BookmarkManager::gotoBookmark(Bookmark *bookmark)
 {
     using namespace TextEditor;
     if (ITextEditor *editor = BaseTextEditorWidget::openEditorAt(bookmark->filePath(), bookmark->lineNumber()))
@@ -523,7 +513,7 @@ void BookmarkManager::documentPrevNext(bool next)
     int lastLine = -1;
     int prevLine = -1;
     int nextLine = -1;
-    const QList<Bookmark*> marks = m_bookmarksMap.value(fi.path())->values(fi.fileName());
+    const QList<Bookmark *> marks = m_bookmarksMap.value(fi.path())->values(fi.fileName());
     for (int i = 0; i < marks.count(); ++i) {
         int markLine = marks.at(i)->lineNumber();
         if (firstLine == -1 || firstLine > markLine)
@@ -676,7 +666,7 @@ void BookmarkManager::moveDown()
 }
 
 /* Returns the bookmark at the given file and line number, or 0 if no such bookmark exists. */
-Bookmark* BookmarkManager::findBookmark(const QString &path, const QString &fileName, int lineNumber)
+Bookmark *BookmarkManager::findBookmark(const QString &path, const QString &fileName, int lineNumber)
 {
     if (m_bookmarksMap.contains(path)) {
         foreach (Bookmark *bookmark, m_bookmarksMap.value(path)->values(fileName)) {
@@ -773,7 +763,6 @@ void BookmarkManager::loadBookmarks()
 BookmarkViewFactory::BookmarkViewFactory(BookmarkManager *bm)
     : m_manager(bm)
 {
-
 }
 
 QString BookmarkViewFactory::displayName() const

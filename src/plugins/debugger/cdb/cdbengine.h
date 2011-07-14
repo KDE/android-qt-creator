@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,7 @@
 #include <QtCore/QProcess>
 #include <QtCore/QVariantList>
 #include <QtCore/QMap>
+#include <QtCore/QMultiHash>
 #include <QtCore/QTime>
 #include <QtCore/QPair>
 #include <QtCore/QList>
@@ -54,6 +55,7 @@ class DisassemblerAgent;
 struct CdbBuiltinCommand;
 struct CdbExtensionCommand;
 struct CdbOptions;
+struct MemoryViewCookie;
 class ByteArrayInputStream;
 class GdbMi;
 
@@ -119,7 +121,7 @@ public:
     virtual void selectThread(int index);
 
     virtual bool stateAcceptsBreakpointChanges() const;
-    virtual bool acceptsBreakpoint(BreakpointId id) const;
+    virtual bool acceptsBreakpoint(BreakpointModelId id) const;
     virtual void attemptBreakpointSynchronization();
 
     virtual void fetchDisassembler(DisassemblerAgent *agent);
@@ -159,12 +161,12 @@ private slots:
     void postCommandSequence(unsigned mask);
     void operateByInstructionTriggered(bool);
 
-    void consoleStubMessage(const QString &, bool);
+    void consoleStubError(const QString &);
     void consoleStubProcessStarted();
     void consoleStubExited();
 
 private:
-    typedef QHash<BreakpointId, BreakpointResponse> PendingBreakPointMap;
+    typedef QHash<BreakpointModelId, BreakpointResponse> PendingBreakPointMap;
     typedef QPair<QString, QString> SourcePathMapping;
     struct NormalizedSourceFileName // Struct for caching mapped/normalized source files.
     {
@@ -190,7 +192,9 @@ private:
     bool startConsole(const DebuggerStartParameters &sp, QString *errorMessage);
     void init();
     unsigned examineStopReason(const GdbMi &stopReason, QString *message,
-                               QString *exceptionBoxMessage);
+                               QString *exceptionBoxMessage,
+                               bool conditionalBreakPointTriggered = false);
+    void processStop(const GdbMi &stopReason, bool conditionalBreakPointTriggered = false);
     bool commandsPending() const;
     void handleExtensionMessage(char t, int token, const QByteArray &what, const QByteArray &message);
     bool doSetupEngine(QString *errorMessage);
@@ -207,14 +211,24 @@ private:
     void syncOperateByInstruction(bool operateByInstruction);
     void postWidgetAtCommand();
     void handleCustomSpecialStop(const QVariant &v);
-
+    void postFetchMemory(const MemoryViewCookie &c);
+    inline void postDisassemblerCommand(quint64 address, const QVariant &cookie = QVariant());
+    void postDisassemblerCommand(quint64 address, quint64 endAddress,
+                                 const QVariant &cookie = QVariant());
+    void postResolveSymbol(const QString &module, const QString &function,
+                           const QVariant &cookie =  QVariant());
+    void evaluateExpression(QByteArray exp, const QVariant &cookie = QVariant());
     // Builtin commands
     void dummyHandler(const CdbBuiltinCommandPtr &);
     void handleStackTrace(const CdbExtensionCommandPtr &);
     void handleRegisters(const CdbBuiltinCommandPtr &);
     void handleDisassembler(const CdbBuiltinCommandPtr &);
     void handleJumpToLineAddressResolution(const CdbBuiltinCommandPtr &);
+    void handleExpression(const CdbExtensionCommandPtr &);
+    void handleResolveSymbol(const CdbBuiltinCommandPtr &command);
+    void handleResolveSymbol(const QList<quint64> &addresses, const QVariant &cookie);
     void jumpToAddress(quint64 address);
+
     // Extension commands
     void handleThreads(const CdbExtensionCommandPtr &);
     void handlePid(const CdbExtensionCommandPtr &reply);
@@ -243,7 +257,6 @@ private:
     QScopedPointer<Utils::ConsoleProcess> m_consoleStub;
     DebuggerStartMode m_effectiveStartMode;
     QByteArray m_outputBuffer;
-    unsigned long m_inferiorPid;
     //! Debugger accessible (expecting commands)
     bool m_accessible;
     SpecialStopMode m_specialStopMode;
@@ -265,6 +278,7 @@ private:
     int m_watchPointY;
     PendingBreakPointMap m_pendingBreakpointMap;
     QHash<QString, QString> m_fileNameModuleHash;
+    QMultiHash<QString, quint64> m_symbolAddressCache;
     bool m_ignoreCdbOutput;
     QVariantList m_customSpecialStopData;
     QList<SourcePathMapping> m_sourcePathMappings;

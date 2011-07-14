@@ -26,12 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "cvscontrol.h"
 #include "cvsplugin.h"
+#include "cvssettings.h"
+
+#include <vcsbase/vcsbaseconstants.h>
 
 #include <QtCore/QFileInfo>
 
@@ -39,7 +42,6 @@ using namespace CVS;
 using namespace CVS::Internal;
 
 CVSControl::CVSControl(CVSPlugin *plugin) :
-    m_enabled(true),
     m_plugin(plugin)
 {
 }
@@ -49,9 +51,23 @@ QString CVSControl::displayName() const
     return QLatin1String("cvs");
 }
 
+QString CVSControl::id() const
+{
+    return QLatin1String(VCSBase::Constants::VCS_ID_CVS);
+}
+
+bool CVSControl::isConfigured() const
+{
+    const QString binary = m_plugin->settings().cvsCommand;
+    if (binary.isEmpty())
+        return false;
+    QFileInfo fi(binary);
+    return fi.exists() && fi.isFile() && fi.isExecutable();
+}
+
 bool CVSControl::supportsOperation(Operation operation) const
 {
-    bool rc = true;
+    bool rc = isConfigured();
     switch (operation) {
     case AddOperation:
     case DeleteOperation:
@@ -148,4 +164,9 @@ void CVSControl::emitRepositoryChanged(const QString &s)
 void CVSControl::emitFilesChanged(const QStringList &l)
 {
     emit filesChanged(l);
+}
+
+void CVSControl::emitConfigurationChanged()
+{
+    emit configurationChanged();
 }

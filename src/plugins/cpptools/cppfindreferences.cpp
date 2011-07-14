@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,10 +38,12 @@
 #include <find/searchresultwindow.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/filesearch.h>
+#include <utils/fileutils.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/infobar.h>
 
 #include <ASTVisitor.h>
 #include <AST.h>
@@ -76,11 +78,11 @@ static QString getSource(const QString &fileName,
     if (workingCopy.contains(fileName)) {
         return workingCopy.source(fileName);
     } else {
-        QFile file(fileName);
-        if (! file.open(QFile::ReadOnly))
+        Utils::FileReader reader;
+        if (!reader.fetch(fileName, QFile::Text)) // ### FIXME error reporting
             return QString();
 
-        return QTextStream(&file).readAll(); // ### FIXME
+        return QString::fromLocal8Bit(reader.data()); // ### FIXME encoding
     }
 }
 
@@ -240,7 +242,8 @@ void CppFindReferences::renameUsages(CPlusPlus::Symbol *symbol, const CPlusPlus:
         const QString textToReplace = replacement.isEmpty()
                 ? QString::fromUtf8(id->chars(), id->size()) : replacement;
 
-        Find::SearchResult *search = _resultWindow->startNewSearch(Find::SearchResultWindow::SearchAndReplace);
+        Find::SearchResult *search = _resultWindow->startNewSearch(
+                Find::SearchResultWindow::SearchAndReplace, QLatin1String("CppEditor"));
         _resultWindow->setTextToReplace(textToReplace);
 
         connect(search, SIGNAL(activated(Find::SearchResultItem)),
@@ -278,8 +281,6 @@ void CppFindReferences::findAll_helper(Symbol *symbol, const LookupContext &cont
 void CppFindReferences::onReplaceButtonClicked(const QString &text,
                                                const QList<Find::SearchResultItem> &items)
 {
-    Core::EditorManager::instance()->hideEditorInfoBar(QLatin1String("CppEditor.Rename"));
-
     const QStringList fileNames = TextEditor::BaseFileFind::replaceAll(text, items);
     if (!fileNames.isEmpty()) {
         _modelManager->updateSourceFiles(fileNames);

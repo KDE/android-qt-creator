@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -72,7 +72,8 @@
 
 /*!
     \fn bool ICore::showOptionsDialog(const QString &group = QString(),
-                               const QString &page = QString())
+                                      const QString &page = QString(),
+                                      QWidget *parent = 0)
     \brief Opens the application options/preferences dialog with preselected
     \a page in a specified \a group.
 
@@ -121,14 +122,6 @@
 
     The message manager is the interface to the "General" output pane for
     general application debug messages.
-*/
-
-/*!
-    \fn ExtensionSystem::PluginManager *ICore::pluginManager() const
-    \brief Returns the application's plugin manager.
-
-    The plugin manager handles the plugin life cycles and manages
-    the common object pool.
 */
 
 /*!
@@ -191,7 +184,7 @@
 */
 
 /*!
-    \fn QSettings *ICore::settings(QSettings::UserScope scope) const
+    \fn QSettings *ICore::settings(QSettings::Scope scope = QSettings::UserScope) const
     \brief Returns the application's main settings object.
 
     You can use it to retrieve or set application wide settings
@@ -262,7 +255,7 @@
 */
 
 /*!
-    \fn void ICore::updateAdditionalContexts(const Core::Context &remove, const Core::Context &add)
+    \fn void ICore::updateAdditionalContexts(const Context &remove, const Context &add)
     \brief Change the currently active additional contexts.
 
     Removes the list of additional contexts specified by \a remove and adds the
@@ -302,7 +295,7 @@
 */
 
 /*!
-    \fn void ICore::openFiles(const QStringList &fileNames)
+    \fn void ICore::openFiles(const QStringList &fileNames, OpenFilesFlags flags = None)
     \brief Open all files from a list of \a fileNames like it would be
     done if they were given to Qt Creator on the command line, or
     they were opened via \gui{File|Open}.

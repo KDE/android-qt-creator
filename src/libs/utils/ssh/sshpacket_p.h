@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -68,6 +68,8 @@ enum SshPacketType {
     SSH_MSG_REQUEST_SUCCESS = 81,
     SSH_MSG_REQUEST_FAILURE = 82,
 
+    // TODO: We currently take no precautions against sending these messages
+    //       during a key re-exchange, which is not allowed.
     SSH_MSG_CHANNEL_OPEN = 90,
     SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91,
     SSH_MSG_CHANNEL_OPEN_FAILURE = 92,
@@ -113,8 +115,7 @@ public:
 
     const QByteArray &rawData() const { return m_data; }
 
-    struct Payload { const char *data; quint32 size; };
-    Payload payLoad() const;
+    QByteArray payLoad() const;
 
 protected:
     AbstractSshPacket();

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,15 +35,19 @@
 
 #include <coreplugin/icore.h>
 #include <utils/reloadpromptutils.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
 #include <QtDesigner/QDesignerFormWindowInterface>
 #include <QtDesigner/QDesignerFormWindowManagerInterface>
 #include <QtDesigner/QDesignerFormEditorInterface>
-#include "qt_private/qsimpleresource_p.h"
+#if QT_VERSION < 0x050000
+#    include "qt_private/qsimpleresource_p.h"
+#endif
 
 #include <QtGui/QMessageBox>
 #include <QtGui/QMainWindow>
+#include <QtGui/QUndoStack>
 
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
@@ -56,13 +60,16 @@ namespace Internal {
 FormWindowFile::FormWindowFile(QDesignerFormWindowInterface *form, QObject *parent)
   : Core::IFile(parent),
     m_mimeType(QLatin1String(Designer::Constants::FORM_MIMETYPE)),
+    m_shouldAutoSave(false),
     m_formWindow(form)
 {
     connect(m_formWindow->core()->formWindowManager(), SIGNAL(formWindowRemoved(QDesignerFormWindowInterface*)),
             this, SLOT(slotFormWindowRemoved(QDesignerFormWindowInterface*)));
+    connect(m_formWindow->commandHistory(), SIGNAL(indexChanged(int)),
+            this, SLOT(setShouldAutoSave()));
 }
 
-bool FormWindowFile::save(const QString &name /* = QString() */)
+bool FormWindowFile::save(QString *errorString, const QString &name, bool autoSave)
 {
     const QString actualName = name.isEmpty() ? fileName() : name;
 
@@ -76,15 +83,20 @@ bool FormWindowFile::save(const QString &name /* = QString() */)
 
     const QFileInfo fi(actualName);
     const QString oldFormName = m_formWindow->fileName();
-    const QString formName = fi.absoluteFilePath();
-    m_formWindow->setFileName(formName);
-
-    QString errorString;
+    if (!autoSave)
+        m_formWindow->setFileName(fi.absoluteFilePath());
+#if QT_VERSION >= 0x050000
+    const bool writeOK = writeFile(actualName, errorString);
+#else
     const bool warningsEnabled = qdesigner_internal::QSimpleResource::setWarningsEnabled(false);
     const bool writeOK = writeFile(actualName, errorString);
     qdesigner_internal::QSimpleResource::setWarningsEnabled(warningsEnabled);
+#endif
+    m_shouldAutoSave = false;
+    if (autoSave)
+        return writeOK;
+
     if (!writeOK) {
-        QMessageBox::critical(0, tr("Error saving %1").arg(formName), errorString);
         m_formWindow->setFileName(oldFormName);
         return false;
     }
@@ -112,6 +124,11 @@ QString FormWindowFile::fileName() const
     return m_fileName;
 }
 
+bool FormWindowFile::shouldAutoSave() const
+{
+    return m_shouldAutoSave;
+}
+
 bool FormWindowFile::isModified() const
 {
     return m_formWindow && m_formWindow->isDirty();
@@ -130,29 +147,20 @@ bool FormWindowFile::isSaveAsAllowed() const
     return true;
 }
 
-Core::IFile::ReloadBehavior FormWindowFile::reloadBehavior(ChangeTrigger state, ChangeType type) const
-{
-    if (type == TypePermissions)
-        return BehaviorSilent;
-    if (type == TypeContents) {
-        if (state == TriggerInternal && !isModified())
-            return BehaviorSilent;
-        return BehaviorAsk;
-    }
-    return BehaviorAsk;
-}
-
-void FormWindowFile::reload(ReloadFlag flag, ChangeType type)
+bool FormWindowFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
     if (flag == FlagIgnore)
-        return;
+        return true;
     if (type == TypePermissions) {
         emit changed();
     } else {
         emit aboutToReload();
-        emit reload(m_fileName);
+        emit reload(errorString, m_fileName);
+        if (!errorString->isEmpty())
+            return false;
         emit reloaded();
     }
+    return true;
 }
 
 QString FormWindowFile::defaultPath() const
@@ -178,29 +186,14 @@ QString FormWindowFile::mimeType() const
     return m_mimeType;
 }
 
-bool FormWindowFile::writeFile(const QString &fileName, QString &errorString) const
+bool FormWindowFile::writeFile(const QString &fileName, QString *errorString) const
 {
     if (Designer::Constants::Internal::debug)
         qDebug() << Q_FUNC_INFO << m_fileName << fileName;
 
-    QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-        errorString = tr("Unable to open %1: %2").arg(fileName, file.errorString());
-        return false;
-    }
-    const bool rc = writeFile(file, errorString);
-    file.close();
-    return rc;
-}
-
-bool FormWindowFile::writeFile(QFile &file, QString &errorString) const
-{
-    const QByteArray content = m_formWindow->contents().toUtf8();
-    if (!file.write(content)) {
-        errorString = tr("Unable to write to %1: %2").arg(file.fileName(), file.errorString());
-        return false;
-    }
-    return true;
+    Utils::FileSaver saver(fileName, QIODevice::Text);
+    saver.write(m_formWindow->contents().toUtf8());
+    return saver.finalize(errorString);
 }
 
 void FormWindowFile::setFileName(const QString &fname)

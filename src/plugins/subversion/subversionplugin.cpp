@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,8 +44,10 @@
 #include <vcsbase/vcsbaseeditor.h>
 #include <vcsbase/basevcssubmiteditorfactory.h>
 #include <vcsbase/vcsbaseoutputwindow.h>
+#include <vcsbase/vcsbaseeditorparameterwidget.h>
 #include <utils/synchronousprocess.h>
 #include <utils/parameteraction.h>
+#include <utils/fileutils.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
@@ -79,7 +81,8 @@
 #include <QtXml/QXmlStreamReader>
 #include <limits.h>
 
-using namespace Subversion::Internal;
+namespace Subversion {
+namespace Internal {
 
 static const char * const CMD_ID_SUBVERSION_MENU    = "Subversion.Menu";
 static const char * const CMD_ID_ADD                = "Subversion.Add";
@@ -148,14 +151,6 @@ static inline const VCSBase::VCSBaseEditorParameters *findType(int ie)
 static inline QString debugCodec(const QTextCodec *c)
 {
     return c ? QString::fromAscii(c->name()) : QString::fromAscii("Null codec");
-}
-
-Core::IEditor* locateEditor(const char *property, const QString &entry)
-{
-    foreach (Core::IEditor *ed, Core::EditorManager::instance()->openedEditors())
-        if (ed->property(property).toString() == entry)
-            return ed;
-    return 0;
 }
 
 // Parse "svn status" output for added/modified/deleted files
@@ -272,7 +267,7 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     using namespace Core::Constants;
     using namespace ExtensionSystem;
 
-    VCSBase::VCSBasePlugin::initialize(new SubversionControl(this));
+    initializeVcs(new SubversionControl(this));
 
     m_subversionPluginInstance = this;
     Core::ICore *core = Core::ICore::instance();
@@ -466,7 +461,7 @@ bool SubversionPlugin::initialize(const QStringList & /*arguments */, QString *e
     command->setAttribute(Core::Command::CA_UpdateText);
     connect(m_submitCurrentLogAction, SIGNAL(triggered()), this, SLOT(submitCurrentLog()));
 
-    m_submitDiffAction = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff Selected Files"), this);
+    m_submitDiffAction = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff &Selected Files"), this);
     command = ami->registerAction(m_submitDiffAction , Constants::DIFF_SELECTED, svncommitcontext);
 
     m_submitUndoAction = new QAction(tr("&Undo"), this);
@@ -518,10 +513,9 @@ bool SubversionPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *su
     bool closeEditor = true;
     if (!fileList.empty()) {
         // get message & commit
-        Core::ICore::instance()->fileManager()->blockFileChange(fileIFace);
-        fileIFace->save();
-        Core::ICore::instance()->fileManager()->unblockFileChange(fileIFace);
-        closeEditor= commit(m_commitMessageFileName, fileList);
+        closeEditor = Core::ICore::instance()->fileManager()->saveFile(fileIFace);
+        if (closeEditor)
+            closeEditor = commit(m_commitMessageFileName, fileList);
     }
     if (closeEditor)
         cleanCommitMessageFile();
@@ -533,6 +527,51 @@ void SubversionPlugin::diffCommitFiles(const QStringList &files)
     svnDiff(m_commitRepository, files);
 }
 
+// Collect all parameters required for a diff to be able to associate them
+// with a diff editor and re-run the diff with parameters.
+struct SubversionDiffParameters
+{
+    QString workingDir;
+    QStringList arguments;
+    QStringList files;
+    QString diffName;
+};
+
+// Parameter widget controlling whitespace diff mode, associated with a parameter
+class SubversionDiffParameterWidget : public VCSBase::VCSBaseEditorParameterWidget
+{
+    Q_OBJECT
+public:
+    explicit SubversionDiffParameterWidget(const SubversionDiffParameters &p, QWidget *parent = 0);
+
+signals:
+    void reRunDiff(const Subversion::Internal::SubversionDiffParameters &);
+
+private slots:
+    void triggerReRun();
+
+private:
+    const SubversionDiffParameters m_parameters;
+};
+
+SubversionDiffParameterWidget::SubversionDiffParameterWidget(const SubversionDiffParameters &p, QWidget *parent) :
+    VCSBase::VCSBaseEditorParameterWidget(parent), m_parameters(p)
+{
+    setBaseArguments(p.arguments);
+    addToggleButton(QLatin1String("w"), tr("Ignore whitespace"));
+    connect(this, SIGNAL(argumentsChanged()), this, SLOT(triggerReRun()));
+}
+
+void SubversionDiffParameterWidget::triggerReRun()
+{
+    SubversionDiffParameters effectiveParameters = m_parameters;
+    // Subversion wants" -x -<ext-args>", default being -u
+    const QStringList a = arguments();
+    if (!a.isEmpty())
+        effectiveParameters.arguments << QLatin1String("-x") << (QLatin1String("-u") + a.join(QString()));
+    emit reRunDiff(effectiveParameters);
+}
+
 static inline void setDiffBaseDirectory(Core::IEditor *editor, const QString &db)
 {
     if (VCSBase::VCSBaseEditorWidget *ve = qobject_cast<VCSBase::VCSBaseEditorWidget*>(editor->widget()))
@@ -541,38 +580,58 @@ static inline void setDiffBaseDirectory(Core::IEditor *editor, const QString &db
 
 void SubversionPlugin::svnDiff(const QString &workingDir, const QStringList &files, QString diffname)
 {
+    SubversionDiffParameters p;
+    p.workingDir = workingDir;
+    p.files = files;
+    p.diffName = diffname;
+    svnDiff(p);
+}
+
+void SubversionPlugin::svnDiff(const Subversion::Internal::SubversionDiffParameters &p)
+{
     if (Subversion::Constants::debug)
-        qDebug() << Q_FUNC_INFO << files << diffname;
-    const QString source = VCSBase::VCSBaseEditorWidget::getSource(workingDir, files);
+        qDebug() << Q_FUNC_INFO << p.files << p.diffName;
+    const QString source = VCSBase::VCSBaseEditorWidget::getSource(p.workingDir, p.files);
     QTextCodec *codec = source.isEmpty() ? static_cast<QTextCodec *>(0) : VCSBase::VCSBaseEditorWidget::getCodec(source);
 
-    if (files.count() == 1 && diffname.isEmpty())
-        diffname = QFileInfo(files.front()).fileName();
+    const QString diffName = p.files.count() == 1 && p.diffName.isEmpty() ?
+                             QFileInfo(p.files.front()).fileName() : p.diffName;
 
     QStringList args(QLatin1String("diff"));
-    args << files;
+    args.append(p.arguments);
+    args << p.files;
 
     const SubversionResponse response =
-            runSvn(workingDir, args, m_settings.timeOutMS(), 0, codec);
+            runSvn(p.workingDir, args, m_settings.timeOutMS(), 0, codec);
     if (response.error)
         return;
 
     // diff of a single file? re-use an existing view if possible to support
     // the common usage pattern of continuously changing and diffing a file
-    if (files.count() == 1) {
-        // Show in the same editor if diff has been executed before
-        if (Core::IEditor *editor = locateEditor("originalFileName", files.front())) {
-            editor->createNew(response.stdOut);
-            Core::EditorManager::instance()->activateEditor(editor, Core::EditorManager::ModeSwitch);
-            setDiffBaseDirectory(editor, workingDir);
-            return;
-        }
+    const QString tag = VCSBase::VCSBaseEditorWidget::editorTag(VCSBase::DiffOutput, p.workingDir, p.files);
+    // Show in the same editor if diff has been executed before
+    if (Core::IEditor *existingEditor = VCSBase::VCSBaseEditorWidget::locateEditorByTag(tag)) {
+        existingEditor->createNew(response.stdOut);
+        Core::EditorManager::instance()->activateEditor(existingEditor, Core::EditorManager::ModeSwitch);
+        setDiffBaseDirectory(existingEditor, p.workingDir);
+        return;
     }
-    const QString title = QString::fromLatin1("svn diff %1").arg(diffname);
+    const QString title = QString::fromLatin1("svn diff %1").arg(diffName);
     Core::IEditor *editor = showOutputInEditor(title, response.stdOut, VCSBase::DiffOutput, source, codec);
-    setDiffBaseDirectory(editor, workingDir);
-    if (files.count() == 1)
-        editor->setProperty("originalFileName", files.front());
+    setDiffBaseDirectory(editor, p.workingDir);
+    VCSBase::VCSBaseEditorWidget::tagEditor(editor, tag);
+    SubversionEditor *diffEditorWidget = qobject_cast<SubversionEditor *>(editor->widget());
+    QTC_ASSERT(diffEditorWidget, return ; )
+
+    // Wire up the parameter widget to trigger a re-run on
+    // parameter change and 'revert' from inside the diff editor.
+    diffEditorWidget->setRevertDiffChunkEnabled(true);
+    SubversionDiffParameterWidget *pw = new SubversionDiffParameterWidget(p);
+    connect(pw, SIGNAL(reRunDiff(Subversion::Internal::SubversionDiffParameters)),
+            this, SLOT(svnDiff(Subversion::Internal::SubversionDiffParameters)));
+    connect(diffEditorWidget, SIGNAL(diffChunkReverted(VCSBase::DiffChunk)),
+            pw, SLOT(triggerReRun()));
+    diffEditorWidget->setConfigurationWidget(pw);
 }
 
 SubversionSubmitEditor *SubversionPlugin::openSubversionSubmitEditor(const QString &fileName)
@@ -750,19 +809,17 @@ void SubversionPlugin::startCommit(const QString &workingDir, const QStringList 
     }
     m_commitRepository = workingDir;
     // Create a new submit change file containing the submit template
-    QTemporaryFile changeTmpFile;
-    changeTmpFile.setAutoRemove(false);
-    if (!changeTmpFile.open()) {
-        VCSBase::VCSBaseOutputWindow::instance()->appendError(tr("Cannot create temporary file: %1").arg(changeTmpFile.errorString()));
-        return;
-    }
-    m_commitMessageFileName = changeTmpFile.fileName();
-    // TODO: Regitctrieve submit template from
+    Utils::TempFileSaver saver;
+    saver.setAutoRemove(false);
+    // TODO: Retrieve submit template from
     const QString submitTemplate;
     // Create a submit
-    changeTmpFile.write(submitTemplate.toUtf8());
-    changeTmpFile.flush();
-    changeTmpFile.close();
+    saver.write(submitTemplate.toUtf8());
+    if (!saver.finalize()) {
+        VCSBase::VCSBaseOutputWindow::instance()->appendError(saver.errorString());
+        return;
+    }
+    m_commitMessageFileName = saver.fileName();
     // Create a submit editor and set file list
     SubversionSubmitEditor *editor = openSubversionSubmitEditor(m_commitMessageFileName);
     editor->setStatusList(statusOutput);
@@ -864,14 +921,15 @@ void SubversionPlugin::filelog(const QString &workingDir,
     // the common usage pattern of continuously changing and diffing a file
 
     const QString id = VCSBase::VCSBaseEditorWidget::getTitleId(workingDir, files);
-    if (Core::IEditor *editor = locateEditor("logFileName", id)) {
+    const QString tag = VCSBase::VCSBaseEditorWidget::editorTag(VCSBase::LogOutput, workingDir, files);
+    if (Core::IEditor *editor = VCSBase::VCSBaseEditorWidget::locateEditorByTag(tag)) {
         editor->createNew(response.stdOut);
         Core::EditorManager::instance()->activateEditor(editor, Core::EditorManager::ModeSwitch);
     } else {
         const QString title = QString::fromLatin1("svn log %1").arg(id);
         const QString source = VCSBase::VCSBaseEditorWidget::getSource(workingDir, files);
         Core::IEditor *newEditor = showOutputInEditor(title, response.stdOut, VCSBase::LogOutput, source, /*codec*/0);
-        newEditor->setProperty("logFileName", id);
+        VCSBase::VCSBaseEditorWidget::tagEditor(newEditor, tag);
         if (enableAnnotationContextMenu)
             VCSBase::VCSBaseEditorWidget::getVcsBaseEditor(newEditor)->setFileLogAnnotateEnabled(true);
     }
@@ -938,16 +996,17 @@ void SubversionPlugin::vcsAnnotate(const QString &workingDir, const QString &fil
     if (lineNumber <= 0)
         lineNumber = VCSBase::VCSBaseEditorWidget::lineNumberOfCurrentEditor(source);
     // Determine id
-    const QString id = VCSBase::VCSBaseEditorWidget::getTitleId(workingDir, QStringList(file), revision);
-
-    if (Core::IEditor *editor = locateEditor("annotateFileName", id)) {
+    const QStringList files = QStringList(file);
+    const QString id = VCSBase::VCSBaseEditorWidget::getTitleId(workingDir, files, revision);
+    const QString tag = VCSBase::VCSBaseEditorWidget::editorTag(VCSBase::AnnotateOutput, workingDir, files);
+    if (Core::IEditor *editor = VCSBase::VCSBaseEditorWidget::locateEditorByTag(tag)) {
         editor->createNew(response.stdOut);
         VCSBase::VCSBaseEditorWidget::gotoLineOfEditor(editor, lineNumber);
         Core::EditorManager::instance()->activateEditor(editor, Core::EditorManager::ModeSwitch);
     } else {
         const QString title = QString::fromLatin1("svn annotate %1").arg(id);
         Core::IEditor *newEditor = showOutputInEditor(title, response.stdOut, VCSBase::AnnotateOutput, source, codec);
-        newEditor->setProperty("annotateFileName", id);
+        VCSBase::VCSBaseEditorWidget::tagEditor(newEditor, tag);
         VCSBase::VCSBaseEditorWidget::gotoLineOfEditor(newEditor, lineNumber);
     }
 }
@@ -1005,13 +1064,14 @@ void SubversionPlugin::describe(const QString &source, const QString &changeNr)
     // Re-use an existing view if possible to support
     // the common usage pattern of continuously changing and diffing a file
     const QString id = diffArg + source;
-    if (Core::IEditor *editor = locateEditor("describeChange", id)) {
+    const QString tag = VCSBase::VCSBaseEditorWidget::editorTag(VCSBase::DiffOutput, source, QStringList(), changeNr);
+    if (Core::IEditor *editor = VCSBase::VCSBaseEditorWidget::locateEditorByTag(tag)) {
         editor->createNew(description);
         Core::EditorManager::instance()->activateEditor(editor, Core::EditorManager::ModeSwitch);
     } else {
         const QString title = QString::fromLatin1("svn describe %1#%2").arg(fi.fileName(), changeNr);
         Core::IEditor *newEditor = showOutputInEditor(title, description, VCSBase::DiffOutput, source, codec);
-        newEditor->setProperty("describeChange", id);
+        VCSBase::VCSBaseEditorWidget::tagEditor(newEditor, tag);
     }
 }
 
@@ -1141,10 +1201,11 @@ void SubversionPlugin::setSettings(const SubversionSettings &s)
         m_settings = s;
         if (QSettings *settings = Core::ICore::instance()->settings())
             m_settings.toSettings(settings);
+        subVersionControl()->emitConfigurationChanged();
     }
 }
 
-SubversionPlugin *SubversionPlugin::subversionPluginInstance()
+SubversionPlugin *SubversionPlugin::instance()
 {
     QTC_ASSERT(m_subversionPluginInstance, return m_subversionPluginInstance);
     return m_subversionPluginInstance;
@@ -1349,4 +1410,9 @@ SubversionControl *SubversionPlugin::subVersionControl() const
     return static_cast<SubversionControl *>(versionControl());
 }
 
-Q_EXPORT_PLUGIN(SubversionPlugin)
+} // Internal
+} // Subversion
+
+Q_EXPORT_PLUGIN(Subversion::Internal::SubversionPlugin)
+
+#include "subversionplugin.moc"

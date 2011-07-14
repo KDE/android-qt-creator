@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -176,6 +176,13 @@ DebuggerSettings::DebuggerSettings(QSettings *settings)
     insertItem(UseAlternatingRowColors, item);
 
     item = new SavedAction(this);
+    item->setText(tr("Debugger Font Size Follows Main Editor"));
+    item->setSettingsKey(debugModeGroup, QLatin1String("FontSizeFollowsEditor"));
+    item->setCheckable(true);
+    item->setDefaultValue(false);
+    insertItem(FontSizeFollowsEditor, item);
+
+    item = new SavedAction(this);
     item->setText(tr("Show a Message Box When Receiving a Signal"));
     item->setSettingsKey(debugModeGroup, QLatin1String("UseMessageBoxForSignals"));
     item->setCheckable(true);
@@ -313,6 +320,14 @@ DebuggerSettings::DebuggerSettings(QSettings *settings)
     item->setValue(false);
     item->setSettingsKey(debugModeGroup, QLatin1String("BreakOnCatch"));
     insertItem(BreakOnCatch, item);
+
+    item = new SavedAction(this);
+    item->setText(tr("Break on \"qWarning\""));
+    item->setCheckable(true);
+    item->setDefaultValue(false);
+    item->setValue(false);
+    item->setSettingsKey(debugModeGroup, QLatin1String("BreakOnWarning"));
+    insertItem(BreakOnWarning, item);
 
     //
     // Settings

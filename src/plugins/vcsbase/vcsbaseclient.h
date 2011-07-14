@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,7 +40,6 @@
 #include <QtCore/QPair>
 #include <QtCore/QSharedPointer>
 #include <QtCore/QScopedPointer>
-#include <QtCore/QHash>
 #include <QtCore/QVariant>
 
 QT_BEGIN_NAMESPACE
@@ -62,34 +61,35 @@ class VCSBaseEditorWidget;
 class VCSBaseClientSettings;
 class VCSJob;
 class VCSBaseClientPrivate;
+class VCSBaseEditorParameterWidget;
 
 class VCSBASE_EXPORT VCSBaseClient : public QObject
 {
     Q_OBJECT
 public:
-    typedef QHash<int, QVariant> ExtraCommandOptions;
-
-    explicit VCSBaseClient(const VCSBaseClientSettings &settings);
+    explicit VCSBaseClient(VCSBaseClientSettings *settings);
     ~VCSBaseClient();
     virtual bool synchronousCreateRepository(const QString &workingDir);
     virtual bool synchronousClone(const QString &workingDir,
                                   const QString &srcLocation,
                                   const QString &dstLocation,
-                                  const ExtraCommandOptions &extraOptions = ExtraCommandOptions());
+                                  const QStringList &extraOptions = QStringList());
     virtual bool synchronousAdd(const QString &workingDir, const QString &fileName);
     virtual bool synchronousRemove(const QString &workingDir, const QString &fileName);
     virtual bool synchronousMove(const QString &workingDir,
                                  const QString &from, const QString &to);
     virtual bool synchronousPull(const QString &workingDir,
                                  const QString &srcLocation,
-                                 const ExtraCommandOptions &extraOptions = ExtraCommandOptions());
+                                 const QStringList &extraOptions = QStringList());
     virtual bool synchronousPush(const QString &workingDir,
                                  const QString &dstLocation,
-                                 const ExtraCommandOptions &extraOptions = ExtraCommandOptions());
+                                 const QStringList &extraOptions = QStringList());
     void annotate(const QString &workingDir, const QString &file,
                   const QString revision = QString(), int lineNumber = -1);
-    void diff(const QString &workingDir, const QStringList &files = QStringList());
+    void diff(const QString &workingDir, const QStringList &files = QStringList(),
+              const QStringList &extraOptions = QStringList());
     void log(const QString &workingDir, const QStringList &files = QStringList(),
+             const QStringList &extraOptions = QStringList(),
              bool enableAnnotationContextMenu = false);
     void status(const QString &workingDir, const QString &file = QString());
     void statusWithSignal(const QString &repository);
@@ -100,11 +100,11 @@ public:
     void commit(const QString &repositoryRoot,
                 const QStringList &files,
                 const QString &commitMessageFile,
-                const ExtraCommandOptions &extraOptions = ExtraCommandOptions());
+                const QStringList &extraOptions = QStringList());
 
     virtual QString findTopLevelForFile(const QFileInfo &file) const = 0;
 
-    const VCSBaseClientSettings &settings() const;
+    virtual VCSBaseClientSettings *settings() const;
 
 signals:
     void parsedStatus(const QList<QPair<QString, QString> > &statusList);
@@ -139,22 +139,27 @@ protected:
 
     virtual QStringList cloneArguments(const QString &srcLocation,
                                        const QString &dstLocation,
-                                       const ExtraCommandOptions &extraOptions) const = 0;
+                                       const QStringList &extraOptions) const = 0;
     virtual QStringList pullArguments(const QString &srcLocation,
-                                      const ExtraCommandOptions &extraOptions) const = 0;
+                                      const QStringList &extraOptions) const = 0;
     virtual QStringList pushArguments(const QString &dstLocation,
-                                      const ExtraCommandOptions &extraOptions) const = 0;
+                                      const QStringList &extraOptions) const = 0;
     virtual QStringList commitArguments(const QStringList &files,
                                         const QString &commitMessageFile,
-                                        const ExtraCommandOptions &extraOptions) const = 0;
+                                        const QStringList &extraOptions) const = 0;
     virtual QStringList importArguments(const QStringList &files) const = 0;
     virtual QStringList updateArguments(const QString &revision) const = 0;
     virtual QStringList revertArguments(const QString &file, const QString &revision) const = 0;
     virtual QStringList revertAllArguments(const QString &revision) const = 0;
     virtual QStringList annotateArguments(const QString &file,
                                           const QString &revision, int lineNumber) const = 0;
-    virtual QStringList diffArguments(const QStringList &files) const = 0;
-    virtual QStringList logArguments(const QStringList &files) const = 0;
+    virtual QStringList diffArguments(const QStringList &files,
+                                      const QStringList &extraOptions) const = 0;
+    virtual VCSBaseEditorParameterWidget *createDiffEditor(const QString &workingDir,
+                                                           const QStringList &files,
+                                                           const QStringList &extraOptions);
+    virtual QStringList logArguments(const QStringList &files,
+                                     const QStringList &extraOptions) const = 0;
     virtual QStringList statusArguments(const QString &file) const = 0;
     virtual QStringList viewArguments(const QString &revision) const = 0;
 
@@ -180,6 +185,7 @@ protected:
 private slots:
     void statusParser(const QByteArray &data);
     void slotAnnotateRevisionRequested(const QString &source, QString change, int lineNumber);
+    void saveSettings();
 
 private:
     QScopedPointer<VCSBaseClientPrivate> d;

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -308,7 +308,10 @@ int AutoCompleter::paragraphSeparatorAboutToBeInserted(QTextCursor &cursor,
     cursor.insertText(textToInsert);
     cursor.setPosition(pos);
 
-    m_allowSkippingOfBlockEnd = true;
+    // if we actually insert a separator, allow it to be overwritten if
+    // user types it
+    if (!textToInsert.isEmpty())
+        m_allowSkippingOfBlockEnd = true;
 
     return 1;
 }

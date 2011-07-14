@@ -7,10 +7,15 @@ dll {
 INCLUDEPATH += $$PWD
 QT += network
 
+
+win32-msvc* {
+    # disable warnings caused by botan headers
+    QMAKE_CXXFLAGS += -wd4250 -wd4290
+}
+
 SOURCES += $$PWD/environment.cpp \
     $$PWD/environmentmodel.cpp \
     $$PWD/qtcprocess.cpp \
-    $$PWD/abstractprocess.cpp \
     $$PWD/reloadpromptutils.cpp \
     $$PWD/stringutils.cpp \
     $$PWD/filesearch.cpp \
@@ -19,6 +24,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/wizard.cpp \
     $$PWD/filewizardpage.cpp \
     $$PWD/filewizarddialog.cpp \
+    $$PWD/filesystemwatcher.cpp \
     $$PWD/projectintropage.cpp \
     $$PWD/basevalidatinglineedit.cpp \
     $$PWD/filenamevalidatinglineedit.cpp \
@@ -32,6 +38,8 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/savedaction.cpp \
     $$PWD/submiteditorwidget.cpp \
     $$PWD/synchronousprocess.cpp \
+    $$PWD/savefile.cpp \
+    $$PWD/fileutils.cpp \
     $$PWD/submitfieldwidget.cpp \
     $$PWD/consoleprocess.cpp \
     $$PWD/uncommentselection.cpp \
@@ -40,7 +48,6 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/checkablemessagebox.cpp \
     $$PWD/styledbar.cpp \
     $$PWD/stylehelper.cpp \
-    $$PWD/welcomemodetreewidget.cpp \
     $$PWD/iwelcomepage.cpp \
     $$PWD/fancymainwindow.cpp \
     $$PWD/detailsbutton.cpp \
@@ -77,10 +84,13 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/ssh/sftpincomingpacket.cpp \
     $$PWD/ssh/sftpdefs.cpp \
     $$PWD/ssh/sftpchannel.cpp \
-    $$PWD/ssh/sshremoteprocessrunner.cpp
+    $$PWD/ssh/sshremoteprocessrunner.cpp \
+    $$PWD/ssh/sshconnectionmanager.cpp \
+    $$PWD/outputformatter.cpp \
+    $$PWD/flowlayout.cpp
 
 win32 {
-    SOURCES += $$PWD/abstractprocess_win.cpp \
+    SOURCES += \
         $$PWD/consoleprocess_win.cpp \
         $$PWD/winutils.cpp
     HEADERS += $$PWD/winutils.h
@@ -104,6 +114,7 @@ HEADERS += $$PWD/environment.h \
     $$PWD/wizard.h \
     $$PWD/filewizardpage.h \
     $$PWD/filewizarddialog.h \
+    $$PWD/filesystemwatcher.h \
     $$PWD/projectintropage.h \
     $$PWD/basevalidatinglineedit.h \
     $$PWD/filenamevalidatinglineedit.h \
@@ -116,9 +127,11 @@ HEADERS += $$PWD/environment.h \
     $$PWD/qtcolorbutton.h \
     $$PWD/savedaction.h \
     $$PWD/submiteditorwidget.h \
-    $$PWD/abstractprocess.h \
     $$PWD/consoleprocess.h \
+    $$PWD/consoleprocess_p.h \
     $$PWD/synchronousprocess.h \
+    $$PWD/savefile.h \
+    $$PWD/fileutils.h \
     $$PWD/submitfieldwidget.h \
     $$PWD/uncommentselection.h \
     $$PWD/parameteraction.h \
@@ -127,7 +140,6 @@ HEADERS += $$PWD/environment.h \
     $$PWD/qtcassert.h \
     $$PWD/styledbar.h \
     $$PWD/stylehelper.h \
-    $$PWD/welcomemodetreewidget.h \
     $$PWD/iwelcomepage.h \
     $$PWD/fancymainwindow.h \
     $$PWD/detailsbutton.h \
@@ -170,8 +182,12 @@ HEADERS += $$PWD/environment.h \
     $$PWD/ssh/sftpchannel.h \
     $$PWD/ssh/sftpchannel_p.h \
     $$PWD/ssh/sshremoteprocessrunner.h \
-    $$PWD/settingsutils.h \
-    $$PWD/statuslabel.h
+    $$PWD/ssh/sshconnectionmanager.h \
+    $$PWD/ssh/sshpseudoterminal.h \
+    $$PWD/statuslabel.h \
+    $$PWD/outputformatter.h \
+    $$PWD/outputformat.h \
+    $$PWD/flowlayout.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \

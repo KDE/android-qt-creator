@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -59,6 +59,7 @@ private:
     void removeSnapshot(int i);
     void keyPressEvent(QKeyEvent *ev);
     void contextMenuEvent(QContextMenuEvent *ev);
+    void setModel(QAbstractItemModel *model);
 
     SnapshotHandler *m_snapshotHandler;
 };

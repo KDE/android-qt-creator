@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,12 +50,9 @@ public:
     explicit Qt4SymbianTarget(Qt4Project *parent, const QString &id);
     virtual ~Qt4SymbianTarget();
 
-    Internal::Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
-    ProjectExplorer::DeployConfigurationFactory *deployConfigurationFactory() const;
+    Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
 
     QList<ProjectExplorer::ToolChain *> possibleToolChains(ProjectExplorer::BuildConfiguration *bc) const;
-
-    QString defaultBuildDirectory() const;
 
     void createApplicationProFiles();
     virtual QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);
@@ -74,8 +71,7 @@ private:
     const QPixmap m_connectedPixmap;
     const QPixmap m_disconnectedPixmap;
 
-    Internal::Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
-    ProjectExplorer::DeployConfigurationFactory *m_deployConfigurationFactory;
+    Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
 };
 } // namespace Internal
 } // namespace Qt4ProjectManager

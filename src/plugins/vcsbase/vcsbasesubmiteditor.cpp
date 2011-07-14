@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,6 +48,7 @@
 #include <utils/checkablemessagebox.h>
 #include <utils/synchronousprocess.h>
 #include <utils/submitfieldwidget.h>
+#include <utils/fileutils.h>
 #include <find/basetextfind.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorsettings.h>
@@ -77,6 +78,40 @@
 enum { debug = 0 };
 enum { wantToolBar = 0 };
 
+/*!
+    \struct VCSBase::VCSBaseSubmitEditorParameters
+
+    \brief Utility struct to parametrize a VCSBaseSubmitEditor.
+*/
+
+/*!
+    \class  VCSBase::VCSBaseSubmitEditor
+
+    \brief Base class for a submit editor based on the Utils::SubmitEditorWidget.
+
+    Presents the commit message in a text editor and an
+    checkable list of modified files in a list window. The user can delete
+    files from the list by pressing unchecking them or diff the selection
+    by doubleclicking.
+
+    The action matching the the ids (unless 0) of the parameter struct will be
+    registered with the EditorWidget and submit/diff actions will be added to
+    a toolbar.
+
+    For the given context, there must be only one instance of the editor
+    active.
+    To start a submit, set the submit template on the editor and the output
+    of the VCS status command listing the modified files as fileList and open
+    it.
+
+    The submit process is started by listening on the editor close
+    signal and then asking the IFile interface of the editor to save the file
+    within a IFileManager::blockFileChange() section
+    and to launch the submit process. In addition, the action registered
+    for submit should be connected to a slot triggering the close of the
+    current editor in the editor manager.
+*/
+
 namespace VCSBase {
 
 static inline QString submitMessageCheckScript()
@@ -101,7 +136,6 @@ struct VCSBaseSubmitEditorPrivate
     QPointer<QAction> m_submitAction;
 
     Internal::NickNameDialog *m_nickNameDialog;
-    Core::Context m_contexts;
 };
 
 VCSBaseSubmitEditorPrivate::VCSBaseSubmitEditorPrivate(const VCSBaseSubmitEditorParameters *parameters,
@@ -111,8 +145,7 @@ VCSBaseSubmitEditorPrivate::VCSBaseSubmitEditorPrivate(const VCSBaseSubmitEditor
     m_toolWidget(0),
     m_parameters(parameters),
     m_file(new VCSBase::Internal::SubmitEditorFile(QLatin1String(parameters->mimeType), q)),
-    m_nickNameDialog(0),
-    m_contexts(parameters->context)
+    m_nickNameDialog(0)
 {
 }
 
@@ -120,6 +153,9 @@ VCSBaseSubmitEditor::VCSBaseSubmitEditor(const VCSBaseSubmitEditorParameters *pa
                                          Utils::SubmitEditorWidget *editorWidget) :
     m_d(new VCSBaseSubmitEditorPrivate(parameters, editorWidget, this))
 {
+    setContext(Core::Context(parameters->context));
+    setWidget(m_d->m_widget);
+
     // Message font according to settings
     const TextEditor::FontSettings fs = TextEditor::TextEditorSettings::instance()->fontSettings();
     QFont font = editorWidget->descriptionEdit()->font();
@@ -129,7 +165,8 @@ VCSBaseSubmitEditor::VCSBaseSubmitEditor(const VCSBaseSubmitEditorParameters *pa
 
     m_d->m_file->setModified(false);
     // We are always clean to prevent the editor manager from asking to save.
-    connect(m_d->m_file, SIGNAL(saveMe(QString)), this, SLOT(save(QString)));
+    connect(m_d->m_file, SIGNAL(saveMe(QString*, QString, bool)),
+            this, SLOT(save(QString*, QString, bool)));
 
     connect(m_d->m_widget, SIGNAL(diffSelected(QStringList)), this, SLOT(slotDiffSelectedVCSFiles(QStringList)));
     connect(m_d->m_widget->descriptionEdit(), SIGNAL(textChanged()), this, SLOT(slotDescriptionChanged()));
@@ -196,13 +233,11 @@ static inline QStringList fieldTexts(const QString &fileContents)
 
 void VCSBaseSubmitEditor::createUserFields(const QString &fieldConfigFile)
 {
-    QFile fieldFile(fieldConfigFile);
-    if (!fieldFile.open(QIODevice::ReadOnly|QIODevice::Text)) {
-        qWarning("%s: Unable to open %s: %s", Q_FUNC_INFO, qPrintable(fieldConfigFile), qPrintable(fieldFile.errorString()));
+    Utils::FileReader reader;
+    if (!reader.fetch(fieldConfigFile, QIODevice::Text, Core::ICore::instance()->mainWindow()))
         return;
-    }
     // Parse into fields
-    const QStringList fields = fieldTexts(QString::fromUtf8(fieldFile.readAll()));
+    const QStringList fields = fieldTexts(QString::fromUtf8(reader.data()));
     if (fields.empty())
         return;
     // Create a completer on user names
@@ -294,26 +329,21 @@ bool VCSBaseSubmitEditor::createNew(const QString &contents)
     return true;
 }
 
-bool VCSBaseSubmitEditor::open(const QString &fileName)
+bool VCSBaseSubmitEditor::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     if (fileName.isEmpty())
         return false;
 
-    const QFileInfo fi(fileName);
-    if (!fi.isFile() || !fi.isReadable())
+    Utils::FileReader reader;
+    if (!reader.fetch(realFileName, QIODevice::Text, errorString))
         return false;
 
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly|QIODevice::Text)) {
-        qWarning("Unable to open %s: %s", qPrintable(fileName), qPrintable(file.errorString()));
-        return false;
-    }
-
-    const QString text = QString::fromLocal8Bit(file.readAll());
+    const QString text = QString::fromLocal8Bit(reader.data());
     if (!createNew(text))
         return false;
 
-    m_d->m_file->setFileName(fi.absoluteFilePath());
+    m_d->m_file->setFileName(QFileInfo(fileName).absoluteFilePath());
+    m_d->m_file->setModified(fileName != realFileName);
     return true;
 }
 
@@ -392,16 +422,6 @@ QWidget *VCSBaseSubmitEditor::toolBar()
     return m_d->m_toolWidget;
 }
 
-Core::Context VCSBaseSubmitEditor::context() const
-{
-    return m_d->m_contexts;
-}
-
-QWidget *VCSBaseSubmitEditor::widget()
-{
-    return m_d->m_widget;
-}
-
 QByteArray VCSBaseSubmitEditor::saveState() const
 {
     return QByteArray();
@@ -432,18 +452,15 @@ void VCSBaseSubmitEditor::slotDiffSelectedVCSFiles(const QStringList &rawList)
      emit diffSelectedFiles(rawList);
 }
 
-bool VCSBaseSubmitEditor::save(const QString &fileName)
+bool VCSBaseSubmitEditor::save(QString *errorString, const QString &fileName, bool autoSave)
 {
     const QString fName = fileName.isEmpty() ? m_d->m_file->fileName() : fileName;
-    QFile file(fName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        qWarning("Unable to open %s: %s", qPrintable(fName), qPrintable(file.errorString()));
+    Utils::FileSaver saver(fName, QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text);
+    saver.write(fileContents().toLocal8Bit());
+    if (!saver.finalize(errorString))
         return false;
-    }
-    file.write(fileContents().toLocal8Bit());
-    if (!file.flush())
-        return false;
-    file.close();
+    if (autoSave)
+        return true;
     const QFileInfo fi(fName);
     m_d->m_file->setFileName(fi.absoluteFilePath());
     m_d->m_file->setModified(false);
@@ -598,24 +615,17 @@ bool VCSBaseSubmitEditor::runSubmitMessageCheckScript(const QString &checkScript
     if (!tempFilePattern.endsWith(QDir::separator()))
         tempFilePattern += QDir::separator();
     tempFilePattern += QLatin1String("msgXXXXXX.txt");
-    QTemporaryFile messageFile(tempFilePattern);
-    messageFile.setAutoRemove(true);
-    if (!messageFile.open()) {
-        *errorMessage = tr("Unable to open '%1': %2").
-                        arg(QDir::toNativeSeparators(messageFile.fileName()),
-                            messageFile.errorString());
+    Utils::TempFileSaver saver(tempFilePattern);
+    saver.write(fileContents().toUtf8());
+    if (!saver.finalize(errorMessage))
         return false;
-    }
-    const QString messageFileName = messageFile.fileName();
-    messageFile.write(fileContents().toUtf8());
-    messageFile.close();
     // Run check process
     VCSBaseOutputWindow *outputWindow = VCSBaseOutputWindow::instance();
     outputWindow->appendCommand(msgCheckScript(m_d->m_checkScriptWorkingDirectory, checkScript));
     QProcess checkProcess;
     if (!m_d->m_checkScriptWorkingDirectory.isEmpty())
         checkProcess.setWorkingDirectory(m_d->m_checkScriptWorkingDirectory);
-    checkProcess.start(checkScript, QStringList(messageFileName));
+    checkProcess.start(checkScript, QStringList(saver.fileName()));
     checkProcess.closeWriteChannel();
     if (!checkProcess.waitForStarted()) {
         *errorMessage = tr("The check script '%1' could not be started: %2").arg(checkScript, checkProcess.errorString());
@@ -630,7 +640,7 @@ bool VCSBaseSubmitEditor::runSubmitMessageCheckScript(const QString &checkScript
         return false;
     }
     if (checkProcess.exitStatus() != QProcess::NormalExit) {
-        *errorMessage = tr("The check script '%1' crashed").
+        *errorMessage = tr("The check script '%1' crashed.").
                         arg(QDir::toNativeSeparators(checkScript));
         return false;
     }

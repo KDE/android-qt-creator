@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -60,6 +60,7 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
 #include <utils/qtcassert.h>
+#include <utils/fileutils.h>
 
 #include <QtDesigner/QDesignerFormWindowInterface>
 #include <QtDesigner/QDesignerFormEditorInterface>
@@ -88,12 +89,24 @@ static QString msgClassNotFound(const QString &uiClassName, const QList<Document
 }
 
 QtCreatorIntegration::QtCreatorIntegration(QDesignerFormEditorInterface *core, FormEditorW *parent) :
-    qdesigner_internal::QDesignerIntegration(core, ::qobject_cast<QObject*>(parent)),
+#if QT_VERSION >= 0x050000
+    QDesignerIntegration(core, parent),
+#else
+    qdesigner_internal::QDesignerIntegration(core, parent),
+#endif
     m_few(parent)
 {
+#if QT_VERSION >= 0x050000
+    setResourceFileWatcherBehaviour(ReloadResourceFileSilently);
+    Feature f = features();
+    f |= SlotNavigationFeature;
+    f &= ~ResourceEditorFeature;
+    setFeatures(f);
+#else
     setResourceFileWatcherBehaviour(QDesignerIntegration::ReloadSilently);
     setResourceEditingEnabled(false);
     setSlotNavigationEnabled(true);
+#endif
     connect(this, SIGNAL(navigateToSlot(QString, QString, QStringList)),
             this, SLOT(slotNavigateToSlot(QString, QString, QStringList)));
     connect(this, SIGNAL(helpRequested(QString,QString)),
@@ -114,7 +127,11 @@ void QtCreatorIntegration::updateSelection()
 {
     if (const EditorData ed = m_few->activeEditor())
         ed.widgetHost->updateFormWindowSelectionHandles(true);
+#if QT_VERSION >= 0x050000
+    QDesignerIntegration::updateSelection();
+#else
     qdesigner_internal::QDesignerIntegration::updateSelection();
+#endif
 }
 
 QWidget *QtCreatorIntegration::containerWindow(QWidget * /*widget*/) const
@@ -181,13 +198,13 @@ static const Class *findClass(const Namespace *parentNameSpace, const QString &c
 
     const Overview o;
     const unsigned namespaceMemberCount = parentNameSpace->memberCount();
-    for (unsigned i = 0; i < namespaceMemberCount; i++) { // we go through all namespace members
+    for (unsigned i = 0; i < namespaceMemberCount; ++i) { // we go through all namespace members
         const Symbol *sym = parentNameSpace->memberAt(i);
         // we have found a class - we are interested in classes only
         if (const Class *cl = sym->asClass()) {
             // 1) we go through class members
             const unsigned classMemberCount = cl->memberCount();
-            for (unsigned j = 0; j < classMemberCount; j++)
+            for (unsigned j = 0; j < classMemberCount; ++j)
                 if (const Declaration *decl = cl->memberAt(j)->asDeclaration()) {
                 // we want to know if the class contains a member (so we look into
                 // a declaration) of uiClassName type
@@ -225,7 +242,7 @@ static Function *findDeclaration(const Class *cl, const QString &functionName)
     // we are interested only in declarations (can be decl of method or of a field)
     // we are only interested in declarations of methods
     const Overview overview;
-    for (unsigned j = 0; j < mCount; j++) { // go through all members
+    for (unsigned j = 0; j < mCount; ++j) { // go through all members
         if (Declaration *decl = cl->memberAt(j)->asDeclaration())
             if (Function *fun = decl->type()->asFunctionType()) {
                 // Format signature
@@ -488,9 +505,9 @@ static Document::Ptr getParsedDocument(const QString &fileName, CppModelManagerI
     if (workingCopy.contains(fileName)) {
         src = workingCopy.source(fileName);
     } else {
-        QFile file(fileName);
-        if (file.open(QFile::ReadOnly))
-            src = QTextStream(&file).readAll(); // ### FIXME
+        Utils::FileReader reader;
+        if (reader.fetch(fileName)) // ### FIXME error reporting
+            src = QString::fromLocal8Bit(reader.data()); // ### FIXME encoding
     }
 
     QByteArray source = snapshot.preprocessedCode(src, fileName);

@@ -26,11 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "remoteprocesstest.h"
+
+#include <utils/ssh/sshpseudoterminal.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QTimer>
@@ -64,7 +66,7 @@ void RemoteProcessTest::run()
     connect(m_remoteRunner.data(), SIGNAL(processClosed(int)),
         SLOT(handleProcessClosed(int)));
 
-    std::cout << "Testing successful remote process..." << std::endl;
+    std::cout << "Testing successful remote process... " << std::flush;
     m_state = TestingSuccess;
     m_started = false;
     m_timeoutTimer->start();
@@ -100,7 +102,7 @@ void RemoteProcessTest::handleProcessStdout(const QByteArray &output)
         std::cerr << "Error: Remote output from non-started process."
             << std::endl;
         qApp->quit();
-    } else if (m_state != TestingSuccess) {
+    } else if (m_state != TestingSuccess && m_state != TestingTerminal) {
         std::cerr << "Error: Got remote standard output in state " << m_state
             << "." << std::endl;
         qApp->quit();
@@ -149,12 +151,11 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
                 return;
             }
 
-            std::cout << "Ok. Testing unsuccessful remote process..."
-                << std::endl;
+            std::cout << "Ok.\nTesting unsuccessful remote process... " << std::flush;
             m_state = TestingFailure;
             m_started = false;
             m_timeoutTimer->start();
-            m_remoteRunner->run("ls /wedontexepectsuchafiletoexist");
+            m_remoteRunner->run("top -n 1"); // Does not succeed without terminal.
             break;
         }
         case TestingFailure: {
@@ -166,14 +167,12 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
                 return;
             }
             if (m_remoteStderr.isEmpty()) {
-                std::cerr << "Error: Command did not produce error output."
-                    << std::endl;
+                std::cerr << "Error: Command did not produce error output." << std::flush;
                 qApp->quit();
                 return;
             }
 
-            std::cout << "Ok. Testing crashing remote process..."
-                << std::endl;
+            std::cout << "Ok.\nTesting crashing remote process... " << std::flush;
             m_state = TestingCrash;
             m_started = false;
             m_timeoutTimer->start();
@@ -184,7 +183,25 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
             std::cerr << "Error: Successful exit from process that was "
                 "supposed to crash." << std::endl;
             qApp->quit();
-            return;
+            break;
+        case TestingTerminal: {
+            const int exitCode = m_remoteRunner->process()->exitCode();
+            if (exitCode != 0) {
+                std::cerr << "Error: exit code is " << exitCode
+                    << ", expected zero." << std::endl;
+                qApp->quit();
+                return;
+            }
+            if (m_remoteStdout.isEmpty()) {
+                std::cerr << "Error: Command did not produce output."
+                    << std::endl;
+                qApp->quit();
+                return;
+            }
+            std::cout << "Ok.\nAll tests succeeded." << std::endl;
+            qApp->quit();
+            break;
+        }
         case Inactive:
             Q_ASSERT(false);
         }
@@ -204,8 +221,11 @@ void RemoteProcessTest::handleProcessClosed(int exitStatus)
             qApp->quit();
             return;
         }
-        std::cout << "Ok. All tests succeeded." << std::endl;
-        qApp->quit();
+        std::cout << "Ok.\nTesting remote process with terminal... " << std::flush;
+        m_state = TestingTerminal;
+        m_started = false;
+        m_timeoutTimer->start();
+        m_remoteRunner->runInTerminal("top -n 1", SshPseudoTerminal());
     }
 }
 

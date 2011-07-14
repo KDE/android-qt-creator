@@ -26,11 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "styledoutputpaneplaceholder.h"
+
+#include <utils/fileutils.h>
 
 #include <QtCore/QChildEvent>
 #include <QtCore/QFile>
@@ -40,13 +42,9 @@
 
 StyledOutputpanePlaceHolder::StyledOutputpanePlaceHolder(Core::IMode *mode, QSplitter *parent) : Core::OutputPanePlaceHolder(mode, parent)
 {
-    QFile file(":/qmldesigner/outputpane-style.css");
-    file.open(QFile::ReadOnly);
-    QFile file2(":/qmldesigner/scrollbar.css");
-    file2.open(QFile::ReadOnly);
-    m_customStylesheet = file.readAll() + file2.readAll();
-    file.close();
-    file2.close();
+    QByteArray sheet = Utils::FileReader::fetchQrc(":/qmldesigner/outputpane-style.css");
+    sheet += Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css");
+    m_customStylesheet = QString::fromLatin1(sheet);
 }
 
 void StyledOutputpanePlaceHolder::childEvent(QChildEvent *event)

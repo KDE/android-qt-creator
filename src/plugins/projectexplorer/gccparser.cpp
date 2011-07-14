@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,6 @@
 #include "ldparser.h"
 #include "taskwindow.h"
 #include "projectexplorerconstants.h"
-
-#include <QtCore/QDir>
 
 using namespace ProjectExplorer;
 
@@ -105,7 +103,7 @@ void GccParser::stdError(const QString &line)
         int lineno = m_regExp.cap(3).toInt();
         Task task(Task::Unknown,
                   m_regExp.cap(8) /* description */,
-                  QDir::fromNativeSeparators(filename), lineno,
+                  filename, lineno,
                   Constants::TASK_CATEGORY_COMPILE);
         if (m_regExp.cap(7) == QLatin1String("warning"))
             task.type = Task::Warning;
@@ -123,7 +121,7 @@ void GccParser::stdError(const QString &line)
     } else if (m_regExpIncluded.indexIn(lne) > -1) {
         emit addTask(Task(Task::Unknown,
                           lne /* description */,
-                          QDir::fromNativeSeparators(m_regExpIncluded.cap(1)) /* filename */,
+                          m_regExpIncluded.cap(1) /* filename */,
                           m_regExpIncluded.cap(3).toInt() /* linenumber */,
                           Constants::TASK_CATEGORY_COMPILE));
         return;
@@ -152,12 +150,12 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
 
     QTest::newRow("pass-through stdout")
             << QString::fromLatin1("Sometext") << OutputParserTester::STDOUT
-            << QString::fromLatin1("Sometext") << QString()
+            << QString::fromLatin1("Sometext\n") << QString()
             << QList<ProjectExplorer::Task>()
             << QString();
     QTest::newRow("pass-through stderr")
             << QString::fromLatin1("Sometext") << OutputParserTester::STDERR
-            << QString() << QString::fromLatin1("Sometext")
+            << QString() << QString::fromLatin1("Sometext\n")
             << QList<ProjectExplorer::Task>()
             << QString();
 
@@ -207,7 +205,7 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
             << QString() << QString()
             << (QList<ProjectExplorer::Task>() << Task(Task::Error,
                                                        QLatin1String("#error Symbian error"),
-                                                       QLatin1String("C:/temp/test/untitled8/main.cpp"), 7,
+                                                       QLatin1String("C:\\temp\\test\\untitled8\\main.cpp"), 7,
                                                        Constants::TASK_CATEGORY_COMPILE))
             << QString();
     // Symbian reports #warning(s) twice (using different syntax).
@@ -217,7 +215,7 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
             << QString() << QString()
             << (QList<ProjectExplorer::Task>() << Task(Task::Warning,
                                                        QLatin1String("#warning Symbian warning"),
-                                                       QLatin1String("C:/temp/test/untitled8/main.cpp"), 8,
+                                                       QLatin1String("C:\\temp\\test\\untitled8\\main.cpp"), 8,
                                                        Constants::TASK_CATEGORY_COMPILE))
             << QString();
     QTest::newRow("GCCE #warning2")
@@ -242,7 +240,7 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
                         Constants::TASK_CATEGORY_COMPILE)
                 << Task(Task::Error,
                         QLatin1String("undefined reference to `MainWindow::doSomething()'"),
-                        QLatin1String("C:/temp/test/untitled8/main.cpp"), 8,
+                        QLatin1String("C:\\temp\\test\\untitled8/main.cpp"), 8,
                         Constants::TASK_CATEGORY_COMPILE)
                 << Task(Task::Error,
                         QLatin1String("collect2: ld returned 1 exit status"),
@@ -263,7 +261,7 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
                         Constants::TASK_CATEGORY_COMPILE)
                 << Task(Task::Error,
                         QLatin1String("undefined reference to `MainWindow::doSomething()'"),
-                        QLatin1String("C:/temp/test/untitled8/main.cpp"), -1,
+                        QLatin1String("C:\\temp\\test\\untitled8/main.cpp"), -1,
                         Constants::TASK_CATEGORY_COMPILE)
                 << Task(Task::Error,
                         QLatin1String("collect2: ld returned 1 exit status"),
@@ -278,7 +276,7 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
             << (QList<ProjectExplorer::Task>()
                 << Task(Task::Error,
                         QLatin1String("file not recognized: File format not recognized"),
-                        QLatin1String("c:/Qt/4.6/lib/QtGuid4.dll"), -1,
+                        QLatin1String("c:\\Qt\\4.6\\lib/QtGuid4.dll"), -1,
                         Constants::TASK_CATEGORY_COMPILE))
             << QString();
     QTest::newRow("Invalid rpath")
@@ -337,7 +335,7 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
                                    "distcc[73168] (dcc_build_somewhere) Warning: failed to distribute, running locally instead")
             << OutputParserTester::STDERR
             << QString() << QString::fromLatin1("distcc[73168] (dcc_get_hostlist) Warning: no hostlist is set; can't distribute work\n"
-                                                "distcc[73168] (dcc_build_somewhere) Warning: failed to distribute, running locally instead")
+                                                "distcc[73168] (dcc_build_somewhere) Warning: failed to distribute, running locally instead\n")
             << QList<ProjectExplorer::Task>()
             << QString();
     QTest::newRow("ld warning (QTCREATORBUG-905)")
@@ -363,17 +361,17 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
     QTest::newRow("Teambuilder issues")
             << QString::fromLatin1("TeamBuilder Client:: error: could not find Scheduler, running Job locally...")
             << OutputParserTester::STDERR
-            << QString() << QString::fromLatin1("TeamBuilder Client:: error: could not find Scheduler, running Job locally...")
+            << QString() << QString::fromLatin1("TeamBuilder Client:: error: could not find Scheduler, running Job locally...\n")
             << QList<ProjectExplorer::Task>()
             << QString();
     QTest::newRow("note")
-            << QString::fromLatin1("/home/dev/creator/share/qtcreator/gdbmacros/gdbmacros.cpp:1079: note: initialized from here")
+            << QString::fromLatin1("/home/dev/creator/share/qtcreator/dumper/dumper.cpp:1079: note: initialized from here")
             << OutputParserTester::STDERR
             << QString() << QString()
             << ( QList<ProjectExplorer::Task>()
                  << Task(Task::Unknown,
                          QLatin1String("initialized from here"),
-                         QString::fromLatin1("/home/dev/creator/share/qtcreator/gdbmacros/gdbmacros.cpp"), 1079,
+                         QString::fromLatin1("/home/dev/creator/share/qtcreator/dumper/dumper.cpp"), 1079,
                          Constants::TASK_CATEGORY_COMPILE))
             << QString();
     QTest::newRow("static member function")
@@ -394,13 +392,13 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
     QTest::newRow("rm false positive")
             << QString::fromLatin1("rm: cannot remove `release/moc_mainwindow.cpp': No such file or directory")
             << OutputParserTester::STDERR
-            << QString() << QString("rm: cannot remove `release/moc_mainwindow.cpp': No such file or directory")
+            << QString() << QString("rm: cannot remove `release/moc_mainwindow.cpp': No such file or directory\n")
             << QList<ProjectExplorer::Task>()
             << QString();
     QTest::newRow("ranlib false positive")
             << QString::fromLatin1("ranlib: file: libSupport.a(HashTable.o) has no symbols")
             << OutputParserTester::STDERR
-            << QString() << QString("ranlib: file: libSupport.a(HashTable.o) has no symbols")
+            << QString() << QString("ranlib: file: libSupport.a(HashTable.o) has no symbols\n")
             << QList<ProjectExplorer::Task>()
             << QString();
     QTest::newRow("ld: missing library")
@@ -510,11 +508,11 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
                         Constants::TASK_CATEGORY_COMPILE)
                 << Task(Task::Error,
                         QLatin1String("undefined reference to `vtable for QPlotAxis'"),
-                        QLatin1String("M:/Development/x64/QtPlot/qplotaxis.cpp"), 26,
+                        QLatin1String("M:\\Development\\x64\\QtPlot/qplotaxis.cpp"), 26,
                         Constants::TASK_CATEGORY_COMPILE)
                 << Task(Task::Error,
                         QLatin1String("undefined reference to `vtable for QPlotAxis'"),
-                        QLatin1String("M:/Development/x64/QtPlot/qplotaxis.cpp"), 26,
+                        QLatin1String("M:\\Development\\x64\\QtPlot/qplotaxis.cpp"), 26,
                         Constants::TASK_CATEGORY_COMPILE)
                 << Task(Task::Error,
                         QLatin1String("collect2: ld returned 1 exit status"),
@@ -622,6 +620,21 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
                         Constants::TASK_CATEGORY_COMPILE))
             << QString();
 
+    QTest::newRow("enumeration warning")
+            << QString::fromLatin1("../../../src/shared/proparser/profileevaluator.cpp: In member function 'ProFileEvaluator::Private::VisitReturn ProFileEvaluator::Private::evaluateConditionalFunction(const ProString&, const ProStringList&)':\n"
+                                   "../../../src/shared/proparser/profileevaluator.cpp:2817:9: warning: case value '0' not in enumerated type 'ProFileEvaluator::Private::TestFunc'")
+            << OutputParserTester::STDERR
+            << QString() << QString()
+            << ( QList<ProjectExplorer::Task>()
+                << Task(Task::Unknown,
+                        QLatin1String("In member function 'ProFileEvaluator::Private::VisitReturn ProFileEvaluator::Private::evaluateConditionalFunction(const ProString&, const ProStringList&)':"),
+                        QLatin1String("../../../src/shared/proparser/profileevaluator.cpp"), -1,
+                        Constants::TASK_CATEGORY_COMPILE)
+                << Task(Task::Warning,
+                        QLatin1String("case value '0' not in enumerated type 'ProFileEvaluator::Private::TestFunc'"),
+                        QLatin1String("../../../src/shared/proparser/profileevaluator.cpp"), 2817,
+                        Constants::TASK_CATEGORY_COMPILE))
+            << QString();
 }
 
 void ProjectExplorerPlugin::testGccOutputParsers()

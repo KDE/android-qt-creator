@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -62,25 +62,11 @@ public:
     QString id() const;
     QString displayName() const;
     bool supports(Project *project);
-    IPropertiesPanel *createPanel(Project *project);
+    PropertiesPanel *createPanel(Project *project);
 private:
     SessionManager *m_session;
 };
 
-
-class DependenciesPanel : public IPropertiesPanel
-{
-public:
-    DependenciesPanel(SessionManager *session, Project *project);
-    ~DependenciesPanel();
-    QString displayName() const;
-    QWidget *widget() const;
-    QIcon icon() const;
-
-private:
-    DependenciesWidget *m_widget;
-    const QIcon m_icon;
-};
 
 //
 // DependenciesModel

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -57,11 +57,12 @@ public:
     virtual ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos);
     virtual ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id, Qt4TargetSetupWidget *widget);
 
-    QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id);
+    QString shadowBuildDirectory(const QString &profilePath, const QString &id, const QString &suffix);
     QList<ProjectExplorer::Task> reportIssues(const QString &proFile);
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion);
-    bool isMobileTarget(const QString &id);
-    bool supportsShadowBuilds(const QString &id);
+    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtSupport::QtVersionNumber &minimumQtVersion);
+
+    bool selectByDefault(const QString &id) const;
+    QSet<QString> targetFeatures(const QString &id) const;
 };
 
 } // namespace Internal

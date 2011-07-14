@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -84,7 +84,7 @@ public:
     void updateAll();
 
     void attemptBreakpointSynchronization();
-    bool acceptsBreakpoint(BreakpointId id) const;
+    bool acceptsBreakpoint(BreakpointModelId id) const;
     void selectThread(int index);
 
     void assignValueInDebugger(const WatchData *data,
@@ -124,6 +124,9 @@ protected:
     void notifyInferiorSpontaneousStop();
     void notifyEngineRunAndInferiorRunOk();
     void notifyInferiorShutdownOk();
+
+protected slots:
+    void skipCppBreakpoint();
 
 private:
     void engineStateChanged(DebuggerState newState);

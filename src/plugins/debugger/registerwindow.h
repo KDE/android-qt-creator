@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,8 +53,7 @@ public slots:
     void reloadRegisters();
 
 private:
-    void resizeEvent(QResizeEvent *ev);
-    void contextMenuEvent(QContextMenuEvent *ev);
+    virtual void contextMenuEvent(QContextMenuEvent *ev);
 };
 
 } // namespace Internal

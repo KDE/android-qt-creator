@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,6 +37,7 @@
 #include "directoryfilter.h"
 
 #include <extensionsystem/iplugin.h>
+#include <coreplugin/actionmanager/command.h>
 
 #include <QtCore/QObject>
 #include <QtCore/QTimer>
@@ -77,6 +78,7 @@ public slots:
 private slots:
     void startSettingsLoad();
     void settingsLoaded();
+    void updatePlaceholderText(Core::Command *command = 0);
 
 private:
     void loadSettings();

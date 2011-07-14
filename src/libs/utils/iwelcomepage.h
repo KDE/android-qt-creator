@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,15 @@
 #define IWELCOMEPAGE_H
 
 
+#include <QtCore/QObject>
+#include <QtCore/QMetaType>
+#include <QtCore/QUrl>
+
 #include "utils_global.h"
 
-#include <QtCore/QObject>
+QT_BEGIN_NAMESPACE
+class QDeclarativeEngine;
+QT_END_NAMESPACE
 
 namespace Utils {
 
@@ -46,13 +52,18 @@ class QTCREATOR_UTILS_EXPORT IWelcomePage : public QObject
 {
     Q_OBJECT
 
+    Q_PROPERTY(QString title READ title CONSTANT)
+    Q_PROPERTY(QUrl pageLocation READ pageLocation CONSTANT)
+    Q_PROPERTY(int priority READ priority CONSTANT)
+
 public:
     IWelcomePage();
     virtual ~IWelcomePage();
 
-    virtual QWidget *page() = 0;
+    virtual QUrl pageLocation() const = 0;
     virtual QString title() const = 0;
     virtual int priority() const { return 0; }
+    virtual void facilitateQml(QDeclarativeEngine *) {}
 
 private:
     // not used atm

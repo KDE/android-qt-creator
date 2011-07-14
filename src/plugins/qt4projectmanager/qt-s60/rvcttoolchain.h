@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -89,6 +89,7 @@ public:
     QByteArray predefinedMacros() const;
     QList<ProjectExplorer::HeaderPath> systemHeaderPaths() const;
     void addToEnvironment(Utils::Environment &env) const;
+    QString mkspec() const;
     QString makeCommand() const;
     QString defaultMakeTarget() const;
     ProjectExplorer::IOutputParser *outputParser() const;
@@ -146,6 +147,7 @@ public:
     void apply();
     void discard() { setFromToolChain(); }
     bool isDirty() const;
+    void makeReadOnly();
     void changeEvent(QEvent *ev);
 
 private:

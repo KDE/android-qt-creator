@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -71,10 +71,10 @@ public:
     void cleanup();
     bool isMixed() const;
 
-    // Return address of an assembly line "0x0dfd  bla"
-    static quint64 addressFromDisassemblyLine(const QString &data);
-
 private:
+    void setContentsToEditor(const DisassemblerLines &contents);
+    int indexOf(const Location &loc) const;
+
     DisassemblerAgentPrivate *d;
 };
 

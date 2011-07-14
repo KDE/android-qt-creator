@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -62,7 +62,8 @@ public:
             p->childNodes.append(this);
         widget = tc ? tc->configurationWidget() : 0;
         if (widget) {
-            widget->setEnabled(tc ? !tc->isAutoDetected() : false);
+            if (tc && tc->isAutoDetected())
+                widget->makeReadOnly();
             widget->setVisible(false);
         }
     }
@@ -305,15 +306,34 @@ void ToolChainModel::apply()
     }
 
     // Add new (and already updated) tool chains
+    QStringList removedTcs;
     nodes = m_toAddList;
     foreach (ToolChainNode *n, nodes) {
-        ToolChainManager::instance()->registerToolChain(n->toolChain);
+        if (!ToolChainManager::instance()->registerToolChain(n->toolChain))
+            removedTcs << n->toolChain->displayName();
     }
     //
     foreach (ToolChainNode *n, m_toAddList) {
         markForRemoval(n->toolChain);
     }
     qDeleteAll(m_toAddList);
+
+    if (removedTcs.count() == 1) {
+        QMessageBox::warning(0,
+                             tr("Duplicate Tool Chain detected"),
+                             tr("The following tool chain was already configured:<br>"
+                                "&nbsp;%1<br>"
+                                "It was not configured again.")
+                             .arg(removedTcs.at(0)));
+
+    } else if (!removedTcs.isEmpty()) {
+        QMessageBox::warning(0,
+                             tr("Duplicate Tool Chains detected"),
+                             tr("The following tool chains were already configured:<br>"
+                                "&nbsp;%1<br>"
+                                "They were not configured again.")
+                             .arg(removedTcs.join(QLatin1String(",<br>&nbsp;"))));
+    }
 }
 
 void ToolChainModel::markForRemoval(ToolChain *tc)

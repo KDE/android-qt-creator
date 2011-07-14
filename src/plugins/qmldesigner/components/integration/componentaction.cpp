@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,32 +39,25 @@
 
 namespace QmlDesigner {
 
-ComponentAction::ComponentAction(QObject *parent)
-  :  QWidgetAction(parent),
-     m_componentView(new ComponentView(this))
+ComponentAction::ComponentAction(ComponentView  *componentView)
+  :  QWidgetAction(componentView),
+     m_componentView(componentView)
 {
 }
 
-void ComponentAction::setModel(Model* model)
+void ComponentAction::setCurrentIndex(int i)
 {
-    if (model == m_componentView->model())
-        return;
-
-    blockSignals(true);
-
-    if (model)
-        model->attachView(m_componentView.data());
-    else if (m_componentView->model())
-        m_componentView->model()->detachView(m_componentView.data());
-
-    blockSignals(false);
+    emit currentIndexChanged(i);
 }
 
 QWidget  *ComponentAction::createWidget(QWidget *parent)
 {
     QComboBox *comboBox = new QComboBox(parent);
+    comboBox->setMinimumWidth(120);
+    comboBox->setToolTip(tr("Edit sub components defined in this file"));
     comboBox->setModel(m_componentView->standardItemModel());
     connect(comboBox, SIGNAL(currentIndexChanged(int)), SLOT(emitCurrentComponentChanged(int)));
+    connect(this, SIGNAL(currentIndexChanged(int)), comboBox, SLOT(setCurrentIndex(int)));
 
     return comboBox;
 }

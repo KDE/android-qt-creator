@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -244,7 +244,11 @@ int BaseQt4ProjectWizardDialog::addTargetSetupPage(QSet<QString> targets, bool m
     m_targets = targets;
     resize(900, 450);
 
-    m_targetSetupPage->setPreferMobile(mobile);
+    if (mobile) {
+        m_targetSetupPage->setPreferredFeatures(QSet<QString>() << Constants::MOBILE_TARGETFEATURE_ID);
+    } else {
+        m_targetSetupPage->setPreferredFeatures(QSet<QString>() << Constants::DESKTOP_TARGETFEATURE_ID);
+    }
 
     if (id >= 0)
         setPage(id, m_targetSetupPage);
@@ -315,7 +319,7 @@ bool BaseQt4ProjectWizardDialog::isTargetSelected(const QString &targetid) const
 
 void BaseQt4ProjectWizardDialog::generateProfileName(const QString &name, const QString &path)
 {
-    const QString proFile = QDir::fromNativeSeparators(path) + QChar('/') + name + QChar('/') + name + QLatin1String(".pro");
+    const QString proFile = QDir::cleanPath(path + QChar('/') + name + QChar('/') + name + QLatin1String(".pro"));
     m_targetSetupPage->setProFilePath(proFile);
 }
 

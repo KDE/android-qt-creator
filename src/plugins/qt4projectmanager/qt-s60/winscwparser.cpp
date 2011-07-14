@@ -26,15 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "winscwparser.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
-
-#include <QtCore/QDir>
 
 using namespace Qt4ProjectManager;
 using namespace ProjectExplorer;
@@ -59,7 +57,7 @@ void WinscwParser::stdOutput(const QString &line)
     if (m_compilerProblem.indexIn(lne) > -1) {
         Task task(Task::Error,
                   m_compilerProblem.cap(3) /* description */,
-                  QDir::fromNativeSeparators(m_compilerProblem.cap(1)) /* filename */,
+                  m_compilerProblem.cap(1) /* filename */,
                   m_compilerProblem.cap(2).toInt() /* linenumber */,
                   TASK_CATEGORY_COMPILE);
         if (task.description.startsWith(QLatin1String("warning: "))) {
@@ -79,7 +77,7 @@ void WinscwParser::stdError(const QString &line)
     if (m_linkerProblem.indexIn(lne) > -1) {
         emit addTask(Task(Task::Error,
                           m_linkerProblem.cap(2) /* description */,
-                          QDir::fromNativeSeparators(m_linkerProblem.cap(1)) /* filename */,
+                          m_linkerProblem.cap(1) /* filename */,
                           -1 /* linenumber */,
                           TASK_CATEGORY_COMPILE));
         return;

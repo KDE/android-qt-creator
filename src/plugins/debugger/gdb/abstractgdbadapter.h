@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,9 +49,9 @@ class AbstractGdbProcess;
 class GdbResponse;
 
 // AbstractGdbAdapter is inherited by PlainGdbAdapter used for local
-// debugging and TrkGdbAdapter used for on-device debugging.
+// debugging and CodaGdbAdapter used for on-device debugging.
 // In the PlainGdbAdapter case it's just a wrapper around a QProcess running
-// gdb, in the TrkGdbAdapter case it's the interface to the gdb process in
+// gdb, in the CodaGdbAdapter case it's the interface to the gdb process in
 // the whole rfcomm/gdb/gdbserver combo.
 class AbstractGdbAdapter : public QObject
 {
@@ -66,7 +66,7 @@ public:
         DumperLoadedByGdb
     };
 
-    explicit AbstractGdbAdapter(GdbEngine *engine, QObject *parent = 0);
+    explicit AbstractGdbAdapter(GdbEngine *engine);
     virtual ~AbstractGdbAdapter();
 
     virtual void write(const QByteArray &data);
@@ -88,16 +88,17 @@ public:
     static QString msgInferiorRunOk();
     static QString msgConnectRemoteServerFailed(const QString &why);
 
-    // Trk specific stuff
-    virtual bool isTrkAdapter() const;
-    virtual void trkReloadRegisters() {}
-    virtual void trkReloadThreads() {}
+    // CODA specific stuff
+    virtual bool isCodaAdapter() const;
+    virtual void codaReloadRegisters() {}
+    virtual void codaReloadThreads() {}
 
     virtual void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
     virtual void handleRemoteSetupFailed(const QString &reason);
 
 protected:
     DebuggerState state() const;
+    GdbEngine *engine() const { return m_engine; }
     const DebuggerStartParameters &startParameters() const;
     DebuggerStartParameters &startParameters();
     void showMessage(const QString &msg, int channel = LogDebug, int timeout = 1);

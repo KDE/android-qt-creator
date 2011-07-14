@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -72,7 +72,7 @@ void DesignDocumentControllerView::instancesCompleted(const QVector<ModelNode> &
 {
 
 }
-void DesignDocumentControllerView::instanceInformationsChange(const QVector<ModelNode> &/*nodeList*/)
+void DesignDocumentControllerView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/)
 {
 
 }
@@ -92,6 +92,15 @@ void DesignDocumentControllerView::instancesChildrenChanged(const QVector<ModelN
 
 }
 
+void DesignDocumentControllerView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
+{
+
+}
+
+void DesignDocumentControllerView::nodeSourceChanged(const ModelNode &, const QString & /*newNodeSource*/)
+{
+
+}
 
 void DesignDocumentControllerView::rewriterBeginTransaction()
 {
@@ -155,6 +164,7 @@ void DesignDocumentControllerView::fromClipboard()
 QString DesignDocumentControllerView::toText() const
 {
     QScopedPointer<Model> outputModel(Model::create("QtQuick.Rectangle", 1, 0, model()));
+    outputModel->setFileUrl(model()->fileUrl());
     QPlainTextEdit textEdit;
 
     QString imports;
@@ -189,8 +199,8 @@ void DesignDocumentControllerView::fromText(QString text)
     inputModel->setFileUrl(model()->fileUrl());
     QPlainTextEdit textEdit;
     QString imports;
-    foreach (Import import, model()->imports())
-        imports += import.toString() + ";\n";
+    foreach (const Import &import, model()->imports())
+        imports += import.toString(true, true) + "\n";
 
     textEdit.setPlainText(imports + text);
     NotIndentingTextEditModifier modifier(&textEdit);

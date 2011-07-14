@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "editorsettingspropertiespage.h"
 #include "editorconfiguration.h"
 #include "project.h"
+#include <texteditor/tabpreferences.h>
 
 #include <QtCore/QTextCodec>
 
@@ -55,35 +56,13 @@ bool EditorSettingsPanelFactory::supports(Project *project)
     return true;
 }
 
-IPropertiesPanel *EditorSettingsPanelFactory::createPanel(Project *project)
+PropertiesPanel *EditorSettingsPanelFactory::createPanel(Project *project)
 {
-    return new EditorSettingsPanel(project);
-}
-
-EditorSettingsPanel::EditorSettingsPanel(Project *project) :
-    m_widget(new EditorSettingsWidget(project)),
-    m_icon(":/projectexplorer/images/EditorSettings.png")
-{
-}
-
-EditorSettingsPanel::~EditorSettingsPanel()
-{
-    delete m_widget;
-}
-
-QString EditorSettingsPanel::displayName() const
-{
-    return QCoreApplication::translate("EditorSettingsPanel", "Editor Settings");
-}
-
-QWidget *EditorSettingsPanel::widget() const
-{
-    return m_widget;
-}
-
-QIcon EditorSettingsPanel::icon() const
-{
-    return m_icon;
+    PropertiesPanel *panel = new PropertiesPanel;
+    panel->setDisplayName(QCoreApplication::translate("EditorSettingsPanel", "Editor Settings"));
+    panel->setWidget(new EditorSettingsWidget(project)),
+    panel->setIcon(QIcon(":/projectexplorer/images/EditorSettings.png"));
+    return panel;
 }
 
 EditorSettingsWidget::EditorSettingsWidget(Project *project) : QWidget(), m_project(project)
@@ -93,63 +72,40 @@ EditorSettingsWidget::EditorSettingsWidget(Project *project) : QWidget(), m_proj
     const EditorConfiguration *config = m_project->editorConfiguration();
     settingsToUi(config);
 
-    setGlobalSettingsEnabled(config->useGlobalSettings());
+    globalSettingsActivated(config->useGlobalSettings() ? 0 : 1);
 
-    connect(m_ui.useGlobalCheckBox, SIGNAL(clicked(bool)),
-            this, SLOT(setGlobalSettingsEnabled(bool)));
-    connect(m_ui.useGlobalCheckBox, SIGNAL(clicked(bool)),
-            config, SLOT(setUseGlobalSettings(bool)));
+    connect(m_ui.globalSelector, SIGNAL(activated(int)),
+            this, SLOT(globalSettingsActivated(int)));
     connect(m_ui.restoreButton, SIGNAL(clicked()), this, SLOT(restoreDefaultValues()));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(insertSpacesChanged(bool)),
-            config, SLOT(setInsertSpaces(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(autoInsertSpacesChanged(bool)),
-            config, SLOT(setAutoInsertSpaces(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(autoIndentChanged(bool)),
-            config, SLOT(setAutoIndent(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(smartBackSpaceChanged(bool)),
-            config, SLOT(setSmartBackSpace(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(tabSizeChanged(int)),
-            config, SLOT(setTabSize(int)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(indentSizeChanged(int)),
-            config, SLOT(setIndentSize(int)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(indentBlocksBehaviorChanged(int)),
-            config, SLOT(setIndentBlocksBehavior(int)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(tabKeyBehaviorChanged(int)),
-            config, SLOT(setTabKeyBehavior(int)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(continuationAlignBehaviorChanged(int)),
-            config, SLOT(setContinuationAlignBehavior(int)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(cleanWhiteSpaceChanged(bool)),
-            config, SLOT(setCleanWhiteSpace(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(inEntireDocumentChanged(bool)),
-            config, SLOT(setInEntireDocument(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(addFinalNewLineChanged(bool)),
-            config, SLOT(setAddFinalNewLine(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(cleanIndentationChanged(bool)),
-            config, SLOT(setCleanIndentation(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(mouseNavigationChanged(bool)),
-            config, SLOT(setMouseNavigation(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(scrollWheelZoomingChanged(bool)),
-            config, SLOT(setScrollWheelZooming(bool)));
-    connect(m_ui.behaviorSettingsWidget, SIGNAL(utf8BomSettingsChanged(int)),
-            config, SLOT(setUtf8BomSettings(int)));
+    connect(m_ui.behaviorSettingsWidget, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
+            config, SLOT(setStorageSettings(TextEditor::StorageSettings)));
+    connect(m_ui.behaviorSettingsWidget, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
+            config, SLOT(setBehaviorSettings(TextEditor::BehaviorSettings)));
+    connect(m_ui.behaviorSettingsWidget, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
+            config, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
     connect(m_ui.behaviorSettingsWidget, SIGNAL(textCodecChanged(QTextCodec*)),
             config, SLOT(setTextCodec(QTextCodec*)));
+
+    m_ui.behaviorSettingsWidget->setFallbacksVisible(false);
 }
 
 void EditorSettingsWidget::settingsToUi(const EditorConfiguration *config)
 {
-    m_ui.useGlobalCheckBox->setChecked(config->useGlobalSettings());
+    m_ui.behaviorSettingsWidget->setTabPreferences(config->tabPreferences());
+    m_ui.globalSelector->setCurrentIndex(config->useGlobalSettings() ? 0 : 1);
     m_ui.behaviorSettingsWidget->setAssignedCodec(config->textCodec());
-    m_ui.behaviorSettingsWidget->setAssignedTabSettings(config->tabSettings());
     m_ui.behaviorSettingsWidget->setAssignedStorageSettings(config->storageSettings());
     m_ui.behaviorSettingsWidget->setAssignedBehaviorSettings(config->behaviorSettings());
     m_ui.behaviorSettingsWidget->setAssignedExtraEncodingSettings(config->extraEncodingSettings());
 }
 
-void EditorSettingsWidget::setGlobalSettingsEnabled(bool enabled)
+void EditorSettingsWidget::globalSettingsActivated(int index)
 {
-    m_ui.behaviorSettingsWidget->setActive(!enabled);
-    m_ui.restoreButton->setEnabled(!enabled);
+    const bool useGlobal = !index;
+    m_ui.behaviorSettingsWidget->setActive(!useGlobal);
+    m_ui.restoreButton->setEnabled(!useGlobal);
+    EditorConfiguration *config = m_project->editorConfiguration();
+    config->setUseGlobalSettings(useGlobal);
 }
 
 void EditorSettingsWidget::restoreDefaultValues()

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,6 +37,48 @@
 #include <QtCore/QTextCodec>
 
 using namespace TextEditor;
+
+void ITextMark::paint(QPainter *painter, const QRect &rect) const
+{
+    m_icon.paint(painter, rect, Qt::AlignCenter);
+}
+
+void ITextMark::updateLineNumber(int lineNumber)
+{
+    Q_UNUSED(lineNumber)
+}
+
+void ITextMark::updateBlock(const QTextBlock &)
+{}
+
+void ITextMark::removedFromEditor()
+{}
+
+void ITextMark::documentClosing()
+{}
+
+void ITextMark::setIcon(const QIcon &icon)
+{
+    m_icon = icon;
+}
+
+void ITextMark::setPriority(Priority priority)
+{
+    m_priority = priority;
+}
+
+ITextMark::Priority ITextMark::priority() const
+{
+    return m_priority;
+}
+
+
+double ITextMark::widthFactor() const
+{
+    return 1.0;
+}
+
+
 
 QMap<QString, QString> ITextEditor::openedTextEditorsContents()
 {

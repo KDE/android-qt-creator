@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,9 +44,6 @@ namespace Internal {
 namespace Ui {
     class CheckoutProgressWizardPage;
 }
-
-/* Page showing the progress of an initial project
- * checkout. Turns complete when the job succeeds. */
 
 class CheckoutProgressWizardPage : public QWizardPage {
     Q_OBJECT

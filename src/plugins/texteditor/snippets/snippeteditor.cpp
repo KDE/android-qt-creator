@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,13 +41,18 @@
 
 using namespace TextEditor;
 
-SnippetEditor::SnippetEditor(SnippetEditorWidget *editor) :
-    BaseTextEditor(editor),
-    m_context(Constants::SNIPPET_EDITOR_ID, Constants::C_TEXTEDITOR)
-{}
+/*!
+    \class TextEditor::SnippetEditorWidget
+    \brief The SnippetEditorWidget class is a lightweight editor for code snippets
+    with basic support for syntax highlighting, indentation, and others.
+    \ingroup Snippets
+*/
 
-SnippetEditor::~SnippetEditor()
-{}
+SnippetEditor::SnippetEditor(SnippetEditorWidget *editor)
+    : BaseTextEditor(editor)
+{
+    setContext(Core::Context(Constants::SNIPPET_EDITOR_ID, Constants::C_TEXTEDITOR));
+}
 
 QString SnippetEditor::id() const
 {
@@ -61,9 +66,6 @@ SnippetEditorWidget::SnippetEditorWidget(QWidget *parent) : BaseTextEditorWidget
     setLineNumbersVisible(false);
     setParenthesesMatchingEnabled(true);
 }
-
-SnippetEditorWidget::~SnippetEditorWidget()
-{}
 
 void SnippetEditorWidget::setSyntaxHighlighter(TextEditor::SyntaxHighlighter *highlighter)
 {

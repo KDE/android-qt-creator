@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 
 #include "formeditorscene.h"
 #include "formeditorview.h"
+#include "formeditorwidget.h"
 #include "itemutilfunctions.h"
 #include <customdraganddrop.h>
 #include <metainfo.h>
@@ -62,9 +63,9 @@ DragTool::DragTool(FormEditorView *editorView)
     m_moveManipulator(editorView->scene()->manipulatorLayerItem(), editorView),
     m_selectionIndicator(editorView->scene()->manipulatorLayerItem()),
     m_timerHandler(new Internal::TimerHandler(this)),
-    m_blockMove(false)
+    m_blockMove(false),
+    m_Aborted(false)
 {
-//    view()->setCursor(Qt::SizeAllCursor);
 }
 
 
@@ -98,9 +99,13 @@ void DragTool::hoverMoveEvent(const QList<QGraphicsItem*> &,
 
 }
 
-void DragTool::keyPressEvent(QKeyEvent *)
+void DragTool::keyPressEvent(QKeyEvent *event)
 {
-
+    if (event->key() == Qt::Key_Escape) {
+        abort();
+        event->accept();
+        view()->changeToSelectionTool();
+    }
 }
 
 void DragTool::keyReleaseEvent(QKeyEvent *)
@@ -212,6 +217,12 @@ void DragTool::instancesCompleted(const QList<FormEditorItem*> &itemList)
     QmlDesignerItemLibraryDragAndDrop::CustomDragAndDrop::hide();
 }
 
+void DragTool::instancesParentChanged(const QList<FormEditorItem *> &itemList)
+{
+    m_moveManipulator.synchronizeInstanceParent(itemList);
+}
+
+
 void DragTool::clearMoveDelay()
 {
     if (!m_blockMove)
@@ -219,6 +230,23 @@ void DragTool::clearMoveDelay()
     m_blockMove = false;
     if  (m_dragNode.isValid())
         beginWithPoint(m_startPoint);
+}
+
+void DragTool::abort()
+{
+    if (m_Aborted)
+        return;
+
+    m_Aborted = true;
+
+    if (m_dragNode.isValid())
+        m_dragNode.destroy();
+
+    QmlDesignerItemLibraryDragAndDrop::CustomDragAndDrop::hide();
+
+    if (m_rewriterTransaction.isValid())
+        m_rewriterTransaction.commit();
+
 }
 
 void DragTool::dropEvent(QGraphicsSceneDragDropEvent * event)
@@ -260,6 +288,8 @@ void DragTool::dragEnterEvent(QGraphicsSceneDragDropEvent * event)
         QList<Import> importToBeAddedList;
         m_blockMove = false;
         if (event->mimeData()->hasFormat("application/vnd.bauhaus.itemlibraryinfo")) {
+            view()->widget()->setFocus();
+            m_Aborted = false;
             Q_ASSERT(!event->mimeData()->data("application/vnd.bauhaus.itemlibraryinfo").isEmpty());
             ItemLibraryEntry itemLibraryEntry = itemLibraryEntryFromData(event->mimeData()->data("application/vnd.bauhaus.itemlibraryinfo"));
             if (!itemLibraryEntry.requiredImport().isEmpty()) {
@@ -267,7 +297,7 @@ void DragTool::dragEnterEvent(QGraphicsSceneDragDropEvent * event)
                 const QString newImportVersion = QString("%1.%2").arg(QString::number(itemLibraryEntry.majorVersion()), QString::number(itemLibraryEntry.minorVersion()));
                 Import newImport = Import::createLibraryImport(newImportUrl, newImportVersion);
 
-                if (!view()->model()->imports().contains(newImport)) {
+                if (!view()->model()->hasImport(newImport, true, true)) {
                     importToBeAddedList.append(newImport);
                 }
 
@@ -309,6 +339,11 @@ void DragTool::dragMoveEvent(QGraphicsSceneDragDropEvent * event)
 {
     if (m_blockMove)
         return;
+
+    if (m_Aborted) {
+        event->ignore();
+        return;
+    }
     if (QmlDesignerItemLibraryDragAndDrop::CustomDragAndDrop::isAnimated())
         return;
     if (event->mimeData()->hasFormat("application/vnd.bauhaus.itemlibraryinfo") ||
@@ -344,7 +379,7 @@ void DragTool::dragMoveEvent(QGraphicsSceneDragDropEvent * event)
                 createQmlItemNode(itemLibraryEntry, parentNode, event->scenePos());
             } else if (event->mimeData()->hasFormat("application/vnd.bauhaus.libraryresource")) {
                 Q_ASSERT(!event->mimeData()->data("application/vnd.bauhaus.libraryresource").isEmpty());
-                QString imageName = QString::fromLatin1((event->mimeData()->data("application/vnd.bauhaus.libraryresource")));
+                QString imageName = QString::fromUtf8((event->mimeData()->data("application/vnd.bauhaus.libraryresource")));
                 createQmlItemNodeFromImage(imageName, parentNode, event->scenePos());
             } else Q_ASSERT(false);
             m_blockMove = true;
@@ -352,6 +387,7 @@ void DragTool::dragMoveEvent(QGraphicsSceneDragDropEvent * event)
             QTimer::singleShot(1000, m_timerHandler.data(), SLOT(clearMoveDelay()));
         }
     }
+
     if (event->mimeData()->hasFormat("application/vnd.bauhaus.libraryresource")) {
     }
 }
@@ -368,7 +404,7 @@ void  DragTool::move(QPointF scenePos)
         return;
 
     FormEditorItem *containerItem = calculateContainer(scenePos - QPoint(2, 2), m_movingItem.data());
-    if (containerItem &&
+    if (containerItem && m_movingItem->parentItem() &&
        containerItem != m_movingItem->parentItem()) {
 
         m_moveManipulator.reparentTo(containerItem);

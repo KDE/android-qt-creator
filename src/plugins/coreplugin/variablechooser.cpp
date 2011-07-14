@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,8 @@
 #include "ui_variablechooser.h"
 #include "variablemanager.h"
 #include "coreconstants.h"
+
+#include <QtCore/QTimer>
 
 using namespace Core;
 
@@ -50,6 +52,7 @@ VariableChooser::VariableChooser(QWidget *parent) :
     ui->variableList->setAttribute(Qt::WA_MacShowFocusRect, false);
     ui->variableDescription->setAttribute(Qt::WA_MacSmallSize);
     setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint);
+    setFocusPolicy(Qt::StrongFocus);
     setFocusProxy(ui->variableList);
 
     VariableManager *vm = VariableManager::instance();
@@ -153,6 +156,8 @@ void VariableChooser::updatePositionAndShow()
         move(parentCenter.x() - width()/2, parentCenter.y() - height()/2);
     }
     show();
+    raise();
+    activateWindow();
 }
 
 void VariableChooser::handleItemActivated(QListWidgetItem *item)
@@ -173,5 +178,13 @@ void VariableChooser::insertVariable(const QString &variable)
     } else if (m_plainTextEdit) {
         m_plainTextEdit->insertPlainText(text);
         m_plainTextEdit->activateWindow();
+    }
+}
+
+void VariableChooser::keyPressEvent(QKeyEvent *ke)
+{
+    if (ke->key() == Qt::Key_Escape && !ke->modifiers()) {
+        ke->accept();
+        QTimer::singleShot(0, this, SLOT(close()));
     }
 }

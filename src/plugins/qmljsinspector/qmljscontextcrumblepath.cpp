@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #include "qmljscontextcrumblepath.h"
@@ -48,14 +48,14 @@ void ContextCrumblePath::updateContextPath(const QStringList &path, const QList<
 {
     Q_ASSERT(path.count() == debugIds.count());
 
-    clear();
+    CrumblePath::clear();
 
     m_isEmpty = path.isEmpty();
     if (m_isEmpty) {
-        pushElement(tr("[no context]"),QVariant(-1));
+        pushElement(tr("[no context]"), -1);
     } else {
         for (int i = 0; i < path.count(); i++)
-            pushElement(path[i], QVariant(debugIds[i]));
+            pushElement(path[i], debugIds[i]);
     }
 }
 
@@ -63,7 +63,12 @@ void ContextCrumblePath::addChildren(const QStringList &childrenNames, const QLi
 {
     Q_ASSERT(childrenNames.count() == childrenDebugIds.count());
     for (int i = 0; i < childrenNames.count(); i++)
-        addChild(childrenNames[i], QVariant(childrenDebugIds[i]));
+        addChild(childrenNames[i], childrenDebugIds[i]);
+}
+
+void ContextCrumblePath::clear()
+{
+    updateContextPath(QStringList(), QList<int>());
 }
 
 bool ContextCrumblePath::isEmpty() const

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -65,6 +65,7 @@ namespace Internal {
 
 class SubversionSubmitEditor;
 class SubversionControl;
+struct SubversionDiffParameters;
 
 struct SubversionResponse
 {
@@ -102,7 +103,7 @@ public:
     virtual bool vcsCheckout(const QString &directory, const QByteArray &url);
     virtual QString vcsGetRepositoryURL(const QString &directory);
 
-    static SubversionPlugin *subversionPluginInstance();
+    static SubversionPlugin *instance();
 
     // Add authorization options to the command line arguments.
     static QStringList addAuthenticationOptions(const QStringList &args,
@@ -112,6 +113,7 @@ public:
 public slots:
     void vcsAnnotate(const QString &workingDir, const QString &file,
                      const QString &revision = QString(), int lineNumber = -1);
+    void svnDiff(const Subversion::Internal::SubversionDiffParameters &p);
 
 private slots:
     void addCurrentFile();

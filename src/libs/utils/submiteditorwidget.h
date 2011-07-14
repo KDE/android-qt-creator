@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -119,13 +119,16 @@ signals:
     void submitActionTextChanged(const QString &);
     void submitActionEnabledChanged(const bool);
 
-public slots:
+private slots:
+    void updateCheckAllComboBox();
+    void checkAllToggled();
     void checkAll();
     void uncheckAll();
 
 protected:
     virtual QString cleanupDescription(const QString &) const;
     virtual void changeEvent(QEvent *e);
+    virtual QString commitName() const;
     void insertTopWidget(QWidget *w);
 
 protected slots:
@@ -142,7 +145,7 @@ private slots:
 
 private:
     bool hasSelection() const;
-    unsigned checkedFilesCount() const;
+    int checkedFilesCount() const;
 
     SubmitEditorWidgetPrivate *m_d;
 };

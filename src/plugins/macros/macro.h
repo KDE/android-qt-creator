@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,6 +37,10 @@
 
 #include <QtCore/QList>
 #include <QtCore/QString>
+
+QT_BEGIN_NAMESPACE
+class QWidget;
+QT_END_NAMESPACE
 
 namespace Macros {
 
@@ -50,9 +54,9 @@ public:
     ~Macro();
     Macro& operator=(const Macro& other);
 
-    void load(QString fileName = QString());
-    void loadHeader(const QString &fileName);
-    void save(const QString &fileName);
+    bool load(QString fileName = QString());
+    bool loadHeader(const QString &fileName);
+    bool save(const QString &fileName, QWidget *parent);
 
     const QString &description() const;
     void setDescription(const QString &text);

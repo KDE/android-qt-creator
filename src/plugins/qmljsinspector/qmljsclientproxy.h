@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #ifndef QMLJSCLIENTPROXY_H
@@ -50,7 +50,7 @@ typedef QHash<QPair<QString, int>, QHash<QPair<int, int>, QList<int> > > DebugId
 namespace Internal {
 
 class InspectorPlugin;
-class QmlJSObserverClient;
+class QmlJSInspectorClient;
 
 class ClientProxy : public QObject
 {
@@ -62,7 +62,9 @@ public:
     bool setBindingForObject(int objectDebugId,
                              const QString &propertyName,
                              const QVariant &value,
-                             bool isLiteralValue);
+                             bool isLiteralValue,
+                             QString source,
+                             int line);
 
     bool setMethodBodyForObject(int objectDebugId, const QString &methodName, const QString &methodBody);
     bool resetBindingForObject(int objectDebugId, const QString &propertyName);
@@ -83,6 +85,7 @@ public:
 
     bool isConnected() const;
 
+    void setSelectedItemsByDebugId(const QList<int> &debugIds);
     void setSelectedItemsByObjectId(const QList<QDeclarativeDebugObjectReference> &objectRefs);
 
     QList<QDeclarativeDebugEngineReference> engines() const;
@@ -111,7 +114,6 @@ signals:
     void showAppOnTopChanged(bool showAppOnTop);
     void serverReloaded();
     void selectedColorChanged(const QColor &color);
-    void contextPathUpdated(const QStringList &contextPath);
     void propertyChanged(int debugId, const QByteArray &propertyName, const QVariant &propertyValue);
 
 public slots:
@@ -128,10 +130,9 @@ public slots:
     void changeToSelectMarqueeTool();
     void showAppOnTop(bool showOnTop);
     void createQmlObject(const QString &qmlText, int parentDebugId,
-                         const QStringList &imports, const QString &filename = QString());
+                         const QStringList &imports, const QString &filename = QString(), int order = 0);
     void destroyQmlObject(int debugId);
     void reparentQmlObject(int debugId, int newParent);
-    void setContextPathIndex(int contextIndex);
 
 private slots:
     void connectToServer();
@@ -166,7 +167,7 @@ private:
 
     Debugger::QmlAdapter *m_adapter;
     QDeclarativeEngineDebug *m_engineClient;
-    QmlJSObserverClient *m_observerClient;
+    QmlJSInspectorClient *m_inspectorClient;
 
     QDeclarativeDebugEnginesQuery *m_engineQuery;
     QDeclarativeDebugRootContextQuery *m_contextQuery;

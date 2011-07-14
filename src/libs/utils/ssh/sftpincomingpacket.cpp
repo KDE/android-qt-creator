@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,14 +37,6 @@
 
 namespace Utils {
 namespace Internal {
-
-namespace {
-    const int SSH_FILEXFER_ATTR_SIZE = 0x00000001;
-    const int SSH_FILEXFER_ATTR_UIDGID = 0x00000002;
-    const int SSH_FILEXFER_ATTR_PERMISSIONS = 0x00000004;
-    const int SSH_FILEXFER_ATTR_ACMODTIME = 0x00000008;
-    const int SSH_FILEXFER_ATTR_EXTENDED = 0x80000000;
-} // anonymous namespace
 
 SftpIncomingPacket::SftpIncomingPacket() : m_length(0)
 {

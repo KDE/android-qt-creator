@@ -26,24 +26,31 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "task.h"
+
+#include <QtCore/QDir>
 
 namespace ProjectExplorer
 {
 
 unsigned int Task::s_nextId = 1;
 
+/*!
+    \class  ProjectExplorer::Task
+    \brief Build issue (warning or error).
+    \sa ProjectExplorer::TaskHub
+*/
+
 Task::Task() : taskId(0), type(Unknown), line(-1)
 { }
 
 Task::Task(TaskType type_, const QString &description_,
            const QString &file_, int line_, const QString &category_) :
-    taskId(s_nextId), type(type_), description(description_), file(file_),
-    line(line_), category(category_)
+    taskId(s_nextId), type(type_), description(description_), file(QDir::fromNativeSeparators(file_)), line(line_), category(category_)
 {
     ++s_nextId;
 }
@@ -58,6 +65,29 @@ bool operator==(const Task &t1, const Task &t2)
 {
     return t1.taskId == t2.taskId;
 }
+
+bool operator<(const Task &a, const Task &b)
+{
+    if (a.type != b.type) {
+        if (a.type == ProjectExplorer::Task::Error)
+            return true;
+        if (b.type == ProjectExplorer::Task::Error)
+            return false;
+        if (a.type == ProjectExplorer::Task::Warning)
+            return true;
+        if (b.type == ProjectExplorer::Task::Warning)
+            return false;
+        // Can't happen
+        return true;
+    } else {
+        if (a.category < b.category)
+            return true;
+        if (b.category < a.category)
+            return false;
+        return a.taskId < b.taskId;
+    }
+}
+
 
 uint qHash(const Task &task)
 {

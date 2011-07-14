@@ -26,16 +26,17 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef QT4BUILDCONFIGURATION_H
 #define QT4BUILDCONFIGURATION_H
 
-#include "qtversionmanager.h"
+#include "qt4projectmanager_global.h"
 
 #include <projectexplorer/buildconfiguration.h>
+#include <qtsupport/qtversionmanager.h>
 
 namespace ProjectExplorer {
 class ToolChain;
@@ -46,16 +47,13 @@ namespace Qt4ProjectManager {
 class QMakeStep;
 class MakeStep;
 class Qt4BaseTarget;
-
-namespace Internal {
-class Qt4ProFileNode;
 class Qt4BuildConfigurationFactory;
-}
+class Qt4ProFileNode;
 
-class Qt4BuildConfiguration : public ProjectExplorer::BuildConfiguration
+class QT4PROJECTMANAGER_EXPORT Qt4BuildConfiguration : public ProjectExplorer::BuildConfiguration
 {
     Q_OBJECT
-    friend class Internal::Qt4BuildConfigurationFactory;
+    friend class Qt4BuildConfigurationFactory;
 
 public:
     explicit Qt4BuildConfiguration(Qt4BaseTarget *target);
@@ -70,20 +68,19 @@ public:
     QString shadowBuildDirectory() const;
     void setShadowBuildAndDirectory(bool shadowBuild, const QString &buildDirectory);
 
-    void setSubNodeBuild(Qt4ProjectManager::Internal::Qt4ProFileNode *node);
-    Qt4ProjectManager::Internal::Qt4ProFileNode *subNodeBuild() const;
+    void setSubNodeBuild(Qt4ProjectManager::Qt4ProFileNode *node);
+    Qt4ProjectManager::Qt4ProFileNode *subNodeBuild() const;
 
     // returns the qtVersion
-    QtVersion *qtVersion() const;
-    void setQtVersion(QtVersion *);
+    QtSupport::BaseQtVersion *qtVersion() const;
+    void setQtVersion(QtSupport::BaseQtVersion *);
 
     void setToolChain(ProjectExplorer::ToolChain *tc);
 
-    QtVersion::QmakeBuildConfigs qmakeBuildConfiguration() const;
-    void setQMakeBuildConfiguration(QtVersion::QmakeBuildConfigs config);
+    QtSupport::BaseQtVersion::QmakeBuildConfigs qmakeBuildConfiguration() const;
+    void setQMakeBuildConfiguration(QtSupport::BaseQtVersion::QmakeBuildConfigs config);
 
     /// \internal for qmakestep
-    void emitProFileEvaluteNeeded();
     // used by qmake step to notify that the qmake args have changed
     // not really nice, the build configuration should save the arguments
     // since they are needed for reevaluation
@@ -112,7 +109,7 @@ public:
     bool compareToImportFrom(const QString &makefile);
     static void removeQMLInspectorFromArguments(QString *args);
     static QString extractSpecFromArguments(QString *arguments,
-                                            const QString &directory, const QtVersion *version,
+                                            const QString &directory, const QtSupport::BaseQtVersion *version,
                                             QStringList *outArgs = 0);
 
     QVariantMap toMap() const;
@@ -120,6 +117,7 @@ public:
     ProjectExplorer::IOutputParser *createOutputParser() const;
 
     virtual bool isEnabled() const;
+    virtual QString disabledReason() const;
     /// \internal For Qt4Project, since that manages the parsing information
     void setEnabled(bool enabled);
 
@@ -127,6 +125,7 @@ public:
 
 public slots:
     void importFromBuildDirectory();
+    void emitProFileEvaluateNeeded();
 
 signals:
     /// emitted if the qt version changes (either directly, or because the default qt version changed
@@ -157,18 +156,18 @@ private:
     void ctor();
     void pickValidQtVersion();
     QString rawBuildDirectory() const;
+    QString defaultShadowBuildDirectory() const;
 
     bool m_shadowBuild;
     bool m_isEnabled;
     QString m_buildDirectory;
     QString m_lastEmmitedBuildDirectory;
     int m_qtVersionId;
-    QtVersion::QmakeBuildConfigs m_qmakeBuildConfiguration;
-    Qt4ProjectManager::Internal::Qt4ProFileNode *m_subNodeBuild;
+    QtSupport::BaseQtVersion::QmakeBuildConfigs m_qmakeBuildConfiguration;
+    Qt4ProjectManager::Qt4ProFileNode *m_subNodeBuild;
 };
 
-namespace Internal {
-class Qt4BuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
+class QT4PROJECTMANAGER_EXPORT Qt4BuildConfigurationFactory : public ProjectExplorer::IBuildConfigurationFactory
 {
     Q_OBJECT
 
@@ -204,7 +203,6 @@ private:
     QMap<QString, VersionInfo> m_versions;
 };
 
-} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // QT4BUILDCONFIGURATION_H

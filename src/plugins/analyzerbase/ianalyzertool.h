@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,110 +36,96 @@
 #define IANALYZERTOOL_H
 
 #include "analyzerbase_global.h"
+#include "analyzerconstants.h"
 
 #include <QtCore/QObject>
-
-QT_FORWARD_DECLARE_CLASS(QAbstractItemView)
-QT_FORWARD_DECLARE_CLASS(QAbstractItemModel)
 
 namespace ProjectExplorer {
 class RunConfiguration;
 }
 
-namespace ExtensionSystem {
-class IPlugin;
-}
-
 namespace Analyzer {
+
+class AnalyzerStartParameters;
+class IAnalyzerOutputPaneAdapter;
 class IAnalyzerEngine;
 
-class ANALYZER_EXPORT IAnalyzerOutputPaneAdapter : public QObject
-{
-    Q_OBJECT
-public:
-    explicit IAnalyzerOutputPaneAdapter(QObject *parent = 0);
-    virtual ~IAnalyzerOutputPaneAdapter();
 
-    virtual QWidget *toolBarWidget() = 0;
-    virtual QWidget *paneWidget() = 0;
-    virtual void clearContents() = 0;
-    virtual void setFocus() = 0;
-    virtual bool hasFocus() const = 0;
-    virtual bool canFocus() const = 0;
-    virtual bool canNavigate() const = 0;
-    virtual bool canNext() const = 0;
-    virtual bool canPrevious() const = 0;
-    virtual void goToNext() = 0;
-    virtual void goToPrev() = 0;
-
-signals:
-    void popup(bool withFocus);
-    void navigationStatusChanged();
-};
-
-class ANALYZER_EXPORT ListItemViewOutputPaneAdapter : public IAnalyzerOutputPaneAdapter
-{
-    Q_OBJECT
-public:
-    explicit ListItemViewOutputPaneAdapter(QObject *parent = 0);
-
-    virtual QWidget *paneWidget();
-    virtual void setFocus();
-    virtual bool hasFocus() const;
-    virtual bool canFocus() const;
-    virtual bool canNavigate() const;
-    virtual bool canNext() const;
-    virtual bool canPrevious() const;
-    virtual void goToNext();
-    virtual void goToPrev();
-
-    bool showOnRowsInserted() const;
-    void setShowOnRowsInserted(bool v);
-
-protected:
-    int currentRow() const;
-    void setCurrentRow(int);
-    int rowCount() const;
-    void connectNavigationSignals(QAbstractItemModel *);
-    virtual QAbstractItemView *createItemView() = 0;
-
-private slots:
-    void slotRowsInserted();
-
-private:
-    QAbstractItemView *m_listView;
-    bool m_showOnRowsInserted;
-};
-
+/**
+ * This class represents an analyzation tool, e.g. "Valgrind Memcheck".
+ *
+ * Each tool can run in different run modes. The modes are specific to the mode.
+ *
+ * @code
+ * bool YourPlugin::initialize(const QStringList &arguments, QString *errorString)
+ * {
+ *    AnalyzerManager::instance()->addTool(new MemcheckTool(this));
+ *    return true;
+ * }
+ * @endcode
+ */
 class ANALYZER_EXPORT IAnalyzerTool : public QObject
 {
     Q_OBJECT
+
 public:
     explicit IAnalyzerTool(QObject *parent = 0);
 
-    virtual QString id() const = 0;
+    /// Returns a unique ID for this tool.
+    virtual QByteArray id() const = 0;
+    /// Returns a short user readable display name for this tool.
     virtual QString displayName() const = 0;
+    /// Returns a user readable description name for this tool.
+    virtual QString description() const = 0;
+    /// Returns an id for the start action.
+    virtual QByteArray actionId(StartMode mode) const
+        { return defaultActionId(this, mode); }
+    /// Returns the menu group the start action should go to.
+    virtual QByteArray menuGroup(StartMode mode) const
+        { return defaultMenuGroup(mode); }
+    /// Returns a short user readable action name for this tool.
+    virtual QString actionName(StartMode mode) const
+        { return defaultActionName(this, mode); }
 
     /**
-     * The mode in which this tool should be run preferrably
+     * The mode in which this tool should preferably be run
      *
-     * e.g. memcheck requires debug symbols, hence DebugMode is prefferred.
-     * otoh callgrind should look at optimized code, hence ReleaseMode.
+     * The memcheck tool, for example, requires debug symbols, hence DebugMode
+     * is preferred. On the other hand, callgrind should look at optimized code,
+     * hence ReleaseMode.
      */
     enum ToolMode {
         DebugMode,
         ReleaseMode,
         AnyMode
     };
-    virtual ToolMode mode() const = 0;
+    virtual ToolMode toolMode() const = 0;
 
-    QString modeString();
+    /// Convenience implementation.
+    static QByteArray defaultMenuGroup(StartMode mode);
+    static QByteArray defaultActionId(const IAnalyzerTool *tool, StartMode mode);
+    static QString defaultActionName(const IAnalyzerTool *tool, StartMode mode);
 
-    virtual void initialize(ExtensionSystem::IPlugin *plugin) = 0;
+    /// This gets called after all analyzation tools where initialized.
+    virtual void extensionsInitialized() = 0;
 
-    virtual IAnalyzerOutputPaneAdapter *outputPaneAdapter();
+    /// Creates all widgets used by the tool.
+    /// Returns a control widget which will be shown in the status bar when
+    /// this tool is selected. Must be non-zero.
+    virtual QWidget *createWidgets() = 0;
 
-    virtual IAnalyzerEngine *createEngine(ProjectExplorer::RunConfiguration *runConfiguration) = 0;
+    /// Returns a new engine for the given start parameters.
+    /// Called each time the tool is launched.
+    virtual IAnalyzerEngine *createEngine(const AnalyzerStartParameters &sp,
+        ProjectExplorer::RunConfiguration *runConfiguration = 0) = 0;
+
+    virtual void startTool(StartMode mode) = 0;
+
+    /// Called when tools gets selected.
+    virtual void toolSelected() const {}
+
+    /// Called when tools gets deselected.
+    virtual void toolDeselected() const {}
 };
 
 } // namespace Analyzer

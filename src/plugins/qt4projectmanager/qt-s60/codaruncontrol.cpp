@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,11 +41,11 @@
 #include "qt4buildconfiguration.h"
 #include "qt4symbiantarget.h"
 #include "qt4target.h"
-#include "qtoutputformatter.h"
 #include "symbiandevicemanager.h"
 
 #include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <symbianutils/symbiandevicemanager.h>
 
@@ -69,11 +69,13 @@ enum { debug = 0 };
 CodaRunControl::CodaRunControl(RunConfiguration *runConfiguration, const QString &mode) :
     S60RunControlBase(runConfiguration, mode),
     m_port(0),
-    m_state(StateUninit)
+    m_state(StateUninit),
+    m_codaFlags(0),
+    m_stopAfterConnect(false)
 {
     const S60DeviceRunConfiguration *s60runConfig = qobject_cast<S60DeviceRunConfiguration *>(runConfiguration);
     QTC_ASSERT(s60runConfig, return);
-    const S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(s60runConfig->qt4Target()->activeDeployConfiguration());
+    const S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(s60runConfig->target()->activeDeployConfiguration());
     QTC_ASSERT(activeDeployConf, return);
 
     S60DeployConfiguration::CommunicationChannel channel = activeDeployConf->communicationChannel();
@@ -95,12 +97,12 @@ bool CodaRunControl::doStart()
 {
     if (m_address.isEmpty() && m_serialPort.isEmpty()) {
         cancelProgress();
-        QString msg = tr("No device is connected. Please connect a device and try again.");
-        appendMessage(msg, NormalMessageFormat);
+        QString msg = tr("No device is connected. Please connect a device and try again.\n");
+        appendMessage(msg, Utils::NormalMessageFormat);
         return false;
     }
-    appendMessage(tr("Executable file: %1").arg(msgListFile(executableFileName())),
-                  NormalMessageFormat);
+    appendMessage(tr("Executable file: %1\n").arg(msgListFile(executableFileName())),
+                  Utils::NormalMessageFormat);
     return true;
 }
 
@@ -109,47 +111,48 @@ bool CodaRunControl::isRunning() const
     return m_state >= StateConnecting;
 }
 
+QIcon CodaRunControl::icon() const
+{
+    return QIcon(ProjectExplorer::Constants::ICON_DEBUG_SMALL);
+}
+
 bool CodaRunControl::setupLauncher()
 {
     QTC_ASSERT(!m_codaDevice, return false);
 
     if (m_serialPort.length()) {
         // We get the port from SymbianDeviceManager
-        appendMessage(tr("Connecting to '%1'...").arg(m_serialPort), NormalMessageFormat);
+        appendMessage(tr("Connecting to '%1'...\n").arg(m_serialPort), Utils::NormalMessageFormat);
         m_codaDevice = SymbianUtils::SymbianDeviceManager::instance()->getCodaDevice(m_serialPort);
         if (m_codaDevice.isNull()) {
-            appendMessage(tr("Unable to create CODA connection. Please try again."), ErrorMessageFormat);
+            appendMessage(tr("Unable to create CODA connection. Please try again.\n"), Utils::ErrorMessageFormat);
             return false;
         }
         if (!m_codaDevice->device()->isOpen()) {
-            appendMessage(tr("Could not open serial device: %1").arg(m_codaDevice->device()->errorString()), ErrorMessageFormat);
+            appendMessage(tr("Could not open serial device: %1\n").arg(m_codaDevice->device()->errorString()), Utils::ErrorMessageFormat);
             return false;
         }
         connect(SymbianUtils::SymbianDeviceManager::instance(), SIGNAL(deviceRemoved(const SymbianUtils::SymbianDevice)),
                 this, SLOT(deviceRemoved(SymbianUtils::SymbianDevice)));
-        connect(m_codaDevice.data(), SIGNAL(error(QString)), this, SLOT(slotError(QString)));
-        connect(m_codaDevice.data(), SIGNAL(logMessage(QString)), this, SLOT(slotTrkLogMessage(QString)));
-        connect(m_codaDevice.data(), SIGNAL(tcfEvent(Coda::CodaEvent)), this, SLOT(slotCodaEvent(Coda::CodaEvent)));
-        connect(m_codaDevice.data(), SIGNAL(serialPong(QString)), this, SLOT(slotSerialPong(QString)));
         m_state = StateConnecting;
         m_codaDevice->sendSerialPing(false);
     } else {
         // For TCP we don't use device manager, we just set it up directly
         m_codaDevice = QSharedPointer<Coda::CodaDevice>(new Coda::CodaDevice, &QObject::deleteLater); // finishRunControl, which deletes m_codaDevice, can get called from within a coda callback, so need to use deleteLater
-        connect(m_codaDevice.data(), SIGNAL(error(QString)), this, SLOT(slotError(QString)));
-        connect(m_codaDevice.data(), SIGNAL(logMessage(QString)), this, SLOT(slotTrkLogMessage(QString)));
-        connect(m_codaDevice.data(), SIGNAL(tcfEvent(Coda::CodaEvent)), this, SLOT(slotCodaEvent(Coda::CodaEvent)));
-
         const QSharedPointer<QTcpSocket> codaSocket(new QTcpSocket);
         m_codaDevice->setDevice(codaSocket);
         codaSocket->connectToHost(m_address, m_port);
         m_state = StateConnecting;
-        appendMessage(tr("Connecting to %1:%2...").arg(m_address).arg(m_port), NormalMessageFormat);
+        appendMessage(tr("Connecting to %1:%2...\n").arg(m_address).arg(m_port), Utils::NormalMessageFormat);
     }
+
+    connect(m_codaDevice.data(), SIGNAL(error(QString)), this, SLOT(slotError(QString)));
+    connect(m_codaDevice.data(), SIGNAL(logMessage(QString)), this, SLOT(slotCodaLogMessage(QString)));
+    connect(m_codaDevice.data(), SIGNAL(codaEvent(Coda::CodaEvent)), this, SLOT(slotCodaEvent(Coda::CodaEvent)));
+
     QTimer::singleShot(5000, this, SLOT(checkForTimeout()));
     if (debug)
         m_codaDevice->setVerbose(debug);
-
     return true;
 }
 
@@ -166,26 +169,23 @@ void CodaRunControl::doStop()
         m_codaDevice->sendRunControlTerminateCommand(CodaCallback(),
                                                        m_runningProcessId.toAscii());
         break;
+    default:
+        if (debug)
+            qDebug() << "Unrecognised state while performing shutdown" << m_state;
+        break;
     }
 }
 
 void CodaRunControl::slotError(const QString &error)
 {
-    appendMessage(tr("Error: %1").arg(error), ErrorMessageFormat);
+    appendMessage(tr("Error: %1\n").arg(error), Utils::ErrorMessageFormat);
     finishRunControl();
 }
 
-void CodaRunControl::slotTrkLogMessage(const QString &log)
+void CodaRunControl::slotCodaLogMessage(const QString &log)
 {
     if (debug > 1)
         qDebug("CODA log: %s", qPrintable(log.size()>200?log.left(200).append(QLatin1String(" ...")): log));
-}
-
-void CodaRunControl::slotSerialPong(const QString &message)
-{
-    if (debug > 1)
-        qDebug() << "CODA serial pong:" << message;
-    handleConnected();
 }
 
 void CodaRunControl::slotCodaEvent(const CodaEvent &event)
@@ -195,7 +195,7 @@ void CodaRunControl::slotCodaEvent(const CodaEvent &event)
 
     switch (event.type()) {
     case CodaEvent::LocatorHello:
-        handleConnected();
+        handleConnected(event);
         break;
     case CodaEvent::RunControlContextRemoved:
         handleContextRemoved(event);
@@ -214,6 +214,9 @@ void CodaRunControl::slotCodaEvent(const CodaEvent &event)
     case CodaEvent::LoggingWriteEvent:
         handleLogging(event);
         break;
+    case CodaEvent::ProcessExitedEvent:
+        handleProcessExited(event);
+        break;
     default:
         if (debug)
             qDebug() << "CODA event not handled" << event.type();
@@ -223,17 +226,27 @@ void CodaRunControl::slotCodaEvent(const CodaEvent &event)
 
 void CodaRunControl::initCommunication()
 {
-    m_codaDevice->sendLoggingAddListenerCommand(CodaCallback(this, &CodaRunControl::handleAddListener));
+    if (m_codaFlags & OptionsUseDebugSession)
+        m_codaDevice->sendDebugSessionControlSessionStartCommand(CodaCallback(this, &CodaRunControl::handleDebugSessionStarted));
+    else
+        m_codaDevice->sendLoggingAddListenerCommand(CodaCallback(this, &CodaRunControl::handleAddListener));
 }
 
-void CodaRunControl::handleConnected()
+void CodaRunControl::handleConnected(const CodaEvent &event)
 {
     if (m_state >= StateConnected)
         return;
     m_state = StateConnected;
-    appendMessage(tr("Connected."), NormalMessageFormat);
+    appendMessage(tr("Connected.\n"), Utils::NormalMessageFormat);
     setProgress(maxProgress()*0.80);
-    initCommunication();
+
+    m_codaServices = static_cast<const CodaLocatorHelloEvent &>(event).services();
+    if (m_codaServices.contains(QLatin1String("DebugSessionControl")))
+        m_codaFlags |= OptionsUseDebugSession;
+
+    emit connected();
+    if (!m_stopAfterConnect)
+        initCommunication();
 }
 
 void CodaRunControl::handleContextRemoved(const CodaEvent &event)
@@ -242,16 +255,19 @@ void CodaRunControl::handleContextRemoved(const CodaEvent &event)
             = static_cast<const CodaRunControlContextRemovedEvent &>(event).ids();
     if (!m_runningProcessId.isEmpty()
             && removedItems.contains(m_runningProcessId.toAscii())) {
-        appendMessage(tr("Process has finished."), NormalMessageFormat);
-        finishRunControl();
+        appendMessage(tr("Process has finished.\n"), Utils::NormalMessageFormat);
+        if (m_codaFlags & OptionsUseDebugSession)
+            m_codaDevice->sendDebugSessionControlSessionEndCommand(CodaCallback(this, &CodaRunControl::handleDebugSessionEnded));
+        else
+            finishRunControl();
     }
 }
 
 void CodaRunControl::handleContextAdded(const CodaEvent &event)
 {
-    typedef CodaRunControlContextAddedEvent TcfAddedEvent;
+    typedef CodaRunControlContextAddedEvent CodaAddedEvent;
 
-    const TcfAddedEvent &me = static_cast<const TcfAddedEvent &>(event);
+    const CodaAddedEvent &me = static_cast<const CodaAddedEvent &>(event);
     foreach (const RunControlContext &context, me.contexts()) {
         if (context.parentId == "root") //is the created context a process
             m_runningProcessId = QLatin1String(context.id);
@@ -260,16 +276,16 @@ void CodaRunControl::handleContextAdded(const CodaEvent &event)
 
 void CodaRunControl::handleContextSuspended(const CodaEvent &event)
 {
-    typedef CodaRunControlContextSuspendedEvent TcfSuspendEvent;
+    typedef CodaRunControlContextSuspendedEvent CodaSuspendEvent;
 
-    const TcfSuspendEvent &me = static_cast<const TcfSuspendEvent &>(event);
+    const CodaSuspendEvent &me = static_cast<const CodaSuspendEvent &>(event);
 
     switch (me.reason()) {
-    case TcfSuspendEvent::Other:
-    case TcfSuspendEvent::Crash:
-        appendMessage(tr("Thread has crashed: %1").arg(QString::fromLatin1(me.message())), ErrorMessageFormat);
+    case CodaSuspendEvent::Other:
+    case CodaSuspendEvent::Crash:
+        appendMessage(tr("Thread has crashed: %1\n").arg(QString::fromLatin1(me.message())), Utils::ErrorMessageFormat);
 
-        if (me.reason() == TcfSuspendEvent::Crash)
+        if (me.reason() == CodaSuspendEvent::Crash)
             stop();
         else
             m_codaDevice->sendRunControlResumeCommand(CodaCallback(), me.id()); //TODO: Should I resume automatically
@@ -284,9 +300,9 @@ void CodaRunControl::handleContextSuspended(const CodaEvent &event)
 void CodaRunControl::handleModuleLoadSuspended(const CodaEvent &event)
 {
     // Debug mode start: Continue:
-    typedef CodaRunControlModuleLoadContextSuspendedEvent TcfModuleLoadSuspendedEvent;
+    typedef CodaRunControlModuleLoadContextSuspendedEvent CodaModuleLoadSuspendedEvent;
 
-    const TcfModuleLoadSuspendedEvent &me = static_cast<const TcfModuleLoadSuspendedEvent &>(event);
+    const CodaModuleLoadSuspendedEvent &me = static_cast<const CodaModuleLoadSuspendedEvent &>(event);
     if (me.info().requireResume)
         m_codaDevice->sendRunControlResumeCommand(CodaCallback(), me.id());
 }
@@ -294,22 +310,43 @@ void CodaRunControl::handleModuleLoadSuspended(const CodaEvent &event)
 void CodaRunControl::handleLogging(const CodaEvent &event)
 {
     const CodaLoggingWriteEvent &me = static_cast<const CodaLoggingWriteEvent &>(event);
-    appendMessage(me.message(), StdOutFormat);
+    appendMessage(QString::fromLatin1(QByteArray(me.message() + '\n')), Utils::StdOutFormat);
+}
+
+void CodaRunControl::handleProcessExited(const CodaEvent &event)
+{
+    Q_UNUSED(event)
+    appendMessage(tr("Process has finished.\n"), Utils::NormalMessageFormat);
+    m_codaDevice->sendDebugSessionControlSessionEndCommand(CodaCallback(this, &CodaRunControl::handleDebugSessionEnded));
 }
 
 void CodaRunControl::handleAddListener(const CodaCommandResult &result)
 {
     Q_UNUSED(result)
     m_codaDevice->sendSymbianOsDataFindProcessesCommand(CodaCallback(this, &CodaRunControl::handleFindProcesses),
-                                                          QByteArray(),
-                                                          QByteArray::number(executableUid(), 16));
+                                                        QByteArray(),
+                                                        QByteArray::number(executableUid(), 16));
+}
+
+void CodaRunControl::handleDebugSessionStarted(const CodaCommandResult &result)
+{
+    Q_UNUSED(result)
+    m_state = StateDebugSessionStarted;
+    m_codaDevice->sendLoggingAddListenerCommand(CodaCallback(this, &CodaRunControl::handleAddListener));
+}
+
+void CodaRunControl::handleDebugSessionEnded(const CodaCommandResult &result)
+{
+    Q_UNUSED(result)
+    m_state = StateDebugSessionEnded;
+    finishRunControl();
 }
 
 void CodaRunControl::handleFindProcesses(const CodaCommandResult &result)
 {
     if (result.values.size() && result.values.at(0).type() == JsonValue::Array && result.values.at(0).children().count()) {
         //there are processes running. Cannot run mine
-        appendMessage(tr("The process is already running on the device. Please first close it."), ErrorMessageFormat);
+        appendMessage(tr("The process is already running on the device. Please first close it.\n"), Utils::ErrorMessageFormat);
         finishRunControl();
     } else {
         setProgress(maxProgress()*0.90);
@@ -318,19 +355,33 @@ void CodaRunControl::handleFindProcesses(const CodaCommandResult &result)
                                               executableUid(),
                                               commandLineArguments().split(' '),
                                               QString(),
-                                              true);
-        appendMessage(tr("Launching: %1").arg(executableName()), NormalMessageFormat);
+                                              !(m_codaFlags & OptionsUseDebugSession));
+        appendMessage(tr("Launching: %1\n").arg(executableName()), Utils::NormalMessageFormat);
     }
 }
 
 void CodaRunControl::handleCreateProcess(const CodaCommandResult &result)
 {
     const bool ok = result.type == CodaCommandResult::SuccessReply;
+    bool processCreated = false;
     if (ok) {
+        if (m_codaFlags & OptionsUseDebugSession) {
+            if (result.values.size()) {
+                JsonValue id = result.values.at(0).findChild("ID");
+                if (id.isValid()) {
+                    m_state = StateProcessRunning;
+                    m_runningProcessId = id.data();
+                    processCreated = true;
+                }
+            }
+        } else // If no DebugSession is present the process will already be created by now
+            processCreated = true;
+    }
+    if (processCreated) {
         setProgress(maxProgress());
-        appendMessage(tr("Launched."), NormalMessageFormat);
+        appendMessage(tr("Launched.\n"), Utils::NormalMessageFormat);
     } else {
-        appendMessage(tr("Launch failed: %1").arg(result.toString()), ErrorMessageFormat);
+        appendMessage(tr("Launch failed: %1\n").arg(result.toString()), Utils::ErrorMessageFormat);
         finishRunControl();
     }
 }
@@ -374,15 +425,26 @@ void CodaRunControl::cancelConnection()
         return;
 
     stop();
-    appendMessage(tr("Canceled."), ErrorMessageFormat);
+    appendMessage(tr("Canceled.\n"), Utils::ErrorMessageFormat);
     emit finished();
 }
 
 void CodaRunControl::deviceRemoved(const SymbianUtils::SymbianDevice &device)
 {
     if (m_codaDevice && device.portName() == m_serialPort) {
-        QString msg = tr("The device '%1' has been disconnected").arg(device.friendlyName());
-        appendMessage(msg, ErrorMessageFormat);
+        QString msg = tr("The device '%1' has been disconnected.\n").arg(device.friendlyName());
+        appendMessage(msg, Utils::ErrorMessageFormat);
         finishRunControl();
     }
+}
+
+void CodaRunControl::connect()
+{
+    m_stopAfterConnect = true;
+    start();
+}
+
+void CodaRunControl::run()
+{
+    initCommunication();
 }

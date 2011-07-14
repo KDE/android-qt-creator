@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -126,8 +126,7 @@ void OptionsPage::apply()
     if (newSettings != plugin->settings()) {
         //assume success and emit signal that settings are changed;
         plugin->setSettings(newSettings);
-        newSettings.writeSettings(Core::ICore::instance()->settings(),
-                                  Constants::BAZAAR);
+        newSettings.writeSettings(Core::ICore::instance()->settings());
         emit settingsChanged();
     }
 }

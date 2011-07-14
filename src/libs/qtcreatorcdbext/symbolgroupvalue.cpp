@@ -26,14 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
+
+// std::copy is perfectly fine, don't let MSVC complain about it being deprecated
+#pragma warning (disable: 4996)
 
 #include "symbolgroupvalue.h"
 #include "symbolgroup.h"
 #include "stringutils.h"
 #include "containers.h"
+#include "extensioncontext.h"
 
 #include <iomanip>
 #include <algorithm>
@@ -99,7 +103,7 @@ static void formatNodeError(const AbstractSymbolGroupNode *n, std::ostream &os)
     }
     if (size) {
         os << "children (" << size << "): [";
-        for (VectorIndexType i = 0; i < size; i++)
+        for (VectorIndexType i = 0; i < size; ++i)
             os << ' ' << children.at(i)->name();
         os << ']';
     } else {
@@ -217,21 +221,108 @@ ULONG64 SymbolGroupValue::pointerValue(ULONG64 defaultValue) const
     return defaultValue;
 }
 
+// Read a POD value from debuggee memory and convert into host variable type POD.
+// For unsigned integer types, it is possible to read a smaller debuggee-unsigned
+// into a big ULONG64 on the host side (due to endianness).
+template<class POD>
+    POD readPODFromMemory(CIDebugDataSpaces *ds, ULONG64 address, ULONG debuggeeTypeSize,
+                          POD defaultValue, std::string *errorMessage /* = 0 */)
+{
+    POD rc = defaultValue;
+    if (debuggeeTypeSize == 0 || debuggeeTypeSize > sizeof(POD)) // Safety check.
+        return rc;
+    if (const unsigned char *buffer = SymbolGroupValue::readMemory(ds, address, debuggeeTypeSize, errorMessage)) {
+        memcpy(&rc, buffer, debuggeeTypeSize);
+        delete [] buffer;
+    }
+    return rc;
+}
+
+ULONG64 SymbolGroupValue::readPointerValue(CIDebugDataSpaces *ds, ULONG64 address,
+                                           std::string *errorMessage /* = 0 */)
+{
+    return readPODFromMemory<ULONG64>(ds, address, SymbolGroupValue::pointerSize(), 0, errorMessage);
+}
+
+ULONG64 SymbolGroupValue::readUnsignedValue(CIDebugDataSpaces *ds,
+                                            ULONG64 address, ULONG debuggeeTypeSize,
+                                            ULONG64 defaultValue,
+                                            std::string *errorMessage /* = 0 */)
+{
+    return readPODFromMemory<ULONG64>(ds, address, debuggeeTypeSize, defaultValue, errorMessage);
+}
+
+double SymbolGroupValue::readDouble(CIDebugDataSpaces *ds, ULONG64 address, double defaultValue,
+                                    std::string *errorMessage /* = 0 */)
+{
+    return readPODFromMemory<double>(ds, address, sizeof(double), defaultValue, errorMessage);
+}
+
+// Read memory and return allocated array
+unsigned char *SymbolGroupValue::readMemory(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
+                                            std::string *errorMessage /* = 0 */)
+{
+    unsigned char *buffer = new unsigned char[length];
+    std::fill(buffer, buffer + length, 0);
+    ULONG received = 0;
+    const HRESULT hr = ds->ReadVirtual(address, buffer, length, &received);
+    if (FAILED(hr)) {
+        delete [] buffer;
+        if (errorMessage) {
+            std::ostringstream estr;
+            estr << "Cannot read " << length << " bytes from 0x"
+                 << std::hex << address << ": "
+                 << msgDebugEngineComFailed("ReadVirtual", hr);
+            *errorMessage = estr.str();
+        }
+        return 0;
+    }
+    if (received < length && errorMessage) {
+        std::ostringstream estr;
+        estr << "Warning: Received only " << received
+             << " bytes of " << length
+             << " requested at 0x" << std::hex << address << '.';
+        *errorMessage = estr.str();
+    }
+    return buffer;
+}
+
+bool SymbolGroupValue::writeMemory(CIDebugDataSpaces *ds, ULONG64 address,
+                                   const unsigned char *data, ULONG length,
+                                   std::string *errorMessage /* =0 */)
+{
+    ULONG filled = 0;
+    const HRESULT hr = ds->FillVirtual(address, length,
+                                       const_cast<unsigned char *>(data),
+                                       length, &filled);
+    if (FAILED(hr)) {
+        if (errorMessage) {
+            std::ostringstream estr;
+            estr << "Cannot write " << length << " bytes to 0x"
+                 << std::hex << address << ": "
+                 << msgDebugEngineComFailed("FillVirtual", hr);
+            *errorMessage = estr.str();
+        }
+        return false;
+    }
+    if (filled < length) {
+        if (errorMessage) {
+            std::ostringstream estr;
+            estr << "Filled only " << filled << " bytes of " << length
+                 << " at 0x" << std::hex << address << '.';
+            *errorMessage = estr.str();
+        }
+        return false;
+    }
+    return true;
+}
+
 // Return allocated array of data
 unsigned char *SymbolGroupValue::pointerData(unsigned length) const
 {
-    if (isValid()) {
-        if (const ULONG64 ptr = pointerValue()) {
-            unsigned char *data = new unsigned char[length];
-            std::fill(data, data + length, 0);
-            const HRESULT hr = m_context.dataspaces->ReadVirtual(ptr, data, length, NULL);
-            if (FAILED(hr)) {
-                delete [] data;
-                return 0;
-            }
-            return data;
-        }
-    }
+    if (isValid())
+        if (const ULONG64 ptr = pointerValue())
+            return SymbolGroupValue::readMemory(m_context.dataspaces, ptr, length);
     return 0;
 }
 
@@ -324,6 +415,13 @@ unsigned SymbolGroupValue::isPointerType(const std::string &t)
     if (endsWith(t, " *"))
         return 2;
     return 0;
+}
+
+// Return number of characters to strip for pointer type
+bool SymbolGroupValue::isVTableType(const std::string &t)
+{
+    const char vtableTypeC[] = "__fptr()";
+    return t.compare(0, sizeof(vtableTypeC) - 1, vtableTypeC) == 0;
 }
 
 // add pointer type 'Foo' -> 'Foo *', 'Foo *' -> 'Foo **'
@@ -461,11 +559,13 @@ std::string SymbolGroupValue::pointedToSymbolName(ULONG64 address, const std::st
  * as 'QtCored4![namespace::]qstrdup'. In the event someone really uses a different
  * library prefix or namespaced Qt, this should be found.
  * The crux is here that the underlying IDebugSymbols::StartSymbolMatch()
- * does not accept module wildcards (as opposed to the 'x' command where 'x QtCo*!*qstrdup'
- * would be acceptable and fast). OTOH, doing a wildcard search like '*qstrdup' is
- * very slow and should be done only if there is really a different namespace or lib prefix.
- * Parameter 'modulePatternC' is used to do a search on the modules returned (due to
- * the amiguities and artifacts that appear like 'QGuid4!qstrdup'). */
+ * does not accept module wildcards (as opposed to the 'x' command where
+ * 'x QtCo*!*qstrdup' would be acceptable and fast). OTOH, doing a wildcard search
+ * like '*qstrdup' is very slow and should be done only if there is really a
+ * different namespace or lib prefix.
+ * Parameter 'modulePatternC' is used to do a search on the modules returned
+ * (due to the amiguities and artifacts that appear like 'QGuid4!qstrdup'). */
+
 static inline std::string resolveQtSymbol(const char *symbolC,
                                           const char *defaultModuleNameC,
                                           const char *modulePatternC,
@@ -478,19 +578,22 @@ static inline std::string resolveQtSymbol(const char *symbolC,
     if (debugResolveQtSymbol)
         DebugPrint() << ">resolveQtSymbol" << symbolC << " def=" << defaultModuleNameC << " defModName="
                      << defaultModuleNameC << " modPattern=" << modulePatternC;
-    // First try a match with the default module name 'QtCored4!qstrdup' for speed reasons
-    std::string defaultPattern = defaultModuleNameC;
-    defaultPattern.push_back('!');
-    defaultPattern += symbolC;
-    const StringList defaultMatches = SymbolGroupValue::resolveSymbolName(defaultPattern.c_str(), ctx);
-    if (debugResolveQtSymbol)
-        DebugPrint() << "resolveQtSymbol: defaultMatches=" << DebugSequence<StringListConstIt>(defaultMatches.begin(), defaultMatches.end());
     const SubStringPredicate modulePattern(modulePatternC);
-    const StringListConstIt defaultIt = std::find_if(defaultMatches.begin(), defaultMatches.end(), modulePattern);
-    if (defaultIt != defaultMatches.end()) {
+    // First try a match with the default module name 'QtCored4!qstrdup' for speed reasons
+    for (int qtVersion = 4; qtVersion < 6; qtVersion++) {
+        std::ostringstream str;
+        str << defaultModuleNameC << qtVersion << '!' << symbolC;
+        const std::string defaultPattern = str.str();
+        const StringList defaultMatches = SymbolGroupValue::resolveSymbolName(defaultPattern.c_str(), ctx);
         if (debugResolveQtSymbol)
-            DebugPrint() << "<resolveQtSymbol return1 " << *defaultIt;
-        return *defaultIt;
+            DebugPrint() << "resolveQtSymbol: defaultMatches=" << qtVersion
+                         << DebugSequence<StringListConstIt>(defaultMatches.begin(), defaultMatches.end());
+        const StringListConstIt defaultIt = std::find_if(defaultMatches.begin(), defaultMatches.end(), modulePattern);
+        if (defaultIt != defaultMatches.end()) {
+            if (debugResolveQtSymbol)
+                DebugPrint() << "<resolveQtSymbol return1 " << *defaultIt;
+            return *defaultIt;
+        }
     }
     // Fail, now try a search with '*qstrdup' in all modules. This might return several matches
     // like 'QtCored4!qstrdup', 'QGuid4!qstrdup'
@@ -513,8 +616,10 @@ static inline std::string resolveQtSymbol(const char *symbolC,
 
 const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
 {
-    static const char qtCoreDefaultModule[] = "QtCored4";
-    static const char qtGuiDefaultModule[] = "QtGuid4";
+    static const char qtCoreDefaultModule[] = "QtCored";
+    static const char qtGuiDefaultModule[] = "QtGuid";
+    static const char qtNetworkDefaultModule[] = "QtNetworkd";
+    static const char qtScriptDefaultModule[] = "QtScriptd";
     static QtInfo rc;
     if (!rc.coreModule.empty())
         return rc;
@@ -523,21 +628,26 @@ const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
         // Lookup qstrdup() to hopefully get module (potential libinfix) and namespace
         // Typically, this resolves to 'QtGuid4!qstrdup' and 'QtCored4!qstrdup'...
         const std::string qualifiedSymbol = resolveQtSymbol("qstrdup", qtCoreDefaultModule, "Core", ctx);
-        if (qualifiedSymbol.empty()) {
-            rc.coreModule = qtCoreDefaultModule;
-            rc.guiModule = qtGuiDefaultModule;
+        const std::string::size_type exclPos = qualifiedSymbol.find('!'); // Resolved: 'QtCored4!qstrdup'
+        if (exclPos == std::string::npos) {
+            const char defaultVersion = '4';
+            rc.version = 4;
+            rc.coreModule = qtCoreDefaultModule + defaultVersion;
+            rc.guiModule = qtGuiDefaultModule + defaultVersion;
+            rc.networkModule = qtNetworkDefaultModule + defaultVersion;
+            rc.scriptModule = qtScriptDefaultModule + defaultVersion;
             break;
         }
         // Should be 'QtCored4!qstrdup'
-        const std::string::size_type exclPos = qualifiedSymbol.find('!');
-        if (exclPos == std::string::npos) {
-            rc.coreModule = qtCoreDefaultModule;
-            break;
-        }
         rc.coreModule = qualifiedSymbol.substr(0, exclPos);
+        rc.version = qualifiedSymbol.at(exclPos - 1) - '0';
         // Derive other module names 'QtXX<infix>d4'
         rc.guiModule = rc.coreModule;
         rc.guiModule.replace(0, 6, "QtGui");
+        rc.networkModule = rc.coreModule;
+        rc.networkModule.replace(0, 6, "QtNetwork");
+        rc.scriptModule = rc.coreModule;
+        rc.scriptModule.replace(0, 6, "QtScript");
         // Any namespace? 'QtCored4!nsp::qstrdup'
         const std::string::size_type nameSpaceStart = exclPos + 1;
         const std::string::size_type colonPos = qualifiedSymbol.find(':', nameSpaceStart);
@@ -584,9 +694,11 @@ std::string QtInfo::prependModuleAndNameSpace(const std::string &type,
 
 std::ostream &operator<<(std::ostream &os, const QtInfo &i)
 {
-    os << "Qt Info: Modules '" << i.coreModule << "', '" << i.guiModule
+    os << "Qt Info: Version: " << i.version << " Modules '"
+       << i.coreModule << "', '" << i.guiModule
        << "', Namespace='" << i.nameSpace
-       << "', types: " << i.qObjectType << ',' << i.qObjectPrivateType << ',' << i.qWidgetPrivateType;
+       << "', types: " << i.qObjectType << ','
+       << i.qObjectPrivateType << ',' << i.qWidgetPrivateType;
     return os;
 }
 
@@ -963,6 +1075,10 @@ static KnownType knownClassTypeHelper(const std::string &type,
             if (!type.compare(qPos, 11, "QLinkedList"))
                 return KT_QLinkedList;
             break;
+        case 14:
+            if (!type.compare(qPos, 14, "QSharedPointer"))
+                return KT_QSharedPointer;
+            break;
         }
     }
     // Remaining non-template types
@@ -972,6 +1088,8 @@ static KnownType knownClassTypeHelper(const std::string &type,
             return KT_QPen;
         if (!type.compare(qPos, 4, "QUrl"))
             return KT_QUrl;
+        if (!type.compare(qPos, 4, "QDir"))
+            return KT_QDir;
         break;
     case 5:
         if (!type.compare(qPos, 5, "QChar"))
@@ -988,6 +1106,8 @@ static KnownType knownClassTypeHelper(const std::string &type,
             return KT_QRect;
         if (!type.compare(qPos, 5, "QIcon"))
             return KT_QIcon;
+        if (!type.compare(qPos, 5, "QFile"))
+            return KT_QFile;
         break;
     case 6:
         if (!type.compare(qPos, 6, "QColor"))
@@ -1032,6 +1152,8 @@ static KnownType knownClassTypeHelper(const std::string &type,
             return KT_QXmltem;
         if (!type.compare(qPos, 8, "QXmlName"))
             return KT_QXmlName;
+        if (!type.compare(qPos, 8, "QProcess"))
+            return KT_QProcess;
         break;
     case 9:
         if (!type.compare(qPos, 9, "QBitArray"))
@@ -1086,6 +1208,10 @@ static KnownType knownClassTypeHelper(const std::string &type,
     case 12:
         if (!type.compare(qPos, 12, "QKeySequence"))
             return KT_QKeySequence;
+        if (!type.compare(qPos, 12, "QHostAddress"))
+            return KT_QHostAddress;
+        if (!type.compare(qPos, 12, "QScriptValue"))
+            return KT_QScriptValue;
         break;
     case 13:
         if (!type.compare(qPos, 13, "QTextFragment"))
@@ -1276,6 +1402,240 @@ static inline bool dumpQString(const SymbolGroupValue &v, std::wostream &str)
     return false;
 }
 
+/* Pad a memory offset to align with pointer size */
+static inline unsigned padOffset(unsigned offset)
+{
+    const unsigned ps = SymbolGroupValue::pointerSize();
+    return (offset % ps) ? (1 + offset / ps) * ps : offset;
+}
+
+/* Return the offset to be accounted for "QSharedData" to access
+ * the first member of a QSharedData-derived class */
+static unsigned qSharedDataOffset(const SymbolGroupValueContext &ctx)
+{
+    unsigned offset = 0;
+    if (!offset) {
+        // As of 4.X, a QAtomicInt, which will be padded to 8 on a 64bit system.
+        const std::string qSharedData = QtInfo::get(ctx).prependQtCoreModule("QSharedData");
+        offset = padOffset(SymbolGroupValue::sizeOf(qSharedData.c_str()));
+    }
+    return offset;
+}
+
+/* Return the size of a QString */
+static unsigned qStringSize(const SymbolGroupValueContext &ctx)
+{
+    static const unsigned size = SymbolGroupValue::sizeOf(QtInfo::get(ctx).prependQtCoreModule("QString").c_str());
+    return size;
+}
+
+/* Return the size of a QByteArray */
+static unsigned qByteArraySize(const SymbolGroupValueContext &ctx)
+{
+    static const unsigned size = SymbolGroupValue::sizeOf(QtInfo::get(ctx).prependQtCoreModule("QByteArray").c_str());
+    return size;
+}
+
+/* Return the size of a QAtomicInt */
+static unsigned qAtomicIntSize(const SymbolGroupValueContext &ctx)
+{
+    static const unsigned size = SymbolGroupValue::sizeOf(QtInfo::get(ctx).prependQtCoreModule("QAtomicInt").c_str());
+    return size;
+}
+
+// Dump a QByteArray
+static inline bool dumpQByteArray(const SymbolGroupValue &v, std::wostream &str)
+{
+    // TODO: More sophisticated dumping of binary data?
+    if (const  SymbolGroupValue data = v["d"]["data"]) {
+        str << data.value();
+        return true;
+    }
+    return false;
+}
+
+/* Below are some helpers for simple dumpers for some Qt classes accessing their
+ * private classes without the debugger's symbolic information (applicable to non-exported
+ * private classes such as QFileInfoPrivate, etc). This is done by dereferencing the
+ * d-ptr and obtaining the address of the variable (considering some offsets depending on type)
+ * and adding a symbol for that QString or QByteArray (basically using raw memory).
+ */
+
+enum QPrivateDumpMode // Enumeration determining the offsets to be taken into consideration
+{
+    QPDM_None,
+    QPDM_qVirtual, // For classes with virtual functions (QObject-based): Skip vtable for d-address
+    QPDM_qSharedData // Private class is based on QSharedData.
+};
+
+// Determine the address of private class member by dereferencing the d-ptr and using offsets.
+static ULONG64 addressOfQPrivateMember(const SymbolGroupValue &v, QPrivateDumpMode mode,
+                                       unsigned additionalOffset = 0)
+{
+    std::string errorMessage;
+    // Dererence d-Ptr (Pointer/Value duality: Value or object address).
+    ULONG64 dAddress = SymbolGroupValue::isPointerType(v.type()) ? v.pointerValue() : v.address();
+    if (!dAddress)
+        return 0;
+    if (mode == QPDM_qVirtual) // Skip vtable.
+        dAddress += SymbolGroupValue::pointerSize();
+    const ULONG64 dptr = SymbolGroupValue::readPointerValue(v.context().dataspaces,
+                                                            dAddress, &errorMessage);
+    if (!dptr)
+        return 0;
+    // Get address of type to be dumped.
+    ULONG64 dumpAddress = dptr  + additionalOffset;
+    if (mode == QPDM_qSharedData) // Based on QSharedData
+        dumpAddress += qSharedDataOffset(v.context());
+    return dumpAddress;
+}
+
+// Convenience to dump a QString from the unexported private class of a Qt class.
+static bool dumpQStringFromQPrivateClass(const SymbolGroupValue &v,
+                                         QPrivateDumpMode mode,
+                                         unsigned additionalOffset,
+                                         std::wostream &str)
+{
+    std::string errorMessage;
+    const ULONG64 stringAddress = addressOfQPrivateMember(v, mode, additionalOffset);
+    if (!stringAddress)
+        return false;
+    const std::string dumpType = QtInfo::get(v.context()).prependQtCoreModule("QString");
+    const std::string symbolName = SymbolGroupValue::pointedToSymbolName(stringAddress , dumpType);
+    if (SymbolGroupValue::verbose > 1)
+        DebugPrint() <<  "dumpQStringFromQPrivateClass of " << v.name() << '/'
+                     << v.type() << " mode=" << mode
+                     << " offset=" << additionalOffset << " address=0x" << std::hex << stringAddress
+                     << std::dec << " expr=" << symbolName;
+    SymbolGroupNode *stringNode =
+            v.node()->symbolGroup()->addSymbol(v.module(), symbolName, std::string(), &errorMessage);
+    if (!stringNode)
+        return false;
+    return dumpQString(SymbolGroupValue(stringNode, v.context()), str);
+}
+
+// Convenience to dump a QByteArray from the unexported private class of a Qt class.
+static bool dumpQByteArrayFromQPrivateClass(const SymbolGroupValue &v,
+                                            QPrivateDumpMode mode,
+                                            unsigned additionalOffset,
+                                            std::wostream &str)
+{
+    std::string errorMessage;
+    const ULONG64 byteArrayAddress = addressOfQPrivateMember(v, mode, additionalOffset);
+    if (!byteArrayAddress)
+        return false;
+    const std::string dumpType = QtInfo::get(v.context()).prependQtCoreModule("QByteArray");
+    const std::string symbolName = SymbolGroupValue::pointedToSymbolName(byteArrayAddress , dumpType);
+    SymbolGroupNode *byteArrayNode =
+            v.node()->symbolGroup()->addSymbol(v.module(), symbolName, std::string(), &errorMessage);
+    if (!byteArrayNode)
+        return false;
+    return dumpQByteArray(SymbolGroupValue(byteArrayNode, v.context()), str);
+}
+
+/* Dump QFileInfo, for whose private class no debugging information is available.
+ * Dump 2nd string past its QSharedData base class. */
+static inline bool dumpQFileInfo(const SymbolGroupValue &v, std::wostream &str)
+{
+    return dumpQStringFromQPrivateClass(v, QPDM_qSharedData, qStringSize(v.context()),  str);
+}
+
+/* Dump QDir, for whose private class no debugging information is available.
+ * Dump 1st string past its QSharedData base class. */
+static bool inline dumpQDir(const SymbolGroupValue &v, std::wostream &str)
+{
+    return dumpQStringFromQPrivateClass(v, QPDM_qSharedData, 0,  str);
+}
+
+/* Dump QRegExp, for whose private class no debugging information is available.
+ * Dump 1st string past of its base class. */
+static inline bool dumpQRegExp(const SymbolGroupValue &v, std::wostream &str)
+{
+    return dumpQStringFromQPrivateClass(v, QPDM_qSharedData, 0,  str);
+}
+
+/* Dump QFile, for whose private class no debugging information is available.
+ * Dump the 1st string first past its QIODevicePrivate base class. */
+static inline bool dumpQFile(const SymbolGroupValue &v, std::wostream &str)
+{
+    // Get address of the file name string, obtain value by dumping a QString at address
+    static unsigned qIoDevicePrivateSize = 0;
+    if (!qIoDevicePrivateSize) {
+        const std::string qIoDevicePrivateType = QtInfo::get(v.context()).prependQtCoreModule("QIODevicePrivate");
+        qIoDevicePrivateSize = padOffset(SymbolGroupValue::sizeOf(qIoDevicePrivateType.c_str()));
+    }
+    if (!qIoDevicePrivateSize)
+        return false;
+    return dumpQStringFromQPrivateClass(v, QPDM_qVirtual, qIoDevicePrivateSize,  str);
+}
+
+/* Dump QHostAddress, for whose private class no debugging information is available.
+ * Dump string 'ipString' past of its private class. Does not currently work? */
+static inline bool dumpQHostAddress(const SymbolGroupValue &v, std::wostream &str)
+{
+    // Determine offset in private struct: qIPv6AddressType (array, unaligned) +  uint32 + enum.
+    static unsigned qIPv6AddressSize = 0;
+    if (!qIPv6AddressSize) {
+        const std::string qIPv6AddressType = QtInfo::get(v.context()).prependQtNetworkModule("QIPv6Address");
+        qIPv6AddressSize = SymbolGroupValue::sizeOf(qIPv6AddressType.c_str());
+    }
+    if (!qIPv6AddressSize)
+        return false;
+    const unsigned offset = padOffset(8 + qIPv6AddressSize);
+    return dumpQStringFromQPrivateClass(v, QPDM_None, offset,  str);
+}
+
+/* Dump QProcess, for whose private class no debugging information is available.
+ * Dump string 'program' string with empirical offset. */
+static inline bool dumpQProcess(const SymbolGroupValue &v, std::wostream &str)
+{
+    const unsigned offset = SymbolGroupValue::pointerSize() == 8 ? 424 : 260;
+    return dumpQStringFromQPrivateClass(v, QPDM_qVirtual, offset,  str);
+}
+
+/* Dump QScriptValue, for whose private class no debugging information is available.
+ * Private class has a pointer to engine, type enumeration and a JSC:JValue and double/QString
+ * for respective types. */
+static inline bool dumpQScriptValue(const SymbolGroupValue &v, std::wostream &str)
+{
+    std::string errorMessage;
+    // Read out type
+    const ULONG64 privateAddress = addressOfQPrivateMember(v, QPDM_None, 0);
+    if (!privateAddress) { // Can actually be 0 for default-constructed
+        str << L"<Invalid>";
+        return true;
+    }
+    const unsigned ps = SymbolGroupValue::pointerSize();
+    // Offsets of QScriptValuePrivate
+    const unsigned jscScriptValueSize = 8; // Union of double and rest.
+    const unsigned doubleValueOffset = 2 * ps + jscScriptValueSize;
+    const unsigned stringValueOffset = doubleValueOffset + sizeof(double);
+    const ULONG64 type =
+        SymbolGroupValue::readUnsignedValue(v.context().dataspaces,
+                                            privateAddress + ps, 4, 0, &errorMessage);
+    switch (type) {
+    case 1:
+        str << SymbolGroupValue::readDouble(v.context().dataspaces, privateAddress + doubleValueOffset);
+        break;
+    case 2:
+        return dumpQStringFromQPrivateClass(v, QPDM_None, stringValueOffset, str);
+    default:
+        str << L"<JavaScriptCore>";
+        break;
+    }
+    return true;
+}
+
+/* Dump QUrl for whose private class no debugging information is available.
+ * Dump the 'originally encoded' byte array of its private class. */
+static inline bool dumpQUrl(const SymbolGroupValue &v, std::wostream &str)
+{
+    // Get address of the original-encoded byte array, obtain value by dumping at address
+    const ULONG offset = padOffset(qAtomicIntSize(v.context()))
+                         + 6 * qStringSize(v.context()) + qByteArraySize(v.context());
+    return dumpQByteArrayFromQPrivateClass(v, QPDM_None, offset, str);
+}
+
 // Dump QColor
 static bool dumpQColor(const SymbolGroupValue &v, std::wostream &str)
 {
@@ -1387,17 +1747,6 @@ static bool dumpQTime(const SymbolGroupValue &v, std::wostream &str)
             formatMilliSeconds(str, milliSecs);
             return true;
         }
-    }
-    return false;
-}
-
-// Dump a QByteArray
-static inline bool dumpQByteArray(const SymbolGroupValue &v, std::wostream &str)
-{
-    // TODO: More sophisticated dumping of binary data?
-    if (const  SymbolGroupValue data = v["d"]["data"]) {
-        str << data.value();
-        return true;
     }
     return false;
 }
@@ -1720,6 +2069,29 @@ static bool dumpQVariant(const SymbolGroupValue &v, std::wostream &str, void **s
     return true;
 }
 
+// Dump a qsharedpointer (just list reference counts)
+static inline bool dumpQSharedPointer(const SymbolGroupValue &v, std::wostream &str, void **specialInfoIn = 0)
+{
+    const SymbolGroupValue externalRefCountV = v[unsigned(0)];
+    if (!externalRefCountV)
+        return false;
+    const SymbolGroupValue dV = externalRefCountV["d"];
+    if (!dV)
+        return false;
+    // Get value element from base and store in special info.
+    const SymbolGroupValue valueV = externalRefCountV[unsigned(0)]["value"];
+    if (!valueV)
+        return false;
+    // Format references.
+    const int strongRef = dV["strongref"]["_q_value"].intValue();
+    const int weakRef = dV["weakref"]["_q_value"].intValue();
+    if (strongRef < 0 || weakRef < 0)
+        return false;
+    str << L"References: " << strongRef << '/' << weakRef;
+    *specialInfoIn = valueV.node();
+    return true;
+}
+
 // Dump builtin simple types using SymbolGroupValue expressions.
 unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
                         std::wstring *s, int *knownTypeIn /* = 0 */,
@@ -1776,6 +2148,30 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     case KT_QByteArray:
         rc = dumpQByteArray(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
+    case KT_QFileInfo:
+        rc = dumpQFileInfo(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
+    case KT_QFile:
+        rc = dumpQFile(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
+    case KT_QDir:
+        rc = dumpQDir(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
+    case KT_QRegExp:
+        rc = dumpQRegExp(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
+    case KT_QUrl:
+        rc = dumpQUrl(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
+    case KT_QHostAddress:
+        rc = dumpQHostAddress(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
+    case KT_QProcess:
+        rc = dumpQProcess(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
+    case KT_QScriptValue:
+        rc = dumpQScriptValue(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
     case KT_QString:
         rc = dumpQString(v, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
@@ -1824,6 +2220,9 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     case KT_QWidget:
         rc = dumpQWidget(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
+    case KT_QSharedPointer:
+        rc = dumpQSharedPointer(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
     case KT_StdString:
     case KT_StdWString:
         rc = dumpStd_W_String(v, kt, str) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
@@ -1860,7 +2259,7 @@ static inline std::vector<AbstractSymbolGroupNode *>
     const std::string charType = "unsigned char";
     std::string errorMessage;
     SymbolGroup *sg = n->symbolGroup();
-    for (int i = 0; i < size; i++, address++) {
+    for (int i = 0; i < size; ++i, ++address) {
         SymbolGroupNode *en = sg->addSymbol(std::string(), SymbolGroupValue::pointedToSymbolName(address, charType),
                                             std::string(), &errorMessage);
         if (!en) {
@@ -1870,6 +2269,265 @@ static inline std::vector<AbstractSymbolGroupNode *>
         rc.push_back(ReferenceSymbolGroupNode::createArrayNode(i, en));
     }
     return rc;
+}
+
+/* AssignmentStringData: Helper struct used for assigning values
+ * to string classes. Contains an (allocated) data array with size for use
+ * with IDebugDataSpaced::FillVirtual() + string length information and
+ * provides a conversion function decodeString() to create the array
+ * depending on the argument format (blow up ASCII to UTF16 or vice versa). */
+
+struct AssignmentStringData
+{
+    explicit AssignmentStringData(size_t dataLengthIn, size_t stringLengthIn);
+    static AssignmentStringData decodeString(const char *begin, const char *end,
+                                   int valueEncoding, bool toUtf16);
+
+    static inline AssignmentStringData decodeString(const std::string &value,
+                                        int valueEncoding, bool toUtf16)
+        { return decodeString(value.c_str(), value.c_str() + value.size(),
+                              valueEncoding, toUtf16); }
+
+    unsigned char *data;
+    size_t dataLength;
+    size_t stringLength;
+};
+
+AssignmentStringData::AssignmentStringData(size_t dataLengthIn, size_t stringLengthIn) :
+    data(new unsigned char[dataLengthIn]), dataLength(dataLengthIn),
+    stringLength(stringLengthIn)
+{
+    if (dataLength)
+        memset(data, 0, dataLength);
+}
+
+AssignmentStringData AssignmentStringData::decodeString(const char *begin, const char *end,
+                                    int valueEncoding, bool toUtf16)
+{
+    if (toUtf16) { // Target is UTF16 consisting of unsigned short characters.
+        switch (valueEncoding) {
+        // Hex encoded ASCII/2 digits per char: Decode to plain characters and
+        // recurse to expand them.
+        case AssignHexEncoded: {
+            const AssignmentStringData decoded = decodeString(begin, end, AssignHexEncoded, false);
+            const char *source = reinterpret_cast<const char*>(decoded.data);
+            const AssignmentStringData utf16 = decodeString(source, source + decoded.stringLength,
+                                                  AssignPlainValue, true);
+            delete [] decoded.data;
+            return utf16;
+        }
+        // Hex encoded UTF16: 4 hex digits per character: Decode sequence.
+        case AssignHexEncodedUtf16: {
+            const size_t stringLength = (end - begin) / 4;
+            AssignmentStringData result(sizeof(unsigned short) *(stringLength + 1), stringLength);
+            decodeHex(begin, end, result.data);
+            return result;
+        }
+        default:
+            break;
+        }
+        // Convert plain ASCII data to UTF16 by expanding.
+        const size_t stringLength = end - begin;
+        AssignmentStringData result(sizeof(unsigned short) *(stringLength + 1), stringLength);
+        const unsigned char *source = reinterpret_cast<const unsigned char *>(begin);
+        unsigned short *target = reinterpret_cast<unsigned short *>(result.data);
+        std::copy(source, source + stringLength, target);
+
+        return result;
+    } // toUtf16
+    switch (valueEncoding) {
+    case AssignHexEncoded: { // '0A5A'..2 digits per character
+        const size_t stringLength = (end - begin) / 2;
+        AssignmentStringData result(stringLength + 1, stringLength);
+        decodeHex(begin, end, result.data);
+        return result;
+    }
+    // Condense UTF16 characters to ASCII: Decode and use only every 2nd character
+    // (little endian, first byte)
+    case AssignHexEncodedUtf16: {
+        const AssignmentStringData decoded = decodeString(begin, end, AssignHexEncoded, false);
+        const size_t stringLength = decoded.stringLength / 2;
+        const AssignmentStringData result(stringLength + 1, stringLength);
+        const unsigned char *sourceEnd = decoded.data + decoded.stringLength;
+        unsigned char *target = result.data;
+        for (const unsigned char *source = decoded.data; source < sourceEnd; source += 2)
+            *target++ = *source;
+        delete [] decoded.data;
+        return result;
+    }
+        break;
+    default:
+        break;
+    }
+    // Plain 0-terminated copy
+    const size_t stringLength = end - begin;
+    AssignmentStringData result(stringLength + 1, stringLength);
+    memcpy(result.data, begin, stringLength);
+    return result;
+}
+
+// Assignment helpers
+static inline std::string msgAssignStringFailed(const std::string &value, int errorCode)
+{
+    std::ostringstream estr;
+    estr << "Unable to assign a string of " << value.size() << " bytes: Error " << errorCode;
+    return estr.str();
+}
+
+/* QString assign helper: If QString instance has sufficiently allocated,
+ * memory, write the data. Else invoke 'QString::resize' and
+ * recurse (since 'd' might become invalid). This works for QString with UTF16
+ * data and for QByteArray with ASCII data due to the similar member
+ * names and both using a terminating '\0' w_char/byte. */
+static int assignQStringI(SymbolGroupNode  *n, const char *className,
+                          const AssignmentStringData &data,
+                          const SymbolGroupValueContext &ctx,
+                          bool doAlloc = true)
+{
+    const SymbolGroupValue v(n, ctx);
+    SymbolGroupValue d = v["d"];
+    if (!d)
+        return 1;
+    // Check the size, re-allocate if required.
+    const size_t allocated = d["alloc"].intValue();
+    const bool needRealloc = allocated < data.stringLength;
+    if (needRealloc) {
+        if (!doAlloc) // Calling re-alloc failed somehow.
+            return 3;
+        std::ostringstream callStr;
+        const std::string funcName
+            = QtInfo::get(ctx).prependQtCoreModule(std::string(className) + "::resize");
+        callStr << funcName << '(' << std::hex << std::showbase
+                << v.address() << ',' << data.stringLength << ')';
+        std::wstring wOutput;
+        std::string errorMessage;
+        return ExtensionContext::instance().call(callStr.str(), &wOutput, &errorMessage) ?
+            assignQStringI(n, className, data, ctx, false) : 5;
+    }
+    // Write data.
+    const ULONG64 address = d["data"].pointerValue();
+    if (!address)
+        return 9;
+    if (!SymbolGroupValue::writeMemory(v.context().dataspaces,
+                                       address, data.data, ULONG(data.dataLength)))
+        return 11;
+    // Correct size unless we re-allocated
+    if (!needRealloc) {
+        const SymbolGroupValue size = d["size"];
+        if (!size || !size.node()->assign(toString(data.stringLength)))
+            return 17;
+    }
+    return 0;
+}
+
+// QString assignment
+static inline bool assignQString(SymbolGroupNode  *n,
+                                 int valueEncoding, const std::string &value,
+                                 const SymbolGroupValueContext &ctx,
+                                 std::string *errorMessage)
+{
+    const AssignmentStringData utf16 = AssignmentStringData::decodeString(value, valueEncoding, true);
+    const int errorCode = assignQStringI(n, "QString", utf16, ctx);
+    delete [] utf16.data;
+    if (errorCode) {
+        *errorMessage = msgAssignStringFailed(value, errorCode);
+        return false;
+    }
+    return true;
+}
+
+// QByteArray assignment
+static inline bool assignQByteArray(SymbolGroupNode  *n,
+                                    int valueEncoding, const std::string &value,
+                                    const SymbolGroupValueContext &ctx,
+                                    std::string *errorMessage)
+{
+    const AssignmentStringData data = AssignmentStringData::decodeString(value, valueEncoding, false);
+    const int errorCode = assignQStringI(n, "QByteArray", data, ctx);
+    delete [] data.data;
+    if (errorCode) {
+        *errorMessage = msgAssignStringFailed(value, errorCode);
+        return false;
+    }
+    return true;
+}
+
+// Helper to assign character data to std::string or std::wstring.
+static inline int assignStdStringI(SymbolGroupNode  *n, int type,
+                                   const AssignmentStringData &data,
+                                   const SymbolGroupValueContext &ctx)
+{
+    /* We do not reallocate and just write to the allocated buffer
+     * (internal small buffer or _Ptr depending on reserved) provided sufficient
+     * memory is there since it is apparently not possible to call the template
+     * function std::string::resize().
+     * See the dumpStd_W_String() how to figure out if the internal buffer
+     * or an allocated array is used. */
+
+    const SymbolGroupValue v(n, ctx);
+    SymbolGroupValue bx = v[unsigned(0)]["_Bx"];
+    SymbolGroupValue size;
+    int reserved = 0;
+    if (bx) { // MSVC2010
+        size = v[unsigned(0)]["_Mysize"];
+        reserved = v[unsigned(0)]["_Myres"].intValue();
+    } else { // MSVC2008
+        bx = v["_Bx"];
+        size = v["_Mysize"];
+        reserved = v["_Myres"].intValue();
+    }
+    if (reserved < 0 || !size || !bx)
+        return 42;
+    if (reserved <= (int)data.stringLength)
+        return 1; // Insufficient memory.
+    // Copy data: 'Buf' array for small strings, else pointer 'Ptr'.
+    const int bufSize = type == KT_StdString ? 16 : 8; // see basic_string.
+    const ULONG64 address = (bufSize <= reserved) ?
+                            bx["_Ptr"].pointerValue() : bx["_Buf"].address();
+    if (!address)
+        return 3;
+    if (!SymbolGroupValue::writeMemory(v.context().dataspaces,
+                                       address, data.data, ULONG(data.dataLength)))
+        return 7;
+    // Correct size
+    if (!size.node()->assign(toString(data.stringLength)))
+        return 13;
+    return 0;
+}
+
+// assignment of std::string assign via ASCII, std::wstring via UTF16
+static inline bool assignStdString(SymbolGroupNode  *n,
+                                   int type, int valueEncoding, const std::string &value,
+                                   const SymbolGroupValueContext &ctx,
+                                   std::string *errorMessage)
+{
+    const bool toUtf16 = type == KT_StdWString;
+    const AssignmentStringData data = AssignmentStringData::decodeString(value, valueEncoding,
+                                                                         toUtf16);
+    const int errorCode = assignStdStringI(n, type, data, ctx);
+    delete [] data.data;
+    if (errorCode) {
+        *errorMessage = msgAssignStringFailed(value, errorCode);
+        return false;
+    }
+    return true;
+}
+
+bool assignType(SymbolGroupNode  *n, int valueEncoding, const std::string &value,
+                const SymbolGroupValueContext &ctx, std::string *errorMessage)
+{
+    switch (n->dumperType()) {
+    case KT_QString:
+        return assignQString(n, valueEncoding, value, ctx, errorMessage);
+    case KT_QByteArray:
+        return assignQByteArray(n, valueEncoding, value, ctx, errorMessage);
+    case KT_StdString:
+    case KT_StdWString:
+        return assignStdString(n, n->dumperType(), valueEncoding, value, ctx, errorMessage);
+    default:
+        break;
+    }
+    return false;
 }
 
 std::vector<AbstractSymbolGroupNode *>
@@ -1895,6 +2553,11 @@ std::vector<AbstractSymbolGroupNode *>
             SymbolGroupNode *containerNode = reinterpret_cast<SymbolGroupNode *>(specialInfo);
             rc.push_back(new ReferenceSymbolGroupNode("children", "children", containerNode));
         }
+    case KT_QSharedPointer: // Special info by simple dumper is the value
+        if (specialInfo) {
+            SymbolGroupNode *valueNode = reinterpret_cast<SymbolGroupNode *>(specialInfo);
+            rc.push_back(new ReferenceSymbolGroupNode("value", "value", valueNode));
+        }
         break;
     default:
         break;
@@ -1902,7 +2565,7 @@ std::vector<AbstractSymbolGroupNode *>
     if (SymbolGroupValue::verbose) {
         DebugPrint dp;
         dp << "<dumpComplexType" << rc.size() << ' ';
-        for (VectorIndexType i = 0; i < rc.size() ; i++)
+        for (VectorIndexType i = 0; i < rc.size() ; ++i)
             dp << i << ' ' << rc.at(i)->name();
     }
     return rc;

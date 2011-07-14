@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -350,12 +350,32 @@ void Delta::insert(UiObjectMember *member, UiObjectMember *parentMember, const Q
     if (!member || !parentMember)
         return;
 
+    bool accepted = false;
+    // initialized with garbage
+    unsigned begin = 1, end = 2, startColumn = 3, startLine = 4;
+
     // create new objects
     if (UiObjectDefinition* uiObjectDef = cast<UiObjectDefinition *>(member)) {
-        unsigned begin = uiObjectDef->firstSourceLocation().begin();
-        unsigned end = uiObjectDef->lastSourceLocation().end();
-        QString qmlText = QString(uiObjectDef->firstSourceLocation().startColumn - 1, QLatin1Char(' '));
+        begin = uiObjectDef->firstSourceLocation().begin();
+        end = uiObjectDef->lastSourceLocation().end();
+        startColumn = uiObjectDef->firstSourceLocation().startColumn;
+        startLine = uiObjectDef->firstSourceLocation().startLine;
+        accepted = true;
+    }
+
+    if (UiObjectBinding* uiObjectBind = cast<UiObjectBinding *>(member)) {
+        SourceLocation definitionLocation = uiObjectBind->qualifiedTypeNameId->identifierToken;
+        begin = definitionLocation.begin();
+        end = uiObjectBind->lastSourceLocation().end();
+        startColumn = definitionLocation.startColumn;
+        startLine = definitionLocation.startLine;
+        accepted = true;
+    }
+
+    if (accepted) {
+        QString qmlText = QString(startColumn - 1, QLatin1Char(' '));
         qmlText += doc->source().midRef(begin, end - begin);
+
         QStringList importList;
         for (UiImportList *it = doc->qmlProgram()->imports; it; it = it->next) {
             if (!it->import)
@@ -367,17 +387,24 @@ void Delta::insert(UiObjectMember *member, UiObjectMember *parentMember, const Q
         }
 
         // encode editorRevision, lineNumber in URL. See ClientProxy::buildDebugIdHashRecursive
-        QString filename = QLatin1String("file://") + doc->fileName() + QLatin1Char('_') + QString::number(doc->editorRevision())
-                         + QLatin1Char(':') + QString::number(uiObjectDef->firstSourceLocation().startLine-importList.count());
+        // Also, a relative URL is expected (no "file://" prepending!)
+        QString filename =  doc->fileName() + QLatin1Char('_') + QString::number(doc->editorRevision())
+                         + QLatin1Char(':') + QString::number(startLine-importList.count());
         foreach(DebugId debugId, debugReferences) {
             if (debugId != -1) {
-                createObject(qmlText, debugId, importList, filename);
+                int order = 0;
+                // skip children which are not objects
+                foreach (const UiObjectMember *child, children(parentMember)) {
+                    if (child == member) break;
+                    if (child->kind == AST::Node::Kind_UiObjectDefinition)
+                        order++;
+                }
+                createObject(qmlText, debugId, importList, filename, order);
             }
         }
         newObjects += member;
     }
 }
-
 
 void Delta::update(UiObjectMember* oldObject, const QmlJS::Document::Ptr& oldDoc,
                    UiObjectMember* newObject, const QmlJS::Document::Ptr& newDoc,
@@ -460,6 +487,9 @@ Delta::DebugIdMap Delta::operator()(const Document::Ptr &doc1, const Document::P
     Q_ASSERT(doc1->qmlProgram());
     Q_ASSERT(doc2->qmlProgram());
 
+    m_previousDoc = doc1;
+    m_currentDoc = doc2;
+
     Delta::DebugIdMap newDebuggIds;
 
     Map M = buildMapping(doc1, doc2);
@@ -481,11 +511,14 @@ Delta::DebugIdMap Delta::operator()(const Document::Ptr &doc1, const Document::P
 
         if (!M.way2.contains(y)) {
             UiObjectMember* parent = parents2.parent.value(y);
-            if (!M.way2.contains(parent))
-                continue;
-            if (debug)
-                qDebug () << "Delta::operator():  insert " << label(y, doc2) << " to " << label(parent, doc2);
-            insert(y, parent, newDebuggIds.value(parent), doc2);
+            if ( parent->kind == QmlJS::AST::Node::Kind_UiArrayBinding )
+                parent = parents2.parent.value(parent);
+
+            if (M.way2.contains(parent) && newDebuggIds.value(parent).count() > 0) {
+                if (debug)
+                    qDebug () << "Delta::operator():  insert " << label(y, doc2) << " to " << label(parent, doc2);
+                insert(y, parent, newDebuggIds.value(parent), doc2);
+            }
             continue;
         }
         UiObjectMember *x = M.way2[y];
@@ -497,6 +530,8 @@ Delta::DebugIdMap Delta::operator()(const Document::Ptr &doc1, const Document::P
                 updateIds = debugIds[x];
                 newDebuggIds[y] = updateIds;
             }
+            if (debug)
+                qDebug () << "Delta::operator(): update " << label(x,doc1);
             update(x, doc1, y, doc2, updateIds);
         }
         //qDebug() << "Delta::operator():  match "<< label(x, doc1) << "with parent " << label(parents1.parent.value(x), doc1)
@@ -539,7 +574,7 @@ Document::Ptr Delta::previousDocument() const
     return m_previousDoc;
 }
 
-void Delta::createObject(const QString &, DebugId, const QStringList &, const QString&)
+void Delta::createObject(const QString &, DebugId, const QStringList &, const QString&, int)
 {}
 void Delta::removeObject(int)
 {}

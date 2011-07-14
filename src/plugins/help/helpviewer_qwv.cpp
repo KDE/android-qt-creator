@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,9 +49,10 @@
 
 #include <QtHelp/QHelpEngine>
 
-#include <QtNetwork/QNetworkAccessManager>
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkRequest>
+
+#include <coreplugin/networkaccessmanager.h>
 
 using namespace Find;
 using namespace Help;
@@ -106,7 +107,7 @@ qint64 HelpNetworkReply::readData(char *buffer, qint64 maxlen)
 
 // -- HelpNetworkAccessManager
 
-class HelpNetworkAccessManager : public QNetworkAccessManager
+class HelpNetworkAccessManager : public Core::NetworkAccessManager
 {
 public:
     HelpNetworkAccessManager(QObject *parent);
@@ -117,7 +118,7 @@ protected:
 };
 
 HelpNetworkAccessManager::HelpNetworkAccessManager(QObject *parent)
-    : QNetworkAccessManager(parent)
+    : Core::NetworkAccessManager(parent)
 {
 }
 
@@ -125,7 +126,7 @@ QNetworkReply *HelpNetworkAccessManager::createRequest(Operation op,
     const QNetworkRequest &request, QIODevice* outgoingData)
 {
     if (!HelpViewer::isLocalUrl(request.url()))
-        return QNetworkAccessManager::createRequest(op, request, outgoingData);
+        return Core::NetworkAccessManager::createRequest(op, request, outgoingData);
 
     QString url = request.url().toString();
     const QHelpEngineCore &engine = LocalHelpManager::helpEngine();
@@ -294,7 +295,7 @@ void HelpViewer::scaleUp()
 
 void HelpViewer::scaleDown()
 {
-    setTextSizeMultiplier(qMax(0.0, textSizeMultiplier() - 0.1));
+    setTextSizeMultiplier(qMax(qreal(0.0), textSizeMultiplier() - 0.1));
 }
 
 void HelpViewer::resetScale()

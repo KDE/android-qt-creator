@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,7 +45,7 @@
 #include <wdbgexts.h>
 #include <dbgeng.h>
 
-typedef IDebugControl CIDebugControl;
+typedef IDebugControl3 CIDebugControl;
 typedef IDebugSymbols3 CIDebugSymbols;
 typedef IDebugSymbolGroup2 CIDebugSymbolGroup;
 typedef IDebugClient5 CIDebugClient;

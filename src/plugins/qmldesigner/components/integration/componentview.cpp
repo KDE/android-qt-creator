@@ -26,14 +26,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "componentview.h"
+#include "componentaction.h"
 #include <QtDebug>
 
 #include <nodemetainfo.h>
+#include <nodeabstractproperty.h>
 #include <QStandardItemModel>
 
 // silence gcc warnings about unused parameters
@@ -43,7 +45,7 @@ namespace QmlDesigner {
 ComponentView::ComponentView(QObject *parent)
   : AbstractView(parent),
     m_standardItemModel(new QStandardItemModel(this)),
-    m_listChanged(false)
+    m_componentAction(new ComponentAction(this))
 {
 }
 
@@ -51,11 +53,8 @@ ComponentView::ComponentView(QObject *parent)
 
 void ComponentView::nodeAboutToBeRemoved(const ModelNode &removedNode)
 {
-    for (int index = 1; index < m_standardItemModel->rowCount(); index++) {
-        QStandardItem *item = m_standardItemModel->item(index);
-        if (item->data(ModelNodeRole).value<ModelNode>() == removedNode)
-            m_standardItemModel->removeRow(index);
-    }
+    removeSingleNodeFromList(removedNode);
+    searchForComponentAndRemoveFromList(removedNode);
 }
 
 QStandardItemModel *ComponentView::standardItemModel() const
@@ -73,6 +72,11 @@ ModelNode ComponentView::modelNode(int index) const
     return ModelNode();
 }
 
+void ComponentView::setComponentNode(const ModelNode &node)
+{
+    m_componentAction->setCurrentIndex(indexForNode(node));
+}
+
 void ComponentView::appendWholeDocumentAsComponent()
 {
     QStandardItem *item = new QStandardItem(tr("whole document"));
@@ -81,22 +85,52 @@ void ComponentView::appendWholeDocumentAsComponent()
     m_standardItemModel->appendRow(item);
 }
 
+void ComponentView::removeSingleNodeFromList(const ModelNode &node)
+{
+    for (int row = 0; row < m_standardItemModel->rowCount(); row++) {
+        if (m_standardItemModel->item(row)->data(ModelNodeRole).value<ModelNode>() == node)
+            m_standardItemModel->removeRow(row);
+    }
+}
+
+
+int ComponentView::indexForNode(const ModelNode &node)
+{
+    for (int row = 0; row < m_standardItemModel->rowCount(); row++) {
+        if (m_standardItemModel->item(row)->data(ModelNodeRole).value<ModelNode>() == node)
+            return row;
+    }
+    return -1;
+}
+
 void ComponentView::modelAttached(Model *model)
 {
     if (AbstractView::model() == model)
         return;
+
+    bool block = m_componentAction->blockSignals(true);
+    m_standardItemModel->clear();
 
     AbstractView::modelAttached(model);
 
     Q_ASSERT(model->masterModel());
     appendWholeDocumentAsComponent();
     searchForComponentAndAddToList(rootModelNode());
+
+    m_componentAction->blockSignals(block);
 }
 
 void ComponentView::modelAboutToBeDetached(Model *model)
 {
+    bool block = m_componentAction->blockSignals(true);
     m_standardItemModel->clear();
     AbstractView::modelAboutToBeDetached(model);
+    m_componentAction->blockSignals(block);
+}
+
+ComponentAction *ComponentView::action()
+{
+    return m_componentAction;
 }
 
 void ComponentView::nodeCreated(const ModelNode &createdNode)
@@ -111,51 +145,60 @@ void ComponentView::searchForComponentAndAddToList(const ModelNode &node)
     nodeList.append(node.allSubModelNodes());
 
 
-    foreach (const ModelNode &childNode, nodeList) {
-        if (childNode.type() == "Qt/Component") {
-            if (!childNode.id().isEmpty()) {
-                QStandardItem *item = new QStandardItem(childNode.id());
-                item->setData(QVariant::fromValue(childNode), ModelNodeRole);
+    foreach (const ModelNode &node, nodeList) {
+        if (node.nodeSourceType() == ModelNode::NodeWithComponentSource) {
+            if (!node.id().isEmpty()) {
+                QStandardItem *item = new QStandardItem(node.id());
+                item->setData(QVariant::fromValue(node), ModelNodeRole);
                 item->setEditable(false);
+                removeSingleNodeFromList(node); //remove node if already present
+                m_standardItemModel->appendRow(item);
+            } else {
+                QString description;
+                ModelNode parentNode = node.parentProperty().parentModelNode();
+                if (parentNode.isValid()) {
+                    if (parentNode.id().isEmpty()) {
+                        description = parentNode.simplifiedTypeName() + QLatin1Char(' ');
+                    } else {
+                        description = parentNode.id() + QLatin1Char(' ');
+                    }
+                }
+                description += node.parentProperty().name();
+                QStandardItem *item = new QStandardItem(description);
+                item->setData(QVariant::fromValue(node), ModelNodeRole);
+                item->setEditable(false);
+                removeSingleNodeFromList(node); //remove node if already present
                 m_standardItemModel->appendRow(item);
             }
-        } else if (node.metaInfo().isValid() && node.metaInfo().isComponent() && !m_componentList.contains(node.type())) {
-            m_componentList.append(node.type());
-            m_componentList.sort();
-            m_listChanged = true;
-    }
+        }
     }
 }
 
-void ComponentView::nodeRemoved(const ModelNode & /*removedNode*/, const NodeAbstractProperty & /*parentProperty*/, PropertyChangeFlags /*propertyChange*/)
+void ComponentView::nodeRemoved(const ModelNode & /* removedNode */, const NodeAbstractProperty & /*parentProperty*/, PropertyChangeFlags /*propertyChange*/)
 {
-
 }
 
-//void ComponentView::searchForComponentAndRemoveFromList(const ModelNode &node)
-//{
-//    QList<ModelNode> nodeList;
-//    nodeList.append(node);
-//    nodeList.append(node.allSubModelNodes());
-//
-//
-//    foreach (const ModelNode &childNode, nodeList) {
-//        if (node.type() == "Qt/Component") {
-//            if (!node.id().isEmpty()) {
-//                for(int row = 0; row < m_standardItemModel->rowCount(); row++) {
-//                    if (m_standardItemModel->item(row)->text() == node.id())
-//                        m_standardItemModel->removeRow(row);
-//                }
-//            }
-//        } else if (node.metaInfo().isComponent() && !m_componentList.contains(node.type())) {
-//            m_componentList.append(node.type());
-//            m_componentList.sort();
-//            m_listChanged = true;
-//    }
-//    }
-//}
+void ComponentView::searchForComponentAndRemoveFromList(const ModelNode &node)
+{
+    QList<ModelNode> nodeList;
+    nodeList.append(node);
+    nodeList.append(node.allSubModelNodes());
+
+
+    foreach (const ModelNode &childNode, nodeList) {
+        if (childNode.nodeSourceType() == ModelNode::NodeWithComponentSource) {
+            removeSingleNodeFromList(childNode);
+        }
+    }
+}
+
 void ComponentView::nodeAboutToBeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/) {}
-void ComponentView::nodeReparented(const ModelNode &/*node*/, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/) {}
+
+void ComponentView::nodeReparented(const ModelNode &node, const NodeAbstractProperty &/*newPropertyParent*/, const NodeAbstractProperty &/*oldPropertyParent*/, AbstractView::PropertyChangeFlags /*propertyChange*/)
+{
+    searchForComponentAndAddToList(node);
+}
+
 void ComponentView::nodeIdChanged(const ModelNode& /*node*/, const QString& /*newId*/, const QString& /*oldId*/) {}
 void ComponentView::propertiesAboutToBeRemoved(const QList<AbstractProperty>& /*propertyList*/) {}
 void ComponentView::propertiesRemoved(const QList<AbstractProperty>& /*propertyList*/) {}
@@ -165,10 +208,13 @@ void ComponentView::rootNodeTypeChanged(const QString &/*type*/, int /*majorVers
 void ComponentView::scriptFunctionsChanged(const ModelNode &/*node*/, const QStringList &/*scriptFunctionList*/) {}
 void ComponentView::instancePropertyChange(const QList<QPair<ModelNode, QString> > &/*propertyList*/) {}
 void ComponentView::instancesCompleted(const QVector<ModelNode> &/*completedNodeList*/) {}
-void ComponentView::instanceInformationsChange(const QVector<ModelNode> &/*nodeList*/) {}
+void ComponentView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/) {}
 void ComponentView::instancesRenderImageChanged(const QVector<ModelNode> &/*nodeList*/) {}
 void ComponentView::instancesPreviewImageChanged(const QVector<ModelNode> &/*nodeList*/) {}
 void ComponentView::instancesChildrenChanged(const QVector<ModelNode> &/*nodeList*/) {}
+void ComponentView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/) {}
+
+void ComponentView::nodeSourceChanged(const ModelNode &, const QString & /*newNodeSource*/) {}
 
 void ComponentView::rewriterBeginTransaction() {}
 void ComponentView::rewriterEndTransaction() {}

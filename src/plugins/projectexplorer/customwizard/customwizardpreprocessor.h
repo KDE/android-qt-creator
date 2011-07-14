@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,21 +39,6 @@ QT_FORWARD_DECLARE_CLASS(QScriptEngine)
 
 namespace ProjectExplorer {
 namespace Internal {
-
-/* Preprocess a string using simple syntax: \code
-
-Text
-@if <JavaScript-expression>
-Bla...
-@elsif <JavaScript-expression2>
-Blup
-@endif
-\endcode
-
-* JavaScript-expressions must evaluate to integers or boolean, like
-* '2 == 1 + 1', '"a" == "a"'. The variables of the custom wizard will be
-* expanded beforem, so , "%VAR%" should be used for strings and %VAR% for integers.
-*/
 
 bool customWizardPreprocess(const QString &in, QString *out, QString *errorMessage);
 /* Helper to evaluate an expression. */

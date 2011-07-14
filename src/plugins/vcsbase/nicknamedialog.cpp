@@ -26,12 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "nicknamedialog.h"
 #include "ui_nicknamedialog.h"
+
+#include <utils/fileutils.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QFile>
@@ -41,6 +43,18 @@
 #include <QtGui/QSortFilterProxyModel>
 
 enum { NickNameRole = Qt::UserRole + 1 };
+
+/*!
+    \class VCSBase::Internal::NickNameDialog
+
+    \brief Show users from mail cap file.
+
+    Manages a list of users read from an extended
+    mail cap file, consisting of 4 columns:  "Name Mail [AliasName [AliasMail]]".
+
+    The names can be used for insertion into "RevBy:" fields; aliases will
+    be preferred.
+*/
 
 namespace VCSBase {
 namespace Internal {
@@ -232,15 +246,12 @@ bool NickNameDialog::populateModelFromMailCapFile(const QString &fileName,
         model->removeRows(0, rowCount);
     if (fileName.isEmpty())
         return true;
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly|QIODevice::Text)) {
-         *errorMessage = tr("Cannot open '%1': %2").
-                         arg(QDir::toNativeSeparators(fileName), file.errorString());
+    Utils::FileReader reader;
+    if (!reader.fetch(fileName, QIODevice::Text, errorMessage))
          return false;
-    }
     // Split into lines and read
     NickNameEntry entry;
-    const QStringList lines = QString::fromUtf8(file.readAll()).trimmed().split(QLatin1Char('\n'));
+    const QStringList lines = QString::fromUtf8(reader.data()).trimmed().split(QLatin1Char('\n'));
     const int count = lines.size();
     for (int i = 0; i < count; i++) {
         if (entry.parse(lines.at(i))) {

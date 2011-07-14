@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -97,7 +97,7 @@ enum TargetConstants
     RegisterLR = 14, // Return address
     RegisterPC = 15, // Program counter
     RegisterPSGdb = 25, // gdb's view of the world
-    RegisterPSTrk = 16, // TRK's view of the world
+    RegisterPSCoda = 16, // CODA's view of the world
 
     MemoryChunkSize = 256
 };

@@ -26,17 +26,21 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef PROFILEEVALUATOR_H
 #define PROFILEEVALUATOR_H
 
+#include "proparser_global.h"
 #include "proitems.h"
 
 #include <QtCore/QHash>
 #include <QtCore/QStringList>
+#ifndef QT_BOOTSTRAPPED
+# include <QtCore/QProcess>
+#endif
 #ifdef PROEVALUATOR_THREAD_SAFE
 # include <QtCore/QMutex>
 # include <QtCore/QWaitCondition>
@@ -47,7 +51,7 @@ QT_BEGIN_NAMESPACE
 struct ProFileOption;
 class ProFileParser;
 
-class ProFileEvaluatorHandler
+class PROPARSER_EXPORT ProFileEvaluatorHandler
 {
 public:
     // qmake/project configuration error
@@ -63,7 +67,7 @@ public:
 };
 
 
-class ProFileEvaluator
+class PROPARSER_EXPORT ProFileEvaluator
 {
     class Private;
 
@@ -100,6 +104,7 @@ public:
         TT_Application,
         TT_Library,
         TT_Script,
+        TT_Aux,
         TT_Subdirs
     };
 
@@ -110,7 +115,9 @@ public:
     ~ProFileEvaluator();
 
     ProFileEvaluator::TemplateType templateType() const;
+#ifdef PROEVALUATOR_CUMULATIVE
     void setCumulative(bool on); // Default is true!
+#endif
     void setOutputDir(const QString &dir); // Default is empty
 
     enum LoadFlag {
@@ -141,7 +148,7 @@ private:
 Q_DECLARE_OPERATORS_FOR_FLAGS(ProFileEvaluator::LoadFlags)
 
 // This struct is from qmake, but we are not using everything.
-struct ProFileOption
+struct PROPARSER_EXPORT ProFileOption
 {
     ProFileOption();
     ~ProFileOption();
@@ -168,6 +175,9 @@ struct ProFileOption
     QString qmakespec;
     QString cachefile;
     QHash<QString, QString> properties;
+#ifndef QT_BOOTSTRAPPED
+    QProcessEnvironment environment;
+#endif
     QString sysroot;
 
     //QString pro_ext;
@@ -176,12 +186,16 @@ struct ProFileOption
     // -nocache, -cache, -spec, QMAKESPEC
     // -set persistent value
     void setCommandLineArguments(const QStringList &args);
+#ifdef PROEVALUATOR_INIT_PROPS
+    bool initProperties(const QString &qmake);
+#endif
 
   private:
     friend class ProFileEvaluator;
     friend class ProFileEvaluator::Private;
 
     void applyHostMode();
+    QString getEnv(const QString &) const;
 
     QHash<ProString, ProStringList> base_valuemap; // Cached results of qmake.conf, .qmake.cache & default_pre.prf
     ProFileEvaluator::FunctionDefs base_functions;

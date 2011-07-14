@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -104,6 +104,8 @@ ThreadsHandler::ThreadsHandler()
     m_positionIcon(QLatin1String(":/debugger/images/location_16.png")),
     m_emptyIcon(QLatin1String(":/debugger/images/debugger_empty_14.png"))
 {
+    m_resetLocationScheduled = false;
+    m_contentsValid = false;
 }
 
 int ThreadsHandler::rowCount(const QModelIndex &parent) const
@@ -134,7 +136,7 @@ QVariant ThreadsHandler::data(const QModelIndex &index, int role) const
         case ThreadData::FunctionColumn:
             return thread.function;
         case ThreadData::FileColumn:
-            return thread.fileName;
+            return thread.fileName.isEmpty() ? thread.module : thread.fileName;
         case ThreadData::LineColumn:
             return thread.lineNumber >= 0
                 ? QString::number(thread.lineNumber) : QString();
@@ -146,10 +148,14 @@ QVariant ThreadsHandler::data(const QModelIndex &index, int role) const
             return thread.core;
         case ThreadData::StateColumn:
             return thread.state;
-        case ThreadData::NameColumn:
+        case ThreadData::NameColumn: {
+            QString s;
             if (!thread.name.isEmpty())
-                return thread.name;
-            return thread.id;
+                s += ' ' + thread.name;
+            if (!thread.targetId.isEmpty())
+                s += ' ' + thread.targetId;
+            return s;
+            }
         }
     case Qt::ToolTipRole:
         return threadToolTip(thread);
@@ -188,6 +194,11 @@ QVariant ThreadsHandler::headerData
         return tr("Name");
     }
     return QVariant();
+}
+
+Qt::ItemFlags ThreadsHandler::flags(const QModelIndex &index) const
+{
+    return m_contentsValid ? QAbstractTableModel::flags(index) : Qt::ItemFlags(0);
 }
 
 int ThreadsHandler::currentThreadId() const
@@ -237,7 +248,9 @@ void ThreadsHandler::setThreads(const Threads &threads)
     m_threads = threads;
     if (m_currentIndex >= m_threads.size())
         m_currentIndex = -1;
-    layoutChanged();
+    m_resetLocationScheduled = false;
+    m_contentsValid = true;
+    reset();
 }
 
 Threads ThreadsHandler::threads() const
@@ -249,7 +262,7 @@ void ThreadsHandler::removeAll()
 {
     m_threads.clear();
     m_currentIndex = 0;
-    layoutChanged();
+    reset();
 }
 
 void ThreadsHandler::notifyRunning()
@@ -289,6 +302,7 @@ Threads ThreadsHandler::parseGdbmiThreads(const GdbMi &data, int *currentThread)
         thread.function = QString::fromLatin1(frame.findChild("func").data());
         thread.fileName = QString::fromLatin1(frame.findChild("fullname").data());
         thread.lineNumber = frame.findChild("line").data().toInt();
+        thread.module = QString::fromLocal8Bit(frame.findChild("from").data());
         // Non-GDB (Cdb2) output name here.
         thread.name = QString::fromLatin1(frame.findChild("name").data());
         threads.append(thread);
@@ -296,6 +310,20 @@ Threads ThreadsHandler::parseGdbmiThreads(const GdbMi &data, int *currentThread)
     if (currentThread)
         *currentThread = data.findChild("current-thread-id").data().toInt();
     return threads;
+}
+
+void ThreadsHandler::scheduleResetLocation()
+{
+    m_resetLocationScheduled = true;
+    m_contentsValid = false;
+}
+
+void ThreadsHandler::resetLocation()
+{
+    if (m_resetLocationScheduled) {
+        m_resetLocationScheduled = false;
+        reset();
+    }
 }
 
 } // namespace Internal

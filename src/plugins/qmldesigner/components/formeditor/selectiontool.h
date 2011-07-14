@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -80,10 +80,14 @@ public:
     void formEditorItemsChanged(const QList<FormEditorItem*> &itemList);
 
     void instancesCompleted(const QList<FormEditorItem*> &itemList);
+    void instancesParentChanged(const QList<FormEditorItem *> &itemList);
+
 
     void selectUnderPoint(QGraphicsSceneMouseEvent *event);
 
     void setSelectOnlyContentItems(bool selectOnlyContentItems);
+
+    void setCursor(const QCursor &cursor);
 
 private:
     RubberBandSelectionManipulator m_rubberbandSelectionManipulator;
@@ -92,6 +96,7 @@ private:
     ResizeIndicator m_resizeIndicator;
     QTime m_mousePressTimer;
     bool m_selectOnlyContentItems;
+    QCursor m_cursor;
 };
 
 }

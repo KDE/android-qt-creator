@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -66,7 +66,7 @@ class ModelManagerInterface;
 namespace QmlJSInspector {
 namespace Internal {
 
-class QmlInspectorToolBar;
+class QmlJsInspectorToolBar;
 class QmlJSPropertyInspector;
 class ClientProxy;
 class InspectorSettings;
@@ -111,7 +111,7 @@ signals:
 public slots:
     void reloadQmlViewer();
     void serverReloaded();
-    void setApplyChangesToQmlObserver(bool applyChanges);
+    void setApplyChangesToQmlInspector(bool applyChanges);
 
 private slots:
     void enable();
@@ -129,7 +129,7 @@ private slots:
     QmlJSLiveTextPreview *createPreviewForEditor(Core::IEditor *newEditor);
 
     void disableLivePreview();
-    void crumblePathElementClicked(int);
+    void crumblePathElementClicked(const QVariant &data);
 
     void currentDebugProjectRemoved();
     void updatePendingPreviewDocuments(QmlJS::Document::Ptr doc);
@@ -141,7 +141,7 @@ private:
     void resetViews();
 
     void initializeDocuments();
-    void applyChangesToQmlObserverHelper(bool applyChanges);
+    void applyChangesToQmlInspectorHelper(bool applyChanges);
     void setupDockWidgets();
     QString filenameForShadowBuildFile(const QString &filename) const;
     void populateCrumblePath(const QDeclarativeDebugObjectReference &objRef);
@@ -153,7 +153,7 @@ private:
 
 private:
     bool m_listeningToEditorManager;
-    QmlInspectorToolBar *m_toolBar;
+    QmlJsInspectorToolBar *m_toolBar;
     ContextCrumblePath *m_crumblePath;
     QLineEdit *m_filterExp;
     QmlJSPropertyInspector *m_propertyInspector;

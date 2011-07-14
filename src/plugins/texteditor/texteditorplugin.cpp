@@ -26,13 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "texteditorplugin.h"
 
-#include "completionsupport.h"
 #include "findinfiles.h"
 #include "findincurrentfile.h"
 #include "fontsettings.h"
@@ -46,6 +45,7 @@
 #include "manager.h"
 #include "outlinefactory.h"
 #include "snippets/plaintextsnippetprovider.h"
+#include "codeassist/assistenums.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
@@ -68,12 +68,12 @@
 using namespace TextEditor;
 using namespace TextEditor::Internal;
 
-static const char * const kCurrentDocumentSelection = "CurrentDocument:Selection";
-static const char * const kCurrentDocumentRow = "CurrentDocument:Row";
-static const char * const kCurrentDocumentColumn = "CurrentDocument:Column";
-static const char * const kCurrentDocumentRowCount = "CurrentDocument:RowCount";
-static const char * const kCurrentDocumentColumnCount = "CurrentDocument:ColumnCount";
-static const char * const kCurrentDocumentFontSize = "CurrentDocument:FontSize";
+static const char kCurrentDocumentSelection[] = "CurrentDocument:Selection";
+static const char kCurrentDocumentRow[] = "CurrentDocument:Row";
+static const char kCurrentDocumentColumn[] = "CurrentDocument:Column";
+static const char kCurrentDocumentRowCount[] = "CurrentDocument:RowCount";
+static const char kCurrentDocumentColumnCount[] = "CurrentDocument:ColumnCount";
+static const char kCurrentDocumentFontSize[] = "CurrentDocument:FontSize";
 
 TextEditorPlugin *TextEditorPlugin::m_instance = 0;
 
@@ -215,17 +215,15 @@ void TextEditorPlugin::initializeEditor(PlainTextEditorWidget *editor)
 void TextEditorPlugin::invokeCompletion()
 {
     Core::IEditor *iface = Core::EditorManager::instance()->currentEditor();
-    ITextEditor *editor = qobject_cast<ITextEditor *>(iface);
-    if (editor)
-        CompletionSupport::instance()->complete(editor, SemanticCompletion, true);
+    if (BaseTextEditorWidget *w = qobject_cast<BaseTextEditorWidget *>(iface->widget()))
+        w->invokeAssist(Completion);
 }
 
 void TextEditorPlugin::invokeQuickFix()
 {
     Core::IEditor *iface = Core::EditorManager::instance()->currentEditor();
-    ITextEditor *editor = qobject_cast<ITextEditor *>(iface);
-    if (editor)
-        CompletionSupport::instance()->complete(editor, QuickFixCompletion, true);
+    if (BaseTextEditorWidget *w = qobject_cast<BaseTextEditorWidget *>(iface->widget()))
+        w->invokeAssist(QuickFix);
 }
 
 void TextEditorPlugin::updateSearchResultsFont(const FontSettings &settings)

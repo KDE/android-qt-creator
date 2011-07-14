@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -62,14 +62,12 @@ class GenericTarget : public ProjectExplorer::Target
 
 public:
     explicit GenericTarget(GenericProject *parent);
-    ~GenericTarget();
 
     ProjectExplorer::BuildConfigWidget *createConfigWidget();
 
     GenericProject *genericProject() const;
 
     GenericBuildConfigurationFactory *buildConfigurationFactory() const;
-    ProjectExplorer::DeployConfigurationFactory *deployConfigurationFactory() const;
     GenericBuildConfiguration *activeBuildConfiguration() const;
 
 protected:
@@ -77,7 +75,6 @@ protected:
 
 private:
     GenericBuildConfigurationFactory *m_buildConfigurationFactory;
-    ProjectExplorer::DeployConfigurationFactory *m_deployConfigurationFactory;
 };
 
 class GenericTargetFactory : public ProjectExplorer::ITargetFactory
@@ -86,7 +83,6 @@ class GenericTargetFactory : public ProjectExplorer::ITargetFactory
 
 public:
     explicit GenericTargetFactory(QObject *parent = 0);
-    ~GenericTargetFactory();
 
     bool supportsTargetId(const QString &id) const;
 

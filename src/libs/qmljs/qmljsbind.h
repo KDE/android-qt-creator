@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,6 @@
 
 namespace QmlJS {
 
-class Link;
 class Document;
 
 class QMLJS_EXPORT Bind: protected AST::Visitor
@@ -64,7 +63,7 @@ public:
     bool usesQmlPrototype(Interpreter::ObjectValue *prototype,
                           const Interpreter::Context *context) const;
 
-    Interpreter::ObjectValue *findFunctionScope(AST::FunctionExpression *node) const;
+    Interpreter::ObjectValue *findAttachedJSScope(AST::Node *node) const;
     bool isGroupedPropertyBinding(AST::Node *node) const;
 
     static QString toString(AST::UiQualifiedId *qualifiedId, QChar delimiter = QChar('.'));
@@ -103,7 +102,7 @@ private:
 
     QHash<AST::Node *, Interpreter::ObjectValue *> _qmlObjects;
     QSet<AST::Node *> _groupedPropertyBindings;
-    QHash<AST::FunctionExpression *, Interpreter::ObjectValue *> _functionScopes;
+    QHash<AST::Node *, Interpreter::ObjectValue *> _attachedJSScopes;
     QStringList _includedScripts;
 
     QList<Interpreter::ImportInfo> _imports;

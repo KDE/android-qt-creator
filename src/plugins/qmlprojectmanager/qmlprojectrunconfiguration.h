@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,8 +50,8 @@ namespace Utils {
     class EnvironmentItem;
 }
 
-namespace Qt4ProjectManager {
-    class QtVersion;
+namespace QtSupport {
+    class BaseQtVersion;
 }
 
 namespace QmlProjectManager {
@@ -82,7 +82,7 @@ public:
     QString viewerArguments() const;
     QString workingDirectory() const;
     int qtVersionId() const;
-    Qt4ProjectManager::QtVersion *qtVersion() const;
+    QtSupport::BaseQtVersion *qtVersion() const;
 
     enum MainScriptSource {
         FileInEditor,
@@ -97,9 +97,10 @@ public:
     Utils::Environment environment() const;
 
     // RunConfiguration
-    bool isEnabled(ProjectExplorer::BuildConfiguration *bc) const;
+    bool isEnabled() const;
+    QString disabledReason() const;
     virtual QWidget *createConfigurationWidget();
-    ProjectExplorer::OutputFormatter *createOutputFormatter() const;
+    Utils::OutputFormatter *createOutputFormatter() const;
     QVariantMap toMap() const;
 
     ProjectExplorer::Abi abi() const;
@@ -119,7 +120,7 @@ protected:
 
 private:
     void ctor();
-    static bool isValidVersion(Qt4ProjectManager::QtVersion *version);
+    static bool isValidVersion(QtSupport::BaseQtVersion *version);
     void setQtVersionId(int id);
     
     static QString canonicalCapsPath(const QString &filePath);

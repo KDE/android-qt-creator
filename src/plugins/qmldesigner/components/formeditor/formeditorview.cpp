@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,6 +56,7 @@
 #include <zoomaction.h>
 #include <nodeabstractproperty.h>
 #include <nodelistproperty.h>
+#include <commondefines.h>
 
 
 namespace QmlDesigner {
@@ -125,15 +126,49 @@ void FormEditorView::setupFormEditorItemTree(const QmlItemNode &qmlItemNode)
     m_scene->addFormEditorItem(qmlItemNode);
 
     foreach (const QmlObjectNode &nextNode, qmlItemNode.allDirectSubNodes()) //TODO instance children
-        if (QmlItemNode(nextNode).isValid())
+        //If the node has source for components/custom parsers we ignore it.
+        if (QmlItemNode(nextNode).isValid() && nextNode.modelNode().nodeSourceType() == ModelNode::NodeWithoutSource)
             setupFormEditorItemTree(nextNode.toQmlItemNode());
+}
+
+void FormEditorView::removeNodeFromScene(const QmlItemNode &qmlItemNode)
+{
+    if (qmlItemNode.isValid()) {
+        QList<QmlItemNode> nodeList;
+        nodeList.append(qmlItemNode.allSubModelNodes());
+        nodeList.append(qmlItemNode);
+
+        QList<FormEditorItem*> removedItemList;
+        removedItemList.append(scene()->itemsForQmlItemNodes(nodeList));
+        m_currentTool->itemsAboutToRemoved(removedItemList);
+
+        qDeleteAll(removedItemList);
+    }
+}
+
+void FormEditorView::hideNodeFromScene(const QmlItemNode &qmlItemNode)
+{
+    if (qmlItemNode.isValid()) {
+
+        FormEditorItem *item = m_scene->itemForQmlItemNode(qmlItemNode);
+
+        QList<QmlItemNode> nodeList;
+        nodeList.append(qmlItemNode.allSubModelNodes());
+        nodeList.append(qmlItemNode);
+
+        QList<FormEditorItem*> removedItemList;
+        removedItemList.append(scene()->itemsForQmlItemNodes(nodeList));
+        m_currentTool->itemsAboutToRemoved(removedItemList);
+        item->setFormEditorVisible(false);
+    }
 }
 
 void FormEditorView::nodeCreated(const ModelNode &createdNode)
 {
     QmlModelView::nodeCreated(createdNode);
     ModelNode node(createdNode);
-    if (QmlItemNode(node).isValid()) //only setup QmlItems
+    //If the node has source for components/custom parsers we ignore it.
+    if (QmlItemNode(node).isValid() && node.nodeSourceType() == ModelNode::NodeWithoutSource) //only setup QmlItems
         setupFormEditorItemTree(QmlItemNode(node));
 }
 
@@ -161,20 +196,7 @@ void FormEditorView::nodeAboutToBeRemoved(const ModelNode &removedNode)
 {
     QmlItemNode qmlItemNode(removedNode);
 
-    if (qmlItemNode.isValid()) {
-
-        FormEditorItem *item = m_scene->itemForQmlItemNode(qmlItemNode);
-
-        QList<QmlItemNode> nodeList;
-        nodeList.append(qmlItemNode.allSubModelNodes());
-        nodeList.append(qmlItemNode);
-
-        QList<FormEditorItem*> removedItemList;
-        removedItemList.append(scene()->itemsForQmlItemNodes(nodeList));
-        m_currentTool->itemsAboutToRemoved(removedItemList);
-
-        delete item;
-    }
+    removeNodeFromScene(qmlItemNode);
 
     QmlModelView::nodeAboutToBeRemoved(removedNode);
 }
@@ -224,8 +246,23 @@ void FormEditorView::propertiesAboutToBeRemoved(const QList<AbstractProperty>& p
 
     QmlModelView::propertiesAboutToBeRemoved(propertyList);
 }
+
+static inline bool hasNodeSourceParent(const ModelNode &node)
+{
+    if (node.parentProperty().isValid() && node.parentProperty().parentModelNode().isValid()) {
+        ModelNode parent = node.parentProperty().parentModelNode();
+        if (parent.nodeSourceType() != ModelNode::NodeWithoutSource)
+            return true;
+        return hasNodeSourceParent(parent);
+    }
+    return false;
+}
+
 void FormEditorView::nodeReparented(const ModelNode &node, const NodeAbstractProperty &newPropertyParent, const NodeAbstractProperty &oldPropertyParent, AbstractView::PropertyChangeFlags propertyChange)
 {
+    if (hasNodeSourceParent(node))
+        hideNodeFromScene(node);
+
     QmlModelView::nodeReparented(node, newPropertyParent, oldPropertyParent, propertyChange);
 }
 
@@ -294,7 +331,6 @@ bool FormEditorView::changeToMoveTool()
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::SizeAllCursor);
     m_currentTool->clear();
     m_currentTool = m_moveTool;
     m_currentTool->clear();
@@ -309,7 +345,6 @@ void FormEditorView::changeToDragTool()
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::ArrowCursor);
     m_currentTool->clear();
     m_currentTool = m_dragTool;
     m_currentTool->clear();
@@ -327,7 +362,6 @@ bool FormEditorView::changeToMoveTool(const QPointF &beginPoint)
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::SizeAllCursor);
     m_currentTool->clear();
     m_currentTool = m_moveTool;
     m_currentTool->clear();
@@ -343,7 +377,6 @@ void FormEditorView::changeToSelectionTool()
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::ArrowCursor);
     m_currentTool->clear();
     m_currentTool = m_selectionTool;
     m_currentTool->clear();
@@ -357,7 +390,6 @@ void FormEditorView::changeToItemCreatorTool()
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::CrossCursor);
     m_currentTool->clear();
     m_currentTool = m_itemCreatorTool;
     m_currentTool->clear();
@@ -372,7 +404,6 @@ void FormEditorView::changeToSelectionTool(QGraphicsSceneMouseEvent *event)
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::ArrowCursor);
     m_currentTool->clear();
     m_currentTool = m_selectionTool;
     m_currentTool->clear();
@@ -388,7 +419,6 @@ void FormEditorView::changeToResizeTool()
 
     scene()->setPaintMode(FormEditorScene::NormalMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::ArrowCursor);
     m_currentTool->clear();
     m_currentTool = m_resizeTool;
     m_currentTool->clear();
@@ -402,7 +432,6 @@ void FormEditorView::changeToAnchorTool()
 
     scene()->setPaintMode(FormEditorScene::AnchorMode);
     m_scene->updateAllFormEditorItems();
-    setCursor(Qt::ArrowCursor);
     m_currentTool->clear();
     m_currentTool = m_anchorTool;
     m_currentTool->clear();
@@ -417,11 +446,6 @@ void FormEditorView::changeToTransformTools()
         return;
 
     changeToSelectionTool();
-}
-
-void FormEditorView::setCursor(const QCursor &cursor)
-{
-    m_formEditorWidget->setCursor(cursor);
 }
 
 void FormEditorView::nodeSlidedToIndex(const NodeListProperty &listProperty, int /*newIndex*/, int /*oldIndex*/)
@@ -445,7 +469,8 @@ void FormEditorView::auxiliaryDataChanged(const ModelNode &node, const QString &
     if (name == "invisible" && m_scene->hasItemForQmlItemNode(QmlItemNode(node))) {
         FormEditorItem *item(m_scene->itemForQmlItemNode(QmlItemNode(node)));
         bool isInvisible = data.toBool();
-        item->setVisible(!isInvisible);
+        if (item->isFormEditorVisible())
+            item->setVisible(!isInvisible);
         ModelNode newNode(node);
         if (isInvisible)
             newNode.deselectNode();
@@ -460,23 +485,23 @@ void FormEditorView::instancesCompleted(const QVector<ModelNode> &completedNodeL
         if (qmlItemNode.isValid() && scene()->hasItemForQmlItemNode(qmlItemNode)) {
             scene()->synchronizeParent(qmlItemNode);
             itemNodeList.append(scene()->itemForQmlItemNode(qmlItemNode));
-            if (qmlItemNode.isRootModelNode())
-                m_formEditorWidget->centerScene();
         }
     }
     currentTool()->instancesCompleted(itemNodeList);
 }
 
-void FormEditorView::instanceInformationsChange(const QVector<ModelNode> &nodeList)
+void FormEditorView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     QList<FormEditorItem*> itemNodeList;
 
-    foreach (const ModelNode &node, nodeList) {
+    foreach (const ModelNode &node, informationChangeHash.keys()) {
         QmlItemNode qmlItemNode(node);
         if (qmlItemNode.isValid() && scene()->hasItemForQmlItemNode(qmlItemNode)) {
             scene()->synchronizeTransformation(qmlItemNode);
-            if (qmlItemNode.isRootModelNode())
+            if (qmlItemNode.isRootModelNode() && informationChangeHash.values(node).contains(Size)) {
                 widget()->setRootItemRect(qmlItemNode.instanceBoundingRect());
+                widget()->centerScene();
+            }
 
             itemNodeList.append(scene()->itemForQmlItemNode(qmlItemNode));
         }
@@ -500,6 +525,10 @@ void FormEditorView::instancesPreviewImageChanged(const QVector<ModelNode> &/*no
 
 }
 
+void FormEditorView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
+{
+}
+
 void FormEditorView::instancesChildrenChanged(const QVector<ModelNode> &nodeList)
 {
     QList<FormEditorItem*> itemNodeList;
@@ -513,6 +542,7 @@ void FormEditorView::instancesChildrenChanged(const QVector<ModelNode> &nodeList
     }
 
     m_currentTool->formEditorItemsChanged(itemNodeList);
+    m_currentTool->instancesParentChanged(itemNodeList);
 }
 
 void FormEditorView::rewriterBeginTransaction()
@@ -584,16 +614,22 @@ QmlItemNode findRecursiveQmlItemNode(const QmlObjectNode &firstQmlObjectNode)
     return QmlItemNode();
 }
 
-void FormEditorView::otherPropertyChanged(const QmlObjectNode &qmlObjectNode, const QString &propertyName)
+void FormEditorView::instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList)
 {
-    Q_ASSERT(qmlObjectNode.isValid());
-
-    QmlItemNode itemNode = findRecursiveQmlItemNode(qmlObjectNode);
-
-    if (itemNode.isValid() && scene()->hasItemForQmlItemNode(itemNode)) {
-        m_scene->synchronizeOtherProperty(itemNode, propertyName);
-        m_currentTool->formEditorItemsChanged(QList<FormEditorItem*>() << m_scene->itemForQmlItemNode(itemNode));
+    typedef QPair<ModelNode, QString> NodePropertyPair;
+    foreach (const NodePropertyPair &nodePropertyPair, propertyList) {
+        const QmlItemNode itemNode(nodePropertyPair.first);
+        const QString propertyName = nodePropertyPair.second;
+        if (itemNode.isValid() && scene()->hasItemForQmlItemNode(itemNode)) {
+            static QStringList skipList = QStringList() << "x" << "y" << "width" << "height";
+            if (!skipList.contains(propertyName)) {
+                m_scene->synchronizeOtherProperty(itemNode, propertyName);
+                m_currentTool->formEditorItemsChanged(QList<FormEditorItem*>() << m_scene->itemForQmlItemNode(itemNode));
+            }
+        }
     }
+
+    QmlModelView::instancePropertyChange(propertyList);
 }
 
 void FormEditorView::updateGraphicsIndicators()

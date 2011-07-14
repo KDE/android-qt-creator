@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,13 +34,13 @@
 #define CPPEDITOR_H
 
 #include "cppeditorenums.h"
-#include "cppquickfix.h"
 #include "cppsemanticinfo.h"
 
 #include <cplusplus/ModelManagerInterface.h>
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/LookupContext.h>
 #include <texteditor/basetexteditor.h>
+#include <texteditor/quickfix.h>
 
 #include <QtCore/QThread>
 #include <QtCore/QMutex>
@@ -61,6 +61,7 @@ class Symbol;
 
 namespace CppTools {
 class CppModelManagerInterface;
+class CppCodeStyleSettings;
 }
 
 namespace TextEditor {
@@ -146,17 +147,13 @@ class CPPEditor : public TextEditor::BaseTextEditor
     Q_OBJECT
 public:
     CPPEditor(CPPEditorWidget *);
-    Core::Context context() const;
 
     bool duplicateSupported() const { return true; }
     Core::IEditor *duplicate(QWidget *parent);
     QString id() const;
 
     bool isTemporary() const { return false; }
-    virtual bool open(const QString & fileName);
-
-private:
-    Core::Context m_context;
+    virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
 };
 
 class CPPEditorWidget : public TextEditor::BaseTextEditorWidget
@@ -193,6 +190,9 @@ public:
 
     static QVector<QString> highlighterFormatCategories();
 
+    virtual TextEditor::IAssistInterface *createAssistInterface(TextEditor::AssistKind kind,
+                                                                TextEditor::AssistReason reason) const;
+
 Q_SIGNALS:
     void outlineModelIndexChanged(const QModelIndex &index);
 
@@ -206,7 +206,6 @@ public Q_SLOTS:
     void renameUsages();
     void findUsages();
     void renameUsagesNow(const QString &replacement = QString());
-    void hideRenameNotification();
     void rehighlight(bool force = false);
 
 protected:
@@ -218,6 +217,8 @@ protected:
 
     const CPlusPlus::Macro *findCanonicalMacro(const QTextCursor &cursor,
                                                CPlusPlus::Document::Ptr doc) const;
+protected Q_SLOTS:
+    void slotCodeStyleSettingsChanged(const QVariant &);
 
 private Q_SLOTS:
     void updateFileName();
@@ -241,9 +242,6 @@ private Q_SLOTS:
     void performQuickFix(int index);
 
 private:
-    bool showWarningMessage() const;
-    void setShowWarningMessage(bool showWarningMessage);
-
     void markSymbols(const QTextCursor &tc, const SemanticInfo &info);
     bool sortedOutline() const;
     CPlusPlus::Symbol *findDefinition(CPlusPlus::Symbol *symbol, const CPlusPlus::Snapshot &snapshot) const;

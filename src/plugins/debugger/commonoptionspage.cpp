@@ -26,14 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "commonoptionspage.h"
 
 #include "debuggeractions.h"
-#include "debuggerconstants.h"
+#include "debuggerinternalconstants.h"
 #include "debuggercore.h"
 #include "debuggerstringutils.h"
 
@@ -72,6 +72,8 @@ CommonOptionsPageWidget::CommonOptionsPageWidget
         m_ui.checkBoxCloseBuffersOnExit);
     m_group->insert(dc->action(SwitchModeOnExit),
         m_ui.checkBoxSwitchModeOnExit);
+    m_group->insert(dc->action(FontSizeFollowsEditor),
+        m_ui.checkBoxFontSizeFollowsEditor);
     m_group->insert(dc->action(AutoDerefPointers), 0);
     m_group->insert(dc->action(UseToolTipsInLocalsView), 0);
     m_group->insert(dc->action(AlwaysAdjustLocalsColumnWidths), 0);
@@ -109,6 +111,7 @@ QString CommonOptionsPageWidget::searchKeyWords() const
     const QLatin1Char sep(' ');
     QTextStream(&rc)
             << sep << m_ui.checkBoxUseAlternatingRowColors->text()
+            << sep << m_ui.checkBoxFontSizeFollowsEditor->text()
             << sep << m_ui.checkBoxUseToolTipsInMainEditor->text()
             << sep << m_ui.checkBoxListSourceFiles->text()
 #ifdef Q_OS_WIN

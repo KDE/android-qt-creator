@@ -26,12 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "colorpickertool.h"
-#include "qdeclarativeviewobserver.h"
+#include "qdeclarativeviewinspector.h"
 
 #include <QtGui/QMouseEvent>
 #include <QtGui/QKeyEvent>
@@ -43,7 +43,7 @@
 
 namespace QmlJSDebugger {
 
-ColorPickerTool::ColorPickerTool(QDeclarativeViewObserver *view) :
+ColorPickerTool::ColorPickerTool(QDeclarativeViewInspector *view) :
     AbstractLiveEditTool(view)
 {
     m_selectedColor.setRgb(0,0,0);

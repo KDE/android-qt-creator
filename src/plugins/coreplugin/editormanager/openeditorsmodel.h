@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -82,6 +82,7 @@ public:
 
     void removeEditor(IEditor *editor);
     void removeEditor(const QModelIndex &index);
+    void removeEditor(const QString &fileName);
 
     void removeAllRestoredEditors();
     void emitDataChanged(IEditor *editor);
@@ -103,6 +104,7 @@ private:
     void addEntry(const Entry &entry);
     int findEditor(IEditor *editor) const;
     int findFileName(const QString &filename) const;
+    void removeEditor(int idx);
 
     QScopedPointer<OpenEditorsModelPrivate> d;
 };

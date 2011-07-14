@@ -26,12 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef DEBUGGERSTRINGUTILS_H
 #define DEBUGGERSTRINGUTILS_H
+
+#ifndef qdoc
 
 #include <QtCore/QString>
 
@@ -48,4 +50,7 @@ inline QString _(const QByteArray &ba) { return QString::fromLatin1(ba, ba.size(
 
 } // namespace Internal
 } // namespace Debugger
+
+#endif // qdoc
+
 #endif // DEBUGGERSTRINGUTILS_H

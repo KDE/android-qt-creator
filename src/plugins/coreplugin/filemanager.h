@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -74,20 +74,19 @@ public:
     // file pool to monitor
     void addFiles(const QList<IFile *> &files, bool addWatcher = true);
     void addFile(IFile *file, bool addWatcher = true);
-    void removeFile(IFile *file);
+    bool removeFile(IFile *file);
     QList<IFile *> modifiedFiles() const;
 
     void renamedFile(const QString &from, const QString &to);
-
-    void blockFileChange(IFile *file);
-    void unblockFileChange(IFile *file);
 
     void expectFileChange(const QString &fileName);
     void unexpectFileChange(const QString &fileName);
 
     // recent files
     void addToRecentFiles(const QString &fileName, const QString &editorId = QString());
+    Q_SLOT void clearRecentFiles();
     QList<RecentFile> recentFiles() const;
+
     void saveSettings();
 
     // current file
@@ -96,6 +95,8 @@ public:
 
     // helper methods
     static QString fixFileName(const QString &fileName, FixMode fixmode);
+
+    bool saveFile(IFile *file, const QString &fileName = QString(), bool *isReadOnly = 0);
 
     QStringList getOpenFileNames(const QString &filters,
                                  const QString path = QString(),
@@ -160,7 +161,6 @@ private:
     void addFileInfo(const QString &fileName, IFile *file, bool isLink);
     void removeFileInfo(IFile *file);
 
-    void updateFileInfo(IFile *file);
     void updateExpectedState(const QString &fileName);
 
     QList<IFile *> saveModifiedFiles(const QList<IFile *> &files,

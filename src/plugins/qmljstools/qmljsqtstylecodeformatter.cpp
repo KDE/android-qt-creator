@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -101,7 +101,7 @@ void QtStyleCodeFormatter::onEnter(int newState, int *indentDepth, int *savedInd
     switch (newState) {
     case objectdefinition_open: {
         // special case for things like "gradient: Gradient {"
-        if (parentState.type == binding_assignment)
+        if (parentState.type == binding_assignment || parentState.type == property_initializer)
             *savedIndentDepth = state(1).savedIndentDepth;
 
         if (firstToken)
@@ -117,6 +117,8 @@ void QtStyleCodeFormatter::onEnter(int newState, int *indentDepth, int *savedInd
         break;
 
     case binding_assignment:
+    case property_initializer:
+    case objectliteral_assignment:
         if (lastToken)
             *indentDepth = *savedIndentDepth + 4;
         else
@@ -132,6 +134,7 @@ void QtStyleCodeFormatter::onEnter(int newState, int *indentDepth, int *savedInd
         // ternary already adjusts indents nicely
         if (parentState.type != expression_or_objectdefinition
                 && parentState.type != binding_assignment
+                && parentState.type != property_initializer
                 && parentState.type != ternary_op) {
             *indentDepth += 2 * m_indentSize;
         }
@@ -152,7 +155,8 @@ void QtStyleCodeFormatter::onEnter(int newState, int *indentDepth, int *savedInd
         break;
 
     case bracket_open:
-        if (parentState.type == expression && state(1).type == binding_assignment) {
+        if (parentState.type == expression && (state(1).type == binding_assignment
+                                               || state(1).type == property_initializer)) {
             *savedIndentDepth = state(2).savedIndentDepth;
             *indentDepth = *savedIndentDepth + m_indentSize;
         } else if (!lastToken) {
@@ -202,6 +206,18 @@ void QtStyleCodeFormatter::onEnter(int newState, int *indentDepth, int *savedInd
             *savedIndentDepth = state(1).savedIndentDepth;
         *indentDepth = *savedIndentDepth + m_indentSize;
         break;
+
+    case objectliteral_open:
+        if (parentState.type == expression
+                || parentState.type == objectliteral_assignment
+                || parentState.type == property_initializer) {
+            // undo the continuation indent of the expression
+            *indentDepth = parentState.savedIndentDepth;
+            *savedIndentDepth = *indentDepth;
+        }
+        *indentDepth += m_indentSize;
+        break;
+
 
     case statement_with_condition:
     case statement_with_block:
@@ -277,6 +293,7 @@ void QtStyleCodeFormatter::adjustIndent(const QList<Token> &tokens, int lexerSta
     case LeftBrace:
         if (topState.type == substatement
                 || topState.type == binding_assignment
+                || topState.type == property_initializer
                 || topState.type == case_cont) {
             *indentDepth = topState.savedIndentDepth;
         }
@@ -290,7 +307,8 @@ void QtStyleCodeFormatter::adjustIndent(const QList<Token> &tokens, int lexerSta
             const int type = state(i).type;
             if (type == objectdefinition_open
                     || type == jsblock_open
-                    || type == substatement_open) {
+                    || type == substatement_open
+                    || type == objectliteral_open) {
                 *indentDepth = state(i).savedIndentDepth;
                 break;
             }

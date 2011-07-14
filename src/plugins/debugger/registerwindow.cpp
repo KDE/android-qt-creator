@@ -26,18 +26,20 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "registerwindow.h"
-
+#include "memoryview.h"
 #include "debuggeractions.h"
+#include "debuggerdialogs.h"
 #include "debuggerconstants.h"
 #include "debuggercore.h"
 #include "debuggerengine.h"
 #include "registerhandler.h"
 #include "watchdelegatewidgets.h"
+#include "memoryagent.h"
 
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
@@ -172,11 +174,7 @@ RegisterWindow::RegisterWindow(QWidget *parent)
     connect(debuggerCore()->action(AlwaysAdjustRegistersColumnWidths),
         SIGNAL(toggled(bool)),
         SLOT(setAlwaysResizeColumnsToContents(bool)));
-}
-
-void RegisterWindow::resizeEvent(QResizeEvent *ev)
-{
-    QTreeView::resizeEvent(ev);
+    setObjectName(QLatin1String("RegisterWindow"));
 }
 
 void RegisterWindow::contextMenuEvent(QContextMenuEvent *ev)
@@ -196,16 +194,34 @@ void RegisterWindow::contextMenuEvent(QContextMenuEvent *ev)
 
     menu.addSeparator();
 
-    QModelIndex idx = indexAt(ev->pos());
-    QString address = handler->registers().at(idx.row()).value;
-    QAction *actShowMemory = menu.addAction(QString());
-    if (address.isEmpty()) {
-        actShowMemory->setText(tr("Open Memory Editor"));
-        actShowMemory->setEnabled(false);
+    const QModelIndex idx = indexAt(ev->pos());
+    if (!idx.isValid())
+        return;
+    const Register &aRegister = handler->registers().at(idx.row());
+    const QVariant addressV = aRegister.editValue();
+    const quint64 address = addressV.type() == QVariant::ULongLong ? addressV.toULongLong() : 0;
+    QAction *actViewMemory = menu.addAction(QString());
+    QAction *actEditMemory = menu.addAction(QString());
+
+    QAction *actShowDisassemblerAt = menu.addAction(QString());
+    QAction *actShowDisassembler = menu.addAction(tr("Open Disassembler..."));
+    actShowDisassembler->setEnabled(engineCapabilities & DisassemblerCapability);
+
+    if (address) {
+        const bool canShow = actionsEnabled && (engineCapabilities & ShowMemoryCapability);
+        actEditMemory->setText(tr("Open Memory Editor at 0x%1").arg(address, 0, 16));
+        actEditMemory->setEnabled(canShow);
+        actViewMemory->setText(tr("Open Memory View at Value of Register %1 0x%2")
+                               .arg(QString::fromAscii(aRegister.name)).arg(address, 0, 16));
+        actShowDisassemblerAt->setText(tr("Open Disassembler at 0x%1").arg(address, 0, 16));
+        actShowDisassemblerAt->setEnabled(engineCapabilities & DisassemblerCapability);
     } else {
-        actShowMemory->setText(tr("Open Memory Editor at %1").arg(address));
-        actShowMemory->setEnabled(actionsEnabled
-            && (engineCapabilities & ShowMemoryCapability));
+        actEditMemory->setText(tr("Open Memory Editor"));
+        actViewMemory->setText(tr("Open Memory View at Value of Register"));
+        actEditMemory->setEnabled(false);
+        actViewMemory->setEnabled(false);
+        actShowDisassemblerAt->setText(tr("Open Disassembler"));
+        actShowDisassemblerAt->setEnabled(false);
     }
     menu.addSeparator();
 
@@ -230,15 +246,29 @@ void RegisterWindow::contextMenuEvent(QContextMenuEvent *ev)
 
     menu.addAction(debuggerCore()->action(SettingsDialog));
 
-    QAction *act = menu.exec(ev->globalPos());
+    const QPoint position = ev->globalPos();
+    QAction *act = menu.exec(position);
 
     if (act == actAdjust)
         resizeColumnsToContents();
     else if (act == actReload)
         engine->reloadRegisters();
-    else if (act == actShowMemory)
-        engine->openMemoryView(address.toULongLong(0, 0));
-    else if (act == act16)
+    else if (act == actEditMemory) {
+        const QString registerName = QString::fromAscii(aRegister.name, address);
+        engine->openMemoryView(address, 0, RegisterMemoryView::registerMarkup(address, registerName),
+                               QPoint(), RegisterMemoryView::title(registerName), 0);
+    } else if (act == actViewMemory) {
+        engine->openMemoryView(idx.row(), DebuggerEngine::MemoryTrackRegister|DebuggerEngine::MemoryView,
+                               QList<MemoryMarkup>(), position, QString(), this);
+    } else if (act == actShowDisassembler) {
+        AddressDialog dialog;
+        if (address)
+            dialog.setAddress(address);
+        if (dialog.exec() == QDialog::Accepted)
+            currentEngine()->openDisassemblerView(Location(dialog.address()));
+    } else if (act == actShowDisassemblerAt) {
+        engine->openDisassemblerView(Location(address));
+    } else if (act == act16)
         handler->setNumberBase(16);
     else if (act == act10)
         handler->setNumberBase(10);
@@ -266,6 +296,10 @@ void RegisterWindow::setModel(QAbstractItemModel *model)
 {
     QTreeView::setModel(model);
     setAlwaysResizeColumnsToContents(true);
+    if (header()) {
+        bool adjust = debuggerCore()->boolSetting(AlwaysAdjustRegistersColumnWidths);
+        setAlwaysResizeColumnsToContents(adjust);
+    }
 }
 
 void RegisterWindow::reloadRegisters()

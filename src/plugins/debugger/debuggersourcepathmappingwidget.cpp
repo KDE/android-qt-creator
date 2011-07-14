@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,15 +52,15 @@
 
 // Qt's various build paths for unpatched versions.
 #if defined(Q_OS_WIN)
-static const char *qtBuildPaths[] = {
-    "C:/qt-greenhouse/Trolltech/Code_less_create_more/Trolltech/Code_less_create_more/Troll/4.6/qt",
+static const char* qtBuildPaths[] = {
+    "C:/qt-greenhouse/Trolltech/Code_less_create_more/"
+        "Trolltech/Code_less_create_more/Troll/4.6/qt",
     "C:/iwmake/build_mingw_opensource",
-    "C:/ndk_buildrepos/qt-desktop/src"
-};
+    "C:/ndk_buildrepos/qt-desktop/src"};
 #elif defined(Q_OS_MAC)
-static const char *qtBuildPaths[] = {};
+static const char* qtBuildPaths[] = {};
 #else
-static const char *qtBuildPaths[] = {"/var/tmp/qt-src"};
+static const char* qtBuildPaths[] = {"/var/tmp/qt-src"};
 #endif
 
 enum { SourceColumn, TargetColumn, ColumnCount };
@@ -68,8 +68,11 @@ enum { SourceColumn, TargetColumn, ColumnCount };
 namespace Debugger {
 namespace Internal {
 
+typedef QPair<QString, QString> Mapping;
+typedef DebuggerSourcePathMappingWidget::SourcePathMap SourcePathMap;
+
 /*!
-    \class SourcePathMappingModel
+    \class Debugger::Internal::SourcePathMappingModel
 
     \brief Model for DebuggerSourcePathMappingWidget.
 
@@ -79,8 +82,6 @@ namespace Internal {
 class SourcePathMappingModel : public QStandardItemModel
 {
 public:
-    typedef QPair<QString, QString> Mapping;
-    typedef DebuggerSourcePathMappingWidget::SourcePathMap SourcePathMap;
 
     explicit SourcePathMappingModel(QObject *parent);
 
@@ -119,11 +120,11 @@ SourcePathMappingModel::SourcePathMappingModel(QObject *parent) :
     setHorizontalHeaderLabels(headers);
 }
 
-SourcePathMappingModel::SourcePathMap SourcePathMappingModel::sourcePathMap() const
+SourcePathMap SourcePathMappingModel::sourcePathMap() const
 {
     SourcePathMap rc;
     const int rows = rowCount();
-    for (int r = 0; r != rows; ++r) {
+    for (int r = 0; r < rows; ++r) {
         const QPair<QString, QString> m = mappingAt(r); // Skip placeholders.
         if (!m.first.isEmpty() && !m.second.isEmpty())
             rc.insert(m.first, m.second);
@@ -136,27 +137,26 @@ bool SourcePathMappingModel::isNewPlaceHolder(const Mapping &m) const
 {
     const QLatin1Char lessThan('<');
     const QLatin1Char greaterThan('<');
-    return m.first.isEmpty()
-           || m.first.startsWith(lessThan)
+    return m.first.isEmpty() || m.first.startsWith(lessThan)
            || m.first.endsWith(greaterThan)
            || m.first == m_newSourcePlaceHolder
-           || m.second.isEmpty()
-           || m.second.startsWith(lessThan)
+           || m.second.isEmpty() || m.second.startsWith(lessThan)
            || m.second.endsWith(greaterThan)
            || m.second == m_newTargetPlaceHolder;
 }
 
 // Return raw, unfixed mapping
-SourcePathMappingModel::Mapping SourcePathMappingModel::rawMappingAt(int row) const
+Mapping SourcePathMappingModel::rawMappingAt(int row) const
 {
     return Mapping(item(row, SourceColumn)->text(), item(row, TargetColumn)->text());
 }
 
 // Return mapping, empty if it is the place holder.
-SourcePathMappingModel::Mapping SourcePathMappingModel::mappingAt(int row) const
+Mapping SourcePathMappingModel::mappingAt(int row) const
 {
     const Mapping raw = rawMappingAt(row);
-    return isNewPlaceHolder(raw) ? Mapping() : Mapping(QDir::cleanPath(raw.first), QDir::cleanPath(raw.second));
+    return isNewPlaceHolder(raw) ? Mapping()
+        : Mapping(QDir::cleanPath(raw.first), QDir::cleanPath(raw.second));
 }
 
 void SourcePathMappingModel::setSourcePathMap(const SourcePathMap &m)
@@ -193,7 +193,7 @@ void SourcePathMappingModel::setTarget(int row, const QString &t)
 }
 
 /*!
-    \class DebuggerSourcePathMappingWidget
+    \class Debugger::Internal::DebuggerSourcePathMappingWidget
 
     \brief Widget for maintaining a set of source path mappings for the debugger.
 
@@ -203,32 +203,37 @@ void SourcePathMappingModel::setTarget(int row, const QString &t)
 DebuggerSourcePathMappingWidget::DebuggerSourcePathMappingWidget(QWidget *parent) :
     QGroupBox(parent),
     m_model(new SourcePathMappingModel(this)),
-    m_treeView(new QTreeView),
-    m_addButton(new QPushButton(tr("Add"))),
-    m_addQtButton(new QPushButton(tr("Add Qt sources..."))),
-    m_removeButton(new QPushButton(tr("Remove"))),
-    m_sourceLineEdit(new QLineEdit),
-    m_targetChooser(new Utils::PathChooser)
+    m_treeView(new QTreeView(this)),
+    m_addButton(new QPushButton(tr("Add"), this)),
+    m_addQtButton(new QPushButton(tr("Add Qt sources..."), this)),
+    m_removeButton(new QPushButton(tr("Remove"), this)),
+    m_sourceLineEdit(new QLineEdit(this)),
+    m_targetChooser(new Utils::PathChooser(this))
 {
     setTitle(tr("Source Paths Mapping"));
-    setToolTip(tr("<html><head/><body><p>Mappings of source file folders to be used in the debugger can be entered here.</p>"
-                  "<p>This is useful when using a copy of the source tree at a location different from the one "
-                  "at which the modules where built, for example, while doing remote debugging.</body></html>"));
+    setToolTip(tr("<html><head/><body><p>Mappings of source file folders to "
+                  "be used in the debugger can be entered here.</p>"
+                  "<p>This is useful when using a copy of the source tree "
+                  "at a location different from the one "
+                  "at which the modules where built, for example, while "
+                  "doing remote debugging.</body></html>"));
     // Top list/left part.
     m_treeView->setRootIsDecorated(false);
     m_treeView->setUniformRowHeights(true);
     m_treeView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_treeView->setModel(m_model);
-    connect(m_treeView->selectionModel(), SIGNAL(currentRowChanged(QModelIndex,QModelIndex)),
-            this, SLOT(slotCurrentRowChanged(QModelIndex,QModelIndex)));
+    connect(m_treeView->selectionModel(),
+            SIGNAL(currentRowChanged(QModelIndex,QModelIndex)),
+            SLOT(slotCurrentRowChanged(QModelIndex,QModelIndex)));
 
     // Top list/Right part: Buttons.
     QVBoxLayout *buttonLayout = new QVBoxLayout;
     buttonLayout->addWidget(m_addButton);
     buttonLayout->addWidget(m_addQtButton);
     m_addQtButton->setVisible(sizeof(qtBuildPaths) > 0);
-    m_addQtButton->setToolTip(tr("Add a mapping for Qt's source folders when using an unpatched version of Qt."));
+    m_addQtButton->setToolTip(tr("Add a mapping for Qt's source folders "
+        "when using an unpatched version of Qt."));
     buttonLayout->addWidget(m_removeButton);
     connect(m_addButton, SIGNAL(clicked()), this, SLOT(slotAdd()));
     connect(m_addQtButton, SIGNAL(clicked()), this, SLOT(slotAddQt()));
@@ -243,18 +248,21 @@ DebuggerSourcePathMappingWidget::DebuggerSourcePathMappingWidget(QWidget *parent
 
     // Edit part
     m_targetChooser->setExpectedKind(Utils::PathChooser::ExistingDirectory);
-    connect(m_sourceLineEdit, SIGNAL(textChanged(QString)), this, SLOT(slotEditSourceFieldChanged()));
-    connect(m_targetChooser, SIGNAL(changed(QString)), this, SLOT(slotEditTargetFieldChanged()));
+    connect(m_sourceLineEdit, SIGNAL(textChanged(QString)),
+            this, SLOT(slotEditSourceFieldChanged()));
+    connect(m_targetChooser, SIGNAL(changed(QString)),
+            this, SLOT(slotEditTargetFieldChanged()));
     QFormLayout *editLayout = new QFormLayout;
     const QString sourceToolTip = tr("The source path contained in the "
-        "executable's debug information as reported by the debugger");
+        "debug information of the executable as reported by the debugger");
     QLabel *editSourceLabel = new QLabel(tr("&Source path:"));
     editSourceLabel->setToolTip(sourceToolTip);
     m_sourceLineEdit->setToolTip(sourceToolTip);
     editSourceLabel->setBuddy(m_sourceLineEdit);
     editLayout->addRow(editSourceLabel, m_sourceLineEdit);
 
-    const QString targetToolTip = tr("The actual location of the source tree on the local machine");
+    const QString targetToolTip = tr("The actual location of the source "
+        "tree on the local machine");
     QLabel *editTargetLabel = new QLabel(tr("&Target path:"));
     editTargetLabel->setToolTip(targetToolTip);
     editTargetLabel->setBuddy(m_targetChooser);
@@ -279,15 +287,17 @@ QString DebuggerSourcePathMappingWidget::editTargetField() const
     return m_targetChooser->path();
 }
 
-void DebuggerSourcePathMappingWidget::setEditFieldMapping(const QPair<QString, QString> &m)
+void DebuggerSourcePathMappingWidget::setEditFieldMapping(const Mapping &m)
 {
     m_sourceLineEdit->setText(QDir::toNativeSeparators(m.first));
     m_targetChooser->setPath(m.second);
 }
 
-void DebuggerSourcePathMappingWidget::slotCurrentRowChanged(const QModelIndex &current,const QModelIndex &)
+void DebuggerSourcePathMappingWidget::slotCurrentRowChanged
+    (const QModelIndex &current, const QModelIndex &)
 {
-    setEditFieldMapping(current.isValid() ? m_model->mappingAt(current.row()) : QPair<QString, QString>());
+    setEditFieldMapping(current.isValid()
+        ? m_model->mappingAt(current.row()) : Mapping());
     updateEnabled();
 }
 
@@ -304,13 +314,14 @@ void DebuggerSourcePathMappingWidget::updateEnabled()
     m_sourceLineEdit->setEnabled(hasCurrent);
     m_targetChooser->setEnabled(hasCurrent);
     m_removeButton->setEnabled(hasCurrent);
-    // Allow for adding only if the current item no longer is the place holder for new items.
+    // Allow for adding only if the current item no longer is the place
+    // holder for new items.
     const bool canAdd = !hasCurrent || !m_model->isNewPlaceHolderAt(row);
     m_addButton->setEnabled(canAdd);
     m_addQtButton->setEnabled(canAdd);
 }
 
-DebuggerSourcePathMappingWidget::SourcePathMap DebuggerSourcePathMappingWidget::sourcePathMap() const
+SourcePathMap DebuggerSourcePathMappingWidget::sourcePathMap() const
 {
     return m_model->sourcePathMap();
 }
@@ -345,11 +356,12 @@ void DebuggerSourcePathMappingWidget::slotAdd()
 void DebuggerSourcePathMappingWidget::slotAddQt()
 {
     // Add a mapping for various Qt build locations in case of unpatched builds.
-    const QString qtSourcesPath = QFileDialog::getExistingDirectory(this, tr("Qt Sources"));
+    const QString qtSourcesPath =
+        QFileDialog::getExistingDirectory(this, tr("Qt Sources"));
     if (qtSourcesPath.isEmpty())
         return;
     const size_t buildPathCount = sizeof(qtBuildPaths)/sizeof(qtBuildPaths[0]);
-    for (size_t i = 0; i != buildPathCount; ++i)
+    for (size_t i = 0; i != buildPathCount; ++i) // use != to avoid 0<0 which triggers warning on Mac
         m_model->addMapping(QString::fromLatin1(qtBuildPaths[i]), qtSourcesPath);
     resizeColumns();
     setCurrentRow(m_model->rowCount() - 1);
@@ -387,11 +399,11 @@ DebuggerSourcePathMappingWidget::SourcePathMap
                                                          const SourcePathMap &in)
 {
     SourcePathMap rc = in;
-    const size_t buildPathCount = sizeof(qtBuildPaths)/sizeof(qtBuildPaths[0]);
+    const size_t buildPathCount = sizeof(qtBuildPaths)/sizeof(const char *);
     if (qtInstallPath.isEmpty() || buildPathCount == 0)
         return rc;
 
-    for (size_t i = 0; i != buildPathCount; i++) {
+    for (size_t i = 0; i != buildPathCount; ++i) { // use != to avoid 0<0 which triggers warning on Mac
         const QString buildPath = QString::fromLatin1(qtBuildPaths[i]);
         if (!rc.contains(buildPath)) // Do not overwrite user settings.
             rc.insert(buildPath, qtInstallPath);

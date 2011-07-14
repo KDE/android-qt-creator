@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -165,14 +165,6 @@ public:
     Internal::OpenEditorsWindow *windowPopup() const;
     void showPopupOrSelectDocument() const;
 
-    void showEditorInfoBar(const QString &id,
-                           const QString &infoText,
-                           const QString &buttonText = QString(),
-                           QObject *object = 0, const char *buttonPressMember = 0,
-                           const char *cancelButtonPressMember = 0);
-
-    void hideEditorInfoBar(const QString &id);
-
     void showEditorStatusBar(const QString &id,
                            const QString &infoText,
                            const QString &buttonText = QString(),
@@ -185,6 +177,11 @@ public:
 
     void setReloadSetting(IFile::ReloadSetting behavior);
     IFile::ReloadSetting reloadSetting() const;
+
+    void setAutoSaveEnabled(bool enabled);
+    bool autoSaveEnabled() const;
+    void setAutoSaveInterval(int interval);
+    int autoSaveInterval() const;
 
     QTextCodec *defaultTextCodec() const;
 
@@ -219,6 +216,7 @@ private slots:
     void updateWindowTitle();
     void handleEditorStateChange();
     void updateVariable(const QString &variable);
+    void autoSave();
 
 public slots:
     void goBackInNavigationHistory();
@@ -259,6 +257,7 @@ private:
     IEditor *pickUnusedEditor() const;
     void addFileToRecentFiles(IFile *file);
     void switchToPreferedMode();
+    void updateAutoSave();
 
     static EditorManager *m_instance;
     EditorManagerPrivate *m_d;

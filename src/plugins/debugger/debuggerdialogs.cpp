@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -189,12 +189,17 @@ AttachCoreDialog::AttachCoreDialog(QWidget *parent)
     m_ui->coreFileName->setExpectedKind(PathChooser::File);
     m_ui->coreFileName->setPromptDialogTitle(tr("Select Core File"));
 
+    m_ui->sysrootPathChooser->setExpectedKind(PathChooser::Directory);
+    m_ui->sysrootPathChooser->setPromptDialogTitle(tr("Select Sysroot"));
+
+    m_ui->overrideStartScriptFileName->setExpectedKind(PathChooser::File);
+    m_ui->overrideStartScriptFileName->setPromptDialogTitle(tr("Select Startup Script"));
+
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setDefault(true);
 
     connect(m_ui->buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
     connect(m_ui->buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
     connect(m_ui->coreFileName, SIGNAL(changed(QString)), this, SLOT(changed()));
-    connect(m_ui->execFileName, SIGNAL(changed(QString)), this, SLOT(changed()));
     changed();
 }
 
@@ -244,6 +249,26 @@ int AttachCoreDialog::abiIndex() const
 QString AttachCoreDialog::debuggerCommand()
 {
     return m_ui->toolchainComboBox->debuggerCommand();
+}
+
+QString AttachCoreDialog::sysroot() const
+{
+    return m_ui->sysrootPathChooser->path();
+}
+
+void AttachCoreDialog::setSysroot(const QString &sysroot)
+{
+    m_ui->sysrootPathChooser->setPath(sysroot);
+}
+
+QString AttachCoreDialog::overrideStartScript() const
+{
+    return m_ui->overrideStartScriptFileName->path();
+}
+
+void AttachCoreDialog::setOverrideStartScript(const QString &scriptName)
+{
+    m_ui->overrideStartScriptFileName->setPath(scriptName);
 }
 
 bool AttachCoreDialog::isValid() const
@@ -582,6 +607,16 @@ bool StartExternalDialog::breakAtMain() const
     return m_ui->checkBoxBreakAtMain->isChecked();
 }
 
+bool StartExternalDialog::runInTerminal() const
+{
+    return m_ui->checkBoxRunInTerminal->isChecked();
+}
+
+void StartExternalDialog::setRunInTerminal(bool v)
+{
+    m_ui->checkBoxRunInTerminal->setChecked(v);
+}
+
 ProjectExplorer::Abi StartExternalDialog::abi() const
 {
     return m_ui->toolChainComboBox->abi();
@@ -632,8 +667,10 @@ StartRemoteDialog::StartRemoteDialog(QWidget *parent)
     m_ui->executablePathChooser->setExpectedKind(PathChooser::File);
     m_ui->executablePathChooser->setPromptDialogTitle(tr("Select Executable"));
     m_ui->sysrootPathChooser->setPromptDialogTitle(tr("Select Sysroot"));
+    m_ui->overrideStartScriptPathChooser->setExpectedKind(PathChooser::File);
+    m_ui->overrideStartScriptPathChooser->setPromptDialogTitle(tr("Select GDB Start Script"));
     m_ui->serverStartScript->setExpectedKind(PathChooser::File);
-    m_ui->serverStartScript->setPromptDialogTitle(tr("Select Start Script"));
+    m_ui->serverStartScript->setPromptDialogTitle(tr("Select Server Start Script"));
 
     connect(m_ui->useServerStartScriptCheckBox, SIGNAL(toggled(bool)),
         this, SLOT(updateState()));
@@ -721,6 +758,16 @@ void StartRemoteDialog::setGnuTarget(const QString &gnuTarget)
         m_ui->gnuTargetComboBox->setCurrentIndex(index);
 }
 
+QString StartRemoteDialog::overrideStartScript() const
+{
+    return m_ui->overrideStartScriptPathChooser->path();
+}
+
+void StartRemoteDialog::setOverrideStartScript(const QString &scriptName)
+{
+    m_ui->overrideStartScriptPathChooser->setPath(scriptName);
+}
+
 void StartRemoteDialog::setServerStartScript(const QString &scriptName)
 {
     m_ui->serverStartScript->setPath(scriptName);
@@ -741,12 +788,12 @@ bool StartRemoteDialog::useServerStartScript() const
     return m_ui->useServerStartScriptCheckBox->isChecked();
 }
 
-void StartRemoteDialog::setSysRoot(const QString &sysroot)
+void StartRemoteDialog::setSysroot(const QString &sysroot)
 {
     m_ui->sysrootPathChooser->setPath(sysroot);
 }
 
-QString StartRemoteDialog::sysRoot() const
+QString StartRemoteDialog::sysroot() const
 {
     return m_ui->sysrootPathChooser->path();
 }
@@ -880,6 +927,12 @@ void AddressDialog::setOkButtonEnabled(bool v)
 bool AddressDialog::isOkButtonEnabled() const
 {
     return m_box->button(QDialogButtonBox::Ok)->isEnabled();
+}
+
+void AddressDialog::setAddress(quint64 a)
+{
+    m_lineEdit->setText(QLatin1String("0x")
+                        + QString::number(a, 16));
 }
 
 quint64 AddressDialog::address() const

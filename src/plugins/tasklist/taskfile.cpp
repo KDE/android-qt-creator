@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,9 +48,11 @@ TaskFile::TaskFile(QObject *parent) : Core::IFile(parent),
 TaskFile::~TaskFile()
 { }
 
-bool TaskFile::save(const QString &fileName)
+bool TaskFile::save(QString *errorString, const QString &fileName, bool autoSave)
 {
+    Q_UNUSED(errorString)
     Q_UNUSED(fileName);
+    Q_UNUSED(autoSave)
     return false;
 }
 
@@ -92,20 +94,21 @@ bool TaskFile::isSaveAsAllowed() const
 Core::IFile::ReloadBehavior TaskFile::reloadBehavior(ChangeTrigger state, ChangeType type) const
 {
     Q_UNUSED(state);
-    if (type != TypePermissions)
-        return BehaviorSilent;
-    return BehaviorAsk;
+    Q_UNUSED(type);
+    return BehaviorSilent;
 }
 
-void TaskFile::reload(ReloadFlag flag, ChangeType type)
+bool TaskFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
     Q_UNUSED(flag);
 
     if (type == TypePermissions)
-        return;
-    open(m_fileName);
-    if (type == TypeRemoved)
+        return true;
+    if (type == TypeRemoved) {
         deleteLater();
+        return true;
+    }
+    return open(errorString, m_fileName);
 }
 
 void TaskFile::rename(const QString &newName)
@@ -113,10 +116,10 @@ void TaskFile::rename(const QString &newName)
     Q_UNUSED(newName);
 }
 
-bool TaskFile::open(const QString &fileName)
+bool TaskFile::open(QString *errorString, const QString &fileName)
 {
     m_fileName = fileName;
-    return TaskList::TaskListPlugin::instance()->loadFile(m_context, m_fileName);
+    return TaskList::TaskListPlugin::instance()->loadFile(errorString, m_context, m_fileName);
 }
 
 ProjectExplorer::Project *TaskFile::context() const

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,7 +56,7 @@ using namespace Bazaar;
 BazaarEditor::BazaarEditor(const VCSBase::VCSBaseEditorParameters *type, QWidget *parent)
     : VCSBase::VCSBaseEditorWidget(type, parent),
       m_exactChangesetId(QLatin1String(Constants::CHANGESET_ID_EXACT)),
-      m_diffFileId(QLatin1String("^(=== modified file '.*'$)"))
+      m_diffFileId(QLatin1String("^=== modified file '(.*)'\\s*$"))
 {
     setAnnotateRevisionTextFormat(tr("Annotate %1"));
     setAnnotatePreviousRevisionTextFormat(tr("Annotate parent revision %1"));
@@ -106,18 +106,14 @@ VCSBase::BaseAnnotationHighlighter *BazaarEditor::createAnnotationHighlighter(co
     return new BazaarAnnotationHighlighter(changes);
 }
 
-QString BazaarEditor::fileNameFromDiffSpecification(const QTextBlock &diffFileSpec) const
+QString BazaarEditor::fileNameFromDiffSpecification(const QTextBlock &inBlock) const
 {
-    const QString filechangeId(QLatin1String("+++ b/"));
-    QTextBlock::iterator iterator;
-    for (iterator = diffFileSpec.begin(); !(iterator.atEnd()); iterator++) {
-        QTextFragment fragment = iterator.fragment();
-        if(fragment.isValid()) {
-            if (fragment.text().startsWith(filechangeId)) {
-                const QString filename = fragment.text().remove(0, filechangeId.size());
-                return findDiffFile(filename, BazaarPlugin::instance()->versionControl());
-            }
-        }
+    // Check for:
+    // === modified file 'mainwindow.cpp'
+    for (QTextBlock  block = inBlock; block.isValid(); block = block.previous()) {
+        const QString line = block.text();
+        if (m_diffFileId.indexIn(line) != -1)
+            return findDiffFile(m_diffFileId.cap(1), BazaarPlugin::instance()->versionControl());
     }
     return QString();
 }

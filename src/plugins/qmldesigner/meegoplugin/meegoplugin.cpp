@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,12 +41,12 @@ MeegoPlugin::MeegoPlugin()
 {
 }
 
-QString MeegoPlugin::pluginName()
+QString MeegoPlugin::pluginName() const
 {
     return ("MeegoPlugin");
 }
 
-QString MeegoPlugin::metaInfo()
+QString MeegoPlugin::metaInfo() const
 {
     return QString(":/meegoplugin/meego.metainfo");
 }

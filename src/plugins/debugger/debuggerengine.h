@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -82,6 +82,7 @@ class WatchHandler;
 class BreakpointParameters;
 class QmlCppEngine;
 class DebuggerToolTipContext;
+class MemoryMarkup;
 
 struct WatchUpdateFlags
 {
@@ -100,6 +101,7 @@ public:
     Location(const StackFrame &frame, bool marker = true);
     QString fileName() const { return m_fileName; }
     QString functionName() const { return m_functionName; }
+    QString from() const { return m_from; }
     int lineNumber() const { return m_lineNumber; }
     void setNeedsRaise(bool on) { m_needsRaise = on; }
     void setNeedsMarker(bool on) { m_needsMarker = on; }
@@ -118,6 +120,7 @@ private:
     int m_lineNumber;
     QString m_fileName;
     QString m_functionName;
+    QString m_from;
     quint64 m_address;
 };
 
@@ -156,7 +159,18 @@ public:
     virtual void startDebugger(DebuggerRunControl *runControl);
 
     virtual void watchPoint(const QPoint &);
-    virtual void openMemoryView(quint64 addr);
+
+    enum MemoryViewFlags
+    {
+        MemoryReadOnly = 0x1,      //!< Read-only.
+        MemoryTrackRegister = 0x2, //!< Address parameter is register number to track
+        MemoryView = 0x4           //!< Open a separate view (using the pos-parameter).
+    };
+
+    virtual void openMemoryView(quint64 startAddr, unsigned flags,
+                                const QList<Internal::MemoryMarkup> &ml,
+                                const QPoint &pos,
+                                const QString &title = QString(), QWidget *parent = 0);
     virtual void fetchMemory(Internal::MemoryAgent *, QObject *,
                              quint64 addr, quint64 length);
     virtual void changeMemory(Internal::MemoryAgent *, QObject *,
@@ -189,13 +203,13 @@ public:
     virtual void createSnapshot();
     virtual void updateAll();
 
-    typedef Internal::BreakpointId BreakpointId;
+    typedef Internal::BreakpointModelId BreakpointModelId;
     virtual bool stateAcceptsBreakpointChanges() const { return true; }
     virtual void attemptBreakpointSynchronization();
-    virtual bool acceptsBreakpoint(BreakpointId id) const = 0;
-    virtual void insertBreakpoint(BreakpointId id);  // FIXME: make pure
-    virtual void removeBreakpoint(BreakpointId id);  // FIXME: make pure
-    virtual void changeBreakpoint(BreakpointId id);  // FIXME: make pure
+    virtual bool acceptsBreakpoint(BreakpointModelId id) const = 0;
+    virtual void insertBreakpoint(BreakpointModelId id);  // FIXME: make pure
+    virtual void removeBreakpoint(BreakpointModelId id);  // FIXME: make pure
+    virtual void changeBreakpoint(BreakpointModelId id);  // FIXME: make pure
 
     virtual bool acceptsDebuggerCommands() const { return true; }
     virtual void assignValueInDebugger(const Internal::WatchData *data,
@@ -348,11 +362,15 @@ protected:
 
     DebuggerRunControl *runControl() const;
 
-    static QString msgWatchpointTriggered(BreakpointId id,
+    static QString msgWatchpointByAddressTriggered(BreakpointModelId id,
         int number, quint64 address);
-    static QString msgWatchpointTriggered(BreakpointId id,
+    static QString msgWatchpointByAddressTriggered(BreakpointModelId id,
         int number, quint64 address, const QString &threadId);
-    static QString msgBreakpointTriggered(BreakpointId id,
+    static QString msgWatchpointByExpressionTriggered(BreakpointModelId id,
+        int number, const QString &expr);
+    static QString msgWatchpointByExpressionTriggered(BreakpointModelId id,
+        int number, const QString &expr, const QString &threadId);
+    static QString msgBreakpointTriggered(BreakpointModelId id,
         int number, const QString &threadId);
     static QString msgStopped(const QString &reason = QString());
     static QString msgStoppedBySignal(const QString &meaning, const QString &name);

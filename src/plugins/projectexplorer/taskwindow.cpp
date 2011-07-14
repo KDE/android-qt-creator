@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,6 @@
 #include <coreplugin/icontext.h>
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
-#include <qt4projectmanager/qt4projectmanagerconstants.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -77,11 +76,6 @@ class TaskWindowContext : public Core::IContext
 {
 public:
     TaskWindowContext(QWidget *widget);
-    virtual Core::Context context() const;
-    virtual QWidget *widget();
-private:
-    QWidget *m_taskList;
-    const Core::Context m_context;
 };
 
 class TaskModel : public QAbstractItemModel
@@ -115,6 +109,7 @@ public:
 
     int taskCount();
     int errorTaskCount();
+    int warningTaskCount();
 
     bool hasFile(const QModelIndex &index) const;
 
@@ -130,6 +125,7 @@ private:
     const QIcon m_warningIcon;
     int m_taskCount;
     int m_errorTaskCount;
+    int m_warningTaskCount;
     int m_sizeOfLineNumber;
     QString m_lineMeasurementFont;
 };
@@ -298,6 +294,7 @@ TaskModel::TaskModel() :
     m_warningIcon(QLatin1String(":/projectexplorer/images/compile_warning.png")),
     m_taskCount(0),
     m_errorTaskCount(0),
+    m_warningTaskCount(0),
     m_sizeOfLineNumber(0)
 {
 }
@@ -310,6 +307,11 @@ int TaskModel::taskCount()
 int TaskModel::errorTaskCount()
 {
     return m_errorTaskCount;
+}
+
+int TaskModel::warningTaskCount()
+{
+    return m_warningTaskCount;
 }
 
 bool TaskModel::hasFile(const QModelIndex &index) const
@@ -368,6 +370,8 @@ void TaskModel::addTask(const Task &task)
     ++m_taskCount;
     if (task.type == Task::Error)
         ++m_errorTaskCount;
+    if (task.type == Task::Warning)
+        ++m_warningTaskCount;
 }
 
 void TaskModel::removeTask(const Task &task)
@@ -379,6 +383,8 @@ void TaskModel::removeTask(const Task &task)
         --m_taskCount;
         if (task.type == Task::Error)
             --m_errorTaskCount;
+        if (task.type == Task::Warning)
+            --m_warningTaskCount;
         endRemoveRows();
     }
 }
@@ -393,12 +399,14 @@ void TaskModel::clearTasks(const QString &categoryId)
         m_tasksInCategory.clear();
         m_taskCount = 0;
         m_errorTaskCount = 0;
+        m_warningTaskCount = 0;
         endRemoveRows();
         m_maxSizeOfFileName = 0;
     } else {
         int index = 0;
         int start = 0;
         int subErrorTaskCount = 0;
+        int subWarningTaskCount = 0;
         while (index < m_tasks.size()) {
             while (index < m_tasks.size() && m_tasks.at(index).category != categoryId) {
                 ++start;
@@ -409,6 +417,8 @@ void TaskModel::clearTasks(const QString &categoryId)
             while (index < m_tasks.size() && m_tasks.at(index).category == categoryId) {
                 if (m_tasks.at(index).type == Task::Error)
                     ++subErrorTaskCount;
+                if (m_tasks.at(index).type == Task::Warning)
+                    ++subWarningTaskCount;
                 ++index;
             }
             // Index is now on the first non category
@@ -422,6 +432,7 @@ void TaskModel::clearTasks(const QString &categoryId)
 
             m_taskCount -= index - start;
             m_errorTaskCount -= subErrorTaskCount;
+            m_warningTaskCount -= subWarningTaskCount;
 
             endRemoveRows();
             index = start;
@@ -525,7 +536,7 @@ int TaskModel::sizeOfLineNumber(const QFont &font)
     if (m_sizeOfLineNumber == 0 || fontKey != m_lineMeasurementFont) {
         QFontMetrics fm(font);
         m_lineMeasurementFont = fontKey;
-        m_sizeOfLineNumber = fm.width("8888");
+        m_sizeOfLineNumber = fm.width("88888");
     }
     return m_sizeOfLineNumber;
 }
@@ -628,7 +639,7 @@ TaskWindow::TaskWindow(TaskHub *taskhub) : d(new TaskWindowPrivate)
     d->m_listview->setSelectionMode(QAbstractItemView::SingleSelection);
     Internal::TaskDelegate *tld = new Internal::TaskDelegate(this);
     d->m_listview->setItemDelegate(tld);
-    d->m_listview->setWindowIcon(QIcon(QLatin1String(Qt4ProjectManager::Constants::ICON_WINDOW)));
+    d->m_listview->setWindowIcon(QIcon(QLatin1String(Constants::ICON_WINDOW)));
     d->m_listview->setContextMenuPolicy(Qt::ActionsContextMenu);
     d->m_listview->setAttribute(Qt::WA_MacShowFocusRect, false);
 
@@ -857,6 +868,11 @@ int TaskWindow::taskCount() const
 int TaskWindow::errorTaskCount() const
 {
     return d->m_model->errorTaskCount();
+}
+
+int TaskWindow::warningTaskCount() const
+{
+    return d->m_model->warningTaskCount();
 }
 
 int TaskWindow::priorityInStatusBar() const
@@ -1144,24 +1160,13 @@ void TaskDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
 }
 
 TaskWindowContext::TaskWindowContext(QWidget *widget)
-  : Core::IContext(widget),
-    m_taskList(widget),
-    m_context(Core::Constants::C_PROBLEM_PANE)
+  : Core::IContext(widget)
 {
-}
-
-Core::Context TaskWindowContext::context() const
-{
-    return m_context;
-}
-
-QWidget *TaskWindowContext::widget()
-{
-    return m_taskList;
+    setWidget(widget);
+    setContext(Core::Context(Core::Constants::C_PROBLEM_PANE));
 }
 
 } // namespace Internal
-
 } // namespace ProjectExplorer
 
 #include "taskwindow.moc"

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,6 @@
 #include "qt4target.h"
 #include "qt4buildconfiguration.h"
 #include "qt4projectmanagerconstants.h"
-#include "qtparser.h"
 
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/buildsteplist.h>
@@ -45,6 +44,7 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcprocess.h>
+#include <qtsupport/qtparser.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -133,7 +133,7 @@ bool MakeStep::init()
     m_tasks.clear();
     if (!bc->toolChain()) {
         m_tasks.append(ProjectExplorer::Task(ProjectExplorer::Task::Error,
-                                             tr("Qt Creator needs a tool chain set up to build. Please configure a tool chain in Project mode."),
+                                             tr("Qt Creator needs a tool chain set up to build. Configure a tool chain in Project mode."),
                                              QString(), -1,
                                              QLatin1String(ProjectExplorer::Constants::TASK_CATEGORY_BUILDSYSTEM)));
     }
@@ -203,9 +203,13 @@ bool MakeStep::init()
     setEnabled(true);
     pp->setArguments(args);
 
-    ProjectExplorer::IOutputParser *parser = bc->qtVersion()->createOutputParser();
-    Q_ASSERT(parser);
-    parser->appendOutputParser(new QtParser);
+    ProjectExplorer::IOutputParser *parser = 0;
+    if (bc->qtVersion())
+        parser = bc->qtVersion()->createOutputParser();
+    if (parser)
+        parser->appendOutputParser(new QtSupport::QtParser);
+    else
+        parser = new QtSupport::QtParser;
     if (toolchain)
         parser->appendOutputParser(toolchain->outputParser());
 
@@ -225,7 +229,7 @@ void MakeStep::run(QFutureInterface<bool> & fi)
 
     if (!QFileInfo(m_makeFileToCheck).exists()) {
         if (!m_clean)
-            emit addOutput(tr("Makefile not found. Please check your build settings"), BuildStep::MessageOutput);
+            emit addOutput(tr("Cannot find Makefile. Check your build settings."), BuildStep::MessageOutput);
         fi.reportResult(m_clean);
         return;
     }
@@ -238,7 +242,7 @@ void MakeStep::run(QFutureInterface<bool> & fi)
             canContinue = false;
     }
     if (!canContinue) {
-        emit addOutput(tr("Configuration is faulty, please check the Build Issues view for details."), BuildStep::MessageOutput);
+        emit addOutput(tr("Configuration is faulty. Check the Build Issues view for details."), BuildStep::MessageOutput);
         fi.reportResult(false);
         return;
     }
@@ -284,6 +288,14 @@ MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep)
     m_ui->makePathChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
     m_ui->makePathChooser->setBaseDirectory(Utils::PathChooser::homePath());
 
+
+    const QString &makeCmd = m_makeStep->m_makeCmd;
+    m_ui->makePathChooser->setPath(makeCmd);
+    m_ui->makeArgumentsLineEdit->setText(m_makeStep->userArguments());
+
+    updateMakeOverrideLabel();
+    updateDetails();
+
     connect(m_ui->makePathChooser, SIGNAL(changed(QString)),
             this, SLOT(makeEdited()));
     connect(m_ui->makeArgumentsLineEdit, SIGNAL(textEdited(QString)),
@@ -292,6 +304,8 @@ MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep)
     connect(makeStep, SIGNAL(userArgumentsChanged()),
             this, SLOT(userArgumentsChanged()));
     connect(makeStep->buildConfiguration(), SIGNAL(buildDirectoryChanged()),
+            this, SLOT(updateDetails()));
+    connect(makeStep->buildConfiguration(), SIGNAL(toolChainChanged()),
             this, SLOT(updateDetails()));
 
     connect(makeStep->qt4BuildConfiguration(), SIGNAL(qtVersionChanged()),
@@ -372,17 +386,6 @@ void MakeStepConfigWidget::userArgumentsChanged()
 {
     if (m_ignoreChange)
         return;
-    m_ui->makeArgumentsLineEdit->setText(m_makeStep->userArguments());
-    updateDetails();
-}
-
-void MakeStepConfigWidget::init()
-{
-    updateMakeOverrideLabel();
-
-    const QString &makeCmd = m_makeStep->m_makeCmd;
-    m_ui->makePathChooser->setPath(makeCmd);
-
     m_ui->makeArgumentsLineEdit->setText(m_makeStep->userArguments());
     updateDetails();
 }

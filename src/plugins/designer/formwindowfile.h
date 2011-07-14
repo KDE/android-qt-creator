@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,13 +53,13 @@ public:
     explicit FormWindowFile(QDesignerFormWindowInterface *form, QObject *parent = 0);
 
     // IFile
-    virtual bool save(const QString &fileName = QString());
+    virtual bool save(QString *errorString, const QString &fileName, bool autoSave);
     virtual QString fileName() const;
+    virtual bool shouldAutoSave() const;
     virtual bool isModified() const;
     virtual bool isReadOnly() const;
     virtual bool isSaveAsAllowed() const;
-    ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
     virtual QString defaultPath() const;
     virtual QString suggestedFileName() const;
     virtual QString mimeType() const;
@@ -68,19 +68,19 @@ public:
     // Internal
     void setSuggestedFileName(const QString &fileName);
 
-    bool writeFile(const QString &fileName, QString &errorString) const;
-    bool writeFile(QFile &file, QString &errorString) const;
+    bool writeFile(const QString &fileName, QString *errorString) const;
 
     QDesignerFormWindowInterface *formWindow() const;
 
 signals:
     // Internal
     void saved();
-    void reload(const QString &);
+    void reload(QString *errorString, const QString &);
     void setDisplayName(const QString &);
 
 public slots:
     void setFileName(const QString &);
+    void setShouldAutoSave(bool sad = true) { m_shouldAutoSave = sad; }
 
 private slots:
     void slotFormWindowRemoved(QDesignerFormWindowInterface *w);
@@ -90,6 +90,7 @@ private:
 
     QString m_fileName;
     QString m_suggestedName;
+    bool m_shouldAutoSave;
     // Might actually go out of scope before the IEditor due
     // to deleting the WidgetHost which owns it.
     QPointer<QDesignerFormWindowInterface> m_formWindow;

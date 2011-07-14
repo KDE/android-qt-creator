@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -94,7 +94,6 @@ class GenericMakeStepConfigWidget :public ProjectExplorer::BuildStepConfigWidget
 public:
     GenericMakeStepConfigWidget(GenericMakeStep *makeStep);
     virtual QString displayName() const;
-    virtual void init();
     virtual QString summaryText() const;
 private slots:
     void itemChanged(QListWidgetItem*);

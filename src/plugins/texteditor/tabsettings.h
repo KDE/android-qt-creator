@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -99,8 +99,6 @@ public:
     bool m_smartBackspace;
     int m_tabSize;
     int m_indentSize;
-    bool m_indentBraces;
-    bool m_doubleIndentBlocks;
     TabKeyBehavior m_tabKeyBehavior;
     ContinuationAlignBehavior m_continuationAlignBehavior;
 
@@ -111,5 +109,7 @@ inline bool operator==(const TabSettings &t1, const TabSettings &t2) { return t1
 inline bool operator!=(const TabSettings &t1, const TabSettings &t2) { return !t1.equals(t2); }
 
 } // namespace TextEditor
+
+Q_DECLARE_METATYPE(TextEditor::TabSettings)
 
 #endif // TABSETTINGS_H

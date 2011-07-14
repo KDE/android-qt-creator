@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -84,7 +84,8 @@ signals:
 
 private slots:
     void addToTaskWindow(const ProjectExplorer::Task &task);
-    void addToOutputWindow(const QString &string, ProjectExplorer::BuildStep::OutputFormat);
+    void addToOutputWindow(const QString &string, ProjectExplorer::BuildStep::OutputFormat,
+        ProjectExplorer::BuildStep::OutputNewlineSetting = BuildStep::DoAppendNewline);
 
     void nextBuildQueue();
     void progressChanged();
@@ -101,6 +102,7 @@ private:
     bool buildQueueAppend(QList<BuildStep *> steps);
     void incrementActiveBuildSteps(Project *pro);
     void decrementActiveBuildSteps(Project *pro);
+    void disconnectOutput(BuildStep *bs);
 
     QScopedPointer<BuildManagerPrivate> d;
 };

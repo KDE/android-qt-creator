@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,12 +37,12 @@
 
 namespace QmlJSDebugger {
 
-class QDeclarativeViewObserver;
+class QDeclarativeViewInspector;
 
 class SubcomponentMaskLayerItem : public QGraphicsPolygonItem
 {
 public:
-    explicit SubcomponentMaskLayerItem(QDeclarativeViewObserver *observer,
+    explicit SubcomponentMaskLayerItem(QDeclarativeViewInspector *inspector,
                                        QGraphicsItem *parentItem = 0);
     int type() const;
     void setCurrentItem(QGraphicsItem *item);
@@ -51,7 +51,7 @@ public:
     QRectF itemRect() const;
 
 private:
-    QDeclarativeViewObserver *m_observer;
+    QDeclarativeViewInspector *m_inspector;
     QGraphicsItem *m_currentItem;
     QGraphicsRectItem *m_borderRect;
     QRectF m_itemPolyRect;

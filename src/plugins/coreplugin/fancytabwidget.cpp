@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -365,8 +365,11 @@ public:
 
     void mousePressEvent(QMouseEvent *ev)
     {
-        if (ev->modifiers() & Qt::ShiftModifier)
-            Utils::StyleHelper::setBaseColor(QColorDialog::getColor(Utils::StyleHelper::requestedBaseColor(), m_parent));
+        if (ev->modifiers() & Qt::ShiftModifier) {
+            QColor color = QColorDialog::getColor(Utils::StyleHelper::requestedBaseColor(), m_parent);
+            if (color.isValid())
+                Utils::StyleHelper::setBaseColor(color);
+        }
     }
 private:
     QWidget *m_parent;
@@ -427,6 +430,10 @@ FancyTabWidget::FancyTabWidget(QWidget *parent)
     setLayout(mainLayout);
 
     connect(m_tabBar, SIGNAL(currentChanged(int)), this, SLOT(showWidget(int)));
+}
+
+void FancyTabWidget::setSelectionWidgetHidden(bool hidden) {
+    m_selectionWidget->setHidden(hidden);
 }
 
 void FancyTabWidget::insertTab(int index, QWidget *tab, const QIcon &icon, const QString &label)

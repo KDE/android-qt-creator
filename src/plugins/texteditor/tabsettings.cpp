@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,17 +40,17 @@
 #include <QtGui/QTextCursor>
 #include <QtGui/QTextDocument>
 
-static const char *spacesForTabsKey = "SpacesForTabs";
-static const char *autoSpacesForTabsKey = "AutoSpacesForTabs";
-static const char *smartBackspaceKey = "SmartBackspace";
-static const char *autoIndentKey = "AutoIndent";
-static const char *tabSizeKey = "TabSize";
-static const char *indentSizeKey = "IndentSize";
-static const char *indentBracesKey = "IndentBraces";
-static const char *doubleIndentBlocksKey = "DoubleIndentBlocks";
-static const char *tabKeyBehaviorKey = "TabKeyBehavior";
-static const char *groupPostfix = "TabSettings";
-static const char *paddingModeKey = "PaddingMode";
+static const char spacesForTabsKey[] = "SpacesForTabs";
+static const char autoSpacesForTabsKey[] = "AutoSpacesForTabs";
+static const char smartBackspaceKey[] = "SmartBackspace";
+static const char autoIndentKey[] = "AutoIndent";
+static const char tabSizeKey[] = "TabSize";
+static const char indentSizeKey[] = "IndentSize";
+static const char indentBracesKey[] = "IndentBraces";
+static const char doubleIndentBlocksKey[] = "DoubleIndentBlocks";
+static const char tabKeyBehaviorKey[] = "TabKeyBehavior";
+static const char groupPostfix[] = "TabSettings";
+static const char paddingModeKey[] = "PaddingMode";
 
 namespace TextEditor {
 
@@ -61,8 +61,6 @@ TabSettings::TabSettings() :
     m_smartBackspace(false),
     m_tabSize(8),
     m_indentSize(4),
-    m_indentBraces(false),
-    m_doubleIndentBlocks(false),
     m_tabKeyBehavior(TabNeverIndents),
     m_continuationAlignBehavior(ContinuationAlignWithSpaces)
 {
@@ -87,8 +85,6 @@ void TabSettings::toMap(const QString &prefix, QVariantMap *map) const
     map->insert(prefix + QLatin1String(smartBackspaceKey), m_smartBackspace);
     map->insert(prefix + QLatin1String(tabSizeKey), m_tabSize);
     map->insert(prefix + QLatin1String(indentSizeKey), m_indentSize);
-    map->insert(prefix + QLatin1String(indentBracesKey), m_indentBraces);
-    map->insert(prefix + QLatin1String(doubleIndentBlocksKey), m_doubleIndentBlocks);
     map->insert(prefix + QLatin1String(tabKeyBehaviorKey), m_tabKeyBehavior);
     map->insert(prefix + QLatin1String(paddingModeKey), m_continuationAlignBehavior);
 }
@@ -104,9 +100,6 @@ void TabSettings::fromMap(const QString &prefix, const QVariantMap &map)
             map.value(prefix + QLatin1String(smartBackspaceKey), m_smartBackspace).toBool();
     m_tabSize = map.value(prefix + QLatin1String(tabSizeKey), m_tabSize).toInt();
     m_indentSize = map.value(prefix + QLatin1String(indentSizeKey), m_indentSize).toInt();
-    m_indentBraces = map.value(prefix + QLatin1String(indentBracesKey), m_indentBraces).toBool();
-    m_doubleIndentBlocks =
-        map.value(prefix + QLatin1String(doubleIndentBlocksKey), m_doubleIndentBlocks).toBool();
     m_tabKeyBehavior = (TabKeyBehavior)
         map.value(prefix + QLatin1String(tabKeyBehaviorKey), m_tabKeyBehavior).toInt();
     m_continuationAlignBehavior = (ContinuationAlignBehavior)
@@ -338,8 +331,10 @@ void TabSettings::indentLine(QTextBlock block, int newIndent, int padding) const
     }
 
     // Quickly check whether indenting is required.
-    if (indentationColumn(text) == newIndent)
-        return;
+    // fixme: after changing "use spaces for tabs" the change was not reflected
+    // because of the following optimisation. Commenting it out for now.
+//    if (indentationColumn(text) == newIndent)
+//        return;
 
     QString indentString;
 
@@ -404,8 +399,6 @@ bool TabSettings::equals(const TabSettings &ts) const
         && m_smartBackspace == ts.m_smartBackspace
         && m_tabSize == ts.m_tabSize
         && m_indentSize == ts.m_indentSize
-        && m_indentBraces == ts.m_indentBraces
-	&& m_doubleIndentBlocks == ts.m_doubleIndentBlocks
         && m_tabKeyBehavior == ts.m_tabKeyBehavior
         && m_continuationAlignBehavior == ts.m_continuationAlignBehavior;
 }

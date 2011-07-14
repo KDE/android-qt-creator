@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -225,7 +225,6 @@ static QList<JSAgentWatchData> expandObject(const QScriptValue &object)
 {
     QList<JSAgentWatchData> result;
     QScriptValueIterator it(object);
-    QByteArray expPrefix = '@' + QByteArray::number(object.objectId(), 16) + "->";
     while (it.hasNext()) {
         it.next();
         if (it.flags() & QScriptValue::SkipInEnumeration)
@@ -236,7 +235,6 @@ static QList<JSAgentWatchData> expandObject(const QScriptValue &object)
             continue;
         }
         JSAgentWatchData data = fromScriptValue(it.name(), it.value());
-        data.exp.prepend(expPrefix);
         result.append(data);
     }
     if (result.isEmpty()) {
@@ -244,7 +242,6 @@ static QList<JSAgentWatchData> expandObject(const QScriptValue &object)
         data.name = "<no initialized data>";
         data.hasChildren = false;
         data.value = " ";
-        data.exp.prepend(expPrefix);
         data.objectId = 0;
         result.append(data);
     }
@@ -541,11 +538,21 @@ void JSDebuggerAgentPrivate::messageReceived(const QByteArray &message)
             deep++;
         }
 
+        QList<JSAgentWatchData> watches;
         QList<JSAgentWatchData> locals = getLocals(ctx);
+
+        // re-evaluate watches given the frame's context
+        QScriptContext *currentCtx = engine()->pushContext();
+        currentCtx->setActivationObject(ctx->activationObject());
+        currentCtx->setThisObject(ctx->thisObject());
+        foreach (const QString &expr, watchExpressions)
+            watches << fromScriptValue(expr, engine()->evaluate(expr));
+        recordKnownObjects(watches);
+        engine()->popContext();
 
         QByteArray reply;
         QDataStream rs(&reply, QIODevice::WriteOnly);
-        rs << QByteArray("LOCALS") << frameId << locals;
+        rs << QByteArray("LOCALS") << frameId << locals << watches;
         sendMessage(reply);
     } else if (command == "SET_PROPERTY") {
         SetupExecEnv execEnv(this);

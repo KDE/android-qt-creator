@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -100,7 +100,6 @@ class MakeStepConfigWidget :public ProjectExplorer::BuildStepConfigWidget
 public:
     MakeStepConfigWidget(MakeStep *makeStep);
     virtual QString displayName() const;
-    virtual void init();
     virtual QString summaryText() const;
 private slots:
     void itemChanged(QListWidgetItem*);

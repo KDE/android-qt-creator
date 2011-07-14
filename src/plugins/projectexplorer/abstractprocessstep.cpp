@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,6 +45,49 @@
 #include <QtCore/QDir>
 
 using namespace ProjectExplorer;
+
+/*!
+    \class ProjectExplorer::AbstractProcessStep
+
+    \brief A convenience class, which can be used as a base class instead of BuildStep.
+
+    It should be used as a base class if your buildstep just needs to run a process.
+
+    Usage:
+    \list
+    \o Use processParameters() to configure the process you want to run
+    (you need to do that before calling AbstractProcessStep::init()).
+    \o Inside YourBuildStep::init() call AbstractProcessStep::init().
+    \o Inside YourBuildStep::run() call AbstractProcessStep::run(), which automatically starts the proces
+    and by default adds the output on stdOut and stdErr to the OutputWindow.
+    \o If you need to process the process output override stdOut() and/or stdErr.
+    \endlist
+
+    The two functions processStarted() and processFinished() are called after starting/finishing the process.
+    By default they add a message to the output window.
+
+    Use setEnabled() to control whether the BuildStep needs to run. (A disabled BuildStep immediately returns true,
+    from the run function.)
+
+    \sa ProjectExplorer::ProcessParameters
+*/
+
+/*!
+    \fn void ProjectExplorer::AbstractProcessStep::setEnabled(bool b)
+
+    \brief Enables or disables a BuildStep.
+
+    Disabled BuildSteps immediately return true from their run method.
+    Should be called from init()
+*/
+
+/*!
+    \fn ProcessParameters *ProjectExplorer::AbstractProcessStep::processParameters()
+
+    \brief Obtain a reference to the parameters for the actual process to run.
+
+     Should be used in init()
+*/
 
 AbstractProcessStep::AbstractProcessStep(BuildStepList *bsl, const QString &id) :
     BuildStep(bsl, id), m_timer(0), m_futureInterface(0),
@@ -69,6 +112,13 @@ AbstractProcessStep::~AbstractProcessStep()
     delete m_outputParserChain;
 }
 
+/*!
+     \brief Delete all existing output parsers and start a new chain with the
+     given parser.
+
+     Derived classes need to call this function.
+*/
+
 void AbstractProcessStep::setOutputParser(ProjectExplorer::IOutputParser *parser)
 {
     delete m_outputParserChain;
@@ -81,6 +131,10 @@ void AbstractProcessStep::setOutputParser(ProjectExplorer::IOutputParser *parser
                 this, SLOT(taskAdded(ProjectExplorer::Task)));
     }
 }
+
+/*!
+    \brief Append the given output parser to the existing chain of parsers.
+*/
 
 void AbstractProcessStep::appendOutputParser(ProjectExplorer::IOutputParser *parser)
 {
@@ -97,15 +151,31 @@ ProjectExplorer::IOutputParser *AbstractProcessStep::outputParser() const
     return m_outputParserChain;
 }
 
+/*!
+    \brief If ignoreReturnValue is set to true, then the abstractprocess step will
+    return success even if the return value indicates otherwise.
+
+    Should be called from init.
+*/
+
 void AbstractProcessStep::setIgnoreReturnValue(bool b)
 {
     m_ignoreReturnValue = b;
 }
 
+/*!
+    \brief Reimplemented from BuildStep::init(). You need to call this from
+    YourBuildStep::init()
+*/
+
 bool AbstractProcessStep::init()
 {
     return true;
 }
+
+/*!
+    \brief Reimplemented from BuildStep::init(). You need to call this from YourBuildStep::run()
+*/
 
 void AbstractProcessStep::run(QFutureInterface<bool> &fi)
 {
@@ -172,13 +242,25 @@ void AbstractProcessStep::run(QFutureInterface<bool> &fi)
     return;
 }
 
+/*!
+    \brief Called after the process is started.
+
+    The default implementation adds a process started message to the output message
+*/
+
 void AbstractProcessStep::processStarted()
 {
-    emit addOutput(tr("Starting: \"%1\" %2\n")
+    emit addOutput(tr("Starting: \"%1\" %2")
                    .arg(QDir::toNativeSeparators(m_param.effectiveCommand()),
                         m_param.prettyArguments()),
                    BuildStep::MessageOutput);
 }
+
+/*!
+    \brief Called after the process Finished.
+
+    The default implementation adds a line to the output window
+*/
 
 void AbstractProcessStep::processFinished(int exitCode, QProcess::ExitStatus status)
 {
@@ -195,6 +277,12 @@ void AbstractProcessStep::processFinished(int exitCode, QProcess::ExitStatus sta
     }
 }
 
+/*!
+    \brief Called if the process could not be started.
+
+    By default adds a message to the output window.
+*/
+
 void AbstractProcessStep::processStartupFailed()
 {
     emit addOutput(tr("Could not start process \"%1\" %2")
@@ -202,6 +290,10 @@ void AbstractProcessStep::processStartupFailed()
                         m_param.prettyArguments()),
                    BuildStep::ErrorMessageOutput);
 }
+
+/*!
+    \brief Called to test whether a prcess succeeded or not.
+*/
 
 bool AbstractProcessStep::processSucceeded(int exitCode, QProcess::ExitStatus status)
 {
@@ -217,11 +309,17 @@ void AbstractProcessStep::processReadyReadStdOutput()
     }
 }
 
+/*!
+    \brief Called for each line of output on stdOut().
+
+    The default implementation adds the line to the application output window.
+*/
+
 void AbstractProcessStep::stdOutput(const QString &line)
 {
     if (m_outputParserChain)
         m_outputParserChain->stdOutput(line);
-    emit addOutput(line, BuildStep::NormalOutput);
+    emit addOutput(line, BuildStep::NormalOutput, BuildStep::DontAppendNewline);
 }
 
 void AbstractProcessStep::processReadyReadStdError()
@@ -233,11 +331,17 @@ void AbstractProcessStep::processReadyReadStdError()
     }
 }
 
+/*!
+    \brief Called for each line of output on StdErrror().
+
+    The default implementation adds the line to the application output window
+*/
+
 void AbstractProcessStep::stdError(const QString &line)
 {
     if (m_outputParserChain)
         m_outputParserChain->stdError(line);
-    emit addOutput(line, BuildStep::ErrorOutput);
+    emit addOutput(line, BuildStep::ErrorOutput, BuildStep::DontAppendNewline);
 }
 
 void AbstractProcessStep::checkForCancel()
@@ -300,7 +404,7 @@ void AbstractProcessStep::taskAdded(const ProjectExplorer::Task &task)
 
 void AbstractProcessStep::outputAdded(const QString &string, ProjectExplorer::BuildStep::OutputFormat format)
 {
-    emit addOutput(string, format);
+    emit addOutput(string, format, BuildStep::DontAppendNewline);
 }
 
 void AbstractProcessStep::slotProcessFinished(int, QProcess::ExitStatus)

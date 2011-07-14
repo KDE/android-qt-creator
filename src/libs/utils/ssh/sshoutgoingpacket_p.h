@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,8 @@
 #define SSHOUTGOINGPACKET_P_H
 
 #include "sshpacket_p.h"
+
+#include "sshpseudoterminal.h"
 
 namespace Utils {
 namespace Internal {
@@ -46,7 +48,7 @@ public:
     SshOutgoingPacket(const SshEncryptionFacility &encrypter,
         const quint32 &seqNr);
 
-    void generateKeyExchangeInitPacket();
+    QByteArray generateKeyExchangeInitPacket(); // Returns payload.
     void generateKeyDhInitPacket(const Botan::BigInt &e);
     void generateNewKeysPacket();
     void generateDisconnectPacket(SshErrorCode reason,
@@ -64,6 +66,8 @@ public:
         quint32 maxPacketSize);
     void generateEnvPacket(quint32 remoteChannel, const QByteArray &var,
         const QByteArray &value);
+    void generatePtyRequestPacket(quint32 remoteChannel,
+        const SshPseudoTerminal &terminal);
     void generateExecPacket(quint32 remoteChannel, const QByteArray &command);
     void generateSftpPacket(quint32 remoteChannel);
     void generateWindowAdjustPacket(quint32 remoteChannel, quint32 bytesToAdd);

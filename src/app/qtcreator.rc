@@ -35,6 +35,7 @@ IDI_ICON4               ICON                    "winicons\\h.ico"
 IDI_ICON5               ICON                    "winicons\\ui.ico"
 IDI_ICON6               ICON                    "winicons\\pro.ico"
 IDI_ICON7               ICON                    "winicons\\pri.ico"
+IDI_ICON8               ICON                    "winicons\qml.ico"
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////

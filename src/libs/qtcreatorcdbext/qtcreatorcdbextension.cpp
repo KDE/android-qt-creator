@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -63,6 +63,7 @@
     \o Hook up with output/event callbacks and produce formatted output
     \o Provide some extension commands that produce output in a standardized (GDBMI)
        format that ends up in handleExtensionMessage().
+    \endlist
 */
 
 // Data struct and helpers for formatting help
@@ -106,6 +107,7 @@ enum Command {
     CmdIdle,
     CmdHelp,
     CmdMemory,
+    CmdExpression,
     CmdStack,
     CmdShutdownex,
     CmdAddWatch,
@@ -155,7 +157,10 @@ static const CommandDescription commandDescriptions[] = {
 {"addsymbol","Adds a symbol to symbol group (testing command).",
  "[-t token] <frame-number> <name-expression> [optional-iname]"},
 {"assign","Assigns a value to a variable in current symbol group.",
- "[-t token] <iname=value>"},
+ "[-t token] [-h] <iname=value>\n"
+ "-h    Data are hex-encoded, binary data\n"
+ "-u    Data are hex-encoded, UTF16 data"
+},
 {"threads","Lists threads in GDBMI format.","[-t token]"},
 {"registers","Lists registers in GDBMI format","[-t token]"},
 {"modules","Lists modules in GDBMI format.","[-t token]"},
@@ -164,6 +169,7 @@ static const CommandDescription commandDescriptions[] = {
  "Intended to be used with .idle_cmd to obtain proper stop notification.",""},
 {"help","Prints help.",""},
 {"memory","Prints memory contents in Base64 encoding.","[-t token] <address> <length>"},
+{"expression","Prints expression value.","[-t token] <expression>"},
 {"stack","Prints stack in GDBMI format.","[-t token] [max-frames]"},
 {"shutdownex","Unhooks output callbacks.\nNeeds to be called explicitly only in case of remote debugging.",""},
 {"addwatch","Add watch expression","<iname> <expression>"},
@@ -772,12 +778,30 @@ extern "C" HRESULT CALLBACK assign(CIDebugClient *client, PCSTR argsIn)
 
     std::string errorMessage;
     bool success = false;
-
+    AssignEncoding enc = AssignPlainValue;
     int token = 0;
     do {
-        const StringList tokens = commandTokens<StringList>(argsIn, &token);
+        StringList tokens = commandTokens<StringList>(argsIn, &token);
+        if (tokens.empty()) {
+            errorMessage = singleLineUsage(commandDescriptions[CmdAssign]);
+            break;
+        }
+
+        if (tokens.front() == "-h") {
+            enc = AssignHexEncoded;
+            tokens.pop_front();
+        } else if (tokens.front() == "-u") {
+            enc = AssignHexEncodedUtf16;
+            tokens.pop_front();
+        }
+
+        if (tokens.empty()) {
+            errorMessage = singleLineUsage(commandDescriptions[CmdAssign]);
+            break;
+        }
+
         // Parse 'assign locals.x=5'
-        const std::string::size_type equalsPos = tokens.size() == 1 ? tokens.front().find('=') : std::string::npos;
+        const std::string::size_type equalsPos = tokens.front().find('=');
         if (equalsPos == std::string::npos) {
             errorMessage = singleLineUsage(commandDescriptions[CmdAssign]);
             break;
@@ -793,7 +817,9 @@ extern "C" HRESULT CALLBACK assign(CIDebugClient *client, PCSTR argsIn)
         SymbolGroup *symGroup = ExtensionContext::instance().symbolGroup(exc.symbols(), exc.threadId(), currentFrame, &errorMessage);
         if (!symGroup)
             break;
-        success = symGroup->assign(iname, value, &errorMessage);
+        success = symGroup->assign(iname, enc, value,
+                                   SymbolGroupValueContext(exc.dataSpaces(), exc.symbols()),
+                                   &errorMessage);
     } while (false);
 
     if (success) {
@@ -923,6 +949,32 @@ extern "C" HRESULT CALLBACK memory(CIDebugClient *Client, PCSTR argsIn)
     return S_OK;
 }
 
+extern "C" HRESULT CALLBACK expression(CIDebugClient *Client, PCSTR argsIn)
+{
+    ExtensionCommandContext exc(Client);
+    std::string errorMessage;
+    LONG64 value = 0;
+    int token = 0;
+
+    do {
+        const StringVector tokens = commandTokens<StringVector>(argsIn, &token);
+        if (tokens.size()  != 1) {
+
+            errorMessage = singleLineUsage(commandDescriptions[CmdExpression]);
+            break;
+        }
+        if (!evaluateInt64Expression(exc.control(), tokens.front(), &value, &errorMessage))
+            break;
+    } while (false);
+
+    if (errorMessage.empty()) {
+        ExtensionContext::instance().reportLong('R', token, "expression", toString(value));
+    } else {
+        ExtensionContext::instance().report('N', token, 0, "expression", errorMessage.c_str());
+    }
+    return S_OK;
+}
+
 // Extension command 'stack'
 // Report stack correctly as 'k' does not list instruction pointer
 // correctly.
@@ -1014,7 +1066,8 @@ extern "C" HRESULT CALLBACK breakpoints(CIDebugClient *client, PCSTR argsIn)
         }
         tokens.pop_front();
     }
-    const std::string bp = gdbmiBreakpoints(exc.control(), exc.symbols(), humanReadable, verbose, &errorMessage);
+    const std::string bp = gdbmiBreakpoints(exc.control(), exc.symbols(), exc.dataSpaces(),
+                                            humanReadable, verbose, &errorMessage);
     if (bp.empty()) {
         ExtensionContext::instance().report('N', token, 0, "breakpoints", errorMessage.c_str());
     } else {

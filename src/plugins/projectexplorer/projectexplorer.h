@@ -26,16 +26,19 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef PROJECTEXPLORER_H
 #define PROJECTEXPLORER_H
 
+#include <QtCore/QPair>
+
 #include "projectexplorer_export.h"
 
 #include <extensionsystem/iplugin.h>
+#include <QtCore/QPair>
 
 QT_BEGIN_NAMESPACE
 class QPoint;
@@ -115,13 +118,17 @@ public:
     void renameFile(Node *node, const QString &to);
     static QStringList projectFilePatterns();
     bool coreAboutToClose();
+    QList<QPair<QString, QString> > recentProjects();
 
     bool canRun(Project *pro, const QString &runMode);
+    QString cannotRunReason(Project *project, const QString &runMode);
     void runProject(Project *pro, const QString &mode);
     void runRunConfiguration(ProjectExplorer::RunConfiguration *rc, const QString &mode);
 
     void addExistingFiles(ProjectExplorer::ProjectNode *projectNode, const QStringList &filePaths);
     void addExistingFiles(const QStringList &filePaths);
+
+    void buildProject(ProjectExplorer::Project *p);
 
 signals:
     void aboutToShowContextMenu(ProjectExplorer::Project *project,
@@ -134,6 +141,7 @@ signals:
     void currentProjectChanged(ProjectExplorer::Project *project);
     void currentNodeChanged(ProjectExplorer::Node *node, ProjectExplorer::Project *project);
     void aboutToExecuteProject(ProjectExplorer::Project *project, const QString &runMode);
+    void recentProjectsChanged();
 
     void settingsChanged();
 
@@ -192,6 +200,7 @@ private slots:
     void setStartupProject(ProjectExplorer::Project *project);
 
     void updateRecentProjectMenu();
+    void clearRecentProjects();
     void openRecentProject();
     void openTerminalHere();
 
@@ -222,6 +231,9 @@ private slots:
     void testGccOutputParsers_data();
     void testGccOutputParsers();
 
+    void testClangOutputParser_data();
+    void testClangOutputParser();
+
     void testLinuxIccOutputParsers_data();
     void testLinuxIccOutputParsers();
 
@@ -240,17 +252,20 @@ private slots:
 
     void testAbiOfBinary_data();
     void testAbiOfBinary();
+    void testFlavorForOs();
 #endif
 
 private:
     QString directoryFor(Node *node);
+    QString pathFor(Node *node);
     void deploy(QList<Project *>);
     int queue(QList<Project *>, QStringList stepIds);
     void updateContextMenuActions();
     bool parseArguments(const QStringList &arguments, QString *error);
     void executeRunConfiguration(RunConfiguration *, const QString &mode);
     bool hasBuildSettings(Project *pro);
-    bool buildSettingsEnabled(Project *pro);
+    QPair<bool, QString> buildSettingsEnabledForSession();
+    QPair<bool, QString> buildSettingsEnabled(Project *pro);
     bool hasDeploySettings(Project *pro);
 
     void setCurrent(Project *project, QString filePath, Node *node);

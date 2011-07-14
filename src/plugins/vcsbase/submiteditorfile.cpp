@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,12 @@
 
 using namespace VCSBase;
 using namespace VCSBase::Internal;
+
+/*!
+    \class VCSBase::Internal::SubmitEditorFile
+
+    \brief A non-saveable IFile for submit editor files.
+*/
 
 SubmitEditorFile::SubmitEditorFile(const QString &mimeType, QObject *parent) :
     Core::IFile(parent),
@@ -63,9 +69,11 @@ void SubmitEditorFile::setModified(bool modified)
     emit changed();
 }
 
-bool SubmitEditorFile::save(const QString &fileName)
+bool SubmitEditorFile::save(QString *errorString, const QString &fileName, bool autoSave)
 {
-    emit saveMe(fileName);
+    emit saveMe(errorString, fileName, autoSave);
+    if (!errorString->isEmpty())
+        return false;
     emit changed();
     return true;
 }
@@ -82,8 +90,10 @@ Core::IFile::ReloadBehavior SubmitEditorFile::reloadBehavior(ChangeTrigger state
     return BehaviorSilent;
 }
 
-void SubmitEditorFile::reload(ReloadFlag flag, ChangeType type)
+bool SubmitEditorFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
+    Q_UNUSED(errorString)
     Q_UNUSED(flag)
     Q_UNUSED(type)
+    return true;
 }

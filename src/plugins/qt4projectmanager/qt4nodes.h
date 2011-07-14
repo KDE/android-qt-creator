@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,7 +56,41 @@ namespace Core {
 class ICore;
 }
 
+namespace QtSupport {
+class ProFileReader;
+}
+
 namespace Qt4ProjectManager {
+
+class Qt4ProFileNode;
+class Qt4Project;
+
+//  Type of projects
+enum Qt4ProjectType {
+    InvalidProject = 0,
+    ApplicationTemplate,
+    LibraryTemplate,
+    ScriptTemplate,
+    AuxTemplate,
+    SubDirsTemplate
+};
+
+// Other variables of interest
+enum Qt4Variable {
+    DefinesVar = 1,
+    IncludePathVar,
+    UiDirVar,
+    MocDirVar,
+    PkgConfigVar,
+    PrecompiledHeaderVar,
+    LibDirectoriesVar,
+    ConfigVar,
+    QmlImportPathVar,
+    Makefile,
+    SymbianCapabilities
+};
+
+namespace Internal {
 
 // Import base classes into namespace
 using ProjectExplorer::Node;
@@ -74,65 +108,11 @@ using ProjectExplorer::ProjectNodeType;
 using ProjectExplorer::UnknownFileType;
 using ProjectExplorer::ProjectFileType;
 
-class Qt4Project;
-
-namespace Internal {
-
 using ProjectExplorer::FileType;
-class ProFileReader;
+
 class Qt4UiCodeModelSupport;
-
-//  Type of projects
-enum Qt4ProjectType {
-    InvalidProject = 0,
-    ApplicationTemplate,
-    LibraryTemplate,
-    ScriptTemplate,
-    SubDirsTemplate
-};
-
-// Other variables of interest
-enum Qt4Variable {
-    DefinesVar = 1,
-    IncludePathVar,
-    UiDirVar,
-    MocDirVar,
-    PkgConfigVar,
-    PrecompiledHeaderVar,
-    LibDirectoriesVar,
-    ConfigVar,
-    QmlImportPathVar,
-    Makefile,
-    SymbianCapabilities,
-    Deployment
-};
-
-class Qt4PriFileNode;
-class Qt4ProFileNode;
-
-class Qt4PriFile : public Core::IFile
-{
-    Q_OBJECT
-public:
-    Qt4PriFile(Qt4PriFileNode *qt4PriFile);
-    virtual bool save(const QString &fileName = QString());
-    virtual QString fileName() const;
-    virtual void rename(const QString &newName);
-
-    virtual QString defaultPath() const;
-    virtual QString suggestedFileName() const;
-    virtual QString mimeType() const;
-
-    virtual bool isModified() const;
-    virtual bool isReadOnly() const;
-    virtual bool isSaveAsAllowed() const;
-
-    ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
-
-private:
-    Qt4PriFileNode *m_priFile;
-};
+class ProFileReader;
+class Qt4PriFile;
 
 // Implements ProjectNode for qt4 pro files
 class Qt4PriFileNode : public ProjectExplorer::ProjectNode
@@ -142,7 +122,7 @@ class Qt4PriFileNode : public ProjectExplorer::ProjectNode
 public:
     Qt4PriFileNode(Qt4Project *project, Qt4ProFileNode* qt4ProFileNode, const QString &filePath);
 
-    void update(ProFile *includeFileExact, ProFileReader *readerExact, ProFile *includeFileCumlative, ProFileReader *readerCumalative);
+    void update(ProFile *includeFileExact, QtSupport::ProFileReader *readerExact, ProFile *includeFileCumlative, QtSupport::ProFileReader *readerCumalative);
 
 
 // ProjectNode interface
@@ -172,8 +152,9 @@ public:
 protected:
     void clear();
     static QStringList varNames(FileType type);
-    static QStringList dynamicVarNames(ProFileReader *readerExact, ProFileReader *readerCumulative);
-    static QSet<QString> filterFiles(ProjectExplorer::FileType fileType, const QSet<QString> &files);
+    static QStringList dynamicVarNames(QtSupport::ProFileReader *readerExact, QtSupport::ProFileReader *readerCumulative);
+    static QSet<QString> filterFilesProVariables(ProjectExplorer::FileType fileType, const QSet<QString> &files);
+    static QSet<QString> filterFilesRecursiveEnumerata(ProjectExplorer::FileType fileType, const QSet<QString> &files);
 
     enum ChangeType {
         AddToProFile,
@@ -197,8 +178,8 @@ private:
     bool priFileWritable(const QString &path);
     bool saveModifiedEditors();
     QStringList formResources(const QString &formFile) const;
-    QStringList baseVPaths(ProFileReader *reader, const QString &projectDir);
-    QStringList fullVPaths(const QStringList &baseVPaths, ProFileReader *reader, FileType type, const QString &qmakeVariable, const QString &projectDir);
+    QStringList baseVPaths(QtSupport::ProFileReader *reader, const QString &projectDir);
+    QStringList fullVPaths(const QStringList &baseVPaths, QtSupport::ProFileReader *reader, FileType type, const QString &qmakeVariable, const QString &projectDir);
     void watchFolders(const QSet<QString> &folders);
 
     Qt4Project *m_project;
@@ -207,7 +188,7 @@ private:
     QString m_projectDir;
 
     QMap<QString, Qt4UiCodeModelSupport *> m_uiCodeModelSupport;
-    Qt4PriFile *m_qt4PriFile;
+    Internal::Qt4PriFile *m_qt4PriFile;
 
     // Memory is cheap...
     // TODO (really that cheap?)
@@ -216,13 +197,63 @@ private:
     QSet<QString> m_watchedFolders;
 
     // managed by Qt4ProFileNode
-    friend class Qt4ProFileNode;
+    friend class Qt4ProjectManager::Qt4ProFileNode;
     friend class Qt4PriFile; // for scheduling updates on modified
     // internal temporary subtree representation
     friend struct InternalNode;
 };
 
-struct TargetInformation
+class Qt4PriFile : public Core::IFile
+{
+    Q_OBJECT
+public:
+    Qt4PriFile(Qt4PriFileNode *qt4PriFile);
+    virtual bool save(QString *errorString, const QString &fileName, bool autoSave);
+    virtual QString fileName() const;
+    virtual void rename(const QString &newName);
+
+    virtual QString defaultPath() const;
+    virtual QString suggestedFileName() const;
+    virtual QString mimeType() const;
+
+    virtual bool isModified() const;
+    virtual bool isReadOnly() const;
+    virtual bool isSaveAsAllowed() const;
+
+    ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
+
+private:
+    Qt4PriFileNode *m_priFile;
+};
+
+class Qt4NodesWatcher : public ProjectExplorer::NodesWatcher
+{
+    Q_OBJECT
+    Q_DISABLE_COPY(Qt4NodesWatcher)
+public:
+    Qt4NodesWatcher(QObject *parent = 0);
+
+signals:
+    void projectTypeChanged(Qt4ProjectManager::Qt4ProFileNode *projectNode,
+                            const Qt4ProjectManager::Qt4ProjectType oldType,
+                            const Qt4ProjectManager::Qt4ProjectType newType);
+
+    void variablesChanged(Qt4ProFileNode *projectNode,
+                          const QHash<Qt4Variable, QStringList> &oldValues,
+                          const QHash<Qt4Variable, QStringList> &newValues);
+
+    void proFileUpdated(Qt4ProjectManager::Qt4ProFileNode *projectNode, bool success, bool parseInProgress);
+
+private:
+    // let them emit signals
+    friend class Qt4ProjectManager::Qt4ProFileNode;
+    friend class Qt4PriFileNode;
+};
+
+} // namespace Internal
+
+struct QT4PROJECTMANAGER_EXPORT TargetInformation
 {
     bool valid;
     QString workingDir;
@@ -257,20 +288,26 @@ struct TargetInformation
 
 };
 
-struct InstallsItem {
+struct QT4PROJECTMANAGER_EXPORT InstallsItem {
     InstallsItem(QString p, QStringList f) : path(p), files(f) {}
     QString path;
     QStringList files;
 };
 
-struct InstallsList {
+struct QT4PROJECTMANAGER_EXPORT InstallsList {
     void clear() { targetPath.clear(); items.clear(); }
     QString targetPath;
     QList<InstallsItem> items;
 };
 
+struct QT4PROJECTMANAGER_EXPORT ProjectVersion {
+    int major;
+    int minor;
+    int patch;
+};
+
 // Implements ProjectNode for qt4 pro files
-class Qt4ProFileNode : public Qt4PriFileNode
+class QT4PROJECTMANAGER_EXPORT Qt4ProFileNode : public Internal::Qt4PriFileNode
 {
     Q_OBJECT
     Q_DISABLE_COPY(Qt4ProFileNode)
@@ -301,20 +338,23 @@ public:
     TargetInformation targetInformation() const;
 
     InstallsList installsList() const;
+    ProjectVersion projectVersion() const { return m_projectVersion; }
 
     QString makefile() const;
     QStringList symbianCapabilities() const;
+    bool isDeployable() const;
 
     void update();
     void scheduleUpdate();
 
-    void emitProFileInvalidated();
     void emitProFileUpdated();
 
     bool validParse() const;
+    bool parseInProgress() const;
 
     bool hasBuildTargets(Qt4ProjectType projectType) const;
 
+    void setParseInProgressRecursive();
 public slots:
     void asyncUpdate();
 
@@ -335,58 +375,36 @@ private:
     void createUiCodeModelSupport();
     QStringList updateUiFiles();
 
-    QString uiDirPath(ProFileReader *reader) const;
-    QString mocDirPath(ProFileReader *reader) const;
-    QStringList includePaths(ProFileReader *reader) const;
-    QStringList libDirectories(ProFileReader *reader) const;
-    QStringList subDirsPaths(ProFileReader *reader) const;
-    TargetInformation targetInformation(ProFileReader *reader) const;
-    void setupInstallsList(const ProFileReader *reader);
+    QString uiDirPath(QtSupport::ProFileReader *reader) const;
+    QString mocDirPath(QtSupport::ProFileReader *reader) const;
+    QStringList includePaths(QtSupport::ProFileReader *reader) const;
+    QStringList libDirectories(QtSupport::ProFileReader *reader) const;
+    QStringList subDirsPaths(QtSupport::ProFileReader *reader) const;
+    TargetInformation targetInformation(QtSupport::ProFileReader *reader) const;
+    void setupInstallsList(const QtSupport::ProFileReader *reader);
+    void setupProjectVersion(const QtSupport::ProFileReader *reader);
 
     void invalidate();
 
     Qt4ProjectType m_projectType;
     Qt4VariablesHash m_varValues;
+    bool m_isDeployable;
 
     QMap<QString, QDateTime> m_uitimestamps;
     TargetInformation m_qt4targetInformation;
     InstallsList m_installsList;
+    ProjectVersion m_projectVersion;
     friend class Qt4NodeHierarchy;
 
     bool m_validParse;
+    bool m_parseInProgress;
 
     // Async stuff
     QFutureWatcher<EvalResult> m_parseFutureWatcher;
-    ProFileReader *m_readerExact;
-    ProFileReader *m_readerCumulative;
+    QtSupport::ProFileReader *m_readerExact;
+    QtSupport::ProFileReader *m_readerCumulative;
 };
 
-class Qt4NodesWatcher : public ProjectExplorer::NodesWatcher
-{
-    Q_OBJECT
-    Q_DISABLE_COPY(Qt4NodesWatcher)
-public:
-    Qt4NodesWatcher(QObject *parent = 0);
-
-signals:
-    void projectTypeChanged(Qt4ProjectManager::Internal::Qt4ProFileNode *projectNode,
-                            const Qt4ProjectManager::Internal::Qt4ProjectType oldType,
-                            const Qt4ProjectManager::Internal::Qt4ProjectType newType);
-
-    void variablesChanged(Qt4ProFileNode *projectNode,
-                          const QHash<Qt4Variable, QStringList> &oldValues,
-                          const QHash<Qt4Variable, QStringList> &newValues);
-
-    void proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode *projectNode, bool success);
-    void proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *projectNode);
-
-private:
-    // let them emit signals
-    friend class Qt4ProFileNode;
-    friend class Qt4PriFileNode;
-};
-
-} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // QT4NODES_H

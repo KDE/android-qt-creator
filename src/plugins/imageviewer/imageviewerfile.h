@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,7 @@ public:
     explicit ImageViewerFile(ImageViewer *parent = 0);
     ~ImageViewerFile();
 
-    bool save(const QString &fileName = QString());
+    bool save(QString *errorString, const QString &fileName, bool autoSave);
     void rename(const QString &newName);
     QString fileName() const;
 
@@ -61,8 +61,7 @@ public:
     bool isReadOnly() const;
     bool isSaveAsAllowed() const;
 
-    ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
 
     void setMimetype(const QString &mimetype);
     void setFileName(const QString &filename);

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -171,9 +171,9 @@ bool Bind::usesQmlPrototype(ObjectValue *prototype,
     return false;
 }
 
-Interpreter::ObjectValue *Bind::findFunctionScope(AST::FunctionExpression *node) const
+Interpreter::ObjectValue *Bind::findAttachedJSScope(AST::Node *node) const
 {
-    return _functionScopes.value(node);
+    return _attachedJSScopes.value(node);
 }
 
 bool Bind::isGroupedPropertyBinding(AST::Node *node) const
@@ -216,7 +216,7 @@ ObjectValue *Bind::bindObject(UiQualifiedId *qualifiedTypeNameId, UiObjectInitia
     parentObjectValue = switchObjectValue(objectValue);
 
     if (parentObjectValue)
-        objectValue->setProperty(QLatin1String("parent"), parentObjectValue);
+        objectValue->setMember(QLatin1String("parent"), parentObjectValue);
     else {
         _rootObjectValue = objectValue;
         _rootObjectValue->setClassName(_doc->componentName());
@@ -269,7 +269,10 @@ bool Bind::visit(UiImport *ast)
                         errorMessage(ast, tr("package import requires a version number")));
         }
     } else if (ast->fileName) {
-        const QFileInfo importFileInfo(_doc->path() + QDir::separator() + ast->fileName->asString());
+        QFileInfo importFileInfo(ast->fileName->asString());
+        if (!importFileInfo.isAbsolute()) {
+            importFileInfo=QFileInfo(_doc->path() + QDir::separator() + ast->fileName->asString());
+        }
         name = importFileInfo.absoluteFilePath();
         if (importFileInfo.isFile())
             type = ImportInfo::FileImport;
@@ -286,9 +289,18 @@ bool Bind::visit(UiImport *ast)
     return false;
 }
 
-bool Bind::visit(UiPublicMember *)
+bool Bind::visit(UiPublicMember *ast)
 {
-    // nothing to do.
+    const Block *block = AST::cast<const Block*>(ast->statement);
+    if (block) {
+        // build block scope
+        ObjectValue *blockScope = _engine.newObject(/*prototype=*/0);
+        _attachedJSScopes.insert(ast, blockScope); // associated with the UiPublicMember, not with the block
+        ObjectValue *parent = switchObjectValue(blockScope);
+        accept(ast->statement);
+        switchObjectValue(parent);
+        return false;
+    }
     return true;
 }
 
@@ -296,17 +308,18 @@ bool Bind::visit(UiObjectDefinition *ast)
 {
     // an UiObjectDefinition may be used to group property bindings
     // think anchors { ... }
-    bool isGroupedBinding = false;
-    for (UiQualifiedId *it = ast->qualifiedTypeNameId; it; it = it->next) {
-        if (!it->next && it->name)
-            isGroupedBinding = it->name->asString().at(0).isLower();
-    }
+    bool isGroupedBinding = ast->qualifiedTypeNameId
+            && ast->qualifiedTypeNameId->name
+            && ast->qualifiedTypeNameId->name->asString().at(0).isLower();
 
     if (!isGroupedBinding) {
         ObjectValue *value = bindObject(ast->qualifiedTypeNameId, ast->initializer);
         _qmlObjects.insert(ast, value);
     } else {
         _groupedPropertyBindings.insert(ast);
+        Interpreter::ObjectValue *oldObjectValue = switchObjectValue(0);
+        accept(ast->initializer);
+        switchObjectValue(oldObjectValue);
     }
 
     return false;
@@ -325,13 +338,22 @@ bool Bind::visit(UiObjectBinding *ast)
 
 bool Bind::visit(UiScriptBinding *ast)
 {
-    if (toString(ast->qualifiedId) == QLatin1String("id")) {
+    if (_currentObjectValue && toString(ast->qualifiedId) == QLatin1String("id")) {
         if (ExpressionStatement *e = cast<ExpressionStatement*>(ast->statement))
             if (IdentifierExpression *i = cast<IdentifierExpression*>(e->expression))
                 if (i->name)
-                    _idEnvironment->setProperty(i->name->asString(), _currentObjectValue);
+                    _idEnvironment->setMember(i->name->asString(), _currentObjectValue);
     }
-
+    const Block *block = AST::cast<const Block*>(ast->statement);
+    if (block) {
+        // build block scope
+        ObjectValue *blockScope = _engine.newObject(/*prototype=*/0);
+        _attachedJSScopes.insert(ast, blockScope); // associated with the UiScriptBinding, not with the block
+        ObjectValue *parent = switchObjectValue(blockScope);
+        accept(ast->statement);
+        switchObjectValue(parent);
+        return false;
+    }
     return true;
 }
 
@@ -348,7 +370,8 @@ bool Bind::visit(VariableDeclaration *ast)
         return false;
 
     ASTVariableReference *ref = new ASTVariableReference(ast, &_engine);
-    _currentObjectValue->setProperty(ast->name->asString(), ref);
+    if (_currentObjectValue)
+        _currentObjectValue->setMember(ast->name->asString(), ref);
     return true;
 }
 
@@ -359,12 +382,12 @@ bool Bind::visit(FunctionExpression *ast)
     //    return false;
 
     ASTFunctionValue *function = new ASTFunctionValue(ast, _doc, &_engine);
-    if (ast->name && cast<FunctionDeclaration *>(ast))
-        _currentObjectValue->setProperty(ast->name->asString(), function);
+    if (_currentObjectValue && ast->name && cast<FunctionDeclaration *>(ast))
+        _currentObjectValue->setMember(ast->name->asString(), function);
 
     // build function scope
     ObjectValue *functionScope = _engine.newObject(/*prototype=*/0);
-    _functionScopes.insert(ast, functionScope);
+    _attachedJSScopes.insert(ast, functionScope);
     ObjectValue *parent = switchObjectValue(functionScope);
 
     // The order of the following is important. Example: A function with name "arguments"
@@ -373,7 +396,7 @@ bool Bind::visit(FunctionExpression *ast)
     // 1. Function formal arguments
     for (FormalParameterList *it = ast->formals; it; it = it->next) {
         if (it->name)
-            functionScope->setProperty(it->name->asString(), _engine.undefinedValue());
+            functionScope->setMember(it->name->asString(), _engine.undefinedValue());
     }
 
     // 2. Functions defined inside the function body
@@ -381,9 +404,9 @@ bool Bind::visit(FunctionExpression *ast)
 
     // 3. Arguments object
     ObjectValue *arguments = _engine.newObject(/*prototype=*/0);
-    arguments->setProperty(QLatin1String("callee"), function);
-    arguments->setProperty(QLatin1String("length"), _engine.numberValue());
-    functionScope->setProperty(QLatin1String("arguments"), arguments);
+    arguments->setMember(QLatin1String("callee"), function);
+    arguments->setMember(QLatin1String("length"), _engine.numberValue());
+    functionScope->setMember(QLatin1String("arguments"), arguments);
 
     // 4. Variables defined inside the function body
     // ### TODO, currently covered by the accept(body)

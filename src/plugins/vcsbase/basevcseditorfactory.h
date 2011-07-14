@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,8 +44,6 @@ namespace VCSBase {
 
 struct BaseVCSEditorFactoryPrivate;
 
-// Base class for editor factories creating instances of VCSBaseEditor
-//  subclasses.
 class VCSBASE_EXPORT BaseVCSEditorFactory : public Core::IEditorFactory
 {
     Q_OBJECT

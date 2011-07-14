@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,6 +53,7 @@
 #include <coreplugin/editormanager/ieditorfactory.h>
 #include <coreplugin/editormanager/iexternaleditor.h>
 #include <coreplugin/icorelistener.h>
+#include <coreplugin/infobar.h>
 #include <coreplugin/imode.h>
 #include <coreplugin/settingsdatabase.h>
 #include <coreplugin/variablemanager.h>
@@ -63,6 +64,7 @@
 #include <utils/consoleprocess.h>
 #include <utils/qtcassert.h>
 
+#include <QtCore/QDateTime>
 #include <QtCore/QDebug>
 #include <QtCore/QFileInfo>
 #include <QtCore/QMap>
@@ -70,6 +72,7 @@
 #include <QtCore/QSet>
 #include <QtCore/QSettings>
 #include <QtCore/QTextCodec>
+#include <QtCore/QTimer>
 
 #include <QtGui/QAction>
 #include <QtGui/QShortcut>
@@ -85,10 +88,10 @@
 
 enum { debugEditorManager=0 };
 
-static const char * const kCurrentDocumentFilePath = "CurrentDocument:FilePath";
-static const char * const kCurrentDocumentPath = "CurrentDocument:Path";
-static const char * const kCurrentDocumentXPos = "CurrentDocument:XPos";
-static const char * const kCurrentDocumentYPos = "CurrentDocument:YPos";
+static const char kCurrentDocumentFilePath[] = "CurrentDocument:FilePath";
+static const char kCurrentDocumentPath[] = "CurrentDocument:Path";
+static const char kCurrentDocumentXPos[] = "CurrentDocument:XPos";
+static const char kCurrentDocumentYPos[] = "CurrentDocument:YPos";
 
 static inline ExtensionSystem::PluginManager *pluginManager()
 {
@@ -189,6 +192,7 @@ struct EditorManagerPrivate {
     Internal::SplitterOrView *m_splitter;
     QPointer<IEditor> m_currentEditor;
     QPointer<SplitterOrView> m_currentView;
+    QTimer *m_autoSaveTimer;
 
     ICore *m_core;
 
@@ -221,12 +225,16 @@ struct EditorManagerPrivate {
     IFile::ReloadSetting m_reloadSetting;
 
     QString m_titleAddition;
+
+    bool m_autoSaveEnabled;
+    int m_autoSaveInterval;
 };
 }
 
 EditorManagerPrivate::EditorManagerPrivate(ICore *core, QWidget *parent) :
     m_view(0),
     m_splitter(0),
+    m_autoSaveTimer(0),
     m_core(core),
     m_revertToSavedAction(new QAction(EditorManager::tr("Revert to Saved"), parent)),
     m_saveAction(new QAction(parent)),
@@ -240,7 +248,9 @@ EditorManagerPrivate::EditorManagerPrivate(ICore *core, QWidget *parent) :
     m_goForwardAction(new QAction(QIcon(QLatin1String(Constants::ICON_NEXT)), EditorManager::tr("Go Forward"), parent)),
     m_windowPopup(0),
     m_coreListener(0),
-    m_reloadSetting(IFile::AlwaysAsk)
+    m_reloadSetting(IFile::AlwaysAsk),
+    m_autoSaveEnabled(true),
+    m_autoSaveInterval(5)
 {
     m_editorModel = new OpenEditorsModel(parent);
 }
@@ -447,6 +457,10 @@ EditorManager::EditorManager(ICore *core, QWidget *parent) :
     updateActions();
 
     m_d->m_windowPopup = new OpenEditorsWindow(this);
+
+    m_d->m_autoSaveTimer = new QTimer(this);
+    connect(m_d->m_autoSaveTimer, SIGNAL(timeout()), SLOT(autoSave()));
+    updateAutoSave();
 }
 
 EditorManager::~EditorManager()
@@ -485,6 +499,13 @@ void EditorManager::init()
             this, SLOT(updateVariable(QString)));
 }
 
+void EditorManager::updateAutoSave()
+{
+    if (m_d->m_autoSaveEnabled)
+        m_d->m_autoSaveTimer->start(m_d->m_autoSaveInterval * (60 * 1000));
+    else
+        m_d->m_autoSaveTimer->stop();
+}
 
 EditorToolBar *EditorManager::createToolBar(QWidget *parent)
 {
@@ -918,7 +939,8 @@ void EditorManager::activateEditorForIndex(Internal::EditorView *view, const QMo
 
     QString fileName = index.data(Qt::UserRole + 1).toString();
     QString id = index.data(Qt::UserRole + 2).toString();
-    openEditor(view, fileName, id, flags);
+    if (!openEditor(view, fileName, id, flags))
+        m_d->m_editorModel->removeEditor(index);
 }
 
 Core::IEditor *EditorManager::placeEditor(Core::Internal::EditorView *view, Core::IEditor *editor)
@@ -1186,6 +1208,11 @@ int extractLineNumber(QString *fileName)
     return -1;
 }
 
+static QString autoSaveName(const QString &fileName)
+{
+    return fileName + QLatin1String(".autosave");
+}
+
 IEditor *EditorManager::openEditor(Core::Internal::EditorView *view, const QString &fileName,
                         const QString &editorId, OpenEditorFlags flags, bool *newEditor)
 {
@@ -1211,19 +1238,32 @@ IEditor *EditorManager::openEditor(Core::Internal::EditorView *view, const QStri
         return activateEditor(view, editor, flags);
     }
 
-    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    QString realFn = autoSaveName(fn);
+    QFileInfo fi(fn);
+    QFileInfo rfi(realFn);
+    if (!fi.exists() || !rfi.exists() || fi.lastModified() >= rfi.lastModified()) {
+        QFile::remove(realFn);
+        realFn = fn;
+    }
+
     IEditor *editor = createEditor(editorId, fn);
     // If we could not open the file in the requested editor, fall
     // back to the default editor:
     if (!editor)
         editor = createEditor(QString(), fn);
-    if (!editor || !editor->open(fn)) {
+    if (!editor) // Internal error
+        return 0;
+
+    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    QString errorString;
+    if (!editor->open(&errorString, fn, realFn)) {
         QApplication::restoreOverrideCursor();
-        QMessageBox::critical(m_d->m_core->mainWindow(), tr("Opening File"), tr("Cannot open file %1!").arg(QDir::toNativeSeparators(fn)));
+        QMessageBox::critical(m_d->m_core->mainWindow(), tr("File Error"), errorString);
         delete editor;
-        editor = 0;
         return 0;
     }
+    if (realFn != fn)
+        editor->file()->setRestoredFrom(realFn);
     addEditor(editor);
 
     if (newEditor)
@@ -1373,13 +1413,12 @@ bool EditorManager::saveFile(IFile *fileParam)
         return saveFileAs(file);
 
     bool success = false;
+    bool isReadOnly;
 
     // try saving, no matter what isReadOnly tells us
-    m_d->m_core->fileManager()->blockFileChange(file);
-    success = file->save(fileName);
-    m_d->m_core->fileManager()->unblockFileChange(file);
+    success = m_d->m_core->fileManager()->saveFile(file, QString(), &isReadOnly);
 
-    if (!success) {
+    if (!success && isReadOnly) {
         MakeWritableResult answer =
                 makeFileWritable(file);
         if (answer == Failed)
@@ -1389,9 +1428,7 @@ bool EditorManager::saveFile(IFile *fileParam)
 
         file->checkPermissions();
 
-        m_d->m_core->fileManager()->blockFileChange(file);
-        success = file->save(fileName);
-        m_d->m_core->fileManager()->unblockFileChange(file);
+        success = m_d->m_core->fileManager()->saveFile(file);
     }
 
     if (success) {
@@ -1399,6 +1436,25 @@ bool EditorManager::saveFile(IFile *fileParam)
     }
 
     return success;
+}
+
+void EditorManager::autoSave()
+{
+    QStringList errors;
+    // FIXME: the saving should be staggered
+    foreach (IEditor *editor, openedEditors()) {
+        IFile *file = editor->file();
+        if (!file->isModified() || !file->shouldAutoSave())
+            continue;
+        if (file->fileName().isEmpty()) // FIXME: save them to a dedicated directory
+            continue;
+        QString errorString;
+        if (!file->autoSave(&errorString, autoSaveName(file->fileName())))
+            errors << errorString;
+    }
+    if (!errors.isEmpty())
+        QMessageBox::critical(m_d->m_core->mainWindow(), tr("File Error"),
+                              errors.join(QLatin1String("\n")));
 }
 
 MakeWritableResult
@@ -1413,7 +1469,7 @@ EditorManager::makeFileWritable(IFile *file)
     switch (FileManager::promptReadOnlyFile(fileName, versionControl, m_d->m_core->mainWindow(), file->isSaveAsAllowed())) {
     case FileManager::RO_OpenVCS:
         if (!versionControl->vcsOpen(fileName)) {
-            QMessageBox::warning(m_d->m_core->mainWindow(), tr("Failed!"), tr("Could not open the file for editing with SCC."));
+            QMessageBox::warning(m_d->m_core->mainWindow(), tr("Cannot Open File"), tr("Cannot open the file for editing with SCC."));
             return Failed;
         }
         file->checkPermissions();
@@ -1421,7 +1477,7 @@ EditorManager::makeFileWritable(IFile *file)
     case FileManager::RO_MakeWriteable: {
         const bool permsOk = QFile::setPermissions(fileName, QFile::permissions(fileName) | QFile::WriteUser);
         if (!permsOk) {
-            QMessageBox::warning(m_d->m_core->mainWindow(), tr("Failed!"),  tr("Could not set permissions to writable."));
+            QMessageBox::warning(m_d->m_core->mainWindow(), tr("Cannot Set Permissions"),  tr("Cannot set permissions to writable."));
             return Failed;
         }
     }
@@ -1460,9 +1516,7 @@ bool EditorManager::saveFileAs(IFile *fileParam)
         }
     }
 
-    m_d->m_core->fileManager()->blockFileChange(file);
-    const bool success = file->save(absoluteFilePath);
-    m_d->m_core->fileManager()->unblockFileChange(file);
+    const bool success = m_d->m_core->fileManager()->saveFile(file, absoluteFilePath);
     file->checkPermissions();
 
     // @todo: There is an issue to be treated here. The new file might be of a different mime
@@ -1550,8 +1604,11 @@ void EditorManager::updateWindowTitle()
 void EditorManager::handleEditorStateChange()
 {
     updateActions();
+    IEditor *theEditor = qobject_cast<IEditor *>(sender());
+    if (!theEditor->file()->isModified())
+        theEditor->file()->removeAutoSaveFile();
     IEditor *currEditor = currentEditor();
-    if (qobject_cast<IEditor *>(sender()) == currEditor) {
+    if (theEditor == currEditor) {
         updateWindowTitle();
         emit currentEditorStateChanged(currEditor);
     }
@@ -1575,13 +1632,18 @@ void EditorManager::updateActions()
 #ifdef Q_WS_MAC
         window()->setWindowModified(curEditor->file()->isModified());
 #endif
-        if (curEditor->file()->isModified() && curEditor->file()->isReadOnly()) {
-            // we are about to change a read-only file, warn user
-            showEditorInfoBar(QLatin1String("Core.EditorManager.MakeWritable"),
-                tr("<b>Warning:</b> You are changing a read-only file."),
-                tr("Make writable"), this, SLOT(makeCurrentEditorWritable()));
-        } else {
-            hideEditorInfoBar(QLatin1String("Core.EditorManager.MakeWritable"));
+        bool ww = curEditor->file()->isModified() && curEditor->file()->isReadOnly();
+        if (ww != curEditor->file()->hasWriteWarning()) {
+            curEditor->file()->setWriteWarning(ww);
+            if (ww) {
+                // we are about to change a read-only file, warn user
+                InfoBarEntry info(QLatin1String("Core.EditorManager.MakeWritable"),
+                                  tr("<b>Warning:</b> You are changing a read-only file."));
+                info.setCustomButtonInfo(tr("Make writable"), this, SLOT(makeCurrentEditorWritable()));
+                curEditor->file()->infoBar()->addInfo(info);
+            } else {
+                curEditor->file()->infoBar()->removeInfo(QLatin1String("Core.EditorManager.MakeWritable"));
+            }
         }
 #ifdef Q_WS_MAC
     } else { // curEditor
@@ -1753,17 +1815,9 @@ bool EditorManager::restoreState(const QByteArray &state)
     if (version != "EditorManagerV4")
         return false;
 
-    QMap<QString, QVariant> editorstates;
-
     QApplication::setOverrideCursor(Qt::WaitCursor);
 
-    stream >> editorstates;
-
-    QMapIterator<QString, QVariant> i(editorstates);
-    while (i.hasNext()) {
-        i.next();
-        m_d->m_editorStates.insert(i.key(), i.value());
-    }
+    stream >> m_d->m_editorStates;
 
     int editorCount = 0;
     stream >> editorCount;
@@ -1775,8 +1829,17 @@ bool EditorManager::restoreState(const QByteArray &state)
         QByteArray id;
         stream >> id;
 
-        if (!fileName.isEmpty() && !displayName.isEmpty())
-            m_d->m_editorModel->addRestoredEditor(fileName, displayName, QString::fromUtf8(id));
+        if (!fileName.isEmpty() && !displayName.isEmpty()) {
+            QFileInfo fi(fileName);
+            if (!fi.exists())
+                continue;
+            QFileInfo rfi(autoSaveName(fileName));
+            if (rfi.exists() && fi.lastModified() < rfi.lastModified()) {
+                openEditor(fileName, QString::fromUtf8(id));
+            } else {
+                m_d->m_editorModel->addRestoredEditor(fileName, displayName, QString::fromUtf8(id));
+            }
+        }
     }
 
     QByteArray splitterstates;
@@ -1798,14 +1861,18 @@ bool EditorManager::restoreState(const QByteArray &state)
     return true;
 }
 
-static const char * const documentStatesKey = "EditorManager/DocumentStates";
-static const char * const reloadBehaviorKey = "EditorManager/ReloadBehavior";
+static const char documentStatesKey[] = "EditorManager/DocumentStates";
+static const char reloadBehaviorKey[] = "EditorManager/ReloadBehavior";
+static const char autoSaveEnabledKey[] = "EditorManager/AutoSaveEnabled";
+static const char autoSaveIntervalKey[] = "EditorManager/AutoSaveInterval";
 
 void EditorManager::saveSettings()
 {
     SettingsDatabase *settings = m_d->m_core->settingsDatabase();
     settings->setValue(QLatin1String(documentStatesKey), m_d->m_editorStates);
     settings->setValue(QLatin1String(reloadBehaviorKey), m_d->m_reloadSetting);
+    settings->setValue(QLatin1String(autoSaveEnabledKey), m_d->m_autoSaveEnabled);
+    settings->setValue(QLatin1String(autoSaveIntervalKey), m_d->m_autoSaveInterval);
 }
 
 void EditorManager::readSettings()
@@ -1825,6 +1892,12 @@ void EditorManager::readSettings()
 
     if (settings->contains(QLatin1String(reloadBehaviorKey)))
         m_d->m_reloadSetting = (IFile::ReloadSetting)settings->value(QLatin1String(reloadBehaviorKey)).toInt();
+
+    if (settings->contains(QLatin1String(autoSaveEnabledKey))) {
+        m_d->m_autoSaveEnabled = settings->value(QLatin1String(autoSaveEnabledKey)).toBool();
+        m_d->m_autoSaveInterval = settings->value(QLatin1String(autoSaveIntervalKey)).toInt();
+    }
+    updateAutoSave();
 }
 
 
@@ -1848,24 +1921,9 @@ void EditorManager::revertToSaved()
             return;
 
     }
-    currEditor->file()->reload(IFile::FlagReload, IFile::TypeContents);
-}
-
-void EditorManager::showEditorInfoBar(const QString &id,
-                                      const QString &infoText,
-                                      const QString &buttonText,
-                                      QObject *object, const char *buttonPressMember,
-                                      const char *cancelButtonPressMember)
-{
-    currentEditorView()->showEditorInfoBar(id, infoText, buttonText, object, buttonPressMember, cancelButtonPressMember);
-}
-
-
-void EditorManager::hideEditorInfoBar(const QString &id)
-{
-    Core::Internal::EditorView *cev = currentEditorView();
-    if (cev)
-        cev->hideEditorInfoBar(id);
+    QString errorString;
+    if (!currEditor->file()->reload(&errorString, IFile::FlagReload, IFile::TypeContents))
+        QMessageBox::critical(m_d->m_core->mainWindow(), tr("File Error"), errorString);
 }
 
 void EditorManager::showEditorStatusBar(const QString &id,
@@ -1890,6 +1948,28 @@ void EditorManager::setReloadSetting(IFile::ReloadSetting behavior)
 IFile::ReloadSetting EditorManager::reloadSetting() const
 {
     return m_d->m_reloadSetting;
+}
+
+void EditorManager::setAutoSaveEnabled(bool enabled)
+{
+    m_d->m_autoSaveEnabled = enabled;
+    updateAutoSave();
+}
+
+bool EditorManager::autoSaveEnabled() const
+{
+    return m_d->m_autoSaveEnabled;
+}
+
+void EditorManager::setAutoSaveInterval(int interval)
+{
+    m_d->m_autoSaveInterval = interval;
+    updateAutoSave();
+}
+
+int EditorManager::autoSaveInterval() const
+{
+    return m_d->m_autoSaveInterval;
 }
 
 QTextCodec *EditorManager::defaultTextCodec() const

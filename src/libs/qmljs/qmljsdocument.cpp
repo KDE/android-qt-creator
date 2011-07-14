@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -126,7 +126,13 @@ Document::~Document()
 Document::Ptr Document::create(const QString &fileName)
 {
     Document::Ptr doc(new Document(fileName));
+    doc->_ptr = doc;
     return doc;
+}
+
+Document::Ptr Document::ptr() const
+{
+    return _ptr.toStrongRef();
 }
 
 bool Document::isQmlDocument() const
@@ -357,17 +363,17 @@ void Document::extractPragmas(QString *source)
     }
 }
 
-LibraryInfo::LibraryInfo()
-    : _valid(false)
-    , _dumpStatus(DumpNotStartedOrRunning)
+LibraryInfo::LibraryInfo(Status status)
+    : _status(status)
+    , _dumpStatus(NoTypeInfo)
 {
 }
 
 LibraryInfo::LibraryInfo(const QmlDirParser &parser)
-    : _valid(true)
+    : _status(Found)
     , _components(parser.components())
     , _plugins(parser.plugins())
-    , _dumpStatus(DumpNotStartedOrRunning)
+    , _dumpStatus(NoTypeInfo)
 {
 }
 

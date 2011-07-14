@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,6 +50,8 @@ static const int ArrowBorderSize = 12;
 
 class CrumblePathButton : public QPushButton
 {
+    Q_OBJECT
+
 public:
     enum SegmentType {
         LastSegment = 1,
@@ -69,6 +71,7 @@ protected:
     void leaveEvent(QEvent *);
     void mousePressEvent(QMouseEvent *e);
     void mouseReleaseEvent(QMouseEvent *e);
+    void changeEvent(QEvent * e);
 
 private:
     void tintImages();
@@ -141,7 +144,11 @@ void CrumblePathButton::paintEvent(QPaintEvent *)
             Utils::StyleHelper::drawCornerImage(m_segment, &p, geom, 2, 0, 12, 0);
         }
     }
-    p.setPen(StyleHelper::panelTextColor());
+    if (isEnabled()) {
+        p.setPen(StyleHelper::panelTextColor());
+    } else {
+        p.setPen(StyleHelper::panelTextColor().darker());
+    }
     QFontMetrics fm(p.font());
     QString textToDraw = fm.elidedText(text(), Qt::ElideRight, geom.width() - m_textPos.x());
 
@@ -173,6 +180,8 @@ void CrumblePathButton::leaveEvent(QEvent *e)
 
 void CrumblePathButton::mouseMoveEvent(QMouseEvent *e)
 {
+    if (!isEnabled())
+        return;
     QPushButton::mouseMoveEvent(e);
     m_isHovering = true;
     update();
@@ -180,6 +189,8 @@ void CrumblePathButton::mouseMoveEvent(QMouseEvent *e)
 
 void CrumblePathButton::mousePressEvent(QMouseEvent *e)
 {
+    if (!isEnabled())
+        return;
     QPushButton::mousePressEvent(e);
     m_isPressed = true;
     update();
@@ -190,6 +201,12 @@ void CrumblePathButton::mouseReleaseEvent(QMouseEvent *e)
     QPushButton::mouseReleaseEvent(e);
     m_isPressed = false;
     update();
+}
+
+void CrumblePathButton::changeEvent(QEvent *e)
+{
+    if (e && e->type() == QEvent::EnabledChange)
+        update();
 }
 
 void CrumblePathButton::select(bool s)
@@ -263,7 +280,7 @@ void CrumblePath::pushElement(const QString &title, const QVariant &data)
 {
     CrumblePathButton *newButton = new CrumblePathButton(title, this);
     newButton->hide();
-    connect(newButton, SIGNAL(clicked()), SLOT(mapClickToIndex()));
+    connect(newButton, SIGNAL(clicked()), SLOT(emitElementClicked()));
 
     int segType = CrumblePathButton::MiddleSegment;
     if (!d->m_buttons.isEmpty()) {
@@ -282,7 +299,7 @@ void CrumblePath::pushElement(const QString &title, const QVariant &data)
 
 void CrumblePath::addChild(const QString &title, const QVariant &data)
 {
-    QTC_ASSERT(d->m_buttons.count() > 0,return);
+    QTC_ASSERT(!d->m_buttons.isEmpty(), return);
 
     QPushButton *lastButton = d->m_buttons.last();
 
@@ -292,7 +309,7 @@ void CrumblePath::addChild(const QString &title, const QVariant &data)
 
     QAction *childAction = new QAction(title, lastButton);
     childAction->setData(data);
-    connect(childAction, SIGNAL(triggered()), this, SLOT(mapClickToIndex()));
+    connect(childAction, SIGNAL(triggered()), this, SLOT(emitElementClicked()));
     childList->addAction(childAction);
     lastButton->setMenu(childList);
 }
@@ -328,7 +345,7 @@ void CrumblePath::resizeButtons()
 {
     int totalWidthLeft = width();
 
-    if (d->m_buttons.length() >= 1) {
+    if (!d->m_buttons.isEmpty()) {
         QPoint nextElementPosition(0, 0);
 
         d->m_buttons.first()->raise();
@@ -373,13 +390,15 @@ void CrumblePath::resizeButtons()
     }
 }
 
-void CrumblePath::mapClickToIndex()
+void CrumblePath::emitElementClicked()
 {
     QObject *element = sender();
-    if (QString("QAction") == element->metaObject()->className())
-        emit elementClicked(static_cast<QAction *>(element)->data().toInt());
-    else if (QString("QPushButton") == element->metaObject()->className())
-        emit elementClicked(static_cast<CrumblePathButton *>(element)->data().toInt());
+    if (QAction *action = qobject_cast<QAction*>(element))
+        emit elementClicked(action->data());
+    else if (CrumblePathButton *button = qobject_cast<CrumblePathButton*>(element))
+        emit elementClicked(button->data());
 }
 
 } // namespace Utils
+
+#include "crumblepath.moc"

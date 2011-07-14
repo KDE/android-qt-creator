@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,22 +42,23 @@ class QmlProjectRunConfiguration;
 
 namespace Internal {
 
-class QmlRunControl : public ProjectExplorer::RunControl
+class QmlProjectRunControl : public ProjectExplorer::RunControl
 {
     Q_OBJECT
 public:
-    explicit QmlRunControl(QmlProjectRunConfiguration *runConfiguration, QString mode);
-    virtual ~QmlRunControl ();
+    explicit QmlProjectRunControl(QmlProjectRunConfiguration *runConfiguration, QString mode);
+    virtual ~QmlProjectRunControl ();
 
     // RunControl
     virtual void start();
     virtual StopResult stop();
     virtual bool isRunning() const;
+    virtual QIcon icon() const;
 
 private slots:
     void processExited(int exitCode);
     void slotBringApplicationToForeground(qint64 pid);
-    void slotAppendMessage(const QString &line, ProjectExplorer::OutputFormat);
+    void slotAppendMessage(const QString &line, Utils::OutputFormat);
 
 private:
     ProjectExplorer::ApplicationLauncher m_applicationLauncher;
@@ -66,11 +67,11 @@ private:
     QString m_commandLineArguments;
 };
 
-class QmlRunControlFactory : public ProjectExplorer::IRunControlFactory {
+class QmlProjectRunControlFactory : public ProjectExplorer::IRunControlFactory {
     Q_OBJECT
 public:
-    explicit QmlRunControlFactory(QObject *parent = 0);
-    virtual ~QmlRunControlFactory();
+    explicit QmlProjectRunControlFactory(QObject *parent = 0);
+    virtual ~QmlProjectRunControlFactory();
 
     // IRunControlFactory
     virtual bool canRun(ProjectExplorer::RunConfiguration *runConfiguration, const QString &mode) const;

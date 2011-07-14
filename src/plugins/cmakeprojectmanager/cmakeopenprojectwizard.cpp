@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,7 @@
 
 #include <utils/pathchooser.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <texteditor/fontsettings.h>
 
 #include <QtGui/QVBoxLayout>
 #include <QtGui/QFormLayout>
@@ -254,7 +255,7 @@ ShadowBuildPage::ShadowBuildPage(CMakeOpenProjectWizard *cmakeWizard, bool chang
                           "Qt Creator recommends to not use the source directory for building. "
                           "This ensures that the source directory remains clean and enables multiple builds "
                           "with different settings."));
-    fl->addWidget(label);
+    fl->addRow(label);
     m_pc = new Utils::PathChooser(this);
     m_pc->setBaseDirectory(m_cmakeWizard->sourceDirectory());
     m_pc->setPath(m_cmakeWizard->buildDirectory());
@@ -281,6 +282,7 @@ CMakeRunPage::CMakeRunPage(CMakeOpenProjectWizard *cmakeWizard, Mode mode, const
 void CMakeRunPage::initWidgets()
 {
     QFormLayout *fl = new QFormLayout;
+    fl->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     setLayout(fl);
     // Description Label
     m_descriptionLabel = new QLabel(this);
@@ -303,33 +305,41 @@ void CMakeRunPage::initWidgets()
                 text += tr(" The path %1 is not a valid cmake.").arg(cmakeExecutable);
         }
 
-        fl->addRow(new QLabel(text, this));
+        QLabel *cmakeLabel = new QLabel(text);
+        cmakeLabel->setWordWrap(true);
+        fl->addRow(cmakeLabel);
         // Show a field for the user to enter
         m_cmakeExecutable = new Utils::PathChooser(this);
         m_cmakeExecutable->setExpectedKind(Utils::PathChooser::ExistingCommand);
-        fl->addRow("cmake Executable", m_cmakeExecutable);
+        fl->addRow("cmake Executable:", m_cmakeExecutable);
     }
 
     // Run CMake Line (with arguments)
     m_argumentsLineEdit = new QLineEdit(this);
     connect(m_argumentsLineEdit,SIGNAL(returnPressed()), this, SLOT(runCMake()));
+    fl->addRow(tr("Arguments:"), m_argumentsLineEdit);
 
     m_generatorComboBox = new QComboBox(this);
+    fl->addRow(tr("Generator:"), m_generatorComboBox);
 
     m_runCMake = new QPushButton(this);
     m_runCMake->setText(tr("Run CMake"));
     connect(m_runCMake, SIGNAL(clicked()), this, SLOT(runCMake()));
 
-    QHBoxLayout *hbox = new QHBoxLayout;
-    hbox->addWidget(m_argumentsLineEdit);
-    hbox->addWidget(m_generatorComboBox);
-    hbox->addWidget(m_runCMake);
-
-    fl->addRow(tr("Arguments"), hbox);
+    QHBoxLayout *hbox2 = new QHBoxLayout;
+    hbox2->addStretch(10);
+    hbox2->addWidget(m_runCMake);
+    fl->addRow(hbox2);
 
     // Bottom output window
     m_output = new QPlainTextEdit(this);
     m_output->setReadOnly(true);
+    // set smaller minimum size to avoid vanishing descriptions if all of the
+    // above is shown and the dialog not vertically resizing to fit stuff in (Mac)
+    m_output->setMinimumHeight(15);
+    QFont f(TextEditor::FontSettings::defaultFixedFontFamily());
+    f.setStyleHint(QFont::TypeWriter);
+    m_output->setFont(f);
     QSizePolicy pl = m_output->sizePolicy();
     pl.setVerticalStretch(1);
     m_output->setSizePolicy(pl);
@@ -379,56 +389,62 @@ void CMakeRunPage::initializePage()
     } else if (m_mode == CMakeRunPage::WantToUpdate) {
         m_descriptionLabel->setText(tr("Refreshing cbp file in %1.").arg(m_buildDirectory));
     }
-    if (m_cmakeWizard->cmakeManager()->hasCodeBlocksMsvcGenerator()) {
-        // Try to find out generator from CMakeCache file, if it exists
-        QString cachedGenerator;
 
-        QFile fi(m_buildDirectory + "/CMakeCache.txt");
-        if (fi.exists()) {
-            // Cache exists, then read it...
-            if (fi.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                while (!fi.atEnd()) {
-                    QString line = fi.readLine();
-                    if (line.startsWith("CMAKE_GENERATOR:INTERNAL=")) {
-                        int splitpos = line.indexOf('=');
-                        if (splitpos != -1) {
-                            cachedGenerator = line.mid(splitpos + 1).trimmed();
-                        }
-                        break;
-                    }
+
+    // Try figuring out generator and toolchain from CMakeCache.txt
+    QString cachedGenerator;
+    QString cmakeCxxCompiler;
+    QFile fi(m_buildDirectory + "/CMakeCache.txt");
+    if (fi.exists()) {
+        // Cache exists, then read it...
+        if (fi.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            while (!fi.atEnd()) {
+                QString line = fi.readLine();
+                if (line.startsWith("CMAKE_GENERATOR:INTERNAL=")) {
+                    int splitpos = line.indexOf('=');
+                    if (splitpos != -1)
+                        cachedGenerator = line.mid(splitpos + 1).trimmed();
                 }
+                if (line.startsWith("CMAKE_CXX_COMPILER:FILEPATH=")) {
+                    int splitpos = line.indexOf("=");
+                    if (splitpos != -1)
+                        cmakeCxxCompiler = line.mid(splitpos +1).trimmed();
+                }
+                if (!cachedGenerator.isEmpty() && !cmakeCxxCompiler.isEmpty())
+                    break;
             }
         }
+    }
 
-        m_generatorComboBox->setVisible(true);
-        m_generatorComboBox->clear();
-        ProjectExplorer::Abi abi = ProjectExplorer::Abi::hostAbi();
-        abi = ProjectExplorer::Abi(abi.architecture(), abi.os(), ProjectExplorer::Abi::UnknownFlavor,
-                                   abi.binaryFormat(), abi.wordWidth() == 32 ? 32 : 0);
-        QList<ProjectExplorer::ToolChain *> tcs =
-                ProjectExplorer::ToolChainManager::instance()->findToolChains(abi);
-        foreach (ProjectExplorer::ToolChain *tc, tcs) {
-            ProjectExplorer::Abi targetAbi = tc->targetAbi();
-            QVariant tcVariant = qVariantFromValue(static_cast<void *>(tc));
-            if (targetAbi.os() == ProjectExplorer::Abi::WindowsOS) {
-                if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2005Flavor
-                        || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2008Flavor
-                        || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2010Flavor)
+    // Build the list of generators/toolchains we want to offer
+    // todo restrict toolchains based on CMAKE_CXX_COMPILER ?
+    Q_UNUSED(cmakeCxxCompiler);
+    m_generatorComboBox->clear();
+    bool hasCodeBlocksGenerator = m_cmakeWizard->cmakeManager()->hasCodeBlocksMsvcGenerator();
+    ProjectExplorer::Abi abi = ProjectExplorer::Abi::hostAbi();
+    abi = ProjectExplorer::Abi(abi.architecture(), abi.os(), ProjectExplorer::Abi::UnknownFlavor,
+                               abi.binaryFormat(), abi.wordWidth() == 32 ? 32 : 0);
+    QList<ProjectExplorer::ToolChain *> tcs =
+            ProjectExplorer::ToolChainManager::instance()->findToolChains(abi);
+
+    foreach (ProjectExplorer::ToolChain *tc, tcs) {
+        ProjectExplorer::Abi targetAbi = tc->targetAbi();
+        QVariant tcVariant = qVariantFromValue(static_cast<void *>(tc));
+        if (targetAbi.os() == ProjectExplorer::Abi::WindowsOS) {
+            if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2005Flavor
+                    || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2008Flavor
+                    || targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2010Flavor) {
+                if (hasCodeBlocksGenerator && (cachedGenerator.isEmpty() || cachedGenerator == "NMake Makefiles"))
                     m_generatorComboBox->addItem(tr("NMake Generator (%1)").arg(tc->displayName()), tcVariant);
-                else if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMSysFlavor)
+             } else if (targetAbi.osFlavor() == ProjectExplorer::Abi::WindowsMSysFlavor) {
+                if (cachedGenerator.isEmpty() || cachedGenerator == "MinGW Makefiles")
                     m_generatorComboBox->addItem(tr("MinGW Generator (%1)").arg(tc->displayName()), tcVariant);
-                else
-                    continue;
             }
+        } else {
+            // Non windows
+            if (cachedGenerator.isEmpty() || cachedGenerator == "Unix Makefiles")
+                m_generatorComboBox->addItem(tr("Unix Generator (%1)").arg(tc->displayName()), tcVariant);
         }
-    } else {
-        // No new enough cmake, simply hide the combo box
-        m_generatorComboBox->setVisible(false);
-        QList<ProjectExplorer::ToolChain *> tcs =
-                ProjectExplorer::ToolChainManager::instance()->findToolChains(ProjectExplorer::Abi::hostAbi());
-        if (tcs.isEmpty())
-            return;
-        m_cmakeWizard->setToolChain(tcs.at(0));
     }
 }
 
@@ -437,15 +453,10 @@ void CMakeRunPage::runCMake()
     int index = m_generatorComboBox->currentIndex();
 
     ProjectExplorer::ToolChain *tc = 0;
-    if (index >= 0) {
+    if (index >= 0)
         tc = static_cast<ProjectExplorer::ToolChain *>(m_generatorComboBox->itemData(index).value<void *>());
-        if (!tc)
-            return;
-        m_cmakeWizard->setToolChain(tc);
-    } else {
-        tc = m_cmakeWizard->toolChain();
-    }
-    Q_ASSERT(tc);
+
+    m_cmakeWizard->setToolChain(tc);
 
     m_runCMake->setEnabled(false);
     m_argumentsLineEdit->setEnabled(false);
@@ -494,6 +505,7 @@ static QColor mix_colors(QColor a, QColor b)
 void CMakeRunPage::cmakeReadyReadStandardOutput()
 {
     QTextCursor cursor(m_output->document());
+    cursor.movePosition(QTextCursor::End);
     QTextCharFormat tf;
 
     QFont font = m_output->font();

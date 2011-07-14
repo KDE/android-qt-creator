@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -94,6 +94,8 @@ public:
 
     QString componentSource() const;
     QString componentFileName() const;
+
+    bool hasCustomParser() const;
 
     bool availableInVersion(int majorVersion, int minorVersion) const;
     bool isSubclassOf(const QString& type, int majorVersion, int minorVersio) const;

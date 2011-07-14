@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,31 +36,42 @@
 #include "abi.h"
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
-#include "outputformat.h"
+
+#include <utils/outputformatter.h>
 
 #include <QtCore/QMetaType>
 #include <QtCore/QWeakPointer>
 #include <QtGui/QWidget>
+#include <QtGui/QIcon>
 
 namespace ProjectExplorer {
 
 class BuildConfiguration;
 class IRunConfigurationAspect;
-class OutputFormatter;
 class RunControl;
 class Target;
 
-/**
- * Base class for a run configuration. A run configuration specifies how a
- * target should be run, while the runner (see below) does the actual running.
- *
- * Note that all RunControls and the target hold a shared pointer to the RunConfiguration.
- * That is the lifetime of the RunConfiguration might exceed the life of the target.
- * The user might still have a RunControl running (or output tab of that RunControl open)
- * and yet unloaded the target.
- * Also a RunConfiguration might be already removed from the list of RunConfigurations
- * for a target, but stil be runnable via the output tab.
- */
+// FIXME: This should also contain a handle to an remote device if used.
+class PROJECTEXPLORER_EXPORT ProcessHandle
+{
+public:
+    explicit ProcessHandle(quint64 pid = 0);
+
+    bool isValid() const;
+    void setPid(quint64 pid);
+    quint64 pid() const;
+    QString toString() const;
+
+    bool equals(const ProcessHandle &) const;
+
+private:
+    quint64 m_pid;
+};
+
+inline bool operator==(const ProcessHandle &p1, const ProcessHandle &p2) { return p1.equals(p2); }
+inline bool operator!=(const ProcessHandle &p1, const ProcessHandle &p2) { return !p1.equals(p2); }
+
+// Documentation inside.
 class PROJECTEXPLORER_EXPORT RunConfiguration : public ProjectConfiguration
 {
     Q_OBJECT
@@ -68,25 +79,13 @@ class PROJECTEXPLORER_EXPORT RunConfiguration : public ProjectConfiguration
 public:
     virtual ~RunConfiguration();
 
-    /**
-     * Used to find out whether a runconfiguration works with the given
-     * buildconfiguration.
-     * \note bc may be 0!
-     */
-    virtual bool isEnabled(BuildConfiguration *bc) const;
-
-    /**
-     * Used to find out whether a runconfiguration works with the active
-     * buildconfiguration.
-     */
-    bool isEnabled() const;
-
-    /// Returns the widget used to configure this run configuration. Ownership is transferred to the caller
+    virtual bool isEnabled() const;
+    virtual QString disabledReason() const;
     virtual QWidget *createConfigurationWidget() = 0;
 
     Target *target() const;
 
-    virtual ProjectExplorer::OutputFormatter *createOutputFormatter() const;
+    virtual Utils::OutputFormatter *createOutputFormatter() const;
 
     void setUseQmlDebugger(bool value);
     void setUseCppDebugger(bool value);
@@ -98,9 +97,6 @@ public:
 
     virtual QVariantMap toMap() const;
 
-    // aspects are a mechanism to add RunControl-specific options to a RunConfiguration without
-    // subclassing the RunConfiguration for every addition, preventing a combinatorical explosion
-    // of subclasses or the need to add all options to the base class.
     QList<IRunConfigurationAspect *> extraAspects() const;
     template <typename T> T *extraAspect() const
     {
@@ -133,8 +129,14 @@ protected:
 private:
     void addExtraAspects();
 
+    enum QmlDebuggerStatus {
+        DisableQmlDebugger = 0,
+        EnableQmlDebugger,
+        AutoEnableQmlDebugger
+    };
+
     bool m_useCppDebugger;
-    bool m_useQmlDebugger;
+    mutable QmlDebuggerStatus m_useQmlDebugger;
     uint m_qmlDebugServerPort;
     QList<IRunConfigurationAspect *> m_aspects;
 };
@@ -150,15 +152,6 @@ protected:
     virtual bool fromMap(const QVariantMap &map) = 0;
 };
 
-/**
- * The run configuration factory is used for restoring run configurations from
- * settings. And used to create new runconfigurations in the "Run Settings" Dialog.
- * For the first case bool canRestore(Target *parent, const QString &id) and
- * RunConfiguration* create(Target *parent, const QString &id) are used.
- * For the second type the functions QStringList availableCreationIds(Target *parent) and
- * QString displayNameForType(const QString&) are used to generate a list of creatable
- * RunConfigurations, and create(..) is used to create it.
- */
 class PROJECTEXPLORER_EXPORT IRunConfigurationFactory : public QObject
 {
     Q_OBJECT
@@ -167,10 +160,7 @@ public:
     explicit IRunConfigurationFactory(QObject *parent = 0);
     virtual ~IRunConfigurationFactory();
 
-    /// used to show the list of possible additons to a target, returns a list of types
     virtual QStringList availableCreationIds(Target *parent) const = 0;
-
-    /// used to translate the types to names to display to the user
     virtual QString displayNameForId(const QString &id) const = 0;
 
     virtual bool canCreate(Target *parent, const QString &id) const = 0;
@@ -202,15 +192,7 @@ public:
 
     virtual QString displayName() const = 0;
 
-    /// Return an IRunConfigurationAspect to carry options for RunControls this factory can create.
-    /// If no extra options are required it is allowed to return null like the default implementation does.
-    /// This is intended to be called from the RunConfiguration constructor, so passing a RunConfiguration
-    /// pointer makes no sense because that object is under construction at the time.
     virtual IRunConfigurationAspect *createRunConfigurationAspect();
-
-    /// Return a widget used to configure this runner. Ownership is transferred to the caller.
-    /// If @p runConfiguration is not suitable for RunControls from this factory, or no user-accesible
-    /// configuration is required, return null.
     virtual RunConfigWidget *createConfigurationWidget(RunConfiguration *runConfiguration) = 0;
 };
 
@@ -229,9 +211,6 @@ signals:
     void displayNameChanged(const QString &);
 };
 
-/**
- * Each instance of this class represents one item that is run.
- */
 class PROJECTEXPLORER_EXPORT RunControl : public QObject
 {
     Q_OBJECT
@@ -245,33 +224,35 @@ public:
     virtual ~RunControl();
     virtual void start() = 0;
 
-    // Prompt to stop. If 'optionalPrompt' is passed, a "Do not ask again"-
-    // checkbox will show and the result will be returned in '*optionalPrompt'.
     virtual bool promptToStop(bool *optionalPrompt = 0) const;
     virtual StopResult stop() = 0;
     virtual bool isRunning() const = 0;
     virtual QString displayName() const;
+    virtual QIcon icon() const = 0;
+
+    ProcessHandle applicationProcessHandle() const;
+    void setApplicationProcessHandle(const ProcessHandle &handle);
 
     bool sameRunConfiguration(const RunControl *other) const;
 
-    OutputFormatter *outputFormatter();
+    Utils::OutputFormatter *outputFormatter();
     QString runMode() const;
 
 public slots:
     void bringApplicationToForeground(qint64 pid);
-    void appendMessage(const QString &msg, ProjectExplorer::OutputFormat format);
+    void appendMessage(const QString &msg, Utils::OutputFormat format);
 
 signals:
     void appendMessage(ProjectExplorer::RunControl *runControl,
-        const QString &msg, ProjectExplorer::OutputFormat format);
+        const QString &msg, Utils::OutputFormat format);
     void started();
     void finished();
+    void applicationProcessHandleChanged();
 
 private slots:
     void bringApplicationToForegroundInternal();
 
 protected:
-    // Utility to prompt to terminate application with checkable box.
     bool showPromptToStopDialog(const QString &title, const QString &text,
                                 const QString &stopButtonText = QString(),
                                 const QString &cancelButtonText = QString(),
@@ -281,7 +262,10 @@ private:
     QString m_displayName;
     QString m_runMode;
     const QWeakPointer<RunConfiguration> m_runConfiguration;
-    OutputFormatter *m_outputFormatter;
+    Utils::OutputFormatter *m_outputFormatter;
+
+    // A handle to the actual application process.
+    ProcessHandle m_applicationProcessHandle;
 
 #ifdef Q_OS_MAC
     //these two are used to bring apps in the foreground on Mac
@@ -294,5 +278,6 @@ private:
 
 // Allow a RunConfiguration to be stored in a QVariant
 Q_DECLARE_METATYPE(ProjectExplorer::RunConfiguration*)
+Q_DECLARE_METATYPE(ProjectExplorer::RunControl*)
 
 #endif // RUNCONFIGURATION_H

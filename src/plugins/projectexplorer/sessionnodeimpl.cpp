@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,9 @@ namespace ProjectExplorer {
 namespace Internal {
 
 SessionNodeImpl::SessionNodeImpl(SessionManager *manager)
-        : ProjectExplorer::SessionNode(manager->currentSession(), manager)
+        : ProjectExplorer::SessionNode(
+              manager->sessionNameToFileName(manager->currentSession()),
+              manager)
 {
     setFileName(QLatin1String("session"));
 }

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -90,7 +90,7 @@ signals:
     void disableLivePreviewRequested();
 
 public slots:
-    void setApplyChangesToQmlObserver(bool applyChanges);
+    void setApplyChangesToQmlInspector(bool applyChanges);
     void updateDebugIds();
 
 private slots:
@@ -117,7 +117,7 @@ private:
 
     QList<QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> > m_editors;
 
-    bool m_applyChangesToQmlObserver;
+    bool m_applyChangesToQmlInspector;
     QmlJS::Document::Ptr m_docWithUnappliedChanges;
     QWeakPointer<ClientProxy> m_clientProxy;
 

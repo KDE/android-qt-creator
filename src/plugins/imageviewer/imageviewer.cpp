@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,6 +45,7 @@
 
 #include <QtCore/QMap>
 #include <QtCore/QFileInfo>
+#include <QtCore/QDir>
 #include <QtGui/QWidget>
 #include <QtCore/QtDebug>
 
@@ -53,11 +54,6 @@ namespace Internal {
 
 struct ImageViewerPrivate
 {
-    ImageViewerPrivate()
-        : context(Constants::IMAGEVIEWER_ID)
-    {}
-
-    Core::Context context;
     QString displayName;
     ImageViewerFile *file;
     ImageView *imageView;
@@ -70,8 +66,10 @@ ImageViewer::ImageViewer(QWidget *parent)
     d_ptr(new ImageViewerPrivate)
 {
     d_ptr->file = new ImageViewerFile(this);
-
     d_ptr->imageView = new ImageView();
+
+    setContext(Core::Context(Constants::IMAGEVIEWER_ID));
+    setWidget(d_ptr->imageView);
 
     // toolbar
     d_ptr->toolbar = new QWidget();
@@ -113,26 +111,18 @@ ImageViewer::~ImageViewer()
     delete d_ptr->toolbar;
 }
 
-Core::Context ImageViewer::context() const
-{
-    return d_ptr->context;
-}
-
-QWidget *ImageViewer::widget()
-{
-    return d_ptr->imageView;
-}
-
 bool ImageViewer::createNew(const QString &contents)
 {
     Q_UNUSED(contents)
     return false;
 }
 
-bool ImageViewer::open(const QString &fileName)
+bool ImageViewer::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
-    if (!d_ptr->imageView->openFile(fileName))
+    if (!d_ptr->imageView->openFile(realFileName)) {
+        *errorString = tr("Cannot open image file %1").arg(QDir::toNativeSeparators(realFileName));
         return false;
+    }
     setDisplayName(QFileInfo(fileName).fileName());
     d_ptr->file->setFileName(fileName);
     // d_ptr->file->setMimeType

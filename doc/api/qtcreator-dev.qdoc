@@ -1,0 +1,256 @@
+/****************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (info@qt.nokia.com)
+**
+**
+** GNU Free Documentation License
+**
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of this
+** file.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at info@qt.nokia.com.
+**
+****************************************************************************/
+
+/*!
+    \page index.html
+    \title Extending Qt Creator Manual
+    \nextpage
+
+    Qt Creator is a cross-platform integrated development environment (IDE)
+    tailored to the needs of Qt developers.
+
+    Qt Creator is extensible in various ways. For example, Qt Creator
+    architecture is based on a plugin loader, which means that all
+    functionality beyond plugin
+    loading is implemented in plugins. However, you can extend and tweak
+    many parts of Qt Creator without the need to resort to coding in C++ and
+    implementing such a plugin.
+
+    This document gives you an overview of the various ways in which
+    you can extend Qt Creator,
+    depending on what you want to achieve, and points you to the relevant
+    documentation.
+
+    \section1 Generating Domain Specific Code and Templates
+
+    If you regularly need to write the same code, be it little code snippets,
+    whole files or classes spread over multiple files, or complete projects,
+    you can create code snippets, templates, and wizards for that purpose.
+
+    \section2 Snippets
+
+    Typically, snippets consist of a few lines of code (although they
+    can also be plain text) that you regularly
+    want to insert into a bigger body of code, but do not want to type each
+    time. For example, \c while and \c for loops, \c if-else and \c try-catch
+    constructs, and class skeletons. Snippets are triggered in the same way as
+    normal code completion (see \l{Code Assist}{Providing Code Assist}).
+    Qt Creator contains a set of preconfigured snippets groups
+    to which you can add your own snippets.
+
+    \list
+    \o \l{http://doc.qt.nokia.com/qtcreator/creator-completing-code.html#editing-code-snippets}
+         {Snippets User Interface}
+    \o \l{Snippets} {Adding Snippets Groups}
+    \endlist
+
+    \section2 File, Class and Project Templates
+
+    You can extend the wizards in \gui {File > New File or Project} with your
+    own
+    file and project templates by writing XML definition files for them.
+    \list
+    \o \l{http://doc.qt.nokia.com/qtcreator/creator-project-wizards.html}
+         {Adding New Custom Wizards}
+    \o \l{User Interface Text Guidelines}
+    \endlist
+
+    \section2 Custom Wizards
+
+    If the above methods for code snippets and templates are not sufficient
+    for your use case, you can create a custom Qt Creator plugin.
+    While this gives you complete control over the wizard, it
+    also requires you to write most of the UI and the logic yourself.
+    \list
+    \o \l{Creating Plugins}
+    \o \l{Qt Creator Coding Rules}
+    \o \l{Creating Wizards in Code}
+    \o \l{User Interface Text Guidelines}
+    \endlist
+
+    \section1 Supporting Additional File Types
+
+    If you have files with extensions or MIME types that Qt Creator does not
+    handle by default, you can edit the MIME type definitions, add highlight
+    definition files, and create your own text editors.
+
+    \section2 MIME Types
+
+    You might find that Qt Creator could handle a particular file of yours if
+    it knew about the type of its contents. For example, C++ header or source
+    files with file extensions that are not known to Qt Creator. You can adapt
+    the MIME type definitions in Qt Creator to your specific setup,
+    by adding or removing file extensions and specifying magic headers.
+    \list
+    \o \l{http://doc.qt.nokia.com/qtcreator/creator-mime-types.html}
+         {Editing MIME Types}
+    \o \l{http://standards.freedesktop.org/shared-mime-info-spec/shared-mime-info-spec-latest.html}
+         {MIME Type Specification Files}
+    \endlist
+
+    \section2 Text Highlighting and Indentation
+
+    For text files, Qt Creator provides an easy way to add highlighting and
+    indentation for file types that are not known to it by default.
+    Generic highlighting is based on highlight definition files that are
+    provided by the Kate Editor. You can download highlight definition files
+    for use with Qt Creator and create your own definition files.
+    \list
+    \o \l{http://doc.qt.nokia.com/qtcreator/creator-editor-options.html#generic-highlighting}
+         {Generic Highlighting}
+    \o \l{http://kate-editor.org/2005/03/24/writing-a-syntax-highlighting-file/}
+         {Writing a Syntax Highlighting File}
+    \endlist
+
+    \section2 Custom Text Editors
+
+    If you need more advanced features than the MIME type and highlighting
+    features described above, such as custom text completion or features that
+    rely on semantic analysis, you can extend Qt Creator with a text editor of
+    your own. Qt Creator provides a special API for text editors that gives you
+    a basis to build on, taking away some of the pain of implementing
+    a text editor from the ground up.
+    \list
+    \o \l{Creating Plugins}
+    \o \l{Qt Creator Coding Rules}
+    \o \l{Text Editors}
+    \o \l{CodeAssist} {Providing Code Assist}
+    \endlist
+
+    \section2 Other Custom Editors
+
+    You can also add a completely custom editor to gain complete
+    control over its appearance and behavior.
+    \list
+    \o \l{Creating Plugins}
+    \o \l{Qt Creator Coding Rules}
+    \o \l{Editors}
+    \endlist
+
+    \section1 Running External Tools
+
+    Most software projects and development processes require various external
+    tools. Several external tools, such as popular version control systems and
+    build tool chains are integrated into Qt Creator. However, it is impossible
+    for a single tool to cover all the use cases, and therefore you can
+    integrate additional tools to Qt Creator.
+
+    \section2 Simple External Tools
+
+    In Qt Creator, you can specify tools that you can then run from a
+    menu or by using a keyboard shortcut that you assign. This allows you to
+    accomplish several things, with some limitations. You specify a command
+    to run, arguments and input for running it, and how to handle the output.
+    To specify the values, you can use a set of internal Qt Creator variables,
+    such as the file name of
+    the current document or project, or the currently selected text in
+    a text editor. If you find variables missing, please do not hesitate
+    to fill a feature suggestion.
+    The tool descriptions are saved as XML files that you can share.
+    \list
+    \o \l{http://doc.qt.nokia.com/qtcreator/creator-editor-external.html}
+         {Using External Tools}
+    \o \l{External Tool Specification Files}
+    \endlist
+
+    \section2 Complex External Tools
+
+    When you plan to integrate more complex tools, carefully consider whether
+    there really are advantages to be gained by tightly integrating the tool
+    into Qt Creator over loosely integrating it by mainly
+    providing a means of starting the tool with fitting parameters.
+
+    \section3 Loosely Integrating Tools
+
+    If no interaction is needed between Qt Creator and the
+    external tool, just starting an external
+    application with its own user interface is preferable. That way
+    cluttering the Qt Creator UI is avoided, and the tool will be
+    available with a nice interface even without using Qt Creator
+    at all.
+
+    Usually, you can use the external tool specification files to start the
+    tool. If starting the tool and handling its output require more complex
+    logic, you can add a menu item to Qt Creator with a plugin.
+    If you need a way to configure the tool in Qt Creator, you can add an
+    \gui Options page for it.
+    \list
+    \o \l{http://doc.qt.nokia.com/qtcreator/creator-editor-external.html}
+         {Using External Tools}
+    \o \l{External Tool Specification Files}
+    \o \l{Creating Plugins}
+    \o \l{Qt Creator Coding Rules}
+    \o \l{Menus and Menu Items}
+    \o \l{Options Pages}
+    \endlist
+
+    \section3 Interacting with Tool Output
+
+    In some cases, running an external tool would not require tight
+    integration with Qt Creator, but investigating the output of the tool would
+    benefit from it. For example, some tools generate lists of issues in files
+    that are part of the project and some tools create output that is related
+    to the code. For these tools, it is useful to interactively switch between
+    the output and the corresponding code.
+
+    One way to handle that would be to let the tool create an output
+    file, which is then opened within Qt Creator. You provide
+    an editor (probably read-only) for handling this file.
+    For lists of issues, consider creating task list files which are shown in
+    the \gui {Build Issues} output
+    pane.
+    \list
+    \o \l{http://doc.qt.nokia.com/qtcreator/creator-task-lists.html}
+         {Showing Task List Files in the Build Issues Pane}
+    \o \l{Creating Plugins}
+    \o \l{Qt Creator Coding Rules}
+    \o \l{Menus and Menu Items}
+    \o \l{Options Pages}
+    \o \l{Editors}
+    \endlist
+
+    \section1 All Topics
+
+    \list
+        \o  \l{Developing Qt Creator Plugins}
+            \list
+                \o  \l{Creating Plugins}
+                \o  \l{Menus and Menu Items}
+                \o  \l{Creating Wizards in Code}
+                \o  \l{Editors}
+                \o  \l{Text Editors}
+                \o  \l{Options Pages}
+            \endlist
+        \o  Reference
+            \list
+                \o  \l{http://standards.freedesktop.org/shared-mime-info-spec/shared-mime-info-spec-latest.html}
+                    {MIME Type Specification Files}
+                \o  \l{External Tool Specification Files}
+                \o  \l{http://kate-editor.org/2005/03/24/writing-a-syntax-highlighting-file/}
+                    {Highlight Definition Files}
+                \o  \l{Qt Creator Variables}
+                \o  \l{User Interface Text Guidelines}
+                \o  \l{Qt Creator Coding Rules}
+                \o  \l{Qt Creator API Reference}
+        \endlist
+
+    \endlist
+*/

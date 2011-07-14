@@ -1,0 +1,111 @@
+/**************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (info@qt.nokia.com)
+**
+**
+** GNU Lesser General Public License Usage
+**
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** In addition, as a special exception, Nokia gives you certain additional
+** rights. These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at info@qt.nokia.com.
+**
+**************************************************************************/
+
+#ifndef QMLJSCODESTYLESETTINGSPAGE_H
+#define QMLJSCODESTYLESETTINGSPAGE_H
+
+#include <coreplugin/dialogs/ioptionspage.h>
+#include <QtGui/QWidget>
+#include <QtCore/QPointer>
+
+QT_BEGIN_NAMESPACE
+class QSettings;
+QT_END_NAMESPACE
+
+namespace TextEditor {
+    class FontSettings;
+    class TabSettings;
+    class TabPreferences;
+}
+
+namespace QmlJSTools {
+namespace Internal {
+
+namespace Ui {
+class QmlJSCodeStyleSettingsPage;
+}
+
+class QmlJSCodeStylePreferencesWidget : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit QmlJSCodeStylePreferencesWidget(QWidget *parent = 0);
+    virtual ~QmlJSCodeStylePreferencesWidget();
+
+    void setTabPreferences(TextEditor::TabPreferences *tabPreferences);
+
+    QString searchKeywords() const;
+
+private slots:
+    void setFontSettings(const TextEditor::FontSettings &fontSettings);
+    void setVisualizeWhitespace(bool on);
+    void slotSettingsChanged();
+    void updatePreview();
+
+private:
+
+    TextEditor::TabPreferences *m_tabPreferences;
+    Ui::QmlJSCodeStyleSettingsPage *m_ui;
+};
+
+
+class QmlJSCodeStyleSettingsPage : public Core::IOptionsPage
+{
+    Q_OBJECT
+
+public:
+    explicit QmlJSCodeStyleSettingsPage(QWidget *parent = 0);
+    ~QmlJSCodeStyleSettingsPage();
+
+    virtual QString id() const;
+    virtual QString displayName() const;
+    virtual QString category() const;
+    virtual QString displayCategory() const;
+    virtual QIcon categoryIcon() const;
+
+    virtual QWidget *createPage(QWidget *parent);
+    virtual void apply();
+    virtual void finish() { }
+    virtual bool matches(const QString &) const;
+
+
+private:
+    QString m_searchKeywords;
+    TextEditor::TabPreferences *m_pageTabPreferences;
+    QPointer<QmlJSCodeStylePreferencesWidget> m_widget;
+};
+
+} // namespace Internal
+} // namespace CppTools
+
+#endif // QMLJSCODESTYLESETTINGSPAGE_H

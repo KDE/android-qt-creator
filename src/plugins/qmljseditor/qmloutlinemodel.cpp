@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -523,7 +523,7 @@ QModelIndex QmlOutlineModel::enterPublicMember(AST::UiPublicMember *publicMember
 
     if (publicMember->name)
         objectData.insert(Qt::DisplayRole, publicMember->name->asString());
-    objectData.insert(AnnotationRole, getAnnotation(publicMember->expression));
+    objectData.insert(AnnotationRole, getAnnotation(publicMember->statement));
     objectData.insert(ItemTypeRole, NonElementBindingType);
 
     QmlOutlineItem *item = enterNode(objectData, publicMember, 0, m_icons->publicMemberIcon());

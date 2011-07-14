@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@
 #include <QtCore/QVariant>
 
 QT_BEGIN_NAMESPACE
-class QDomElement;
+class QWidget;
 QT_END_NAMESPACE
 
 namespace ProjectExplorer {
@@ -53,8 +53,6 @@ public:
     bool load(const QString & fileName);
 
 private:
-    QVariant readValue(const QDomElement &valElement) const;
-    void readValues(const QDomElement &data);
     QMap<QString, QVariant> m_valueMap;
 };
 
@@ -63,10 +61,9 @@ class PROJECTEXPLORER_EXPORT PersistentSettingsWriter
 public:
     PersistentSettingsWriter();
     void saveValue(const QString & variable, const QVariant &value);
-    bool save(const QString & fileName, const QString & docType);
+    bool save(const QString &fileName, const QString &docType, QWidget *parent) const;
 
 private:
-    void writeValue(QDomElement &ps, const QVariant &value);
     QMap<QString, QVariant> m_valueMap;
 };
 

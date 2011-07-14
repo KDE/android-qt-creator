@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,19 +53,16 @@ class Bookmark : public TextEditor::BaseTextMark
 public:
     Bookmark(const QString &fileName, int lineNumber, BookmarkManager *manager);
 
-    QIcon icon() const;
-
     void updateLineNumber(int lineNumber);
     void updateBlock(const QTextBlock &block);
     void removedFromEditor();
-    TextEditor::ITextMark::Priority priority() const { return TextEditor::ITextMark::LowPriority; }
 
     QString filePath() const;
     QString fileName() const;
     QString path() const;
     QString lineText() const;
 
-    inline int lineNumber() const { return m_lineNumber; }
+    int lineNumber() const { return m_lineNumber; }
 
 private:
     BookmarkManager *m_manager;

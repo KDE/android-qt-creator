@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,7 @@
 static const char *serviceNamesC[] =
 { "Locator", "RunControl", "Processes", "Memory", "Settings", "Breakpoints",
   "Registers", "Logging", "FileSystem", "SymbianInstall", "SymbianOSData",
+  "DebugSessionControl",
   "UnknownService"};
 
 namespace Coda {
@@ -140,7 +141,7 @@ void RunControlContext::clear()
     parentId.clear();
 }
 
-RunControlContext::Type RunControlContext::typeFromTcfId(const QByteArray &id)
+RunControlContext::Type RunControlContext::typeFromCodaId(const QByteArray &id)
 {
     // "p12" or "p12.t34"?
     return id.contains(".t") ? Thread : Process;
@@ -172,7 +173,7 @@ unsigned RunControlContext::threadIdFromTcdfId(const QByteArray &id)
     return tPos != -1 ? id.mid(tPos + 2).toUInt() : uint(0);
 }
 
-QByteArray RunControlContext::tcfId(unsigned processId,  unsigned threadId /* = 0 */)
+QByteArray RunControlContext::codaId(unsigned processId,  unsigned threadId /* = 0 */)
 {
     QByteArray rc("p");
     rc += QByteArray::number(processId);
@@ -185,7 +186,7 @@ QByteArray RunControlContext::tcfId(unsigned processId,  unsigned threadId /* = 
 
 RunControlContext::Type RunControlContext::type() const
 {
-    return RunControlContext::typeFromTcfId(id);
+    return RunControlContext::typeFromCodaId(id);
 }
 
 bool RunControlContext::parse(const JsonValue &val)
@@ -303,7 +304,7 @@ Breakpoint::Breakpoint(quint64 loc) :
 
 void Breakpoint::setContextId(unsigned processId, unsigned threadId)
 {
-    contextIds = QVector<QByteArray>(1, RunControlContext::tcfId(processId, threadId));
+    contextIds = QVector<QByteArray>(1, RunControlContext::codaId(processId, threadId));
 }
 
 QByteArray Breakpoint::idFromLocation(quint64 loc)
@@ -414,6 +415,10 @@ CodaEvent *CodaEvent::parseEvent(Services s, const QByteArray &nameBA, const QVe
         if ((nameBA == "writeln" || nameBA == "write" /*not yet used*/) && values.size() >= 2)
             return new CodaLoggingWriteEvent(values.at(0).data(), values.at(1).data());
         break;
+    case ProcessesService:
+        if (nameBA == "exited" && values.size() >= 2)
+            return new CodaProcessExitedEvent(values.at(0).data());
+        break;
    default:
         break;
     }
@@ -441,10 +446,7 @@ CodaLoggingWriteEvent::CodaLoggingWriteEvent(const QByteArray &console, const QB
 
 QString CodaLoggingWriteEvent::toString() const
 {
-    QByteArray msgBA = m_console;
-    msgBA += ": ";
-    msgBA += m_message;
-    return QString::fromUtf8(msgBA);
+    return QString::fromUtf8(m_message);
 }
 
 // -------------- CodaIdEvent
@@ -577,5 +579,15 @@ QString CodaRunControlModuleLoadContextSuspendedEvent::toString() const
     return rc;
 }
 
+// -------------- CodaIdEvent
+CodaProcessExitedEvent::CodaProcessExitedEvent(const QByteArray &id) :
+   CodaEvent(ProcessExitedEvent), m_id(id)
+{
+}
+
+QString CodaProcessExitedEvent::toString() const
+{
+    return QString("Process \"%1\" exited").arg(idString());
+}
 
 } // namespace Coda

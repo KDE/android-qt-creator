@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -57,7 +57,6 @@ class ProjectFilesFactory: public Core::IEditorFactory
 
 public:
     ProjectFilesFactory(Manager *manager, TextEditor::TextEditorActionHandler *handler);
-    virtual ~ProjectFilesFactory();
 
     Manager *manager() const;
 
@@ -80,18 +79,11 @@ class ProjectFilesEditor : public TextEditor::BaseTextEditor
 
 public:
     ProjectFilesEditor(ProjectFilesEditorWidget *editorWidget);
-    virtual ~ProjectFilesEditor();
 
-    virtual Core::Context context() const;
     virtual QString id() const;
-
     virtual bool duplicateSupported() const;
     virtual Core::IEditor *duplicate(QWidget *parent);
-
     virtual bool isTemporary() const { return false; }
-
-private:
-    Core::Context m_context;
 };
 
 class ProjectFilesEditorWidget : public TextEditor::BaseTextEditorWidget
@@ -121,7 +113,7 @@ public:
     ProjectFilesDocument(Manager *manager);
     virtual ~ProjectFilesDocument();
 
-    virtual bool save(const QString &name);
+    virtual bool save(QString *errorString, const QString &name, bool autoSave);
 
 private:
     Manager *m_manager;

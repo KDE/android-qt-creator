@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,7 @@ class AbstractPlainGdbAdapter : public AbstractGdbAdapter
     Q_OBJECT
 
 public:
-    explicit AbstractPlainGdbAdapter(GdbEngine *engine, QObject *parent = 0);
+    explicit AbstractPlainGdbAdapter(GdbEngine *engine);
 
     virtual void setupInferior();
     void runEngine();

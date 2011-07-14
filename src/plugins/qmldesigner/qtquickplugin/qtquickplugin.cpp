@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -46,12 +46,12 @@ QtQuickPlugin::QtQuickPlugin()
     qmlRegisterType<QDeclarativeScaleGrid>("Qt", 4, 7, "ScaleGrid");
 }
 
-QString QtQuickPlugin::pluginName()
+QString QtQuickPlugin::pluginName() const
 {
     return ("QtQuickPlugin");
 }
 
-QString QtQuickPlugin::metaInfo()
+QString QtQuickPlugin::metaInfo() const
 {
     return QString(":/qtquickplugin/quick.metainfo");
 }

@@ -26,24 +26,27 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include <QtGui/QBoxLayout>
 #include <QtGui/QTreeView>
 #include <QtGui/QHeaderView>
-#include <QFile>
 #include <model.h>
 
 #include "navigatorwidget.h"
+#include "navigatorview.h"
+
+#include <utils/fileutils.h>
 
 
 namespace QmlDesigner {
 
-NavigatorWidget::NavigatorWidget(QWidget* parent) :
-        QFrame(parent),
-        m_treeView(new NavigatorTreeView)
+NavigatorWidget::NavigatorWidget(NavigatorView *view) :
+        QFrame(),
+        m_treeView(new NavigatorTreeView),
+        m_navigatorView(view)
 {
     m_treeView->setDragEnabled(true);
     m_treeView->setAcceptDrops(true);
@@ -51,7 +54,6 @@ NavigatorWidget::NavigatorWidget(QWidget* parent) :
     m_treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_treeView->header()->setStretchLastSection(false);
     m_treeView->setDefaultDropAction(Qt::LinkAction);
-    m_treeView->setFocusPolicy(Qt::NoFocus);
     m_treeView->setHeaderHidden(true);
 
     QVBoxLayout *layout = new QVBoxLayout;
@@ -63,17 +65,9 @@ NavigatorWidget::NavigatorWidget(QWidget* parent) :
 
     setWindowTitle(tr("Navigator", "Title of navigator view"));
 
-    {
-        QFile file(":/qmldesigner/stylesheet.css");
-        file.open(QFile::ReadOnly);
-        setStyleSheet(file.readAll());
-    }
-
-    {
-        QFile file(":/qmldesigner/scrollbar.css");
-        file.open(QFile::ReadOnly);
-        m_treeView->setStyleSheet(file.readAll());
-    }
+    setStyleSheet(QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
+    m_treeView->setStyleSheet(
+            QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
 }
 
 NavigatorWidget::~NavigatorWidget()
@@ -84,6 +78,56 @@ NavigatorWidget::~NavigatorWidget()
 void NavigatorWidget::setTreeModel(QAbstractItemModel* model)
 {
     m_treeView->setModel(model);
+}
+
+QList<QToolButton *> NavigatorWidget::createToolBarWidgets()
+{
+    QList<QToolButton *> buttons;
+
+    buttons << new QToolButton();
+    buttons.last()->setIcon(QIcon(":/navigator/icon/arrowleft.png"));
+    buttons.last()->setToolTip(tr("Become first sibling of parent (CTRL + Left)"));
+    buttons.last()->setShortcut(QKeySequence(Qt::Key_Left | Qt::CTRL));
+    connect(buttons.last(), SIGNAL(clicked()), this, SIGNAL(leftButtonClicked()));
+    buttons << new QToolButton();
+    buttons.last()->setIcon(QIcon(":/navigator/icon/arrowright.png"));
+    buttons.last()->setToolTip(tr("Become child of first sibling (CTRL + Right)"));
+    buttons.last()->setShortcut(QKeySequence(Qt::Key_Right | Qt::CTRL));
+    connect(buttons.last(), SIGNAL(clicked()), this, SIGNAL(rightButtonClicked()));
+
+    buttons << new QToolButton();
+    buttons.last()->setIcon(QIcon(":/navigator/icon/arrowdown.png"));
+    buttons.last()->setToolTip(tr("Move down (CTRL + Down)"));
+    buttons.last()->setShortcut(QKeySequence(Qt::Key_Down | Qt::CTRL));
+    connect(buttons.last(), SIGNAL(clicked()), this, SIGNAL(downButtonClicked()));
+
+    buttons << new QToolButton();
+    buttons.last()->setIcon(QIcon(":/navigator/icon/arrowup.png"));
+    buttons.last()->setToolTip(tr("Move up (CTRL + Up)"));
+    buttons.last()->setShortcut(QKeySequence(Qt::Key_Up | Qt::CTRL));
+    connect(buttons.last(), SIGNAL(clicked()), this, SIGNAL(upButtonClicked()));
+
+    return buttons;
+}
+
+QString NavigatorWidget::contextHelpId() const
+{
+    if (!navigatorView())
+        return QString();
+
+    QList<ModelNode> nodes = navigatorView()->selectedModelNodes();
+    QString helpId;
+    if (!nodes.isEmpty()) {
+        helpId = nodes.first().type();
+        helpId.replace("QtQuick", "QML");
+    }
+
+    return helpId;
+}
+
+NavigatorView *NavigatorWidget::navigatorView() const
+{
+    return m_navigatorView.data();
 }
 
 }

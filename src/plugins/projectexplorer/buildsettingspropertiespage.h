@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -62,23 +62,7 @@ public:
     QString displayName() const;
 
     bool supports(Target *target);
-    IPropertiesPanel *createPanel(Target *target);
-};
-
-class BuildSettingsWidget;
-
-class BuildSettingsPanel : public IPropertiesPanel
-{
-public:
-    BuildSettingsPanel(Target *target);
-    ~BuildSettingsPanel();
-    QString displayName() const;
-    QWidget *widget() const;
-    QIcon icon() const;
-
-private:
-    BuildSettingsWidget *m_widget;
-    const QIcon m_icon;
+    PropertiesPanel *createPanel(Target *target);
 };
 
 class BuildConfigurationsWidget;
@@ -111,7 +95,7 @@ private slots:
 private:
     void cloneConfiguration(BuildConfiguration *toClone);
     void deleteConfiguration(BuildConfiguration *toDelete);
-    QString uniqueName(const QString & name);
+    QString uniqueName(const QString &name);
 
     Target *m_target;
     BuildConfiguration *m_buildConfiguration;

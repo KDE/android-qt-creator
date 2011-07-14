@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,7 +50,7 @@ class AttachGdbAdapter : public AbstractGdbAdapter
     Q_OBJECT
 
 public:
-    explicit AttachGdbAdapter(GdbEngine *engine, QObject *parent = 0);
+    explicit AttachGdbAdapter(GdbEngine *engine);
 
 private:
     DumperHandling dumperHandling() const { return DumperLoadedByGdb; }

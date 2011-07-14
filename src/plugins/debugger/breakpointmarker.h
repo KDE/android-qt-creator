@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,17 +44,15 @@ namespace Internal {
 class BreakpointMarker : public TextEditor::BaseTextMark
 {
     Q_OBJECT
+
 public:
-    BreakpointMarker(BreakpointId id, const QString &fileName, int lineNumber);
+    BreakpointMarker(BreakpointModelId id, const QString &fileName, int lineNumber);
     ~BreakpointMarker();
-    QIcon icon() const;
-    void updateBlock(const QTextBlock &);
     void removedFromEditor();
     void updateLineNumber(int lineNumber);
-    TextEditor::ITextMark::Priority priority() const { return TextEditor::ITextMark::NormalPriority; }
 
 private:
-    BreakpointId m_id;
+    BreakpointModelId m_id;
     friend class BreakHandler;
 };
 

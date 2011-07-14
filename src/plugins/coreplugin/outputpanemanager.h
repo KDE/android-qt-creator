@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -46,7 +46,6 @@ QT_END_NAMESPACE
 
 namespace Core {
 
-class IMode;
 class IOutputPane;
 
 namespace Internal {
@@ -63,8 +62,6 @@ class OutputPaneManager : public QWidget
 public:
     void init();
     static OutputPaneManager *instance();
-    void setCloseable(bool b);
-    bool closeable();
     QWidget *buttonsWidget();
     void updateStatusButtons(bool visible);
 
@@ -102,6 +99,7 @@ private:
     void ensurePageVisible(int idx);
     int findIndexForPage(IOutputPane *out);
     QComboBox *m_widgetComboBox;
+    QAction *m_clearAction;
     QToolButton *m_clearButton;
     QToolButton *m_closeButton;
 

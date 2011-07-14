@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -57,7 +57,7 @@ SftpTest::~SftpTest()
 
 void SftpTest::run()
 {
-    m_connection = SshConnection::create();
+    m_connection = SshConnection::create(m_parameters.sshParams);
     connect(m_connection.data(), SIGNAL(connected()), this,
         SLOT(handleConnected()));
     connect(m_connection.data(), SIGNAL(error(Utils::SshError)), this,
@@ -67,7 +67,7 @@ void SftpTest::run()
     std::cout << "Connecting to host '"
         << qPrintable(m_parameters.sshParams.host) << "'..." << std::endl;
     m_state = Connecting;
-    m_connection->connectToHost(m_parameters.sshParams);
+    m_connection->connectToHost();
 }
 
 void SftpTest::handleConnected()
@@ -280,8 +280,9 @@ void SftpTest::handleJobFinished(Utils::SftpJobId job, const QString &error)
                 + QLatin1Char('/') + bigFileName));
             bool success = m_localBigFile->open(QIODevice::WriteOnly);
             const int blockSize = 8192;
-            const int blockCount = m_parameters.bigFileSize*1024*1024/blockSize;
-            for (int block = 0; block < blockCount; ++block) {
+            const quint64 blockCount
+                = static_cast<quint64>(m_parameters.bigFileSize)*1024*1024/blockSize;
+            for (quint64 block = 0; block < blockCount; ++block) {
                 int content[blockSize/sizeof(int)];
                 for (size_t j = 0; j < sizeof content / sizeof content[0]; ++j)
                     content[j] = qrand();
@@ -434,7 +435,6 @@ void SftpTest::earlyDisconnectFromHost()
     if (m_channel)
         disconnect(m_channel.data(), 0, this, 0);
     m_state = Disconnecting;
-    removeFiles(true);
     m_connection->disconnectFromHost();
 }
 

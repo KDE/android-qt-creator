@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,12 +37,12 @@
 #include "qt4project.h"
 #include "qt4projectmanagerconstants.h"
 #include "qt4target.h"
-#include "qtversionmanager.h"
 #include "qt4basetargetfactory.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/task.h>
 #include <projectexplorer/taskhub.h>
+#include <qtsupport/qtversionfactory.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
 
@@ -53,7 +53,6 @@ using namespace Qt4ProjectManager;
 
 TargetSetupPage::TargetSetupPage(QWidget *parent) :
     QWizardPage(parent),
-    m_preferMobile(false),
     m_importSearch(false),
     m_spacer(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)),
     m_ui(new Internal::Ui::TargetSetupPage)
@@ -98,12 +97,17 @@ bool TargetSetupPage::isComplete() const
     return false;
 }
 
-void TargetSetupPage::setPreferMobile(bool mobile)
+void TargetSetupPage::setPreferredFeatures(const QSet<QString> &featureIds)
 {
-    m_preferMobile = mobile;
+    m_preferredFeatures = featureIds;
 }
 
-void TargetSetupPage::setMinimumQtVersion(const QtVersionNumber &number)
+void TargetSetupPage::setRequiredFeatures(const QSet<QString> &featureIds)
+{
+    m_requiredFeatures = featureIds;
+}
+
+void TargetSetupPage::setMinimumQtVersion(const QtSupport::QtVersionNumber &number)
 {
     m_minimumQtVersionNumber = number;
 }
@@ -120,13 +124,23 @@ void TargetSetupPage::setupWidgets()
     foreach (Qt4BaseTargetFactory *factory, factories) {
         QStringList ids = factory->supportedTargetIds(0);
         foreach (const QString &id, ids) {
+            if (!factory->targetFeatures(id).contains(m_requiredFeatures))
+                continue;
+
             QList<BuildConfigurationInfo> infos = BuildConfigurationInfo::filterBuildConfigurationInfos(m_importInfos, id);
             Qt4TargetSetupWidget *widget =
                     factory->createTargetSetupWidget(id, m_proFilePath, m_minimumQtVersionNumber, m_importSearch, infos);
             if (widget) {
-                bool selectTarget = (m_preferMobile == factory->isMobileTarget(id) && m_importInfos.isEmpty())
-                        || !infos.isEmpty();
-                widget->setTargetSelected(selectTarget) ;
+                bool selectTarget = false;
+                if (!m_importInfos.isEmpty()) {
+                    selectTarget = !infos.isEmpty();
+                } else {
+                    if (!m_preferredFeatures.isEmpty()) {
+                        selectTarget = factory->targetFeatures(id).contains(m_preferredFeatures)
+                                && factory->selectByDefault(id);
+                    }
+                }
+                widget->setTargetSelected(selectTarget);
                 atLeastOneTargetSelected |= selectTarget;
                 m_widgets.insert(id, widget);
                 m_factories.insert(widget, factory);
@@ -207,11 +221,11 @@ bool TargetSetupPage::setupProject(Qt4ProjectManager::Qt4Project *project)
         Qt4BaseTargetFactory *factory = m_factories.value(it.value());
 
         foreach (const BuildConfigurationInfo &info, it.value()->usedImportInfos()) {
-            QtVersion *version = info.version;
+            QtSupport::BaseQtVersion *version = info.version;
             for (int i=0; i < m_importInfos.size(); ++i) {
                 if (m_importInfos.at(i).version == version) {
                     if (m_importInfos[i].temporaryQtVersion) {
-                        QtVersionManager::instance()->addVersion(m_importInfos[i].version);
+                        QtSupport::QtVersionManager::instance()->addVersion(m_importInfos[i].version);
                         m_importInfos[i].temporaryQtVersion = false;
                     }
                 }

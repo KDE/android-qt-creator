@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,6 +51,9 @@ class QDir;
 QT_END_NAMESPACE
 
 namespace CppTools {
+
+class CppToolsSettings;
+
 namespace Internal {
 
 class CppModelManager;
@@ -81,6 +84,7 @@ private:
 
     CppModelManager *m_modelManager;
     QSharedPointer<CppFileSettings> m_fileSettings;
+    CppToolsSettings *m_settings;
 
     static CppToolsPlugin *m_instance;
 };

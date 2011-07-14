@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,13 +40,15 @@
 #include <QtCore/QObject>
 #include <QtCore/QList>
 #include <QtCore/QMap>
+#include <QtGui/QIcon>
 
 QT_BEGIN_NAMESPACE
-class QMenu;
-class QTextBlock;
 class QIcon;
-class QRect;
+class QMenu;
+class QPainter;
 class QPoint;
+class QRect;
+class QTextBlock;
 QT_END_NAMESPACE
 
 namespace TextEditor {
@@ -58,14 +60,6 @@ class TEXTEDITOR_EXPORT ITextMark : public QObject
     Q_OBJECT
 public:
     ITextMark(QObject *parent = 0) : QObject(parent) {}
-    virtual ~ITextMark() {}
-
-    virtual QIcon icon() const = 0;
-
-    virtual void updateLineNumber(int lineNumber) = 0;
-    virtual void updateBlock(const QTextBlock &block) = 0;
-    virtual void removedFromEditor() = 0;
-    virtual void documentClosing() = 0;
 
     // determine order on markers on the same line.
     enum Priority
@@ -75,7 +69,19 @@ public:
         HighPriority // shown on top.
     };
 
-    virtual Priority priority() const = 0;
+    virtual void paint(QPainter *painter, const QRect &rect) const;
+    virtual void updateLineNumber(int lineNumber);
+    virtual void updateBlock(const QTextBlock &block);
+    virtual void removedFromEditor();
+    virtual void documentClosing();
+    virtual void setIcon(const QIcon &icon);
+    virtual Priority priority() const;
+    virtual void setPriority(Priority prioriy);
+    virtual double widthFactor() const;
+
+private:
+    QIcon m_icon;
+    Priority m_priority;
 };
 
 typedef QList<ITextMark *> TextMarks;
@@ -86,9 +92,8 @@ class TEXTEDITOR_EXPORT ITextMarkable : public QObject
     Q_OBJECT
 public:
     ITextMarkable(QObject *parent = 0) : QObject(parent) {}
-    virtual ~ITextMarkable() {}
-    virtual bool addMark(ITextMark *mark, int line) = 0;
 
+    virtual bool addMark(ITextMark *mark, int line) = 0;
     virtual TextMarks marksAt(int line) const = 0;
     virtual void removeMark(ITextMark *mark) = 0;
     virtual bool hasMark(ITextMark *mark) const = 0;
@@ -108,10 +113,8 @@ public:
     };
 
     ITextEditor() {}
-    virtual ~ITextEditor() {}
 
     virtual int find(const QString &string) const = 0;
-
     virtual int position(PositionOperation posOp = Current, int at = -1) const = 0;
     virtual void convertPosition(int pos, int *line, int *column) const = 0;
     virtual QRect cursorRect(int pos = -1) const = 0;

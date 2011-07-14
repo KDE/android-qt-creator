@@ -30,6 +30,7 @@ Thumbs.db
 
 # qtcreator generated files
 *.pro.user*
+*.qmlproject.user*
 *.pluginspec
 src/app/Info.plist
 src/plugins/coreplugin/ide_version.h
@@ -68,6 +69,7 @@ lib/*
 lib64/*
 release
 doc/html/*
+doc/html-dev/*
 doc/api/html/*
 doc/pluginhowto/html/*
 .rcc
@@ -81,12 +83,15 @@ bin/qtcreator_process_stub*
 bin/qtcreator.exe
 bin/qmlpuppet
 bin/qmlpuppet.exe
+bin/qml2puppet
+bin/qml2puppet.exe
 bin/qtpromaker
 bin/qtpromaker.exe
-share/doc/qtcreator/qtcreator.qch
+share/doc/qtcreator/*.qch
 src/tools/gen-cpp-ast/generate-ast
 src/tools/mkvisitor/cplusplus0
 src/tools/qml/qmldump/qmldump
+src/tools/examplesscanner/examplesscanner
 src/tools/valgrindfake/valgrind-fake
 
 # Tests
@@ -125,3 +130,5 @@ tests/valgrind/memcheck/testapps/uninit1/uninit1
 tests/valgrind/memcheck/testapps/uninit2/uninit2
 tests/valgrind/memcheck/testapps/uninit3/uninit3
 tests/valgrind/memcheck/testrunner
+tests/valgrind/callgrind/callgrindparsertests
+tests/valgrind/callgrind/modeltest

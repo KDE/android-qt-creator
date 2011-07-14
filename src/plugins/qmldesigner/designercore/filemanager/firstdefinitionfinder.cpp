@@ -26,13 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "firstdefinitionfinder.h"
 
 #include <qmljs/parser/qmljsast_p.h>
+
+#include <QtCore/QDebug>
 
 using namespace QmlJS;
 using namespace QmlDesigner;
@@ -43,6 +45,12 @@ FirstDefinitionFinder::FirstDefinitionFinder(const QString &text):
 {
     m_doc->setSource(text);
     bool ok = m_doc->parseQml();
+
+    if (!ok) {
+        qDebug() << text;
+        foreach (const QmlJS::DiagnosticMessage &message, m_doc->diagnosticMessages())
+                qDebug() << message.message;
+    }
 
     Q_ASSERT(ok);
 }

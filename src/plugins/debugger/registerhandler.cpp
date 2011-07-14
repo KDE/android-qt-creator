@@ -26,13 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "registerhandler.h"
 #include "watchdelegatewidgets.h"
-
 
 //////////////////////////////////////////////////////////////////
 //
@@ -145,21 +144,45 @@ bool RegisterHandler::isEmpty() const
     return m_registers.isEmpty();
 }
 
+// Compare register sets by name
+static inline bool compareRegisterSet(const Registers &r1, const Registers &r2)
+{
+    if (r1.size() != r2.size())
+        return false;
+    const int size = r1.size();
+    for (int r = 0; r < size; r++)
+        if (r1.at(r).name != r2.at(r).name)
+            return false;
+    return true;
+}
+
 void RegisterHandler::setRegisters(const Registers &registers)
 {
     m_registers = registers;
+    const int size = m_registers.size();
+    for (int r = 0; r < size; r++)
+        m_registers[r].changed = false;
     calculateWidth();
     reset();
 }
 
 void RegisterHandler::setAndMarkRegisters(const Registers &registers)
 {
-    const Registers old = m_registers;
-    m_registers = registers;
-    for (int i = qMin(m_registers.size(), old.size()); --i >= 0; )
-        m_registers[i].changed = m_registers[i].value != old[i].value;
-    calculateWidth();
-    reset();
+    if (!compareRegisterSet(m_registers, registers)) {
+        setRegisters(registers);
+        return;
+    }
+    const int size = m_registers.size();
+    for (int r = 0; r < size; r++) {
+        const QModelIndex regIndex = index(r, 1);
+        if (m_registers.at(r).value != registers.at(r).value) {
+            // Indicate red if values change, keep changed.
+            m_registers[r].changed = m_registers[r].changed || !m_registers.at(r).value.isEmpty();
+            m_registers[r].value = registers.at(r).value;
+            emit dataChanged(regIndex, regIndex);
+        }
+        emit registerSet(regIndex); // notify attached memory views.
+    }
 }
 
 Registers RegisterHandler::registers() const

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,7 +34,7 @@
 #define BASETEXTEDITOR_H
 
 #include "itexteditor.h"
-#include "icompletioncollector.h"
+#include "codeassist/assistenums.h"
 
 #include <find/ifindsupport.h>
 
@@ -54,8 +54,13 @@ namespace Utils {
 
 namespace TextEditor {
 class TabSettings;
+class TabPreferences;
 class RefactorOverlay;
 struct RefactorMarker;
+class IAssistMonitorInterface;
+class IAssistInterface;
+class IAssistProvider;
+class IFallbackPreferences;
 
 namespace Internal {
     class BaseTextEditorPrivate;
@@ -138,7 +143,7 @@ public:
     // EditorInterface
     Core::IFile * file();
     bool createNew(const QString &contents);
-    virtual bool open(const QString &fileName = QString());
+    virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     QByteArray saveState() const;
     bool restoreState(const QByteArray &state);
     QString displayName() const;
@@ -235,6 +240,11 @@ public:
 
     QPoint toolTipPosition(const QTextCursor &c) const;
 
+    void invokeAssist(AssistKind assistKind, IAssistProvider *provider = 0);
+
+    virtual IAssistInterface *createAssistInterface(AssistKind assistKind,
+                                                    AssistReason assistReason) const;
+
 public slots:
     void setDisplayName(const QString &title);
 
@@ -246,6 +256,7 @@ public slots:
     void zoomReset();
 
     void cutLine();
+    void copyLine();
     void deleteLine();
     void unfoldAll();
     void fold();
@@ -322,6 +333,7 @@ protected:
 
 private:
     void maybeSelectLine();
+    void updateCannotDecodeInfo();
 
 public:
     void duplicateFrom(BaseTextEditorWidget *editor);
@@ -342,7 +354,9 @@ private slots:
     void setFindScope(const QTextCursor &start, const QTextCursor &end, int, int);
     bool inFindScope(const QTextCursor &cursor);
     bool inFindScope(int selectionStart, int selectionEnd);
-    void currentEditorChanged(Core::IEditor *editor);
+    void inSnippetMode(bool *active);
+    void onTabPreferencesDestroyed();
+    void onCodeStylePreferencesDestroyed();
 
 private:
     Internal::BaseTextEditorPrivate *d;
@@ -358,6 +372,12 @@ public:
     virtual void extraAreaMouseEvent(QMouseEvent *);
 
     const TabSettings &tabSettings() const;
+    void setLanguageSettingsId(const QString &settingsId);
+    QString languageSettingsId() const;
+
+    void setTabPreferences(TabPreferences *preferences);
+    void setCodeStylePreferences(IFallbackPreferences *settings);
+
     const DisplaySettings &displaySettings() const;
 
     void markBlocksAsChanged(QList<int> blockNumbers);
@@ -483,6 +503,7 @@ protected slots:
     virtual void slotUpdateRequest(const QRect &r, int dy);
     virtual void slotCursorPositionChanged();
     virtual void slotUpdateBlockNotify(const QTextBlock &);
+    virtual void slotCodeStyleSettingsChanged(const QVariant &);
 
 signals:
     void requestFontZoom(int zoom);
@@ -490,7 +511,6 @@ signals:
     void requestBlockUpdate(const QTextBlock &);
 
 private:
-    void maybeRequestAutoCompletion(const QChar &ch);
     void indentOrUnindent(bool doIndent);
     void handleHomeKey(bool anchor);
     void handleBackspaceKey();
@@ -529,9 +549,6 @@ private:
     void transformSelection(Internal::TransformationMethod method);
 
 private slots:
-    // auto completion
-    void _q_requestAutoCompletion();
-
     void handleBlockSelection(int diff_row, int diff_col);
 
     // parentheses matcher
@@ -555,10 +572,10 @@ public:
     BaseTextEditorWidget *editorWidget() const { return e; }
 
     // EditorInterface
-    QWidget *widget() { return e; }
+    //QWidget *widget() { return e; }
     Core::IFile * file() { return e->file(); }
     bool createNew(const QString &contents) { return e->createNew(contents); }
-    bool open(const QString &fileName = QString()) { return e->open(fileName); }
+    bool open(QString *errorString, const QString &fileName, const QString &realFileName) { return e->open(errorString, fileName, realFileName); }
     QString displayName() const { return e->displayName(); }
     void setDisplayName(const QString &title) { e->setDisplayName(title); emit changed(); }
 

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -47,7 +47,6 @@ using namespace ResourceEditor::Constants;
 ResourceEditorFactory::ResourceEditorFactory(ResourceEditorPlugin *plugin) :
     Core::IEditorFactory(plugin),
     m_mimeTypes(QStringList(QLatin1String("application/vnd.nokia.xml.qt.resource"))),
-    m_context(ResourceEditor::Constants::C_RESOURCEEDITOR),
     m_plugin(plugin)
 {
     Core::FileIconProvider *iconProvider = Core::FileIconProvider::instance();
@@ -77,7 +76,8 @@ Core::IFile *ResourceEditorFactory::open(const QString &fileName)
 
 Core::IEditor *ResourceEditorFactory::createEditor(QWidget *parent)
 {
-    return new ResourceEditorW(m_context, m_plugin, parent);
+    Core::Context context(ResourceEditor::Constants::C_RESOURCEEDITOR);
+    return new ResourceEditorW(context, m_plugin, parent);
 }
 
 QStringList ResourceEditorFactory::mimeTypes() const

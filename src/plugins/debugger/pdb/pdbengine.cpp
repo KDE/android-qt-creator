@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -214,7 +214,7 @@ void PdbEngine::runEngine()
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
     showStatusMessage(tr("Running requested..."), 5000);
     const QByteArray dumperSourcePath =
-        Core::ICore::instance()->resourcePath().toLocal8Bit() + "/gdbmacros/";
+        Core::ICore::instance()->resourcePath().toLocal8Bit() + "/dumper/";
     QString fileName = QFileInfo(startParameters().executable).absoluteFilePath();
     postDirectCommand("import sys");
     postDirectCommand("sys.argv.append('" + fileName.toLocal8Bit() + "')");
@@ -329,13 +329,13 @@ void PdbEngine::selectThread(int index)
     Q_UNUSED(index)
 }
 
-bool PdbEngine::acceptsBreakpoint(BreakpointId id) const
+bool PdbEngine::acceptsBreakpoint(BreakpointModelId id) const
 {
     const QString fileName = breakHandler()->fileName(id);
     return fileName.endsWith(QLatin1String(".py"));
 }
 
-void PdbEngine::insertBreakpoint(BreakpointId id)
+void PdbEngine::insertBreakpoint(BreakpointModelId id)
 {
     BreakHandler *handler = breakHandler();
     QTC_ASSERT(handler->state(id) == BreakpointInsertRequested, /**/);
@@ -355,7 +355,7 @@ void PdbEngine::handleBreakInsert(const PdbResponse &response)
 {
     //qDebug() << "BP RESPONSE: " << response.data;
     // "Breakpoint 1 at /pdb/math.py:10"
-    BreakpointId id(response.cookie.toInt());
+    BreakpointModelId id(response.cookie.toInt());
     BreakHandler *handler = breakHandler();
     QTC_ASSERT(response.data.startsWith("Breakpoint "), return);
     int pos1 = response.data.indexOf(" at ");
@@ -365,21 +365,21 @@ void PdbEngine::handleBreakInsert(const PdbResponse &response)
     QByteArray file = response.data.mid(pos1 + 4, pos2 - pos1 - 4);
     QByteArray line = response.data.mid(pos2 + 1);
     BreakpointResponse br;
-    br.number = bpnr.toInt();
+    br.id = BreakpointResponseId(bpnr);
     br.fileName = _(file);
     br.lineNumber = line.toInt();
     handler->setResponse(id, br);
 }
 
-void PdbEngine::removeBreakpoint(BreakpointId id)
+void PdbEngine::removeBreakpoint(BreakpointModelId id)
 {
     BreakHandler *handler = breakHandler();
     QTC_ASSERT(handler->state(id) == BreakpointRemoveRequested, /**/);
     handler->notifyBreakpointRemoveProceeding(id);
     BreakpointResponse br = handler->response(id);
-    showMessage(_("DELETING BP %1 IN %2").arg(br.number)
+    showMessage(_("DELETING BP %1 IN %2").arg(br.id.toString())
         .arg(handler->fileName(id)));
-    postCommand("clear " + QByteArray::number(br.number));
+    postCommand("clear " + br.id.toByteArray());
     // Pretend it succeeds without waiting for response.
     handler->notifyBreakpointRemoveOk(id);
 }

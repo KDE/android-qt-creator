@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -74,11 +74,11 @@ void SshSendFacility::createAuthenticationKey(const QByteArray &privKeyFileConte
     m_encrypter.createAuthenticationKey(privKeyFileContents);
 }
 
-SshOutgoingPacket::Payload SshSendFacility::sendKeyExchangeInitPacket()
+QByteArray SshSendFacility::sendKeyExchangeInitPacket()
 {
-    m_outgoingPacket.generateKeyExchangeInitPacket();
+    const QByteArray &payLoad = m_outgoingPacket.generateKeyExchangeInitPacket();
     sendPacket();
-    return m_outgoingPacket.payLoad();
+    return payLoad;
 }
 
 void SshSendFacility::sendKeyDhInitPacket(const Botan::BigInt &e)
@@ -149,6 +149,13 @@ void SshSendFacility::sendSessionPacket(quint32 channelId, quint32 windowSize,
 {
     m_outgoingPacket.generateSessionPacket(channelId, windowSize,
         maxPacketSize);
+    sendPacket();
+}
+
+void SshSendFacility::sendPtyRequestPacket(quint32 remoteChannel,
+    const SshPseudoTerminal &terminal)
+{
+    m_outgoingPacket.generatePtyRequestPacket(remoteChannel, terminal);
     sendPacket();
 }
 

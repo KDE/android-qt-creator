@@ -26,6 +26,7 @@ HEADERS += breakhandler.h \
     debuggeractions.h \
     debuggercore.h \
     debuggerconstants.h \
+    debuggerinternalconstants.h \
     debuggerdialogs.h \
     debuggerengine.h \
     debuggermainwindow.h \
@@ -63,7 +64,8 @@ HEADERS += breakhandler.h \
     debuggerruncontrolfactory.h \
     debuggertooltipmanager.h \
     debuggertoolchaincombobox.h \
-    debuggersourcepathmappingwidget.h
+    debuggersourcepathmappingwidget.h \
+    memoryview.h
 
 SOURCES += breakhandler.cpp \
     breakpoint.cpp \
@@ -106,7 +108,8 @@ SOURCES += breakhandler.cpp \
     watchdelegatewidgets.cpp \
     debuggertooltipmanager.cpp \
     debuggertoolchaincombobox.cpp \
-    debuggersourcepathmappingwidget.cpp
+    debuggersourcepathmappingwidget.cpp \
+    memoryview.cpp
 
 FORMS += attachexternaldialog.ui \
     attachcoredialog.ui \
@@ -121,9 +124,9 @@ FORMS += attachexternaldialog.ui \
 RESOURCES += debugger.qrc
 
 false {
-    SOURCES += $$PWD/modeltest.cpp
-    HEADERS += $$PWD/modeltest.h
-    DEFINES += USE_MODEL_TEST=1
+    include(../../shared/modeltest/modeltest.pri)
+    #DEFINES += USE_WATCH_MODEL_TEST=1
+    #DEFINES += USE_BREAK_MODEL_TEST=1
 }
 win32 {
 include(../../shared/registryaccess/registryaccess.pri)

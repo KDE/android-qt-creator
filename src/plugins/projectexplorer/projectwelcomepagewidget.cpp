@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -57,6 +57,12 @@
 #else
 #  define MAX_RECENT_SESSION_ITEMS 9
 #endif
+
+/*!
+    \class ProjectExplorer::Internal::ProjectWelcomePageWidget
+
+   \brief Welcome page listing projects and sessions.
+*/
 
 using namespace ProjectExplorer::Internal;
 

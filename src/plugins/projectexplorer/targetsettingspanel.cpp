@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -182,12 +182,12 @@ void TargetSettingsPanelWidget::currentTargetChanged(int targetIndex, int subInd
 
     foreach (ITargetPanelFactory *panelFactory, ExtensionSystem::PluginManager::instance()->getObjects<ITargetPanelFactory>()) {
         if (panelFactory->id() == QLatin1String(BUILDSETTINGS_PANEL_ID)) {
-            IPropertiesPanel *panel = panelFactory->createPanel(target);
+            PropertiesPanel *panel = panelFactory->createPanel(target);
             buildPanel->addPropertiesPanel(panel);
             continue;
         }
         if (panelFactory->id() == QLatin1String(RUNSETTINGS_PANEL_ID)) {
-            IPropertiesPanel *panel = panelFactory->createPanel(target);
+            PropertiesPanel *panel = panelFactory->createPanel(target);
             runPanel->addPropertiesPanel(panel);
             continue;
         }

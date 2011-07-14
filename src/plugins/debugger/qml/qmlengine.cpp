@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,7 +54,6 @@
 #include <projectexplorer/applicationlauncher.h>
 
 #include <utils/environment.h>
-#include <utils/abstractprocess.h>
 #include <utils/qtcassert.h>
 #include <utils/fileinprojectfinder.h>
 
@@ -200,8 +199,8 @@ void QmlEngine::setupInferior()
             SIGNAL(processExited(int)),
             SLOT(disconnected()));
         connect(&d->m_applicationLauncher,
-            SIGNAL(appendMessage(QString,ProjectExplorer::OutputFormat)),
-            SLOT(appendMessage(QString,ProjectExplorer::OutputFormat)));
+            SIGNAL(appendMessage(QString,Utils::OutputFormat)),
+            SLOT(appendMessage(QString,Utils::OutputFormat)));
         connect(&d->m_applicationLauncher,
             SIGNAL(bringToForegroundRequested(qint64)),
             runControl(),
@@ -214,7 +213,7 @@ void QmlEngine::setupInferior()
     }
 }
 
-void QmlEngine::appendMessage(const QString &msg, OutputFormat /* format */)
+void QmlEngine::appendMessage(const QString &msg, Utils::OutputFormat /* format */)
 {
     showMessage(msg, AppOutput); // FIXME: Redirect to RunControl
 }
@@ -230,7 +229,10 @@ void QmlEngine::connectionEstablished()
 
     showMessage(tr("QML Debugger connected."), StatusBar);
 
-    synchronizeWatchers();
+    if (!watchHandler()->watcherNames().isEmpty()) {
+        synchronizeWatchers();
+    }
+    connect(watchersModel(),SIGNAL(layoutChanged()),this,SLOT(synchronizeWatchers()));
 
     notifyEngineRunAndInferiorRunOk();
 
@@ -292,16 +294,17 @@ bool QmlEngine::canDisplayTooltip() const
 void QmlEngine::filterApplicationMessage(const QString &msg, int /*channel*/)
 {
     static const QString qddserver = QLatin1String("QDeclarativeDebugServer: ");
-    static const QString cannotRetrieveDebuggingOutput = Utils::AbstractProcess::msgWinCannotRetrieveDebuggingOutput();
+    static const QString cannotRetrieveDebuggingOutput = ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput();
 
     const int index = msg.indexOf(qddserver);
     if (index != -1) {
         QString status = msg;
         status.remove(0, index + qddserver.length()); // chop of 'QDeclarativeDebugServer: '
 
-        static QString waitingForConnection = QLatin1String("Waiting for connection on port");
-        static QString unableToListen = QLatin1String("Unable to listen on port");
-        static QString debuggingNotEnabled = QLatin1String("Ignoring \"-qmljsdebugger=port:");
+        static QString waitingForConnection = QLatin1String("Waiting for connection ");
+        static QString unableToListen = QLatin1String("Unable to listen ");
+        static QString debuggingNotEnabled = QLatin1String("Ignoring \"-qmljsdebugger=");
+        static QString debuggingNotEnabled2 = QLatin1String("Ignoring\"-qmljsdebugger="); // There is (was?) a bug in one of the error strings - safest to handle both
         static QString connectionEstablished = QLatin1String("Connection established");
 
         QString errorMessage;
@@ -310,7 +313,7 @@ void QmlEngine::filterApplicationMessage(const QString &msg, int /*channel*/)
         } else if (status.startsWith(unableToListen)) {
             //: Error message shown after 'Could not connect ... debugger:"
             errorMessage = tr("The port seems to be in use.");
-        } else if (status.startsWith(debuggingNotEnabled)) {
+        } else if (status.startsWith(debuggingNotEnabled) || status.startsWith(debuggingNotEnabled2)) {
             //: Error message shown after 'Could not connect ... debugger:"
             errorMessage = tr("The application is not set up for QML/JS debugging.");
         } else if (status.startsWith(connectionEstablished)) {
@@ -359,6 +362,7 @@ bool QmlEngine::acceptsWatchesWhileRunning() const
 
 void QmlEngine::closeConnection()
 {
+    disconnect(watchersModel(),SIGNAL(layoutChanged()),this,SLOT(synchronizeWatchers()));
     disconnect(&d->m_adapter, SIGNAL(connectionStartupFailed()),
         this, SLOT(connectionStartupFailed()));
     d->m_adapter.closeConnection();
@@ -376,7 +380,7 @@ void QmlEngine::runEngine()
 {
     QTC_ASSERT(state() == EngineRunRequested, qDebug() << state());
 
-    if (!isSlaveEngine())
+    if (!isSlaveEngine() && startParameters().startMode != AttachToRemote)
         startApplicationLauncher();
 }
 
@@ -387,7 +391,7 @@ void QmlEngine::startApplicationLauncher()
                           QDir::toNativeSeparators(startParameters().executable),
                           startParameters().processArgs)
                       + QLatin1Char('\n')
-                     , NormalMessageFormat);
+                     , Utils::NormalMessageFormat);
         d->m_applicationLauncher.start(ApplicationLauncher::Gui,
                                     startParameters().executable,
                                     startParameters().processArgs);
@@ -486,6 +490,7 @@ void QmlEngine::executeStep()
     rs << cmd;
     logMessage(LogSend, cmd);
     sendMessage(reply);
+    resetLocation();
     notifyInferiorRunRequested();
     notifyInferiorRunOk();
 }
@@ -498,6 +503,7 @@ void QmlEngine::executeStepI()
     rs << cmd;
     logMessage(LogSend, cmd);
     sendMessage(reply);
+    resetLocation();
     notifyInferiorRunRequested();
     notifyInferiorRunOk();
 }
@@ -510,6 +516,7 @@ void QmlEngine::executeStepOut()
     rs << cmd;
     logMessage(LogSend, cmd);
     sendMessage(reply);
+    resetLocation();
     notifyInferiorRunRequested();
     notifyInferiorRunOk();
 }
@@ -522,6 +529,7 @@ void QmlEngine::executeNext()
     rs << cmd;
     logMessage(LogSend, cmd);
     sendMessage(reply);
+    resetLocation();
     notifyInferiorRunRequested();
     notifyInferiorRunOk();
 }
@@ -570,14 +578,14 @@ void QmlEngine::attemptBreakpointSynchronization()
 {
     BreakHandler *handler = breakHandler();
 
-    foreach (BreakpointId id, handler->unclaimedBreakpointIds()) {
+    foreach (BreakpointModelId id, handler->unclaimedBreakpointIds()) {
         // Take ownership of the breakpoint. Requests insertion.
         if (acceptsBreakpoint(id))
             handler->setEngine(id, this);
     }
 
     JSAgentBreakpoints breakpoints;
-    foreach (BreakpointId id, handler->engineBreakpointIds(this)) {
+    foreach (BreakpointModelId id, handler->engineBreakpointIds(this)) {
         if (handler->state(id) == BreakpointRemoveRequested) {
             handler->notifyBreakpointRemoveProceeding(id);
             handler->notifyBreakpointRemoveOk(id);
@@ -612,7 +620,7 @@ void QmlEngine::attemptBreakpointSynchronization()
     sendMessage(reply);
 }
 
-bool QmlEngine::acceptsBreakpoint(BreakpointId id) const
+bool QmlEngine::acceptsBreakpoint(BreakpointModelId id) const
 {
     return !DebuggerEngine::isCppBreakpoint(breakHandler()->breakpointData(id));
 }
@@ -709,17 +717,15 @@ void QmlEngine::updateWatchData(const WatchData &data,
 
 void QmlEngine::synchronizeWatchers()
 {
-    if (!watchHandler()->watcherNames().isEmpty()) {
-        // send watchers list
-        QByteArray reply;
-        QDataStream rs(&reply, QIODevice::WriteOnly);
-        QByteArray cmd = "WATCH_EXPRESSIONS";
-        rs << cmd;
-        rs << watchHandler()->watchedExpressions();
-        logMessage(LogSend, QString("%1 %2").arg(
-                       QString(cmd), watchHandler()->watchedExpressions().join(", ")));
-        sendMessage(reply);
-    }
+    // send watchers list
+    QByteArray reply;
+    QDataStream rs(&reply, QIODevice::WriteOnly);
+    QByteArray cmd = "WATCH_EXPRESSIONS";
+    rs << cmd;
+    rs << watchHandler()->watchedExpressions();
+    logMessage(LogSend, QString("%1 %2").arg(
+                   QString(cmd), watchHandler()->watchedExpressions().join(", ")));
+    sendMessage(reply);
 }
 
 void QmlEngine::expandObject(const QByteArray &iname, quint64 objectId)
@@ -769,28 +775,18 @@ QString QmlEngine::toFileInProject(const QString &fileUrl)
     if (path.isEmpty())
         return fileUrl;
 
-    // Try to find shadow-build file in source dir first
-    if (isShadowBuildProject()) {
-        const QString sourcePath = fromShadowBuildFilename(path);
-        if (QFileInfo(sourcePath).exists())
-            return sourcePath;
+    if (d->fileFinder.projectDirectory().isEmpty()) {
+        d->fileFinder.setProjectDirectory(startParameters().projectSourceDirectory);
+        d->fileFinder.setProjectFiles(startParameters().projectSourceFiles);
     }
-
-    // Try whether file is absolute & exists
-    if (QFileInfo(path).isAbsolute()
-            && QFileInfo(path).exists()) {
-        return path;
-    }
-
-    if (d->fileFinder.projectDirectory().isEmpty())
-        d->fileFinder.setProjectDirectory(startParameters().projectDir);
 
     // Try to find file with biggest common path in source directory
     bool fileFound = false;
     QString fileInProject = d->fileFinder.findFile(path, &fileFound);
     if (fileFound)
         return fileInProject;
-    return fileUrl;
+
+    return path;
 }
 
 void QmlEngine::messageReceived(const QByteArray &message)
@@ -894,7 +890,7 @@ void QmlEngine::messageReceived(const QByteArray &message)
             }
 
             BreakHandler *handler = breakHandler();
-            foreach (BreakpointId id, handler->engineBreakpointIds(this)) {
+            foreach (BreakpointModelId id, handler->engineBreakpointIds(this)) {
                 QString processedFilename = handler->fileName(id);
                 if (processedFilename == file && handler->lineNumber(id) == line) {
                     QTC_ASSERT(handler->state(id) == BreakpointInserted,/**/);
@@ -948,14 +944,29 @@ void QmlEngine::messageReceived(const QByteArray &message)
             sendPing();
     } else if (command == "LOCALS") {
         QList<WatchData> locals;
+        QList<WatchData> watches;
         int frameId;
         stream >> frameId >> locals;
+        if (!stream.atEnd()) { // compatibility with jsdebuggeragent from 2.1, 2.2
+            stream >> watches;
+        }
 
-        logMessage(LogReceive, QString("%1 %2 (%3 x locals)").arg(
+        logMessage(LogReceive, QString("%1 %2 (%3 x locals) (%4 x watchdata)").arg(
                              QString(command), QString::number(frameId),
-                             QString::number(locals.size())));
+                             QString::number(locals.size()),
+                             QString::number(watches.size())));
         watchHandler()->beginCycle();
         bool needPing = false;
+        foreach (WatchData data, watches) {
+            data.iname = watchHandler()->watcherName(data.exp);
+            watchHandler()->insertData(data);
+
+            if (watchHandler()->expandedINames().contains(data.iname)) {
+                needPing = true;
+                expandObject(data.iname, data.id);
+            }
+        }
+
         foreach (WatchData data, locals) {
             data.iname = "local." + data.exp;
             watchHandler()->insertData(data);
@@ -1010,59 +1021,10 @@ void QmlEngine::executeDebuggerCommand(const QString& command)
     sendMessage(reply);
 }
 
-bool QmlEngine::isShadowBuildProject() const
-{
-    return !startParameters().projectBuildDir.isEmpty()
-        && startParameters().projectDir != startParameters().projectBuildDir;
-}
 
 QString QmlEngine::qmlImportPath() const
 {
     return startParameters().environment.value("QML_IMPORT_PATH");
-}
-
-QString QmlEngine::mangleFilenamePaths(const QString &filename,
-    const QString &oldBasePath, const QString &newBasePath) const
-{
-    QDir oldBaseDir(oldBasePath);
-    QDir newBaseDir(newBasePath);
-    QFileInfo fileInfo(filename);
-
-    if (oldBaseDir.exists() && newBaseDir.exists() && fileInfo.exists()) {
-        Qt::CaseSensitivity caseSensitive = Qt::CaseSensitive;
-#ifdef Q_OS_WIN
-        caseSensitive = Qt::CaseInsensitive;
-#endif
-        if (fileInfo.absoluteFilePath().startsWith(oldBaseDir.canonicalPath(), caseSensitive)) {
-            QString fileRelativePath = fileInfo.canonicalFilePath().mid(oldBaseDir.canonicalPath().length());
-            QFileInfo projectFile(newBaseDir.canonicalPath() + QLatin1Char('/') + fileRelativePath);
-
-            if (projectFile.exists())
-                return projectFile.canonicalFilePath();
-        }
-    }
-    return filename;
-}
-
-QString QmlEngine::fromShadowBuildFilename(const QString &filename) const
-{
-    QString newFilename = filename;
-    QString importPath = qmlImportPath();
-
-#ifdef Q_OS_MACX
-    // Qt Quick Applications by default copy the qml directory
-    // to buildDir()/X.app/Contents/Resources.
-    const QString applicationBundleDir
-                = QFileInfo(startParameters().executable).absolutePath() + "/../..";
-    newFilename = mangleFilenamePaths(newFilename, applicationBundleDir + "/Contents/Resources", startParameters().projectDir);
-#endif
-    newFilename = mangleFilenamePaths(newFilename, startParameters().projectBuildDir, startParameters().projectDir);
-
-    if (newFilename == filename && !importPath.isEmpty()) {
-        newFilename = mangleFilenamePaths(filename, startParameters().projectBuildDir, importPath);
-    }
-
-    return newFilename;
 }
 
 void QmlEngine::logMessage(LogDirection direction, const QString &message)

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -103,7 +103,7 @@ struct FutureProgressPrivate {
 
 FutureProgressPrivate::FutureProgressPrivate(FutureProgress *q) :
     m_progress(new Internal::ProgressBar), m_widget(0), m_widgetLayout(new QHBoxLayout),
-    m_keep(FutureProgress::DontKeepOnFinish), m_waitingForUserInteraction(false),
+    m_keep(FutureProgress::HideOnFinish), m_waitingForUserInteraction(false),
     m_faderWidget(new Internal::FadeWidgetHack(q)), m_q(q), m_isFading(false)
 {
 }
@@ -243,11 +243,7 @@ void FutureProgress::setFinished()
 {
     updateToolTip(d->m_watcher.future().progressText());
 
-    // Special case for concurrent jobs that don't use QFutureInterface to report progress
-    if (d->m_watcher.progressMinimum() == 0 && d->m_watcher.progressMaximum() == 0) {
-        d->m_progress->setRange(0, 1);
-        d->m_progress->setValue(1);
-    }
+    d->m_progress->setFinished(true);
 
     if (d->m_watcher.future().isCanceled()) {
         d->m_progress->setError(true);
@@ -262,13 +258,14 @@ void FutureProgressPrivate::tryToFadeAway()
 {
     if (m_isFading)
         return;
-    if (m_keep == FutureProgress::KeepOnFinishTillUserInteraction) {
+    if (m_keep == FutureProgress::KeepOnFinishTillUserInteraction
+            || (m_keep == FutureProgress::HideOnFinish && m_progress->hasError())) {
         m_waitingForUserInteraction = true;
         //eventfilter is needed to get user interaction
         //events to start QTimer::singleShot later
         qApp->installEventFilter(m_q);
         m_isFading = true;
-    } else if (m_keep == FutureProgress::DontKeepOnFinish && !m_progress->hasError()) {
+    } else if (m_keep == FutureProgress::HideOnFinish) {
         QTimer::singleShot(shortNotificationTimeout, m_q, SLOT(fadeAway()));
         m_isFading = true;
     }

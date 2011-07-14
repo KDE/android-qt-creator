@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -182,6 +182,7 @@ private:
 
     bool m_suppressPatchWarningDialog;
     Utils::CheckableMessageBox *m_patchWarningDialog;
+    bool m_isBuildWithSymbianSbsV2;
 };
 
 class S60CreatePackageStepConfigWidget : public ProjectExplorer::BuildStepConfigWidget
@@ -190,7 +191,6 @@ class S60CreatePackageStepConfigWidget : public ProjectExplorer::BuildStepConfig
 public:
     S60CreatePackageStepConfigWidget(S60CreatePackageStep *signStep);
     QString displayName() const;
-    void init();
     QString summaryText() const;
 
 private slots:

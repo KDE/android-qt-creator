@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,7 @@
 #include <QtGui/QFont>
 #include <QtGui/QMouseEvent>
 #include <QtGui/QMenu>
+#include <QtGui/QToolTip>
 
 #include <QtDebug>
 
@@ -136,22 +137,57 @@ QSize DoubleTabWidget::minimumSizeHint() const
     return QSize(0, Utils::StyleHelper::navigationWidgetHeight() + OTHER_HEIGHT + 1);
 }
 
-void DoubleTabWidget::addTab(const QString &name, const QStringList &subTabs)
+void DoubleTabWidget::updateNameIsUniqueAdd(Tab *tab)
+{
+    tab->nameIsUnique = true;
+    for (int i=0; i < m_tabs.size(); ++i) {
+        if (m_tabs.at(i).name == tab->name) {
+            m_tabs[i].nameIsUnique = false;
+            tab->nameIsUnique = false;
+            break;
+        }
+    }
+}
+
+void DoubleTabWidget::updateNameIsUniqueRemove(const Tab &tab)
+{
+    if (tab.nameIsUnique)
+        return;
+    int index;
+    int count = 0;
+    for (int i=0; i < m_tabs.size(); ++i) {
+        if (m_tabs.at(i).name == tab.name) {
+            ++count;
+            index = i;
+        }
+    }
+
+    if (count == 1)
+        m_tabs[index].nameIsUnique = true;
+}
+
+void DoubleTabWidget::addTab(const QString &name, const QString &fullName, const QStringList &subTabs)
 {
     Tab tab;
     tab.name = name;
+    tab.fullName = fullName;
     tab.subTabs = subTabs;
     tab.currentSubTab = tab.subTabs.isEmpty() ? -1 : 0;
+    updateNameIsUniqueAdd(&tab);
+
     m_tabs.append(tab);
     update();
 }
 
-void DoubleTabWidget::insertTab(int index, const QString &name, const QStringList &subTabs)
+void DoubleTabWidget::insertTab(int index, const QString &name, const QString &fullName, const QStringList &subTabs)
 {
     Tab tab;
     tab.name = name;
+    tab.fullName = fullName;
     tab.subTabs = subTabs;
     tab.currentSubTab = tab.subTabs.isEmpty() ? -1 : 0;
+    updateNameIsUniqueAdd(&tab);
+
     m_tabs.insert(index, tab);
     if (m_currentIndex >= index) {
         ++m_currentIndex;
@@ -162,7 +198,8 @@ void DoubleTabWidget::insertTab(int index, const QString &name, const QStringLis
 
 void DoubleTabWidget::removeTab(int index)
 {
-    m_tabs.removeAt(index);
+    Tab t = m_tabs.takeAt(index);
+    updateNameIsUniqueRemove(t);
     if (index <= m_currentIndex) {
         --m_currentIndex;
         if (m_currentIndex < 0 && m_tabs.size() > 0)
@@ -181,66 +218,51 @@ int DoubleTabWidget::tabCount() const
     return m_tabs.size();
 }
 
-void DoubleTabWidget::mousePressEvent(QMouseEvent *event)
+/// Converts a position to the tab/subtab that is undeneath
+/// If HitArea is tab or subtab, then the second part of the pair
+/// is the tab or subtab number
+QPair<DoubleTabWidget::HitArea, int> DoubleTabWidget::convertPosToTab(QPoint pos)
 {
-    if (event->y() < Utils::StyleHelper::navigationWidgetHeight()) {
-        int eventX = event->x();
-        // clicked on the top level part of the bar
+    if (pos.y() < Utils::StyleHelper::navigationWidgetHeight()) {
+        // on the top level part of the bar
+        int eventX = pos.x();
         QFontMetrics fm(font());
         int x = m_title.isEmpty() ? 0 :
                 2 * MARGIN + qMax(fm.width(m_title), MIN_LEFT_MARGIN);
 
         if (eventX <= x)
-            return;
+            return qMakePair(HITNOTHING, -1);
         int i;
         for (i = 0; i <= m_lastVisibleIndex; ++i) {
             int otherX = x + 2 * MARGIN + fm.width(m_tabs.at(
-                    m_currentTabIndices.at(i)).name);
+                    m_currentTabIndices.at(i)).displayName());
             if (eventX > x && eventX < otherX) {
                 break;
             }
             x = otherX;
         }
         if (i <= m_lastVisibleIndex) {
-            if (m_currentIndex != m_currentTabIndices.at(i)) {
-                m_currentIndex = m_currentTabIndices.at(i);
-                update();
-                emit currentIndexChanged(m_currentIndex, m_tabs.at(m_currentIndex).currentSubTab);
-            }
-            event->accept();
-            return;
+            return qMakePair(HITTAB, i);
         } else if (m_lastVisibleIndex < m_tabs.size() - 1) {
             // handle overflow menu
             if (eventX > x && eventX < x + OVERFLOW_DROPDOWN_WIDTH) {
-                QMenu overflowMenu;
-                QList<QAction *> actions;
-                for (int i = m_lastVisibleIndex + 1; i < m_tabs.size(); ++i) {
-                    actions << overflowMenu.addAction(m_tabs.at(m_currentTabIndices.at(i)).name);
-                }
-                if (QAction *action = overflowMenu.exec(mapToGlobal(QPoint(x+1, 1)))) {
-                    int index = m_currentTabIndices.at(actions.indexOf(action) + m_lastVisibleIndex + 1);
-                    if (m_currentIndex != index) {
-                        m_currentIndex = index;
-                        update();
-                        emit currentIndexChanged(m_currentIndex, m_tabs.at(m_currentIndex).currentSubTab);
-                    }
-                }
+                return qMakePair(HITOVERFLOW, -1);
             }
         }
-    } else if (event->y() < Utils::StyleHelper::navigationWidgetHeight() + OTHER_HEIGHT) {
+    } else if (pos.y() < Utils::StyleHelper::navigationWidgetHeight() + OTHER_HEIGHT) {
         int diff = (OTHER_HEIGHT - SELECTION_IMAGE_HEIGHT) / 2;
-        if (event->y() < Utils::StyleHelper::navigationWidgetHeight() + diff
-                || event->y() > Utils::StyleHelper::navigationWidgetHeight() + OTHER_HEIGHT - diff)
-            return;
+        if (pos.y() < Utils::StyleHelper::navigationWidgetHeight() + diff
+                || pos.y() > Utils::StyleHelper::navigationWidgetHeight() + OTHER_HEIGHT - diff)
+            return qMakePair(HITNOTHING, -1);
+        // on the lower level part of the bar
         if (m_currentIndex == -1)
-            return;
+            return qMakePair(HITNOTHING, -1);
         Tab currentTab = m_tabs.at(m_currentIndex);
         QStringList subTabs = currentTab.subTabs;
         if (subTabs.isEmpty())
-            return;
-        int eventX = event->x();
+            return qMakePair(HITNOTHING, -1);
+        int eventX = pos.x();
         QFontMetrics fm(font());
-        // clicked on the lower level part of the bar
         int x = MARGIN;
         int i;
         for (i = 0; i < subTabs.size(); ++i) {
@@ -251,10 +273,50 @@ void DoubleTabWidget::mousePressEvent(QMouseEvent *event)
             x = otherX + 2 * MARGIN;
         }
         if (i < subTabs.size()) {
-            if (m_tabs[m_currentIndex].currentSubTab != i) {
-                m_tabs[m_currentIndex].currentSubTab = i;
+            return qMakePair(HITSUBTAB, i);
+        }
+    }
+    return qMakePair(HITNOTHING, -1);
+}
+
+void DoubleTabWidget::mousePressEvent(QMouseEvent *event)
+{
+    // todo:
+    // the even wasn't accepted/ignored in a consistent way
+    // now the event is accepted everywhere were it hitted something interesting
+    // and otherwise ignored
+    // should not make any difference
+    QPair<HitArea, int> hit = convertPosToTab(event->pos());
+    if (hit.first == HITTAB) {
+        if (m_currentIndex != m_currentTabIndices.at(hit.second)) {
+            m_currentIndex = m_currentTabIndices.at(hit.second);
+            update();
+            event->accept();
+            emit currentIndexChanged(m_currentIndex, m_tabs.at(m_currentIndex).currentSubTab);
+            return;
+        }
+    } else if (hit.first == HITOVERFLOW) {
+        QMenu overflowMenu;
+        QList<QAction *> actions;
+        for (int i = m_lastVisibleIndex + 1; i < m_tabs.size(); ++i) {
+            actions << overflowMenu.addAction(m_tabs.at(m_currentTabIndices.at(i)).displayName());
+        }
+        if (QAction *action = overflowMenu.exec(event->globalPos())) { // todo used different position before
+            int index = m_currentTabIndices.at(actions.indexOf(action) + m_lastVisibleIndex + 1);
+            if (m_currentIndex != index) {
+                m_currentIndex = index;
                 update();
+                event->accept();
+                emit currentIndexChanged(m_currentIndex, m_tabs.at(m_currentIndex).currentSubTab);
+                return;
             }
+        }
+    } else if (hit.first == HITSUBTAB) {
+        if (m_tabs[m_currentIndex].currentSubTab != hit.second) {
+            m_tabs[m_currentIndex].currentSubTab = hit.second;
+            update();
+            // todo next two lines were outside the if leading to
+            // unnecessary (?) signal emissions?
             event->accept();
             emit currentIndexChanged(m_currentIndex, m_tabs.at(m_currentIndex).currentSubTab);
             return;
@@ -316,7 +378,7 @@ void DoubleTabWidget::paintEvent(QPaintEvent *event)
     int indexSmallerThanWidth = -1;
     for (int i = 0; i < m_tabs.size(); ++i) {
         const Tab &tab = m_tabs.at(i);
-        int w = fm.width(tab.name);
+        int w = fm.width(tab.displayName());
         nameWidth << w;
         width += 2 * MARGIN + w;
         if (width < r.width())
@@ -380,7 +442,7 @@ void DoubleTabWidget::paintEvent(QPaintEvent *event)
             painter.setPen(Utils::StyleHelper::borderColor());
             painter.drawLine(x - 1, 0, x - 1, r.height() - 1);
             painter.fillRect(QRect(x, 0,
-                                   2 * MARGIN + fm.width(tab.name),
+                                   2 * MARGIN + fm.width(tab.displayName()),
                                    r.height() + 1),
                              grad);
 
@@ -390,7 +452,7 @@ void DoubleTabWidget::paintEvent(QPaintEvent *event)
             }
             x += MARGIN;
             painter.setPen(Qt::black);
-            painter.drawText(x, baseline, tab.name);
+            painter.drawText(x, baseline, tab.displayName());
             x += nameWidth.at(actualIndex);
             x += MARGIN;
             painter.setPen(Utils::StyleHelper::borderColor());
@@ -404,7 +466,7 @@ void DoubleTabWidget::paintEvent(QPaintEvent *event)
                 drawFirstLevelSeparator(&painter, QPoint(x, 0), QPoint(x, r.height()-1));
             x += MARGIN;
             painter.setPen(Utils::StyleHelper::panelTextColor());
-            painter.drawText(x + 1, baseline, tab.name);
+            painter.drawText(x + 1, baseline, tab.displayName());
             x += nameWidth.at(actualIndex);
             x += MARGIN;
             drawFirstLevelSeparator(&painter, QPoint(x, 0), QPoint(x, r.height()-1));
@@ -460,4 +522,17 @@ void DoubleTabWidget::changeEvent(QEvent *e)
     default:
         break;
     }
+}
+
+bool DoubleTabWidget::event(QEvent *event)
+{
+    if (event->type() == QEvent::ToolTip) {
+        QHelpEvent *helpevent = static_cast<QHelpEvent*>(event);
+        QPair<HitArea, int> hit = convertPosToTab(helpevent->pos());
+        if (hit.first == HITTAB && m_tabs.at(m_currentTabIndices.at(hit.second)).nameIsUnique)
+            QToolTip::showText(helpevent->globalPos(), m_tabs.at(m_currentTabIndices.at(hit.second)).fullName, this);
+        else
+            QToolTip::showText(helpevent->globalPos(), "", this);
+    }
+    return QWidget::event(event);
 }

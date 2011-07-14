@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,9 +37,9 @@
 #include <QtCore/QSettings>
 #include <QtCore/QString>
 
-static const char * const mouseNavigationKey = "MouseNavigation";
-static const char * const scrollWheelZoomingKey = "ScrollWheelZooming";
-static const char * const groupPostfix = "BehaviorSettings";
+static const char mouseNavigationKey[] = "MouseNavigation";
+static const char scrollWheelZoomingKey[] = "ScrollWheelZooming";
+static const char groupPostfix[] = "BehaviorSettings";
 
 namespace TextEditor {
 

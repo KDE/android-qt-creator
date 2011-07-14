@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -87,6 +87,12 @@ public:
     void setAbiIndex(int);
     ProjectExplorer::Abi abi() const;
     QString debuggerCommand();
+
+    QString sysroot() const;
+    void setSysroot(const QString &sysroot);
+
+    QString overrideStartScript() const;
+    void setOverrideStartScript(const QString &scriptName);
 
 private slots:
     void changed();
@@ -155,6 +161,9 @@ public:
 
     bool breakAtMain() const;
 
+    bool runInTerminal() const;
+    void setRunInTerminal(bool v);
+
     bool isValid() const;
 
 private slots:
@@ -186,13 +195,16 @@ public:
     void setGnuTarget(const QString &gnuTarget);
     void setGnuTargets(const QStringList &gnuTargets);
 
+    QString overrideStartScript() const;
+    void setOverrideStartScript(const QString &scriptName);
+
     bool useServerStartScript() const;
     void setUseServerStartScript(bool on);
     QString serverStartScript() const;
     void setServerStartScript(const QString &scriptName);
 
-    QString sysRoot() const;
-    void setSysRoot(const QString &sysRoot);
+    QString sysroot() const;
+    void setSysroot(const QString &sysroot);
 
     QString debugger() const;
     void setDebugger(const QString &debugger);
@@ -225,10 +237,13 @@ private:
     QLineEdit *m_lineEdit;
 };
 
-class AddressDialog : public QDialog {
+class AddressDialog : public QDialog
+{
     Q_OBJECT
 public:
      explicit AddressDialog(QWidget *parent = 0);
+
+     void setAddress(quint64 a);
      quint64 address() const;
 
      virtual void accept();

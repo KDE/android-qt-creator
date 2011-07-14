@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,12 +42,13 @@
 #include <QtCore/QCoreApplication>
 #include <QtGui/QTextCharFormat>
 #include <QtGui/QFont>
+#include <QtGui/QMainWindow>
 
-static const char *fontFamilyKey = "FontFamily";
-static const char *fontSizeKey = "FontSize";
-static const char *fontZoomKey= "FontZoom";
-static const char *antialiasKey = "FontAntialias";
-static const char *schemeFileNameKey = "ColorScheme";
+static const char fontFamilyKey[] = "FontFamily";
+static const char fontSizeKey[] = "FontSize";
+static const char fontZoomKey[] = "FontZoom";
+static const char antialiasKey[] = "FontAntialias";
+static const char schemeFileNameKey[] = "ColorScheme";
 
 namespace {
 static const bool DEFAULT_ANTIALIAS = true;
@@ -315,7 +316,7 @@ bool FontSettings::loadColorScheme(const QString &fileName,
 
 bool FontSettings::saveColorScheme(const QString &fileName)
 {
-    const bool saved = m_scheme.save(fileName);
+    const bool saved = m_scheme.save(fileName, Core::ICore::instance()->mainWindow());
     if (saved)
         m_schemeFileName = fileName;
     return saved;

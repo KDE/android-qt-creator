@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,13 +51,14 @@
 namespace Debugger {
 namespace Internal {
 
-void GdbEngine::updateLocalsPython(bool tryPartial, const QByteArray &varList)
+void GdbEngine::updateLocalsPython(const UpdateParameters &params)
 {
     PRECONDITION;
+    m_pendingWatchRequests = 0;
+    m_pendingBreakpointRequests = 0;
     m_processedNames.clear();
-    watchHandler()->beginCycle(!tryPartial);
-    //m_toolTipExpression.clear();
     WatchHandler *handler = watchHandler();
+    handler->beginCycle(!params.tryPartial);
 
     QByteArray expanded = "expanded:" + handler->expansionRequests() + ' ';
     expanded += "typeformats:" + handler->typeFormatRequests() + ' ';
@@ -67,8 +68,8 @@ void GdbEngine::updateLocalsPython(bool tryPartial, const QByteArray &varList)
     const QString fileName = stackHandler()->currentFrame().file;
     const QString function = stackHandler()->currentFrame().function;
     if (!fileName.isEmpty()) {
-        QStringList expressions =
-            DebuggerToolTipManager::instance()->treeWidgetExpressions(fileName, objectName(), function);
+        QStringList expressions = DebuggerToolTipManager::instance()
+            ->treeWidgetExpressions(fileName, objectName(), function);
         const QString currentExpression = tooltipExpression();
         if (!currentExpression.isEmpty() && !expressions.contains(currentExpression))
             expressions.push_back(currentExpression);
@@ -99,17 +100,19 @@ void GdbEngine::updateLocalsPython(bool tryPartial, const QByteArray &varList)
         options += "pe,";
     if (options.isEmpty())
         options += "defaults,";
-    if (tryPartial)
+    if (params.tryPartial)
         options += "partial,";
+    if (params.tooltipOnly)
+        options += "tooltiponly,";
     options.chop(1);
 
     QByteArray resultVar;
     if (!m_resultVarName.isEmpty())
         resultVar = "resultvarname:" + m_resultVarName + ' ';
 
-    postCommand("bb options:" + options + " vars:" + varList + ' '
+    postCommand("bb options:" + options + " vars:" + params.varList + ' '
             + resultVar + expanded + " watchers:" + watchers.toHex(),
-        WatchUpdate, CB(handleStackFramePython), QVariant(tryPartial));
+        WatchUpdate, CB(handleStackFramePython), QVariant(params.tryPartial));
 }
 
 void GdbEngine::handleStackListLocalsPython(const GdbResponse &response)
@@ -122,7 +125,8 @@ void GdbEngine::handleStackListLocalsPython(const GdbResponse &response)
             varList.append(',');
             varList.append(child.data());
         }
-        updateLocalsPython(false, varList);
+        UpdateParameters params;
+        updateLocalsPython(params);
     }
 }
 
@@ -131,11 +135,9 @@ void GdbEngine::handleStackFramePython(const GdbResponse &response)
     PRECONDITION;
     if (response.resultClass == GdbResultDone) {
         const bool partial = response.cookie.toBool();
-        //qDebug() << "READING " << (partial ? "PARTIAL" : "FULL");
-        QByteArray out = response.data.findChild("consolestreamoutput").data();
+        QByteArray out = response.consoleStreamOutput;
         while (out.endsWith(' ') || out.endsWith('\n'))
             out.chop(1);
-        //qDebug() << "SECOND CHUNK: " << out;
         int pos = out.indexOf("data=");
         if (pos != 0) {
             showMessage(_("DISCARDING JUNK AT BEGIN OF RESPONSE: "
@@ -144,7 +146,6 @@ void GdbEngine::handleStackFramePython(const GdbResponse &response)
         }
         GdbMi all;
         all.fromStringMultiple(out);
-        //qDebug() << "ALL: " << all.toString();
 
         GdbMi data = all.findChild("data");
         QList<WatchData> list;
@@ -153,55 +154,32 @@ void GdbEngine::handleStackFramePython(const GdbResponse &response)
             dummy.iname = child.findChild("iname").data();
             GdbMi wname = child.findChild("wname");
             if (wname.isValid()) {
-                // Happens (only) for watched expressions. They are encoded as.
+                // Happens (only) for watched expressions. They are encoded as
                 // base64 encoded 8 bit data, without quotes
-                dummy.name = decodeData(wname.data(), 5);
+                dummy.name = decodeData(wname.data(), Base64Encoded8Bit);
                 dummy.exp = dummy.name.toUtf8();
             } else {
                 dummy.name = _(child.findChild("name").data());
             }
-            //qDebug() << "CHILD: " << child.toString();
             parseWatchData(watchHandler()->expandedINames(), dummy, child, &list);
         }
-        watchHandler()->insertBulkData(list);
-        //for (int i = 0; i != list.size(); ++i)
-        //    qDebug() << "LOCAL: " << list.at(i).toString();
-
-#if 0
-        data = all.findChild("bkpts");
-        if (data.isValid()) {
-            BreakHandler *handler = breakHandler();
-            foreach (const GdbMi &child, data.children()) {
-                int bpNumber = child.findChild("number").data().toInt();
-                int found = handler->findBreakpoint(bpNumber);
-                if (found != -1) {
-                    BreakpointData *bp = handler->at(found);
-                    GdbMi addr = child.findChild("addr");
-                    if (addr.isValid()) {
-                        bp->bpAddress = child.findChild("addr").data();
-                        bp->pending = false;
-                    } else {
-                        bp->bpAddress = "<PENDING>";
-                        bp->pending = true;
-                    }
-                    bp->bpFuncName = child.findChild("func").data();
-                    bp->bpLineNumber = child.findChild("line").data();
-                    bp->bpFileName = child.findChild("file").data();
-                    bp->markerLineNumber = bp->bpLineNumber.toInt();
-                    bp->markerFileName = bp->bpFileName;
-                    // Happens with moved/symlinked sources.
-                    if (!bp->fileName.isEmpty()
-                            && !bp->bpFileName.isEmpty()
-                            && bp->fileName !=  bp->bpFileName)
-                        bp->markerFileName = bp->fileName;
-                } else {
-                    QTC_ASSERT(false, qDebug() << child.toString() << bpNumber);
-                    //bp->bpNumber = "<unavailable>";
-                }
+        const GdbMi typeInfo = all.findChild("typeinfo");
+        if (typeInfo.type() == GdbMi::List) {
+            foreach (const GdbMi &s, typeInfo.children()) {
+                const GdbMi name = s.findChild("name");
+                const GdbMi size = s.findChild("size");
+                if (name.isValid() && size.isValid())
+                    m_typeInfoCache.insert(QByteArray::fromBase64(name.data()),
+                                           TypeInfo(size.data().toUInt()));
             }
-            handler->updateMarkers();
         }
-#endif
+        for (int i = 0; i != list.size(); ++i) {
+            const TypeInfo ti = m_typeInfoCache.value(list.at(i).type);
+            if (ti.size)
+                list[i].size = ti.size;
+        }
+
+        watchHandler()->insertBulkData(list);
 
         //PENDING_DEBUG("AFTER handleStackFrame()");
         // FIXME: This should only be used when updateLocals() was
@@ -227,8 +205,8 @@ void GdbEngine::updateAllPython()
     postCommand("-stack-list-frames", CB(handleStackListFrames),
         QVariant::fromValue<StackCookie>(StackCookie(false, true)));
     stackHandler()->setCurrentIndex(0);
-    if (m_gdbAdapter->isTrkAdapter())
-        m_gdbAdapter->trkReloadThreads();
+    if (m_gdbAdapter->isCodaAdapter())
+        m_gdbAdapter->codaReloadThreads();
     else
         postCommand("-thread-list-ids", CB(handleThreadListIds), 0);
     reloadRegisters();

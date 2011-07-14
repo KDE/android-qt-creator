@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,6 @@
 
 #include <invalididexception.h>
 #include <rewritingexception.h>
-#include <invalidnodestateexception.h>
 #include <variantproperty.h>
 
 #include <bindingproperty.h>
@@ -58,6 +57,8 @@
 #include "siblingcombobox.h"
 #include "propertyeditortransaction.h"
 #include "originwidget.h"
+
+#include <utils/fileutils.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -84,6 +85,20 @@ enum {
 const int collapseButtonOffset = 114;
 
 namespace QmlDesigner {
+
+#ifdef Q_OS_MAC
+#  define SHARE_PATH "/../Resources/qmldesigner"
+#else
+#  define SHARE_PATH "/../share/qtcreator/qmldesigner"
+#endif
+
+static inline QString sharedDirPath()
+{
+    QString appPath = QCoreApplication::applicationDirPath();
+
+    return QFileInfo(appPath + SHARE_PATH).absoluteFilePath();
+}
+
 
 PropertyEditor::NodeType::NodeType(PropertyEditor *propertyEditor) :
         m_view(new DeclarativeWidgetView), m_propertyEditorTransaction(new PropertyEditorTransaction(propertyEditor)), m_dummyPropertyEditorValue(new PropertyEditorValue()),
@@ -278,10 +293,8 @@ PropertyEditor::PropertyEditor(QWidget *parent) :
     m_updateShortcut = new QShortcut(QKeySequence("F5"), m_stackedWidget);
     connect(m_updateShortcut, SIGNAL(activated()), this, SLOT(reloadQml()));
 
-    QFile file(":/qmldesigner/stylesheet.css");
-    file.open(QFile::ReadOnly);
-    QString styleSheet = QLatin1String(file.readAll());
-    m_stackedWidget->setStyleSheet(styleSheet);
+    m_stackedWidget->setStyleSheet(
+            QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
     m_stackedWidget->setMinimumWidth(300);
     m_stackedWidget->move(0, 0);
     connect(m_stackedWidget, SIGNAL(resized()), this, SLOT(updateSize()));
@@ -305,11 +318,12 @@ PropertyEditor::PropertyEditor(QWidget *parent) :
         OriginWidget::registerDeclarativeType();
         GradientLineQmlAdaptor::registerDeclarativeType();
     }
+    setQmlDir(sharedDirPath() + QLatin1String("/propertyeditor"));
+    m_stackedWidget->setWindowTitle(tr("Properties"));
 }
 
 PropertyEditor::~PropertyEditor()
 {
-    delete m_stackedWidget;
     qDeleteAll(m_typeHash);
 }
 
@@ -610,7 +624,7 @@ QString templateGeneration(NodeMetaInfo type, NodeMetaInfo superType, const QmlO
 {
     QString qmlTemplate = QLatin1String("import Qt 4.7\nimport Bauhaus 1.0\n");
     qmlTemplate += QLatin1String("GroupBox {\n");
-    qmlTemplate += QString(QLatin1String("caption: \"%1\"\n")).arg(type.typeName());
+    qmlTemplate += QString(QLatin1String("caption: \"%1\"\n")).arg(objectNode.modelNode().simplifiedTypeName());
     qmlTemplate += QLatin1String("layout: VerticalLayout {\n");
 
     QList<QString> orderedList;
@@ -806,6 +820,9 @@ void PropertyEditor::propertiesRemoved(const QList<AbstractProperty>& propertyLi
     if (!m_selectedNode.isValid())
         return;
 
+    if (!QmlObjectNode(m_selectedNode).isValid())
+        return;
+
     foreach (const AbstractProperty &property, propertyList) {
         ModelNode node(property.parentModelNode());
         if (node == m_selectedNode || QmlObjectNode(m_selectedNode).propertyChangeForCurrentState() == node) {
@@ -823,6 +840,9 @@ void PropertyEditor::variantPropertiesChanged(const QList<VariantProperty>& prop
     QmlModelView::variantPropertiesChanged(propertyList, propertyChange);
 
     if (!m_selectedNode.isValid())
+        return;
+
+    if (!QmlObjectNode(m_selectedNode).isValid())
         return;
 
     foreach (const VariantProperty &property, propertyList) {
@@ -844,6 +864,9 @@ void PropertyEditor::bindingPropertiesChanged(const QList<BindingProperty>& prop
     if (!m_selectedNode.isValid())
         return;
 
+       if (!QmlObjectNode(m_selectedNode).isValid())
+        return;
+
     foreach (const BindingProperty &property, propertyList) {
         ModelNode node(property.parentModelNode());
 
@@ -859,13 +882,14 @@ void PropertyEditor::bindingPropertiesChanged(const QList<BindingProperty>& prop
 }
 
 
-void PropertyEditor::instanceInformationsChange(const QVector<ModelNode> &nodeList)
+void PropertyEditor::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     if (!m_selectedNode.isValid())
         return;
 
     m_locked = true;
-    if (nodeList.contains(m_selectedNode))
+    QList<InformationName> informationNameList = informationChangeHash.values(m_selectedNode);
+    if (informationNameList.contains(Anchor))
         m_currentType->m_backendAnchorBinding.setup(QmlItemNode(m_selectedNode));
     m_locked = false;
 }
@@ -875,6 +899,9 @@ void PropertyEditor::nodeIdChanged(const ModelNode& node, const QString& newId, 
     QmlModelView::nodeIdChanged(node, newId, oldId);
 
     if (!m_selectedNode.isValid())
+        return;
+
+    if (!QmlObjectNode(m_selectedNode).isValid())
         return;
 
     if (node == m_selectedNode) {
@@ -900,7 +927,7 @@ void PropertyEditor::select(const ModelNode &node)
     delayedResetView();
 }
 
-QWidget *PropertyEditor::createPropertiesPage()
+QWidget *PropertyEditor::widget()
 {
     delayedResetView();
     return m_stackedWidget;

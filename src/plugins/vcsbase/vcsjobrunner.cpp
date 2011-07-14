@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,6 +48,16 @@
 #include <QtCore/QMutex>
 #include <QtCore/QWaitCondition>
 #include <QtCore/QSharedPointer>
+
+/*!
+    \class  VCSBase::VCSJob
+
+    \brief Version control system background command execution job.
+
+    Takes arguments, etc. as parameters and emits signals on output/termination.
+
+    \sa VCSBase::VCSJobRunner, VCSBase::VCSBaseClient
+*/
 
 namespace VCSBase {
 
@@ -126,6 +136,17 @@ void VCSJob::setUnixTerminalDisabled(bool v)
 {
     m_unixTerminalDisabled = v;
 }
+
+/*!
+    \class  VCSBase::VCSJobRunner
+
+    \brief Job queue for version control system background command execution.
+
+    A job queue running in a separate thread, executing commands
+    and emitting status/log  signals.
+
+    \sa VCSBase::VCSJob, VCSBase::VCSBaseClient
+*/
 
 class VCSJobRunnerPrivate
 {

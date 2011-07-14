@@ -26,19 +26,66 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef PROJECTWELCOMEPAGE_H
 #define PROJECTWELCOMEPAGE_H
 
-#include <utils/iwelcomepage.h>
+#include <QtCore/QAbstractListModel>
+#include <QtCore/QStringList>
 
-#include "projectwelcomepagewidget.h"
+#include <utils/iwelcomepage.h>
+#include <coreplugin/icore.h>
+
+QT_BEGIN_NAMESPACE
+class QDeclarativeEngine;
+QT_END_NAMESPACE
 
 namespace ProjectExplorer {
+
+class ProjectExplorerPlugin;
+class SessionManager;
+
 namespace Internal {
+
+class SessionModel : public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    enum { DefaultSessionRole = Qt::UserRole+1, LastSessionRole, ActiveSessionRole };
+
+    SessionModel(SessionManager* manager, QObject* parent = 0);
+    int rowCount(const QModelIndex &parent) const;
+    QVariant data(const QModelIndex &index, int role) const;
+
+    Q_SCRIPTABLE bool isDefaultVirgin() const;
+
+public slots:
+    void resetSessions();
+
+private:
+    SessionManager *m_manager;
+};
+
+
+class ProjectModel : public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    enum { FilePathRole = Qt::UserRole+1, PrettyFilePathRole };
+
+    ProjectModel(ProjectExplorerPlugin* plugin, QObject* parent = 0);
+    int rowCount(const QModelIndex &parent) const;
+    QVariant data(const QModelIndex &index, int role) const;
+
+public slots:
+    void resetProjects();
+
+private:
+    ProjectExplorerPlugin *m_plugin;
+};
 
 class ProjectWelcomePage : public Utils::IWelcomePage
 {
@@ -46,20 +93,21 @@ class ProjectWelcomePage : public Utils::IWelcomePage
 public:
     ProjectWelcomePage();
 
-    QWidget *page();
+    void facilitateQml(QDeclarativeEngine *engine);
+    QUrl pageLocation() const { return QUrl::fromLocalFile(Core::ICore::instance()->resourcePath() + QLatin1String("/welcomescreen/develop.qml")); }
+    QWidget *page() { return 0; }
     QString title() const { return tr("Develop"); }
     int priority() const { return 20; }
 
-    void setWelcomePageData(const ProjectWelcomePageWidget::WelcomePageData &welcomePageData);
+    void reloadWelcomeScreenData();
 
 signals:
     void requestProject(const QString &project);
     void requestSession(const QString &session);
     void manageSessions();
-
 private:
-    ProjectWelcomePageWidget *m_page;
-    ProjectWelcomePageWidget::WelcomePageData m_welcomePageData;
+    SessionModel *m_sessionModel;
+    ProjectModel *m_projectModel;
 };
 
 } // namespace Internal

@@ -26,12 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "bazaarcontrol.h"
 #include "bazaarclient.h"
+
+#include <vcsbase/vcsbaseclientsettings.h>
+#include <vcsbase/vcsbaseconstants.h>
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QVariant>
@@ -50,6 +53,11 @@ QString BazaarControl::displayName() const
     return tr("Bazaar");
 }
 
+QString BazaarControl::id() const
+{
+    return QLatin1String(VCSBase::Constants::VCS_ID_BAZAAR);
+}
+
 bool BazaarControl::managesDirectory(const QString &directory, QString *topLevel) const
 {
     QFileInfo dir(directory);
@@ -59,9 +67,19 @@ bool BazaarControl::managesDirectory(const QString &directory, QString *topLevel
     return !topLevelFound.isEmpty();
 }
 
+bool BazaarControl::isConfigured() const
+{
+    const QString binary = m_bazaarClient->settings()->binary();
+    if (binary.isEmpty())
+        return false;
+    QFileInfo fi(binary);
+    return fi.exists() && fi.isFile() && fi.isExecutable();
+}
+
 bool BazaarControl::supportsOperation(Operation operation) const
 {
-    bool supported = true;
+    bool supported = isConfigured();
+
     switch (operation) {
     case Core::IVersionControl::AddOperation:
     case Core::IVersionControl::DeleteOperation:
@@ -164,4 +182,9 @@ void BazaarControl::changed(const QVariant &v)
     default:
         break;
     }
+}
+
+void BazaarControl::emitConfigurationChanged()
+{
+    emit configurationChanged();
 }

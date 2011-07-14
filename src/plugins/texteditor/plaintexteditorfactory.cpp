@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "plaintexteditor.h"
 #include "plaintexteditorfactory.h"
+#include "basetextdocument.h"
 #include "texteditorconstants.h"
 #include "texteditorplugin.h"
 #include "texteditoractionhandler.h"
@@ -41,6 +42,7 @@
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
+#include <coreplugin/infobar.h>
 
 #include <QtCore/QDebug>
 
@@ -56,9 +58,6 @@ PlainTextEditorFactory::PlainTextEditorFactory(QObject *parent)
         TextEditorActionHandler::UnCommentSelection |
         TextEditorActionHandler::UnCollapseAll);
     m_mimeTypes << QLatin1String(TextEditor::Constants::C_TEXTEDITOR_MIMETYPE_TEXT);
-
-    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
-            this, SLOT(updateEditorInfoBar(Core::IEditor*)));
 }
 
 PlainTextEditorFactory::~PlainTextEditorFactory()
@@ -88,6 +87,7 @@ Core::IEditor *PlainTextEditorFactory::createEditor(QWidget *parent)
     TextEditorPlugin::instance()->initializeEditor(rc);
     connect(rc, SIGNAL(configured(Core::IEditor*)),
             this, SLOT(updateEditorInfoBar(Core::IEditor*)));
+    updateEditorInfoBar(rc->editor());
     return rc->editor();
 }
 
@@ -95,22 +95,30 @@ void PlainTextEditorFactory::updateEditorInfoBar(Core::IEditor *editor)
 {
     PlainTextEditor *editorEditable = qobject_cast<PlainTextEditor *>(editor);
     if (editorEditable) {
+        BaseTextDocument *file = qobject_cast<BaseTextDocument *>(editor->file());
+        if (!file)
+            return;
         PlainTextEditorWidget *textEditor = static_cast<PlainTextEditorWidget *>(editorEditable->editorWidget());
         if (textEditor->isMissingSyntaxDefinition() &&
             !textEditor->ignoreMissingSyntaxDefinition() &&
             TextEditorSettings::instance()->highlighterSettings().alertWhenNoDefinition()) {
-            Core::EditorManager::instance()->showEditorInfoBar(
-                Constants::INFO_SYNTAX_DEFINITION,
-                tr("A highlight definition was not found for this file. "
-                   "Would you like to try to find one?"),
-                tr("Show highlighter options"),
-                textEditor,
-                SLOT(acceptMissingSyntaxDefinitionInfo()),
-                SLOT(ignoreMissingSyntaxDefinitionInfo()));
+            if (file->hasHighlightWarning())
+                return;
+            Core::InfoBarEntry info(Constants::INFO_SYNTAX_DEFINITION,
+                                    tr("A highlight definition was not found for this file. "
+                                       "Would you like to try to find one?"));
+            info.setCustomButtonInfo(tr("Show highlighter options"),
+                                     textEditor, SLOT(acceptMissingSyntaxDefinitionInfo()));
+            info.setCancelButtonInfo(textEditor, SLOT(ignoreMissingSyntaxDefinitionInfo()));
+            file->infoBar()->addInfo(info);
+            file->setHighlightWarning(true);
             return;
         }
+        if (!file->hasHighlightWarning())
+            return;
+        file->infoBar()->removeInfo(Constants::INFO_SYNTAX_DEFINITION);
+        file->setHighlightWarning(false);
     }
-    Core::EditorManager::instance()->hideEditorInfoBar(Constants::INFO_SYNTAX_DEFINITION);
 }
 
 void PlainTextEditorFactory::addMimeType(const QString &type)

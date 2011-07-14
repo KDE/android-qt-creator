@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,14 +52,6 @@ bool winResumeThread(unsigned long dwThreadId, QString *errorMessage);
 bool winDebugBreakProcess(unsigned long  pid, QString *errorMessage);
 
 unsigned long winGetCurrentProcessId();
-
-/* Helper for (case-)normalizing file names:
- * Determine normalized case of a Windows file name (camelcase.cpp -> CamelCase.cpp)
- * as the debugger reports lower case file names.
- * Restriction: File needs to exist and be non-empty and will be to be opened/mapped.
- * The result should be cached as the function can be extensive. */
-
-QString winNormalizeFileName(const QString &f);
 
 bool isWinProcessBeingDebugged(unsigned long pid);
 

@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,10 +36,8 @@
 #include "analyzerconstants.h"
 #include "ianalyzerengine.h"
 #include "ianalyzertool.h"
-#include "analyzerplugin.h"
 #include "analyzermanager.h"
-#include "analyzerrunconfigwidget.h"
-#include "analyzersettings.h"
+#include "analyzerstartparameters.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/applicationrunconfiguration.h>
@@ -49,140 +47,138 @@
 #include <coreplugin/ioutputpane.h>
 
 #include <QtCore/QDebug>
-#include <QtGui/QHBoxLayout>
-#include <QtGui/QLabel>
-#include <QtGui/QMessageBox>
 
-using namespace Analyzer;
-using namespace Analyzer::Internal;
+using namespace ProjectExplorer;
 
-// AnalyzerRunControlFactory ////////////////////////////////////////////////////
-AnalyzerRunControlFactory::AnalyzerRunControlFactory(QObject *parent)
-    : IRunControlFactory(parent)
+//////////////////////////////////////////////////////////////////////////
+//
+// AnalyzerRunControl::Private
+//
+//////////////////////////////////////////////////////////////////////////
+
+namespace Analyzer {
+
+class AnalyzerRunControl::Private
 {
-}
+public:
+    Private();
 
-bool AnalyzerRunControlFactory::canRun(RunConfiguration *runConfiguration, const QString &mode) const
+    bool m_isRunning;
+    IAnalyzerEngine *m_engine;
+};
+
+AnalyzerRunControl::Private::Private()
+   : m_isRunning(false), m_engine(0)
+{}
+
+
+//////////////////////////////////////////////////////////////////////////
+//
+// AnalyzerRunControl
+//
+//////////////////////////////////////////////////////////////////////////
+
+AnalyzerRunControl::AnalyzerRunControl(IAnalyzerTool *tool,
+        const AnalyzerStartParameters &sp, RunConfiguration *runConfiguration)
+    : RunControl(runConfiguration, tool->id()),
+      d(new Private)
 {
-    if (!qobject_cast<ProjectExplorer::LocalApplicationRunConfiguration *>(runConfiguration))
-        return false;
-    return mode == Constants::MODE_ANALYZE;
-}
+    d->m_engine = tool->createEngine(sp, runConfiguration);
 
-ProjectExplorer::RunControl *AnalyzerRunControlFactory::create(RunConfiguration *runConfiguration,
-                                                               const QString &mode)
-{
-    if (!qobject_cast<ProjectExplorer::LocalApplicationRunConfiguration *>(runConfiguration) ||
-         mode != Constants::MODE_ANALYZE) {
-        return 0;
-    }
-    AnalyzerRunControl *rc = new AnalyzerRunControl(runConfiguration);
-    emit runControlCreated(rc);
-    return rc;
-}
+    if (!d->m_engine)
+        return;
 
-QString AnalyzerRunControlFactory::displayName() const
-{
-    return tr("Analyzer");
-}
-
-ProjectExplorer::IRunConfigurationAspect *AnalyzerRunControlFactory::createRunConfigurationAspect()
-{
-    return new AnalyzerProjectSettings;
-}
-
-ProjectExplorer::RunConfigWidget *AnalyzerRunControlFactory::createConfigurationWidget(RunConfiguration
-                                                                                       *runConfiguration)
-{
-    ProjectExplorer::LocalApplicationRunConfiguration *localRc =
-        qobject_cast<ProjectExplorer::LocalApplicationRunConfiguration *>(runConfiguration);
-    if (!localRc)
-        return 0;
-    AnalyzerProjectSettings *settings = runConfiguration->extraAspect<AnalyzerProjectSettings>();
-    if (!settings)
-        return 0;
-
-    AnalyzerRunConfigWidget *ret = new AnalyzerRunConfigWidget;
-    ret->setRunConfiguration(runConfiguration);
-    return ret;
-}
-
-// AnalyzerRunControl ////////////////////////////////////////////////////
-AnalyzerRunControl::AnalyzerRunControl(RunConfiguration *runConfiguration)
-    : RunControl(runConfiguration, Constants::MODE_ANALYZE),
-      m_isRunning(false),
-      m_engine(0)
-{
-    IAnalyzerTool *tool = AnalyzerManager::instance()->currentTool();
-    m_engine = tool->createEngine(runConfiguration);
-
-    connect(m_engine, SIGNAL(standardErrorReceived(QString)),
-            SLOT(receiveStandardError(QString)));
-    connect(m_engine, SIGNAL(standardOutputReceived(QString)),
-            SLOT(receiveStandardOutput(QString)));
-    connect(m_engine, SIGNAL(taskToBeAdded(ProjectExplorer::Task::TaskType,QString,QString,int)),
+    connect(d->m_engine, SIGNAL(outputReceived(QString,Utils::OutputFormat)),
+            SLOT(receiveOutput(QString,Utils::OutputFormat)));
+    connect(d->m_engine, SIGNAL(taskToBeAdded(ProjectExplorer::Task::TaskType,QString,QString,int)),
             SLOT(addTask(ProjectExplorer::Task::TaskType,QString,QString,int)));
-    connect(m_engine, SIGNAL(finished()),
+    connect(d->m_engine, SIGNAL(finished()),
             SLOT(engineFinished()));
+    connect(this, SIGNAL(finished()), SLOT(runControlFinished()), Qt::QueuedConnection);
 }
 
 AnalyzerRunControl::~AnalyzerRunControl()
 {
-    if (m_isRunning)
+    if (d->m_isRunning)
         stop();
+
+    delete d->m_engine;
+    d->m_engine = 0;
+    delete d;
 }
 
 void AnalyzerRunControl::start()
 {
+    if (!d->m_engine) {
+        emit finished();
+        return;
+    }
+
     // clear about-to-be-outdated tasks
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
-    ProjectExplorer::TaskHub *hub = pm->getObject<ProjectExplorer::TaskHub>();
+    TaskHub *hub = pm->getObject<TaskHub>();
     hub->clearTasks(Constants::ANALYZERTASK_ID);
 
-    m_isRunning = true;
+    d->m_isRunning = true;
     emit started();
-    m_engine->start();
+    d->m_engine->start();
 }
 
-ProjectExplorer::RunControl::StopResult AnalyzerRunControl::stop()
+RunControl::StopResult AnalyzerRunControl::stop()
 {
-    m_engine->stop();
-    m_isRunning = false;
+    if (!d->m_engine || !d->m_isRunning)
+        return StoppedSynchronously;
+
+    d->m_engine->stop();
+    d->m_isRunning = false;
     return AsynchronousStop;
+}
+
+void AnalyzerRunControl::stopIt()
+{
+    if (stop() == RunControl::StoppedSynchronously)
+        AnalyzerManager::handleToolFinished();
 }
 
 void AnalyzerRunControl::engineFinished()
 {
-    m_isRunning = false;
+    d->m_isRunning = false;
     emit finished();
+}
+
+void AnalyzerRunControl::runControlFinished()
+{
+    AnalyzerManager::handleToolFinished();
 }
 
 bool AnalyzerRunControl::isRunning() const
 {
-    return m_isRunning;
+    return d->m_isRunning;
 }
 
 QString AnalyzerRunControl::displayName() const
 {
-    return AnalyzerManager::instance()->currentTool()->displayName();
+    if (!d->m_engine)
+        return QString();
+    return d->m_engine->startParameters().displayName;
 }
 
-void AnalyzerRunControl::receiveStandardOutput(const QString &text)
+QIcon AnalyzerRunControl::icon() const
 {
-    appendMessage(text, ProjectExplorer::StdOutFormat);
+    return QIcon(QLatin1String(":/images/analyzer_start_small.png"));
 }
 
-void AnalyzerRunControl::receiveStandardError(const QString &text)
+void AnalyzerRunControl::receiveOutput(const QString &text, Utils::OutputFormat format)
 {
-    appendMessage(text, ProjectExplorer::StdErrFormat);
+    appendMessage(text, format);
 }
 
-void AnalyzerRunControl::addTask(ProjectExplorer::Task::TaskType type, const QString &description,
+void AnalyzerRunControl::addTask(Task::TaskType type, const QString &description,
                                  const QString &file, int line)
 {
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
-    ProjectExplorer::TaskHub *hub = pm->getObject<ProjectExplorer::TaskHub>();
-    hub->addTask(ProjectExplorer::Task(type, description, file, line, Constants::ANALYZERTASK_ID));
+    TaskHub *hub = pm->getObject<TaskHub>();
+    hub->addTask(Task(type, description, file, line, Constants::ANALYZERTASK_ID));
 
     ///FIXME: get a better API for this into Qt Creator
     QList<Core::IOutputPane *> panes = pm->getObjects<Core::IOutputPane>();
@@ -193,3 +189,5 @@ void AnalyzerRunControl::addTask(ProjectExplorer::Task::TaskType type, const QSt
         }
     }
 }
+
+} // namespace Analyzer

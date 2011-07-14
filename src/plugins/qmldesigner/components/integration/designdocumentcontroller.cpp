@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,25 +37,27 @@
 #include "subcomponentmanager.h"
 #include "model/viewlogger.h"
 
-#include <allpropertiesbox.h>
 #include <itemlibraryview.h>
 #include <itemlibrarywidget.h>
 #include <navigatorview.h>
 #include <stateseditorview.h>
 #include <formeditorview.h>
+#include <propertyeditor.h>
 #include <formeditorwidget.h>
 #include <basetexteditmodifier.h>
 #include <componenttextmodifier.h>
 #include <metainfo.h>
 #include <invalidargumentexception.h>
+#include <componentview.h>
 #include <componentaction.h>
 #include <qmlobjectnode.h>
 #include <rewriterview.h>
 #include <rewritingexception.h>
 #include <nodelistproperty.h>
-#include <toolbox.h>
 #include <variantproperty.h>
 #include <rewritingexception.h>
+
+#include <utils/fileutils.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -79,6 +81,13 @@
 #include <QtGui/QPlainTextEdit>
 #include <QtGui/QApplication>
 
+#include <projectexplorer/projectexplorer.h>
+#include <qt4projectmanager/qt4project.h>
+#include <qt4projectmanager/qt4target.h>
+#include <qtsupport/qtversionmanager.h>
+#include <qt4projectmanager/qt4projectmanagerconstants.h>
+#include <qmlprojectmanager/qmlprojectrunconfiguration.h>
+
 enum {
     debug = false
 };
@@ -91,10 +100,11 @@ public:
 
     QWeakPointer<ItemLibraryView> itemLibraryView;
     QWeakPointer<NavigatorView> navigator;
-    QWeakPointer<AllPropertiesBox> allPropertiesBox;
+    QWeakPointer<PropertyEditor> propertyEditorView;
     QWeakPointer<StatesEditorView> statesEditorView;
     QWeakPointer<QStackedWidget> stackedWidget;
     QWeakPointer<NodeInstanceView> nodeInstanceView;
+    QWeakPointer<ComponentView> componentView;
 
     QWeakPointer<QmlDesigner::Model> model;
     QWeakPointer<QmlDesigner::Model> subComponentModel;
@@ -110,9 +120,10 @@ public:
     QUrl searchPath;
     bool documentLoaded;
     bool syncBlocked;
-    QWeakPointer<ComponentAction> componentAction;
-
+    int qt_versionId;
 };
+
+DesignDocumentController *DesignDocumentController::m_this = 0;
 
 /**
   \class QmlDesigner::DesignDocumentController
@@ -124,12 +135,18 @@ DesignDocumentController::DesignDocumentController(QObject *parent) :
         QObject(parent),
         m_d(new DesignDocumentControllerPrivate)
 {
+    m_this = this;
     m_d->documentLoaded = false;
     m_d->syncBlocked = false;
+
+    ProjectExplorer::ProjectExplorerPlugin *projectExplorer = ProjectExplorer::ProjectExplorerPlugin::instance();
+    connect(projectExplorer, SIGNAL(currentProjectChanged(ProjectExplorer::Project*)), this, SLOT(activeQtVersionChanged()));
+    activeQtVersionChanged();
 }
 
 DesignDocumentController::~DesignDocumentController()
 {
+    m_this = 0;
     delete m_d->model.data();
     delete m_d->subComponentModel.data();
 
@@ -160,14 +177,33 @@ void DesignDocumentController::detachNodeInstanceView()
 
 void DesignDocumentController::attachNodeInstanceView()
 {
-    if (m_d->nodeInstanceView)
+    if (m_d->nodeInstanceView) {
         model()->attachView(m_d->nodeInstanceView.data());
+    }
+    if (m_d->formEditorView) {
+        m_d->formEditorView->resetView();
+    }
+}
 
+void DesignDocumentController::changeToMasterModel()
+{
+    m_d->model->detachView(m_d->rewriterView.data());
+    m_d->rewriterView->setTextModifier(m_d->textModifier);
+    m_d->model = m_d->masterModel;
+    m_d->model->attachView(m_d->rewriterView.data());
 }
 
 QWidget *DesignDocumentController::centralWidget() const
 {
     return qobject_cast<QWidget*>(parent());
+}
+
+QString DesignDocumentController::pathToQt() const
+{
+    QtSupport::BaseQtVersion *activeQtVersion = QtSupport::QtVersionManager::instance()->version(m_d->qt_versionId);
+    if (activeQtVersion && (activeQtVersion->qtVersion().majorVersion > 3) && (activeQtVersion->supportsTargetId(Qt4ProjectManager::Constants::QT_SIMULATOR_TARGET_ID) || activeQtVersion->supportsTargetId(Qt4ProjectManager::Constants::DESKTOP_TARGET_ID)))
+        return activeQtVersion->versionInfo().value("QT_INSTALL_DATA");
+    return QString();
 }
 
 /*!
@@ -197,7 +233,8 @@ void DesignDocumentController::blockModelSync(bool block)
             detachNodeInstanceView();
             m_d->textModifier->deactivateChangeSignals();
         } else {
-            attachNodeInstanceView();
+            activeQtVersionChanged();
+            changeToMasterModel();
             QmlModelState state;
             //We go back to base state (and back again) to avoid side effects from text editing.
             if (m_d->statesEditorView && m_d->statesEditorView->model()) {
@@ -210,6 +247,11 @@ void DesignDocumentController::blockModelSync(bool block)
 
             if (state.isValid() && m_d->statesEditorView)
                 m_d->statesEditorView->setCurrentState(state);
+            attachNodeInstanceView();
+            if (m_d->propertyEditorView)
+                m_d->propertyEditorView->resetView();
+            if (m_d->formEditorView)
+                m_d->formEditorView->resetView();
         }
     }
 }
@@ -232,9 +274,9 @@ void DesignDocumentController::setNavigator(NavigatorView* navigatorView)
     m_d->navigator = navigatorView;
 }
 
-void DesignDocumentController::setAllPropertiesBox(AllPropertiesBox* allPropertiesBox)
+void DesignDocumentController::setPropertyEditorView(PropertyEditor *propertyEditor)
 {
-    m_d->allPropertiesBox = allPropertiesBox;
+    m_d->propertyEditorView = propertyEditor;
 }
 
 void DesignDocumentController::setStatesEditorView(StatesEditorView* statesEditorView)
@@ -250,6 +292,17 @@ void DesignDocumentController::setFormEditorView(FormEditorView *formEditorView)
 void DesignDocumentController::setNodeInstanceView(NodeInstanceView *nodeInstanceView)
 {
     m_d->nodeInstanceView = nodeInstanceView;
+}
+
+void DesignDocumentController::setComponentView(ComponentView *componentView)
+{
+    m_d->componentView = componentView;
+    connect(m_d->componentView->action(), SIGNAL(currentComponentChanged(ModelNode)), SLOT(changeCurrentModelTo(ModelNode)));
+}
+
+DesignDocumentController *DesignDocumentController::instance()
+{
+    return m_this;
 }
 
 QString DesignDocumentController::displayName() const
@@ -322,10 +375,12 @@ QList<RewriterView::Error> DesignDocumentController::loadMaster(QPlainTextEdit *
     m_d->masterModel->attachView(m_d->rewriterView.data());
     m_d->model = m_d->masterModel;
 
-    m_d->subComponentManager = new SubComponentManager(m_d->masterModel->metaInfo(), this);
+    m_d->subComponentManager = new SubComponentManager(m_d->masterModel.data(), this);
     m_d->subComponentManager->update(m_d->searchPath, m_d->model->imports());
 
     loadCurrentModel();
+
+    m_d->masterModel->attachView(m_d->componentView.data());
 
     return m_d->rewriterView->errors();
 }
@@ -336,12 +391,19 @@ void DesignDocumentController::changeCurrentModelTo(const ModelNode &componentNo
     QWeakPointer<Model> oldModel = m_d->model;
     Q_ASSERT(oldModel.data());
 
+    QString componentText = m_d->rewriterView->extractText(QList<ModelNode>() << componentNode).value(componentNode);
+
+    if (componentText.isEmpty())
+        return;
+
+
+    bool explicitComponent = false;
+    if (componentText.contains("Component")) { //explicit component
+        explicitComponent = true;
+    }
+
     if (m_d->model == m_d->subComponentModel) {
-        //change back to master model
-        m_d->model->detachView(m_d->rewriterView.data());
-        m_d->rewriterView->setTextModifier(m_d->textModifier);
-        m_d->model = m_d->masterModel;
-        m_d->model->attachView(m_d->rewriterView.data());
+        changeToMasterModel();
     }
     if (!componentNode.isRootNode()) {
         Q_ASSERT(m_d->model == m_d->masterModel);
@@ -352,9 +414,19 @@ void DesignDocumentController::changeCurrentModelTo(const ModelNode &componentNo
         if (m_d->componentTextModifier)
             delete m_d->componentTextModifier;
 
-        int componentStartOffset = m_d->rewriterView->firstDefinitionInsideOffset(componentNode);
-        int componentEndOffset = componentStartOffset + m_d->rewriterView->firstDefinitionInsideLength(componentNode);
+
+        int componentStartOffset;
+        int componentEndOffset;
+
         int rootStartOffset = m_d->rewriterView->nodeOffset(rootModelNode);
+
+        if (explicitComponent) { //the component is explciit we have to find the first definition inside
+            componentStartOffset = m_d->rewriterView->firstDefinitionInsideOffset(componentNode);
+            componentEndOffset = componentStartOffset + m_d->rewriterView->firstDefinitionInsideLength(componentNode);
+        } else { //the component is implicit
+            componentStartOffset = m_d->rewriterView->nodeOffset(componentNode);
+            componentEndOffset = componentStartOffset + m_d->rewriterView->nodeLength(componentNode);
+        }
 
         m_d->componentTextModifier = new ComponentTextModifier (m_d->textModifier, componentStartOffset, componentEndOffset, rootStartOffset);
 
@@ -374,6 +446,7 @@ void DesignDocumentController::changeCurrentModelTo(const ModelNode &componentNo
     Q_ASSERT(m_d->model);
 
     loadCurrentModel();
+    m_d->componentView->setComponentNode(componentNode);
 }
 
 void DesignDocumentController::loadCurrentModel()
@@ -384,24 +457,15 @@ void DesignDocumentController::loadCurrentModel()
     Q_ASSERT(m_d->model);
     m_d->model->setMasterModel(m_d->masterModel.data());
 
+    m_d->nodeInstanceView->setPathToQt(pathToQt());
     m_d->model->attachView(m_d->nodeInstanceView.data());
     m_d->model->attachView(m_d->navigator.data());
     m_d->itemLibraryView->widget()->setResourcePath(QFileInfo(m_d->fileName).absolutePath());
-
-    if (!m_d->componentAction) {
-        m_d->componentAction = new ComponentAction(m_d->formEditorView->widget());
-        m_d->componentAction->setModel(m_d->model.data());
-        connect(m_d->componentAction.data(), SIGNAL(currentComponentChanged(ModelNode)), SLOT(changeCurrentModelTo(ModelNode)));
-        m_d->formEditorView->widget()->toolBox()->addAction(m_d->componentAction.data());
-    }
-    // Disable switching between in file components for the time being
-    m_d->componentAction->setVisible(false);
 
     connect(m_d->itemLibraryView->widget(), SIGNAL(itemActivated(const QString&)), m_d->formEditorView.data(), SLOT(activateItemCreator(const QString&)));
 
     m_d->model->attachView(m_d->formEditorView.data());
     m_d->model->attachView(m_d->itemLibraryView.data());
-
 
     if (!m_d->textEdit->parent()) // hack to prevent changing owner of external text edit
         m_d->stackedWidget->addWidget(m_d->textEdit.data());
@@ -409,7 +473,7 @@ void DesignDocumentController::loadCurrentModel()
     // Will call setCurrentState (formEditorView etc has to be constructed first)
     m_d->model->attachView(m_d->statesEditorView.data());
 
-    m_d->allPropertiesBox->setModel(m_d->model.data());
+    m_d->model->attachView(m_d->propertyEditorView.data());
 
     m_d->documentLoaded = true;
     Q_ASSERT(m_d->masterModel);
@@ -716,19 +780,6 @@ void DesignDocumentController::selectAll()
     view.setSelectedModelNodes(allNodesExceptRootNode);
 }
 
-void DesignDocumentController::showError(const QString &message, QWidget *parent) const
-{
-    if (!parent)
-        parent = m_d->stackedWidget.data();
-
-    QMessageBox msgBox(parent);
-    msgBox.setWindowFlags(Qt::Sheet | Qt::MSWindowsFixedSizeDialogHint);
-    msgBox.setWindowTitle("Invalid qml");
-    msgBox.setText(message);
-    msgBox.setIcon(QMessageBox::Warning);
-    msgBox.exec();
-}
-
 RewriterView *DesignDocumentController::rewriterView() const
 {
     return m_d->rewriterView.data();
@@ -744,6 +795,61 @@ void DesignDocumentController::redo()
 {
     if (m_d->rewriterView && !m_d->rewriterView->modificationGroupActive())
         m_d->textEdit->redo();
+}
+
+static inline QtSupport::BaseQtVersion *getActiveQtVersion(DesignDocumentController *controller)
+{
+    ProjectExplorer::ProjectExplorerPlugin *projectExplorer = ProjectExplorer::ProjectExplorerPlugin::instance();
+    ProjectExplorer::Project *currentProject = projectExplorer->currentProject();
+
+    if (!currentProject)
+        return 0;
+
+    controller->disconnect(controller,  SLOT(activeQtVersionChanged()));
+    controller->connect(projectExplorer, SIGNAL(currentProjectChanged(ProjectExplorer::Project*)), controller, SLOT(activeQtVersionChanged()));
+
+    controller->connect(currentProject, SIGNAL(activeTargetChanged(ProjectExplorer::Target*)), controller, SLOT(activeQtVersionChanged()));
+
+
+    ProjectExplorer::Target *target = currentProject->activeTarget();
+
+    if (!target)
+        return 0;
+
+    ProjectExplorer::RunConfiguration *runConfiguration = target->activeRunConfiguration();
+    QmlProjectManager::QmlProjectRunConfiguration *qmlRunConfiguration = qobject_cast<QmlProjectManager::QmlProjectRunConfiguration* >(runConfiguration);
+
+    if (qmlRunConfiguration) {
+        controller->connect(target, SIGNAL(activeRunConfigurationChanged(ProjectExplorer::RunConfiguration*)), controller, SLOT(activeQtVersionChanged()));
+        return qmlRunConfiguration->qtVersion();
+    }
+
+    Qt4ProjectManager::Qt4BuildConfiguration *activeBuildConfiguration = qobject_cast<Qt4ProjectManager::Qt4BuildConfiguration *>(target->activeBuildConfiguration());
+
+    if (activeBuildConfiguration) {
+        controller->connect(target, SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)), controller, SLOT(activeQtVersionChanged()));
+        return activeBuildConfiguration->qtVersion();
+    }
+
+    return 0;
+}
+
+void DesignDocumentController::activeQtVersionChanged()
+{
+    QtSupport::BaseQtVersion *newQtVersion = getActiveQtVersion(this);
+
+    if (!newQtVersion ) {
+        m_d->qt_versionId = -1;
+        return;
+    }
+
+    if (m_d->qt_versionId == newQtVersion->uniqueId())
+        return;
+
+    m_d->qt_versionId = newQtVersion->uniqueId();
+
+    if (m_d->nodeInstanceView)
+        m_d->nodeInstanceView->setPathToQt(pathToQt());
 }
 
 #ifdef ENABLE_TEXT_VIEW
@@ -768,27 +874,15 @@ bool DesignDocumentController::save(QWidget *parent)
         saveAs(parent);
         return true;
     }
-    QFile file(m_d->fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        showError(tr("Cannot write file: \"%1\".").arg(m_d->fileName), parent);
+    Utils::FileSaver saver(m_d->fileName, QIODevice::Text);
+    if (m_d->model)
+        saver.write(m_d->textEdit->toPlainText().toLatin1());
+    if (!saver.finalize(parent ? parent : m_d->stackedWidget.data()))
         return false;
-    }
-
-    QString errorMessage;
-    bool result = save(&file, &errorMessage);
-    if (!result)
-        showError(errorMessage, parent);
-    return result;
-}
-
-bool DesignDocumentController::save(QIODevice *device, QString * /*errorMessage*/)
-{
-    if (m_d->model) {
-        QByteArray data = m_d->textEdit->toPlainText().toLatin1();
-        device->write(data);
+    if (m_d->model)
         m_d->textEdit->setPlainText(m_d->textEdit->toPlainText()); // clear undo/redo history
-    }
-    return false;
+
+    return true;
 }
 
 

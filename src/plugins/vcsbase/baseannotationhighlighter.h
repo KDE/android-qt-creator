@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,12 +41,6 @@ namespace VCSBase {
 
 struct BaseAnnotationHighlighterPrivate;
 
-// Base for a highlighter for annotation lines of the form
-// 'changenumber:XXXX'. The change numbers are assigned a color gradient.
-// Example:
-// 112: text1 <color 1>
-// 113: text2 <color 2>
-// 112: text3 <color 1>
 class VCSBASE_EXPORT BaseAnnotationHighlighter : public TextEditor::SyntaxHighlighter
 {
     Q_OBJECT

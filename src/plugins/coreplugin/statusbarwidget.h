@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,17 +49,10 @@ public:
     StatusBarWidget(QObject *parent = 0);
     ~StatusBarWidget();
 
-    Context context() const;
-    QWidget *widget();
     StatusBarWidget::StatusBarPosition position() const;
-
-    QWidget *setWidget(QWidget *widget);
-    void setContext(const Context &context);
     void setPosition(StatusBarWidget::StatusBarPosition position);
 
 private:
-    QPointer<QWidget> m_widget;
-    Context m_context;
     StatusBarWidget::StatusBarPosition m_defaultPosition;
 };
 

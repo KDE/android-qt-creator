@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "debuggerengine.h"
 
+#include "debuggerinternalconstants.h"
 #include "debuggeractions.h"
 #include "debuggercore.h"
 #include "debuggerplugin.h"
@@ -96,6 +97,7 @@ Internal::Location::Location(const StackFrame &frame, bool marker)
     m_functionName = frame.function;
     m_hasDebugInfo = frame.isUsable();
     m_address = frame.address;
+    m_from = frame.from;
 }
 
 QDebug operator<<(QDebug d, DebuggerState state)
@@ -122,29 +124,6 @@ QDebug operator<<(QDebug str, const DebuggerStartParameters &sp)
             << " abi=" << sp.toolChainAbi.toString() << '\n';
     return str;
 }
-
-
-///////////////////////////////////////////////////////////////////////
-//
-// LocationMark
-//
-///////////////////////////////////////////////////////////////////////
-
-// Used in "real" editors
-class LocationMark : public TextEditor::BaseTextMark
-{
-public:
-    LocationMark(const QString &fileName, int linenumber)
-        : BaseTextMark(fileName, linenumber)
-    {}
-
-    QIcon icon() const { return debuggerCore()->locationMarkIcon(); }
-    void updateLineNumber(int /*lineNumber*/) {}
-    void updateBlock(const QTextBlock & /*block*/) {}
-    void removedFromEditor() {}
-    TextEditor::ITextMark::Priority priority() const { return TextEditor::ITextMark::HighPriority; }
-};
-
 
 
 //////////////////////////////////////////////////////////////////////
@@ -235,8 +214,11 @@ public slots:
         QTC_ASSERT(state() == EngineShutdownOk
             || state() == EngineShutdownFailed, qDebug() << state());
         m_engine->setState(DebuggerFinished);
-        m_engine->showMessage(_("QUEUE: FINISH DEBUGGER"));
-        QTimer::singleShot(0, this, SLOT(doFinishDebugger()));
+        resetLocation();
+        if (isMasterEngine()) {
+            m_engine->showMessage(_("QUEUE: FINISH DEBUGGER"));
+            QTimer::singleShot(0, this, SLOT(doFinishDebugger()));
+        }
     }
 
     void raiseApplication()
@@ -248,6 +230,7 @@ public slots:
     void scheduleResetLocation()
     {
         m_stackHandler.scheduleResetLocation();
+        m_threadsHandler.scheduleResetLocation();
         m_disassemblerAgent.scheduleResetLocation();
         m_locationTimer.setSingleShot(true);
         m_locationTimer.start(80);
@@ -258,6 +241,7 @@ public slots:
         m_locationTimer.stop();
         m_locationMark.reset();
         m_stackHandler.resetLocation();
+        m_threadsHandler.resetLocation();
         m_disassemblerAgent.resetLocation();
     }
 
@@ -311,6 +295,7 @@ DebuggerEngine::DebuggerEngine(const DebuggerStartParameters &startParameters,
         DebuggerEngine *parentEngine)
   : d(new DebuggerEnginePrivate(this, parentEngine, startParameters))
 {
+    d->m_inferiorPid = 0;
 }
 
 DebuggerEngine::~DebuggerEngine()
@@ -529,13 +514,15 @@ void DebuggerEngine::startDebugger(DebuggerRunControl *runControl)
     Core::FutureProgress *fp = Core::ICore::instance()->progressManager()
         ->addTask(d->m_progress.future(),
         tr("Launching"), _("Debugger.Launcher"));
-    fp->setKeepOnFinish(Core::FutureProgress::DontKeepOnFinish);
+    fp->setKeepOnFinish(Core::FutureProgress::HideOnFinish);
     d->m_progress.reportStarted();
 
     d->m_runControl = runControl;
 
     d->m_inferiorPid = d->m_startParameters.attachPID > 0
         ? d->m_startParameters.attachPID : 0;
+    if (d->m_inferiorPid)
+        d->m_runControl->setApplicationProcessHandle(ProcessHandle(d->m_inferiorPid));
 
     if (!d->m_startParameters.environment.size())
         d->m_startParameters.environment = Utils::Environment();
@@ -589,8 +576,12 @@ void DebuggerEngine::gotoLocation(const Location &loc)
     if (texteditor)
         texteditor->gotoLine(line, 0);
 
-    if (loc.needsMarker())
-        d->m_locationMark.reset(new LocationMark(file, line));
+    if (loc.needsMarker()) {
+        d->m_locationMark.reset(new TextEditor::BaseTextMark);
+        d->m_locationMark->setLocation(file, line);
+        d->m_locationMark->setIcon(debuggerCore()->locationMarkIcon());
+        d->m_locationMark->setPriority(TextEditor::ITextMark::HighPriority);
+    }
 
     // FIXME: Breaks with split views.
     if (!d->m_memoryAgent.hasVisibleEditor() || loc.needsRaise())
@@ -1023,7 +1014,6 @@ void DebuggerEnginePrivate::doFinishDebugger()
 {
     m_engine->showMessage(_("NOTE: FINISH DEBUGGER"));
     QTC_ASSERT(state() == DebuggerFinished, qDebug() << m_engine << state());
-    resetLocation();
     if (isMasterEngine() && m_runControl)
         m_runControl->debuggingFinished();
 }
@@ -1102,7 +1092,7 @@ void DebuggerEngine::setState(DebuggerState state, bool forced)
     if (state == DebuggerFinished) {
         // Give up ownership on claimed breakpoints.
         BreakHandler *handler = breakHandler();
-        foreach (BreakpointId id, handler->engineBreakpointIds(this))
+        foreach (BreakpointModelId id, handler->engineBreakpointIds(this))
             handler->notifyBreakpointReleased(id);
     }
 
@@ -1183,11 +1173,16 @@ bool DebuggerEngine::debuggerActionsEnabled(DebuggerState state)
 
 void DebuggerEngine::notifyInferiorPid(qint64 pid)
 {
-    showMessage(tr("Taking notice of pid %1").arg(pid));
     if (d->m_inferiorPid == pid)
         return;
     d->m_inferiorPid = pid;
-    QTimer::singleShot(0, d, SLOT(raiseApplication()));
+    if (pid) {
+        showMessage(tr("Taking notice of pid %1").arg(pid));
+        if (d->m_startParameters.startMode == StartInternal
+            || d->m_startParameters.startMode == StartExternal
+            || d->m_startParameters.startMode == AttachExternal)
+        QTimer::singleShot(0, d, SLOT(raiseApplication()));
+    }
 }
 
 qint64 DebuggerEngine::inferiorPid() const
@@ -1349,14 +1344,14 @@ void DebuggerEngine::attemptBreakpointSynchronization()
 
     BreakHandler *handler = breakHandler();
 
-    foreach (BreakpointId id, handler->unclaimedBreakpointIds()) {
+    foreach (BreakpointModelId id, handler->unclaimedBreakpointIds()) {
         // Take ownership of the breakpoint. Requests insertion.
         if (acceptsBreakpoint(id))
             handler->setEngine(id, this);
     }
 
     bool done = true;
-    foreach (BreakpointId id, handler->engineBreakpointIds(this)) {
+    foreach (BreakpointModelId id, handler->engineBreakpointIds(this)) {
         switch (handler->state(id)) {
         case BreakpointNew:
             // Should not happen once claimed.
@@ -1396,21 +1391,21 @@ void DebuggerEngine::attemptBreakpointSynchronization()
         d->m_disassemblerAgent.updateBreakpointMarkers();
 }
 
-void DebuggerEngine::insertBreakpoint(BreakpointId id)
+void DebuggerEngine::insertBreakpoint(BreakpointModelId id)
 {
     BreakpointState state = breakHandler()->state(id);
     QTC_ASSERT(state == BreakpointInsertRequested, qDebug() << id << this << state);
     QTC_ASSERT(false, /**/);
 }
 
-void DebuggerEngine::removeBreakpoint(BreakpointId id)
+void DebuggerEngine::removeBreakpoint(BreakpointModelId id)
 {
     BreakpointState state = breakHandler()->state(id);
     QTC_ASSERT(state == BreakpointRemoveRequested, qDebug() << id << this << state);
     QTC_ASSERT(false, /**/);
 }
 
-void DebuggerEngine::changeBreakpoint(BreakpointId id)
+void DebuggerEngine::changeBreakpoint(BreakpointModelId id)
 {
     BreakpointState state = breakHandler()->state(id);
     QTC_ASSERT(state == BreakpointChangeRequested, qDebug() << id << this << state);
@@ -1496,32 +1491,52 @@ bool DebuggerEngine::isDying() const
     return targetState() == DebuggerFinished;
 }
 
-QString DebuggerEngine::msgWatchpointTriggered(BreakpointId id,
+QString DebuggerEngine::msgWatchpointByExpressionTriggered(BreakpointModelId id,
+    const int number, const QString &expr)
+{
+    return id
+        ? tr("Data breakpoint %1 (%2) at %3 triggered.")
+            .arg(id.toString()).arg(number).arg(expr)
+        : tr("Internal data breakpoint %1 at %2 triggered.")
+            .arg(number).arg(expr);
+}
+
+QString DebuggerEngine::msgWatchpointByExpressionTriggered(BreakpointModelId id,
+    const int number, const QString &expr, const QString &threadId)
+{
+    return id
+        ? tr("Data breakpoint %1 (%2) at %3 in thread %4 triggered.")
+            .arg(id.toString()).arg(number).arg(expr).arg(threadId)
+        : tr("Internal data breakpoint %1 at %2 in thread %3 triggered.")
+            .arg(number).arg(expr).arg(threadId);
+}
+
+QString DebuggerEngine::msgWatchpointByAddressTriggered(BreakpointModelId id,
     const int number, quint64 address)
 {
     return id
-        ? tr("Watchpoint %1 (%2) at 0x%3 triggered.")
-            .arg(id).arg(number).arg(address, 0, 16)
-        : tr("Internal watchpoint %1 at 0x%2 triggered.")
+        ? tr("Data breakpoint %1 (%2) at 0x%3 triggered.")
+            .arg(id.toString()).arg(number).arg(address, 0, 16)
+        : tr("Internal data breakpoint %1 at 0x%2 triggered.")
             .arg(number).arg(address, 0, 16);
 }
 
-QString DebuggerEngine::msgWatchpointTriggered(BreakpointId id,
+QString DebuggerEngine::msgWatchpointByAddressTriggered(BreakpointModelId id,
     const int number, quint64 address, const QString &threadId)
 {
     return id
-        ? tr("Watchpoint %1 (%2) at 0x%3 in thread %4 triggered.")
-            .arg(id).arg(number).arg(address, 0, 16).arg(threadId)
-        : tr("Internal watchpoint %1 at 0x%2 in thread %3 triggered.")
-            .arg(id).arg(number).arg(address, 0, 16).arg(threadId);
+        ? tr("Data breakpoint %1 (%2) at 0x%3 in thread %4 triggered.")
+            .arg(id.toString()).arg(number).arg(address, 0, 16).arg(threadId)
+        : tr("Internal data breakpoint %1 at 0x%2 in thread %3 triggered.")
+            .arg(id.toString()).arg(number).arg(address, 0, 16).arg(threadId);
 }
 
-QString DebuggerEngine::msgBreakpointTriggered(BreakpointId id,
+QString DebuggerEngine::msgBreakpointTriggered(BreakpointModelId id,
         const int number, const QString &threadId)
 {
     return id
         ? tr("Stopped at breakpoint %1 (%2) in thread %3.")
-            .arg(id).arg(number).arg(threadId)
+            .arg(id.toString()).arg(number).arg(threadId)
         : tr("Stopped at internal breakpoint %1 in thread %2.")
             .arg(number).arg(threadId);
 }
@@ -1579,9 +1594,11 @@ bool DebuggerEngine::isCppBreakpoint(const BreakpointParameters &p)
             && !p.fileName.endsWith(QLatin1String(".js"), Qt::CaseInsensitive);
 }
 
-void DebuggerEngine::openMemoryView(quint64 address)
+void DebuggerEngine::openMemoryView(quint64 startAddr, unsigned flags,
+                                    const QList<MemoryMarkup> &ml, const QPoint &pos,
+                                    const QString &title, QWidget *parent)
 {
-    d->m_memoryAgent.createBinEditor(address);
+    d->m_memoryAgent.createBinEditor(startAddr, flags, ml, pos, title, parent);
 }
 
 void DebuggerEngine::updateMemoryViews()

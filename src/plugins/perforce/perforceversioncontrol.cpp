@@ -26,13 +26,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "perforceversioncontrol.h"
 #include "perforceplugin.h"
 #include "perforceconstants.h"
+#include "perforcesettings.h"
+
+#include <vcsbase/vcsbaseconstants.h>
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QDebug>
@@ -41,7 +44,6 @@ namespace Perforce {
 namespace Internal {
 
 PerforceVersionControl::PerforceVersionControl(PerforcePlugin *plugin) :
-    m_enabled(true),
     m_plugin(plugin)
 {
 }
@@ -51,15 +53,30 @@ QString PerforceVersionControl::displayName() const
     return QLatin1String("perforce");
 }
 
+QString PerforceVersionControl::id() const
+{
+    return QLatin1String(VCSBase::Constants::VCS_ID_PERFORCE);
+}
+
+bool PerforceVersionControl::isConfigured() const
+{
+    const QString binary = m_plugin->settings().p4Command();
+    if (binary.isEmpty())
+        return false;
+    QFileInfo fi(binary);
+    return fi.exists() && fi.isFile() && fi.isExecutable();
+}
+
 bool PerforceVersionControl::supportsOperation(Operation operation) const
 {
+    bool supported = isConfigured();
     switch (operation) {
     case AddOperation:
     case DeleteOperation:
     case MoveOperation:
     case OpenOperation:
     case AnnotateOperation:
-        return true;
+        return supported;
     case CreateRepositoryOperation:
     case SnapshotOperations:
     case CheckoutOperation:
@@ -163,6 +180,11 @@ void PerforceVersionControl::emitRepositoryChanged(const QString &s)
 void PerforceVersionControl::emitFilesChanged(const QStringList &l)
 {
     emit filesChanged(l);
+}
+
+void PerforceVersionControl::emitConfigurationChanged()
+{
+    emit configurationChanged();
 }
 
 } // Internal

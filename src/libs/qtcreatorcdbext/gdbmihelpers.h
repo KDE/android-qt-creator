@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -112,9 +112,14 @@ Modules getModules(CIDebugSymbols *syms, std::string *errorMessage);
 // Format modules as GDBMI
 std::string gdbmiModules(CIDebugSymbols *syms, bool humanReadable, std::string *errorMessage);
 
+//  Helper for breakpoints. Return the memory range of a breakpoint
+// as pair(address, size). size is !=0 for data breakpoints.
+std::pair<ULONG64, ULONG> breakPointMemoryRange(IDebugBreakpoint *bp);
+
 // Format breakpoints as GDBMI
 std::string gdbmiBreakpoints(CIDebugControl *ctrl,
                              CIDebugSymbols *symbols /* = 0 */,
+                             CIDebugDataSpaces *dataSpaces /* = 0 */,
                              bool humanReadable,
                              unsigned verbose,
                              std::string *errorMessage);
@@ -157,8 +162,10 @@ std::string gdbmiRegisters(CIDebugRegisters *regs,
                            unsigned flags,
                            std::string *errorMessage);
 
-std::string memoryToBase64(CIDebugDataSpaces *ds, ULONG64 address, ULONG length, std::string *errorMessage);
-
+std::string memoryToBase64(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
+                           std::string *errorMessage = 0);
+std::wstring memoryToHexW(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
+                          std::string *errorMessage = 0);
 // Stack helpers
 StackFrames getStackTrace(CIDebugControl *debugControl, CIDebugSymbols *debugSymbols,
                                  unsigned maxFrames, std::string *errorMessage);
@@ -171,5 +178,11 @@ std::string gdbmiStack(CIDebugControl *debugControl, CIDebugSymbols *debugSymbol
 // Return a string of "Qualified_ClassName:Address"
 std::string widgetAt(const SymbolGroupValueContext &ctx,
                      int x, int y, std::string *errorMessage);
+
+bool evaluateExpression(CIDebugControl *control, const std::string expression,
+                        ULONG desiredType, DEBUG_VALUE *v, std::string *errorMessage);
+
+bool evaluateInt64Expression(CIDebugControl *control, const std::string expression,
+                             LONG64 *, std::string *errorMessage);
 
 #endif // THREADLIST_H

@@ -13,10 +13,10 @@ qmljsinspectorconstants.h \
 qmljsinspectorplugin.h \
 qmljsclientproxy.h \
 qmljsinspector.h \
-qmlinspectortoolbar.h \
+qmljsinspectortoolbar.h \
 qmljslivetextpreview.h \
 qmljstoolbarcolorbox.h \
-qmljsobserverclient.h \
+qmljsinspectorclient.h \
 qmljscontextcrumblepath.h \
 qmljsinspectorsettings.h \
 qmljspropertyinspector.h
@@ -25,10 +25,10 @@ SOURCES += \
 qmljsinspectorplugin.cpp \
 qmljsclientproxy.cpp \
 qmljsinspector.cpp \
-qmlinspectortoolbar.cpp \
+qmljsinspectortoolbar.cpp \
 qmljslivetextpreview.cpp \
 qmljstoolbarcolorbox.cpp \
-qmljsobserverclient.cpp \
+qmljsinspectorclient.cpp \
 qmljscontextcrumblepath.cpp \
 qmljsinspectorsettings.cpp \
 qmljspropertyinspector.cpp

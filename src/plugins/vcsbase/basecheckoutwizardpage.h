@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,11 +44,6 @@ namespace Ui {
 }
 
 struct BaseCheckoutWizardPagePrivate;
-
-/* Base class for a parameter page of a checkout wizard.
- * Let's the user specify the repository, a checkout directory and
- * the path. Contains a virtual to derive the checkout directory
- * from the repository as it is entered. */
 
 class VCSBASE_EXPORT BaseCheckoutWizardPage : public QWizardPage {
     Q_OBJECT

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,11 +52,12 @@ public:
     virtual ~AbstractFormEditorTool();
 
     virtual void mousePressEvent(const QList<QGraphicsItem*> &itemList,
-                         QGraphicsSceneMouseEvent *event) = 0;
+                         QGraphicsSceneMouseEvent *event);
     virtual void mouseMoveEvent(const QList<QGraphicsItem*> &itemList,
                         QGraphicsSceneMouseEvent *event) = 0;
     virtual void mouseReleaseEvent(const QList<QGraphicsItem*> &itemList,
-                           QGraphicsSceneMouseEvent *event) = 0;
+                           QGraphicsSceneMouseEvent *event);
+
     virtual void mouseDoubleClickEvent(const QList<QGraphicsItem*> &itemList,
                                        QGraphicsSceneMouseEvent *event);
 
@@ -76,11 +77,12 @@ public:
 //                        QGraphicsItem::GraphicsItemChange change,
 //                        const QVariant &value ) = 0;
 //    virtual void update() = 0;
-    virtual void clear() = 0;
+    virtual void clear();
 
     virtual void formEditorItemsChanged(const QList<FormEditorItem*> &itemList) = 0;
 
     virtual void instancesCompleted(const QList<FormEditorItem*> &itemList) = 0;
+    virtual void instancesParentChanged(const QList<FormEditorItem*> &itemList) = 0;
 
     void setItems(const QList<FormEditorItem*> &itemList);
     QList<FormEditorItem*> items() const;
@@ -93,10 +95,10 @@ public:
 
     static FormEditorItem* topFormEditorItem(const QList<QGraphicsItem*> &itemList);
     static FormEditorItem* topFormEditorItemWithRootItem(const QList<QGraphicsItem*> &itemList);
+
 protected:
-
     virtual void selectedItemsChanged(const QList<FormEditorItem*> &itemList) = 0;
-
+    virtual void showContextMenu(QGraphicsSceneMouseEvent *event);
 
     FormEditorView *view() const;
     FormEditorScene* scene() const;

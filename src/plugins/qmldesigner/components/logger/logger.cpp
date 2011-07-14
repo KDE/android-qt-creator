@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -106,13 +106,13 @@ void QLogger::flush()
     instance()->m_lastFlush = QTime::currentTime().elapsed();
     if (instance()->m_file) {
         foreach (QString s, instance()->m_buffer) {
-            s += QLatin1String("\n");
+            s += QLatin1Char('\n');
             instance()->m_file->write (s.toAscii());
         }
         instance()->m_file->flush();
     } else {
         foreach ( QString s, instance()->m_buffer) {
-            s += QLatin1String("\n");
+            s += QLatin1Char('\n');
 #ifdef Q_OS_WIN
             OutputDebugStringW((TCHAR*)s.utf16());
 #else

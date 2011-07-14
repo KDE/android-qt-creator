@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #include "stateseditorimageprovider.h"
@@ -48,6 +48,9 @@ QImage StatesEditorImageProvider::requestImage(const QString &id, QSize *size, c
 {
     if (m_nodeInstanceView.isNull())
         return QImage();
+
+    if (!m_nodeInstanceView->model())
+        return QImage(); //NodeInstanceView might be detached
 
     QSize newSize = requestedSize;
 

@@ -26,42 +26,152 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "projectwelcomepage.h"
-#include "projectwelcomepagewidget.h"
+
+#include <utils/stringutils.h>
+
+#include <QtDeclarative/QDeclarativeEngine>
+#include <QtDeclarative/QDeclarativeContext>
+
+#include <coreplugin/multifeedrssmodel.h>
+
+#include <projectexplorer/session.h>
+#include <projectexplorer/projectexplorer.h>
 
 namespace ProjectExplorer {
 namespace Internal {
 
-ProjectWelcomePage::ProjectWelcomePage()
-    : m_page(0)
+SessionModel::SessionModel(SessionManager *manager, QObject *parent)
+    : QAbstractListModel(parent), m_manager(manager)
 {
+    QHash<int, QByteArray> roleNames;
+    roleNames[Qt::DisplayRole] = "sessionName";
+    roleNames[DefaultSessionRole] = "defaultSession";
+    roleNames[ActiveSessionRole] = "activeSession";
+    roleNames[LastSessionRole] = "lastSession";
+    setRoleNames(roleNames);
+    connect(manager, SIGNAL(sessionLoaded()), SLOT(resetSessions()));
 }
 
-QWidget *ProjectWelcomePage::page()
+int SessionModel::rowCount(const QModelIndex &) const
 {
-    if (!m_page) {
-        m_page = new ProjectWelcomePageWidget;
+    return m_manager->sessions().count();
+}
 
-        // Forward signals
-        connect(m_page, SIGNAL(requestProject(QString)), this, SIGNAL(requestProject(QString)));
-        connect(m_page, SIGNAL(requestSession(QString)), this, SIGNAL(requestSession(QString)));
-        connect(m_page, SIGNAL(manageSessions()), this, SIGNAL(manageSessions()));
-
-        m_page->updateWelcomePage(m_welcomePageData);
+QVariant SessionModel::data(const QModelIndex &index, int role) const
+{
+    if (role == Qt::DisplayRole || role == DefaultSessionRole ||
+            role == LastSessionRole || role == ActiveSessionRole) {
+        QString sessionName = m_manager->sessions().at(index.row());
+        if (role == Qt::DisplayRole)
+            return sessionName;
+        else if (role == DefaultSessionRole)
+            return m_manager->isDefaultSession(sessionName);
+        else if (role == LastSessionRole)
+            return m_manager->lastSession() == sessionName;
+        else if (role == ActiveSessionRole)
+            return m_manager->activeSession() == sessionName;
     }
-    return m_page;
+    return QVariant();
 }
 
-void ProjectWelcomePage::setWelcomePageData(const ProjectWelcomePageWidget::WelcomePageData &welcomePageData)
+bool SessionModel::isDefaultVirgin() const
 {
-    m_welcomePageData = welcomePageData;
+    return m_manager->isDefaultVirgin();
+}
 
-    if (m_page)
-        m_page->updateWelcomePage(welcomePageData);
+void SessionModel::resetSessions()
+{
+    reset();
+}
+
+
+ProjectModel::ProjectModel(ProjectExplorerPlugin *plugin, QObject *parent)
+    : QAbstractListModel(parent), m_plugin(plugin)
+{
+    QHash<int, QByteArray> roleNames;
+    roleNames[Qt::DisplayRole] = "displayName";
+    roleNames[FilePathRole] = "filePath";
+    roleNames[PrettyFilePathRole] = "prettyFilePath";
+    setRoleNames(roleNames);
+    connect(plugin, SIGNAL(recentProjectsChanged()), SLOT(resetProjects()));
+}
+
+int ProjectModel::rowCount(const QModelIndex &) const
+{
+    return m_plugin->recentProjects().count();
+}
+
+QVariant ProjectModel::data(const QModelIndex &index, int role) const
+{
+    QPair<QString,QString> data = m_plugin->recentProjects().at(index.row());
+    switch (role) {
+    case Qt::DisplayRole:
+        return data.second;
+        break;
+    case FilePathRole:
+        return data.first;
+    case PrettyFilePathRole:
+        return Utils::withTildeHomePath(data.first);
+    default:
+        return QVariant();
+    }
+
+    return QVariant();
+}
+
+void ProjectModel::resetProjects()
+{
+    reset();
+}
+
+///////////////////
+
+ProjectWelcomePage::ProjectWelcomePage() :
+    m_sessionModel(0), m_projectModel(0)
+{
+}
+
+void ProjectWelcomePage::facilitateQml(QDeclarativeEngine *engine)
+{
+    static const char feedGroupName[] = "Feeds";
+
+    ProjectExplorerPlugin *pePlugin = ProjectExplorer::ProjectExplorerPlugin::instance();
+    m_sessionModel = new SessionModel(pePlugin->session(), this);
+    m_projectModel = new ProjectModel(pePlugin, this);
+
+    QDeclarativeContext *ctx = engine->rootContext();
+    ctx->setContextProperty("sessionList", m_sessionModel);
+    ctx->setContextProperty("projectList", m_projectModel);
+    Core::MultiFeedRssModel *rssModel = new Core::MultiFeedRssModel(this);
+    QSettings *settings = Core::ICore::instance()->settings();
+    if (settings->childGroups().contains(feedGroupName)) {
+        int size = settings->beginReadArray(feedGroupName);
+        for (int i = 0; i < size; ++i)
+        {
+            settings->setArrayIndex(i);
+            rssModel->addFeed(settings->value("url").toString());
+        }
+        settings->endArray();
+    } else {
+        rssModel->addFeed(QLatin1String("http://labs.trolltech.com/blogs/feed"));
+        rssModel->addFeed(QLatin1String("http://feeds.feedburner.com/TheQtBlog?format=xml"));
+    }
+
+    ctx->setContextProperty("aggregatedFeedsModel", rssModel);
+    ctx->setContextProperty("projectWelcomePage", this);
+}
+
+void ProjectWelcomePage::reloadWelcomeScreenData()
+{
+    if (m_sessionModel)
+        m_sessionModel->resetSessions();
+    if (m_projectModel)
+        m_projectModel->resetProjects();
 }
 
 } // namespace Internal

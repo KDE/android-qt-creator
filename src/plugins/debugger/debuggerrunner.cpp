@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 #include "debuggerruncontrolfactory.h"
 
 #include "debuggeractions.h"
+#include "debuggerinternalconstants.h"
 #include "debuggercore.h"
 #include "debuggerengine.h"
 #include "debuggermainwindow.h"
@@ -55,10 +56,10 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/buildconfiguration.h>
-#include <projectexplorer/outputformat.h>
 #include <projectexplorer/toolchain.h>
 #include <projectexplorer/applicationrunconfiguration.h> // For LocalApplication*
 
+#include <utils/outputformat.h>
 #include <utils/synchronousprocess.h>
 #include <utils/qtcassert.h>
 #include <utils/fancymainwindow.h>
@@ -69,6 +70,7 @@
 #include <QtCore/QDir>
 #include <QtCore/QDebug>
 #include <QtGui/QMessageBox>
+#include <QtGui/QErrorMessage>
 
 using namespace ProjectExplorer;
 using namespace Debugger::Internal;
@@ -111,8 +113,6 @@ static const char *engineTypeName(DebuggerEngineType et)
         return "Cdb engine";
     case Debugger::PdbEngineType:
         return "Pdb engine";
-    case Debugger::TcfEngineType:
-        return "Tcf engine";
     case Debugger::QmlEngineType:
         return "QML engine";
     case Debugger::QmlCppEngineType:
@@ -226,6 +226,11 @@ QString DebuggerRunControl::displayName() const
     return d->m_engine->startParameters().displayName;
 }
 
+QIcon DebuggerRunControl::icon() const
+{
+    return QIcon(ProjectExplorer::Constants::ICON_DEBUG_SMALL);
+}
+
 void DebuggerRunControl::setCustomEnvironment(Utils::Environment env)
 {
     QTC_ASSERT(d->m_engine, return);
@@ -235,6 +240,28 @@ void DebuggerRunControl::setCustomEnvironment(Utils::Environment env)
 void DebuggerRunControl::start()
 {
     QTC_ASSERT(d->m_engine, return);
+    // User canceled input dialog asking for executable when working on library project.
+    if (d->m_engine->startParameters().startMode == StartInternal
+        && d->m_engine->startParameters().executable.isEmpty()) {
+        appendMessage(tr("No executable specified.\n"), Utils::ErrorMessageFormat);
+        emit started();
+        emit finished();
+        return;
+    }
+
+    foreach (const BreakpointModelId &id, debuggerCore()->breakHandler()->allBreakpointIds()) {
+        if (d->m_engine->breakHandler()->breakpointData(id).enabled
+                && !d->m_engine->acceptsBreakpoint(id)) {
+
+            QString warningMessage =
+                    DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
+                                       "languages currently active, and will be ignored.");
+
+            debuggerCore()->showMessage(warningMessage, LogWarning);
+            QErrorMessage::qtHandler()->showMessage(warningMessage);
+        }
+    }
+
     debuggerCore()->runControlStarted(d->m_engine);
 
     // We might get a synchronous startFailed() notification on Windows,
@@ -245,12 +272,12 @@ void DebuggerRunControl::start()
     d->m_engine->startDebugger(this);
 
     if (d->m_running)
-        appendMessage(tr("Debugging starts"), NormalMessageFormat);
+        appendMessage(tr("Debugging starts\n"), Utils::NormalMessageFormat);
 }
 
 void DebuggerRunControl::startFailed()
 {
-    appendMessage(tr("Debugging has failed"), NormalMessageFormat);
+    appendMessage(tr("Debugging has failed\n"), Utils::NormalMessageFormat);
     d->m_running = false;
     emit finished();
     d->m_engine->handleStartFailed();
@@ -258,7 +285,7 @@ void DebuggerRunControl::startFailed()
 
 void DebuggerRunControl::handleFinished()
 {
-    appendMessage(tr("Debugging has finished"), NormalMessageFormat);
+    appendMessage(tr("Debugging has finished\n"), Utils::NormalMessageFormat);
     if (d->m_engine)
         d->m_engine->handleFinished();
     debuggerCore()->runControlFinished(d->m_engine);
@@ -268,13 +295,13 @@ void DebuggerRunControl::showMessage(const QString &msg, int channel)
 {
     switch (channel) {
         case AppOutput:
-            appendMessage(msg, StdOutFormatSameLine);
+            appendMessage(msg, Utils::StdOutFormatSameLine);
             break;
         case AppError:
-            appendMessage(msg, StdErrFormatSameLine);
+            appendMessage(msg, Utils::StdErrFormatSameLine);
             break;
         case AppStuff:
-            appendMessage(msg, NormalMessageFormat);
+            appendMessage(msg, Utils::DebugFormat);
             break;
     }
 }
@@ -405,10 +432,10 @@ static QList<DebuggerEngineType> enginesForMode(DebuggerStartMode startMode,
 {
     QList<DebuggerEngineType> result;
     switch (startMode) {
-    case Debugger::NoStartMode:
+    case NoStartMode:
         break;
-    case Debugger::StartInternal:
-    case Debugger::StartExternal:
+    case StartInternal:
+    case StartExternal:
     case AttachExternal:
         if (!hardConstraintsOnly) {
 #ifdef Q_OS_WIN
@@ -417,20 +444,17 @@ static QList<DebuggerEngineType> enginesForMode(DebuggerStartMode startMode,
             result.push_back(GdbEngineType);
         }
         break;
-    case Debugger::AttachCore:
-    case Debugger::StartRemoteGdb:
+    case AttachCore:
+    case StartRemoteGdb:
         result.push_back(GdbEngineType);
         break;
-    case Debugger::AttachToRemote:
+    case AttachToRemote:
         if (!hardConstraintsOnly) {
 #ifdef Q_OS_WIN
             result.push_back(CdbEngineType);
 #endif
             result.push_back(GdbEngineType);
         }
-        break;
-    case AttachTcf:
-        result.push_back(TcfEngineType);
         break;
     case AttachCrashedExternal:
         result.push_back(CdbEngineType); // Only CDB can do this
@@ -488,7 +512,9 @@ ConfigurationCheck::ConfigurationCheck() :
 
 ConfigurationCheck::operator bool() const
 {
-    return errorMessage.isEmpty() &&  errorDetails.isEmpty() && masterSlaveEngineTypes.first != NoEngineType;
+    return errorMessage.isEmpty()
+        && errorDetails.isEmpty()
+        && masterSlaveEngineTypes.first != NoEngineType;
 }
 
 QString ConfigurationCheck::errorDetailsString() const
@@ -511,9 +537,9 @@ static inline bool canUseEngine(DebuggerEngineType et,
     }
     // Configured.
     switch (et) {
-    case Debugger::CdbEngineType:
+    case CdbEngineType:
         return checkCdbConfiguration(sp, result);
-    case Debugger::GdbEngineType:
+    case GdbEngineType:
         return checkGdbConfiguration(sp, result);
     default:
         break;
@@ -522,8 +548,7 @@ static inline bool canUseEngine(DebuggerEngineType et,
 }
 
 /*!
-    \fn ConfigurationCheck checkDebugConfiguration(unsigned cmdLineEnabledEngines,
-                                                   const DebuggerStartParameters &sp)
+    \fn Debugger::ConfigurationCheck Debugger::checkDebugConfiguration(const DebuggerStartParameters &sp)
 
     This is the master engine detection function that returns the
     engine types for a given set of start parameters and checks their
@@ -595,7 +620,7 @@ DEBUGGER_EXPORT ConfigurationCheck checkDebugConfiguration(const DebuggerStartPa
                 arg(sp.toolChainAbi.toString(), engineTypeName(usableType),
                     result.errorDetails.join(QString(QLatin1Char('\n'))));
         debuggerCore()->showMessage(msg, LogWarning);
-        showMessageBox(QMessageBox::Warning, "Warning", msg);
+        showMessageBox(QMessageBox::Warning, DebuggerPlugin::tr("Warning"), msg);
     }
     // Anything left: Happy.
     result.errorMessage.clear();
@@ -626,7 +651,7 @@ DebuggerRunControlFactory::DebuggerRunControlFactory(QObject *parent,
 bool DebuggerRunControlFactory::canRun(RunConfiguration *runConfiguration, const QString &mode) const
 {
 //    return mode == ProjectExplorer::Constants::DEBUGMODE;
-    return mode == Constants::DEBUGMODE
+    return (mode == Constants::DEBUGMODE || mode == Constants::DEBUGMODE2)
             && qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
 }
 
@@ -696,12 +721,13 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
                 sp.qtInstallPath = findQtInstallPath(qmake);
         }
         if (const ProjectExplorer::Project *project = target->project()) {
-              sp.projectDir = project->projectDirectory();
-              if (const ProjectExplorer::BuildConfiguration *buildConfig = target->activeBuildConfiguration()) {
-                  sp.projectBuildDir = buildConfig->buildDirectory();
-                  if (const ProjectExplorer::ToolChain *tc = buildConfig->toolChain())
+            sp.projectSourceDirectory = project->projectDirectory();
+            if (const ProjectExplorer::BuildConfiguration *buildConfig = target->activeBuildConfiguration()) {
+                sp.projectBuildDirectory = buildConfig->buildDirectory();
+                if (const ProjectExplorer::ToolChain *tc = buildConfig->toolChain())
                     sp.debuggerCommand = tc->debuggerCommand();
-              }
+            }
+            sp.projectSourceFiles = project->files(Project::ExcludeGeneratedFiles);
         }
     }
 
@@ -716,8 +742,8 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
             sp.environment.set(optimizerKey, _("1"));
         }
 
-        Utils::QtcProcess::addArg(&sp.processArgs, _("-qmljsdebugger=port:")
-                                  + QString::number(sp.qmlServerPort));
+        Utils::QtcProcess::addArg(&sp.processArgs, QString("-qmljsdebugger=port:%1,block").arg(
+                                      sp.qmlServerPort));
     }
 
     // FIXME: If it's not yet build this will be empty and not filled
@@ -732,8 +758,10 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
 RunControl *DebuggerRunControlFactory::create
     (RunConfiguration *runConfiguration, const QString &mode)
 {
-    QTC_ASSERT(mode == Constants::DEBUGMODE, return 0);
+    QTC_ASSERT(mode == Constants::DEBUGMODE || mode == Constants::DEBUGMODE2, return 0);
     DebuggerStartParameters sp = localStartParameters(runConfiguration);
+    if (mode == Constants::DEBUGMODE2)
+        sp.breakOnMain = true;
     return create(sp, runConfiguration);
 }
 
@@ -760,11 +788,11 @@ DebuggerRunControl *DebuggerRunControlFactory::create
     return new DebuggerRunControl(runConfiguration, sp, check.masterSlaveEngineTypes);
 }
 
-DebuggerEngine *
-    DebuggerRunControlFactory::createEngine(DebuggerEngineType et,
-                                            const DebuggerStartParameters &sp,
-                                            DebuggerEngine *masterEngine,
-                                            QString *errorMessage)
+DebuggerEngine *DebuggerRunControlFactory::createEngine
+    (DebuggerEngineType et,
+     const DebuggerStartParameters &sp,
+     DebuggerEngine *masterEngine,
+     QString *errorMessage)
 {
     switch (et) {
     case GdbEngineType:
@@ -773,13 +801,10 @@ DebuggerEngine *
         return createScriptEngine(sp);
     case CdbEngineType:
         return createCdbEngine(sp, masterEngine, errorMessage);
-        break;
     case PdbEngineType:
         return createPdbEngine(sp);
-        break;
     case QmlEngineType:
         return createQmlEngine(sp, masterEngine);
-        break;
     case LldbEngineType:
         return createLldbEngine(sp);
     default:

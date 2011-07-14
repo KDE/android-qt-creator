@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -47,12 +47,6 @@ QT_END_NAMESPACE
 
 namespace VCSBase {
 namespace Internal {
-
-/* Nick name dialog: Manages a list of users read from an extended
- * mail cap file, consisting of 4 columns:
- * "Name Mail [AliasName [AliasMail]]".
- * The names can be used for insertion into "RevBy:" fields; aliases will
- * be preferred. */
 
 class NickNameDialog : public QDialog {
     Q_OBJECT

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,8 +36,9 @@
 #include "qtquickappwizard.h"
 #include "qtquickappwizardpages.h"
 #include "targetsetuppage.h"
-
 #include "qt4projectmanagerconstants.h"
+
+#include <qtsupport/qtsupportconstants.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtGui/QIcon>
@@ -52,22 +53,52 @@ class QtQuickAppWizardDialog : public AbstractMobileAppWizardDialog
 public:
     explicit QtQuickAppWizardDialog(QWidget *parent = 0);
 
+protected:
+    bool validateCurrentPage();
+
 private:
-    class QtQuickAppWizardSourcesPage *m_qmlSourcesPage;
+    class QtQuickComponentSetOptionsPage *m_componentOptionsPage;
+    int m_componentOptionsPageId;
+
+    Utils::WizardProgressItem *m_componentItem;
+
     friend class QtQuickAppWizard;
 };
 
 QtQuickAppWizardDialog::QtQuickAppWizardDialog(QWidget *parent)
-    : AbstractMobileAppWizardDialog(parent, QtVersionNumber(4, 7, 0))
-    , m_qmlSourcesPage(0)
+    : AbstractMobileAppWizardDialog(parent, QtSupport::QtVersionNumber(4, 7, 1))
 {
     setWindowTitle(tr("New Qt Quick Application"));
     setIntroDescription(tr("This wizard generates a Qt Quick application project."));
 
-    m_qmlSourcesPage = new QtQuickAppWizardSourcesPage;
-    addPageWithTitle(m_qmlSourcesPage, tr("QML Sources"));
+    m_componentOptionsPage = new Internal::QtQuickComponentSetOptionsPage;
+    m_componentOptionsPageId = addPageWithTitle(m_componentOptionsPage, tr("Application Type"));
+    m_componentItem = wizardProgress()->item(m_componentOptionsPageId);
+
+    AbstractMobileAppWizardDialog::addMobilePages();
+
+    m_componentItem->setNextItems(QList<Utils::WizardProgressItem *>()
+                                  << targetsPageItem());
 }
 
+bool QtQuickAppWizardDialog::validateCurrentPage()
+{
+    if (currentPage() == m_componentOptionsPage) {
+        if (m_componentOptionsPage->componentSet() == QtQuickApp::Symbian10Components) {
+            setIgnoreGenericOptionsPage(true);
+            targetsPage()->setMinimumQtVersion(QtSupport::QtVersionNumber(4, 7, 3));
+            QSet<QString> requiredFeatures;
+            requiredFeatures << Constants::QTQUICKCOMPONENTS_SYMBIAN_TARGETFEATURE_ID;
+            targetsPage()->setRequiredFeatures(requiredFeatures);
+        } else if (m_componentOptionsPage->componentSet() == QtQuickApp::Meego10Components) {
+            targetsPage()->setMinimumQtVersion(QtSupport::QtVersionNumber(4, 7, 4));
+            QSet<QString> requiredFeatures;
+            requiredFeatures << Constants::QTQUICKCOMPONENTS_MEEGO_TARGETFEATURE_ID;
+            targetsPage()->setRequiredFeatures(requiredFeatures);
+        }
+    }
+    return AbstractMobileAppWizardDialog::validateCurrentPage();
+}
 
 class QtQuickAppWizardPrivate
 {
@@ -93,7 +124,7 @@ QtQuickAppWizard::~QtQuickAppWizard()
 Core::BaseFileWizardParameters QtQuickAppWizard::parameters()
 {
     Core::BaseFileWizardParameters parameters(ProjectWizard);
-    parameters.setIcon(QIcon(QLatin1String(Constants::ICON_QTQUICK_APP)));
+    parameters.setIcon(QIcon(QLatin1String(Qt4ProjectManager::Constants::ICON_QTQUICK_APP)));
     parameters.setDisplayName(tr("Qt Quick Application"));
     parameters.setId(QLatin1String("QA.QMLA Application"));
     parameters.setDescription(tr("Creates a Qt Quick application project that can contain "
@@ -101,16 +132,19 @@ Core::BaseFileWizardParameters QtQuickAppWizard::parameters()
                                  "You can build the application and deploy it on desktop and "
                                  "mobile target platforms. For example, you can create signed "
                                  "Symbian Installation System (SIS) packages for this type of "
-                                 "projects."));
-    parameters.setCategory(QLatin1String(Constants::QML_WIZARD_CATEGORY));
-    parameters.setDisplayCategory(QCoreApplication::translate(Constants::QML_WIZARD_TR_SCOPE,
-                                                              Constants::QML_WIZARD_TR_CATEGORY));
+                                 "projects. Moreover, you can select to use a set of premade "
+                                 "UI components in your Qt Quick application. "
+                                 "To utilize the components, Qt 4.7.3 or newer is required."));
+    parameters.setCategory(QLatin1String(QtSupport::Constants::QML_WIZARD_CATEGORY));
+    parameters.setDisplayCategory(QCoreApplication::translate(QtSupport::Constants::QML_WIZARD_TR_SCOPE,
+                                                              QtSupport::Constants::QML_WIZARD_TR_CATEGORY));
     return parameters;
 }
 
 AbstractMobileAppWizardDialog *QtQuickAppWizard::createWizardDialogInternal(QWidget *parent) const
 {
     m_d->wizardDialog = new QtQuickAppWizardDialog(parent);
+    m_d->wizardDialog->m_componentOptionsPage->setComponentSet(m_d->app->componentSet());
     return m_d->wizardDialog;
 }
 
@@ -124,12 +158,15 @@ void QtQuickAppWizard::prepareGenerateFiles(const QWizard *w,
 {
     Q_UNUSED(errorMessage)
     const QtQuickAppWizardDialog *wizard = qobject_cast<const QtQuickAppWizardDialog*>(w);
-    if (wizard->m_qmlSourcesPage->mainQmlMode() == QtQuickApp::ModeGenerate) {
+    if (wizard->m_componentOptionsPage->mainQmlMode() == QtQuickApp::ModeGenerate) {
         m_d->app->setMainQml(QtQuickApp::ModeGenerate);
     } else {
-        const QString mainQmlFile = wizard->m_qmlSourcesPage->mainQmlFile();
+        const QString mainQmlFile = wizard->m_componentOptionsPage->mainQmlFile();
         m_d->app->setMainQml(QtQuickApp::ModeImport, mainQmlFile);
     }
+    m_d->app->setComponentSet(wizard->m_componentOptionsPage->componentSet());
+    if (m_d->app->componentSet() == QtQuickApp::Symbian10Components)
+        m_d->app->setOrientation(AbstractMobileApp::ScreenOrientationImplicit);
 }
 
 QString QtQuickAppWizard::fileToOpenPostGeneration() const

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -327,7 +327,7 @@ void CentralWidget::highlightSearchTerms()
                 case QHelpSearchQuery::DEFAULT:
                 case QHelpSearchQuery::ATLEAST:
                     foreach (QString term, query.wordList)
-                        terms.append(term.remove(QLatin1String("\"")));
+                        terms.append(term.remove(QLatin1Char('"')));
                 }
             }
         }

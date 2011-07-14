@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -47,6 +47,7 @@
 #include <projectexplorer/project.h>
 
 #include <coreplugin/icore.h>
+#include <coreplugin/infobar.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/uniqueidmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -175,7 +176,7 @@ QmlJSLiveTextPreview::QmlJSLiveTextPreview(const QmlJS::Document::Ptr &doc,
     : QObject(parent)
     , m_previousDoc(doc)
     , m_initialDoc(initDoc)
-    , m_applyChangesToQmlObserver(true)
+    , m_applyChangesToQmlInspector(true)
     , m_clientProxy(clientProxy)
 {
     Q_ASSERT(doc->fileName() == initDoc->fileName());
@@ -340,7 +341,7 @@ void QmlJSLiveTextPreview::updateDebugIds()
 }
 
 
-class UpdateObserver : public Delta {
+class UpdateInspector : public Delta {
 private:
     static inline QString stripQuotes(const QString &str)
     {
@@ -463,7 +464,7 @@ protected:
         if (isLiteral)
             expr = castToLiteral(scriptCode, scriptBinding);
         appliedChangesToViewer = true;
-        m_clientProxy->setBindingForObject(debugId, propertyName, expr, isLiteral);
+        m_clientProxy->setBindingForObject(debugId, propertyName, expr, isLiteral, document()->fileName(), scriptBinding->firstSourceLocation().startLine);
     }
 
     virtual void resetBindingForObject(int debugId, const QString &propertyName)
@@ -479,11 +480,11 @@ protected:
     }
 
     virtual void createObject(const QString& qmlText, DebugId ref,
-                         const QStringList& importList, const QString& filename)
+                         const QStringList& importList, const QString& filename, int order)
     {
         appliedChangesToViewer = true;
         referenceRefreshRequired = true;
-        m_clientProxy->createQmlObject(qmlText, ref, importList, filename);
+        m_clientProxy->createQmlObject(qmlText, ref, importList, filename, order);
     }
 
     virtual void reparentObject(int debugId, int newParent)
@@ -508,7 +509,7 @@ protected:
     }
 
 public:
-    UpdateObserver(ClientProxy *clientProxy)
+    UpdateInspector(ClientProxy *clientProxy)
         : appliedChangesToViewer(false)
         , referenceRefreshRequired(false)
         , unsyncronizableChanges(QmlJSLiveTextPreview::NoUnsyncronizableChanges)
@@ -533,13 +534,13 @@ void QmlJSLiveTextPreview::documentChanged(QmlJS::Document::Ptr doc)
 
     bool experimentalWarningShown = false;
 
-    if (m_applyChangesToQmlObserver) {
+    if (m_applyChangesToQmlInspector) {
         m_docWithUnappliedChanges.clear();
 
         if (doc && m_previousDoc && doc->fileName() == m_previousDoc->fileName()
             && doc->qmlProgram() && m_previousDoc->qmlProgram())
         {
-            UpdateObserver delta(m_clientProxy.data());
+            UpdateInspector delta(m_clientProxy.data());
             m_debugIds = delta(m_previousDoc, doc, m_debugIds);
 
             if (delta.referenceRefreshRequired)
@@ -568,19 +569,20 @@ void QmlJSLiveTextPreview::documentChanged(QmlJS::Document::Ptr doc)
 
 void QmlJSLiveTextPreview::showExperimentalWarning()
 {
-    Core::EditorManager *em = Core::EditorManager::instance();
-    em->showEditorInfoBar(Constants::INFO_EXPERIMENTAL,
-                          tr("You changed a QML file in Live Preview mode, which modifies the running QML application. "
-                             "In case of unexpected behavior, please reload the QML application. "
-                             ),
-                          tr("Disable Live Preview"), this, SLOT(disableLivePreview()));
+    foreach (QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> editor, m_editors)
+        if (editor) {
+            Core::InfoBarEntry info(
+                    Constants::INFO_EXPERIMENTAL,
+                    tr("You changed a QML file in Live Preview mode, which modifies the running QML application. "
+                       "In case of unexpected behavior, please reload the QML application."));
+            info.setCustomButtonInfo(tr("Disable Live Preview"), this, SLOT(disableLivePreview()));
+            editor.data()->file()->infoBar()->addInfo(info);
+        }
 }
 
 void QmlJSLiveTextPreview::showSyncWarning(UnsyncronizableChangeType unsyncronizableChangeType,
                                            const QString &elementName, unsigned line, unsigned column)
 {
-    Core::EditorManager *em = Core::EditorManager::instance();
-
     QString errorMessage;
     switch (unsyncronizableChangeType) {
         case AttributeChangeWarning:
@@ -598,31 +600,38 @@ void QmlJSLiveTextPreview::showSyncWarning(UnsyncronizableChangeType unsyncroniz
 
     errorMessage.append(tr("You can continue debugging, but behavior can be unexpected."));
 
-    em->showEditorInfoBar(Constants::INFO_OUT_OF_SYNC, errorMessage);
+    foreach (QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> editor, m_editors)
+        if (editor)
+            editor.data()->file()->infoBar()->addInfo(Core::InfoBarEntry(
+                    QLatin1String(Constants::INFO_OUT_OF_SYNC), errorMessage));
 }
 
 void QmlJSLiveTextPreview::reloadQmlViewer()
 {
-    Core::EditorManager::instance()->hideEditorInfoBar(Constants::INFO_OUT_OF_SYNC);
+    foreach (QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> editor, m_editors)
+        if (editor)
+            editor.data()->file()->infoBar()->removeInfo(Constants::INFO_OUT_OF_SYNC);
     emit reloadQmlViewerRequested();
 }
 
 void QmlJSLiveTextPreview::disableLivePreview()
 {
-    Core::EditorManager::instance()->hideEditorInfoBar(Constants::INFO_EXPERIMENTAL);
+    foreach (QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> editor, m_editors)
+        if (editor)
+            editor.data()->file()->infoBar()->removeInfo(Constants::INFO_OUT_OF_SYNC);
     emit disableLivePreviewRequested();
 }
 
-void QmlJSLiveTextPreview::setApplyChangesToQmlObserver(bool applyChanges)
+void QmlJSLiveTextPreview::setApplyChangesToQmlInspector(bool applyChanges)
 {
-    if (applyChanges && !m_applyChangesToQmlObserver) {
+    if (applyChanges && !m_applyChangesToQmlInspector) {
         if (m_docWithUnappliedChanges) {
-            m_applyChangesToQmlObserver = true;
+            m_applyChangesToQmlInspector = true;
             documentChanged(m_docWithUnappliedChanges);
         }
     }
 
-    m_applyChangesToQmlObserver = applyChanges;
+    m_applyChangesToQmlInspector = applyChanges;
 }
 
 void QmlJSLiveTextPreview::setClientProxy(ClientProxy *clientProxy)
@@ -638,12 +647,12 @@ void QmlJSLiveTextPreview::setClientProxy(ClientProxy *clientProxy)
         connect(m_clientProxy.data(), SIGNAL(objectTreeUpdated()),
                    SLOT(updateDebugIds()));
 
-        foreach(QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> qmlEditor, m_editors) {
+        foreach (const QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> &qmlEditor, m_editors) {
             if (qmlEditor)
                 qmlEditor.data()->setUpdateSelectedElements(true);
         }
     } else {
-        foreach(QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> qmlEditor, m_editors) {
+        foreach (const QWeakPointer<QmlJSEditor::QmlJSTextEditorWidget> &qmlEditor, m_editors) {
             if (qmlEditor)
                 qmlEditor.data()->setUpdateSelectedElements(false);
         }

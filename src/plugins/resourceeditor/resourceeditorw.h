@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -57,13 +57,13 @@ public:
     ResourceEditorFile(ResourceEditorW *parent = 0);
 
     //IFile
-    bool save(const QString &fileName = QString());
+    bool save(QString *errorString, const QString &fileName, bool autoSave);
     QString fileName() const;
+    bool shouldAutoSave() const;
     bool isModified() const;
     bool isReadOnly() const;
     bool isSaveAsAllowed() const;
-    ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
     QString defaultPath() const;
     QString suggestedFileName() const;
     virtual QString mimeType() const;
@@ -86,7 +86,7 @@ public:
 
     // IEditor
     bool createNew(const QString &contents);
-    bool open(const QString &fileName = QString());
+    bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     bool duplicateSupported() const { return false; }
     Core::IEditor *duplicate(QWidget *) { return 0; }
     Core::IFile *file() { return m_resourceFile; }
@@ -97,26 +97,24 @@ public:
     QByteArray saveState() const { return QByteArray(); }
     bool restoreState(const QByteArray &/*state*/) { return true; }
 
-    // ContextInterface
-    Core::Context context() const { return m_context; }
-    QWidget *widget();
-
     void setSuggestedFileName(const QString &fileName);
     bool isTemporary() const { return false; }
 
 private slots:
     void dirtyChanged(bool);
     void onUndoStackChanged(bool canUndo, bool canRedo);
+    void setShouldAutoSave(bool sad = true) { m_shouldAutoSave = sad; }
 
 private:
     const QString m_extension;
     const QString m_fileFilter;
     QString m_displayName;
     QString m_suggestedName;
-    const Core::Context m_context;
     QPointer<SharedTools::QrcEditor> m_resourceEditor;
     ResourceEditorFile *m_resourceFile;
     ResourceEditorPlugin *m_plugin;
+    bool m_shouldAutoSave;
+    bool m_diskIo;
 
 public:
     void onUndo();

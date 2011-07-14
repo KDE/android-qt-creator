@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -96,6 +96,8 @@ BuildConfiguration::BuildConfiguration(Target *target, BuildConfiguration *sourc
             this, SLOT(handleToolChainRemovals(ProjectExplorer::ToolChain*)));
     connect(ToolChainManager::instance(), SIGNAL(toolChainAdded(ProjectExplorer::ToolChain*)),
             this, SLOT(handleToolChainAddition(ProjectExplorer::ToolChain*)));
+    connect(ToolChainManager::instance(), SIGNAL(toolChainUpdated(ProjectExplorer::ToolChain*)),
+            this, SLOT(handleToolChainUpdates(ProjectExplorer::ToolChain*)));
 }
 
 BuildConfiguration::~BuildConfiguration()
@@ -188,6 +190,8 @@ void BuildConfiguration::handleToolChainUpdates(ProjectExplorer::ToolChain *tc)
     QList<ToolChain *> candidates = target()->possibleToolChains(this);
     if (!candidates.contains(m_toolChain))
         setToolChain(target()->preferredToolChain(this));
+    else
+        emit toolChainChanged();
 }
 
 
@@ -207,6 +211,7 @@ void BuildConfiguration::setToolChain(ProjectExplorer::ToolChain *tc)
         return;
     m_toolChain = tc;
     emit toolChainChanged();
+    emit environmentChanged();
 }
 
 Utils::Environment BuildConfiguration::baseEnvironment() const
@@ -272,6 +277,11 @@ void BuildConfiguration::cloneSteps(BuildConfiguration *source)
 bool BuildConfiguration::isEnabled() const
 {
     return true;
+}
+
+QString BuildConfiguration::disabledReason() const
+{
+    return QString();
 }
 
 bool BuildConfigMacroExpander::resolveMacro(const QString &name, QString *ret)

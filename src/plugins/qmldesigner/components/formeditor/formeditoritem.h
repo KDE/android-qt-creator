@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -106,6 +106,9 @@ public:
     void setContentVisible(bool visible);
     bool isContentVisible() const;
 
+    bool isFormEditorVisible() const;
+    void setFormEditorVisible(bool isVisible);
+
 protected:
     AbstractFormEditorTool* tool() const;
     void paintBoundingRect(QPainter *painter) const;
@@ -129,6 +132,7 @@ private: // variables
     double m_borderWidth;
     bool m_highlightBoundingRect;
     bool m_isContentVisible;
+    bool m_isFormEditorVisible;
 };
 
 

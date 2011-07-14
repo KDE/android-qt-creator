@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,8 @@ QT_END_NAMESPACE
 
 namespace QmlDesigner {
 
+class ComponentAction;
+
 class ComponentView : public AbstractView
 {
     Q_OBJECT
@@ -59,6 +61,8 @@ public:
     void modelAttached(Model *model);
     void modelAboutToBeDetached(Model *model);
 
+    ComponentAction *action();
+
     void nodeCreated(const ModelNode &createdNode);
     void nodeAboutToBeRemoved(const ModelNode &removedNode);
     void nodeRemoved(const ModelNode &removedNode, const NodeAbstractProperty &parentProperty, PropertyChangeFlags propertyChange);
@@ -73,10 +77,13 @@ public:
     void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void instancesCompleted(const QVector<ModelNode> &completedNodeList);
-    void instanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/);
     void instancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     void instancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector);
+
+    void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource);
 
     void rewriterBeginTransaction();
     void rewriterEndTransaction();
@@ -100,19 +107,22 @@ public:
 
     ModelNode modelNode(int index) const;
 
+    void setComponentNode(const ModelNode &node);
+
 signals:
     void componentListChanged(const QStringList &componentList);
 
 private: //functions
     void updateModel();
     void searchForComponentAndAddToList(const ModelNode &node);
-//    void searchForComponentAndRemoveFromList(const ModelNode &node);
+    void searchForComponentAndRemoveFromList(const ModelNode &node);
     void appendWholeDocumentAsComponent();
+    void removeSingleNodeFromList(const ModelNode &node);
+    int indexForNode(const ModelNode &node);
 
 private:
-    QStringList m_componentList;
     QStandardItemModel *m_standardItemModel;
-    bool m_listChanged;
+    ComponentAction *m_componentAction;
 };
 
 } // namespace QmlDesigner

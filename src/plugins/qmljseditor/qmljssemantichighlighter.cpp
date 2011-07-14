@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -132,15 +132,12 @@ SemanticInfo SemanticHighlighter::semanticInfo(const SemanticHighlighterSource &
     semanticInfo.snapshot = snapshot;
     semanticInfo.document = doc;
 
-    QmlJS::Interpreter::Context *ctx = new QmlJS::Interpreter::Context;
-    QmlJS::Link link(ctx, doc, snapshot, QmlJS::ModelManagerInterface::instance()->importPaths());
+    QmlJS::Interpreter::Context *ctx = new QmlJS::Interpreter::Context(snapshot);
+    QmlJS::Link link(ctx, snapshot, QmlJS::ModelManagerInterface::instance()->importPaths());
+    link(doc, &semanticInfo.semanticMessages);
     semanticInfo.m_context = QSharedPointer<const QmlJS::Interpreter::Context>(ctx);
-    semanticInfo.semanticMessages = link.diagnosticMessages();
 
-    QStringList importPaths;
-    if (m_modelManager)
-        importPaths = m_modelManager->importPaths();
-    QmlJS::Check checker(doc, snapshot, ctx);
+    QmlJS::Check checker(doc, ctx);
     semanticInfo.semanticMessages.append(checker());
 
     return semanticInfo;

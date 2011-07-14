@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -80,9 +80,12 @@ RewriterTransaction AbstractView::beginRewriterTransaction()
 ModelNode AbstractView::createModelNode(const QString &typeString,
                             int majorVersion,
                             int minorVersion,
-                            const QList<QPair<QString, QVariant> > &propertyList)
+                            const QList<QPair<QString, QVariant> > &propertyList,
+                            const QList<QPair<QString, QVariant> > &auxPropertyList,
+                            const QString &nodeSource,
+                            ModelNode::NodeSourceType nodeSourceType)
 {
-    return ModelNode(model()->m_d->createNode(typeString, majorVersion, minorVersion, propertyList), model(), this);
+    return ModelNode(model()->m_d->createNode(typeString, majorVersion, minorVersion, propertyList, auxPropertyList, nodeSource, nodeSourceType), model(), this);
 }
 
 
@@ -354,6 +357,16 @@ RewriterView *AbstractView::rewriterView() const
     }
 }
 
+void AbstractView::resetView()
+{
+    if (!model())
+        return;
+    Model *currentModel = model();
+
+    currentModel->detachView(this);
+    currentModel->attachView(this);
+}
+
 QList<ModelNode> AbstractView::allModelNodes()
 {
    return toModelNodeList(model()->m_d->allNodes());
@@ -386,10 +399,10 @@ void AbstractView::emitInstancesCompleted(const QVector<ModelNode> &nodeVector)
         model()->m_d->notifyInstancesCompleted(nodeVector);
 }
 
-void AbstractView::emitInstanceInformationsChange(const QVector<ModelNode> &nodeVector)
+void AbstractView::emitInstanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     if (model() && nodeInstanceView() == this)
-        model()->m_d->notifyInstancesInformationsChange(nodeVector);
+        model()->m_d->notifyInstancesInformationsChange(informationChangeHash);
 }
 
 void AbstractView::emitInstancesRenderImageChanged(const QVector<ModelNode> &nodeVector)
@@ -416,14 +429,27 @@ void AbstractView::emitRewriterBeginTransaction()
         model()->m_d->notifyRewriterBeginTransaction();
 }
 
+void AbstractView::sendTokenToInstances(const QString &token, int number, const QVector<ModelNode> &nodeVector)
+{
+    if (nodeInstanceView())
+        nodeInstanceView()->sendToken(token, number, nodeVector);
+}
+
+void AbstractView::emitInstanceToken(const QString &token, int number, const QVector<ModelNode> &nodeVector)
+{
+    if (nodeInstanceView())
+        model()->m_d->notifyInstanceToken(token, number, nodeVector);
+}
+
 void AbstractView::emitRewriterEndTransaction()
 {
     if (model())
         model()->m_d->notifyRewriterEndTransaction();
 }
 
-void AbstractView::emitActualStateChanged(const ModelNode &node)
+void AbstractView::setAcutalStateNode(const ModelNode &node)
 {
+    Internal::WriteLocker locker(m_model.data());
     if (model())
         model()->m_d->notifyActualStateChanged(node);
 }
@@ -433,6 +459,11 @@ void AbstractView::changeRootNodeType(const QString &type, int majorVersion, int
     Internal::WriteLocker locker(m_model.data());
 
     m_model.data()->m_d->changeRootNodeType(type, majorVersion, minorVersion);
+}
+
+ModelNode AbstractView::actualStateNode() const
+{
+    return ModelNode(m_model.data()->m_d->actualStateNode(), m_model.data(), const_cast<AbstractView*>(this));
 }
 
 } // namespace QmlDesigner

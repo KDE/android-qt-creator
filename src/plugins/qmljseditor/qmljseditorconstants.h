@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,13 +40,12 @@ namespace Constants {
 
 // menus
 const char * const M_CONTEXT = "QML JS Editor.ContextMenu";
-const char * const M_TOOLS_QML = "QmlJSEditor.Tools.Menu";
 
 const char * const SEPARATOR1 = "QmlJSEditor.Separator1";
 const char * const SEPARATOR2 = "QmlJSEditor.Separator2";
+const char * const SEPARATOR3 = "QmlJSEditor.Separator3";
 const char * const M_REFACTORING_MENU_INSERTION_POINT = "QmlJSEditor.RefactorGroup";
 
-const char * const RUN_SEP = "QmlJSEditor.Run.Separator";
 const char * const C_QMLJSEDITOR_ID = "QMLProjectManager.QMLJSEditor";
 const char * const C_QMLJSEDITOR_DISPLAY_NAME = QT_TRANSLATE_NOOP("OpenWith::Editors", "QMLJS Editor");
 const char * const TASK_SEARCH = "QmlJSEditor.TaskSearch";

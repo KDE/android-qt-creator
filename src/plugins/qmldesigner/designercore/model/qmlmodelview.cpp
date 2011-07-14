@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,9 +40,15 @@
 #include <QFileInfo>
 #include <QDebug>
 #include <QMessageBox>
+#include <QPlainTextEdit>
+#include <utils/fileutils.h>
 #include "nodeabstractproperty.h"
 #include "variantproperty.h"
 #include "rewritingexception.h"
+#include "rewriterview.h"
+#include "plaintexteditmodifier.h"
+#include "modelmerger.h"
+#include "modelnodecontextmenu.h"
 
 
 namespace QmlDesigner {
@@ -57,12 +63,12 @@ void QmlModelView::setCurrentState(const QmlModelState &state)
     if (!state.isValid())
         return;
 
-    emitActualStateChanged(state.modelNode());
+    setAcutalStateNode(state.modelNode());
 }
 
 QmlModelState QmlModelView::currentState() const
 {
-    return m_state;
+    return QmlModelState(actualStateNode());
 }
 
 QmlModelState QmlModelView::baseState() const
@@ -173,22 +179,26 @@ QmlItemNode QmlModelView::createQmlItemNode(const ItemLibraryEntry &itemLibraryE
     try {
         RewriterTransaction transaction = beginRewriterTransaction();
         if (itemLibraryEntry.typeName().contains('.')) {
-            const QString newImportUrl = itemLibraryEntry.typeName().split('.').first();
-            const QString newImportVersion = QString("%1.%2").arg(QString::number(itemLibraryEntry.majorVersion()), QString::number(itemLibraryEntry.minorVersion()));
-            Import newImport = Import::createLibraryImport(newImportUrl, newImportVersion);
 
-            foreach (const Import &import, model()->imports()) {
-                if (import.isLibraryImport()
-                    && import.url() == newImport.url()
-                    && import.version() == newImport.version()) {
-                    // reuse this import
-                    newImport = import;
-                    break;
+            const QString newImportUrl = itemLibraryEntry.requiredImport();
+
+            if (!itemLibraryEntry.requiredImport().isEmpty()) {
+                const QString newImportVersion = QString("%1.%2").arg(QString::number(itemLibraryEntry.majorVersion()), QString::number(itemLibraryEntry.minorVersion()));
+                Import newImport = Import::createLibraryImport(newImportUrl, newImportVersion);
+
+                foreach (const Import &import, model()->imports()) {
+                    if (import.isLibraryImport()
+                            && import.url() == newImport.url()
+                            && import.version() == newImport.version()) {
+                        // reuse this import
+                        newImport = import;
+                        break;
+                    }
                 }
-            }
 
-            if (!model()->imports().contains(newImport)) {
-                model()->changeImports(QList<Import>() << newImport, QList<Import>());
+                if (!model()->hasImport(newImport, true, true)) {
+                    model()->changeImports(QList<Import>() << newImport, QList<Import>());
+                }
             }
         }
 
@@ -196,10 +206,37 @@ QmlItemNode QmlModelView::createQmlItemNode(const ItemLibraryEntry &itemLibraryE
         propertyPairList.append(qMakePair(QString("x"), QVariant(round(position.x(), 4))));
         propertyPairList.append(qMakePair(QString("y"), QVariant(round(position.y(), 4))));
 
-        foreach (const PropertyContainer &property, itemLibraryEntry.properties())
-            propertyPairList.append(qMakePair(property.name(), property.value()));
+        if (itemLibraryEntry.qml().isEmpty()) {
+            foreach (const PropertyContainer &property, itemLibraryEntry.properties())
+                propertyPairList.append(qMakePair(property.name(), property.value()));
 
-        newNode = createQmlItemNode(itemLibraryEntry.typeName(), itemLibraryEntry.majorVersion(), itemLibraryEntry.minorVersion(), propertyPairList);
+            newNode = createQmlItemNode(itemLibraryEntry.typeName(), itemLibraryEntry.majorVersion(), itemLibraryEntry.minorVersion(), propertyPairList);
+        } else {
+            QScopedPointer<Model> inputModel(Model::create("QtQuick.Rectangle", 1, 0, model()));
+            inputModel->setFileUrl(model()->fileUrl());
+            QPlainTextEdit textEdit;
+
+
+            textEdit.setPlainText(Utils::FileReader::fetchQrc(itemLibraryEntry.qml()));
+            NotIndentingTextEditModifier modifier(&textEdit);
+
+            QScopedPointer<RewriterView> rewriterView(new RewriterView(RewriterView::Amend, 0));
+            rewriterView->setCheckSemanticErrors(false);
+            rewriterView->setTextModifier(&modifier);
+            inputModel->attachView(rewriterView.data());
+
+            if (rewriterView->errors().isEmpty() && rewriterView->rootModelNode().isValid()) {
+                ModelNode rootModelNode = rewriterView->rootModelNode();
+                inputModel->detachView(rewriterView.data());
+
+                rootModelNode.variantProperty("x") = propertyPairList.first().second;
+                rootModelNode.variantProperty("y") = propertyPairList.at(1).second;
+
+                ModelMerger merger(this);
+                newNode = merger.insertModel(rootModelNode);               
+            }
+        }
+
         if (parentNode.hasDefaultProperty()) {
             parentNode.nodeAbstractProperty(parentNode.defaultProperty()).reparentHere(newNode);
         }
@@ -297,14 +334,10 @@ bool QmlModelView::hasInstanceForModelNode(const ModelNode &modelNode)
 void QmlModelView::modelAttached(Model *model)
 {
     AbstractView::modelAttached(model);
-    m_state = QmlModelState();
-    m_state = baseState();
-    Q_ASSERT(m_state.isBaseState());
 }
 
 void QmlModelView::modelAboutToBeDetached(Model *model)
 {
-    m_state = QmlModelState();
     AbstractView::modelAboutToBeDetached(model);
 }
 
@@ -355,7 +388,7 @@ void QmlModelView::instancesCompleted(const QVector<ModelNode> &/*completedNodeL
 {
 }
 
-void QmlModelView::instanceInformationsChange(const QVector<ModelNode> &/*nodeList*/)
+void QmlModelView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/)
 {
 
 }
@@ -380,6 +413,23 @@ void QmlModelView::importsChanged(const QList<Import> &/*addedImports*/, const Q
 
 }
 
+void QmlModelView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
+{
+
+}
+
+void QmlModelView::nodeSourceChanged(const ModelNode &, const QString & /*newNodeSource*/)
+{
+
+}
+
+void QmlModelView::showContextMenu(const QPoint &globalPos, const QPoint &scenePos, bool showSelection)
+{
+    ModelNodeContextMenu contextMenu(this);
+    contextMenu.setScenePos(scenePos);
+    contextMenu.execute(globalPos, showSelection);
+}
+
 void QmlModelView::rewriterBeginTransaction()
 {
 
@@ -397,10 +447,6 @@ void QmlModelView::actualStateChanged(const ModelNode &node)
 
     if (!newState.isValid())
         newState = baseState();
-
-    activateState(newState);
-
-    m_state = newState;
 
     if (newState != oldState)
         stateChanged(newState, oldState);
@@ -420,28 +466,6 @@ void QmlModelView::nodeInstancePropertyChanged(const ModelNode &node, const QStr
         parentChanged(qmlObjectNode);
     else
         otherPropertyChanged(qmlObjectNode, propertyName);
-}
-
-void QmlModelView::activateState(const QmlModelState &state)
-{
-    if (!state.isValid())
-        return;
-
-    if (m_state == state)
-        return;    
-
-    m_state = state; //This is hacky. m_state should be controlled by the instances
-                     //### todo: If the state thumbnail code gets refactored.
-                     //          this is not necessary anymore.
-
-
-    NodeInstance newStateInstance = instanceForModelNode(state.modelNode());
-
-    if (state.isBaseState()) {
-        nodeInstanceView()->activateBaseState();
-    } else {
-        nodeInstanceView()->activateState(newStateInstance);
-    }
 }
 
 void QmlModelView::transformChanged(const QmlObjectNode &/*qmlObjectNode*/, const QString &/*propertyName*/)

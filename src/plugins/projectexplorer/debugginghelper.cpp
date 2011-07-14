@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,10 +51,9 @@ using namespace ProjectExplorer;
 static inline QStringList validBinaryFilenames()
 {
     return QStringList()
-            << QLatin1String("debug/gdbmacros.dll")
-            << QLatin1String("release/gdbmacros.dll")
-            << QLatin1String("libgdbmacros.dylib")
-            << QLatin1String("libgdbmacros.so");
+            << QLatin1String("debug/dumper.dll")
+            << QLatin1String("libdumper.dylib")
+            << QLatin1String("libdumper.so");
 }
 
 QStringList DebuggingHelperLibrary::debuggingHelperLibraryDirectories(const QString &qtInstallData)
@@ -83,14 +82,14 @@ QStringList DebuggingHelperLibrary::locationsByInstallData(const QString &qtInst
 
 static QString sourcePath()
 {
-    return Core::ICore::instance()->resourcePath() + QLatin1String("/gdbmacros/");
+    return Core::ICore::instance()->resourcePath() + QLatin1String("/dumper/");
 }
 
 static QStringList sourceFileNames()
 {
     return QStringList()
-            << QLatin1String("gdbmacros.cpp") << QLatin1String("gdbmacros_p.h")
-            << QLatin1String("gdbmacros.h") << QLatin1String("gdbmacros.pro")
+            << QLatin1String("dumper.cpp") << QLatin1String("dumper_p.h")
+            << QLatin1String("dumper.h") << QLatin1String("dumper.pro")
             << QLatin1String("LICENSE.LGPL") << QLatin1String("LGPL_EXCEPTION.TXT");
 }
 
@@ -126,13 +125,10 @@ QString DebuggingHelperLibrary::copy(const QString &qtInstallData,
     return QString();
 }
 
-bool DebuggingHelperLibrary::build(const QString &directory, const QString &makeCommand,
-                                      const QString &qmakeCommand, const QString &mkspec,
-                                      const Utils::Environment &env, const QString &targetMode,
-                                      const QStringList &qmakeArguments, QString *output,
-                                      QString *errorMessage)
+bool DebuggingHelperLibrary::build(BuildHelperArguments arguments, QString *log, QString *errorMessage)
 {
-    return buildHelper(QCoreApplication::translate("ProjectExplorer::DebuggingHelperLibrary",
-                                                   "GDB helper"), QLatin1String("gdbmacros.pro"), directory,
-                       makeCommand, qmakeCommand, mkspec, env, targetMode, qmakeArguments, output, errorMessage);
+    arguments.proFilename = QLatin1String("dumper.pro");
+    arguments.helperName = QCoreApplication::translate("ProjectExplorer::DebuggingHelperLibrary",
+                                                       "GDB helper");
+    return buildHelper(arguments, log, errorMessage);
 }

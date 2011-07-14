@@ -2,15 +2,17 @@ TEMPLATE = lib
 TARGET = ProjectExplorer
 QT += xml \
     script \
-    network
+    network \
+    declarative
 include(../../qtcreatorplugin.pri)
 include(projectexplorer_dependencies.pri)
-include(../../shared/scriptwrapper/scriptwrapper.pri)
 include(../../libs/utils/utils.pri)
 include(customwizard/customwizard.pri)
 INCLUDEPATH += $$PWD/../../libs/utils
 HEADERS += projectexplorer.h \
     abi.h \
+    abiwidget.h \
+    clangparser.h \
     gcctoolchain.h \
     projectexplorer_export.h \
     projectwindow.h \
@@ -29,7 +31,6 @@ HEADERS += projectexplorer.h \
     showoutputtaskhandler.h \
     vcsannotatetaskhandler.h \
     taskwindow.h \
-    outputwindow.h \
     persistentsettings.h \
     projectfilewizardextension.h \
     session.h \
@@ -45,7 +46,6 @@ HEADERS += projectexplorer.h \
     pluginfilefactory.h \
     iprojectmanager.h \
     currentprojectfilter.h \
-    scriptwrappers.h \
     allprojectsfind.h \
     buildstep.h \
     buildconfiguration.h \
@@ -78,11 +78,9 @@ HEADERS += projectexplorer.h \
     userfileaccessor.h \
     cesdkhandler.h \
     gccparser.h \
-    filewatcher.h \
     debugginghelper.h \
     projectexplorersettingspage.h \
     projectwelcomepage.h \
-    projectwelcomepagewidget.h \
     baseprojectwizarddialog.h \
     miniprojecttargetselector.h \
     targetselector.h \
@@ -91,8 +89,6 @@ HEADERS += projectexplorer.h \
     buildenvironmentwidget.h \
     ldparser.h \
     linuxiccparser.h \
-    outputformat.h \
-    outputformatter.h \
     runconfigurationmodel.h \
     buildconfigurationmodel.h \
     processparameters.h \
@@ -105,10 +101,14 @@ HEADERS += projectexplorer.h \
     publishing/publishingwizardselectiondialog.h \
     publishing/ipublishingwizardfactory.h \
     headerpath.h \
-    gcctoolchainfactories.h
+    gcctoolchainfactories.h \
+    appoutputpane.h \
+    codestylesettingspropertiespage.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
+    abiwidget.cpp \
+    clangparser.cpp \
     gcctoolchain.cpp \
     projectwindow.cpp \
     buildmanager.cpp \
@@ -128,14 +128,12 @@ SOURCES += projectexplorer.cpp \
     showoutputtaskhandler.cpp \
     vcsannotatetaskhandler.cpp \
     taskwindow.cpp \
-    outputwindow.cpp \
     persistentsettings.cpp \
     projectfilewizardextension.cpp \
     session.cpp \
     dependenciespanel.cpp \
     allprojectsfilter.cpp \
     currentprojectfilter.cpp \
-    scriptwrappers.cpp \
     allprojectsfind.cpp \
     project.cpp \
     pluginfilefactory.cpp \
@@ -148,6 +146,7 @@ SOURCES += projectexplorer.cpp \
     editorconfiguration.cpp \
     editorsettingspropertiespage.cpp \
     runconfiguration.cpp \
+    applicationlauncher.cpp \
     applicationrunconfiguration.cpp \
     runsettingspropertiespage.cpp \
     projecttreewidget.cpp \
@@ -169,11 +168,9 @@ SOURCES += projectexplorer.cpp \
     cesdkhandler.cpp \
     userfileaccessor.cpp \
     gccparser.cpp \
-    filewatcher.cpp \
     debugginghelper.cpp \
     projectexplorersettingspage.cpp \
     projectwelcomepage.cpp \
-    projectwelcomepagewidget.cpp \
     corelistenercheckingforrunningbuild.cpp \
     baseprojectwizarddialog.cpp \
     miniprojecttargetselector.cpp \
@@ -183,7 +180,6 @@ SOURCES += projectexplorer.cpp \
     buildenvironmentwidget.cpp \
     ldparser.cpp \
     linuxiccparser.cpp \
-    outputformatter.cpp \
     runconfigurationmodel.cpp \
     buildconfigurationmodel.cpp \
     taskhub.cpp \
@@ -191,7 +187,9 @@ SOURCES += projectexplorer.cpp \
     localapplicationruncontrol.cpp \
     customexecutableconfigurationwidget.cpp \
     sessionnodeimpl.cpp \
-    publishing/publishingwizardselectiondialog.cpp
+    publishing/publishingwizardselectiondialog.cpp \
+    appoutputpane.cpp \
+    codestylesettingspropertiespage.cpp
 
 FORMS += processstep.ui \
     toolchainoptionspage.ui \
@@ -201,10 +199,10 @@ FORMS += processstep.ui \
     projectwizardpage.ui \
     removefiledialog.ui \
     projectexplorersettingspage.ui \
-    projectwelcomepagewidget.ui \
     targetsettingswidget.ui \
     doubletabwidget.ui \
-    publishing/publishingwizardselectiondialog.ui
+    publishing/publishingwizardselectiondialog.ui \
+    codestylesettingspropertiespage.ui
 
 equals(TEST, 1) {
     SOURCES += \
@@ -214,15 +212,15 @@ equals(TEST, 1) {
 }
 
 win32 {
-    SOURCES += applicationlauncher_win.cpp \
-        winguiprocess.cpp \
+    SOURCES += \
+        windebuginterface.cpp \
         msvcparser.cpp \
         msvctoolchain.cpp
-    HEADERS += winguiprocess.h \
+    HEADERS += \
+        windebuginterface.h \
         msvcparser.h \
         msvctoolchain.h
 } else {
-    SOURCES += applicationlauncher_x11.cpp
     macx:LIBS += -framework Carbon
 }
 RESOURCES += projectexplorer.qrc

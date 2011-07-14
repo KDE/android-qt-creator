@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,7 +50,6 @@
 #include <cmath>
 
 #include <invalidmodelnodeexception.h>
-#include <invalidnodestateexception.h>
 
 namespace QmlDesigner {
 
@@ -66,7 +65,8 @@ FormEditorItem::FormEditorItem(const QmlItemNode &qmlItemNode, FormEditorScene* 
     m_qmlItemNode(qmlItemNode),
     m_borderWidth(1.0),
     m_highlightBoundingRect(false),
-    m_isContentVisible(true)
+    m_isContentVisible(true),
+    m_isFormEditorVisible(true)
 {
     setCacheMode(QGraphicsItem::DeviceCoordinateCache);
     setup();
@@ -100,7 +100,7 @@ QRectF FormEditorItem::boundingRect() const
 void FormEditorItem::updateGeometry()
 {
     prepareGeometryChange();
-    m_boundingRect = qmlItemNode().instanceBoundingRect().adjusted(0, 0, 1., 1.);
+    m_boundingRect = qmlItemNode().instancePaintedBoundingRect().adjusted(0, 0, 1., 1.);
     setTransform(qmlItemNode().instanceTransform());
     setTransform(m_attentionTransform, true);
     //the property for zValue is called z in QGraphicsObject
@@ -196,6 +196,17 @@ bool FormEditorItem::isContentVisible() const
     return m_isContentVisible;
 }
 
+
+bool FormEditorItem::isFormEditorVisible() const
+{
+    return m_isFormEditorVisible;
+}
+void FormEditorItem::setFormEditorVisible(bool isVisible)
+{
+    m_isFormEditorVisible = isVisible;
+    setVisible(isVisible);
+}
+
 FormEditorItem::~FormEditorItem()
 {
    scene()->removeItemFromHash(this);
@@ -236,27 +247,24 @@ void FormEditorItem::paintBoundingRect(QPainter *painter) const
         case FormEditorScene::AnchorMode: {
                 pen.setColor(Qt::black);
                 pen.setWidth(m_borderWidth);
-            }
-            break;
+        }
+        break;
         case FormEditorScene::NormalMode: {
-                QColor frameColor("#AAAAAA");
+            QColor frameColor("#AAAAAA");
 
-                if (qmlItemNode().anchors().instanceHasAnchors())
-                        frameColor = QColor("#ffff00");
-
-                if (scene()->showBoundingRects()) {
-                    if (m_highlightBoundingRect)
-                        pen.setColor(frameColor);
-                    else
-                        pen.setColor(frameColor.darker(150));
-                } else {
-                    if (m_highlightBoundingRect)
-                        pen.setColor(frameColor);
-                    else
-                        pen.setColor(Qt::transparent);
-                }
+            if (scene()->showBoundingRects()) {
+                if (m_highlightBoundingRect)
+                    pen.setColor(frameColor);
+                else
+                    pen.setColor(frameColor.darker(150));
+            } else {
+                if (m_highlightBoundingRect)
+                    pen.setColor(frameColor);
+                else
+                    pen.setColor(Qt::transparent);
             }
-            break;
+        }
+        break;
     }
 
     painter->setPen(pen);

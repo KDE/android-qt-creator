@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -81,12 +81,16 @@ QTCREATOR_UTILS_EXPORT Utils::ReloadPromptAnswer
 }
 
 QTCREATOR_UTILS_EXPORT Utils::FileDeletedPromptAnswer
-        Utils::fileDeletedPrompt(const QString &fileName, QWidget *parent)
+        Utils::fileDeletedPrompt(const QString &fileName, bool triggerExternally, QWidget *parent)
 {
     const QString title = QCoreApplication::translate("Utils::fileDeletedPrompt", "File has been removed");
     QString msg;
-     msg = QCoreApplication::translate("Utils::fileDeletedPrompt",
-                                      "The file %1 has been removed outside Qt Creator. Do you want to save it under a different name, or close the editor?").arg(QDir::toNativeSeparators(fileName));
+    if (triggerExternally)
+        msg = QCoreApplication::translate("Utils::fileDeletedPrompt",
+                                          "The file %1 has been removed outside Qt Creator. Do you want to save it under a different name, or close the editor?").arg(QDir::toNativeSeparators(fileName));
+    else
+        msg = QCoreApplication::translate("Utils::fileDeletedPrompt",
+                                          "The file %1 was removed. Do you want to save it under a different name, or close the editor?").arg(QDir::toNativeSeparators(fileName));
     QMessageBox box(QMessageBox::Question, title, msg, QMessageBox::NoButton, parent);
     QPushButton *close = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "Close"), QMessageBox::RejectRole);
     QPushButton *saveas = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "Save as..."), QMessageBox::ActionRole);

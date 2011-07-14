@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -72,6 +72,7 @@ public:
 
     QString executable() const;
     RunMode runMode() const;
+    void setRunMode(RunMode runMode);
     QString workingDirectory() const;
     QString commandLineArguments() const;
     Utils::Environment environment() const;
@@ -89,8 +90,8 @@ public:
 
     void setEnabled(bool b);
 
-    bool isEnabled(ProjectExplorer::BuildConfiguration *bc) const;
-    using LocalApplicationRunConfiguration::isEnabled;
+    bool isEnabled() const;
+    QString disabledReason() const;
 
 signals:
     void baseEnvironmentChanged();
@@ -145,11 +146,11 @@ private slots:
     void userChangesChanged();
     void setWorkingDirectory();
     void resetWorkingDirectory();
+    void runInTerminalToggled(bool toggled);
     void useCppDebuggerToggled(bool toggled);
     void useQmlDebuggerToggled(bool toggled);
     void qmlDebugServerPortChanged(uint port);
 
-private slots:
     void baseEnvironmentComboBoxChanged(int index);
     void workingDirectoryChanged(const QString &workingDirectory);
 

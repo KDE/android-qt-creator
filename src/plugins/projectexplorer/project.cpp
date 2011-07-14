@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,9 +41,30 @@
 #include "userfileaccessor.h"
 
 #include <coreplugin/ifile.h>
+#include <coreplugin/icontext.h>
 #include <extensionsystem/pluginmanager.h>
 #include <limits>
 #include <utils/qtcassert.h>
+
+/*!
+    \class ProjectExplorer::Project
+
+    \brief A project.
+*/
+
+/*!
+   \fn void ProjectExplorer::Project::environmentChanged()
+
+   \brief Convenience signal emitted if the activeBuildConfiguration emits environmentChanged
+   or if the activeBuildConfiguration changes (including due to the active target changing).
+*/
+
+/*!
+   \fn void ProjectExplorer::Project::buildConfigurationEnabledChanged()
+
+   \brief Convenience signal emitted if the activeBuildConfiguration emits isEnabledChanged()
+   or if the activeBuildConfiguration changes (including due to the active target changing).
+*/
 
 namespace {
 const char * const ACTIVE_TARGET_KEY("ProjectExplorer.Project.ActiveTarget");
@@ -59,12 +80,15 @@ namespace ProjectExplorer {
 // Project
 // -------------------------------------------------------------------------
 
-class ProjectPrivate {
+class ProjectPrivate
+{
 public:
     ProjectPrivate();
     QList<Target *> m_targets;
     Target *m_activeTarget;
     EditorConfiguration *m_editorConfiguration;
+    Core::Context m_projectContext;
+    Core::Context m_projectLanguage;
 };
 
 ProjectPrivate::ProjectPrivate() :
@@ -207,6 +231,17 @@ QList<BuildConfigWidget*> Project::subConfigWidgets()
     return QList<BuildConfigWidget*>();
 }
 
+/*!
+    \brief Serialize all data into a QVariantMap.
+
+    This map is then saved in the .user file of the project.
+    Just put all your data into the map.
+
+    \note Do not forget to call your base class' toMap method.
+    \note Do not forget to call setActiveBuildConfiguration when
+          creating new BuilConfigurations.
+*/
+
 QVariantMap Project::toMap() const
 {
     const QList<Target *> ts = targets();
@@ -298,6 +333,26 @@ EditorConfiguration *Project::editorConfiguration() const
 QString Project::generatedUiHeader(const QString & /* formFile */) const
 {
     return QString();
+}
+
+void Project::setProjectContext(Core::Context context)
+{
+    d->m_projectContext = context;
+}
+
+void Project::setProjectLanguage(Core::Context language)
+{
+    d->m_projectLanguage = language;
+}
+
+Core::Context Project::projectContext() const
+{
+    return d->m_projectContext;
+}
+
+Core::Context Project::projectLanguage() const
+{
+    return d->m_projectLanguage;
 }
 
 } // namespace ProjectExplorer

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,12 @@
 #include "formeditorw.h"
 
 #include <QtDesigner/QDesignerFormEditorInterface>
-#include "qt_private/qdesigner_integration_p.h"
+
+#if QT_VERSION >= 0x050000
+#    include <QtDesigner/QDesignerIntegration>
+#else
+#    include "qt_private/qdesigner_integration_p.h"
+#endif
 
 #include <QtGui/QWidget>
 #include <QtCore/QDebug>
@@ -46,37 +51,28 @@ enum { debug = 0 };
 namespace Designer {
 namespace Internal {
 
-DesignerContext::DesignerContext(const Core::Context &contexts,
-                                 QWidget *widget,
-                                 QObject *parent) :
-    Core::IContext(parent),
-    m_context(contexts),
-    m_widget(widget)
+DesignerContext::DesignerContext(const Core::Context &context,
+                                 QWidget *widget, QObject *parent)
+  : Core::IContext(parent)
 {
-}
-
-Core::Context DesignerContext::context() const
-{
-    return m_context;
-}
-
-QWidget *DesignerContext::widget()
-{
-    return m_widget;
+    setContext(context);
+    setWidget(widget);
 }
 
 QString DesignerContext::contextHelpId() const
 {
-    QString helpId;
     const QDesignerFormEditorInterface *core = FormEditorW::instance()->designerEditor();
-    // Present from Qt 4.5.1 onwards. This will show the class documentation
+#if QT_VERSION >= 0x050000
+    return core->integration()->contextHelpId();
+#else
+    QString helpId;
+     // Present from Qt 4.5.1 onwards. This will show the class documentation
     // scrolled to the current property.
     if (const qdesigner_internal::QDesignerIntegration *integration =
             qobject_cast<const qdesigner_internal::QDesignerIntegration*>(core->integration()))
         helpId = integration->contextHelpId();
-    if (debug)
-        qDebug() << "DesignerContext::contextHelpId" << m_widget << helpId;
     return helpId;
+#endif
 }
 
 } // namespace Internal

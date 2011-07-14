@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -95,7 +95,7 @@ void simplify(std::string &s)
 void replace(std::wstring &s, wchar_t before, wchar_t after)
 {
     const std::wstring::size_type size = s.size();
-    for (std::wstring::size_type i = 0; i < size; i++)
+    for (std::wstring::size_type i = 0; i < size; ++i)
         if (s.at(i) == before)
             s[i] = after;
 }
@@ -146,14 +146,14 @@ static inline void formatGdbmiChar(std::ostream &str, wchar_t c)
 void gdbmiStringFormat::format(std::ostream &str) const
 {
     const std::string::size_type size = m_s.size();
-    for (std::string::size_type i = 0; i < size; i++)
+    for (std::string::size_type i = 0; i < size; ++i)
         formatGdbmiChar(str, wchar_t(m_s.at(i)));
 }
 
 void gdbmiWStringFormat::format(std::ostream &str) const
 {
     const std::wstring::size_type size = m_w.size();
-    for (std::wstring::size_type i = 0; i < size; i++)
+    for (std::wstring::size_type i = 0; i < size; ++i)
         formatGdbmiChar(str, m_w.at(i));
 }
 
@@ -171,7 +171,7 @@ std::string wStringToString(const std::wstring &w)
     const std::string::size_type size = w.size();
     std::string rc;
     rc.reserve(size);
-    for (std::string::size_type i = 0; i < size; i++)
+    for (std::string::size_type i = 0; i < size; ++i)
         rc.push_back(char(w.at(i)));
     return rc;
 }
@@ -183,7 +183,7 @@ std::wstring stringToWString(const std::string &w)
     const std::wstring::size_type size = w.size();
     std::wstring rc;
     rc.reserve(size);
-    for (std::wstring::size_type i = 0; i < size; i++)
+    for (std::wstring::size_type i = 0; i < size; ++i)
         rc.push_back(w.at(i));
     return rc;
 }
@@ -220,6 +220,15 @@ std::string stringFromHex(const char *p, const char *end)
         rc.push_back(char(c));
     }
     return rc;
+}
+
+void decodeHex(const char *p, const char *end, unsigned char *target)
+{
+    for ( ; p < end; p++) {
+        unsigned c = 16 * hexDigit(*p);
+        c += hexDigit(*++p);
+        *target++ = c;
+    }
 }
 
 std::wstring dataToHexW(const unsigned char *p, const unsigned char *end)

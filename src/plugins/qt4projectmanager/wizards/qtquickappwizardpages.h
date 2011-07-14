@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,21 +39,27 @@
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class QtQuickAppWizardSourcesPage : public QWizardPage
+class QtQuickComponentSetOptionsPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(QtQuickAppWizardSourcesPage)
+    Q_DISABLE_COPY(QtQuickComponentSetOptionsPage)
 
 public:
-    explicit QtQuickAppWizardSourcesPage(QWidget *parent = 0);
-    virtual ~QtQuickAppWizardSourcesPage();
+    explicit QtQuickComponentSetOptionsPage(QWidget *parent = 0);
+    virtual ~QtQuickComponentSetOptionsPage();
 
     QtQuickApp::Mode mainQmlMode() const;
     QString mainQmlFile() const;
     virtual bool isComplete() const;
 
+    QtQuickApp::ComponentSet componentSet() const;
+    void setComponentSet(QtQuickApp::ComponentSet componentSet);
+
+private slots:
+    void radioButtonChecked(int index);
+
 private:
-    class QtQuickAppWizardSourcesPagePrivate *m_d;
+    class QtQuickComponentSetOptionsPagePrivate *m_d;
 };
 
 } // namespace Internal

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,7 @@
 
 #include "symbianutils_global.h"
 
-namespace trk {
+namespace Coda {
 namespace Internal {
 
 /* Helper class for the 1-argument functor:
@@ -146,6 +146,6 @@ private:
     Internal::CallbackImplBase<Argument> *m_impl;
 };
 
-} // namespace trk
+} // namespace Coda
 
 #endif // DEBUGGER_CALLBACK_H

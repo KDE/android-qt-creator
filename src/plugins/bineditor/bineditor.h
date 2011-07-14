@@ -26,12 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef BINEDITOR_H
 #define BINEDITOR_H
+
+#include "markup.h"
 
 #include <QtCore/QBasicTimer>
 #include <QtCore/QMap>
@@ -44,6 +46,7 @@
 #include <QtGui/QTextFormat>
 
 QT_FORWARD_DECLARE_CLASS(QMenu)
+QT_FORWARD_DECLARE_CLASS(QHelpEvent)
 
 namespace Core {
 class IEditor;
@@ -60,7 +63,8 @@ class BinEditor : public QAbstractScrollArea
     Q_OBJECT
     Q_PROPERTY(bool modified READ isModified WRITE setModified DESIGNABLE false)
     Q_PROPERTY(bool readOnly READ isReadOnly WRITE setReadOnly DESIGNABLE false)
-
+    Q_PROPERTY(QList<BINEditor::Markup> markup READ markup WRITE setMarkup DESIGNABLE false)
+    Q_PROPERTY(bool newWindowRequestAllowed READ newWindowRequestAllowed WRITE setNewWindowRequestAllowed DESIGNABLE false)
 public:
     BinEditor(QWidget *parent = 0);
     ~BinEditor();
@@ -70,9 +74,11 @@ public:
     Q_INVOKABLE void setSizes(quint64 startAddr, int range, int blockSize = 4096);
     int dataBlockSize() const { return m_blockSize; }
     Q_INVOKABLE void addData(quint64 block, const QByteArray &data);
-    Q_INVOKABLE void setNewWindowRequestAllowed();
+
+    bool newWindowRequestAllowed() const { return m_canRequestNewWindow; }
+
     Q_INVOKABLE void updateContents();
-    bool save(const QString &oldFileName, const QString &newFileName);
+    bool save(QString *errorString, const QString &oldFileName, const QString &newFileName);
 
     void zoomIn(int range = 1);
     void zoomOut(int range = 1);
@@ -119,11 +125,15 @@ public:
 
     static const int SearchStride = 1024 * 1024;
 
+    QList<Markup> markup() const { return m_markup; }
+
 public Q_SLOTS:
     void setFontSettings(const TextEditor::FontSettings &fs);
     void highlightSearchResults(const QByteArray &pattern,
         QTextDocument::FindFlags findFlags = 0);
     void copy(bool raw = false);
+    void setMarkup(const QList<Markup> &markup);
+    void setNewWindowRequestAllowed(bool c);
 
 Q_SIGNALS:
     void modificationChanged(bool modified);
@@ -176,10 +186,14 @@ private:
     QByteArray dataMid(int from, int length, bool old = false) const;
     QByteArray blockData(int block, bool old = false) const;
 
-    QPoint offsetToPos(int offset);
-    void asIntegers(int offset, int count, quint64 &beValue, quint64 &leValue,
-        bool old = false);
+    QPoint offsetToPos(int offset) const;
+    void asIntegers(int offset, int count, quint64 &bigEndianValue, quint64 &littleEndianValue,
+        bool old = false) const;
+    void asFloat(int offset, float &value, bool old) const;
+    void asDouble(int offset, double &value, bool old) const;
+    QString toolTip(const QHelpEvent *helpEvent) const;
 
+    int m_bytesPerLine;
     int m_unmodifiedState;
     int m_readOnly;
     int m_margin;
@@ -239,6 +253,7 @@ private:
     QString m_addressString;
     int m_addressBytes;
     bool m_canRequestNewWindow;
+    QList<Markup> m_markup;
 };
 
 } // namespace BINEditor

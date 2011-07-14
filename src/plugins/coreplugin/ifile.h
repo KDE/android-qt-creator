@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 namespace Core {
 
 class MimeType;
+class InfoBar;
 
 class CORE_EXPORT IFile : public QObject
 {
@@ -80,31 +81,47 @@ public:
         FlagIgnore
     };
 
-    IFile(QObject *parent = 0) : QObject(parent) {}
-    virtual ~IFile() {}
+    IFile(QObject *parent = 0);
+    virtual ~IFile();
 
-    virtual bool save(const QString &fileName = QString()) = 0;
+    virtual bool save(QString *errorString, const QString &fileName = QString(), bool autoSave = false) = 0;
     virtual QString fileName() const = 0;
 
     virtual QString defaultPath() const = 0;
     virtual QString suggestedFileName() const = 0;
     virtual QString mimeType() const = 0;
 
+    virtual bool shouldAutoSave() const;
     virtual bool isModified() const = 0;
     virtual bool isReadOnly() const = 0;
     virtual bool isSaveAsAllowed() const = 0;
 
-    virtual ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const = 0;
-    virtual void reload(ReloadFlag flag, ChangeType type) = 0;
+    virtual ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
+    virtual bool reload(QString *errorString, ReloadFlag flag, ChangeType type) = 0;
     virtual void rename(const QString &newName) = 0;
 
-    virtual void checkPermissions() {}
+    virtual void checkPermissions();
+
+    bool autoSave(QString *errorString, const QString &fileName);
+    void setRestoredFrom(const QString &name);
+    void removeAutoSaveFile();
+
+    bool hasWriteWarning() const { return m_hasWriteWarning; }
+    void setWriteWarning(bool has) { m_hasWriteWarning = has; }
+
+    InfoBar *infoBar();
 
 signals:
     void changed();
 
     void aboutToReload();
     void reloaded();
+
+private:
+    QString m_autoSaveName;
+    InfoBar *m_infoBar;
+    bool m_hasWriteWarning;
+    bool m_restored;
 };
 
 } // namespace Core

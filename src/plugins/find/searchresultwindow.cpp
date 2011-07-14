@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,7 @@
 
 #include <aggregation/aggregate.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/infobar.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
@@ -53,7 +54,7 @@
 #include <QtGui/QListWidget>
 #include <QtGui/QToolButton>
 #include <QtGui/QLineEdit>
-#include <QtGui/QStackedWidget>
+#include <QtGui/QVBoxLayout>
 #include <QtGui/QLabel>
 #include <QtGui/QFont>
 #include <QtGui/QAction>
@@ -227,11 +228,14 @@ namespace Internal {
         QLineEdit *m_replaceTextEdit;
         QToolButton *m_replaceButton;
         static const bool m_initiallyExpand = false;
-        QStackedWidget *m_widget;
+        QWidget *m_widget;
         SearchResult *m_currentSearch;
         int m_itemCount;
         bool m_isShowingReplaceUI;
         bool m_focusReplaceEdit;
+        QString m_dontAskAgainGroup;
+        Core::InfoBar m_infoBar;
+        Core::InfoBarDisplay m_infoBarDisplay;
     };
 
     SearchResultWindowPrivate::SearchResultWindowPrivate()
@@ -327,13 +331,12 @@ SearchResultWindow *SearchResultWindow::m_instance = 0;
 SearchResultWindow::SearchResultWindow() : d(new SearchResultWindowPrivate)
 {
     m_instance = this;
-    d->m_widget = new QStackedWidget;
+    d->m_widget = new QWidget;
     d->m_widget->setWindowTitle(displayName());
 
     d->m_searchResultTreeView = new Internal::SearchResultTreeView(d->m_widget);
     d->m_searchResultTreeView->setFrameStyle(QFrame::NoFrame);
     d->m_searchResultTreeView->setAttribute(Qt::WA_MacShowFocusRect, false);
-    d->m_widget->addWidget(d->m_searchResultTreeView);
     Aggregation::Aggregate * agg = new Aggregation::Aggregate;
     agg->add(d->m_searchResultTreeView);
     agg->add(new SearchResultFindSupport(d->m_searchResultTreeView));
@@ -341,7 +344,17 @@ SearchResultWindow::SearchResultWindow() : d(new SearchResultWindowPrivate)
     d->m_noMatchesFoundDisplay = new QListWidget(d->m_widget);
     d->m_noMatchesFoundDisplay->addItem(tr("No matches found!"));
     d->m_noMatchesFoundDisplay->setFrameStyle(QFrame::NoFrame);
-    d->m_widget->addWidget(d->m_noMatchesFoundDisplay);
+    d->m_noMatchesFoundDisplay->hide();
+
+    QVBoxLayout *vlay = new QVBoxLayout;
+    d->m_widget->setLayout(vlay);
+    vlay->setMargin(0);
+    vlay->setSpacing(0);
+    vlay->addWidget(d->m_noMatchesFoundDisplay);
+    vlay->addWidget(d->m_searchResultTreeView);
+
+    d->m_infoBarDisplay.setTarget(vlay, 0);
+    d->m_infoBarDisplay.setInfoBar(&d->m_infoBar);
 
     d->m_expandCollapseButton = new QToolButton(d->m_widget);
     d->m_expandCollapseButton->setAutoRaise(true);
@@ -440,8 +453,10 @@ void SearchResultWindow::handleReplaceButton()
     QTC_ASSERT(d->m_currentSearch, return);
     // check if button is actually enabled, because this is also triggered
     // by pressing return in replace line edit
-    if (d->m_replaceButton->isEnabled())
+    if (d->m_replaceButton->isEnabled()) {
+        d->m_infoBar.clear();
         d->m_currentSearch->replaceButtonClicked(d->m_replaceTextEdit->text(), checkedItems());
+    }
 }
 
 /*!
@@ -494,19 +509,22 @@ QList<QWidget*> SearchResultWindow::toolBarWidgets() const
 }
 
 /*!
-    \fn SearchResult *SearchResultWindow::startNewSearch(SearchMode searchOrSearchAndReplace)
     \brief Tells the search results window to start a new search.
 
     This will clear the contents of the previous search and initialize the UI
     with regard to showing the replace UI or not (depending on the search mode
     in \a searchOrSearchAndReplace).
+    If \a cfgGroup is not empty, it will be used for storing the "do not ask again"
+    setting of a "this change cannot be undone" warning (which is implicitly requested
+    by passing a non-empty group).
     Returns a SearchResult object that is used for signaling user interaction
     with the results of this search.
 */
-SearchResult *SearchResultWindow::startNewSearch(SearchMode searchOrSearchAndReplace)
+SearchResult *SearchResultWindow::startNewSearch(SearchMode searchOrSearchAndReplace, const QString &cfgGroup)
 {
     clearContents();
     setShowReplaceUI(searchOrSearchAndReplace != SearchOnly);
+    d->m_dontAskAgainGroup = cfgGroup;
     delete d->m_currentSearch;
     d->m_currentSearch = new SearchResult;
     return d->m_currentSearch;
@@ -537,7 +555,8 @@ void SearchResultWindow::clearContents()
     d->m_replaceTextEdit->clear();
     d->m_searchResultTreeView->clear();
     d->m_itemCount = 0;
-    d->m_widget->setCurrentWidget(d->m_searchResultTreeView);
+    d->m_noMatchesFoundDisplay->hide();
+    d->m_infoBar.clear();
     navigateStateChanged();
 }
 
@@ -549,7 +568,7 @@ void SearchResultWindow::showNoMatchesFound()
 {
     d->m_replaceTextEdit->setEnabled(false);
     d->m_replaceButton->setEnabled(false);
-    d->m_widget->setCurrentWidget(d->m_noMatchesFoundDisplay);
+    d->m_noMatchesFoundDisplay->show();
 }
 
 /*!
@@ -621,7 +640,7 @@ void SearchResultWindow::setTextEditorFont(const QFont &font)
 }
 
 /*!
-    \fn void SearchResultWindow::handleJumpToSearchResult(int index, bool)
+    \fn void SearchResultWindow::handleJumpToSearchResult(const SearchResultItem &item)
     \internal
 */
 void SearchResultWindow::handleJumpToSearchResult(const SearchResultItem &item)
@@ -657,7 +676,7 @@ void SearchResultWindow::addResult(const QString &fileName, int lineNumber, cons
 }
 
 /*!
-    \fn void SearchResultWindow::addResults(QList<SearchResultItem> &items)
+    \fn void SearchResultWindow::addResults(QList<SearchResultItem> &items, AddMode mode)
     \brief Adds all of the given search result \a items to the search
     results window.
 
@@ -669,6 +688,12 @@ void SearchResultWindow::addResults(QList<SearchResultItem> &items, AddMode mode
     d->m_itemCount += items.size();
     d->m_searchResultTreeView->addResults(items, mode);
     if (firstItems) {
+        if (!d->m_dontAskAgainGroup.isEmpty() && showWarningMessage()) {
+            Core::InfoBarEntry info("warninglabel", tr("This change cannot be undone."));
+            info.setCustomButtonInfo(tr("Do not warn again"), this, SLOT(hideNoUndoWarning()));
+            d->m_infoBar.addInfo(info);
+        }
+
         d->m_replaceTextEdit->setEnabled(true);
         // We didn't have an item before, set the focus to the search widget
         d->m_focusReplaceEdit = true;
@@ -677,6 +702,35 @@ void SearchResultWindow::addResults(QList<SearchResultItem> &items, AddMode mode
         d->m_searchResultTreeView->selectionModel()->select(d->m_searchResultTreeView->model()->index(0, 0, QModelIndex()), QItemSelectionModel::Select);
         emit navigateStateChanged();
     }
+}
+
+bool SearchResultWindow::showWarningMessage() const
+{
+    // Restore settings
+    QSettings *settings = Core::ICore::instance()->settings();
+    settings->beginGroup(d->m_dontAskAgainGroup);
+    settings->beginGroup(QLatin1String("Rename"));
+    const bool showWarningMessage = settings->value(QLatin1String("ShowWarningMessage"), true).toBool();
+    settings->endGroup();
+    settings->endGroup();
+    return showWarningMessage;
+}
+
+void SearchResultWindow::setShowWarningMessage(bool showWarningMessage)
+{
+    // Restore settings
+    QSettings *settings = Core::ICore::instance()->settings();
+    settings->beginGroup(d->m_dontAskAgainGroup);
+    settings->beginGroup(QLatin1String("Rename"));
+    settings->setValue(QLatin1String("ShowWarningMessage"), showWarningMessage);
+    settings->endGroup();
+    settings->endGroup();
+}
+
+void SearchResultWindow::hideNoUndoWarning()
+{
+    setShowWarningMessage(false);
+    d->m_infoBar.clear();
 }
 
 /*!

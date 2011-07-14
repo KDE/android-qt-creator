@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,10 +34,19 @@
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDebug>
+#include <QtCore/QtEndian>
 #include <QtCore/QFile>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtCore/QSysInfo>
+
+/*!
+    \class ProjectExplorer::Abi
+
+    \brief Represents the Application Binary Interface (ABI) of a target platform.
+
+    \sa ProjectExplorer::ToolChain
+*/
 
 namespace ProjectExplorer {
 
@@ -83,6 +92,10 @@ static QList<Abi> parseCoffHeader(const QByteArray &data)
         arch = Abi::X86Architecture;
         width = 32;
         break;
+    case 0x0166: // MIPS, little endian
+        arch = Abi::MipsArcitecture;
+        width = 32;
+        break;
     case 0x0200: // ia64
         arch = Abi::ItaniumArchitecture;
         width = 64;
@@ -126,28 +139,59 @@ static QList<Abi> abiOf(const QByteArray &data)
             && static_cast<unsigned char>(data.at(0)) == 0x7f && static_cast<unsigned char>(data.at(1)) == 'E'
             && static_cast<unsigned char>(data.at(2)) == 'L' && static_cast<unsigned char>(data.at(3)) == 'F') {
         // ELF format:
+        bool isLsbEncoded = (static_cast<quint8>(data.at(5)) == 1);
         quint16 machine = (data.at(19) << 8) + data.at(18);
+        if (!isLsbEncoded)
+            machine = qFromBigEndian(machine);
+        quint8 osAbi = static_cast<quint8>(data.at(7));
+
+        Abi::OS os = Abi::UnixOS;
+        Abi::OSFlavor flavor = Abi::GenericUnixFlavor;
+        // http://www.sco.com/developers/gabi/latest/ch4.eheader.html#elfid
+        switch (osAbi) {
+        case 2: // NetBSD:
+            os = Abi::BsdOS;
+            flavor = Abi::NetBsdFlavor;
+            break;
+        case 3: // Linux:
+        case 0: // no extra info available: Default to Linux:
+            os = Abi::LinuxOS;
+            flavor = Abi::GenericLinuxFlavor;
+            break;
+        case 6: // Solaris:
+            os = Abi::UnixOS;
+            flavor = Abi::SolarisUnixFlavor;
+            break;
+        case 9: // FreeBSD:
+            os = Abi::BsdOS;
+            flavor = Abi::FreeBsdFlavor;
+            break;
+        case 12: // OpenBSD:
+            os = Abi::BsdOS;
+            flavor = Abi::OpenBsdFlavor;
+        }
+
         switch (machine) {
         case 3: // EM_386
-            result.append(Abi(Abi::X86Architecture, Abi::LinuxOS, Abi::GenericLinuxFlavor, Abi::ElfFormat, 32));
+            result.append(Abi(Abi::X86Architecture, os, flavor, Abi::ElfFormat, 32));
             break;
         case 8: // EM_MIPS
-            result.append(Abi(Abi::MipsArcitecture, Abi::LinuxOS, Abi::GenericLinuxFlavor, Abi::ElfFormat, 32));
+            result.append(Abi(Abi::MipsArcitecture, os, flavor, Abi::ElfFormat, 32));
             break;
         case 20: // EM_PPC
-            result.append(Abi(Abi::PowerPCArchitecture, Abi::LinuxOS, Abi::GenericLinuxFlavor, Abi::ElfFormat, 32));
+            result.append(Abi(Abi::PowerPCArchitecture, os, flavor, Abi::ElfFormat, 32));
             break;
         case 21: // EM_PPC64
-            result.append(Abi(Abi::PowerPCArchitecture, Abi::LinuxOS, Abi::GenericLinuxFlavor, Abi::ElfFormat, 64));
+            result.append(Abi(Abi::PowerPCArchitecture, os, flavor, Abi::ElfFormat, 64));
             break;
         case 40: // EM_ARM
-            result.append(Abi(Abi::ArmArchitecture, Abi::LinuxOS, Abi::GenericLinuxFlavor, Abi::ElfFormat, 32));
+            result.append(Abi(Abi::ArmArchitecture, os, flavor, Abi::ElfFormat, 32));
             break;
         case 62: // EM_X86_64
-            result.append(Abi(Abi::X86Architecture, Abi::LinuxOS, Abi::GenericLinuxFlavor, Abi::ElfFormat, 64));
+            result.append(Abi(Abi::X86Architecture, os, flavor, Abi::ElfFormat, 64));
             break;
         case 50: // EM_IA_64
-            result.append(Abi(Abi::ItaniumArchitecture, Abi::LinuxOS, Abi::GenericLinuxFlavor, Abi::ElfFormat, 64));
+            result.append(Abi(Abi::ItaniumArchitecture, os, flavor, Abi::ElfFormat, 64));
             break;
         default:
             ;;
@@ -203,6 +247,9 @@ Abi::Abi(const Architecture &a, const OS &o,
         if (m_osFlavor < GenericLinuxFlavor || m_osFlavor > MeegoLinuxFlavor)
             m_osFlavor = UnknownFlavor;
         break;
+    case ProjectExplorer::Abi::BsdOS:
+        m_osFlavor = FreeBsdFlavor;
+        break;
     case ProjectExplorer::Abi::MacOS:
         if (m_osFlavor < GenericMacFlavor || m_osFlavor > GenericMacFlavor)
             m_osFlavor = UnknownFlavor;
@@ -249,6 +296,8 @@ Abi::Abi(const QString &abiString) :
             m_os = UnknownOS;
         else if (abiParts.at(1) == QLatin1String("linux"))
             m_os = LinuxOS;
+        else if (abiParts.at(1) == QLatin1String("bsd"))
+            m_os = BsdOS;
         else if (abiParts.at(1) == QLatin1String("macos"))
             m_os = MacOS;
         else if (abiParts.at(1) == QLatin1String("symbian"))
@@ -258,6 +307,7 @@ Abi::Abi(const QString &abiString) :
         else if (abiParts.at(1) == QLatin1String("windows"))
             m_os = WindowsOS;
         else
+
             return;
     }
 
@@ -268,6 +318,12 @@ Abi::Abi(const QString &abiString) :
             m_osFlavor = GenericLinuxFlavor;
         else if (abiParts.at(2) == QLatin1String("android") && m_os == LinuxOS)
             m_osFlavor = AndroidLinuxFlavor;
+        else if (abiParts.at(2) == QLatin1String("freebsd") && m_os == BsdOS)
+            m_osFlavor = FreeBsdFlavor;
+        else if (abiParts.at(2) == QLatin1String("netbsd") && m_os == BsdOS)
+            m_osFlavor = NetBsdFlavor;
+        else if (abiParts.at(2) == QLatin1String("openbsd") && m_os == BsdOS)
+            m_osFlavor = OpenBsdFlavor;
         else if (abiParts.at(2) == QLatin1String("maemo") && m_os == LinuxOS)
             m_osFlavor = MaemoLinuxFlavor;
         else if (abiParts.at(2) == QLatin1String("meego") && m_os == LinuxOS)
@@ -280,6 +336,8 @@ Abi::Abi(const QString &abiString) :
             m_osFlavor = SymbianEmulatorFlavor;
         else if (abiParts.at(2) == QLatin1String("generic") && m_os == UnixOS)
             m_osFlavor = GenericUnixFlavor;
+        else if (abiParts.at(2) == QLatin1String("solaris") && m_os == UnixOS)
+            m_osFlavor = SolarisUnixFlavor;
         else if (abiParts.at(2) == QLatin1String("msvc2005") && m_os == WindowsOS)
             m_osFlavor = WindowsMsvc2005Flavor;
         else if (abiParts.at(2) == QLatin1String("msvc2008") && m_os == WindowsOS)
@@ -352,11 +410,20 @@ bool Abi::operator == (const Abi &other) const
 
 bool Abi::isCompatibleWith(const Abi &other) const
 {
-    return (architecture() == other.architecture() || other.architecture() == Abi::UnknownArchitecture)
-            && (os() == other.os() || other.os() == Abi::UnknownOS)
-            && (osFlavor() == other.osFlavor() || other.osFlavor() == Abi::UnknownFlavor)
-            && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == Abi::UnknownFormat)
-            && ((wordWidth() == other.wordWidth() && wordWidth() != 0) || other.wordWidth() == 0);
+    bool isCompat = (architecture() == other.architecture() || other.architecture() == Abi::UnknownArchitecture)
+                     && (os() == other.os() || other.os() == Abi::UnknownOS)
+                     && (osFlavor() == other.osFlavor() || other.osFlavor() == Abi::UnknownFlavor)
+                     && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == Abi::UnknownFormat)
+                     && ((wordWidth() == other.wordWidth() && wordWidth() != 0) || other.wordWidth() == 0);
+    // *-linux-generic-* is compatible with *-linux-*:
+    if (!isCompat && architecture() == other.architecture()
+                 && os() == other.os()
+                 && osFlavor() == GenericLinuxFlavor
+                 && other.os() == LinuxOS
+                 && binaryFormat() == other.binaryFormat()
+                 && wordWidth() == other.wordWidth())
+        isCompat = true;
+    return isCompat;
 }
 
 bool Abi::isValid() const
@@ -392,6 +459,8 @@ QString Abi::toString(const OS &o)
     switch (o) {
     case LinuxOS:
         return QLatin1String("linux");
+    case BsdOS:
+        return QLatin1String("bsd");
     case MacOS:
         return QLatin1String("macos");
     case SymbianOS:
@@ -413,6 +482,12 @@ QString Abi::toString(const OSFlavor &of)
         return QLatin1String("generic");
     case ProjectExplorer::Abi::AndroidLinuxFlavor:
         return QLatin1String("android");
+    case ProjectExplorer::Abi::FreeBsdFlavor:
+        return QLatin1String("freebsd");
+    case ProjectExplorer::Abi::NetBsdFlavor:
+        return QLatin1String("netbsd");
+    case ProjectExplorer::Abi::OpenBsdFlavor:
+        return QLatin1String("openbsd");
     case ProjectExplorer::Abi::MaemoLinuxFlavor:
         return QLatin1String("maemo");
     case ProjectExplorer::Abi::HarmattanLinuxFlavor:
@@ -427,6 +502,8 @@ QString Abi::toString(const OSFlavor &of)
         return QLatin1String("emulator");
     case ProjectExplorer::Abi::GenericUnixFlavor:
         return QLatin1String("generic");
+    case ProjectExplorer::Abi::SolarisUnixFlavor:
+        return QLatin1String("solaris");
     case ProjectExplorer::Abi::WindowsMsvc2005Flavor:
         return QLatin1String("msvc2005");
     case ProjectExplorer::Abi::WindowsMsvc2008Flavor:
@@ -467,6 +544,30 @@ QString Abi::toString(int w)
     return QString::fromLatin1("%1bit").arg(w);
 }
 
+QList<Abi::OSFlavor> Abi::flavorsForOs(const Abi::OS &o)
+{
+    QList<OSFlavor> result;
+    switch (o) {
+    case BsdOS:
+        return result << FreeBsdFlavor << OpenBsdFlavor << NetBsdFlavor;
+    case LinuxOS:
+        return result << GenericLinuxFlavor << HarmattanLinuxFlavor << MaemoLinuxFlavor << MeegoLinuxFlavor;
+    case MacOS:
+        return result << GenericMacFlavor;
+    case SymbianOS:
+        return  result << SymbianDeviceFlavor << SymbianEmulatorFlavor;
+    case UnixOS:
+        return result << GenericUnixFlavor << SolarisUnixFlavor;
+    case WindowsOS:
+        return result << WindowsMsvc2005Flavor << WindowsMsvc2008Flavor << WindowsMsvc2010Flavor
+                      << WindowsMSysFlavor << WindowsCEFlavor;
+    case UnknownOS:
+        return result << UnknownFlavor;
+    default:
+        break;
+    }
+    return result;
+}
 
 Abi Abi::hostAbi()
 {
@@ -545,7 +646,7 @@ QList<Abi> Abi::abisOfBinary(const QString &path)
                     && tmp.at(0).binaryFormat() != Abi::MachOFormat)
                 break;
 
-            offset += (offset % 2); // ar is 2 byte alligned
+            offset += (offset % 2); // ar is 2 byte aligned
             f.seek(offset);
             data = f.read(1024);
         }
@@ -589,6 +690,8 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary_data()
     QString prefix = qgetenv("QTC_TEST_EXTRADATALOCATION");
     if (prefix.isEmpty())
         return;
+    prefix += "/projectexplorer/abi";
+
     QFileInfo fi(prefix);
     if (!fi.exists() || !fi.isDir())
         return;
@@ -599,59 +702,74 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary_data()
             << (QStringList());
 
     QTest::newRow("static QtCore: win msvc2008")
-            << QString::fromLatin1("%1/abi/static/win-msvc2008-release.lib").arg(prefix)
+            << QString::fromLatin1("%1/static/win-msvc2008-release.lib").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-unknown-pe-32bit"));
     QTest::newRow("static QtCore: win msvc2008 II")
-            << QString::fromLatin1("%1/abi/static/win-msvc2008-release2.lib").arg(prefix)
+            << QString::fromLatin1("%1/static/win-msvc2008-release2.lib").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-unknown-pe-64bit"));
     QTest::newRow("static QtCore: win msvc2008 (debug)")
-            << QString::fromLatin1("%1/abi/static/win-msvc2008-debug.lib").arg(prefix)
+            << QString::fromLatin1("%1/static/win-msvc2008-debug.lib").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-unknown-pe-32bit"));
     QTest::newRow("static QtCore: win mingw")
-            << QString::fromLatin1("%1/abi/static/win-mingw.a").arg(prefix)
+            << QString::fromLatin1("%1/static/win-mingw.a").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-unknown-pe-32bit"));
     QTest::newRow("static QtCore: mac (debug)")
-            << QString::fromLatin1("%1/abi/static/mac-32bit-debug.a").arg(prefix)
+            << QString::fromLatin1("%1/static/mac-32bit-debug.a").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-macos-generic-mach_o-32bit"));
     QTest::newRow("static QtCore: linux 32bit")
-            << QString::fromLatin1("%1/abi/static/linux-32bit-release.a").arg(prefix)
+            << QString::fromLatin1("%1/static/linux-32bit-release.a").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-linux-generic-elf-32bit"));
     QTest::newRow("static QtCore: linux 64bit")
-            << QString::fromLatin1("%1/abi/static/linux-64bit-release.a").arg(prefix)
+            << QString::fromLatin1("%1/static/linux-64bit-release.a").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-linux-generic-elf-64bit"));
 
     QTest::newRow("static stdc++: mac fat")
-            << QString::fromLatin1("%1/abi/static/mac-fat.a").arg(prefix)
+            << QString::fromLatin1("%1/static/mac-fat.a").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-macos-generic-mach_o-32bit")
                               << QString::fromLatin1("ppc-macos-generic-mach_o-32bit")
                               << QString::fromLatin1("x86-macos-generic-mach_o-64bit"));
 
     QTest::newRow("dynamic QtCore: symbian")
-            << QString::fromLatin1("%1/abi/dynamic/symbian.dll").arg(prefix)
+            << QString::fromLatin1("%1/dynamic/symbian.dll").arg(prefix)
             << (QStringList() << QString::fromLatin1("arm-symbian-device-elf-32bit"));
     QTest::newRow("dynamic QtCore: win msvc2010 64bit")
-            << QString::fromLatin1("%1/abi/dynamic/win-msvc2010-64bit.dll").arg(prefix)
+            << QString::fromLatin1("%1/dynamic/win-msvc2010-64bit.dll").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-msvc2010-pe-64bit"));
     QTest::newRow("dynamic QtCore: win msvc2008 32bit")
-            << QString::fromLatin1("%1/abi/dynamic/win-msvc2008-32bit.dll").arg(prefix)
+            << QString::fromLatin1("%1/dynamic/win-msvc2008-32bit.dll").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-msvc2008-pe-32bit"));
     QTest::newRow("dynamic QtCore: win msvc2005 32bit")
-            << QString::fromLatin1("%1/abi/dynamic/win-msvc2005-32bit.dll").arg(prefix)
+            << QString::fromLatin1("%1/dynamic/win-msvc2005-32bit.dll").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-msvc2005-pe-32bit"));
     QTest::newRow("dynamic QtCore: win msys 32bit")
-            << QString::fromLatin1("%1/abi/dynamic/win-mingw-32bit.dll").arg(prefix)
+            << QString::fromLatin1("%1/dynamic/win-mingw-32bit.dll").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-windows-msys-pe-32bit"));
-    QTest::newRow("dynamic QtCore: win msys 32bit")
-            << QString::fromLatin1("%1/abi/dynamic/win-mingw-32bit.dll").arg(prefix)
-            << (QStringList() << QString::fromLatin1("x86-windows-msys-pe-32bit"));
+    QTest::newRow("dynamic QtCore: wince msvc2005 32bit")
+            << QString::fromLatin1("%1/dynamic/wince-32bit.dll").arg(prefix)
+            << (QStringList() << QString::fromLatin1("mips-windows-msvc2005-pe-32bit"));
     QTest::newRow("dynamic stdc++: mac fat")
-            << QString::fromLatin1("%1/abi/dynamic/mac-fat.dylib").arg(prefix)
+            << QString::fromLatin1("%1/dynamic/mac-fat.dylib").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-macos-generic-mach_o-32bit")
                               << QString::fromLatin1("ppc-macos-generic-mach_o-32bit")
                               << QString::fromLatin1("x86-macos-generic-mach_o-64bit"));
     QTest::newRow("dynamic QtCore: arm linux 32bit")
-            << QString::fromLatin1("%1/abi/dynamic/arm-linux.so").arg(prefix)
+            << QString::fromLatin1("%1/dynamic/arm-linux.so").arg(prefix)
             << (QStringList() << QString::fromLatin1("arm-linux-generic-elf-32bit"));
+    QTest::newRow("dynamic QtCore: mips linux 32bit")
+            << QString::fromLatin1("%1/dynamic/mips-linux.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("mips-linux-generic-elf-32bit"));
+    QTest::newRow("dynamic QtCore: projectexplorer/abi/static/win-msvc2010-32bit.libppc be linux 32bit")
+            << QString::fromLatin1("%1/dynamic/ppcbe-linux-32bit.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("ppc-linux-generic-elf-32bit"));
+    QTest::newRow("dynamic QtCore: x86 freebsd 64bit")
+            << QString::fromLatin1("%1/dynamic/freebsd-elf-64bit.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("x86-bsd-freebsd-elf-64bit"));
+    QTest::newRow("dynamic QtCore: x86 freebsd 64bit")
+            << QString::fromLatin1("%1/dynamic/freebsd-elf-64bit.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("x86-bsd-freebsd-elf-64bit"));
+    QTest::newRow("dynamic QtCore: x86 freebsd 32bit")
+            << QString::fromLatin1("%1/dynamic/freebsd-elf-32bit.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("x86-bsd-freebsd-elf-32bit"));
 }
 
 void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary()
@@ -663,6 +781,25 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary()
     QCOMPARE(result.count(), abis.count());
     for (int i = 0; i < abis.count(); ++i)
         QCOMPARE(result.at(i).toString(), abis.at(i));
+}
+
+void ProjectExplorer::ProjectExplorerPlugin::testFlavorForOs()
+{
+    QList<QList<ProjectExplorer::Abi::OSFlavor> > flavorLists;
+    for (int i = 0; i != static_cast<int>(Abi::UnknownOS); ++i)
+        flavorLists.append(Abi::flavorsForOs(static_cast<Abi::OS>(i)));
+
+    int foundCounter = 0;
+    for (int i = 0; i != Abi::UnknownFlavor; ++i) {
+        foundCounter = 0;
+        // make sure i is in exactly on of the flavor lists!
+        foreach (const QList<Abi::OSFlavor> &l, flavorLists) {
+            QVERIFY(!l.contains(Abi::UnknownFlavor));
+            if (l.contains(static_cast<Abi::OSFlavor>(i)))
+                ++foundCounter;
+        }
+        QCOMPARE(foundCounter, 1);
+    }
 }
 
 #endif

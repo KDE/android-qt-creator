@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -105,6 +105,9 @@ public:
                                      int majorVersion,
                                      int minorVersion,
                                      const QList<QPair<QString, QVariant> > &propertyList,
+                                     const QList<QPair<QString, QVariant> > &auxPropertyList,
+                                     const QString &nodeSource,
+                                     ModelNode::NodeSourceType nodeSourceType,
                                      bool isRootNode = false);
 
 
@@ -142,21 +145,23 @@ public:
 
     void notifyNodeOrderChanged(const InternalNodeListPropertyPointer &internalListPropertyPointer, const InternalNodePointer &internalNodePointer, int oldIndex);
     void notifyAuxiliaryDataChanged(const InternalNodePointer &internalNode, const QString &name, const QVariant &data);
+    void notifyNodeSourceChanged(const InternalNodePointer &internalNode, const QString &newNodeSource);
 
     void notifyRootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion);
 
     void notifyCustomNotification(const AbstractView *senderView, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data);
     void notifyInstancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void notifyInstancesCompleted(const QVector<ModelNode> &nodeList);
-    void notifyInstancesInformationsChange(const QVector<ModelNode> &nodeList);
+    void notifyInstancesInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     void notifyInstancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     void notifyInstancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     void notifyInstancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void notifyInstanceToken(const QString &token, int number, const QVector<ModelNode> &nodeVector);
+
     void notifyActualStateChanged(const ModelNode &node);
 
     void notifyRewriterBeginTransaction();
     void notifyRewriterEndTransaction();
-
 
     void setSelectedNodes(const QList<InternalNodePointer> &selectedNodeList);
     void clearSelectedNodes();
@@ -194,6 +199,7 @@ public:
     void clearParent(const InternalNodePointer &internalNode);
     void changeRootNodeType(const QString &type, int majorVersion, int minorVersion);
     void setScriptFunctions(const InternalNodePointer &internalNode, const QStringList &scriptFunctionList);
+    void setNodeSource(const InternalNodePointer &internalNode, const QString &nodeSource);
 
     InternalNodePointer nodeForId(const QString &id) const;
     bool hasId(const QString &id) const;
@@ -211,6 +217,8 @@ public:
     RewriterView *rewriterView() const;
     void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
     NodeInstanceView *nodeInstanceView() const;
+
+    InternalNodePointer actualStateNode() const;
 
 private: //functions
     void removePropertyWithoutNotification(const InternalPropertyPointer &property);
@@ -231,6 +239,8 @@ private:
     QHash<QString,InternalNodePointer> m_idNodeHash;
     QHash<qint32, InternalNodePointer> m_internalIdNodeHash;
     QSet<InternalNodePointer> m_nodeSet;
+    InternalNodePointer m_acutalStateNode;
+
 
     InternalNodePointer m_rootInternalNode;
 

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,7 +42,7 @@ using namespace Macros;
     \class Macros::MacroEvent
     \brief Represents an event in a macro
 
-    An event stores informations so it can be replayed. An event can be:
+    An event stores information so it can be replayed. An event can be:
     \list
     \o menu action
     \o key event on an editor

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,6 @@ const char * const BAZAARDEFAULT = "bzr";
 //changeset identifiers
 const char * const CHANGESET_ID = "([0-9]+)"; // match and capture
 const char * const CHANGESET_ID_EXACT = "[0-9]+"; // match
-const char * const DIFF_ID = "^[-+]{3,3} [ab]{1,1}.*"; // match e.g. +++ b/filename
 
 //BaseEditorParameters
 const char * const COMMANDLOG_ID = "Bazaar Command Log Editor";
@@ -95,7 +94,6 @@ const char * const LOGMULTI = "Bazaar.Action.Logmulti";
 const char * const PULL = "Bazaar.Action.Pull";
 const char * const PUSH = "Bazaar.Action.Push";
 const char * const UPDATE = "Bazaar.Action.Update";
-const char * const CLONE = "Bazaar.Action.Clone";
 const char * const COMMIT = "Bazaar.Action.Commit";
 const char * const CREATE_REPOSITORY = "Bazaar.Action.CreateRepository";
 

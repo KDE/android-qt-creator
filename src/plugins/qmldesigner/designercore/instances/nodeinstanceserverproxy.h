@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,7 +55,7 @@ class NodeInstanceServerProxy : public NodeInstanceServerInterface
 {
     Q_OBJECT
 public:
-    explicit NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView, RunModus runModus = NormalModus);
+    explicit NodeInstanceServerProxy(NodeInstanceView *nodeInstanceView, RunModus runModus = NormalModus, const QString &pathToQt = QString());
     ~NodeInstanceServerProxy();
     void createInstances(const CreateInstancesCommand &command);
     void changeFileUrl(const ChangeFileUrlCommand &command);
@@ -65,11 +65,13 @@ public:
     void removeProperties(const RemovePropertiesCommand &command);
     void changePropertyBindings(const ChangeBindingsCommand &command);
     void changePropertyValues(const ChangeValuesCommand &command);
+    void changeAuxiliaryValues(const ChangeAuxiliaryCommand &command);
     void reparentInstances(const ReparentInstancesCommand &command);
     void changeIds(const ChangeIdsCommand &command);
     void changeState(const ChangeStateCommand &command);
-    void addImport(const AddImportCommand &command);
     void completeComponent(const CompleteComponentCommand &command);
+    void changeNodeSource(const ChangeNodeSourceCommand &command);
+    void token(const TokenCommand &command);
 
 protected:
     void writeCommand(const QVariant &command);
@@ -86,6 +88,9 @@ private slots:
     void readThirdDataStream();
 
 private:
+    QString qmlPuppetApplicationName() const;
+    QString macOSBundlePath(const QString &path) const;
+
     QWeakPointer<QLocalServer> m_localServer;
     QWeakPointer<QLocalSocket> m_firstSocket;
     QWeakPointer<QLocalSocket> m_secondSocket;
@@ -97,6 +102,10 @@ private:
     quint32 m_firstBlockSize;
     quint32 m_secondBlockSize;
     quint32 m_thirdBlockSize;
+    quint32 m_writeCommandCounter;
+    quint32 m_firstLastReadCommandCounter;
+    quint32 m_secondLastReadCommandCounter;
+    quint32 m_thirdLastReadCommandCounter;
     RunModus m_runModus;
     int m_synchronizeId;
 };

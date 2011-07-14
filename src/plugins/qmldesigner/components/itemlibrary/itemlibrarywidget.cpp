@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "itemlibrarywidget.h"
 
 #include <utils/filterlineedit.h>
+#include <utils/fileutils.h>
 #include <coreplugin/coreconstants.h>
 #include "itemlibrarycomponents.h"
 #include "itemlibrarymodel.h"
@@ -227,19 +228,9 @@ ItemLibraryWidget::ItemLibraryWidget(QWidget *parent) :
     setSearchFilter(QString());
 
     /* style sheets */
-    {
-        QFile file(":/qmldesigner/stylesheet.css");
-        file.open(QFile::ReadOnly);
-        QString styleSheet = QLatin1String(file.readAll());
-        setStyleSheet(styleSheet);
-    }
-
-    {
-        QFile file(":/qmldesigner/scrollbar.css");
-        file.open(QFile::ReadOnly);
-        QString styleSheet = QLatin1String(file.readAll());
-        m_d->m_resourcesView->setStyleSheet(styleSheet);
-    }
+    setStyleSheet(QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
+    m_d->m_resourcesView->setStyleSheet(
+            QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css")));
 }
 
 ItemLibraryWidget::~ItemLibraryWidget()
@@ -290,7 +281,7 @@ QList<QToolButton *> ItemLibraryWidget::createToolBarWidgets()
 {
     QList<QToolButton *> buttons;
 
-    return buttons; //import managment gets disabled for now (TODO ###)
+    return buttons; //import management gets disabled for now (TODO ###)
 
     buttons << new QToolButton();
     buttons.first()->setText("I ");
@@ -388,6 +379,7 @@ void ItemLibraryWidget::emitImportChecked()
 
 void ItemLibraryWidget::setImportFilter(FilterChangeFlag flag)
 {
+    return;
 
     static bool block = false;
     if (!m_d->model)
@@ -417,7 +409,7 @@ void ItemLibraryWidget::setImportFilter(FilterChangeFlag flag)
         QApplication::restoreOverrideCursor();
         block = false;
         m_filterFlag = flag;
-    } catch (RewritingException &xcetion) {
+    } catch (RewritingException &) {
         QApplication::restoreOverrideCursor();
         m_filterFlag = oldfilterFlag;
         block = false;

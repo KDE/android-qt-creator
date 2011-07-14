@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -223,58 +223,58 @@ static bool runBuildProcess(QProcess &proc,
 }
 
 
-bool BuildableHelperLibrary::buildHelper(const QString &helperName, const QString &proFilename,
-                                         const QString &directory, const QString &makeCommand,
-                                         const QString &qmakeCommand, const QString &mkspec,
-                                         const Utils::Environment &env, const QString &targetMode,
-                                         const QStringList &qmakeArguments, QString *output,
-                                         QString *errorMessage)
+bool BuildableHelperLibrary::buildHelper(const BuildHelperArguments &arguments,
+                                         QString *log, QString *errorMessage)
 {
     const QChar newline = QLatin1Char('\n');
     // Setup process
     QProcess proc;
-    proc.setEnvironment(env.toStringList());
-    proc.setWorkingDirectory(directory);
+    proc.setEnvironment(arguments.environment.toStringList());
+    proc.setWorkingDirectory(arguments.directory);
     proc.setProcessChannelMode(QProcess::MergedChannels);
 
-    output->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
-                                          "Building helper '%1' in %2\n").arg(helperName, directory));
-    output->append(newline);
+    log->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
+                                          "Building helper '%1' in %2\n").arg(arguments.helperName,
+                                                                              arguments.directory));
+    log->append(newline);
 
-    const QString makeFullPath = env.searchInPath(makeCommand);
-    if (QFileInfo(directory + QLatin1String("/Makefile")).exists()) {
+    const QString makeFullPath = arguments.environment.searchInPath(arguments.makeCommand);
+    if (QFileInfo(arguments.directory + QLatin1String("/Makefile")).exists()) {
         if (makeFullPath.isEmpty()) {
             *errorMessage = QCoreApplication::translate("ProjectExplorer::DebuggingHelperLibrary",
-                                                       "%1 not found in PATH\n").arg(makeCommand);
+                                                       "%1 not found in PATH\n").arg(arguments.makeCommand);
             return false;
         }
         const QString cleanTarget = QLatin1String("distclean");
-        output->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
+        log->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
                                                    "Running %1 %2...\n").arg(makeFullPath, cleanTarget));
-        if (!runBuildProcess(proc, makeFullPath, QStringList(cleanTarget), 30000, true, output, errorMessage))
+        if (!runBuildProcess(proc, makeFullPath, QStringList(cleanTarget), 30000, true, log, errorMessage))
             return false;
     }
     QStringList qmakeArgs;
-    if (!targetMode.isEmpty())
-        qmakeArgs << targetMode;
-    if (!mkspec.isEmpty())
-        qmakeArgs << QLatin1String("-spec") << mkspec;
-    qmakeArgs << proFilename;
-    qmakeArgs << qmakeArguments;
+    if (!arguments.targetMode.isEmpty())
+        qmakeArgs << arguments.targetMode;
+    if (!arguments.mkspec.isEmpty())
+        qmakeArgs << QLatin1String("-spec") << arguments.mkspec;
+    qmakeArgs << arguments.proFilename;
+    qmakeArgs << arguments.qmakeArguments;
 
-    output->append(newline);
-    output->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary", "Running %1 %2 ...\n").arg(qmakeCommand,
-                                                                                                                     qmakeArgs.join(" ")));
+    log->append(newline);
+    log->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
+                                            "Running %1 %2 ...\n").arg(arguments.qmakeCommand,
+                                                                       arguments.qmakeArguments.join(" ")));
 
-    if (!runBuildProcess(proc, qmakeCommand, qmakeArgs, 30000, false, output, errorMessage))
+    if (!runBuildProcess(proc, arguments.qmakeCommand, arguments.qmakeArguments, 30000, false, log, errorMessage))
         return false;
-    output->append(newline);
+    log->append(newline);
     if (makeFullPath.isEmpty()) {
-        *errorMessage = QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary", "%1 not found in PATH\n").arg(makeCommand);
+        *errorMessage = QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
+                                                "%1 not found in PATH\n").arg(arguments.makeCommand);
         return false;
     }
-    output->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary", "Running %1 ...\n").arg(makeFullPath));
-    if (!runBuildProcess(proc, makeFullPath, QStringList(), 120000, false, output, errorMessage))
+    log->append(QCoreApplication::translate("ProjectExplorer::BuildableHelperLibrary",
+                                            "Running %1 %2 ...\n").arg(makeFullPath, arguments.makeArguments.join(" ")));
+    if (!runBuildProcess(proc, makeFullPath, arguments.makeArguments, 120000, false, log, errorMessage))
         return false;
     return true;
 }
@@ -310,9 +310,10 @@ QString BuildableHelperLibrary::byInstallDataHelper(const QString &sourcePath,
         }
     }
 
-    // We pretend that the lastmodified of gdbmacros.cpp is 5 minutes before what the file system says
-    // Because afer a installation from the package the modified dates of gdbmacros.cpp
-    // and the actual library are close to each other, but not deterministic in one direction
+    // We pretend that the lastmodified of dumper.cpp is 5 minutes before what
+    // the file system says because afer a installation from the package the
+    // modified dates of dumper.cpp and the actual library are close to each
+    // other, but not deterministic in one direction.
     if (sourcesModified.isValid())
         sourcesModified = sourcesModified.addSecs(-300);
 

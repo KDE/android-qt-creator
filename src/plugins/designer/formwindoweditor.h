@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,10 +39,6 @@
 QT_BEGIN_NAMESPACE
 class QDesignerFormWindowInterface;
 QT_END_NAMESPACE
-
-namespace Core {
-    class IMode;
-}
 
 namespace TextEditor {
     class BaseTextDocument;
@@ -75,7 +71,7 @@ public:
 
     // IEditor
     virtual bool createNew(const QString &contents = QString());
-    virtual bool open(const QString &fileName = QString());
+    virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     virtual Core::IFile *file();
     virtual QString id() const;
     virtual QString displayName() const;
@@ -93,10 +89,6 @@ public:
 
     virtual  QString preferredModeType() const;
 
-    // IContext
-    virtual Core::Context context() const;
-    virtual QWidget *widget();
-
     // For uic code model support
     QString contents() const;
 
@@ -105,10 +97,9 @@ public:
 
 public slots:
     void syncXmlEditor();
-    void configureXmlEditor() const;
 
 private slots:
-    void slotOpen(const QString &fileName);
+    void slotOpen(QString *errorString, const QString &fileName);
 
 private:
     void syncXmlEditor(const QString &contents);

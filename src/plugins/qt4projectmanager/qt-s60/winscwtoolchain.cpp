@@ -26,14 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "winscwtoolchain.h"
 
 #include "qt4projectmanager/qt4projectmanagerconstants.h"
-#include "qtversionmanager.h"
 
 #include "ui_winscwtoolchainconfigwidget.h"
 #include "winscwparser.h"
@@ -41,6 +40,7 @@
 #include <projectexplorer/abi.h>
 #include <projectexplorer/headerpath.h>
 #include <utils/environment.h>
+#include <qtsupport/qtversionmanager.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -180,6 +180,12 @@ void WinscwToolChain::addToEnvironment(Utils::Environment &env) const
     env.set(QLatin1String("MWSYM2LIBRARYFILES"),
             QLatin1String("MSL_All_MSE_Symbian_D.lib;gdi32.lib;user32.lib;kernel32.lib"));
     env.prependOrSetPath(QFileInfo(m_compilerPath).absolutePath());
+}
+
+
+QString WinscwToolChain::mkspec() const
+{
+    return QString(); // Always use default from Qt version
 }
 
 QString WinscwToolChain::makeCommand() const
@@ -381,7 +387,7 @@ QList<ProjectExplorer::ToolChain *> WinscwToolChainFactory::autoDetect()
 
     // Compatibility to pre-2.2:
     while (true) {
-        const QString path = QtVersionManager::instance()->popPendingMwcUpdate();
+        const QString path = QtSupport::QtVersionManager::instance()->popPendingMwcUpdate();
         if (path.isNull())
             break;
 

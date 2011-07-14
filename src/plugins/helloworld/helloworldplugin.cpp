@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,19 +55,17 @@ namespace Internal {
 class HelloMode : public Core::IMode
 {
 public:
-    HelloMode() : m_widget(new QPushButton(tr("Hello World PushButton!"))) {}
-
-    QString displayName() const { return tr("Hello world!"); }
-    QIcon icon() const { return QIcon(); }
-    int priority() const { return 0; }
-    QWidget *widget() { return m_widget; }
-    QString id() const { return QLatin1String("HelloWorld.HelloWorldMode"); }
-    QString type() const { return QLatin1String("HelloWorld.HelloWorldMode"); }
-    Core::Context context() const { return Core::Context("HelloWorld.MainView"); };
-    QString contextHelpId() const { return QString(); }
-
-private:
-    QWidget *m_widget;
+    HelloMode()
+    {
+        setWidget(new QPushButton(tr("Hello World PushButton!")));
+        setContext(Core::Context("HelloWorld.MainView"));
+        setDisplayName(tr("Hello world!"));
+        setIcon(QIcon());
+        setPriority(0);
+        setId(QLatin1String("HelloWorld.HelloWorldMode"));
+        setType(QLatin1String("HelloWorld.HelloWorldMode"));
+        setContextHelpId(QString());
+    }
 };
 
 

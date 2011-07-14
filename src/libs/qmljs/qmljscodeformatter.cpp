@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,7 +41,8 @@
 using namespace QmlJS;
 
 CodeFormatter::BlockData::BlockData()
-    : m_blockRevision(-1)
+    : m_indentDepth(0)
+    , m_blockRevision(-1)
 {
 }
 
@@ -165,6 +166,21 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             default:            enter(expression); continue;
             } break;
 
+        // property inits don't take statements
+        case property_initializer:
+            switch (kind) {
+            case Semicolon:     leave(true); break;
+            case LeftBrace:     enter(objectliteral_open); break;
+            case On:
+            case As:
+            case List:
+            case Import:
+            case Signal:
+            case Property:
+            case Identifier:    enter(expression_or_objectdefinition); break;
+            default:            enter(expression); continue;
+            } break;
+
         case objectdefinition_open:
             switch (kind) {
             case RightBrace:    leave(true); break;
@@ -206,7 +222,7 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
 
         case property_maybe_initializer:
             switch (kind) {
-            case Colon:         enter(binding_assignment); break;
+            case Colon:         enter(property_initializer); break;
             default:            leave(true); continue;
             } break;
 
@@ -295,7 +311,22 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             if (tryInsideExpression())
                 break;
             switch (kind) {
-            case RightBrace:        leave(); break;
+            case Colon:             enter(objectliteral_assignment); break;
+            case RightBracket:
+            case RightParenthesis:  leave(); continue; // error recovery
+            case RightBrace:        leave(true); break;
+            } break;
+
+        // pretty much like expression, but ends with , or }
+        case objectliteral_assignment:
+            if (tryInsideExpression())
+                break;
+            switch (kind) {
+            case Delimiter:         enter(expression_continuation); break;
+            case RightBracket:
+            case RightParenthesis:  leave(); continue; // error recovery
+            case RightBrace:        leave(); continue; // so we also leave objectliteral_open
+            case Comma:             leave(); break;
             } break;
 
         case bracket_element_start:
@@ -432,7 +463,7 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
                 leave();
                 continue;
             } else if (m_tokenIndex == m_tokens.size() - 1
-                       && lexerState == Scanner::Normal) {
+                       && (lexerState & Scanner::MultiLineMask) == Scanner::Normal) {
                 leave();
             } else if (m_tokenIndex == 0) {
                 // to allow enter/leave to update the indentDepth
@@ -451,12 +482,13 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
     int topState = m_currentState.top().type;
 
     if (topState == expression
-            || topState == expression_or_objectdefinition) {
+            || topState == expression_or_objectdefinition
+            || topState == objectliteral_assignment) {
         enter(expression_maybe_continuation);
     }
     if (topState != multiline_comment_start
             && topState != multiline_comment_cont
-            && lexerState == Scanner::MultiLineComment) {
+            && (lexerState & Scanner::MultiLineMask) == Scanner::MultiLineComment) {
         enter(multiline_comment_start);
     }
 
@@ -743,7 +775,8 @@ bool CodeFormatter::isExpressionEndState(int type) const
             type == substatement_open ||
             type == bracket_open ||
             type == paren_open ||
-            type == case_cont;
+            type == case_cont ||
+            type == objectliteral_open;
 }
 
 const Token &CodeFormatter::tokenAt(int idx) const
@@ -940,7 +973,7 @@ void CodeFormatter::dump() const
 
     qDebug() << "Current token index" << m_tokenIndex;
     qDebug() << "Current state:";
-    foreach (State s, m_currentState) {
+    foreach (const State &s, m_currentState) {
         qDebug() << metaEnum.valueToKey(s.type) << s.savedIndentDepth;
     }
     qDebug() << "Current indent depth:" << m_indentDepth;

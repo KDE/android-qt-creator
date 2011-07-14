@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 #define S60DEVICERUNCONFIGURATIONWIDGET_H
 
 #include <QtGui/QWidget>
+#include <QtGui/QLabel>
 
 QT_BEGIN_NAMESPACE
 class QLineEdit;
@@ -41,12 +42,14 @@ QT_END_NAMESPACE
 
 namespace Utils {
     class DetailsWidget;
+    class DebuggerLanguageChooser;
 }
 
 namespace Qt4ProjectManager {
-namespace Internal {
 
 class S60DeviceRunConfiguration;
+
+namespace Internal {
 
 class S60DeviceRunConfigurationWidget : public QWidget
 {
@@ -57,10 +60,16 @@ public:
 private slots:
     void argumentsEdited(const QString &text);
     void runConfigurationEnabledChange(bool enabled);
+    void useCppDebuggerToggled(bool);
+    void useQmlDebuggerToggled(bool);
+    void qmlDebugServerPortChanged(uint);
 
 private:
     S60DeviceRunConfiguration *m_runConfiguration;
+    QLabel *m_disabledIcon;
+    QLabel *m_disabledReason;
     Utils::DetailsWidget *m_detailsWidget;
+    Utils::DebuggerLanguageChooser *m_debuggerLanguageChooser;
     QLineEdit *m_argumentsLineEdit;
 };
 

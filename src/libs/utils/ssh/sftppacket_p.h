@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -82,6 +82,14 @@ enum SftpStatusCode {
     SSH_FX_NO_CONNECTION = 6,
     SSH_FX_CONNECTION_LOST = 7,
     SSH_FX_OP_UNSUPPORTED = 8
+};
+
+enum SftpAttributeType {
+    SSH_FILEXFER_ATTR_SIZE = 0x00000001,
+    SSH_FILEXFER_ATTR_UIDGID = 0x00000002,
+    SSH_FILEXFER_ATTR_PERMISSIONS = 0x00000004,
+    SSH_FILEXFER_ATTR_ACMODTIME = 0x00000008,
+    SSH_FILEXFER_ATTR_EXTENDED = 0x80000000
 };
 
 class AbstractSftpPacket

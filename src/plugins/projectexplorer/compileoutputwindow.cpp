@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,11 +34,14 @@
 #include "buildmanager.h"
 #include "showoutputtaskhandler.h"
 #include "task.h"
+#include "projectexplorerconstants.h"
+#include "projectexplorer.h"
+#include "projectexplorersettings.h"
 
+#include <coreplugin/icontext.h>
 #include <find/basetextfind.h>
 #include <aggregation/aggregate.h>
 #include <extensionsystem/pluginmanager.h>
-#include <qt4projectmanager/qt4projectmanagerconstants.h>
 
 #include <QtGui/QKeyEvent>
 #include <QtGui/QIcon>
@@ -58,11 +61,13 @@ const int MAX_LINECOUNT = 50000;
 
 CompileOutputWindow::CompileOutputWindow(BuildManager * /*bm*/)
 {
-    m_outputWindow = new OutputWindow();
+    Core::Context context(Constants::C_COMPILE_OUTPUT);
+    m_outputWindow = new Core::OutputWindow(context);
     m_outputWindow->setWindowTitle(tr("Compile Output"));
-    m_outputWindow->setWindowIcon(QIcon(QLatin1String(Qt4ProjectManager::Constants::ICON_WINDOW)));
+    m_outputWindow->setWindowIcon(QIcon(QLatin1String(Constants::ICON_WINDOW)));
     m_outputWindow->setReadOnly(true);
     m_outputWindow->setUndoRedoEnabled(false);
+    m_outputWindow->setMaxLineCount(MAX_LINECOUNT);
 
     Aggregation::Aggregate *agg = new Aggregation::Aggregate;
     agg->add(m_outputWindow);
@@ -72,12 +77,20 @@ CompileOutputWindow::CompileOutputWindow(BuildManager * /*bm*/)
 
     m_handler = new ShowOutputTaskHandler(this);
     ExtensionSystem::PluginManager::instance()->addObject(m_handler);
+    connect(ProjectExplorerPlugin::instance(), SIGNAL(settingsChanged()),
+            this, SLOT(updateWordWrapMode()));
+    updateWordWrapMode();
 }
 
 CompileOutputWindow::~CompileOutputWindow()
 {
     ExtensionSystem::PluginManager::instance()->removeObject(m_handler);
     delete m_handler;
+}
+
+void CompileOutputWindow::updateWordWrapMode()
+{
+    m_outputWindow->setWordWrapEnabled(ProjectExplorerPlugin::instance()->projectExplorerSettings().wrapAppOutput);
 }
 
 bool CompileOutputWindow::hasFocus()
@@ -129,7 +142,7 @@ void CompileOutputWindow::appendText(const QString &text, ProjectExplorer::Build
 
     }
 
-    m_outputWindow->appendText(text, textFormat, MAX_LINECOUNT);
+    m_outputWindow->appendText(text, textFormat);
 }
 
 void CompileOutputWindow::clearContents()

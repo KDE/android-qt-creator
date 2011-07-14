@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "gdboptionspage.h"
 #include "debuggeractions.h"
 #include "debuggercore.h"
+#include "debuggerinternalconstants.h"
 
 #include <coreplugin/icore.h>
 #include <projectexplorer/projectexplorer.h>
@@ -93,6 +94,8 @@ QWidget *GdbOptionsPage::createPage(QWidget *parent)
         m_ui->checkBoxTargetAsync);
     m_group.insert(debuggerCore()->action(AdjustBreakpointLocations),
         m_ui->checkBoxAdjustBreakpointLocations);
+    m_group.insert(debuggerCore()->action(BreakOnWarning),
+        m_ui->checkBoxBreakOnWarning);
     m_group.insert(debuggerCore()->action(GdbWatchdogTimeout),
         m_ui->spinBoxGdbWatchdogTimeout);
 
@@ -131,6 +134,10 @@ QWidget *GdbOptionsPage::createPage(QWidget *parent)
                    ;
         m_searchKeywords.remove(QLatin1Char('&'));
     }
+
+    // FIXME: Not fully working on the gdb side yet.
+    m_ui->checkBoxTargetAsync->hide();
+
     return w;
 }
 

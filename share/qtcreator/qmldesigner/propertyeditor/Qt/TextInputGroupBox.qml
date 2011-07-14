@@ -1,3 +1,35 @@
+/**************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (info@qt.nokia.com)
+**
+**
+** GNU Lesser General Public License Usage
+**
+** This file may be used under the terms of the GNU Lesser General Public
+** License version 2.1 as published by the Free Software Foundation and
+** appearing in the file LICENSE.LGPL included in the packaging of this file.
+** Please review the following information to ensure the GNU Lesser General
+** Public License version 2.1 requirements will be met:
+** http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+**
+** In addition, as a special exception, Nokia gives you certain additional
+** rights. These rights are described in the Nokia Qt LGPL Exception
+** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+**
+** Other Usage
+**
+** Alternatively, this file may be used in accordance with the terms and
+** conditions contained in a signed written agreement between you and Nokia.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at info@qt.nokia.com.
+**
+**************************************************************************/
+
 import Qt 4.7
 import Bauhaus 1.0
 
@@ -13,7 +45,7 @@ GroupBox {
             visible: isTextInput
             layout: HorizontalLayout {
 
-                Label {text: qsTr("Input Mask") }
+                Label {text: qsTr("Input mask") }
 
                 LineEdit {
                     backendValue: backendValues.inputMask
@@ -26,7 +58,7 @@ GroupBox {
             visible: isTextInput
             layout: HorizontalLayout {
 
-                Label {text: qsTr("Echo Mode") }
+                Label {text: qsTr("Echo mode") }
 
                 ComboBox {
                     baseStateFlag: isBaseState
@@ -45,8 +77,8 @@ GroupBox {
             layout: HorizontalLayout {
 
                 Label {
-                    text: qsTr("Pass. Char")
-                    toolTip: qsTr("Password Character")
+                    text: qsTr("Pass. char")
+                    toolTip: qsTr("Character displayed when users enter passwords.")
                 }
 
                 LineEdit {
@@ -61,7 +93,7 @@ GroupBox {
                 Label {text: qsTr("Flags") }
 
                 CheckBox {
-                    text: qsTr("Read Only")
+                    text: qsTr("Read only")
                     baseStateFlag: isBaseState;
                     checkable: true;
                     backendValue: backendValues.readOnly;
@@ -76,7 +108,7 @@ GroupBox {
 
                 CheckBox {
 
-                    text: qsTr("Cursor Visible")
+                    text: qsTr("Cursor visible")
                     baseStateFlag: isBaseState;
                     checkable: true;
                     backendValue: backendValues.cursorVisible;
@@ -90,7 +122,7 @@ GroupBox {
             layout: HorizontalLayout {
                 Label {text: ""}
                 CheckBox {
-                    text: qsTr("Focus On Press")
+                    text: qsTr("Focus on press")
                     baseStateFlag: isBaseState;
                     checkable: true;
                     backendValue:  backendValues.focusOnPress;
@@ -103,7 +135,7 @@ GroupBox {
             layout: HorizontalLayout {
                 Label {text: ""}
                 CheckBox {
-                    text: qsTr("Auto Scroll")
+                    text: qsTr("Auto scroll")
                     baseStateFlag: isBaseState;
                     checkable: true;
                     backendValue:  backendValues.autoScroll;

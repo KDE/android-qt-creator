@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -365,17 +365,17 @@ private:
 } // end of anonymous namespace
 
 
-Check::Check(Document::Ptr doc, const Snapshot &snapshot, const Context *linkedContextNoScope)
+Check::Check(Document::Ptr doc, const Context *linkedContextNoScope)
     : _doc(doc)
-    , _snapshot(snapshot)
     , _context(*linkedContextNoScope)
-    , _scopeBuilder(&_context, doc, snapshot)
+    , _scopeBuilder(&_context, doc)
     , _options(WarnDangerousNonStrictEqualityChecks | WarnBlocks | WarnWith
           | WarnVoid | WarnCommaExpression | WarnExpressionStatement
           | WarnAssignInCondition | WarnUseBeforeDeclaration | WarnDuplicateDeclaration
           | WarnCaseWithoutFlowControlEnd | ErrCheckTypeErrors)
     , _lastValue(0)
 {
+    _scopeBuilder.initializeRootScope();
 }
 
 Check::~Check()
@@ -461,20 +461,51 @@ bool Check::visit(UiObjectBinding *ast)
 void Check::visitQmlObject(Node *ast, UiQualifiedId *typeId,
                            UiObjectInitializer *initializer)
 {
-    // If the 'typeId' starts with a lower-case letter, it doesn't define
-    // a new object instance. For instance: anchors { ... }
-    if (typeId->name->asString().at(0).isLower() && ! typeId->next) {
+    // Don't do type checks if it's a grouped property binding.
+    // For instance: anchors { ... }
+    if (_doc->bind()->isGroupedPropertyBinding(ast)) {
         checkScopeObjectMember(typeId);
         // ### don't give up!
         return;
     }
 
+    bool typeError = false;
+    const SourceLocation typeErrorLocation = fullLocationForQualifiedId(typeId);
+    const ObjectValue *prototype = _context.lookupType(_doc.data(), typeId);
+    if (!prototype) {
+        typeError = true;
+        if (_options & ErrCheckTypeErrors)
+            error(typeErrorLocation,
+                  Check::tr("unknown type"));
+    } else {
+        PrototypeIterator iter(prototype, &_context);
+        QList<const ObjectValue *> prototypes = iter.all();
+        if (iter.error() != PrototypeIterator::NoError)
+            typeError = true;
+        if (_options & ErrCheckTypeErrors) {
+            const ObjectValue *lastPrototype = prototypes.last();
+            if (iter.error() == PrototypeIterator::ReferenceResolutionError) {
+                if (const QmlPrototypeReference *ref =
+                        dynamic_cast<const QmlPrototypeReference *>(lastPrototype->prototype())) {
+                    error(typeErrorLocation,
+                          Check::tr("could not resolve the prototype %1 of %2").arg(
+                              Bind::toString(ref->qmlTypeName()), lastPrototype->className()));
+                } else {
+                    error(typeErrorLocation,
+                          Check::tr("could not resolve the prototype of %1").arg(
+                              lastPrototype->className()));
+                }
+            } else if (iter.error() == PrototypeIterator::CycleError) {
+                error(typeErrorLocation,
+                      Check::tr("prototype cycle, the last non-repeated object is %1").arg(
+                          lastPrototype->className()));
+            }
+        }
+    }
+
     _scopeBuilder.push(ast);
 
-    if (! _context.lookupType(_doc.data(), typeId)) {
-        if (_options & ErrCheckTypeErrors)
-            error(typeId->identifierToken,
-                  Check::tr("unknown type"));
+    if (typeError) {
         // suppress subsequent errors about scope object lookup by clearing
         // the scope object list
         // ### todo: better way?
@@ -550,6 +581,11 @@ bool Check::visit(UiScriptBinding *ast)
     if (Block *block = cast<Block *>(ast->statement)) {
         FunctionBodyCheck bodyCheck;
         _messages.append(bodyCheck(block->statements, _options));
+        Node::accept(ast->qualifiedId, this);
+        _scopeBuilder.push(ast);
+        Node::accept(block->statements, this);
+        _scopeBuilder.pop();
+        return false;
     }
 
     return true;
@@ -717,7 +753,8 @@ bool Check::visit(ExpressionStatement *ast)
                 || cast<PreDecrementExpression *>(ast->expression)
                 || cast<PreIncrementExpression *>(ast->expression)
                 || cast<PostIncrementExpression *>(ast->expression)
-                || cast<PostDecrementExpression *>(ast->expression);
+                || cast<PostDecrementExpression *>(ast->expression)
+                || cast<FunctionExpression *>(ast->expression);
         if (BinaryExpression *binary = cast<BinaryExpression *>(ast->expression)) {
             switch (binary->op) {
             case QSOperator::Assign:
@@ -740,6 +777,12 @@ bool Check::visit(ExpressionStatement *ast)
             for (int i = 0; Node *p = parent(i); ++i) {
                 if (UiScriptBinding *binding = cast<UiScriptBinding *>(p)) {
                     if (!cast<Block *>(binding->statement)) {
+                        ok = true;
+                        break;
+                    }
+                }
+                if (UiPublicMember *member = cast<UiPublicMember *>(p)) {
+                    if (!cast<Block *>(member->statement)) {
                         ok = true;
                         break;
                     }
@@ -843,11 +886,16 @@ const Value *Check::checkScopeObjectMember(const UiQualifiedId *id)
     if (!value) {
         error(id->identifierToken,
               Check::tr("'%1' is not a valid property name").arg(propertyName));
+        return 0;
     }
 
     // can't look up members for attached properties
     if (isAttachedProperty)
         return 0;
+
+    // resolve references
+    if (const Reference *ref = value->asReference())
+        value = _context.lookupReference(ref);
 
     // member lookup
     const UiQualifiedId *idPart = id;

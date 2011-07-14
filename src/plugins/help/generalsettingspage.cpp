@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,6 +42,8 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/helpmanager.h>
 #include <coreplugin/icore.h>
+
+#include <utils/fileutils.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QSettings>
@@ -253,7 +255,7 @@ void GeneralSettingsPage::importBookmarks()
     }
 
     m_ui->errorLabel->setVisible(true);
-    m_ui->errorLabel->setText(tr("There was an error while importing bookmarks!"));
+    m_ui->errorLabel->setText(tr("Cannot import bookmarks."));
 }
 
 void GeneralSettingsPage::exportBookmarks()
@@ -267,10 +269,15 @@ void GeneralSettingsPage::exportBookmarks()
     if (!fileName.endsWith(suffix))
         fileName.append(suffix);
 
-    QFile file(fileName);
-    if (file.open(QIODevice::WriteOnly)) {
+    Utils::FileSaver saver(fileName);
+    if (!saver.hasError()) {
         XbelWriter writer(LocalHelpManager::bookmarkManager().treeBookmarkModel());
-        writer.writeToFile(&file);
+        writer.writeToFile(saver.file());
+        saver.setResult(&writer);
+    }
+    if (!saver.finalize()) {
+        m_ui->errorLabel->setVisible(true);
+        m_ui->errorLabel->setText(saver.errorString());
     }
 }
 

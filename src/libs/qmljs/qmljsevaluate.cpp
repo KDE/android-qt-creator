@@ -26,13 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "qmljsevaluate.h"
 #include "qmljsinterpreter.h"
-#include "parser/qmljsparser_p.h"
 #include "parser/qmljsast_p.h"
 #include <QtCore/QDebug>
 
@@ -179,7 +178,7 @@ bool Evaluate::visit(AST::UiQualifiedId *ast)
             if (! name)
                 break;
 
-            const Value *value = base->property(name->asString(), _context);
+            const Value *value = base->lookupMember(name->asString(), _context);
             if (! it->next)
                 _result = value;
             else
@@ -313,7 +312,7 @@ bool Evaluate::visit(AST::FieldMemberExpression *ast)
 
     if (const Interpreter::Value *base = _engine->convertToObject(reference(ast->base))) {
         if (const Interpreter::ObjectValue *obj = base->asObjectValue()) {
-            _result = obj->property(ast->name->asString(), _context);
+            _result = obj->lookupMember(ast->name->asString(), _context);
         }
     }
 

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,8 +49,8 @@ namespace Internal {
 GLSLEditorEditable::GLSLEditorEditable(GLSLTextEditorWidget *editor)
     : BaseTextEditor(editor)
 {
-    m_context.add(GLSLEditor::Constants::C_GLSLEDITOR_ID);
-    m_context.add(TextEditor::Constants::C_TEXTEDITOR);
+    setContext(Core::Context(GLSLEditor::Constants::C_GLSLEDITOR_ID,
+                             TextEditor::Constants::C_TEXTEDITOR));
 }
 
 QString GLSLEditorEditable::preferredModeType() const

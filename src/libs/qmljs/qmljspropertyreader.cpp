@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -152,19 +152,6 @@ bool isEnum(AST::ExpressionNode *ast)
     if (FieldMemberExpression *memberExpr = cast<AST::FieldMemberExpression*>(ast))
         return isEnum(memberExpr->base);
     else if (cast<IdentifierExpression*>(ast))
-        return true;
-    else
-        return false;
-}
-
-bool isEnum(AST::ExpressionStatement *ast)
-{
-    if (!ast)
-        return false;
-
-    if (FieldMemberExpression *memberExpr = cast<AST::FieldMemberExpression*>(ast->expression))
-        return isEnum(memberExpr->base);
-    else if (cast<IdentifierExpression*>(ast->expression))
         return true;
     else
         return false;

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,6 @@
 using namespace Bookmarks::Internal;
 
 Bookmark::Bookmark(const QString& fileName, int lineNumber, BookmarkManager *manager) :
-    BaseTextMark(fileName, lineNumber),
     m_manager(manager),
     m_fileInfo(fileName),
     m_fileName(fileName),
@@ -47,11 +46,9 @@ Bookmark::Bookmark(const QString& fileName, int lineNumber, BookmarkManager *man
     m_path(m_fileInfo.path()),
     m_lineNumber(lineNumber)
 {
-}
-
-QIcon Bookmark::icon() const
-{
-    return m_manager->bookmarkIcon();
+    setLocation(fileName, lineNumber),
+    setPriority(TextEditor::ITextMark::LowPriority);
+    setIcon(m_manager->bookmarkIcon());
 }
 
 void Bookmark::removedFromEditor()

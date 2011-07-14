@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -68,8 +68,9 @@ class ChangeBindingsCommand;
 class ChangeIdsCommand;
 class RemoveInstancesCommand;
 class RemovePropertiesCommand;
-class AddImportCommand;
 class CompleteComponentCommand;
+class InformationContainer;
+class TokenCommand;
 
 class CORESHARED_EXPORT NodeInstanceView : public AbstractView, public NodeInstanceClientInterface
 {
@@ -103,12 +104,15 @@ public:
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void instancesCompleted(const QVector<ModelNode> &completedNodeList);
     void importsChanged(const QList<Import> &addedImports, const QList<Import> &removedImports);
-    void instanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     void instancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     void instancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector);
     void auxiliaryDataChanged(const ModelNode &node, const QString &name, const QVariant &data);
     void customNotification(const AbstractView *view, const QString &identifier, const QList<ModelNode> &nodeList, const QList<QVariant> &data);
+    void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource);
+
 
     void rewriterBeginTransaction();
     void rewriterEndTransaction();
@@ -126,8 +130,6 @@ public:
 
     NodeInstance activeStateInstance() const;
 
-    void activateState(const NodeInstance &instance);
-    void activateBaseState();
 
     void valuesChanged(const ValuesChangedCommand &command);
     void pixmapChanged(const PixmapChangedCommand &command);
@@ -135,13 +137,21 @@ public:
     void childrenChanged(const ChildrenChangedCommand &command);
     void statePreviewImagesChanged(const StatePreviewImageChangedCommand &command);
     void componentCompleted(const ComponentCompletedCommand &command);
+    void token(const TokenCommand &command);
 
     QImage statePreviewImage(const ModelNode &stateNode) const;
+
+    void setPathToQt(const QString &pathToQt);
+
+    void sendToken(const QString &token, int number, const QVector<ModelNode> &nodeVector);
 
 signals:
     void qmlPuppetCrashed();
 
 private: // functions
+    void activateState(const NodeInstance &instance);
+    void activateBaseState();
+
     NodeInstance rootNodeInstance() const;
 
     NodeInstance loadNode(const ModelNode &node);
@@ -159,6 +169,8 @@ private: // functions
     void clearStateInstance();
 
     NodeInstanceServerInterface *nodeInstanceServer() const;
+    QMultiHash<ModelNode, InformationName> informationChanged(const QVector<InformationContainer> &containerVector);
+
 
     CreateSceneCommand createCreateSceneCommand();
     ClearSceneCommand createClearSceneCommand() const;
@@ -174,7 +186,6 @@ private: // functions
     RemoveInstancesCommand createRemoveInstancesCommand(const QList<ModelNode> &nodeList) const;
     RemoveInstancesCommand createRemoveInstancesCommand(const ModelNode &node) const;
     RemovePropertiesCommand createRemovePropertiesCommand(const QList<AbstractProperty> &propertyList) const;
-    AddImportCommand createImportCommand(const Import &import);
 
     void resetHorizontalAnchors(const ModelNode &node);
     void resetVerticalAnchors(const ModelNode &node);
@@ -196,6 +207,7 @@ private: //variables
     QImage m_baseStatePreviewImage;
     QTime m_lastCrashTime;
     NodeInstanceServerInterface::RunModus m_runModus;
+    QString m_pathToQt;
 };
 
 } // namespace ProxyNodeInstanceView

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,14 +44,20 @@
 namespace QmlDesigner {
 
 NavigatorView::NavigatorView(QObject* parent) :
-        AbstractView(parent),
+        QmlModelView(parent),
         m_blockSelectionChangedSignal(false),
-        m_widget(new NavigatorWidget),
+        m_widget(new NavigatorWidget(this)),
         m_treeModel(new NavigatorTreeModel(this))
 {
     m_widget->setTreeModel(m_treeModel.data());
 
     connect(treeWidget()->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)), this, SLOT(changeSelection(QItemSelection,QItemSelection)));
+
+    connect(m_widget.data(), SIGNAL(leftButtonClicked()), this, SLOT(leftButtonClicked()));
+    connect(m_widget.data(), SIGNAL(rightButtonClicked()), this, SLOT(rightButtonClicked()));
+    connect(m_widget.data(), SIGNAL(downButtonClicked()), this, SLOT(downButtonClicked()));
+    connect(m_widget.data(), SIGNAL(upButtonClicked()), this, SLOT(upButtonClicked()));
+
     treeWidget()->setIndentation(treeWidget()->indentation() * 0.5);
 
     NameItemDelegate *idDelegate = new NameItemDelegate(this,m_treeModel.data());
@@ -80,14 +86,14 @@ NavigatorView::~NavigatorView()
         delete m_widget.data();
 }
 
-QWidget *NavigatorView::widget()
+NavigatorWidget *NavigatorView::widget()
 {
     return m_widget.data();
 }
 
 void NavigatorView::modelAttached(Model *model)
 {
-    AbstractView::modelAttached(model);
+    QmlModelView::modelAttached(model);
 
     m_treeModel->setView(this);
 
@@ -106,7 +112,7 @@ void NavigatorView::modelAttached(Model *model)
 void NavigatorView::modelAboutToBeDetached(Model *model)
 {
     m_treeModel->clearView();
-    AbstractView::modelAboutToBeDetached(model);
+    QmlModelView::modelAboutToBeDetached(model);
 }
 
 void NavigatorView::importsChanged(const QList<Import> &/*addedImports*/, const QList<Import> &/*removedImports*/)
@@ -212,7 +218,7 @@ void NavigatorView::instancesCompleted(const QVector<ModelNode> &/*completedNode
 {
 }
 
-void NavigatorView::instanceInformationsChange(const QVector<ModelNode> &/*nodeList*/)
+void NavigatorView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &/*informationChangeHash*/)
 {
 }
 
@@ -225,6 +231,11 @@ void NavigatorView::instancesPreviewImageChanged(const QVector<ModelNode> &/*nod
 }
 
 void NavigatorView::instancesChildrenChanged(const QVector<ModelNode> &/*nodeList*/)
+{
+
+}
+
+void NavigatorView::nodeSourceChanged(const ModelNode &, const QString & /*newNodeSource*/)
 {
 
 }
@@ -254,6 +265,75 @@ void NavigatorView::changeToComponent(const QModelIndex &index)
         if (doubleClickNode.metaInfo().isComponent())
             Core::EditorManager::instance()->openEditor(doubleClickNode.metaInfo().componentFileName());
     }
+}
+
+void NavigatorView::leftButtonClicked()
+{
+    if (selectedModelNodes().count() > 1)
+        return; //Semantics are unclear for multi selection.
+
+    bool blocked = blockSelectionChangedSignal(true);
+
+    foreach (const ModelNode &node, selectedModelNodes()) {
+        if (!node.isRootNode() && !node.parentProperty().parentModelNode().isRootNode())
+            node.parentProperty().parentModelNode().parentProperty().reparentHere(node);
+    }
+    updateItemSelection();
+    blockSelectionChangedSignal(blocked);
+}
+
+void NavigatorView::rightButtonClicked()
+{
+    if (selectedModelNodes().count() > 1)
+        return; //Semantics are unclear for multi selection.
+
+    bool blocked = blockSelectionChangedSignal(true);
+    foreach (const ModelNode &node, selectedModelNodes()) {
+        if (!node.isRootNode() && node.parentProperty().isNodeListProperty() && node.parentProperty().toNodeListProperty().count() > 1) {
+            int index = node.parentProperty().toNodeListProperty().indexOf(node);
+            index--;
+            if (index >= 0) { //for the first node the semantics are not clear enough. Wrapping would be irritating.
+                ModelNode newParent = node.parentProperty().toNodeListProperty().at(index);
+                newParent.nodeAbstractProperty(newParent.metaInfo().defaultPropertyName()).reparentHere(node);
+            }
+        }
+    }
+    updateItemSelection();
+    blockSelectionChangedSignal(blocked);
+}
+
+void NavigatorView::upButtonClicked()
+{
+    bool blocked = blockSelectionChangedSignal(true);
+    foreach (const ModelNode &node, selectedModelNodes()) {
+        if (!node.isRootNode() && node.parentProperty().isNodeListProperty()) {
+            int oldIndex = node.parentProperty().toNodeListProperty().indexOf(node);
+            int index = oldIndex;
+            index--;
+            if (index < 0)
+                index = node.parentProperty().toNodeListProperty().count() - 1; //wrap around
+            node.parentProperty().toNodeListProperty().slide(oldIndex, index);
+        }
+    }
+    updateItemSelection();
+    blockSelectionChangedSignal(blocked);
+}
+
+void NavigatorView::downButtonClicked()
+{
+    bool blocked = blockSelectionChangedSignal(true);
+    foreach (const ModelNode &node, selectedModelNodes()) {
+        if (!node.isRootNode() && node.parentProperty().isNodeListProperty()) {
+            int oldIndex = node.parentProperty().toNodeListProperty().indexOf(node);
+            int index = oldIndex;
+            index++;
+            if (index >= node.parentProperty().toNodeListProperty().count())
+                index = 0; //wrap around
+            node.parentProperty().toNodeListProperty().slide(oldIndex, index);
+        }
+    }
+    updateItemSelection();
+    blockSelectionChangedSignal(blocked);
 }
 
 void NavigatorView::changeSelection(const QItemSelection & /*newSelection*/, const QItemSelection &/*deselected*/)

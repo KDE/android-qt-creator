@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,9 +38,11 @@
 #include "qt4buildconfiguration.h"
 #include "qt4symbiantarget.h"
 #include "qt4target.h"
-#include "qtoutputformatter.h"
 
 #include <utils/qtcassert.h>
+
+#include <debugger/debuggerconstants.h>
+#include <analyzerbase/analyzerconstants.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -80,18 +82,26 @@ S60RunControlBase::S60RunControlBase(RunConfiguration *runConfiguration, const Q
 
     const S60DeviceRunConfiguration *s60runConfig = qobject_cast<S60DeviceRunConfiguration *>(runConfiguration);
     QTC_ASSERT(s60runConfig, return);
-    const Qt4BuildConfiguration *activeBuildConf = s60runConfig->qt4Target()->activeBuildConfiguration();
+    const Qt4BuildConfiguration *activeBuildConf = qobject_cast<Qt4BuildConfiguration *>(s60runConfig->target()->activeBuildConfiguration());
     QTC_ASSERT(activeBuildConf, return);
-    const S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(s60runConfig->qt4Target()->activeDeployConfiguration());
+    const S60DeployConfiguration *activeDeployConf = qobject_cast<S60DeployConfiguration *>(s60runConfig->target()->activeDeployConfiguration());
     QTC_ASSERT(activeDeployConf, return);
 
     m_executableUid = s60runConfig->executableUid();
     m_targetName = s60runConfig->targetName();
     m_commandLineArguments = s60runConfig->commandLineArguments();
-    m_qtDir = activeBuildConf->qtVersion()->versionInfo().value("QT_INSTALL_DATA");
-    m_installationDrive = activeDeployConf->installationDrive();
-    if (const QtVersion *qtv = activeDeployConf->qtVersion())
+    QString qmlArgs = s60runConfig->qmlCommandLineArguments();
+    if (((mode == Debugger::Constants::DEBUGMODE)
+            || (mode == Analyzer::Constants::MODE_ANALYZE))
+            && !qmlArgs.isEmpty()) {
+        m_commandLineArguments.prepend(' ');
+        m_commandLineArguments.prepend(qmlArgs);
+    }
+    if (const QtSupport::BaseQtVersion *qtv = activeBuildConf->qtVersion()) {
+        m_qtDir = qtv->versionInfo().value("QT_INSTALL_DATA");
         m_qtBinPath = qtv->versionInfo().value(QLatin1String("QT_INSTALL_BINS"));
+    }
+    m_installationDrive = activeDeployConf->installationDrive();
     QTC_ASSERT(!m_qtBinPath.isEmpty(), return);
     m_executableFileName = s60runConfig->localExecutableFileName();
     m_runSmartInstaller = activeDeployConf->runSmartInstaller();
@@ -114,7 +124,7 @@ void S60RunControlBase::start()
 
     if (m_runSmartInstaller) { //Smart Installer does the running by itself
         cancelProgress();
-        appendMessage(tr("Please finalise the installation on your device."), NormalMessageFormat);
+        appendMessage(tr("Please finalise the installation on your device.\n"), Utils::NormalMessageFormat);
         emit finished();
         return;
     }
@@ -167,7 +177,7 @@ void S60RunControlBase::startLaunching()
 
 void S60RunControlBase::handleFinished()
 {
-    appendMessage(tr("Finished."), NormalMessageFormat);
+    appendMessage(tr("Finished.\n"), Utils::NormalMessageFormat);
 }
 
 void S60RunControlBase::setProgress(int value)

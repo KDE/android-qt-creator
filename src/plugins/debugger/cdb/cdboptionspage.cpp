@@ -26,13 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "cdboptionspage.h"
 #include "cdboptions.h"
-#include "debuggerconstants.h"
+#include "debuggerinternalconstants.h"
 #include "cdbengine.h"
 
 #include <utils/synchronousprocess.h>
@@ -62,9 +62,9 @@ const EventsDescription eventDescriptions[] =
     {"et", false, QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
                                     "Thread exit")},
     {"ld", true,  QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
-                                    "Load Module:")},
+                                    "Load module:")},
     {"ud", true,  QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
-                                    "Unload Module:")},
+                                    "Unload module:")},
     {"out", true, QT_TRANSLATE_NOOP("Debugger::Cdb::CdbBreakEventWidget",
                                     "Output:")}
 };
@@ -174,6 +174,7 @@ void CdbOptionsPageWidget::setOptions(CdbOptions &o)
     setSymbolPaths(o.symbolPaths);
     m_ui.sourcePathListEditor->setPathList(o.sourcePaths);
     m_breakEventWidget->setBreakEvents(o.breakEvents);
+    m_ui.consoleCheckBox->setChecked(o.cdbConsole);
 }
 
 CdbOptions CdbOptionsPageWidget::options() const
@@ -183,6 +184,7 @@ CdbOptions CdbOptionsPageWidget::options() const
     rc.symbolPaths = symbolPaths();
     rc.sourcePaths = m_ui.sourcePathListEditor->pathList();
     rc.breakEvents = m_breakEventWidget->breakEvents();
+    rc.cdbConsole = m_ui.consoleCheckBox->isChecked();
     return rc;
 }
 

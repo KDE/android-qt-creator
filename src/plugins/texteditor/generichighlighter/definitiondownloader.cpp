@@ -26,19 +26,22 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "definitiondownloader.h"
 
+#include <utils/fileutils.h>
+
 #include <QtCore/QLatin1Char>
 #include <QtCore/QEventLoop>
 #include <QtCore/QFile>
 #include <QtCore/QScopedPointer>
-#include <QtNetwork/QNetworkAccessManager>
 #include <QtNetwork/QNetworkRequest>
 #include <QtNetwork/QNetworkReply>
+
+#include <coreplugin/networkaccessmanager.h>
 
 using namespace TextEditor;
 using namespace Internal;
@@ -49,7 +52,7 @@ DefinitionDownloader::DefinitionDownloader(const QUrl &url, const QString &local
 
 void DefinitionDownloader::run()
 {
-    QNetworkAccessManager manager;
+    Core::NetworkAccessManager manager;
 
     int currentAttempt = 0;
     const int maxAttempts = 5;
@@ -88,14 +91,9 @@ void DefinitionDownloader::saveData(QNetworkReply *reply)
     const QString &urlPath = m_url.path();
     const QString &fileName =
         urlPath.right(urlPath.length() - urlPath.lastIndexOf(QLatin1Char('/')) - 1);
-    QFile file(m_localPath + fileName);
-    if (file.open(QIODevice::Text | QIODevice::WriteOnly)) {
-        file.write(reply->readAll());
-        file.close();
-        m_status = Ok;
-    } else {
-        m_status = WriteError;
-    }
+    Utils::FileSaver saver(m_localPath + fileName, QIODevice::Text);
+    saver.write(reply->readAll());
+    m_status = saver.finalize() ? Ok: WriteError;
 }
 
 DefinitionDownloader::Status DefinitionDownloader::status() const

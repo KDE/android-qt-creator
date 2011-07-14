@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,9 +38,6 @@
 #include <QtGui/QStandardItemModel>
 
 namespace VCSBase {
-
-/* A 2-column (checkable, state, file name) model to be used to list the files-
- * in the submit editor. Provides header items and a convience to add files. */
 
 class VCSBASE_EXPORT SubmitFileModel : public QStandardItemModel
 {

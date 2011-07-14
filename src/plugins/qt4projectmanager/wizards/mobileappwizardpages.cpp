@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 #include "ui_mobileappwizardmaemooptionspage.h"
 #include "ui_mobileappwizardsymbianoptionspage.h"
 #include <coreplugin/coreconstants.h>
+#include <utils/fileutils.h>
 
 #include <QtCore/QTemporaryFile>
 #include <QtGui/QDesktopServices>
@@ -61,10 +62,10 @@ class MobileAppWizardSymbianOptionsPagePrivate
 class MobileAppWizardMaemoOptionsPagePrivate
 {
     Ui::MobileAppWizardMaemoOptionsPage ui;
+    QSize iconSize;
     QString pngIcon;
     friend class MobileAppWizardMaemoOptionsPage;
 };
-
 
 MobileAppWizardGenericOptionsPage::MobileAppWizardGenericOptionsPage(QWidget *parent)
     : QWizardPage(parent)
@@ -87,17 +88,19 @@ MobileAppWizardGenericOptionsPage::~MobileAppWizardGenericOptionsPage()
 void MobileAppWizardGenericOptionsPage::setOrientation(AbstractMobileApp::ScreenOrientation orientation)
 {
     QComboBox *const comboBox = m_d->ui.orientationBehaviorComboBox;
-    for (int i = 0; i < comboBox->count(); ++i)
+    for (int i = 0; i < comboBox->count(); ++i) {
         if (comboBox->itemData(i).toInt() == static_cast<int>(orientation)) {
             comboBox->setCurrentIndex(i);
             break;
         }
+    }
 }
 
 AbstractMobileApp::ScreenOrientation MobileAppWizardGenericOptionsPage::orientation() const
 {
-    const int index = m_d->ui.orientationBehaviorComboBox->currentIndex();
-    return static_cast<AbstractMobileApp::ScreenOrientation>(m_d->ui.orientationBehaviorComboBox->itemData(index).toInt());
+    QComboBox *const comboBox = m_d->ui.orientationBehaviorComboBox;
+    const int index = comboBox->currentIndex();
+    return static_cast<AbstractMobileApp::ScreenOrientation>(comboBox->itemData(index).toInt());
 }
 
 
@@ -165,11 +168,18 @@ void MobileAppWizardSymbianOptionsPage::openSvgIcon()
 }
 
 
-MobileAppWizardMaemoOptionsPage::MobileAppWizardMaemoOptionsPage(QWidget *parent)
+MobileAppWizardMaemoOptionsPage::MobileAppWizardMaemoOptionsPage(int appIconSize,
+        QWidget *parent)
     : QWizardPage(parent)
     , m_d(new MobileAppWizardMaemoOptionsPagePrivate)
 {
     m_d->ui.setupUi(this);
+    QString iconLabelText = m_d->ui.appIconLabel->text();
+    iconLabelText.replace(QLatin1String("%%w%%"), QString::number(appIconSize));
+    iconLabelText.replace(QLatin1String("%%h%%"), QString::number(appIconSize));
+    m_d->ui.appIconLabel->setText(iconLabelText);
+    m_d->iconSize = QSize(appIconSize, appIconSize);
+    m_d->ui.pngIconButton->setIconSize(m_d->iconSize);
     connect(m_d->ui.pngIconButton, SIGNAL(clicked()), this, SLOT(openPngIcon()));
 }
 
@@ -193,27 +203,29 @@ void MobileAppWizardMaemoOptionsPage::setPngIcon(const QString &icon)
         return;
     }
 
-    const QSize iconSize(64, 64);
     QString actualIconPath;
-    if (iconPixmap.size() == iconSize) {
+    if (iconPixmap.size() == m_d->iconSize) {
         actualIconPath = icon;
     } else {
         const QMessageBox::StandardButton button = QMessageBox::warning(this,
-            tr("Wrong Icon Size"), tr("The icon needs to be 64x64 pixels big, "
-                "but is not. Do you want Creator to scale it?"),
+            tr("Wrong Icon Size"), tr("The icon needs to be %1x%2 pixels big, "
+                "but is not. Do you want Creator to scale it?")
+                .arg(m_d->iconSize.width()).arg(m_d->iconSize.height()),
             QMessageBox::Ok | QMessageBox::Cancel);
         if (button != QMessageBox::Ok)
             return;
-        iconPixmap = iconPixmap.scaled(iconSize);
-        QTemporaryFile tmpFile;
-        tmpFile.setAutoRemove(false);
-        const char * const format = QFileInfo(icon).suffix().toAscii().data();
-        if (!tmpFile.open() || !iconPixmap.save(&tmpFile, format)) {
+        iconPixmap = iconPixmap.scaled(m_d->iconSize);
+        Utils::TempFileSaver saver;
+        saver.setAutoRemove(false);
+        if (!saver.hasError())
+            saver.setResult(iconPixmap.save(
+                    saver.file(), QFileInfo(icon).suffix().toAscii().constData()));
+        if (!saver.finalize()) {
             QMessageBox::critical(this, tr("File Error"),
-                tr("Could not copy icon file."));
+                tr("Could not copy icon file: %1").arg(saver.errorString()));
             return;
         }
-        actualIconPath = tmpFile.fileName();
+        actualIconPath = saver.fileName();
     }
 
     m_d->ui.pngIconButton->setIcon(iconPixmap);

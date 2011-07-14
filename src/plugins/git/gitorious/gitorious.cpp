@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,18 +37,19 @@
 #include <QtCore/QXmlStreamReader>
 #include <QtCore/QSettings>
 
-#include <QtNetwork/QNetworkAccessManager>
 #include <QtNetwork/QNetworkReply>
+
+#include <coreplugin/networkaccessmanager.h>
 
 enum { debug = 0 };
 
 enum Protocol { ListCategoriesProtocol, ListProjectsProtocol };
 
-static const char *protocolPropertyC = "gitoriousProtocol";
-static const char *hostNamePropertyC = "gitoriousHost";
-static const char *pagePropertyC = "requestPage";
+static const char protocolPropertyC[] = "gitoriousProtocol";
+static const char hostNamePropertyC[] = "gitoriousHost";
+static const char pagePropertyC[] = "requestPage";
 
-static const char *settingsKeyC = "GitoriousHosts";
+static const char settingsKeyC[] = "GitoriousHosts";
 
 // Gitorious paginates projects as 20 per page. It starts with page 1.
 enum { ProjectsPageSize = 20 };
@@ -528,7 +529,7 @@ void Gitorious::slotReplyFinished()
 QNetworkReply *Gitorious::createRequest(const QUrl &url, int protocol, int hostIndex, int page)
 {
     if (!m_networkManager)
-        m_networkManager = new QNetworkAccessManager(this);
+        m_networkManager = new Core::NetworkAccessManager(this);
     QNetworkReply *reply = m_networkManager->get(QNetworkRequest(url));
     connect(reply, SIGNAL(finished()), this, SLOT(slotReplyFinished()));
     reply->setProperty(protocolPropertyC, QVariant(protocol));

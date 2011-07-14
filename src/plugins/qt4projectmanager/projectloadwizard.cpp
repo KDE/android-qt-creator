@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,20 +53,18 @@ ProjectLoadWizard::ProjectLoadWizard(Qt4Project *project, QWidget *parent, Qt::W
 
     setupTargetPage();
 
-    setOptions(options() | QWizard::NoBackButtonOnLastPage);
+    setOption(QWizard::NoBackButtonOnLastPage, true);
+    setOption(QWizard::NoCancelButton, false);
 }
 
 // We don't want to actually show the dialog if we don't show the import page
 // We used to simply call ::exec() on the dialog
 void ProjectLoadWizard::execDialog()
 {
-    if (!pageIds().isEmpty()) {
-        QApplication::setOverrideCursor(QCursor(Qt::ArrowCursor));
+    if (!pageIds().isEmpty())
         exec();
-        QApplication::restoreOverrideCursor();
-    } else {
+    else
         done(QDialog::Accepted);
-    }
 }
 
 ProjectLoadWizard::~ProjectLoadWizard()

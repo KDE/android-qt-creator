@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -156,15 +156,15 @@ bool MercurialPlugin::initialize(const QStringList & /* arguments */, QString * 
 {
     typedef VCSBase::VCSEditorFactory<MercurialEditor> MercurialEditorFactory;
 
-    m_client = new MercurialClient(mercurialSettings);
-    VCSBase::VCSBasePlugin::initialize(new MercurialControl(m_client));
+    m_client = new MercurialClient(&mercurialSettings);
+    initializeVcs(new MercurialControl(m_client));
 
     core = Core::ICore::instance();
     actionManager = core->actionManager();
 
     optionsPage = new OptionsPage();
     addAutoReleasedObject(optionsPage);
-    mercurialSettings.readSettings(core->settings(), QLatin1String("Mercurial"));
+    mercurialSettings.readSettings(core->settings());
 
     connect(optionsPage, SIGNAL(settingsChanged()), m_client, SLOT(settingsChanged()));
 
@@ -199,6 +199,7 @@ void MercurialPlugin::setSettings(const MercurialSettings &settings)
 {
     if (settings != mercurialSettings) {
         mercurialSettings = settings;
+        static_cast<MercurialControl *>(versionControl())->emitConfigurationChanged();
     }
 }
 
@@ -316,7 +317,8 @@ void MercurialPlugin::logCurrentFile()
 {
     const VCSBase::VCSBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return)
-    m_client->log(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()), true);
+    m_client->log(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()),
+                  QStringList(), true);
 }
 
 void MercurialPlugin::revertCurrentFile()
@@ -544,7 +546,7 @@ void MercurialPlugin::createSubmitEditorActions()
     command->setAttribute(Core::Command::CA_UpdateText);
     connect(editorCommit, SIGNAL(triggered()), this, SLOT(commitFromEditor()));
 
-    editorDiff = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff Selected Files"), this);
+    editorDiff = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff &Selected Files"), this);
     command = actionManager->registerAction(editorDiff, Core::Id(Constants::DIFFEDITOR), context);
 
     editorUndo = new QAction(tr("&Undo"), this);
@@ -663,12 +665,12 @@ bool MercurialPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *sub
     const QStringList files = commitEditor->checkedFiles();
     if (!files.empty()) {
         //save the commit message
-        core->fileManager()->blockFileChange(editorFile);
-        editorFile->save();
-        core->fileManager()->unblockFileChange(editorFile);
+        if (!core->fileManager()->saveFile(editorFile))
+            return false;
 
-        QHash<int, QVariant> extraOptions;
-        extraOptions[MercurialClient::AuthorCommitOptionId] = commitEditor->committerInfo();
+        QStringList extraOptions;
+        if (!commitEditor->committerInfo().isEmpty())
+            extraOptions << QLatin1String("-u") << commitEditor->committerInfo();
         m_client->commit(m_submitRepository, files, editorFile->fileName(),
                          extraOptions);
     }

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,29 +39,12 @@ using namespace Help;
 using namespace Help::Internal;
 
 HelpMode::HelpMode(QObject *parent)
-  : Core::IMode(parent),
-    m_widget(0),
-    m_icon(QLatin1String(":/fancyactionbar/images/mode_Reference.png"))
+  : Core::IMode(parent)
 {
     setObjectName(QLatin1String("HelpMode"));
-}
-
-QString HelpMode::displayName() const
-{
-    return QCoreApplication::translate("Help::Internal::HelpMode", "Help");
-}
-
-int HelpMode::priority() const
-{
-    return Constants::P_MODE_HELP;
-}
-
-QString HelpMode::id() const
-{
-    return QLatin1String(Constants::ID_MODE_HELP);
-}
-
-Core::Context HelpMode::context() const
-{
-    return Core::Context(Constants::C_MODE_HELP);
+    setContext(Core::Context(Constants::C_MODE_HELP));
+    setIcon(QIcon(QLatin1String(":/fancyactionbar/images/mode_Reference.png")));
+    setDisplayName(QCoreApplication::translate("Help::Internal::HelpMode", "Help"));
+    setPriority(Constants::P_MODE_HELP);
+    setId(Constants::ID_MODE_HELP);
 }

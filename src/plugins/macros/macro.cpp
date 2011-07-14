@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,8 @@
 #include "macroevent.h"
 
 #include <coreplugin/coreconstants.h>
+
+#include <utils/fileutils.h>
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QDataStream>
@@ -101,10 +103,10 @@ Macro& Macro::operator=(const Macro &other)
     return *this;
 }
 
-void Macro::load(QString fileName)
+bool Macro::load(QString fileName)
 {
     if (d->events.count())
-        return; // the macro is not empty
+        return true; // the macro is not empty
 
     // Take the current filename if the parameter is null
     if (fileName.isNull())
@@ -123,10 +125,12 @@ void Macro::load(QString fileName)
             macroEvent.load(stream);
             append(macroEvent);
         }
+        return true;
     }
+    return false;
 }
 
-void Macro::loadHeader(const QString &fileName)
+bool Macro::loadHeader(const QString &fileName)
 {
     d->fileName = fileName;
     QFile file(fileName);
@@ -134,21 +138,27 @@ void Macro::loadHeader(const QString &fileName)
         QDataStream stream(&file);
         stream >> d->version;
         stream >> d->description;
+        return true;
     }
+    return false;
 }
 
-void Macro::save(const QString &fileName)
+bool Macro::save(const QString &fileName, QWidget *parent)
 {
-    QFile file(fileName);
-    if (file.open(QFile::WriteOnly)) {
-        QDataStream stream(&file);
+    Utils::FileSaver saver(fileName);
+    if (!saver.hasError()) {
+        QDataStream stream(saver.file());
         stream << d->version;
         stream << d->description;
         foreach (const MacroEvent &event, d->events) {
             event.save(stream);
         }
-        d->fileName = fileName;
+        saver.setResult(&stream);
     }
+    if (!saver.finalize(parent))
+        return false;
+    d->fileName = fileName;
+    return true;
 }
 
 QString Macro::displayName() const

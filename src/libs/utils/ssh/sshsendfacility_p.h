@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,6 +42,8 @@ QT_END_NAMESPACE
 
 
 namespace Utils {
+class SshPseudoTerminal;
+
 namespace Internal {
 class SshKeyExchange;
 
@@ -53,7 +55,7 @@ public:
     void recreateKeys(const SshKeyExchange &keyExchange);
     void createAuthenticationKey(const QByteArray &privKeyFileContents);
 
-    SshOutgoingPacket::Payload sendKeyExchangeInitPacket();
+    QByteArray sendKeyExchangeInitPacket();
     void sendKeyDhInitPacket(const Botan::BigInt &e);
     void sendNewKeysPacket();
     void sendDisconnectPacket(SshErrorCode reason,
@@ -69,6 +71,8 @@ public:
     void sendInvalidPacket();
     void sendSessionPacket(quint32 channelId, quint32 windowSize,
         quint32 maxPacketSize);
+    void sendPtyRequestPacket(quint32 remoteChannel,
+        const SshPseudoTerminal &terminal);
     void sendEnvPacket(quint32 remoteChannel, const QByteArray &var,
         const QByteArray &value);
     void sendExecPacket(quint32 remoteChannel, const QByteArray &command);

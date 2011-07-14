@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,9 +43,10 @@ struct ProjectExplorerSettings
     ProjectExplorerSettings() :
         buildBeforeDeploy(true), deployBeforeRun(true),
         saveBeforeBuild(false), showCompilerOutput(false),
-        showRunOutput(true), cleanOldAppOutput(false),
+        showRunOutput(true), cleanOldAppOutput(false), mergeStdErrAndStdOut(false),
         wrapAppOutput(true), useJom(true),
-        autorestoreLastSession(false), prompToStopRunControl(false)
+        autorestoreLastSession(false), prompToStopRunControl(false),
+        maxAppOutputLines(100000)
     { }
 
     bool buildBeforeDeploy;
@@ -54,10 +55,12 @@ struct ProjectExplorerSettings
     bool showCompilerOutput;
     bool showRunOutput;
     bool cleanOldAppOutput;
+    bool mergeStdErrAndStdOut;
     bool wrapAppOutput;
     bool useJom;
     bool autorestoreLastSession; // This option is set in the Session Manager!
     bool prompToStopRunControl;
+    int  maxAppOutputLines;
 
     // Add a UUid which is used to identify the development environment.
     // This is used to warn the user when he is trying to open a .user file that was created
@@ -73,10 +76,12 @@ inline bool operator==(const ProjectExplorerSettings &p1, const ProjectExplorerS
             && p1.showCompilerOutput == p2.showCompilerOutput
             && p1.showRunOutput == p2.showRunOutput
             && p1.cleanOldAppOutput == p2.cleanOldAppOutput
+            && p1.mergeStdErrAndStdOut == p2.mergeStdErrAndStdOut
             && p1.wrapAppOutput == p2.wrapAppOutput
             && p1.useJom == p2.useJom
             && p1.autorestoreLastSession == p2.autorestoreLastSession
-            && p1.prompToStopRunControl == p2.prompToStopRunControl;
+            && p1.prompToStopRunControl == p2.prompToStopRunControl
+            && p1.maxAppOutputLines == p2.maxAppOutputLines;
 }
 
 } // namespace ProjectExplorer

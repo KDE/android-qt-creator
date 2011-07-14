@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -43,8 +43,7 @@ using namespace Qt4ProjectManager::Internal;
 
 Qt4DesktopTarget::Qt4DesktopTarget(Qt4Project *parent, const QString &id) :
     Qt4BaseTarget(parent, id),
-    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this)),
-    m_deployConfigurationFactory(new ProjectExplorer::DeployConfigurationFactory(this))
+    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this))
 {
     setDisplayName(defaultDisplayName());
     setIcon(qApp->style()->standardIcon(QStyle::SP_ComputerIcon));
@@ -64,20 +63,17 @@ Qt4BuildConfigurationFactory *Qt4DesktopTarget::buildConfigurationFactory() cons
     return m_buildConfigurationFactory;
 }
 
-ProjectExplorer::DeployConfigurationFactory *Qt4DesktopTarget::deployConfigurationFactory() const
-{
-    return m_deployConfigurationFactory;
-}
-
 void Qt4DesktopTarget::createApplicationProFiles()
 {
     removeUnconfiguredCustomExectutableRunConfigurations();
 
     // We use the list twice
     QList<Qt4ProFileNode *> profiles = qt4Project()->applicationProFiles();
-    QSet<QString> paths;
-    foreach (Qt4ProFileNode *pro, profiles)
-        paths << pro->path();
+    QHash<QString, bool> paths;
+    foreach (Qt4ProFileNode *pro, profiles) {
+        bool isConsole = pro->variableValue(ConfigVar).contains(QLatin1String("console"));
+        paths.insert(pro->path(), isConsole);
+    }
 
     foreach (ProjectExplorer::RunConfiguration *rc, runConfigurations())
         if (Qt4RunConfiguration *qt4rc = qobject_cast<Qt4RunConfiguration *>(rc)) {
@@ -85,8 +81,14 @@ void Qt4DesktopTarget::createApplicationProFiles()
         }
 
     // Only add new runconfigurations if there are none.
-    foreach (const QString &path, paths)
-        addRunConfiguration(new Qt4RunConfiguration(this, path));
+    QHash<QString, bool>::const_iterator it, end;
+    end = paths.constEnd();
+    for (it = paths.constBegin(); it != end; ++it) {
+        Qt4RunConfiguration *qt4rc = new Qt4RunConfiguration(this, it.key());
+        if (it.value())
+            qt4rc->setRunMode(ProjectExplorer::LocalApplicationRunConfiguration::Console);
+        addRunConfiguration(qt4rc);
+    }
 
     // Oh still none? Add a custom executable runconfiguration
     if (runConfigurations().isEmpty()) {

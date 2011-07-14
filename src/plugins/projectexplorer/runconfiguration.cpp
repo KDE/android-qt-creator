@@ -26,13 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "runconfiguration.h"
 
-#include "outputformatter.h"
 #include "project.h"
 #include "target.h"
 #include "toolchain.h"
@@ -62,6 +61,7 @@ namespace {
 
 const char * const USE_CPP_DEBUGGER_KEY("RunConfiguration.UseCppDebugger");
 const char * const USE_QML_DEBUGGER_KEY("RunConfiguration.UseQmlDebugger");
+const char * const USE_QML_DEBUGGER_AUTO_KEY("RunConfiguration.UseQmlDebuggerAuto");
 const char * const QML_DEBUG_SERVER_PORT_KEY("RunConfiguration.QmlDebugServerPort");
 
 class RunConfigurationFactoryMatcher
@@ -69,6 +69,8 @@ class RunConfigurationFactoryMatcher
 public:
     RunConfigurationFactoryMatcher(Target * target) : m_target(target)
     { }
+
+    virtual ~RunConfigurationFactoryMatcher() { }
 
     virtual bool operator()(IRunConfigurationFactory *) const = 0;
 
@@ -88,7 +90,6 @@ public:
         RunConfigurationFactoryMatcher(target),
         m_id(id)
     { }
-    ~CreateMatcher() { }
 
     bool operator()(IRunConfigurationFactory *factory) const
     {
@@ -106,7 +107,6 @@ public:
         RunConfigurationFactoryMatcher(target),
         m_source(source)
     { }
-    ~CloneMatcher() { }
 
     bool operator()(IRunConfigurationFactory *factory) const
     {
@@ -124,7 +124,6 @@ public:
         RunConfigurationFactoryMatcher(target),
         m_map(map)
     { }
-    ~RestoreMatcher() { }
 
     bool operator()(IRunConfigurationFactory *factory) const
     {
@@ -137,11 +136,11 @@ private:
 
 // Helper methods:
 
-IRunConfigurationFactory * findRunConfigurationFactory(RunConfigurationFactoryMatcher &matcher)
+IRunConfigurationFactory *findRunConfigurationFactory(RunConfigurationFactoryMatcher &matcher)
 {
-    QList<IRunConfigurationFactory *>
-            factories(ExtensionSystem::PluginManager::instance()->
-                getObjects<IRunConfigurationFactory>());
+    QList<IRunConfigurationFactory *> factories
+        = ExtensionSystem::PluginManager::instance()->
+                getObjects<IRunConfigurationFactory>();
     foreach (IRunConfigurationFactory *factory, factories) {
         if (matcher(factory))
             return factory;
@@ -151,11 +150,65 @@ IRunConfigurationFactory * findRunConfigurationFactory(RunConfigurationFactoryMa
 
 } // namespace
 
-// RunConfiguration
+/*!
+    \class ProjectExplorer::ProcessHandle
+    \brief  Helper class to describe a process.
+
+    Encapsulates parameters of a running process, local (PID) or remote (to be done,
+    address, port, etc).
+*/
+
+ProcessHandle::ProcessHandle(quint64 pid) :
+    m_pid(pid)
+{
+}
+
+bool ProcessHandle::isValid() const
+{
+    return m_pid != 0;
+}
+
+void ProcessHandle::setPid(quint64 pid)
+{
+    m_pid = pid;
+}
+
+quint64 ProcessHandle::pid() const
+{
+    return m_pid;
+}
+
+QString ProcessHandle::toString() const
+{
+    if (m_pid)
+        return RunControl::tr("PID %1").arg(m_pid);
+    //: Invalid process handle.
+    return RunControl::tr("Invalid");
+}
+
+bool ProcessHandle::equals(const ProcessHandle &rhs) const
+{
+    return m_pid == rhs.m_pid;
+}
+
+/*!
+    \class ProjectExplorer::RunConfiguration
+    \brief  Base class for a run configuration. A run configuration specifies how a
+    target should be run, while the runner (see below) does the actual running.
+
+    Note that all RunControls and the target hold a shared pointer to the RunConfiguration.
+    That is the lifetime of the RunConfiguration might exceed the life of the target.
+    The user might still have a RunControl running (or output tab of that RunControl open)
+    and yet unloaded the target.
+
+    Also, a RunConfiguration might be already removed from the list of RunConfigurations
+    for a target, but still be runnable via the output tab.
+*/
+
 RunConfiguration::RunConfiguration(Target *target, const QString &id) :
     ProjectConfiguration(target, id),
     m_useCppDebugger(true),
-    m_useQmlDebugger(false),
+    m_useQmlDebugger(AutoEnableQmlDebugger),
     m_qmlDebugServerPort(Constants::QML_DEFAULT_DEBUG_SERVER_PORT)
 {
     Q_ASSERT(target);
@@ -164,8 +217,9 @@ RunConfiguration::RunConfiguration(Target *target, const QString &id) :
 
 RunConfiguration::RunConfiguration(Target *target, RunConfiguration *source) :
     ProjectConfiguration(target, source),
-    m_useCppDebugger(source->useCppDebugger()),
-    m_useQmlDebugger(source->useQmlDebugger())
+    m_useCppDebugger(source->m_useCppDebugger),
+    m_useQmlDebugger(source->m_useQmlDebugger),
+    m_qmlDebugServerPort(source->m_qmlDebugServerPort)
 {
     Q_ASSERT(target);
     addExtraAspects();
@@ -184,19 +238,25 @@ void RunConfiguration::addExtraAspects()
             m_aspects.append(aspect);
 }
 
-bool RunConfiguration::isEnabled(BuildConfiguration *bc) const
-{
-    Q_UNUSED(bc);
-    return true;
-}
+/*!
+    \brief Used to find out whether a runconfiguration is enabled
+*/
 
 bool RunConfiguration::isEnabled() const
 {
-    if (target()->project()->hasActiveBuildSettings()
-        && !activeBuildConfiguration())
-        return false;
-    return isEnabled(activeBuildConfiguration());
+    return true;
 }
+
+QString RunConfiguration::disabledReason() const
+{
+    return QString();
+}
+
+/*!
+    \fn virtual QWidget *ProjectExplorer::RunConfiguration::createConfigurationWidget()
+
+    \brief Returns the widget used to configure this run configuration. Ownership is transferred to the caller
+*/
 
 BuildConfiguration *RunConfiguration::activeBuildConfiguration() const
 {
@@ -212,7 +272,11 @@ Target *RunConfiguration::target() const
 
 void RunConfiguration::setUseQmlDebugger(bool value)
 {
-    m_useQmlDebugger = value;
+    if (value) {
+        m_useQmlDebugger = EnableQmlDebugger;
+    } else {
+        m_useQmlDebugger = DisableQmlDebugger;
+    }
     emit debuggersChanged();
 }
 
@@ -227,9 +291,24 @@ bool RunConfiguration::useCppDebugger() const
     return m_useCppDebugger;
 }
 
+static bool isQtQuickAppProject(Project *project)
+{
+    const QString &filePath = project->projectDirectory()
+            +QLatin1String("/qmlapplicationviewer/qmlapplicationviewer.pri");
+    return project->files(Project::ExcludeGeneratedFiles).contains(filePath);
+}
+
 bool RunConfiguration::useQmlDebugger() const
 {
-    return m_useQmlDebugger;
+    if (m_useQmlDebugger == AutoEnableQmlDebugger) {
+        if (isQtQuickAppProject(target()->project())) {
+            m_useQmlDebugger = EnableQmlDebugger;
+        } else {
+            m_useQmlDebugger = DisableQmlDebugger;
+        }
+    }
+
+    return (m_useQmlDebugger == EnableQmlDebugger);
 }
 
 uint RunConfiguration::qmlDebugServerPort() const
@@ -245,9 +324,10 @@ void RunConfiguration::setQmlDebugServerPort(uint port)
 
 QVariantMap RunConfiguration::toMap() const
 {
-    QVariantMap map(ProjectConfiguration::toMap());
+    QVariantMap map = ProjectConfiguration::toMap();
     map.insert(QLatin1String(USE_CPP_DEBUGGER_KEY), m_useCppDebugger);
-    map.insert(QLatin1String(USE_QML_DEBUGGER_KEY), m_useQmlDebugger);
+    map.insert(QLatin1String(USE_QML_DEBUGGER_KEY), m_useQmlDebugger == EnableQmlDebugger);
+    map.insert(QLatin1String(USE_QML_DEBUGGER_AUTO_KEY), m_useQmlDebugger == AutoEnableQmlDebugger);
     map.insert(QLatin1String(QML_DEBUG_SERVER_PORT_KEY), m_qmlDebugServerPort);
     foreach (IRunConfigurationAspect *aspect, m_aspects)
         map.unite(aspect->toMap());
@@ -269,8 +349,15 @@ ProjectExplorer::Abi RunConfiguration::abi() const
 bool RunConfiguration::fromMap(const QVariantMap &map)
 {
     m_useCppDebugger = map.value(QLatin1String(USE_CPP_DEBUGGER_KEY), true).toBool();
-    m_useQmlDebugger = map.value(QLatin1String(USE_QML_DEBUGGER_KEY), false).toBool();
-    m_qmlDebugServerPort = map.value(QLatin1String(QML_DEBUG_SERVER_PORT_KEY), Constants::QML_DEFAULT_DEBUG_SERVER_PORT).toUInt();
+    if (map.value(QLatin1String(USE_QML_DEBUGGER_AUTO_KEY), false).toBool()) {
+        m_useQmlDebugger = AutoEnableQmlDebugger;
+    } else {
+        if (map.value(QLatin1String(USE_QML_DEBUGGER_KEY), false).toBool()) {
+            m_useQmlDebugger = EnableQmlDebugger;
+        } else {
+            m_useQmlDebugger = DisableQmlDebugger;
+        }
+    }
 
     foreach (IRunConfigurationAspect *aspect, m_aspects)
         if (!aspect->fromMap(map))
@@ -279,15 +366,57 @@ bool RunConfiguration::fromMap(const QVariantMap &map)
     return ProjectConfiguration::fromMap(map);
 }
 
+/*!
+    \class ProjectExplorer::IRunConfigurationAspect
+
+    \brief Extra configuration aspect.
+
+    Aspects are a mechanism to add RunControl-specific options to a RunConfiguration without
+    subclassing the RunConfiguration for every addition, preventing a combinatorical explosion
+    of subclasses or the need to add all options to the base class.
+*/
+
+/*!
+    \brief Return extra aspects.
+
+    \sa ProjectExplorer::IRunConfigurationAspect
+*/
+
 QList<IRunConfigurationAspect *> RunConfiguration::extraAspects() const
 {
     return m_aspects;
 }
 
-ProjectExplorer::OutputFormatter *RunConfiguration::createOutputFormatter() const
+Utils::OutputFormatter *RunConfiguration::createOutputFormatter() const
 {
-    return new OutputFormatter();
+    return new Utils::OutputFormatter();
 }
+
+
+/*!
+    \class ProjectExplorer::IRunConfigurationFactory
+
+    \brief Restores RunConfigurations from settings.
+
+    The run configuration factory is used for restoring run configurations from
+    settings. And used to create new runconfigurations in the "Run Settings" Dialog.
+    For the first case, bool canRestore(Target *parent, const QString &id) and
+    RunConfiguration* create(Target *parent, const QString &id) are used.
+    For the second type, the functions QStringList availableCreationIds(Target *parent) and
+    QString displayNameForType(const QString&) are used to generate a list of creatable
+    RunConfigurations, and create(..) is used to create it.
+*/
+
+/*!
+    \fn QStringList ProjectExplorer::IRunConfigurationFactory::availableCreationIds(Target *parent) const
+
+    \brief Used to show the list of possible additons to a target, returns a list of types.
+*/
+
+/*!
+    \fn QString ProjectExplorer::IRunConfigurationFactory::displayNameForId(const QString &id) const
+    \brief Used to translate the types to names to display to the user.
+*/
 
 IRunConfigurationFactory::IRunConfigurationFactory(QObject *parent) :
     QObject(parent)
@@ -316,6 +445,30 @@ IRunConfigurationFactory *IRunConfigurationFactory::restoreFactory(Target *paren
     return findRunConfigurationFactory(matcher);
 }
 
+/*!
+    \class ProjectExplorer::IRunControlFactory
+
+    \brief Creates RunControl objects matching a RunConfiguration
+*/
+
+/*!
+    \fn IRunConfigurationAspect *ProjectExplorer::IRunControlFactory::createRunConfigurationAspect()
+    \brief Return an IRunConfigurationAspect to carry options for RunControls this factory can create.
+
+    If no extra options are required it is allowed to return null like the default implementation does.
+    This is intended to be called from the RunConfiguration constructor, so passing a RunConfiguration
+    pointer makes no sense because that object is under construction at the time.
+*/
+
+/*!
+    \fn RunConfigWidget *ProjectExplorer::IRunControlFactory::createConfigurationWidget(RunConfiguration *runConfiguration)
+
+    \brief Return a widget used to configure this runner. Ownership is transferred to the caller.
+
+    Return 0 if @p runConfiguration is not suitable for RunControls from this factory, or no user-accessible
+    configuration is required.
+*/
+
 IRunControlFactory::IRunControlFactory(QObject *parent)
     : QObject(parent)
 {
@@ -330,6 +483,25 @@ IRunConfigurationAspect *IRunControlFactory::createRunConfigurationAspect()
     return 0;
 }
 
+/*!
+    \class ProjectExplorer::RunControl
+    \brief Each instance of this class represents one item that is run.
+*/
+
+/*!
+    \fn bool ProjectExplorer::RunControl::promptToStop(bool *optionalPrompt = 0) const
+
+    \brief Prompt to stop. If 'optionalPrompt' is passed, a "Do not ask again"-
+    checkbox will show and the result will be returned in '*optionalPrompt'.
+*/
+
+/*!
+    \fn QIcon ProjectExplorer::RunControl::icon() const
+    \brief Eeturns the icon to be shown in the Outputwindow.
+
+    TODO the icon differs currently only per "mode", so this is more flexible then it needs to be.
+*/
+
 RunControl::RunControl(RunConfiguration *runConfiguration, QString mode)
     : m_runMode(mode), m_runConfiguration(runConfiguration), m_outputFormatter(0)
 {
@@ -339,7 +511,7 @@ RunControl::RunControl(RunConfiguration *runConfiguration, QString mode)
     }
     // We need to ensure that there's always a OutputFormatter
     if (!m_outputFormatter)
-        m_outputFormatter = new OutputFormatter();
+        m_outputFormatter = new Utils::OutputFormatter();
 }
 
 RunControl::~RunControl()
@@ -347,7 +519,7 @@ RunControl::~RunControl()
     delete m_outputFormatter;
 }
 
-OutputFormatter *RunControl::outputFormatter()
+Utils::OutputFormatter *RunControl::outputFormatter()
 {
     return m_outputFormatter;
 }
@@ -360,6 +532,19 @@ QString RunControl::runMode() const
 QString RunControl::displayName() const
 {
     return m_displayName;
+}
+
+ProcessHandle RunControl::applicationProcessHandle() const
+{
+    return m_applicationProcessHandle;
+}
+
+void RunControl::setApplicationProcessHandle(const ProcessHandle &handle)
+{
+    if (m_applicationProcessHandle != handle) {
+        m_applicationProcessHandle = handle;
+        emit applicationProcessHandleChanged();
+    }
 }
 
 bool RunControl::promptToStop(bool *optionalPrompt) const
@@ -376,7 +561,10 @@ bool RunControl::promptToStop(bool *optionalPrompt) const
                                   optionalPrompt);
 }
 
-// Utility to prompt to terminate application with checkable box.
+/*!
+    \brief Utility to prompt to terminate application with checkable box.
+*/
+
 bool RunControl::showPromptToStopDialog(const QString &title,
                                         const QString &text,
                                         const QString &stopButtonText,
@@ -440,7 +628,7 @@ void RunControl::bringApplicationToForegroundInternal()
 #endif
 }
 
-void RunControl::appendMessage(const QString &msg, OutputFormat format)
+void RunControl::appendMessage(const QString &msg, Utils::OutputFormat format)
 {
     emit appendMessage(this, msg, format);
 }

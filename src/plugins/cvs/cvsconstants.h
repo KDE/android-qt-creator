@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,8 +37,6 @@ namespace CVS {
 namespace Constants {
 
 const char * const CVS_SUBMIT_MIMETYPE = "application/vnd.nokia.text.cvs.submit";
-const char * const CVSEDITOR  = "CVS Editor";
-const char * const CVSEDITOR_KIND  = "CVS Editor";
 const char * const CVSCOMMITEDITOR  = "CVS Commit Editor";
 const char * const CVSCOMMITEDITOR_ID  = "CVS Commit Editor";
 const char * const CVSCOMMITEDITOR_DISPLAY_NAME  = QT_TRANSLATE_NOOP("VCS", "CVS Commit Editor");

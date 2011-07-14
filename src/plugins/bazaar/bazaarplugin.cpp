@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -153,15 +153,15 @@ bool BazaarPlugin::initialize(const QStringList &arguments, QString *errorMessag
 
     typedef VCSBase::VCSEditorFactory<BazaarEditor> BazaarEditorFactory;
 
-    m_client = new BazaarClient(m_bazaarSettings);
-    VCSBase::VCSBasePlugin::initialize(new BazaarControl(m_client));
+    m_client = new BazaarClient(&m_bazaarSettings);
+    initializeVcs(new BazaarControl(m_client));
 
     m_core = Core::ICore::instance();
     m_actionManager = m_core->actionManager();
 
     m_optionsPage = new OptionsPage();
     addAutoReleasedObject(m_optionsPage);
-    m_bazaarSettings.readSettings(m_core->settings(), Constants::BAZAAR);
+    m_bazaarSettings.readSettings(m_core->settings());
 
     connect(m_optionsPage, SIGNAL(settingsChanged()), m_client, SLOT(settingsChanged()));
     connect(m_client, SIGNAL(changed(QVariant)), versionControl(), SLOT(changed(QVariant)));
@@ -208,6 +208,7 @@ void BazaarPlugin::setSettings(const BazaarSettings &settings)
         m_bazaarSettings = settings;
         if (userIdChanged)
             client()->synchronousSetUserId();
+        static_cast<BazaarControl *>(versionControl())->emitConfigurationChanged();
     }
 }
 
@@ -317,7 +318,8 @@ void BazaarPlugin::logCurrentFile()
 {
     const VCSBase::VCSBasePluginState state = currentState();
     QTC_ASSERT(state.hasFile(), return);
-    m_client->log(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()), true);
+    m_client->log(state.currentFileTopLevel(), QStringList(state.relativeCurrentFile()),
+                  QStringList(), true);
 }
 
 void BazaarPlugin::revertCurrentFile()
@@ -388,7 +390,9 @@ void BazaarPlugin::logRepository()
 {
     const VCSBase::VCSBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
-    m_client->log(state.topLevel());
+    QStringList extraOptions;
+    extraOptions += QString("--limit=%1").arg(settings().logCount());
+    m_client->log(state.topLevel(), QStringList(), extraOptions);
 }
 
 void BazaarPlugin::revertAll()
@@ -459,11 +463,15 @@ void BazaarPlugin::pull()
     PullOrPushDialog dialog(PullOrPushDialog::PullMode);
     if (dialog.exec() != QDialog::Accepted)
         return;
-    BazaarClient::ExtraCommandOptions extraOptions;
-    extraOptions[BazaarClient::RememberPullOrPushOptionId] = dialog.isRememberOptionEnabled();
-    extraOptions[BazaarClient::OverwritePullOrPushOptionId] = dialog.isOverwriteOptionEnabled();
-    extraOptions[BazaarClient::RevisionPullOrPushOptionId] = dialog.revision();
-    extraOptions[BazaarClient::LocalPullOptionId] = dialog.isLocalOptionEnabled();
+    QStringList extraOptions;
+    if (dialog.isRememberOptionEnabled())
+        extraOptions += QLatin1String("--remember");
+    if (dialog.isOverwriteOptionEnabled())
+        extraOptions += QLatin1String("--overwrite");
+    if (dialog.isLocalOptionEnabled())
+        extraOptions += QLatin1String("--local");
+    if (!dialog.revision().isEmpty())
+        extraOptions << QLatin1String("-r") << dialog.revision();
     m_client->synchronousPull(state.topLevel(), dialog.branchLocation(), extraOptions);
 }
 
@@ -475,12 +483,17 @@ void BazaarPlugin::push()
     PullOrPushDialog dialog(PullOrPushDialog::PushMode);
     if (dialog.exec() != QDialog::Accepted)
         return;
-    BazaarClient::ExtraCommandOptions extraOptions;
-    extraOptions[BazaarClient::RememberPullOrPushOptionId] = dialog.isRememberOptionEnabled();
-    extraOptions[BazaarClient::OverwritePullOrPushOptionId] = dialog.isOverwriteOptionEnabled();
-    extraOptions[BazaarClient::RevisionPullOrPushOptionId] = dialog.revision();
-    extraOptions[BazaarClient::UseExistingDirPushOptionId] = dialog.isUseExistingDirectoryOptionEnabled();
-    extraOptions[BazaarClient::CreatePrefixPushOptionId] = dialog.isCreatePrefixOptionEnabled();
+    QStringList extraOptions;
+    if (dialog.isRememberOptionEnabled())
+        extraOptions += QLatin1String("--remember");
+    if (dialog.isOverwriteOptionEnabled())
+        extraOptions += QLatin1String("--overwrite");
+    if (dialog.isUseExistingDirectoryOptionEnabled())
+        extraOptions += QLatin1String("--use-existing-dir");
+    if (dialog.isCreatePrefixOptionEnabled())
+        extraOptions += QLatin1String("--create-prefix");
+    if (!dialog.revision().isEmpty())
+        extraOptions << QLatin1String("-r") << dialog.revision();
     m_client->synchronousPush(state.topLevel(), dialog.branchLocation(), extraOptions);
 }
 
@@ -508,7 +521,7 @@ void BazaarPlugin::createSubmitEditorActions()
     command->setAttribute(Core::Command::CA_UpdateText);
     connect(m_editorCommit, SIGNAL(triggered()), this, SLOT(commitFromEditor()));
 
-    m_editorDiff = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff Selected Files"), this);
+    m_editorDiff = new QAction(VCSBase::VCSBaseSubmitEditor::diffIcon(), tr("Diff &Selected Files"), this);
     command = m_actionManager->registerAction(m_editorDiff, Core::Id(Constants::DIFFEDITOR), context);
 
     m_editorUndo = new QAction(tr("&Undo"), this);
@@ -629,9 +642,8 @@ bool BazaarPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submit
     QStringList files = commitEditor->checkedFiles();
     if (!files.empty()) {
         //save the commit message
-        m_core->fileManager()->blockFileChange(editorFile);
-        editorFile->save();
-        m_core->fileManager()->unblockFileChange(editorFile);
+        if (!m_core->fileManager()->saveFile(editorFile))
+            return false;
 
         //rewrite entries of the form 'file => newfile' to 'newfile' because
         //this would mess the commit command
@@ -642,10 +654,18 @@ bool BazaarPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submit
         }
 
         const BazaarCommitWidget* commitWidget = commitEditor->commitWidget();
-        BazaarClient::ExtraCommandOptions extraOptions;
-        extraOptions[BazaarClient::AuthorCommitOptionId] = commitWidget->committer();
-        extraOptions[BazaarClient::FixesCommitOptionId] = commitWidget->fixedBugs();
-        extraOptions[BazaarClient::LocalCommitOptionId] = commitWidget->isLocalOptionEnabled();
+        QStringList extraOptions;
+        // Author
+        if (!commitWidget->committer().isEmpty())
+            extraOptions.append(QLatin1String("--author=") + commitWidget->committer());
+        // Fixed bugs
+        foreach (const QString &fix, commitWidget->fixedBugs()) {
+            if (!fix.isEmpty())
+                extraOptions << QLatin1String("--fixes") << fix;
+        }
+        // Whether local commit or not
+        if (commitWidget->isLocalOptionEnabled())
+            extraOptions += QLatin1String("--local");
         m_client->commit(m_submitRepository, files, editorFile->fileName(), extraOptions);
     }
     return true;

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,6 +36,7 @@
 #include "toolchain.h"
 #include "toolchainconfigwidget.h"
 #include "abi.h"
+#include "abiwidget.h"
 
 #include <QtCore/QList>
 
@@ -90,20 +91,47 @@ public:
     void apply();
     void discard() { setFromToolchain(); }
     bool isDirty() const;
+    void makeReadOnly();
 
 private slots:
     void handlePathChange();
     void handleAbiChange();
 
 private:
-    void populateAbiList(const QList<Abi> &);
     void setFromToolchain();
 
     Utils::PathChooser *m_compilerPath;
-    QComboBox *m_abiComboBox;
+    AbiWidget *m_abiWidget;
     QString m_autoDebuggerCommand;
 
     QList<Abi> m_abiList;
+    bool m_isReadOnly;
+};
+
+// --------------------------------------------------------------------------
+// ClangToolChainFactory
+// --------------------------------------------------------------------------
+
+class ClangToolChainFactory : public GccToolChainFactory
+{
+    Q_OBJECT
+
+public:
+    // Name used to display the name of the tool chain that will be created.
+    QString displayName() const;
+    QString id() const;
+
+    QList<ToolChain *> autoDetect();
+
+    bool canCreate();
+    ToolChain *create();
+
+    // Used by the ToolChainManager to restore user-generated tool chains
+    bool canRestore(const QVariantMap &data);
+    ToolChain *restore(const QVariantMap &data);
+
+protected:
+    GccToolChain *createToolChain(bool autoDetect);
 };
 
 // --------------------------------------------------------------------------

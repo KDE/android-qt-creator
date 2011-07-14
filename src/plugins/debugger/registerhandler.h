@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -70,13 +70,18 @@ public:
     QAbstractItemModel *model() { return this; }
 
     bool isEmpty() const; // nothing known so far?
+    // Set up register names (gdb)
     void setRegisters(const Registers &registers);
+    // Set register values
     void setAndMarkRegisters(const Registers &registers);
     Registers registers() const;
     Register registerAt(int i) const { return m_registers.at(i); }
     void removeAll();
     Q_SLOT void setNumberBase(int base);
     int numberBase() const { return m_base; }
+
+signals:
+    void registerSet(const QModelIndex &r); // Register was set, for memory views
 
 private:
     void calculateWidth();

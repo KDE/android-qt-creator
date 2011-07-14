@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,14 +51,12 @@ public:
     bool canCreate(ProjectExplorer::Project *parent, const QString &id) const;
     bool canRestore(ProjectExplorer::Project *parent, const QVariantMap &map) const;
     ProjectExplorer::Target  *restore(ProjectExplorer::Project *parent, const QVariantMap &map);
-    QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id);
 
     virtual bool supportsTargetId(const QString &id) const;
 
-    Qt4TargetSetupWidget *createTargetSetupWidget(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion, bool importEnabled, QList<BuildConfigurationInfo> importInfos);
-    bool isMobileTarget(const QString &id);
-    bool supportsShadowBuilds(const QString &id);
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion);
+    Qt4TargetSetupWidget *createTargetSetupWidget(const QString &id, const QString &proFilePath, const QtSupport::QtVersionNumber &minimumQtVersion, bool importEnabled, QList<BuildConfigurationInfo> importInfos);
+    QString buildNameForId(const QString &id) const;
+    QSet<QString> targetFeatures(const QString &id) const;
     ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id);
     ProjectExplorer::Target *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos);
 

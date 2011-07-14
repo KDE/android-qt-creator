@@ -28,21 +28,27 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "ianalyzerengine.h"
 
-using namespace Analyzer;
+namespace Analyzer {
 
-IAnalyzerEngine::IAnalyzerEngine(ProjectExplorer::RunConfiguration *runConfig)
-    : QObject(),
-      m_runConfig(runConfig)
+IAnalyzerEngine::IAnalyzerEngine(IAnalyzerTool *tool, const AnalyzerStartParameters &sp,
+    ProjectExplorer::RunConfiguration *runConfiguration)
 {
+    m_runConfig = runConfiguration;
+    m_sp = sp;
+    m_tool = tool;
 }
 
-ProjectExplorer::RunConfiguration *IAnalyzerEngine::runConfiguration() const
+IAnalyzerEngine::IAnalyzerEngine(IAnalyzerTool *tool,
+        ProjectExplorer::RunConfiguration *runConfiguration)
 {
-    return m_runConfig;
+    m_runConfig = runConfiguration;
+    m_tool = tool;
 }
+
+} // namespace Analyzer

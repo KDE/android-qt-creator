@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,12 +41,14 @@
 #include "sshkeyexchange_p.h"
 
 #include <utils/qtcassert.h>
+#include <utils/fileutils.h>
 
 #include <botan/exceptn.h>
 #include <botan/init.h>
 
 #include <QtCore/QFile>
 #include <QtCore/QMutex>
+#include <QtCore/QMutexLocker>
 #include <QtNetwork/QNetworkProxy>
 #include <QtNetwork/QTcpSocket>
 
@@ -69,15 +71,12 @@ namespace {
 
     void doStaticInitializationsIfNecessary()
     {
+        QMutexLocker locker(&staticInitMutex);
         if (!staticInitializationsDone) {
-            staticInitMutex.lock();
-            if (!staticInitializationsDone) {
-                Botan::LibraryInitializer::initialize("thread_safe=true");
-                qRegisterMetaType<Utils::SshError>("Utils::SshError");
-                qRegisterMetaType<Utils::SftpJobId>("Utils::SftpJobId");
-                staticInitializationsDone = true;
-            }
-            staticInitMutex.unlock();
+            Botan::LibraryInitializer::initialize("thread_safe=true");
+            qRegisterMetaType<Utils::SshError>("Utils::SshError");
+            qRegisterMetaType<Utils::SftpJobId>("Utils::SftpJobId");
+            staticInitializationsDone = true;
         }
     }
 } // anonymous namespace
@@ -109,13 +108,14 @@ QTCREATOR_UTILS_EXPORT bool operator!=(const SshConnectionParameters &p1, const 
 
 // TODO: Mechanism for checking the host key. First connection to host: save, later: compare
 
-SshConnection::Ptr SshConnection::create()
+SshConnection::Ptr SshConnection::create(const SshConnectionParameters &serverInfo)
 {
     doStaticInitializationsIfNecessary();
-    return Ptr(new SshConnection);
+    return Ptr(new SshConnection(serverInfo));
 }
 
-SshConnection::SshConnection() : d(new Internal::SshConnectionPrivate(this))
+SshConnection::SshConnection(const SshConnectionParameters &serverInfo)
+    : d(new Internal::SshConnectionPrivate(this, serverInfo))
 {
     connect(d, SIGNAL(connected()), this, SIGNAL(connected()),
         Qt::QueuedConnection);
@@ -127,9 +127,9 @@ SshConnection::SshConnection() : d(new Internal::SshConnectionPrivate(this))
         SIGNAL(error(Utils::SshError)), Qt::QueuedConnection);
 }
 
-void SshConnection::connectToHost(const SshConnectionParameters &serverInfo)
+void SshConnection::connectToHost()
 {
-    d->connectToHost(serverInfo);
+    d->connectToHost();
 }
 
 void SshConnection::disconnectFromHost()
@@ -187,15 +187,19 @@ QSharedPointer<SftpChannel> SshConnection::createSftpChannel()
 
 namespace Internal {
 
-SshConnectionPrivate::SshConnectionPrivate(SshConnection *conn)
+SshConnectionPrivate::SshConnectionPrivate(SshConnection *conn,
+    const SshConnectionParameters &serverInfo)
     : m_socket(new QTcpSocket(this)), m_state(SocketUnconnected),
       m_sendFacility(m_socket),
       m_channelManager(new SshChannelManager(m_sendFacility, this)),
-      m_connParams(SshConnectionParameters::DefaultProxy),
-      m_error(SshNoError), m_ignoreNextPacket(false), m_conn(conn)
+      m_connParams(serverInfo), m_error(SshNoError), m_ignoreNextPacket(false),
+      m_conn(conn)
 {
     setupPacketHandlers();
+    m_socket->setProxy(m_connParams.proxyType == SshConnectionParameters::DefaultProxy
+        ? QNetworkProxy::DefaultProxy : QNetworkProxy::NoProxy);
     m_timeoutTimer.setSingleShot(true);
+    m_timeoutTimer.setInterval(m_connParams.timeout * 1000);
     m_keepAliveTimer.setSingleShot(true);
     m_keepAliveTimer.setInterval(10000);
     connect(m_channelManager, SIGNAL(timeout()), this, SLOT(handleTimeout()));
@@ -210,13 +214,13 @@ void SshConnectionPrivate::setupPacketHandlers()
 {
     typedef SshConnectionPrivate This;
 
-    setupPacketHandler(SSH_MSG_KEXINIT, StateList() << SocketConnected,
-        &This::handleKeyExchangeInitPacket);
-    setupPacketHandler(SSH_MSG_KEXDH_REPLY, StateList() << KeyExchangeStarted,
-        &This::handleKeyExchangeReplyPacket);
+    setupPacketHandler(SSH_MSG_KEXINIT, StateList() << SocketConnected
+        << ConnectionEstablished, &This::handleKeyExchangeInitPacket);
+    setupPacketHandler(SSH_MSG_KEXDH_REPLY, StateList() << SocketConnected
+        << ConnectionEstablished, &This::handleKeyExchangeReplyPacket);
 
-    setupPacketHandler(SSH_MSG_NEWKEYS, StateList() << KeyExchangeSuccess,
-        &This::handleNewKeysPacket);
+    setupPacketHandler(SSH_MSG_NEWKEYS, StateList() << SocketConnected
+        << ConnectionEstablished, &This::handleNewKeysPacket);
     setupPacketHandler(SSH_MSG_SERVICE_ACCEPT,
         StateList() << UserAuthServiceRequested,
         &This::handleServiceAcceptPacket);
@@ -262,7 +266,6 @@ void SshConnectionPrivate::setupPacketHandlers()
         &This::handleChannelClose);
 
     setupPacketHandler(SSH_MSG_DISCONNECT, StateList() << SocketConnected
-        << KeyExchangeStarted << KeyExchangeSuccess
         << UserAuthServiceRequested << UserAuthRequested
         << ConnectionEstablished, &This::handleDisconnect);
 
@@ -336,7 +339,9 @@ void SshConnectionPrivate::handleServerId()
     }
 
     m_keyExchange.reset(new SshKeyExchange(m_sendFacility));
-    m_keyExchange->sendKexInitPacket(m_incomingData.left(endOffset));
+    m_serverId = m_incomingData.left(endOffset);
+    m_keyExchange->sendKexInitPacket(m_serverId);
+    m_keyExchangeState = KexInitSent;
     m_incomingData.remove(0, endOffset + 2);
 }
 
@@ -353,7 +358,7 @@ void SshConnectionPrivate::handlePackets()
 void SshConnectionPrivate::handleCurrentPacket()
 {
     Q_ASSERT(m_incomingPacket.isComplete());
-    Q_ASSERT(m_state == KeyExchangeStarted || !m_ignoreNextPacket);
+    Q_ASSERT(m_keyExchangeState == DhInitSent || !m_ignoreNextPacket);
 
     if (m_ignoreNextPacket) {
         m_ignoreNextPacket = false;
@@ -376,28 +381,59 @@ void SshConnectionPrivate::handleCurrentPacket()
 
 void SshConnectionPrivate::handleKeyExchangeInitPacket()
 {
+    if (m_keyExchangeState != NoKeyExchange
+            && m_keyExchangeState != KexInitSent) {
+        throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
+            "Unexpected packet.", tr("Unexpected packet of type %1.")
+            .arg(m_incomingPacket.type()));
+    }
+
+    // Server-initiated re-exchange.
+    if (m_keyExchangeState == NoKeyExchange) {
+        m_keyExchange.reset(new SshKeyExchange(m_sendFacility));
+        m_keyExchange->sendKexInitPacket(m_serverId);
+    }
+
     // If the server sends a guessed packet, the guess must be wrong,
-    // because the algorithms we support requires us to initiate the
+    // because the algorithms we support require us to initiate the
     // key exchange.
-    if (m_keyExchange->sendDhInitPacket(m_incomingPacket))
+    if (m_keyExchange->sendDhInitPacket(m_incomingPacket)) {
         m_ignoreNextPacket = true;
-    m_state = KeyExchangeStarted;
+    }
+
+    m_keyExchangeState = DhInitSent;
 }
 
 void SshConnectionPrivate::handleKeyExchangeReplyPacket()
 {
+    if (m_keyExchangeState != DhInitSent) {
+        throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
+            "Unexpected packet.", tr("Unexpected packet of type %1.")
+            .arg(m_incomingPacket.type()));
+    }
+
     m_keyExchange->sendNewKeysPacket(m_incomingPacket,
         ClientId.left(ClientId.size() - 2));
     m_sendFacility.recreateKeys(*m_keyExchange);
-    m_state = KeyExchangeSuccess;
+    m_keyExchangeState = NewKeysSent;
 }
 
 void SshConnectionPrivate::handleNewKeysPacket()
 {
+    if (m_keyExchangeState != NewKeysSent) {
+        throw SshServerException(SSH_DISCONNECT_PROTOCOL_ERROR,
+            "Unexpected packet.", tr("Unexpected packet of type %1.")
+            .arg(m_incomingPacket.type()));
+    }
+
     m_incomingPacket.recreateKeys(*m_keyExchange);
     m_keyExchange.reset();
-    m_sendFacility.sendUserAuthServiceRequestPacket();
-    m_state = UserAuthServiceRequested;
+    m_keyExchangeState = NoKeyExchange;
+
+    if (m_state == SocketConnected) {
+        m_sendFacility.sendUserAuthServiceRequestPacket();
+        m_state = UserAuthServiceRequested;
+    }
 }
 
 void SshConnectionPrivate::handleServiceAcceptPacket()
@@ -406,18 +442,12 @@ void SshConnectionPrivate::handleServiceAcceptPacket()
         m_sendFacility.sendUserAuthByPwdRequestPacket(m_connParams.userName.toUtf8(),
             SshCapabilities::SshConnectionService, m_connParams.password.toUtf8());
     } else {
-        QFile privKeyFile(m_connParams.privateKeyFile);
-        bool couldOpen = privKeyFile.open(QIODevice::ReadOnly);
-        QByteArray contents;
-        if (couldOpen)
-            contents = privKeyFile.readAll();
-        if (!couldOpen || privKeyFile.error() != QFile::NoError) {
+        Utils::FileReader reader;
+        if (!reader.fetch(m_connParams.privateKeyFile))
             throw SshClientException(SshKeyFileError,
-                tr("Could not read private key file: %1")
-                .arg(privKeyFile.errorString()));
-        }
+                tr("Private key error: %1").arg(reader.errorString()));
 
-        m_sendFacility.createAuthenticationKey(contents);
+        m_sendFacility.createAuthenticationKey(reader.data());
         m_sendFacility.sendUserAuthByKeyRequestPacket(m_connParams.userName.toUtf8(),
             SshCapabilities::SshConnectionService);
     }
@@ -574,14 +604,22 @@ void SshConnectionPrivate::handleTimeout()
 
 void SshConnectionPrivate::sendKeepAlivePacket()
 {
+    // This type of message is not allowed during key exchange.
+    if (m_keyExchangeState != NoKeyExchange) {
+        m_keepAliveTimer.start();
+        return;
+    }
+
     Q_ASSERT(m_lastInvalidMsgSeqNr == InvalidSeqNr);
     m_lastInvalidMsgSeqNr = m_sendFacility.nextClientSeqNr();
     m_sendFacility.sendInvalidPacket();
-    m_timeoutTimer.start(5000);
+    m_timeoutTimer.start();
 }
 
-void SshConnectionPrivate::connectToHost(const SshConnectionParameters &serverInfo)
+void SshConnectionPrivate::connectToHost()
 {
+    QTC_ASSERT(m_state == SocketUnconnected, return);
+
     m_incomingData.clear();
     m_incomingPacket.reset();
     m_sendFacility.reset();
@@ -595,12 +633,10 @@ void SshConnectionPrivate::connectToHost(const SshConnectionParameters &serverIn
     connect(m_socket, SIGNAL(disconnected()), this,
         SLOT(handleSocketDisconnected()));
     connect(&m_timeoutTimer, SIGNAL(timeout()), this, SLOT(handleTimeout()));
-    this->m_connParams = serverInfo;
     m_state = SocketConnecting;
-    m_timeoutTimer.start(m_connParams.timeout * 1000);
-    m_socket->setProxy(m_connParams.proxyType == SshConnectionParameters::DefaultProxy
-        ? QNetworkProxy::DefaultProxy : QNetworkProxy::NoProxy);
-    m_socket->connectToHost(serverInfo.host, serverInfo.port);
+    m_keyExchangeState = NoKeyExchange;
+    m_timeoutTimer.start();
+    m_socket->connectToHost(m_connParams.host, m_connParams.port);
 }
 
 void SshConnectionPrivate::closeConnection(SshErrorCode sshError,

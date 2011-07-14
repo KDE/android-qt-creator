@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,10 +42,12 @@
 #include "passphraseforkeydialog.h"
 #include "s60certificateinfo.h"
 #include "s60certificatedetailsdialog.h"
+#include "symbianqtversion.h"
 
 #include <coreplugin/coreconstants.h>
 
 #include <utils/checkablemessagebox.h>
+#include <utils/fileutils.h>
 
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/buildsteplist.h>
@@ -181,6 +183,11 @@ bool S60CreatePackageStep::init()
     Qt4Project *pro = qobject_cast<Qt4Project *>(buildConfiguration()->target()->project());
 
     QList<Qt4ProFileNode *> nodes = pro->allProFiles();
+
+    SymbianQtVersion *sqv = dynamic_cast<SymbianQtVersion *>(qt4BuildConfiguration()->qtVersion());
+    if (!sqv)
+        return false;
+    m_isBuildWithSymbianSbsV2 = sqv->isBuildWithSymbianSbsV2();
 
     m_workingDirectories.clear();
     QStringList projectCapabilities;
@@ -407,7 +414,7 @@ bool S60CreatePackageStep::createOnePackage()
 
     // Setup parsers:
     Q_ASSERT(!m_outputParserChain);
-    if (!qt4BuildConfiguration()->qtVersion()->isBuildWithSymbianSbsV2()) {
+    if (!m_isBuildWithSymbianSbsV2) {
         m_outputParserChain = new Qt4ProjectManager::AbldParser;
         m_outputParserChain->appendOutputParser(new ProjectExplorer::GnuMakeParser);
     } else {
@@ -582,7 +589,7 @@ void S60CreatePackageStep::stdOutput(const QString &line)
 {
     if (m_outputParserChain)
         m_outputParserChain->stdOutput(line);
-    emit addOutput(line, BuildStep::NormalOutput);
+    emit addOutput(line, BuildStep::NormalOutput, BuildStep::DontAppendNewline);
 }
 
 void S60CreatePackageStep::processReadyReadStdError()
@@ -598,7 +605,7 @@ void S60CreatePackageStep::stdError(const QString &line)
 {
     if (m_outputParserChain)
         m_outputParserChain->stdError(line);
-    emit addOutput(line, BuildStep::ErrorOutput);
+    emit addOutput(line, BuildStep::ErrorOutput, BuildStep::DontAppendNewline);
 }
 
 void S60CreatePackageStep::checkForCancel()
@@ -622,12 +629,14 @@ QString S60CreatePackageStep::generateKeyId(const QString &keyPath) const
     if (keyPath.isEmpty())
         return QString();
 
-    QFile file(keyPath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    Utils::FileReader reader;
+    if (!reader.fetch(keyPath, QIODevice::Text)) {
+        emit addOutput(reader.errorString(), BuildStep::ErrorOutput);
         return QString();
+    }
 
     //key file is quite small in size
-    return QCryptographicHash::hash(file.readAll(),
+    return QCryptographicHash::hash(reader.data(),
                                     QCryptographicHash::Md5).toHex();
 }
 
@@ -945,8 +954,4 @@ QString S60CreatePackageStepConfigWidget::summaryText() const
 QString S60CreatePackageStepConfigWidget::displayName() const
 {
     return m_signStep->displayName();
-}
-
-void S60CreatePackageStepConfigWidget::init()
-{
 }

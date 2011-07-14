@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -52,16 +52,19 @@ class CMakeManager;
 
 class CMakeEditor : public TextEditor::BaseTextEditor
 {
+    Q_OBJECT
+
 public:
     CMakeEditor(CMakeEditorWidget *);
-    Core::Context context() const;
 
     bool duplicateSupported() const { return true; }
     Core::IEditor *duplicate(QWidget *parent);
     QString id() const;
     bool isTemporary() const { return false; }
-private:
-    const Core::Context m_context;
+
+private slots:
+    void markAsChanged();
+    void build();
 };
 
 class CMakeEditorWidget : public TextEditor::BaseTextEditorWidget
@@ -70,7 +73,6 @@ class CMakeEditorWidget : public TextEditor::BaseTextEditorWidget
 
 public:
     CMakeEditorWidget(QWidget *parent, CMakeEditorFactory *factory, TextEditor::TextEditorActionHandler *ah);
-    ~CMakeEditorWidget();
 
     bool save(const QString &fileName = QString());
 

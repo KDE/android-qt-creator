@@ -26,23 +26,31 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef DEBUGGERCONSTANTS_H
 #define DEBUGGERCONSTANTS_H
 
-#include <QtCore/QtGlobal>
+#include <QtCore/QFlags>
 
 namespace Debugger {
 namespace Constants {
 
-// modes and their priorities
-const char * const MODE_DEBUG           = "Debugger.Mode.Debug";
-const int          P_MODE_DEBUG         = 85;
+// Debug mode
+const char * const MODE_DEBUG           = "Mode.Debug";
 
-// common actions
+// Contexts
+const char * const C_DEBUGMODE          = "Debugger.DebugMode";
+const char * const C_CPPDEBUGGER        = "Gdb Debugger";
+const char * const C_QMLDEBUGGER        = "Qml/JavaScript Debugger";
+
+// Project Explorer run mode (RUN/DEBUG)
+const char * const DEBUGMODE            = "Debugger.DebugMode";
+const char * const DEBUGMODE2           = "Debugger.DebugMode2"; // Breaks on main.
+
+// Common actions (accessed by QML inspector)
 const char * const INTERRUPT            = "Debugger.Interrupt";
 const char * const CONTINUE             = "Debugger.Continue";
 const char * const STOP                 = "Debugger.Stop";
@@ -53,24 +61,8 @@ const char * const NEXT                 = "Debugger.NextLine";
 const char * const REVERSE              = "Debugger.ReverseDirection";
 const char * const OPERATE_BY_INSTRUCTION   = "Debugger.OperateByInstruction";
 
-const char * const M_DEBUG_VIEWS        = "Debugger.Menu.View.Debug";
-
-const char * const C_DEBUGMODE          = "Debugger.DebugMode";
-const char * const C_CPPDEBUGGER        = "Gdb Debugger";
-const char * const C_QMLDEBUGGER        = "Qml/JavaScript Debugger";
-
-const char * const DEBUGGER_COMMON_SETTINGS_ID = "A.Common";
-const char * const DEBUGGER_COMMON_SETTINGS_NAME =
-    QT_TRANSLATE_NOOP("Debugger", "General");
-const char * const DEBUGGER_SETTINGS_CATEGORY = "O.Debugger";
-const char * const DEBUGGER_SETTINGS_TR_CATEGORY =
-    QT_TRANSLATE_NOOP("Debugger", "Debugger");
-const char * const DEBUGGER_COMMON_SETTINGS_CATEGORY_ICON =
-    ":/core/images/category_debug.png";
-
-// dock widget names
+// DebuggerMainWindow dock widget names
 const char * const DOCKWIDGET_BREAK      = "Debugger.Docks.Break";
-const char * const DOCKWIDGET_CONSOLE    = "Debugger.Docks.Console";
 const char * const DOCKWIDGET_MODULES    = "Debugger.Docks.Modules";
 const char * const DOCKWIDGET_REGISTER   = "Debugger.Docks.Register";
 const char * const DOCKWIDGET_OUTPUT     = "Debugger.Docks.Output";
@@ -84,25 +76,7 @@ const char * const DOCKWIDGET_QML_INSPECTOR = "Debugger.Docks.QmlInspector";
 const char * const DOCKWIDGET_QML_SCRIPTCONSOLE = "Debugger.Docks.ScriptConsole";
 const char * const DOCKWIDGET_DEFAULT_AREA = "Debugger.Docks.DefaultArea";
 
-namespace Internal {
-    enum { debug = 0 };
-} // namespace Internal
-
-const char * const OPENED_BY_DEBUGGER         = "OpenedByDebugger";
-const char * const OPENED_WITH_DISASSEMBLY    = "DisassemblerView";
-const char * const OPENED_WITH_MEMORY         = "MemoryView";
-
-const char * const DEBUGMODE            = "Debugger.DebugMode";
-const char * const DEBUG                = "Debugger.Debug";
-const int          P_ACTION_DEBUG       = 90; //priority for the modemanager
-#ifdef Q_OS_MAC
-const char * const DEBUG_KEY = "Ctrl+Y";
-#else
-const char * const DEBUG_KEY = "F5";
-#endif
-
 } // namespace Constants
-
 
 enum DebuggerState
 {
@@ -149,7 +123,6 @@ enum DebuggerStartMode
     StartExternal,         // Start binary found in file system
     AttachExternal,        // Attach to running process by process id
     AttachCrashedExternal, // Attach to crashed process by process id
-    AttachTcf,             // Attach to a running Target Communication Framework agent
     AttachCore,            // Attach to a core file
     AttachToRemote,        // Start and attach to a remote process
     StartRemoteGdb,        // Start gdb itself remotely
@@ -174,9 +147,12 @@ enum DebuggerCapabilities
     ReturnFromFunctionCapability = 0x2000,
     CreateFullBacktraceCapability = 0x4000,
     AddWatcherCapability = 0x8000,
-    WatchpointCapability = 0x10000,
-    ShowModuleSymbolsCapability = 0x20000,
-    CatchCapability = 0x40000, //!< fork, vfork, syscall
+    WatchpointByAddressCapability = 0x10000,
+    WatchpointByExpressionCapability = 0x20000,
+    ShowModuleSymbolsCapability = 0x40000,
+    CatchCapability = 0x80000, //!< fork, vfork, syscall
+    OperateByInstructionCapability = 0x100000,
+    RunToLineCapability = 0x200000,
     AllDebuggerCapabilities = 0xFFFFFFFF
 };
 
@@ -191,41 +167,11 @@ enum LogChannel
     LogTime,                 // Used for time stamp messages
     LogDebug,
     LogMisc,
-    AppOutput,
-    AppError,
-    AppStuff,
+    AppOutput,               // stdout
+    AppError,                // stderr
+    AppStuff,                // (possibly) windows debug channel
     StatusBar,                // LogStatus and also put to the status bar
     ScriptConsoleOutput
-};
-
-enum ModelRoles
-{
-    DisplaySourceRole = 32,  // Qt::UserRole
-
-    EngineStateRole,
-    EngineCapabilitiesRole,
-    EngineActionsEnabledRole,
-    RequestActivationRole,
-    RequestContextMenuRole,
-
-    // Locals and Watchers
-    LocalsINameRole,
-    LocalsEditTypeRole,     // A QVariant::type describing the item
-    LocalsIntegerBaseRole,  // Number base 16, 10, 8, 2
-    LocalsExpressionRole,
-    LocalsRawExpressionRole,
-    LocalsExpandedRole,     // The preferred expanded state to the view
-    LocalsTypeFormatListRole,
-    LocalsTypeFormatRole,   // Used to communicate alternative formats to the view
-    LocalsIndividualFormatRole,
-    LocalsAddressRole,      // Memory address of variable as quint64
-    LocalsRawValueRole,     // Unformatted value as string
-    LocalsPointerValueRole, // Pointer value (address) as quint64
-    LocalsIsWatchpointAtAddressRole,
-    LocalsIsWatchpointAtPointerValueRole,
-
-    // Snapshots
-    SnapshotCapabilityRole
 };
 
 enum DebuggerEngineType
@@ -235,7 +181,6 @@ enum DebuggerEngineType
     ScriptEngineType  = 0x02,
     CdbEngineType     = 0x04,
     PdbEngineType     = 0x08,
-    TcfEngineType     = 0x10,
     QmlEngineType     = 0x20,
     QmlCppEngineType  = 0x40,
     LldbEngineType  = 0x80,
@@ -243,7 +188,6 @@ enum DebuggerEngineType
         | ScriptEngineType
         | CdbEngineType
         | PdbEngineType
-        | TcfEngineType
         | QmlEngineType
         | QmlCppEngineType
         | LldbEngineType
@@ -260,4 +204,3 @@ Q_DECLARE_FLAGS(DebuggerLanguages, DebuggerLanguage)
 } // namespace Debugger
 
 #endif // DEBUGGERCONSTANTS_H
-

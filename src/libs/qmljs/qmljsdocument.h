@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #ifndef QMLDOCUMENT_H
@@ -63,6 +63,8 @@ public:
     ~Document();
 
     static Document::Ptr create(const QString &fileName);
+
+    Document::Ptr ptr() const;
 
     bool isQmlDocument() const;
     bool isJSDocument() const;
@@ -113,6 +115,7 @@ private:
     QString _path;
     QString _componentName;
     QString _source;
+    QWeakPointer<Document> _ptr;
 
     // for documentFromSource
     friend class Snapshot;
@@ -121,25 +124,33 @@ private:
 class QMLJS_EXPORT LibraryInfo
 {
 public:
-    enum DumpStatus {
-        DumpNotStartedOrRunning,
+    enum PluginTypeInfoStatus {
+        NoTypeInfo,
         DumpDone,
-        DumpError
+        DumpError,
+        TypeInfoFileDone,
+        TypeInfoFileError
+    };
+
+    enum Status {
+        NotScanned,
+        NotFound,
+        Found
     };
 
 private:
-    bool _valid;
+    Status _status;
     QList<QmlDirParser::Component> _components;
     QList<QmlDirParser::Plugin> _plugins;
     typedef QList<LanguageUtils::FakeMetaObject::ConstPtr> FakeMetaObjectList;
     FakeMetaObjectList _metaObjects;
 
-    DumpStatus _dumpStatus;
+    PluginTypeInfoStatus _dumpStatus;
     QString _dumpError;
 
 public:
-    LibraryInfo();
-    LibraryInfo(const QmlDirParser &parser);
+    explicit LibraryInfo(Status status = NotScanned);
+    explicit LibraryInfo(const QmlDirParser &parser);
     ~LibraryInfo();
 
     QList<QmlDirParser::Component> components() const
@@ -155,15 +166,18 @@ public:
     { _metaObjects = objects; }
 
     bool isValid() const
-    { return _valid; }
+    { return _status == Found; }
 
-    DumpStatus dumpStatus() const
+    bool wasScanned() const
+    { return _status != NotScanned; }
+
+    PluginTypeInfoStatus pluginTypeInfoStatus() const
     { return _dumpStatus; }
 
-    QString dumpError() const
+    QString pluginTypeInfoError() const
     { return _dumpError; }
 
-    void setDumpStatus(DumpStatus dumped, const QString &error = QString())
+    void setPluginTypeInfoStatus(PluginTypeInfoStatus dumped, const QString &error = QString())
     { _dumpStatus = dumped; _dumpError = error; }
 };
 

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,10 @@
 #include <cplusplus/ModelManagerInterface.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/pathchooser.h>
+#include <utils/qtcassert.h>
+#include <utils/fileutils.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/icontext.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QProcessEnvironment>
@@ -70,6 +73,9 @@ GenericProject::GenericProject(Manager *manager, const QString &fileName)
       m_fileName(fileName),
       m_toolChain(0)
 {
+    setProjectContext(Core::Context(GenericProjectManager::Constants::PROJECTCONTEXT));
+    setProjectLanguage(Core::Context(ProjectExplorer::Constants::LANG_CXX));
+
     QFileInfo fileInfo(m_fileName);
     QDir dir = fileInfo.dir();
 
@@ -99,13 +105,19 @@ GenericTarget *GenericProject::activeTarget() const
 }
 
 QString GenericProject::filesFileName() const
-{ return m_filesFileName; }
+{
+    return m_filesFileName;
+}
 
 QString GenericProject::includesFileName() const
-{ return m_includesFileName; }
+{
+    return m_includesFileName;
+}
 
 QString GenericProject::configFileName() const
-{ return m_configFileName; }
+{
+    return m_configFileName;
+}
 
 static QStringList readLines(const QString &absoluteFileName)
 {
@@ -130,15 +142,15 @@ static QStringList readLines(const QString &absoluteFileName)
 bool GenericProject::saveRawFileList(const QStringList &rawFileList)
 {
     // Make sure we can open the file for writing
-    QFile file(filesFileName());
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    Utils::FileSaver saver(filesFileName(), QIODevice::Text);
+    if (!saver.hasError()) {
+        QTextStream stream(saver.file());
+        foreach (const QString &filePath, rawFileList)
+            stream << filePath << QLatin1Char('\n');
+        saver.setResult(&stream);
+    }
+    if (!saver.finalize(Core::ICore::instance()->mainWindow()))
         return false;
-
-    QTextStream stream(&file);
-    foreach (const QString &filePath, rawFileList)
-        stream << filePath << QLatin1Char('\n');
-
-    file.close();
     refresh(GenericProject::Files);
     return true;
 }
@@ -163,6 +175,16 @@ bool GenericProject::removeFiles(const QStringList &filePaths)
         if (i != m_rawListEntries.end())
             newList.removeOne(i.value());
     }
+
+    return saveRawFileList(newList);
+}
+
+bool GenericProject::setFiles(const QStringList &filePaths)
+{
+    QStringList newList;
+    QDir baseDir(QFileInfo(m_fileName).dir());
+    foreach (const QString &filePath, filePaths)
+        newList.append(baseDir.relativeFilePath(filePath));
 
     return saveRawFileList(newList);
 }
@@ -306,22 +328,34 @@ QStringList GenericProject::allIncludePaths() const
 }
 
 QStringList GenericProject::projectIncludePaths() const
-{ return m_projectIncludePaths; }
+{
+    return m_projectIncludePaths;
+}
 
 QStringList GenericProject::files() const
-{ return m_files; }
+{
+    return m_files;
+}
 
 QStringList GenericProject::generated() const
-{ return m_generated; }
+{
+    return m_generated;
+}
 
 QStringList GenericProject::includePaths() const
-{ return m_includePaths; }
+{
+    return m_includePaths;
+}
 
 void GenericProject::setIncludePaths(const QStringList &includePaths)
-{ m_includePaths = includePaths; }
+{
+    m_includePaths = includePaths;
+}
 
 QByteArray GenericProject::defines() const
-{ return m_defines; }
+{
+    return m_defines;
+}
 
 void GenericProject::setToolChain(ToolChain *tc)
 {
@@ -542,7 +576,7 @@ GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName)
 GenericProjectFile::~GenericProjectFile()
 { }
 
-bool GenericProjectFile::save(const QString &)
+bool GenericProjectFile::save(QString *, const QString &, bool)
 {
     return false;
 }
@@ -586,7 +620,7 @@ void GenericProjectFile::rename(const QString &newName)
 {
     // Can't happen
     Q_UNUSED(newName);
-    Q_ASSERT(false);
+    QTC_ASSERT(false, /**/);
 }
 
 Core::IFile::ReloadBehavior GenericProjectFile::reloadBehavior(ChangeTrigger state, ChangeType type) const
@@ -596,8 +630,10 @@ Core::IFile::ReloadBehavior GenericProjectFile::reloadBehavior(ChangeTrigger sta
     return BehaviorSilent;
 }
 
-void GenericProjectFile::reload(ReloadFlag flag, ChangeType type)
+bool GenericProjectFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
+    Q_UNUSED(errorString)
     Q_UNUSED(flag)
     Q_UNUSED(type)
+    return true;
 }

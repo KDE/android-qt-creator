@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,6 +41,8 @@
 
 #include <extensionsystem/pluginmanager.h>
 
+#include <utils/fileutils.h>
+
 #include <QtCore/QSettings>
 #include <QtCore/QDebug>
 #include <QtCore/QFile>
@@ -54,9 +56,9 @@
 #include <QtGui/QFileDialog>
 #include <QtGui/QMessageBox>
 
-static const char *headerSuffixKeyC = "HeaderSuffix";
-static const char *sourceSuffixKeyC = "SourceSuffix";
-static const char *licenseTemplatePathKeyC = "LicenseTemplate";
+static const char headerSuffixKeyC[] = "HeaderSuffix";
+static const char sourceSuffixKeyC[] = "SourceSuffix";
+static const char licenseTemplatePathKeyC[] = "LicenseTemplate";
 
 const char *licenseTemplateTemplate = QT_TRANSLATE_NOOP("CppTools::Internal::CppFileSettingsWidget",
 "/**************************************************************************\n"
@@ -301,25 +303,18 @@ void CppFileSettingsWidget::setSettings(const CppFileSettings &s)
 void CppFileSettingsWidget::slotEdit()
 {
     QString path = licenseTemplatePath();
-    // Edit existing file with C++
-    if (!path.isEmpty()) {
-        Core::EditorManager::instance()->openEditor(path, QLatin1String(CppEditor::Constants::CPPEDITOR_ID),
-                                                    Core::EditorManager::ModeSwitch);
-        return;
+    if (path.isEmpty()) {
+        // Pick a file name and write new template, edit with C++
+        path = QFileDialog::getSaveFileName(this, tr("Choose Location for New License Template File"));
+        if (path.isEmpty())
+            return;
+        Utils::FileSaver saver(path, QIODevice::Text);
+        saver.write(tr(licenseTemplateTemplate).toUtf8());
+        if (!saver.finalize(this))
+            return;
+        setLicenseTemplatePath(path);
     }
-    // Pick a file name and write new template, edit with C++
-    path = QFileDialog::getSaveFileName(this, tr("Choose Location for New License Template File"));
-    if (path.isEmpty())
-        return;
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly|QIODevice::Text|QIODevice::Truncate)) {
-        QMessageBox::warning(this, tr("Template write error"),
-                             tr("Cannot write to %1: %2").arg(path, file.errorString()));
-        return;
-    }
-    file.write(tr(licenseTemplateTemplate).toUtf8());
-    file.close();
-    setLicenseTemplatePath(path);
+    // Edit (now) existing file with C++
     Core::EditorManager::instance()->openEditor(path, QLatin1String(CppEditor::Constants::CPPEDITOR_ID),
                                                 Core::EditorManager::ModeSwitch);
 }
@@ -338,12 +333,12 @@ CppFileSettingsPage::~CppFileSettingsPage()
 
 QString CppFileSettingsPage::id() const
 {
-    return QLatin1String(Constants::CPP_SETTINGS_ID);
+    return QLatin1String(Constants::CPP_FILE_SETTINGS_ID);
 }
 
 QString CppFileSettingsPage::displayName() const
 {
-    return QCoreApplication::translate("CppTools", Constants::CPP_SETTINGS_NAME);
+    return QCoreApplication::translate("CppTools", Constants::CPP_FILE_SETTINGS_NAME);
 }
 
 QString CppFileSettingsPage::category() const

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -244,6 +244,24 @@ public:
     QVariantMap update(Project *project, const QVariantMap &map);
 };
 
+// Version 9 reflects the refactoring of the Maemo deploy step.
+class Version9Handler : public UserFileVersionHandler
+{
+public:
+    int userFileVersion() const
+    {
+        return 9;
+    }
+
+    QString displayUserFileVersion() const
+    {
+        return QLatin1String("2.3pre1");
+    }
+
+    QVariantMap update(Project *project, const QVariantMap &map);
+};
+
+
 } // namespace
 
 //
@@ -371,6 +389,7 @@ UserFileAccessor::UserFileAccessor() :
     addVersionHandler(new Version6Handler);
     addVersionHandler(new Version7Handler);
     addVersionHandler(new Version8Handler);
+    addVersionHandler(new Version9Handler);
 }
 
 UserFileAccessor::~UserFileAccessor()
@@ -508,7 +527,7 @@ bool UserFileAccessor::saveSettings(Project *project, const QVariantMap &map)
 
     QString fileName = project->property(USERFILE_PROP).toString();
     return writer.save(fileName.isEmpty() ? fileNameFor(project->file()->fileName()) : fileName,
-                       "QtCreatorProject");
+                       "QtCreatorProject", Core::ICore::instance()->mainWindow());
 }
 
 void UserFileAccessor::addVersionHandler(UserFileVersionHandler *handler)
@@ -1214,7 +1233,7 @@ QVariantMap Version3Handler::update(Project *, const QVariantMap &map)
             QVariantMap buildConfig = targetIt.value().toMap();
             int stepCount = buildConfig.value(QLatin1String("ProjectExplorer.BuildConfiguration.BuildStepsCount")).toInt();
             QVariantMap signBuildStep;
-            signBuildStep.insert(QLatin1String("ProjectExplorer.ProjectConfiguration.DisplayName"), QLatin1String("Create sis package"));
+            signBuildStep.insert(QLatin1String("ProjectExplorer.ProjectConfiguration.DisplayName"), QLatin1String("Create SIS package"));
             signBuildStep.insert(QLatin1String("ProjectExplorer.ProjectConfiguration.Id"), QLatin1String("Qt4ProjectManager.S60SignBuildStep"));
             signBuildStep.insert(QLatin1String("Qt4ProjectManager.MakeStep.Clean"), false);
             signBuildStep.insert(QLatin1String("Qt4ProjectManager.S60CreatePackageStep.Certificate"), customSignaturePath);
@@ -1827,7 +1846,7 @@ static QVariant version8VarNodeTransform(const QVariant &var)
     };
     static QSet<QString> map;
     if (map.isEmpty())
-        for (unsigned i = 0; i < sizeof(vars)/sizeof(vars[0]); i++)
+        for (unsigned i = 0; i < sizeof(vars)/sizeof(vars[0]); ++i)
             map.insert(QLatin1String("CURRENT_DOCUMENT:") + QLatin1String(vars[i]));
 
     QString str = var.toString();
@@ -1868,4 +1887,53 @@ QVariantMap Version8Handler::update(Project *, const QVariantMap &map)
     QVariantMap rmap3 = processHandlerNodes(buildHandlerNodes(&p3), rmap2, version8EnvNodeHandler);
     const char * const *p4 = varExpandedKeys;
     return processHandlerNodes(buildHandlerNodes(&p4), rmap3, version8VarNodeHandler);
+}
+
+QVariantMap Version9Handler::update(Project *project, const QVariantMap &map)
+{
+    Q_UNUSED(project);
+
+    QVariantMap result;
+    QMapIterator<QString, QVariant> globalIt(map);
+    while (globalIt.hasNext()) {
+        globalIt.next();
+        const QString &globalKey = globalIt.key();
+        // check for target info
+        if (!globalKey.startsWith(QLatin1String("ProjectExplorer.Project.Target."))) {
+            result.insert(globalKey, globalIt.value());
+            continue;
+        }
+
+        const QVariantMap &origTargetMap = globalIt.value().toMap();
+        const QString targetIdKey
+            = QLatin1String("ProjectExplorer.ProjectConfiguration.Id");
+        // check for maemo device target
+        if (origTargetMap.value(targetIdKey)
+                != QLatin1String("Qt4ProjectManager.Target.MaemoDeviceTarget")
+            && origTargetMap.value(targetIdKey)
+                != QLatin1String("Qt4ProjectManager.Target.HarmattanDeviceTarget")
+            && origTargetMap.value(targetIdKey)
+                != QLatin1String("Qt4ProjectManager.Target.MeegoDeviceTarget"))
+        {
+            result.insert(globalKey, origTargetMap);
+            continue;
+        }
+
+        QVariantMap newTargetMap;
+        QMapIterator<QString, QVariant> targetIt(origTargetMap);
+        while (targetIt.hasNext()) {
+            targetIt.next();
+            if (!targetIt.key().startsWith(QLatin1String("ProjectExplorer.Target.DeployConfiguration."))) {
+                newTargetMap.insert(targetIt.key(), targetIt.value());
+                continue;
+            }
+
+            QVariantMap deployConfMap = targetIt.value().toMap();
+            deployConfMap.insert(QLatin1String("ProjectExplorer.ProjectConfiguration.Id"),
+                QLatin1String("2.2MaemoDeployConfig"));
+            newTargetMap.insert(targetIt.key(), deployConfMap);
+        }
+        result.insert(globalKey, newTargetMap);
+    }
+    return result;
 }

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -162,7 +162,7 @@ PanelsWidget::~PanelsWidget()
  * |          widget (with contentsmargins adjusted!)   |
  * +--------+-------------------------------------------+ BELOW_CONTENTS_MARGIN
  */
-void PanelsWidget::addPropertiesPanel(IPropertiesPanel *panel)
+void PanelsWidget::addPropertiesPanel(PropertiesPanel *panel)
 {
     QTC_ASSERT(panel, return);
 
@@ -200,7 +200,7 @@ void PanelsWidget::addPropertiesPanel(IPropertiesPanel *panel)
     addPanelWidget(panel, widgetRow);
 }
 
-void PanelsWidget::addPanelWidget(IPropertiesPanel *panel, int row)
+void PanelsWidget::addPanelWidget(PropertiesPanel *panel, int row)
 {
     QWidget *widget = panel->widget();
     widget->setContentsMargins(Constants::PANEL_LEFT_MARGIN,
@@ -348,7 +348,7 @@ void ProjectWindow::registerProject(ProjectExplorer::Project *project)
     }
 
     m_tabIndexToProject.insert(index, project);
-    m_tabWidget->insertTab(index, project->displayName(), subtabs);
+    m_tabWidget->insertTab(index, project->displayName(), project->file()->fileName(), subtabs);
 }
 
 void ProjectWindow::deregisterProject(ProjectExplorer::Project *project)
@@ -436,7 +436,7 @@ void ProjectWindow::showProperties(int index, int subIndex)
     if (fac) {
         removeCurrentWidget();
 
-        IPropertiesPanel *panel = 0;
+        PropertiesPanel *panel = 0;
         if (ITargetPanelFactory *ipf = qobject_cast<ITargetPanelFactory *>(fac))
             panel = ipf->createPanel(project->activeTarget());
         else if (IProjectPanelFactory *ipf = qobject_cast<IProjectPanelFactory *>(fac))

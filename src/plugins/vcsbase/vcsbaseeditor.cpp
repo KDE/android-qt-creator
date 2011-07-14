@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,8 @@
 #include "baseannotationhighlighter.h"
 #include "vcsbasetextdocument.h"
 #include "vcsbaseconstants.h"
+#include "vcsbaseoutputwindow.h"
+#include "vcsbaseplugin.h"
 
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/ifile.h>
@@ -46,12 +48,17 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+#include <texteditor/basetextdocumentlayout.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditorconstants.h>
+#include <texteditor/texteditorsettings.h>
 #include <utils/qtcassert.h>
+#include <extensionsystem/invoker.h>
+#include <extensionsystem/pluginmanager.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QFileInfo>
+#include <QtCore/QFile>
 #include <QtCore/QProcess>
 #include <QtCore/QRegExp>
 #include <QtCore/QSet>
@@ -68,20 +75,68 @@
 #include <QtGui/QToolBar>
 #include <QtGui/QClipboard>
 #include <QtGui/QApplication>
+#include <QtGui/QMessageBox>
+
+/*!
+    \enum VCSBase::EditorContentType
+
+    \brief Contents of a VCSBaseEditor and its interaction.
+
+    \value RegularCommandOutput  No special handling.
+    \value LogOutput  Log of a file under revision control. Provide  'click on change'
+           description and 'Annotate' if is the log of a single file.
+    \value AnnotateOutput  Color contents per change number and provide 'click on change' description.
+           Context menu offers "Annotate previous version". Expected format:
+           \code
+           <change description>: file line
+           \endcode
+    \value DiffOutput  Diff output. Might includes describe output, which consists of a
+           header and diffs. Interaction is 'double click in  hunk' which
+           opens the file. Context menu offers 'Revert chunk'.
+
+    \sa VCSBase::VCSBaseEditorWidget
+*/
 
 namespace VCSBase {
 
-// VCSBaseEditor: An editor with no support for duplicates.
-// Creates a browse combo in the toolbar for diff output.
-// It also mirrors the signals of the VCSBaseEditor since the editor
-// manager passes the editor around.
+/*!
+    \class VCSBase::DiffChunk
+
+    \brief A diff chunk consisting of file name and chunk data.
+*/
+
+bool DiffChunk::isValid() const
+{
+    return !fileName.isEmpty() && !chunk.isEmpty();
+}
+
+QByteArray DiffChunk::asPatch() const
+{
+    const QByteArray fileNameBA = QFile::encodeName(fileName);
+    QByteArray rc = "--- ";
+    rc += fileNameBA;
+    rc += "\n+++ ";
+    rc += fileNameBA;
+    rc += '\n';
+    rc += chunk;
+    return rc;
+}
+
+/*!
+    \class VCSBase::VCSBaseEditor
+
+    \brief An editor with no support for duplicates.
+
+    Creates a browse combo in the toolbar for diff output.
+    It also mirrors the signals of the VCSBaseEditor since the editor
+    manager passes the editor around.
+*/
+
 class VCSBaseEditor : public TextEditor::BaseTextEditor
 {
     Q_OBJECT
 public:
-    VCSBaseEditor(VCSBaseEditorWidget *,
-                  const VCSBaseEditorParameters *type);
-    Core::Context context() const;
+    VCSBaseEditor(VCSBaseEditorWidget *, const VCSBaseEditorParameters *type);
 
     bool duplicateSupported() const { return false; }
     Core::IEditor *duplicate(QWidget * /*parent*/) { return 0; }
@@ -96,7 +151,6 @@ signals:
 
 private:
     QString m_id;
-    Core::Context m_context;
     bool m_temporary;
 };
 
@@ -104,14 +158,9 @@ VCSBaseEditor::VCSBaseEditor(VCSBaseEditorWidget *widget,
                              const VCSBaseEditorParameters *type)  :
     BaseTextEditor(widget),
     m_id(type->id),
-    m_context(type->context, TextEditor::Constants::C_TEXTEDITOR),
     m_temporary(false)
 {
-}
-
-Core::Context VCSBaseEditor::context() const
-{
-    return m_context;
+    setContext(Core::Context(type->context, TextEditor::Constants::C_TEXTEDITOR));
 }
 
 // Diff editor: creates a browse combo in the toolbar for diff output.
@@ -160,6 +209,8 @@ struct VCSBaseEditorWidgetPrivate
     bool m_fileLogAnnotateEnabled;
     TextEditor::BaseTextEditor *m_editor;
     QWidget *m_configurationWidget;
+    bool m_revertChunkEnabled;
+    bool m_mouseDragging;
 };
 
 VCSBaseEditorWidgetPrivate::VCSBaseEditorWidgetPrivate(const VCSBaseEditorParameters *type)  :
@@ -169,11 +220,35 @@ VCSBaseEditorWidgetPrivate::VCSBaseEditorWidgetPrivate(const VCSBaseEditorParame
     m_copyRevisionTextFormat(VCSBaseEditorWidget::tr("Copy \"%1\"")),
     m_fileLogAnnotateEnabled(false),
     m_editor(0),
-    m_configurationWidget(0)
+    m_configurationWidget(0),
+    m_revertChunkEnabled(false),
+    m_mouseDragging(false)
 {
 }
 
-// ------------ VCSBaseEditor
+/*!
+    \struct VCSBase::VCSBaseEditorParameters
+
+    \brief Helper struct used to parametrize an editor with mime type, context
+    and id. The extension is currently only a suggestion when running
+    VCS commands with redirection.
+
+    \sa VCSBase::VCSBaseEditorWidget, VCSBase::BaseVCSEditorFactory, VCSBase::EditorContentType
+*/
+
+/*!
+    \class VCSBase::VCSBaseEditorWidget
+
+    \brief Base class for editors showing version control system output
+    of the type enumerated by EditorContentType.
+
+    The source property should contain the file or directory the log
+    refers to and will be emitted with describeRequested().
+    This is for VCS that need a current directory.
+
+    \sa VCSBase::BaseVCSEditorFactory, VCSBase::VCSBaseEditorParameters, VCSBase::EditorContentType
+*/
+
 VCSBaseEditorWidget::VCSBaseEditorWidget(const VCSBaseEditorParameters *type, QWidget *parent)
   : BaseTextEditorWidget(parent),
     d(new VCSBaseEditorWidgetPrivate(type))
@@ -205,6 +280,7 @@ void VCSBaseEditorWidget::init()
     }
         break;
     }
+    TextEditor::TextEditorSettings::instance()->initializeEditor(this);
 }
 
 VCSBaseEditorWidget::~VCSBaseEditorWidget()
@@ -443,7 +519,9 @@ void VCSBaseEditorWidget::contextMenuEvent(QContextMenuEvent *e)
 {
     QMenu *menu = createStandardContextMenu();
     // 'click on change-interaction'
-    if (d->m_parameters->type == LogOutput || d->m_parameters->type == AnnotateOutput) {
+    switch (d->m_parameters->type) {
+    case LogOutput:
+    case AnnotateOutput:
         d->m_currentChange = changeUnderCursor(cursorForPosition(e->pos()));
         if (!d->m_currentChange.isEmpty()) {
             switch (d->m_parameters->type) {
@@ -470,6 +548,21 @@ void VCSBaseEditorWidget::contextMenuEvent(QContextMenuEvent *e)
                 break;
             }         // switch type
         }             // has current change
+        break;
+    case DiffOutput: {
+        menu->addSeparator();
+        connect(menu->addAction(tr("Send to CodePaster...")), SIGNAL(triggered()),
+                this, SLOT(slotPaste()));
+        menu->addSeparator();
+        QAction *revertAction = menu->addAction(tr("Revert Chunk..."));
+        const DiffChunk chunk = diffChunk(cursorForPosition(e->pos()));
+        revertAction->setEnabled(canRevertDiffChunk(chunk));
+        revertAction->setData(qVariantFromValue(chunk));
+        connect(revertAction, SIGNAL(triggered()), this, SLOT(slotRevertDiffChunk()));
+    }
+        break;
+    default:
+        break;
     }
     menu->exec(e->globalPos());
     delete menu;
@@ -477,6 +570,12 @@ void VCSBaseEditorWidget::contextMenuEvent(QContextMenuEvent *e)
 
 void VCSBaseEditorWidget::mouseMoveEvent(QMouseEvent *e)
 {
+    if (e->buttons()) {
+        d->m_mouseDragging = true;
+        TextEditor::BaseTextEditorWidget::mouseMoveEvent(e);
+        return;
+    }
+
     bool overrideCursor = false;
     Qt::CursorShape cursorShape;
 
@@ -507,7 +606,9 @@ void VCSBaseEditorWidget::mouseMoveEvent(QMouseEvent *e)
 
 void VCSBaseEditorWidget::mouseReleaseEvent(QMouseEvent *e)
 {
-    if (d->m_parameters->type == LogOutput || d->m_parameters->type == AnnotateOutput) {
+    const bool wasDragging = d->m_mouseDragging;
+    d->m_mouseDragging = false;
+    if (!wasDragging && (d->m_parameters->type == LogOutput || d->m_parameters->type == AnnotateOutput)) {
         if (e->button() == Qt::LeftButton &&!(e->modifiers() & Qt::ShiftModifier)) {
             QTextCursor cursor = cursorForPosition(e->pos());
             d->m_currentChange = changeUnderCursor(cursor);
@@ -606,6 +707,9 @@ void VCSBaseEditorWidget::jumpToChangeFromDiff(QTextCursor cursor)
     const QChar deletionIndicator = QLatin1Char('-');
     // find nearest change hunk
     QTextBlock block = cursor.block();
+    if (TextEditor::BaseTextDocumentLayout::foldingIndent(block) <= 1)
+        /* We are in a diff header, do not jump anywhere. DiffHighlighter sets the foldingIndent for us. */
+        return;
     for ( ; block.isValid() ; block = block.previous()) {
         const QString line = block.text();
         if (checkChunkLine(line, &chunkStart)) {
@@ -640,6 +744,47 @@ void VCSBaseEditorWidget::jumpToChangeFromDiff(QTextCursor cursor)
     Core::IEditor *ed = em->openEditor(fileName, QString(), Core::EditorManager::ModeSwitch);
     if (TextEditor::ITextEditor *editor = qobject_cast<TextEditor::ITextEditor *>(ed))
         editor->gotoLine(chunkStart + lineCount);
+}
+
+// cut out chunk and determine file name.
+DiffChunk VCSBaseEditorWidget::diffChunk(QTextCursor cursor) const
+{
+    QTC_ASSERT(d->m_parameters->type == DiffOutput, return DiffChunk(); )
+    DiffChunk rc;
+    // Search back for start of chunk.
+    QTextBlock block = cursor.block();
+    QTextBlock next = block.next();
+    if (next.isValid() && TextEditor::BaseTextDocumentLayout::foldingIndent(next) <= 1)
+        /* We are in a diff header, not in a chunk! DiffHighlighter sets the foldingIndent for us. */
+        return rc;
+
+    int chunkStart = 0;
+    for ( ; block.isValid() ; block = block.previous()) {
+        if (checkChunkLine(block.text(), &chunkStart)) {
+            break;
+        }
+    }
+    if (!chunkStart || !block.isValid())
+        return rc;
+    rc.fileName = fileNameFromDiffSpecification(block);
+    if (rc.fileName.isEmpty())
+        return rc;
+    // Concatenate chunk and convert
+    QString unicode = block.text();
+    if (!unicode.endsWith(QLatin1Char('\n'))) // Missing in case of hg.
+        unicode.append(QLatin1Char('\n'));
+    for (block = block.next() ; block.isValid() ; block = block.next()) {
+        const QString line = block.text();
+        if (checkChunkLine(line, &chunkStart)) {
+            break;
+        } else {
+            unicode += line;
+            unicode += QLatin1Char('\n');
+        }
+    }
+    const QTextCodec *cd = textCodec();
+    rc.chunk = cd ? cd->fromUnicode(unicode) : unicode.toLocal8Bit();
+    return rc;
 }
 
 void VCSBaseEditorWidget::setPlainTextData(const QByteArray &data)
@@ -848,14 +993,14 @@ QWidget *VCSBaseEditorWidget::configurationWidget() const
 }
 
 // Find the complete file from a diff relative specification.
-QString VCSBaseEditorWidget::findDiffFile(const QString &f, Core::IVersionControl *control /* = 0 */) const
+QString VCSBaseEditorWidget::findDiffFile(const QString &f,
+                                          Core::IVersionControl *control /* = 0 */) const
 {
-    // Try the file itself, expand to absolute.
+    // Check if file is absolute
     const QFileInfo in(f);
     if (in.isAbsolute())
         return in.isFile() ? f : QString();
-    if (in.isFile())
-        return in.absoluteFilePath();
+
     // 1) Try base dir
     const QChar slash = QLatin1Char('/');
     if (!d->m_diffBaseDirectory.isEmpty()) {
@@ -864,22 +1009,26 @@ QString VCSBaseEditorWidget::findDiffFile(const QString &f, Core::IVersionContro
             return baseFileInfo.absoluteFilePath();
     }
     // 2) Try in source (which can be file or directory)
-    if (source().isEmpty())
-        return QString();
-    const QFileInfo sourceInfo(source());
-    const QString sourceDir = sourceInfo.isDir() ? sourceInfo.absoluteFilePath() : sourceInfo.absolutePath();
-    const QFileInfo sourceFileInfo(sourceDir + slash + f);
-    if (sourceFileInfo.isFile())
-        return sourceFileInfo.absoluteFilePath();
-    // Try to locate via repository.
-    if (!control)
-        return QString();
-    QString topLevel;
-    if (!control->managesDirectory(sourceDir, &topLevel))
-        return QString();
-    const QFileInfo topLevelFileInfo(topLevel + slash + f);
-    if (topLevelFileInfo.isFile())
-        return topLevelFileInfo.absoluteFilePath();
+    if (!source().isEmpty()) {
+        const QFileInfo sourceInfo(source());
+        const QString sourceDir = sourceInfo.isDir() ? sourceInfo.absoluteFilePath()
+                                                     : sourceInfo.absolutePath();
+        const QFileInfo sourceFileInfo(sourceDir + slash + f);
+        if (sourceFileInfo.isFile())
+            return sourceFileInfo.absoluteFilePath();
+
+        QString topLevel;
+        if (control && control->managesDirectory(sourceDir, &topLevel)) {
+            const QFileInfo topLevelFileInfo(topLevel + slash + f);
+            if (topLevelFileInfo.isFile())
+                return topLevelFileInfo.absoluteFilePath();
+        }
+    }
+
+    // 3) Try working directory
+    if (in.isFile())
+        return in.absoluteFilePath();
+
     return QString();
 }
 
@@ -898,6 +1047,103 @@ void VCSBaseEditorWidget::slotCopyRevision()
 QStringList VCSBaseEditorWidget::annotationPreviousVersions(const QString &) const
 {
     return QStringList();
+}
+
+void VCSBaseEditorWidget::slotPaste()
+{
+    // Retrieve service by soft dependency.
+    QObject *pasteService =
+            ExtensionSystem::PluginManager::instance()
+                ->getObjectByClassName("CodePaster::CodePasterService");
+    if (pasteService) {
+        QMetaObject::invokeMethod(pasteService, "postCurrentEditor");
+    } else {
+        QMessageBox::information(this, tr("Unable to Paste"),
+                                 tr("Code pasting services are not available."));
+    }
+}
+
+bool VCSBaseEditorWidget::isRevertDiffChunkEnabled() const
+{
+    return d->m_revertChunkEnabled;
+}
+
+void VCSBaseEditorWidget::setRevertDiffChunkEnabled(bool e)
+{
+    d->m_revertChunkEnabled = e;
+}
+
+bool VCSBaseEditorWidget::canRevertDiffChunk(const DiffChunk &dc) const
+{
+    if (!isRevertDiffChunkEnabled() || !dc.isValid())
+        return false;
+    const QFileInfo fi(dc.fileName);
+    // Default implementation using patch.exe relies on absolute paths.
+    return fi.isFile() && fi.isAbsolute() && fi.isWritable();
+}
+
+// Default implementation of revert: Revert a chunk by piping it into patch
+// with '-R', assuming we got absolute paths from the VCS plugins.
+bool VCSBaseEditorWidget::revertDiffChunk(const DiffChunk &dc) const
+{
+    return VCSBasePlugin::runPatch(dc.asPatch(), QString(), 0, true);
+}
+
+void VCSBaseEditorWidget::slotRevertDiffChunk()
+{
+    const QAction *a = qobject_cast<QAction *>(sender());
+    QTC_ASSERT(a, return ; )
+    const DiffChunk chunk = qvariant_cast<DiffChunk>(a->data());
+    if (QMessageBox::No == QMessageBox::question(this, tr("Revert Chunk"),
+                                                  tr("Would you like to revert the chunk?"),
+                                                  QMessageBox::Yes|QMessageBox::No))
+        return;
+
+    if (revertDiffChunk(chunk))
+        emit diffChunkReverted(chunk);
+}
+
+// Tagging of editors for re-use.
+QString VCSBaseEditorWidget::editorTag(EditorContentType t,
+                                       const QString &workingDirectory,
+                                       const QStringList &files,
+                                       const QString &revision)
+{
+    const QChar colon = QLatin1Char(':');
+    QString rc = QString::number(t);
+    rc += colon;
+    if (!revision.isEmpty()) {
+        rc += revision;
+        rc += colon;
+    }
+    rc += workingDirectory;
+    if (!files.isEmpty()) {
+        rc += colon;
+        rc += files.join(QString(colon));
+    }
+    return rc;
+}
+
+static const char tagPropertyC[] = "_q_VCSBaseEditorTag";
+
+void VCSBaseEditorWidget::tagEditor(Core::IEditor *e, const QString &tag)
+{
+    e->setProperty(tagPropertyC, QVariant(tag));
+}
+
+Core::IEditor* VCSBaseEditorWidget::locateEditorByTag(const QString &tag)
+{
+    Core::IEditor *rc = 0;
+    foreach (Core::IEditor *ed, Core::EditorManager::instance()->openedEditors()) {
+        const QVariant tagPropertyValue = ed->property(tagPropertyC);
+        if (tagPropertyValue.type() == QVariant::String && tagPropertyValue.toString() == tag) {
+            rc = ed;
+            break;
+        }
+    }
+    if (VCSBase::Constants::Internal::debug)
+        qDebug() << "locateEditorByTag " << tag << rc;
+    return rc;
 }
 
 } // namespace VCSBase

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,6 +48,7 @@
 #include <projectexplorer/project.h>
 #include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
+#include <utils/environment.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QDir>
@@ -65,12 +66,27 @@
 
 enum { debug = 0, debugRepositorySearch = 0, debugExecution = 0 };
 
-namespace VCSBase {
+/*!
+    \namespace VCSBase
+    \brief VCSBase plugin namespace
+*/
 
+/*!
+    \namespace VCSBase::Internal
+    \brief Internal namespace of the VCSBase plugin
+    \internal
+*/
+
+namespace VCSBase {
 namespace Internal {
 
-// Internal state created by the state listener and
-// VCSBasePluginState.
+/*!
+    \struct VCSBase::Internal::State
+
+    \brief Internal state created by the state listener and VCSBasePluginState.
+
+    Aggregated in the QSharedData of VCSBase::VCSBasePluginState.
+*/
 
 struct State {
     void clearFile();
@@ -164,8 +180,14 @@ QDebug operator<<(QDebug in, const State &state)
     return in;
 }
 
-// StateListener: Connects to the relevant signals, tries to find version
-// controls and emits signals to the plugin instances.
+/*!
+    \class VCSBase::Internal::StateListener
+
+    \brief Connects to the relevant signals of Qt Creator, tries to find version
+    controls and emits signals to the plugin instances.
+
+    Singleton (as not to do checks multiple times).
+*/
 
 class StateListener : public QObject {
     Q_OBJECT
@@ -278,6 +300,21 @@ class VCSBasePluginStateData : public QSharedData {
 public:
     Internal::State m_state;
 };
+
+/*!
+    \class  VCSBase::VCSBasePluginState
+
+    \brief Relevant state information of the VCS plugins
+
+    Qt Creator's state relevant to VCS plugins is a tuple of
+
+    \list
+    \o Current file and it's version system control/top level
+    \o Current project and it's version system control/top level
+    \endlist
+
+    \sa VCSBase::VCSBasePlugin
+*/
 
 VCSBasePluginState::VCSBasePluginState() : data(new VCSBasePluginStateData)
 {
@@ -414,7 +451,34 @@ VCSBASE_EXPORT QDebug operator<<(QDebug in, const VCSBasePluginState &state)
     return in;
 }
 
-//  VCSBasePlugin
+/*!
+    \class VCSBase::VCSBasePlugin
+
+    \brief Base class for all version control plugins.
+
+    The plugin connects to the
+    relevant change signals in Qt Creator and calls the virtual
+    updateActions() for the plugins to update their menu actions
+    according to the new state. This is done centrally to avoid
+    single plugins repeatedly invoking searches/QFileInfo on files,
+    etc.
+
+    Independently, there are accessors for current patch files, which return
+    a file name if the current file could be a patch file which could be applied
+    and a repository exists.
+
+    If current file/project are managed
+    by different version controls, the project is discarded and only
+    the current file is taken into account, allowing to do a diff
+    also when the project of a file is not opened.
+
+    When triggering an action, a copy of the state should be made to
+    keep it, as it may rapidly change due to context changes, etc.
+
+    The class also detects the VCS plugin submit editor closing and calls
+    the virtual submitEditorAboutToClose() to trigger the submit process.
+*/
+
 struct VCSBasePluginPrivate {
     explicit VCSBasePluginPrivate(const QString &submitEditorId);
 
@@ -461,7 +525,7 @@ VCSBasePlugin::~VCSBasePlugin()
     delete d;
 }
 
-void VCSBasePlugin::initialize(Core::IVersionControl *vc)
+void VCSBasePlugin::initializeVcs(Core::IVersionControl *vc)
 {
     d->m_versionControl = vc;
     addAutoReleasedObject(vc);
@@ -734,7 +798,8 @@ static Utils::SynchronousProcessResponse
         process->setProcessChannelMode(QProcess::MergedChannels);
 
     // Start
-    process->start(binary, arguments);
+    process->start(binary, arguments, QIODevice::ReadOnly);
+    process->closeWriteChannel();
     Utils::SynchronousProcessResponse response;
     if (!process->waitForStarted()) {
         response.result = Utils::SynchronousProcessResponse::StartFailed;
@@ -881,6 +946,54 @@ Utils::SynchronousProcessResponse
     }
 
     return response;
+}
+
+bool VCSBasePlugin::runPatch(const QByteArray &input, const QString &workingDirectory,
+                             int strip, bool reverse)
+{
+    VCSBaseOutputWindow *ow = VCSBaseOutputWindow::instance();
+    const QString patch = Internal::VCSPlugin::instance()->settings().patchCommand;
+    if (patch.isEmpty()) {
+        ow->appendError(tr("There is no patch-command configured in the common 'Version Control' settings."));
+        return false;
+    }
+
+    QProcess patchProcess;
+    if (!workingDirectory.isEmpty())
+        patchProcess.setWorkingDirectory(workingDirectory);
+    QStringList args(QLatin1String("-p") + QString::number(strip));
+    if (reverse)
+        args << QLatin1String("-R");
+    ow->appendCommand(QString(), patch, args);
+    patchProcess.start(patch, args);
+    if (!patchProcess.waitForStarted()) {
+        ow->appendError(tr("Unable to launch '%1': %2").arg(patch, patchProcess.errorString()));
+        return false;
+    }
+    patchProcess.write(input);
+    patchProcess.closeWriteChannel();
+    QByteArray stdOut;
+    QByteArray stdErr;
+    if (!Utils::SynchronousProcess::readDataFromProcess(patchProcess, 30000, &stdOut, &stdErr, true)) {
+        Utils::SynchronousProcess::stopProcess(patchProcess);
+        ow->appendError(tr("A timeout occurred running '%1'").arg(patch));
+        return false;
+
+    }
+    if (!stdOut.isEmpty())
+        ow->append(QString::fromLocal8Bit(stdOut));
+    if (!stdErr.isEmpty())
+        ow->append(QString::fromLocal8Bit(stdErr));
+
+    if (patchProcess.exitStatus() != QProcess::NormalExit) {
+        ow->appendError(tr("'%1' crashed.").arg(patch));
+        return false;
+    }
+    if (patchProcess.exitCode() != 0) {
+        ow->appendError(tr("'%1' failed (exit code %2).").arg(patch).arg(patchProcess.exitCode()));
+        return false;
+    }
+    return true;
 }
 } // namespace VCSBase
 

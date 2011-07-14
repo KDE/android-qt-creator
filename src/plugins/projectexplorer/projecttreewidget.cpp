@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -74,8 +74,9 @@ public:
         setEditTriggers(QAbstractItemView::EditKeyPressed);
         setContextMenuPolicy(Qt::CustomContextMenu);
 //        setExpandsOnDoubleClick(false);
-        Core::Context context(Constants::C_PROJECT_TREE);
-        m_context = new Core::BaseContext(this, context);
+        m_context = new Core::IContext(this);
+        m_context->setContext(Core::Context(Constants::C_PROJECT_TREE));
+        m_context->setWidget(this);
         Core::ICore::instance()->addContextObject(m_context);
     }
     ~ProjectTreeView()
@@ -85,7 +86,7 @@ public:
     }
 
 private:
-    Core::BaseContext *m_context;
+    Core::IContext *m_context;
 };
 
 /*!
@@ -100,7 +101,7 @@ ProjectTreeWidget::ProjectTreeWidget(QWidget *parent)
           m_model(0),
           m_filterProjectsAction(0),
           m_autoSync(false),
-          m_currentItemLocked(0)
+          m_autoExpand(true)
 {
     m_model = new FlatModel(m_explorer->session()->sessionNode(), this);
     Project *pro = m_explorer->session()->startupProject();
@@ -148,6 +149,13 @@ ProjectTreeWidget::ProjectTreeWidget(QWidget *parent)
     connect(m_explorer->session(), SIGNAL(startupProjectChanged(ProjectExplorer::Project *)),
             this, SLOT(startupProjectChanged(ProjectExplorer::Project *)));
 
+    connect(m_explorer->session(), SIGNAL(aboutToLoadSession()),
+            this, SLOT(disableAutoExpand()));
+    connect(m_explorer->session(), SIGNAL(sessionLoaded()),
+            this, SLOT(loadExpandData()));
+    connect(m_explorer->session(), SIGNAL(aboutToSaveSession()),
+            this, SLOT(saveExpandData()));
+
     m_toggleSync = new QToolButton;
     m_toggleSync->setIcon(QIcon(QLatin1String(Core::Constants::ICON_LINK)));
     m_toggleSync->setCheckable(true);
@@ -156,6 +164,47 @@ ProjectTreeWidget::ProjectTreeWidget(QWidget *parent)
     connect(m_toggleSync, SIGNAL(clicked(bool)), this, SLOT(toggleAutoSynchronization()));
 
     setAutoSynchronization(true);
+}
+
+void ProjectTreeWidget::disableAutoExpand()
+{
+    m_autoExpand = false;
+}
+
+void ProjectTreeWidget::loadExpandData()
+{
+    m_autoExpand = true;
+    QStringList data = m_explorer->session()->value("ProjectTree.ExpandData").toStringList();
+    recursiveLoadExpandData(m_view->rootIndex(), data.toSet());
+}
+
+void ProjectTreeWidget::recursiveLoadExpandData(const QModelIndex &index, const QSet<QString> &data)
+{
+    if (data.contains(m_model->nodeForIndex(index)->path())) {
+        m_view->expand(index);
+        int count = m_model->rowCount(index);
+        for (int i = 0; i < count; ++i)
+            recursiveLoadExpandData(index.child(i, 0), data);
+    }
+}
+
+void ProjectTreeWidget::saveExpandData()
+{
+    QStringList data;
+    recursiveSaveExpandData(m_view->rootIndex(), &data);
+    // TODO if there are multiple ProjectTreeWidgets, the last one saves the data
+    m_explorer->session()->setValue("ProjectTree.ExpandData", data);
+}
+
+void ProjectTreeWidget::recursiveSaveExpandData(const QModelIndex &index, QStringList *data)
+{
+    Q_ASSERT(data);
+    if (m_view->isExpanded(index)) {
+        data->append(m_model->nodeForIndex(index)->path());
+        int count = m_model->rowCount(index);
+        for (int i = 0; i < count; ++i)
+            recursiveSaveExpandData(index.child(i, 0), data);
+    }
 }
 
 void ProjectTreeWidget::foldersAboutToBeRemoved(FolderNode *, const QList<FolderNode*> &list)
@@ -223,8 +272,8 @@ void ProjectTreeWidget::setAutoSynchronization(bool sync, bool syncNow)
 
 void ProjectTreeWidget::editCurrentItem()
 {
-    if (!m_view->selectionModel()->selectedIndexes().isEmpty())
-        m_view->edit(m_view->selectionModel()->selectedIndexes().first());
+    if (m_view->selectionModel()->currentIndex().isValid())
+        m_view->edit(m_view->selectionModel()->currentIndex());
 }
 
 void ProjectTreeWidget::setCurrentItem(Node *node, Project *project)
@@ -232,13 +281,6 @@ void ProjectTreeWidget::setCurrentItem(Node *node, Project *project)
     if (debug)
         qDebug() << "ProjectTreeWidget::setCurrentItem(" << (project ? project->displayName() : "0")
                  << ", " <<  (node ? node->path() : "0") << ")";
-    if (m_currentItemLocked) {
-        if (m_currentItemLocked == node) {
-            m_currentItemLocked = 0;
-            return;
-        }
-        m_currentItemLocked = 0;
-    }
 
     if (!project) {
         return;
@@ -276,13 +318,10 @@ void ProjectTreeWidget::showContextMenu(const QPoint &pos)
 
 void ProjectTreeWidget::handleProjectAdded(ProjectExplorer::Project *project)
 {
-    // We disable auto-synchronization for the current node so that the project
-    // is selected until another file is opened
-    m_currentItemLocked = m_model->nodeForIndex(m_view->currentIndex());
-
     Node *node = project->rootProjectNode();
     QModelIndex idx = m_model->indexForNode(node);
-    m_view->setExpanded(idx, true);
+    if (m_autoExpand) // disabled while session restoring
+        m_view->setExpanded(idx, true);
     m_view->setCurrentIndex(idx);
 }
 

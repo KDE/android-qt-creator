@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -64,6 +64,7 @@ public:
     virtual ~IVersionControl() {}
 
     virtual QString displayName() const = 0;
+    virtual QString id() const = 0;
 
     /*!
      * Returns whether files in this directory should be managed with this
@@ -76,7 +77,13 @@ public:
     virtual bool managesDirectory(const QString &filename, QString *topLevel = 0) const = 0;
 
     /*!
+     * Returns true is the VCS is configured to run.
+     */
+    virtual bool isConfigured() const = 0;
+    /*!
      * Called to query whether a VCS supports the respective operations.
+     *
+     * Return false if the VCS is not configured yet.
      */
     virtual bool supportsOperation(Operation operation) const = 0;
 
@@ -160,6 +167,7 @@ public:
 signals:
     void repositoryChanged(const QString &repository);
     void filesChanged(const QStringList &files);
+    void configurationChanged();
 
     // TODO: ADD A WAY TO DETECT WHETHER A FILE IS MANAGED, e.g
     // virtual bool sccManaged(const QString &filename) = 0;

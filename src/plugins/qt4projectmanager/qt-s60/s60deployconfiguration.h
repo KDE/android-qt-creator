@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 #define S60DEPLOYCONFIGURATION_H
 
 #include <projectexplorer/deployconfiguration.h>
+#include <qt4projectmanager/qt4projectmanager_global.h>
 
 namespace ProjectExplorer {
 class BuildConfiguration;
@@ -41,23 +42,25 @@ class RunConfiguration;
 class ToolChain;
 }
 
+namespace QtSupport {
+class BaseQtVersion;
+}
+
 namespace Qt4ProjectManager {
-class QtVersion;
+class Qt4ProFileNode;
+class S60DeployConfigurationFactory;
 
 namespace Internal {
 class Qt4SymbianTarget;
-class Qt4ProFileNode;
-class S60DeployConfigurationFactory;
-class S60DeviceRunConfiguration;
+}
 
-class S60DeployConfiguration : public ProjectExplorer::DeployConfiguration
+class QT4PROJECTMANAGER_EXPORT S60DeployConfiguration : public ProjectExplorer::DeployConfiguration
 {
     Q_OBJECT
     friend class S60DeployConfigurationFactory;
 
 public:
     enum CommunicationChannel {
-        CommunicationTrkSerialConnection,
         CommunicationCodaSerialConnection,
         CommunicationCodaTcpConnection
     };
@@ -67,12 +70,9 @@ public:
     explicit S60DeployConfiguration(ProjectExplorer::Target *parent);
     virtual ~S60DeployConfiguration();
 
-    bool isEnabled(ProjectExplorer::BuildConfiguration *configuration) const;
-
     ProjectExplorer::DeployConfigurationWidget *configurationWidget() const;
 
-    const QtVersion *qtVersion() const;
-    Qt4SymbianTarget *qt4Target() const;
+    const QtSupport::BaseQtVersion *qtVersion() const;
     ProjectExplorer::ToolChain *toolChain() const;
 
     QString serialPortName() const;
@@ -115,6 +115,7 @@ signals:
     void installationDriveChanged();
 
 private slots:
+    void slotTargetInformationChanged(Qt4ProjectManager::Qt4ProFileNode*,bool success, bool parseInProgress);
     void updateActiveBuildConfiguration(ProjectExplorer::BuildConfiguration *buildConfiguration);
     void updateActiveRunConfiguration(ProjectExplorer::RunConfiguration *runConfiguration);
 
@@ -129,10 +130,10 @@ private:
     QString symbianTarget() const;
     QString createPackageName(const QString &baseName) const;
     bool isDebug() const;
-    bool isDeployable(const Qt4ProFileNode &projectNode) const;
     bool isStaticLibrary(const Qt4ProFileNode &projectNode) const;
     bool isApplication(const Qt4ProFileNode &projectNode) const;
     bool hasSisPackage(const Qt4ProFileNode &projectNode) const;
+    Internal::Qt4SymbianTarget *qt4Target() const;
 
 private:
     ProjectExplorer::BuildConfiguration *m_activeBuildConfiguration;
@@ -167,7 +168,6 @@ public:
     QString displayNameForId(const QString &id) const;
 };
 
-} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // S60DEPLOYCONFIGURATION_H

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,18 @@
 #include "ui_basecheckoutwizardpage.h"
 
 #include <QtGui/QIcon>
+
+/*!
+    \class VCSBase::BaseCheckoutWizardPage
+
+    \brief Base class for a parameter page of a checkout wizard.
+
+    Lets the user specify the repository, a checkout directory and
+    the path. Contains a virtual to derive the checkout directory
+    from the repository as it is entered.
+
+    \sa VCSBase::BaseCheckoutWizard
+*/
 
 namespace VCSBase {
 

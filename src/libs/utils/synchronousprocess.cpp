@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -130,17 +130,17 @@ QString SynchronousProcessResponse::exitMessage(const QString &binary, int timeo
 {
     switch (result) {
     case Finished:
-        return SynchronousProcess::tr("The command '%1' finished successfully.").arg(binary);
+        return SynchronousProcess::tr("The command '%1' finished successfully.").arg(QDir::toNativeSeparators(binary));
     case FinishedError:
-        return SynchronousProcess::tr("The command '%1' terminated with exit code %2.").arg(binary).arg(exitCode);
+        return SynchronousProcess::tr("The command '%1' terminated with exit code %2.").arg(QDir::toNativeSeparators(binary)).arg(exitCode);
         break;
     case TerminatedAbnormally:
-        return SynchronousProcess::tr("The command '%1' terminated abnormally.").arg(binary);
+        return SynchronousProcess::tr("The command '%1' terminated abnormally.").arg(QDir::toNativeSeparators(binary));
     case StartFailed:
-        return SynchronousProcess::tr("The command '%1' could not be started.").arg(binary);
+        return SynchronousProcess::tr("The command '%1' could not be started.").arg(QDir::toNativeSeparators(binary));
     case Hang:
         return SynchronousProcess::tr("The command '%1' did not respond within the timeout limit (%2 ms).").
-                arg(binary).arg(timeoutMS);
+                arg(QDir::toNativeSeparators(binary)).arg(timeoutMS);
     }
     return QString();
 }
@@ -373,6 +373,7 @@ SynchronousProcessResponse SynchronousProcess::run(const QString &binary,
     // event loop in that case.
     m_d->m_binary = binary;
     m_d->m_process.start(binary, args, QIODevice::ReadOnly);
+    m_d->m_process.closeWriteChannel();
     if (!m_d->m_startFailure) {
         m_d->m_timer.start();
         QApplication::setOverrideCursor(Qt::WaitCursor);

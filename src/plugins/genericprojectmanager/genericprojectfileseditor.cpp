@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,10 +56,6 @@ ProjectFilesFactory::ProjectFilesFactory(Manager *manager,
     m_mimeTypes.append(QLatin1String(Constants::FILES_MIMETYPE));
     m_mimeTypes.append(QLatin1String(Constants::INCLUDES_MIMETYPE));
     m_mimeTypes.append(QLatin1String(Constants::CONFIG_MIMETYPE));
-}
-
-ProjectFilesFactory::~ProjectFilesFactory()
-{
 }
 
 Manager *ProjectFilesFactory::manager() const
@@ -104,16 +100,9 @@ Core::IFile *ProjectFilesFactory::open(const QString &fileName)
 ////////////////////////////////////////////////////////////////////////////////////////
 
 ProjectFilesEditor::ProjectFilesEditor(ProjectFilesEditorWidget *editor)
-  : TextEditor::BaseTextEditor(editor),
-    m_context(Constants::C_FILESEDITOR)
-{ }
-
-ProjectFilesEditor::~ProjectFilesEditor()
-{ }
-
-Core::Context ProjectFilesEditor::context() const
+  : TextEditor::BaseTextEditor(editor)
 {
-    return m_context;
+   setContext(Core::Context(Constants::C_FILESEDITOR));
 }
 
 QString ProjectFilesEditor::id() const
@@ -184,11 +173,12 @@ ProjectFilesDocument::ProjectFilesDocument(Manager *manager)
 ProjectFilesDocument::~ProjectFilesDocument()
 { }
 
-bool ProjectFilesDocument::save(const QString &name)
+bool ProjectFilesDocument::save(QString *errorString, const QString &name, bool autoSave)
 {
-    if (! BaseTextDocument::save(name))
+    if (!BaseTextDocument::save(errorString, name, autoSave))
         return false;
 
-    m_manager->notifyChanged(name);
+    if (!autoSave)
+        m_manager->notifyChanged(name.isEmpty() ? fileName() : name);
     return true;
 }

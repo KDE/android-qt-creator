@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -71,11 +71,15 @@ void BuildEnvironmentWidget::init(BuildConfiguration *bc)
     if (m_buildConfiguration) {
         disconnect(m_buildConfiguration, SIGNAL(environmentChanged()),
                    this, SLOT(environmentChanged()));
+        disconnect(m_buildConfiguration, SIGNAL(toolChainChanged()),
+                   this, SLOT(environmentChanged()));
     }
 
     m_buildConfiguration = bc;
 
     connect(m_buildConfiguration, SIGNAL(environmentChanged()),
+            this, SLOT(environmentChanged()));
+    connect(m_buildConfiguration, SIGNAL(toolChainChanged()),
             this, SLOT(environmentChanged()));
 
     m_clearSystemEnvironmentCheckBox->setChecked(!m_buildConfiguration->useSystemEnvironment());

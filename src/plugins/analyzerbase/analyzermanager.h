@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,85 +36,71 @@
 #define ANALYZERMANAGER_H
 
 #include "analyzerbase_global.h"
+#include "analyzerconstants.h"
+#include "projectexplorer/runconfiguration.h"
 
 #include <QtCore/QObject>
 
 QT_BEGIN_NAMESPACE
-class QAction;
 class QDockWidget;
 QT_END_NAMESPACE
-
-namespace Core {
-class IMode;
-}
 
 namespace Utils {
 class FancyMainWindow;
 }
 
 namespace Analyzer {
-class IAnalyzerTool;
-namespace Internal {
-class AnalyzerRunControl;
-class AnalyzerOutputPane;
-} // namespace Internal
 
+typedef QList<StartMode> StartModes;
+
+class IAnalyzerTool;
+class AnalyzerManagerPrivate;
+
+
+// FIXME: Merge with AnalyzerPlugin.
 class ANALYZER_EXPORT AnalyzerManager : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit AnalyzerManager(Internal::AnalyzerOutputPane *op, QObject *parent = 0);
+    explicit AnalyzerManager(QObject *parent);
     ~AnalyzerManager();
 
-    static AnalyzerManager *instance();
+    static void extensionsInitialized();
+    static void shutdown();
 
-    bool isInitialized() const;
-    void shutdown();
+    // Register a tool and initialize it.
+    static void addTool(IAnalyzerTool *tool, const StartModes &mode);
+    static IAnalyzerTool *toolFromId(const QByteArray &id);
+    static StartMode modeFromId(const QByteArray &id);
 
-    /**
-     * Register a tool and initialize it.
-     */
-    void addTool(Analyzer::IAnalyzerTool *tool);
-    IAnalyzerTool *currentTool() const;
-    QList<IAnalyzerTool *> tools() const;
+    // Dockwidgets are registered to the main window.
+    static QDockWidget *createDockWidget(IAnalyzerTool *tool, const QString &title,
+        QWidget *widget, Qt::DockWidgetArea area = Qt::TopDockWidgetArea);
 
-    // dockwidgets are registered to the main window
-    QDockWidget *createDockWidget(IAnalyzerTool *tool, const QString &title, QWidget *widget,
-                                  Qt::DockWidgetArea area = Qt::TopDockWidgetArea);
+    static Utils::FancyMainWindow *mainWindow();
 
-    Utils::FancyMainWindow *mainWindow() const;
+    static void showMode();
+    static void selectTool(IAnalyzerTool *tool, StartMode mode);
+    static void startTool(IAnalyzerTool *tool, StartMode mode);
+    static void stopTool();
 
-    void selectTool(IAnalyzerTool *tool);
-
-    void addOutputPaneToolBarWidgets(QList<QWidget *>  *) const;
+    // Convenience functions.
+    static void startLocalTool(IAnalyzerTool *tool, StartMode mode);
 
     static QString msgToolStarted(const QString &name);
     static QString msgToolFinished(const QString &name, int issuesFound);
 
-public slots:
-    void showStatusMessage(const QString &message, int timeoutMS = 10000);
-    void showPermanentStatusMessage(const QString &message);
+    static void showStatusMessage(const QString &message, int timeoutMS = 10000);
+    static void showPermanentStatusMessage(const QString &message);
 
-private slots:
-    void startTool();
-    void stopTool();
-    void handleToolFinished();
-    void toolSelected(int);
-    void toolSelected(QAction *);
-    void modeChanged(Core::IMode *mode);
-    void runControlCreated(Analyzer::Internal::AnalyzerRunControl *);
-    void resetLayout();
-    void saveToolSettings(Analyzer::IAnalyzerTool *tool);
-    void loadToolSettings(Analyzer::IAnalyzerTool *tool);
-    void updateRunActions();
+    static void handleToolStarted();
+    static void handleToolFinished();
+    static QAction *stopAction();
 
 private:
-    class AnalyzerManagerPrivate;
     friend class AnalyzerManagerPrivate;
     AnalyzerManagerPrivate *const d;
-
-    static AnalyzerManager *m_instance;
 };
 
 } // namespace Analyzer

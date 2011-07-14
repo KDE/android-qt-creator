@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,7 +50,8 @@ ResizeManipulator::ResizeManipulator(LayerItem *layerItem, FormEditorView *view)
     m_beginRightMargin(0.0),
     m_beginBottomMargin(0.0),
     m_layerItem(layerItem),
-    m_resizeHandle(0)
+    m_resizeHandle(0),
+    m_isActive(false)
 {
 }
 
@@ -78,6 +79,7 @@ void ResizeManipulator::removeHandle()
 void ResizeManipulator::begin(const QPointF &/*beginPoint*/)
 {
     if (m_resizeController.isValid()) {
+        m_isActive = true;
         m_beginBoundingRect = m_resizeController.formEditorItem()->qmlItemNode().instanceBoundingRect();
         m_beginToSceneTransform = m_resizeController.formEditorItem()->qmlItemNode().instanceSceneTransform();
         m_beginFromSceneTransform = m_beginToSceneTransform.inverted();
@@ -103,8 +105,8 @@ void ResizeManipulator::begin(const QPointF &/*beginPoint*/)
 
 void ResizeManipulator::update(const QPointF& updatePoint, Snapping useSnapping)
 {
-    const double minimumWidth = 15.0;
-    const double minimumHeight = 15.0;
+    const double minimumWidth = 0.0;
+    const double minimumHeight = 0.0;
 
     deleteSnapLines();
 
@@ -392,6 +394,7 @@ void ResizeManipulator::update(const QPointF& updatePoint, Snapping useSnapping)
 
 void ResizeManipulator::end()
 {
+    m_isActive = false;
     m_rewriterTransaction.commit();
     clear();
     removeHandle();
@@ -468,7 +471,7 @@ void ResizeManipulator::moveBy(double deltaX, double deltaY)
 
 bool ResizeManipulator::isInvalidSize(const QSizeF & size)
 {
-    if (size.width() < 15 || size.height() < 15)
+    if (size.width() < 0 || size.height() < 0)
         return true;
 
     return false;
@@ -508,23 +511,26 @@ void ResizeManipulator::clear()
     removeHandle();
 }
 
+bool ResizeManipulator::isActive() const
+{
+    return m_isActive;
+}
+
 void ResizeManipulator::setSize(QmlItemNode itemNode, const QSizeF &size)
 {
-    int penWidth = (itemNode.instancePenWidth() / 2) * 2;
-
     if (!itemNode.hasBindingProperty("width"))
-        itemNode.setVariantProperty("width", qRound(size.width()) - penWidth);
+        itemNode.setVariantProperty("width", qRound(size.width()));
 
     if (!itemNode.hasBindingProperty("height"))
-        itemNode.setVariantProperty("height", qRound(size.height()) - penWidth);
+        itemNode.setVariantProperty("height", qRound(size.height()));
 }
 
 void ResizeManipulator::setPosition(QmlItemNode itemNode, const QPointF &position)
 {
     if (!itemNode.hasBindingProperty("x"))
-        itemNode.setVariantProperty("x", qRound(position.x()) + (itemNode.instancePenWidth() / 2));
+        itemNode.setVariantProperty("x", qRound(position.x()));
 
     if (!itemNode.hasBindingProperty("y"))
-        itemNode.setVariantProperty("y", qRound(position.y()) + (itemNode.instancePenWidth() / 2));
+        itemNode.setVariantProperty("y", qRound(position.y()));
 }
 }

@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@ QT_BEGIN_HEADER
 namespace QmlJsDebugClient {
 
 class QDeclarativeDebugConnectionPrivate;
-class QDeclarativeDebugConnection : public QTcpSocket
+class QDeclarativeDebugConnection : public QIODevice
 {
     Q_OBJECT
     Q_DISABLE_COPY(QDeclarativeDebugConnection)
@@ -47,7 +47,25 @@ public:
     QDeclarativeDebugConnection(QObject * = 0);
     ~QDeclarativeDebugConnection();
 
+    void connectToHost(const QString &hostName, quint16 port);
+    void connectToOst(const QString &port);
+
+    qint64 bytesAvailable() const;
     bool isConnected() const;
+    QAbstractSocket::SocketState state() const;
+    void flush();
+    bool isSequential() const;
+    void close();
+
+signals:
+    void connected();
+    void stateChanged(QAbstractSocket::SocketState socketState);
+    void error(QAbstractSocket::SocketError socketError);
+
+private:
+    qint64 readData(char *data, qint64 maxSize);
+    qint64 writeData(const char *data, qint64 maxSize);
+
 private:
     QDeclarativeDebugConnectionPrivate *d;
     friend class QDeclarativeDebugClient;

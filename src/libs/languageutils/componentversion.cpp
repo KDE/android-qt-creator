@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,12 @@
 
 #include <QtCore/QString>
 
+#include <limits>
+
 using namespace LanguageUtils;
 
 const int ComponentVersion::NoVersion = -1;
+const int ComponentVersion::MaxVersion = std::numeric_limits<int>::max();
 
 ComponentVersion::ComponentVersion()
     : _major(NoVersion), _minor(NoVersion)
@@ -92,6 +95,16 @@ bool operator<=(const ComponentVersion &lhs, const ComponentVersion &rhs)
 {
     return lhs.majorVersion() < rhs.majorVersion()
             || (lhs.majorVersion() == rhs.majorVersion() && lhs.minorVersion() <= rhs.minorVersion());
+}
+
+bool operator>(const ComponentVersion &lhs, const ComponentVersion &rhs)
+{
+    return rhs < lhs;
+}
+
+bool operator>=(const ComponentVersion &lhs, const ComponentVersion &rhs)
+{
+    return rhs <= lhs;
 }
 
 bool operator==(const ComponentVersion &lhs, const ComponentVersion &rhs)

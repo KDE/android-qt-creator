@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -108,6 +108,7 @@ bool AbstractFormEditorTool::topSelectedItemIsMovable(const QList<QGraphicsItem*
     foreach (QGraphicsItem *item, itemList) {
         FormEditorItem *formEditorItem = FormEditorItem::fromQGraphicsItem(item);
         if (formEditorItem
+            && formEditorItem->qmlItemNode().isValid()
             && formEditorItem->qmlItemNode().instanceIsMovable()
             && !formEditorItem->qmlItemNode().instanceIsInPositioner()
             && selectedNodes.contains(formEditorItem->qmlItemNode()))
@@ -169,7 +170,6 @@ FormEditorItem* AbstractFormEditorTool::topFormEditorItemWithRootItem(const QLis
 
 void AbstractFormEditorTool::dropEvent(QGraphicsSceneDragDropEvent * /* event */)
 {
-    Q_ASSERT(false);
 }
 
 void AbstractFormEditorTool::dragEnterEvent(QGraphicsSceneDragDropEvent * event)
@@ -202,20 +202,32 @@ static inline bool checkIfNodeIsAView(const ModelNode &node)
              node.metaInfo().isSubclassOf("QtQuick.PathView", -1, -1));
 }
 
-void AbstractFormEditorTool::mouseDoubleClickEvent(const QList<QGraphicsItem*> &itemList, QGraphicsSceneMouseEvent *event)
+void AbstractFormEditorTool::mousePressEvent(const QList<QGraphicsItem*> & /*itemList*/, QGraphicsSceneMouseEvent *event)
 {
-    FormEditorItem *formEditorItem = topFormEditorItem(itemList);
-    if (formEditorItem) {
-        ModelNode doubleClickNode = formEditorItem->qmlItemNode().modelNode();
-        if (doubleClickNode.metaInfo().isComponent()) {
-            Core::EditorManager::instance()->openEditor(doubleClickNode.metaInfo().componentFileName());
-            event->accept();
-        } else if (checkIfNodeIsAView(doubleClickNode) &&
-                   doubleClickNode.hasNodeProperty("delegate") &&
-                   doubleClickNode.nodeProperty("delegate").modelNode().metaInfo().isComponent()) {
-            Core::EditorManager::instance()->openEditor(doubleClickNode.nodeProperty("delegate").modelNode().metaInfo().componentFileName());
-            event->accept();
-        }
+    if (event->button() == Qt::RightButton) {
+        event->accept();
     }
+}
+
+void AbstractFormEditorTool::mouseReleaseEvent(const QList<QGraphicsItem*> & /*itemList*/, QGraphicsSceneMouseEvent *event)
+{
+    if (event->button() == Qt::RightButton) {
+        showContextMenu(event);
+        event->accept();
+    }
+}
+
+void AbstractFormEditorTool::mouseDoubleClickEvent(const QList<QGraphicsItem*> &, QGraphicsSceneMouseEvent *)
+{
+}
+
+void AbstractFormEditorTool::showContextMenu(QGraphicsSceneMouseEvent *event)
+{
+     view()->showContextMenu(event->screenPos(), event->scenePos().toPoint(), true);
+}
+
+void AbstractFormEditorTool::clear()
+{
+    m_itemList.clear();
 }
 }

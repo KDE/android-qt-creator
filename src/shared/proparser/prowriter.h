@@ -26,15 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef PROWRITER_H
 #define PROWRITER_H
 
-#include "namespace_global.h"
-
+#include "proparser_global.h"
 #include <QtCore/QStringList>
 
 QT_BEGIN_NAMESPACE
@@ -45,7 +44,7 @@ QT_END_NAMESPACE
 namespace Qt4ProjectManager {
 namespace Internal {
 
-class ProWriter
+class PROPARSER_EXPORT ProWriter
 {
 public:
     enum PutFlag {

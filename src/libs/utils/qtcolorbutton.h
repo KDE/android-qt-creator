@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -75,7 +75,6 @@ private:
     class QtColorButtonPrivate *d_ptr;
     friend class QtColorButtonPrivate;
     Q_DISABLE_COPY(QtColorButton)
-    Q_PRIVATE_SLOT(d_ptr, void slotEditColor())
 };
 
 } // namespace Utils

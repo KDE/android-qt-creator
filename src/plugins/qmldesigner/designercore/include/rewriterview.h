@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -139,10 +139,13 @@ public:
 
     void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
     void instancesCompleted(const QVector<ModelNode> &completedNodeList);
-    void instanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     void instancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     void instancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector);
+
+    void nodeSourceChanged(const ModelNode &modelNode, const QString &newNodeSource);
 
     void rewriterBeginTransaction();
     void rewriterEndTransaction();
@@ -186,6 +189,8 @@ public:
     QmlJS::LookupContext *lookupContext() const;
     QmlJS::Document *document() const;
 
+    QString convertTypeToImportAlias(const QString &type) const;
+
     bool checkSemanticErrors() const
     { return m_checkErrors; }
 
@@ -197,6 +202,7 @@ signals:
 
 public slots:
     void qmlTextChanged();
+    void delayedSetup();
 
 protected: // functions
     Internal::ModelToTextMerger *modelToTextMerger() const;

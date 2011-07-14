@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,9 +48,9 @@ enum CaseSensitivity {
 };
 
 enum CompletionTrigger {
-    ManualCompletion,
-    TriggeredCompletion,
-    AutomaticCompletion
+    ManualCompletion,     // Display proposal only when explicitly invoked by the user.
+    TriggeredCompletion,  // When triggered by the user or upon contextual activation characters.
+    AutomaticCompletion   // The above plus an automatic trigger when the editor is "idle".
 };
 
 /**

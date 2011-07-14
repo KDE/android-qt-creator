@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,8 +35,8 @@
 
 #include "qt4buildconfiguration.h"
 #include "qt4targetsetupwidget.h"
-#include "qtversionmanager.h"
 
+#include <qtsupport/qtversionmanager.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/task.h>
 #include <projectexplorer/projectnodes.h>
@@ -51,18 +51,16 @@ class QCheckBox;
 class QHBoxLayout;
 class QGridLayout;
 class QLabel;
+class QComboBox;
 class QPushButton;
 QT_END_NAMESPACE
 
 namespace Qt4ProjectManager {
 class Qt4Project;
 class Qt4BaseTargetFactory;
-
-namespace Internal {
 class Qt4ProFileNode;
-}
 
-class Qt4BaseTarget : public ProjectExplorer::Target
+class QT4PROJECTMANAGER_EXPORT Qt4BaseTarget : public ProjectExplorer::Target
 {
     Q_OBJECT
 public:
@@ -76,14 +74,14 @@ public:
 
     // This is the same for almost all Qt4Targets
     // so for now offer a convience function
-    Qt4BuildConfiguration *addQt4BuildConfiguration(QString displayName,
-                                                            QtVersion *qtversion,
-                                                            QtVersion::QmakeBuildConfigs qmakeBuildConfiguration,
+    Qt4BuildConfiguration *addQt4BuildConfiguration(QString defaultDisplayName,
+                                                            QString displayName,
+                                                            QtSupport::BaseQtVersion *qtversion,
+                                                            QtSupport::BaseQtVersion::QmakeBuildConfigs qmakeBuildConfiguration,
                                                             QString additionalArguments,
                                                             QString directory);
 
     virtual void createApplicationProFiles() = 0;
-    virtual QString defaultBuildDirectory() const;
 
     virtual QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n) = 0;
 
@@ -108,13 +106,15 @@ class Qt4DefaultTargetSetupWidget : public Qt4TargetSetupWidget
 {
     Q_OBJECT
 public:
+    enum ShadowBuildOption { DISABLE, ENABLE, USER };
     Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *factory,
                                 const QString &id,
                                 const QString &proFilePath,
                                 const QList<BuildConfigurationInfo> &info,
-                                const QtVersionNumber &minimumQtVersion,
+                                const QtSupport::QtVersionNumber &minimumQtVersion,
                                 bool importEnabled,
-                                const QList<BuildConfigurationInfo> &importInfos);
+                                const QList<BuildConfigurationInfo> &importInfos,
+                                ShadowBuildOption shadowBuild);
     ~Qt4DefaultTargetSetupWidget();
     bool isTargetSelected() const;
     void setTargetSelected(bool b);
@@ -123,17 +123,28 @@ public:
     QList<BuildConfigurationInfo> buildConfigurationInfos() const;
     void setProFilePath(const QString &proFilePath);
 
-    void setShadowBuildSupported(bool b);
-    void setShadowBuildCheckBoxVisible(bool b);
+    void setBuildConfiguraionComboBoxVisible(bool b);
 
-public slots:
+    enum BuildConfigurationTemplate { PERQT = 0,
+                                      ONEQT = 1,
+                                      MANUALLY = 2,
+                                      NONE = 3 };
+    BuildConfigurationTemplate buildConfigurationTemplate() const;
+    void setBuildConfigurationTemplate(BuildConfigurationTemplate value);
+
+    void storeSettings() const;
+private slots:
     void addImportClicked();
     void checkBoxToggled(bool b);
     void importCheckBoxToggled(bool b);
     void pathChanged();
     void shadowBuildingToggled();
+    void buildConfigurationComboBoxChanged();
+    void qtVersionChanged();
+    void targetCheckBoxToggled(bool b);
 
 private:
+    void updateWidgetVisibility();
     void setBuildConfigurationInfos(const QList<BuildConfigurationInfo> &list, bool resetEnabled = true);
     bool reportIssues(int index);
     QPair<ProjectExplorer::Task::TaskType, QString> findIssues(const BuildConfigurationInfo &info);
@@ -142,11 +153,15 @@ private:
     QString m_id;
     Qt4BaseTargetFactory *m_factory;
     QString m_proFilePath;
-    QtVersionNumber m_minimumQtVersion;
+    QtSupport::QtVersionNumber m_minimumQtVersion;
     Utils::DetailsWidget *m_detailsWidget;
     QGridLayout *m_importLayout;
     QGridLayout *m_newBuildsLayout;
     QCheckBox *m_shadowBuildEnabled;
+    QLabel *m_buildConfigurationLabel;
+    QComboBox *m_buildConfigurationComboBox;
+    QLabel *m_versionLabel;
+    QComboBox *m_versionComboBox;
 
     // import line widgets
     QHBoxLayout *m_importLineLayout;
@@ -166,12 +181,15 @@ private:
     QList<BuildConfigurationInfo> m_importInfos;
     QList<bool> m_importEnabled;
     QList<QLabel *> m_reportIssuesLabels;
+    QList<bool> m_issues;
     bool m_directoriesEnabled;
     bool m_hasInSourceBuild;
     bool m_ignoreChange;
     bool m_showImport;
-    int m_selected;
-
+    bool m_buildConfigurationTemplateUnchanged;
+    bool m_shadowBuildCheckBoxVisible;
+    int m_selected; // Number of selected buildconfiguartions
+    int m_qtVersionId; // version id for "One Qt" entry
 };
 
 } // namespace Qt4ProjectManager

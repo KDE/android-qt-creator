@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,10 +51,10 @@ class DetailsWidget;
 namespace Qt4ProjectManager {
 class Qt4Project;
 class Qt4BaseTarget;
+class Qt4ProFileNode;
 
 namespace Internal {
 class Qt4SymbianTarget;
-class Qt4ProFileNode;
 class S60EmulatorRunConfigurationFactory;
 
 class S60EmulatorRunConfiguration : public ProjectExplorer::RunConfiguration
@@ -68,11 +68,11 @@ public:
 
     Qt4SymbianTarget *qt4Target() const;
 
-    using ProjectExplorer::RunConfiguration::isEnabled;
-    bool isEnabled(ProjectExplorer::BuildConfiguration *configuration) const;
+    bool isEnabled() const;
+    QString disabledReason() const;
     QWidget *createConfigurationWidget();
 
-    ProjectExplorer::OutputFormatter *createOutputFormatter() const;
+    Utils::OutputFormatter *createOutputFormatter() const;
 
     QString executable() const;
 
@@ -84,8 +84,7 @@ signals:
     void targetInformationChanged();
 
 private slots:
-    void proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode *pro, bool success);
-    void proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro);
+    void proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success, bool parseInProgress);
 
 protected:
     S60EmulatorRunConfiguration(Qt4ProjectManager::Qt4BaseTarget *parent, S60EmulatorRunConfiguration *source);
@@ -93,11 +92,11 @@ protected:
 
 private:
     void ctor();
-    void handleParserState(bool success);
     void updateTarget();
 
     QString m_proFilePath;
     bool m_validParse;
+    bool m_parseInProgress;
 };
 
 class S60EmulatorRunConfigurationWidget : public QWidget
@@ -113,6 +112,8 @@ private slots:
 
 private:
     S60EmulatorRunConfiguration *m_runConfiguration;
+    QLabel *m_disabledIcon;
+    QLabel *m_disabledReason;
     Utils::DetailsWidget *m_detailsWidget;
     QLabel *m_executableLabel;
 };
@@ -145,10 +146,11 @@ public:
     void start();
     virtual StopResult stop();
     bool isRunning() const;
+    QIcon icon() const;
 
 private slots:
     void processExited(int exitCode);
-    void slotAppendMessage(const QString &line, ProjectExplorer::OutputFormat);
+    void slotAppendMessage(const QString &line, Utils::OutputFormat);
     void slotError(const QString & error);
 
 private:

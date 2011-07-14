@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -108,12 +108,16 @@ void Highlighter::highlightBlock(const QString &text)
                     onClosingParenthesis('-', token.end() - 1, index == tokens.size()-1);
                     m_inMultilineComment = false;
                 } else if (!m_inMultilineComment
-                           && m_scanner.state() == Scanner::MultiLineComment
+                           && (m_scanner.state() & Scanner::MultiLineMask) == Scanner::MultiLineComment
                            && index == tokens.size() - 1) {
                     onOpeningParenthesis('+', token.offset, index == 0);
                     m_inMultilineComment = true;
                 }
                 setFormat(token.offset, token.length, m_formats[CommentFormat]);
+                break;
+
+            case Token::RegExp:
+                setFormat(token.offset, token.length, m_formats[StringFormat]);
                 break;
 
             case Token::LeftParenthesis:
@@ -229,7 +233,8 @@ void Highlighter::highlightBlock(const QString &text)
 
         switch (token.kind) {
         case Token::Comment:
-        case Token::String: {
+        case Token::String:
+        case Token::RegExp: {
             int i = token.begin(), e = token.end();
             while (i < e) {
                 const QChar ch = text.at(i);
@@ -332,7 +337,7 @@ int Highlighter::onBlockStart()
     if (previousState != -1) {
         state = previousState & 0xff;
         m_braceDepth = (previousState >> 8);
-        m_inMultilineComment = (state == Scanner::MultiLineComment);
+        m_inMultilineComment = ((state & Scanner::MultiLineMask) == Scanner::MultiLineComment);
     }
     m_foldingIndent = m_braceDepth;
 

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,10 @@
 #define ABSTRACTMOBILEAPPWIZARD_H
 
 #include <qt4projectmanager/qt4projectmanager_global.h>
-#include <qt4projectmanager/qtversionmanager.h>
+#include <qtsupport/qtversionmanager.h>
 #include <coreplugin/basefilewizard.h>
 #include <projectexplorer/baseprojectwizarddialog.h>
+#include <qt4projectmanager/wizards/abstractmobileapp.h>
 
 namespace Qt4ProjectManager {
 
@@ -55,7 +56,8 @@ class QT4PROJECTMANAGER_EXPORT AbstractMobileAppWizardDialog : public ProjectExp
     Q_OBJECT
 
 protected:
-    explicit AbstractMobileAppWizardDialog(QWidget *parent, const QtVersionNumber &minimumQtVersionNumber);
+    explicit AbstractMobileAppWizardDialog(QWidget *parent, const QtSupport::QtVersionNumber &minimumQtVersionNumber);
+    void addMobilePages();
 
 public:
     TargetSetupPage *targetsPage() const;
@@ -64,27 +66,36 @@ protected:
     int addPageWithTitle(QWizardPage *page, const QString &title);
     virtual void initializePage(int id);
     virtual void cleanupPage(int id);
-
-private:
-
+    virtual void setIgnoreGenericOptionsPage(bool);
     virtual int nextId() const;
 
+    Utils::WizardProgressItem *targetsPageItem() const;
+
+private:
     int idOfNextGenericPage() const;
     Utils::WizardProgressItem *itemOfNextGenericPage() const;
+    bool isSymbianTargetSelected() const;
+    bool isFremantleTargetSelected() const;
+    bool isHarmattanTargetSelected() const;
+    bool isMeegoTargetSelected() const;
 
     Internal::MobileAppWizardGenericOptionsPage *m_genericOptionsPage;
     Internal::MobileAppWizardSymbianOptionsPage *m_symbianOptionsPage;
     Internal::MobileAppWizardMaemoOptionsPage *m_maemoOptionsPage;
+    Internal::MobileAppWizardMaemoOptionsPage *m_harmattanOptionsPage;
     TargetSetupPage *m_targetsPage;
 
     int m_genericOptionsPageId;
     int m_symbianOptionsPageId;
     int m_maemoOptionsPageId;
+    int m_harmattanOptionsPageId;
     int m_targetsPageId;
+    bool m_ignoreGeneralOptions; // If true, do not show generic mobile options page.
     Utils::WizardProgressItem *m_targetItem;
     Utils::WizardProgressItem *m_genericItem;
     Utils::WizardProgressItem *m_symbianItem;
     Utils::WizardProgressItem *m_maemoItem;
+    Utils::WizardProgressItem *m_harmattanItem;
 
     friend class AbstractMobileAppWizard;
 };

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -46,26 +46,19 @@
 namespace Debugger {
 namespace Internal {
 
-BreakpointMarker::BreakpointMarker(BreakpointId id,
+BreakpointMarker::BreakpointMarker(BreakpointModelId id,
         const QString &fileName, int lineNumber)
-  : BaseTextMark(fileName, lineNumber), m_id(id)
+  : m_id(id)
 {
+    setLocation(fileName, lineNumber);
+    setIcon(breakHandler()->icon(m_id));
+    setPriority(TextEditor::ITextMark::NormalPriority);
     //qDebug() << "CREATE MARKER " << fileName << lineNumber;
 }
 
 BreakpointMarker::~BreakpointMarker()
 {
     //qDebug() << "REMOVE MARKER ";
-}
-
-QIcon BreakpointMarker::icon() const
-{
-    return breakHandler()->icon(m_id);
-}
-
-void BreakpointMarker::updateBlock(const QTextBlock &)
-{
-    //qDebug() << "BREAKPOINT MARKER UPDATE BLOCK";
 }
 
 void BreakpointMarker::removedFromEditor()

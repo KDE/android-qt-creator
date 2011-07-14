@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,7 @@
 
 namespace QmlJsDebugClient {
 
-#define MAX_PACKET_SIZE 0x7FFFFFFF
+static const unsigned int MAX_PACKET_SIZE = 0x7FFFFFFF;
 
 /*!
   \class QPacketProtocol
@@ -100,9 +100,10 @@ namespace QmlJsDebugClient {
 
 class QPacketProtocolPrivate : public QObject
 {
-Q_OBJECT
+    Q_OBJECT
+
 public:
-    QPacketProtocolPrivate(QPacketProtocol * parent, QIODevice * _dev)
+    QPacketProtocolPrivate(QPacketProtocol *parent, QIODevice *_dev)
     : QObject(parent), inProgressSize(-1), maxPacketSize(MAX_PACKET_SIZE),
       dev(_dev)
     {
@@ -139,8 +140,8 @@ public Q_SLOTS:
     {
         Q_ASSERT(!sendingPackets.isEmpty());
 
-        while(bytes) {
-            if(sendingPackets.at(0) > bytes) {
+        while (bytes) {
+            if (sendingPackets.at(0) > bytes) {
                 sendingPackets[0] -= bytes;
                 bytes = 0;
             } else {
@@ -153,46 +154,44 @@ public Q_SLOTS:
 
     void readyToRead()
     {
-        if(-1 == inProgressSize) {
-            // We need a size header of sizeof(qint32)
-            if(sizeof(qint32) > (uint)dev->bytesAvailable())
-                return;
-
-            // Read size header
-            int read = dev->read((char *)&inProgressSize, sizeof(qint32));
-            Q_ASSERT(read == sizeof(qint32));
-            Q_UNUSED(read);
-
-            // Check sizing constraints
-            if(inProgressSize > maxPacketSize) {
-                QObject::disconnect(dev, SIGNAL(readyRead()),
-                                    this, SLOT(readyToRead()));
-                QObject::disconnect(dev, SIGNAL(aboutToClose()),
-                                    this, SLOT(aboutToClose()));
-                QObject::disconnect(dev, SIGNAL(bytesWritten(qint64)),
-                                    this, SLOT(bytesWritten(qint64)));
-                dev = 0;
-                emit invalidPacket();
-                return;
-            }
-
-            inProgressSize -= sizeof(qint32);
-
+        while (true) {
             // Need to get trailing data
-            readyToRead();
-        } else {
-            inProgress.append(dev->read(inProgressSize - inProgress.size()));
+            if (-1 == inProgressSize) {
+                // We need a size header of sizeof(qint32)
+                if (sizeof(qint32) > (uint)dev->bytesAvailable())
+                    return;
 
-            if(inProgressSize == inProgress.size()) {
-                // Packet has arrived!
-                packets.append(inProgress);
-                inProgressSize = -1;
-                inProgress.clear();
+                // Read size header
+                int read = dev->read((char *)&inProgressSize, sizeof(qint32));
+                Q_ASSERT(read == sizeof(qint32));
+                Q_UNUSED(read);
 
-                emit readyRead();
+                // Check sizing constraints
+                if (inProgressSize > maxPacketSize) {
+                    QObject::disconnect(dev, SIGNAL(readyRead()),
+                                        this, SLOT(readyToRead()));
+                    QObject::disconnect(dev, SIGNAL(aboutToClose()),
+                                        this, SLOT(aboutToClose()));
+                    QObject::disconnect(dev, SIGNAL(bytesWritten(qint64)),
+                                        this, SLOT(bytesWritten(qint64)));
+                    dev = 0;
+                    emit invalidPacket();
+                    return;
+                }
 
-                // Need to get trailing data
-                readyToRead();
+                inProgressSize -= sizeof(qint32);
+            } else {
+                inProgress.append(dev->read(inProgressSize - inProgress.size()));
+
+                if (inProgressSize == inProgress.size()) {
+                    // Packet has arrived!
+                    packets.append(inProgress);
+                    inProgressSize = -1;
+                    inProgress.clear();
+
+                    emit readyRead();
+                } else
+                    return;
             }
         }
     }
@@ -244,7 +243,7 @@ qint32 QPacketProtocol::maximumPacketSize() const
  */
 qint32 QPacketProtocol::setMaximumPacketSize(qint32 max)
 {
-    if(max > (signed)sizeof(qint32))
+    if (max > (signed)sizeof(qint32))
         d->maxPacketSize = max;
     return d->maxPacketSize;
 }
@@ -271,7 +270,7 @@ QPacketAutoSend QPacketProtocol::send()
  */
 void QPacketProtocol::send(const QPacket & p)
 {
-    if(p.b.isEmpty())
+    if (p.b.isEmpty())
         return; // We don't send empty packets
 
     qint64 sendSize = p.b.size() + sizeof(qint32);
@@ -306,7 +305,7 @@ void QPacketProtocol::clear()
   */
 QPacket QPacketProtocol::read()
 {
-    if(0 == d->packets.count())
+    if (0 == d->packets.count())
         return QPacket();
 
     QPacket rv(d->packets.at(0));
@@ -404,7 +403,7 @@ QPacket::QPacket()
   */
 QPacket::~QPacket()
 {
-    if(buf) {
+    if (buf) {
         delete buf;
         buf = 0;
     }
@@ -479,10 +478,10 @@ QPacketAutoSend::QPacketAutoSend(QPacketProtocol * _p)
 
 QPacketAutoSend::~QPacketAutoSend()
 {
-    if(!b.isEmpty())
+    if (!b.isEmpty())
         p->send(*this);
 }
 
-}
+} // namespace QmlJsDebugClient
 
 #include <qpacketprotocol.moc>

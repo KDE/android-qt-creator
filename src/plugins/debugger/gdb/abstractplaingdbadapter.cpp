@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,9 +51,8 @@ namespace Internal {
     static_cast<GdbEngine::AdapterCallback>(&AbstractPlainGdbAdapter::callback), \
     STRINGIFY(callback)
 
-AbstractPlainGdbAdapter::AbstractPlainGdbAdapter(GdbEngine *engine,
-                                                 QObject *parent)
-    : AbstractGdbAdapter(engine, parent)
+AbstractPlainGdbAdapter::AbstractPlainGdbAdapter(GdbEngine *engine)
+    : AbstractGdbAdapter(engine)
 {
 }
 
@@ -121,7 +120,7 @@ void AbstractPlainGdbAdapter::handleInfoTarget(const GdbResponse &response)
         // [some leading stdout here]
         // >&"        Entry point: 0x80831f0  0x08048134 - 0x08048147 is .interp\n"
         // [some trailing stdout here]
-        QString msg = _(response.data.findChild("consolestreamoutput").data());
+        QString msg = _(response.consoleStreamOutput);
         QRegExp needle(_("\\bEntry point: 0x([0-9a-f]+)\\b"));
         if (needle.indexIn(msg) != -1) {
             m_engine->m_entryPoint =

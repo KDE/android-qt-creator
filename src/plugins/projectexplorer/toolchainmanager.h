@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -70,7 +70,7 @@ public:
     QString defaultDebugger(const Abi &abi) const;
 
 public slots:
-    void registerToolChain(ProjectExplorer::ToolChain *tc);
+    bool registerToolChain(ProjectExplorer::ToolChain *tc);
     void deregisterToolChain(ProjectExplorer::ToolChain *tc);
 
     void saveToolChains();
@@ -81,6 +81,8 @@ signals:
     void toolChainRemoved(ProjectExplorer::ToolChain *);
     // Tool chain was updated.
     void toolChainUpdated(ProjectExplorer::ToolChain *);
+    // Something changed:
+    void toolChainsChanged();
 
 private:
     explicit ToolChainManager(QObject *parent = 0);

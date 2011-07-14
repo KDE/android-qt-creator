@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -77,15 +77,12 @@ const char * const MODE_DESIGN_TYPE      = "Type.Design";
 const int          P_MODE_WELCOME        = 100;
 const int          P_MODE_EDIT           = 90;
 const int          P_MODE_DESIGN         = 89;
-const int          P_MODE_OUTPUT         = 10;
 
 //menubar
 const char * const MENU_BAR              = "QtCreator.MenuBar";
 
 //menus
 const char * const M_FILE                = "QtCreator.Menu.File";
-const char * const M_FILE_OPEN           = "QtCreator.Menu.File.Open";
-const char * const M_FILE_NEW            = "QtCreator.Menu.File.New";
 const char * const M_FILE_RECENTFILES    = "QtCreator.Menu.File.RecentFiles";
 const char * const M_EDIT                = "QtCreator.Menu.Edit";
 const char * const M_EDIT_ADVANCED       = "QtCreator.Menu.Edit.Advanced";
@@ -104,6 +101,7 @@ const char * const C_DESIGN_MODE         = "Core.DesignMode";
 const char * const C_EDITORMANAGER       = "Core.EditorManager";
 const char * const C_NAVIGATION_PANE     = "Core.NavigationPane";
 const char * const C_PROBLEM_PANE        = "Core.ProblemPane";
+const char * const C_GENERAL_OUTPUT_PANE = "Core.GeneralOutputPane";
 
 //default editor kind
 const char * const K_DEFAULT_TEXT_EDITOR_DISPLAY_NAME = QT_TRANSLATE_NOOP("OpenWith::Editors", "Plain Text Editor");
@@ -134,18 +132,20 @@ const char * const OPTIONS               = "QtCreator.Options";
 const char * const TOGGLE_SIDEBAR        = "QtCreator.ToggleSidebar";
 const char * const TOGGLE_FULLSCREEN     = "QtCreator.ToggleFullScreen";
 
+#ifdef Q_WS_MAC
 const char * const MINIMIZE_WINDOW       = "QtCreator.MinimizeWindow";
 const char * const ZOOM_WINDOW           = "QtCreator.ZoomWindow";
+#endif
 
 const char * const SPLIT                 = "QtCreator.Split";
 const char * const SPLIT_SIDE_BY_SIDE    = "QtCreator.SplitSideBySide";
 const char * const REMOVE_CURRENT_SPLIT  = "QtCreator.RemoveCurrentSplit";
 const char * const REMOVE_ALL_SPLITS     = "QtCreator.RemoveAllSplits";
 const char * const GOTO_OTHER_SPLIT      = "QtCreator.GotoOtherSplit";
-const char * const SAVEASDEFAULT         = "QtCreator.SaveAsDefaultLayout";
-const char * const RESTOREDEFAULT        = "QtCreator.RestoreDefaultLayout";
 const char * const CLOSE                 = "QtCreator.Close";
+#ifdef Q_WS_WIN
 const char * const CLOSE_ALTERNATIVE     = "QtCreator.Close_Alternative"; // temporary, see QTCREATORBUG-72
+#endif
 const char * const CLOSEALL              = "QtCreator.CloseAll";
 const char * const CLOSEOTHERS           = "QtCreator.CloseOthers";
 const char * const GOTONEXT              = "QtCreator.GotoNext";
@@ -154,14 +154,9 @@ const char * const GOTONEXTINHISTORY     = "QtCreator.GotoNextInHistory";
 const char * const GOTOPREVINHISTORY     = "QtCreator.GotoPreviousInHistory";
 const char * const GO_BACK               = "QtCreator.GoBack";
 const char * const GO_FORWARD            = "QtCreator.GoForward";
-const char * const GOTOPREVIOUSGROUP     = "QtCreator.GotoPreviousTabGroup";
-const char * const GOTONEXTGROUP         = "QtCreator.GotoNextTabGroup";
-const char * const WINDOWSLIST           = "QtCreator.WindowsList";
 const char * const ABOUT_QTCREATOR       = "QtCreator.AboutQtCreator";
 const char * const ABOUT_PLUGINS         = "QtCreator.AboutPlugins";
-const char * const ABOUT_QT              = "QtCreator.AboutQt";
 const char * const S_RETURNTOEDITOR      = "QtCreator.ReturnToEditor";
-const char * const OPEN_IN_EXTERNAL_EDITOR = "QtCreator.OpenInExternalEditor";
 
 // default groups
 const char * const G_DEFAULT_ONE         = "QtCreator.Group.Default.One";
@@ -231,9 +226,6 @@ const char * const ICON_PREV             = ":/core/images/prev.png";
 const char * const ICON_DIR              = ":/core/images/dir.png";
 const char * const ICON_CLEAN_PANE       = ":/core/images/clean_pane_small.png";
 const char * const ICON_CLEAR            = ":/core/images/clear.png";
-const char * const ICON_FIND             = ":/core/images/find.png";
-const char * const ICON_FINDNEXT         = ":/core/images/findnext.png";
-const char * const ICON_REPLACE          = ":/core/images/replace.png";
 const char * const ICON_RESET            = ":/core/images/reset.png";
 const char * const ICON_MAGNIFIER        = ":/core/images/magnifier.png";
 const char * const ICON_TOGGLE_SIDEBAR   = ":/core/images/sidebaricon.png";
@@ -242,8 +234,8 @@ const char * const ICON_CLOSE_DARK       = ":/core/images/darkclosebutton.png";
 const char * const ICON_SPLIT_HORIZONTAL = ":/core/images/splitbutton_horizontal.png";
 const char * const ICON_FILTER           = ":/core/images/filtericon.png";
 const char * const ICON_LINK             = ":/core/images/linkicon.png";
-const char * const ICON_QTLOGO_32        = ":/core/images/qtcreator_logo_32.png";
-const char * const ICON_QTLOGO_128       = ":/core/images/qtcreator_logo_128.png";
+const char * const ICON_QTLOGO_32        = ":/core/images/logo/32/qtcreator.png";
+const char * const ICON_QTLOGO_128       = ":/core/images/logo/128/qtcreator.png";
 
 const char * const WIZARD_CATEGORY_QT = "R.Qt";
 const char * const WIZARD_TR_CATEGORY_QT = QT_TRANSLATE_NOOP("Core", "Qt");
@@ -261,6 +253,8 @@ const char * const SETTINGS_DEFAULTTEXTENCODING = "General/DefaultFileEncoding";
 const char * const ALL_FILES_FILTER      = QT_TRANSLATE_NOOP("Core", "All Files (*)");
 
 const char * const VARIABLE_SUPPORT_PROPERTY = "QtCreator.VariableSupport";
+
+const char * const TR_CLEAR_MENU         = QT_TRANSLATE_NOOP("Core", "Clear Menu");
 
 const int TARGET_ICON_SIZE = 32;
 

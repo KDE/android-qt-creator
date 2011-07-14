@@ -26,15 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "rvctparser.h"
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/taskwindow.h>
-
-#include <QtCore/QDir>
 
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Constants;
@@ -85,7 +83,7 @@ void RvctParser::stdError(const QString &line)
 
        m_task = new Task(Task::Unknown,
                          m_warningOrError.cap(5) /* description */,
-                         QDir::fromNativeSeparators(m_warningOrError.cap(1)) /* file */,
+                         m_warningOrError.cap(1) /* file */,
                          m_warningOrError.cap(2).toInt() /* line */,
                          TASK_CATEGORY_COMPILE);
        if (m_warningOrError.cap(4) == "Warning")
@@ -157,12 +155,12 @@ void Qt4ProjectManagerPlugin::testRvctOutputParser_data()
 
     QTest::newRow("pass-through stdout")
             << QString::fromLatin1("Sometext") << OutputParserTester::STDOUT
-            << QString::fromLatin1("Sometext") << QString()
+            << QString::fromLatin1("Sometext\n") << QString()
             << QList<ProjectExplorer::Task>()
             << QString();
     QTest::newRow("pass-through stderr")
             << QString::fromLatin1("Sometext") << OutputParserTester::STDERR
-            << QString() << QString::fromLatin1("Sometext")
+            << QString() << QString::fromLatin1("Sometext\n")
             << QList<ProjectExplorer::Task>()
             << QString();
 

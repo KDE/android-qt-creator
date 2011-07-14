@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 #include "disassemblerlines.h"
 #include "breakhandler.h"
 #include "debuggerengine.h"
+#include "debuggerinternalconstants.h"
 #include "debuggercore.h"
 #include "debuggerstringutils.h"
 #include "stackframe.h"
@@ -55,8 +56,11 @@
 #include <QtGui/QTextBlock>
 #include <QtGui/QIcon>
 #include <QtCore/QPointer>
+#include <QtCore/QPair>
+#include <QtCore/QDir>
 
 using namespace Core;
+using namespace TextEditor;
 
 namespace Debugger {
 namespace Internal {
@@ -67,37 +71,26 @@ namespace Internal {
 //
 ///////////////////////////////////////////////////////////////////////
 
-class LocationMark2 : public TextEditor::ITextMark
+class FrameKey
 {
 public:
-    LocationMark2() {}
+    FrameKey() : startAddress(0), endAddress(0) {}
+    inline bool matches(const Location &loc) const;
 
-    QIcon icon() const { return debuggerCore()->locationMarkIcon(); }
-    void updateLineNumber(int /*lineNumber*/) {}
-    void updateBlock(const QTextBlock & /*block*/) {}
-    void removedFromEditor() {}
-    void documentClosing() {}
-    TextEditor::ITextMark::Priority priority() const
-        { return TextEditor::ITextMark::HighPriority; }
+    QString functionName;
+    QString fileName;
+    quint64 startAddress;
+    quint64 endAddress;
 };
 
-class BreakpointMarker2 : public TextEditor::ITextMark
+bool FrameKey::matches(const Location &loc) const
 {
-public:
-    BreakpointMarker2(const QIcon &icon) : m_icon(icon) {}
+    return loc.address() >= startAddress
+            && loc.address() < endAddress
+            && loc.fileName() == fileName && loc.functionName() == functionName;
+}
 
-    QIcon icon() const { return m_icon; }
-    void updateLineNumber(int) {}
-    void updateBlock(const QTextBlock &) {}
-    void removedFromEditor() {}
-    void documentClosing() {}
-    TextEditor::ITextMark::Priority priority() const
-        { return TextEditor::ITextMark::NormalPriority; }
-
-private:
-    QIcon m_icon;
-};
-
+typedef QPair<FrameKey, DisassemblerLines> CacheEntry;
 
 class DisassemblerAgentPrivate
 {
@@ -111,10 +104,11 @@ public:
     Location location;
     bool tryMixed;
     QPointer<DebuggerEngine> engine;
-    TextEditor::ITextMark *locationMark;
-    QList<TextEditor::ITextMark *> breakpointMarks;
-    
-    QHash<QString, DisassemblerLines> cache;
+    ITextMark *locationMark;
+    QList<ITextMark *> breakpointMarks;
+
+    QList<CacheEntry> cache;
+
     QString mimeType;
     bool m_resetLocationScheduled;
 };
@@ -122,10 +116,12 @@ public:
 DisassemblerAgentPrivate::DisassemblerAgentPrivate()
   : editor(0),
     tryMixed(true),
-    locationMark(new LocationMark2),
     mimeType(_("text/x-qtcreator-generic-asm")),
     m_resetLocationScheduled(false)
 {
+    locationMark = new ITextMark;
+    locationMark->setIcon(debuggerCore()->locationMarkIcon());
+    locationMark->setPriority(TextEditor::ITextMark::HighPriority);
 }
 
 DisassemblerAgentPrivate::~DisassemblerAgentPrivate()
@@ -158,6 +154,14 @@ DisassemblerAgent::~DisassemblerAgent()
     d = 0;
 }
 
+int DisassemblerAgent::indexOf(const Location &loc) const
+{
+    for (int i = 0; i < d->cache.size(); i++)
+        if (d->cache.at(i).first.matches(loc))
+            return i;
+    return -1;
+}
+
 void DisassemblerAgent::cleanup()
 {
     d->cache.clear();
@@ -178,12 +182,6 @@ void DisassemblerAgent::resetLocation()
     }
 }
 
-static QString frameKey(const Location &loc)
-{
-    return _("%1:%2:%3").arg(loc.functionName())
-        .arg(loc.fileName()).arg(loc.address());
-}
-
 const Location &DisassemblerAgent::location() const
 {
     return d->location;
@@ -200,20 +198,28 @@ bool DisassemblerAgent::isMixed() const
 void DisassemblerAgent::setLocation(const Location &loc)
 {
     d->location = loc;
-    if (isMixed()) {
-        QHash<QString, DisassemblerLines>::ConstIterator it =
-            d->cache.find(frameKey(loc));
-        if (it != d->cache.end()) {
-            QString msg = _("Use cache disassembler for '%1' in '%2'")
-                .arg(loc.functionName()).arg(loc.fileName());
-            d->engine->showMessage(msg);
-            setContents(*it);
-            updateBreakpointMarkers();
-            updateLocationMarker();
-            return;
+    int index = indexOf(loc);
+    if (index != -1) {
+        // Refresh when not displaying a function and there is not sufficient
+        // context left past the address.
+        if (!isMixed() && d->cache.at(index).first.endAddress - loc.address() < 24) {
+            index = -1;
+            d->cache.removeAt(index);
         }
     }
-    d->engine->fetchDisassembler(this);
+    if (index != -1) {
+        const FrameKey &key = d->cache.at(index).first;
+        const QString msg =
+            _("Using cached disassembly for 0x%1 (0x%2-0x%3) in '%4'/ '%5'")
+                .arg(loc.address(), 0, 16)
+                .arg(key.startAddress, 0, 16).arg(key.endAddress, 0, 16)
+                .arg(loc.functionName(), QDir::toNativeSeparators(loc.fileName()));
+        d->engine->showMessage(msg);
+        setContentsToEditor(d->cache.at(index).second);
+        d->m_resetLocationScheduled = false; // In case reset from previous run still pending.
+    } else {
+        d->engine->fetchDisassembler(this);
+    }
 }
 
 void DisassemblerAgentPrivate::configureMimeType()
@@ -253,6 +259,24 @@ void DisassemblerAgent::setMimeType(const QString &mt)
 void DisassemblerAgent::setContents(const DisassemblerLines &contents)
 {
     QTC_ASSERT(d, return);
+    if (contents.size()) {
+        const quint64 startAddress = contents.startAddress();
+        const quint64 endAddress = contents.endAddress();
+        if (startAddress) {
+            FrameKey key;
+            key.fileName = d->location.fileName();
+            key.functionName = d->location.functionName();
+            key.startAddress = startAddress;
+            key.endAddress = endAddress;
+            d->cache.append(CacheEntry(key, contents));
+        }
+    }
+    setContentsToEditor(contents);
+}
+
+void DisassemblerAgent::setContentsToEditor(const DisassemblerLines &contents)
+{
+    QTC_ASSERT(d, return);
     using namespace Core;
     using namespace TextEditor;
 
@@ -282,19 +306,12 @@ void DisassemblerAgent::setContents(const DisassemblerLines &contents)
 
     QString str;
     for (int i = 0, n = contents.size(); i != n; ++i) {
-        const DisassemblerLine &dl = contents.at(i);
-        if (dl.address) {
-            str += QLatin1String("0x");
-            str += QString::number(dl.address, 16);
-            str += QLatin1String("  ");
-        }
-        str += dl.data;
+        str += contents.at(i).toString();
         str += QLatin1Char('\n');
     }
     plainTextEdit->setPlainText(str);
     plainTextEdit->setReadOnly(true);
 
-    d->cache.insert(frameKey(d->location), contents);
     d->editor->setDisplayName(_("Disassembler (%1)")
         .arg(d->location.functionName()));
 
@@ -306,9 +323,10 @@ void DisassemblerAgent::updateLocationMarker()
 {
     QTC_ASSERT(d->editor, return);
 
-    const DisassemblerLines &contents = d->cache.value(frameKey(d->location));
+    const int index = indexOf(d->location);
+    const DisassemblerLines contents = index != -1 ?
+                d->cache.at(index).second : DisassemblerLines();
     int lineNumber = contents.lineForAddress(d->location.address());
-
     if (d->location.needsMarker()) {
         d->editor->markableInterface()->removeMark(d->locationMark);
         if (lineNumber)
@@ -322,6 +340,7 @@ void DisassemblerAgent::updateLocationMarker()
     QTextBlock block = tc.document()->findBlockByNumber(lineNumber - 1);
     tc.setPosition(block.position());
     plainTextEdit->setTextCursor(tc);
+    plainTextEdit->centerCursor();
 }
 
 void DisassemblerAgent::updateBreakpointMarkers()
@@ -330,23 +349,26 @@ void DisassemblerAgent::updateBreakpointMarkers()
         return;
 
     BreakHandler *handler = breakHandler();
-    BreakpointIds ids = handler->engineBreakpointIds(d->engine);
+    BreakpointModelIds ids = handler->engineBreakpointIds(d->engine);
     if (ids.isEmpty())
         return;
 
-    const DisassemblerLines &contents = d->cache.value(frameKey(d->location));
-
+    const int index = indexOf(d->location);
+    const DisassemblerLines contents = index != -1 ?
+                                       d->cache.at(index).second : DisassemblerLines();
     foreach (TextEditor::ITextMark *marker, d->breakpointMarks)
         d->editor->markableInterface()->removeMark(marker);
     d->breakpointMarks.clear();
-    foreach (BreakpointId id, ids) {
+    foreach (BreakpointModelId id, ids) {
         const quint64 address = handler->response(id).address;
         if (!address)
             continue;
         const int lineNumber = contents.lineForAddress(address);
         if (!lineNumber)
             continue;
-        BreakpointMarker2 *marker = new BreakpointMarker2(handler->icon(id));
+        ITextMark *marker = new ITextMark;
+        marker->setIcon(handler->icon(id));
+        marker->setPriority(ITextMark::NormalPriority);
         d->breakpointMarks.append(marker);
         d->editor->markableInterface()->addMark(marker, lineNumber);
     }
@@ -355,12 +377,6 @@ void DisassemblerAgent::updateBreakpointMarkers()
 quint64 DisassemblerAgent::address() const
 {
     return d->location.address();
-}
-
-// Return address of an assembly line "0x0dfd  bla"
-quint64 DisassemblerAgent::addressFromDisassemblyLine(const QString &line)
-{
-    return DisassemblerLine(line).address;
 }
 
 void DisassemblerAgent::setTryMixed(bool on)

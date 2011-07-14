@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -51,7 +51,7 @@ public:
     FileIterator();
     explicit FileIterator(const QStringList &fileList,
                           const QList<QTextCodec *> encodings);
-    ~FileIterator();
+    virtual ~FileIterator();
 
     virtual bool hasNext() const;
     virtual QString next();

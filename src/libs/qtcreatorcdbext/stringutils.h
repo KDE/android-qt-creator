@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -180,6 +180,9 @@ std::wstring stringToWString(const std::string &w);
 
 // String from hex "414A" -> "AJ".
 std::string stringFromHex(const char *begin, const char *end);
+// Decode hex to a memory area.
+void decodeHex(const char *begin, const char *end, unsigned char *target);
+
 std::wstring dataToHexW(const unsigned char *begin, const unsigned char *end);
 // Create readable hex: '0xAA 0xBB'..
 std::wstring dataToReadableHexW(const unsigned char *begin, const unsigned char *end);

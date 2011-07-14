@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,9 @@
 #include "sshremoteprocess.h"
 
 namespace Utils {
+namespace Internal {
 class SshRemoteProcessRunnerPrivate;
+} // namespace Internal
 
 class QTCREATOR_UTILS_EXPORT SshRemoteProcessRunner : public QObject
 {
@@ -50,6 +52,8 @@ public:
     static Ptr create(const SshConnection::Ptr &connection);
 
     void run(const QByteArray &command);
+    void runInTerminal(const QByteArray &command,
+        const SshPseudoTerminal &terminal);
     QByteArray command() const;
 
     SshConnection::Ptr connection() const;
@@ -67,7 +71,7 @@ private:
     SshRemoteProcessRunner(const SshConnection::Ptr &connection);
     void init();
 
-    SshRemoteProcessRunnerPrivate *d;
+    Internal::SshRemoteProcessRunnerPrivate *d;
 };
 
 } // namespace Utils

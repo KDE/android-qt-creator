@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,10 +44,6 @@ namespace SymbianUtils {
 class SymbianDevice;
 }
 
-namespace trk{
-class Launcher;
-}
-
 namespace Coda {
     struct CodaCommandResult;
     class CodaDevice;
@@ -59,10 +55,12 @@ class IOutputParser;
 }
 
 namespace Qt4ProjectManager {
+
+class S60DeviceRunConfiguration;
+
 namespace Internal {
 
 class BuildConfiguration;
-class S60DeviceRunConfiguration;
 struct CommunicationChannel;
 
 class S60DeployStepFactory : public ProjectExplorer::IBuildStepFactory
@@ -100,8 +98,6 @@ public:
     virtual void run(QFutureInterface<bool> &fi);
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
 
-    void setReleaseDeviceAfterLauncherFinish(bool);
-
     virtual QVariantMap toMap() const;
 
 protected:
@@ -111,22 +107,12 @@ protected slots:
     void deviceRemoved(const SymbianUtils::SymbianDevice &);
 
 private slots:
-    void connectFailed(const QString &errorMessage);
-    void printCopyingNotice(const QString &fileName);
-    void createFileFailed(const QString &filename, const QString &errorMessage);
-    void writeFileFailed(const QString &filename, const QString &errorMessage);
-    void closeFileFailed(const QString &filename, const QString &errorMessage);
-    void printInstallingNotice(const QString &packageName);
-    void installFailed(const QString &filename, const QString &errorMessage);
-    void printInstallingFinished();
-    void launcherFinished(bool success = true);
-    void slotLauncherStateChanged(int);
-    void slotWaitingForTrkClosed();
     void checkForCancel();
     void checkForTimeout();
+    void timeout();
 
     void slotError(const QString &error);
-    void slotTrkLogMessage(const QString &log);
+    void slotCodaLogMessage(const QString &log);
     void slotSerialPong(const QString &message);
     void slotCodaEvent(const Coda::CodaEvent &event);
 
@@ -134,7 +120,7 @@ private slots:
     void startTransferring();
 
     void deploymentFinished(bool success);
-    void slotWaitingForTckTrkClosed(int result);
+    void slotWaitingForCodaClosed(int result);
     void showManualInstallationInfo();
 
     void setCopyProgress(int progress);
@@ -183,8 +169,12 @@ private:
         StateConnecting,
         StateConnected,
         StateSendingData,
-        StateInstalling
+        StateInstalling,
+        StateFinished
     };
+
+    inline void setState(State state) { m_state = state; }
+    inline State state() { return m_state; }
 
     QString m_serialPortName;
     QString m_serialPortFriendlyName;
@@ -194,13 +184,9 @@ private:
     unsigned short m_port;
 
     QTimer *m_timer;
-
-    bool m_releaseDeviceAfterLauncherFinish;
-    bool m_handleDeviceRemoval;
+    QTimer* m_timeoutTimer;
 
     QFutureInterface<bool> *m_futureInterface; //not owned
-
-    trk::Launcher *m_launcher;
 
     QSharedPointer<Coda::CodaDevice> m_codaDevice;
 
@@ -227,7 +213,6 @@ class S60DeployStepWidget : public ProjectExplorer::BuildStepConfigWidget
 public:
     S60DeployStepWidget();
 
-    void init();
     QString summaryText() const;
     QString displayName() const;
 };

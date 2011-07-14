@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -265,6 +265,29 @@ void ActionContainerPrivate::addMenu(ActionContainer *menu, const QString &group
     QList<Group>::const_iterator groupIt = findGroup(actualGroupId);
     QTC_ASSERT(groupIt != m_groups.constEnd(), return);
     QAction *beforeAction = insertLocation(groupIt);
+    m_groups[groupIt-m_groups.constBegin()].items.append(menu);
+
+    connect(menu, SIGNAL(destroyed()), this, SLOT(itemDestroyed()));
+    insertMenu(beforeAction, container->menu());
+    scheduleUpdate();
+}
+
+void ActionContainerPrivate::addMenu(ActionContainer *before, ActionContainer *menu, const QString &groupId)
+{
+    ActionContainerPrivate *containerPrivate = static_cast<ActionContainerPrivate *>(menu);
+    if (!containerPrivate->canBeAddedToMenu())
+        return;
+    MenuActionContainer *container = static_cast<MenuActionContainer *>(containerPrivate);
+
+    QString actualGroupId;
+    if (groupId.isEmpty())
+        actualGroupId = QLatin1String(Constants::G_DEFAULT_TWO);
+    else
+        actualGroupId = groupId;
+
+    QList<Group>::const_iterator groupIt = findGroup(actualGroupId);
+    QTC_ASSERT(groupIt != m_groups.constEnd(), return);
+    QAction *beforeAction = before->menu()->menuAction();
     m_groups[groupIt-m_groups.constBegin()].items.append(menu);
 
     connect(menu, SIGNAL(destroyed()), this, SLOT(itemDestroyed()));

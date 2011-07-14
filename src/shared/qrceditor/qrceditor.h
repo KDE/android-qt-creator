@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #ifndef QRCEDITOR_H
@@ -50,6 +50,7 @@ public:
 
     bool load(const QString &fileName);
     bool save();
+    QString errorMessage() const { return m_treeview->errorMessage(); }
 
     bool isDirty();
     void setDirty(bool dirty);
@@ -65,6 +66,8 @@ public:
 
     void addFile(const QString &prefix, const QString &file);
 //    void removeFile(const QString &prefix, const QString &file);
+
+    const QUndoStack *commandHistory() const { return &m_history; }
 
 signals:
     void dirtyChanged(bool dirty);

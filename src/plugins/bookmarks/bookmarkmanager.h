@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -75,7 +75,7 @@ public:
     void updateBookmark(Bookmark *bookmark);
     void removeBookmark(Bookmark *bookmark); // Does not remove the mark
     void removeAllBookmarks();
-    Bookmark *bookmarkForIndex(QModelIndex index);
+    Bookmark *bookmarkForIndex(const QModelIndex &index);
 
     enum State { NoBookMarks, HasBookMarks, HasBookmarksInDocument };
     State state() const;
@@ -163,12 +163,7 @@ private:
 class BookmarkContext : public Core::IContext
 {
 public:
-    BookmarkContext(BookmarkView *widget);
-    virtual Core::Context context() const;
-    virtual QWidget *widget();
-private:
-    BookmarkView *m_bookmarkView;
-    const Core::Context m_context;
+    BookmarkContext(QWidget *widget);
 };
 
 class BookmarkViewFactory : public Core::INavigationWidgetFactory

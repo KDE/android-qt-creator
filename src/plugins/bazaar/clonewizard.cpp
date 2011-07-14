@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,8 +37,10 @@
 #include "bazaarclient.h"
 #include "bazaarsettings.h"
 
+#include <coreplugin/iversioncontrol.h>
 #include <vcsbase/checkoutjobs.h>
 #include <vcsbase/vcsbaseconstants.h>
+#include <vcsbase/vcsconfigurationpage.h>
 
 #include <QtCore/QDebug>
 
@@ -69,6 +71,9 @@ QString CloneWizard::displayName() const
 QList<QWizardPage*> CloneWizard::createParameterPages(const QString &path)
 {
     QList<QWizardPage*> wizardPageList;
+    const Core::IVersionControl *vc = BazaarPlugin::instance()->versionControl();
+    if (!vc->isConfigured())
+        wizardPageList.append(new VCSBase::VcsConfigurationPage(vc));
     CloneWizardPage *page = new CloneWizardPage;
     page->setPath(path);
     wizardPageList.append(page);
@@ -88,15 +93,23 @@ QSharedPointer<VCSBase::AbstractCheckoutJob> CloneWizard::createJob(const QList<
     *checkoutPath = page->path() + QLatin1Char('/') + page->directory();
 
     const CloneOptionsPanel *panel = page->cloneOptionsPanel();
-    BazaarClient::ExtraCommandOptions extraOptions;
-    extraOptions[BazaarClient::UseExistingDirCloneOptionId] = panel->isUseExistingDirectoryOptionEnabled();
-    extraOptions[BazaarClient::StackedCloneOptionId] = panel->isStackedOptionEnabled();
-    extraOptions[BazaarClient::StandAloneCloneOptionId] = panel->isStandAloneOptionEnabled();
-    extraOptions[BazaarClient::BindCloneOptionId] = panel->isBindOptionEnabled();
-    extraOptions[BazaarClient::SwitchCloneOptionId] = panel->isSwitchOptionEnabled();
-    extraOptions[BazaarClient::HardLinkCloneOptionId] = panel->isHardLinkOptionEnabled();
-    extraOptions[BazaarClient::NoTreeCloneOptionId] = panel->isNoTreeOptionEnabled();
-    extraOptions[BazaarClient::RevisionCloneOptionId] = panel->revision();
+    QStringList extraOptions;
+    if (panel->isUseExistingDirectoryOptionEnabled())
+        extraOptions += QLatin1String("--use-existing-dir");
+    if (panel->isStackedOptionEnabled())
+        extraOptions += QLatin1String("--stacked");
+    if (panel->isStandAloneOptionEnabled())
+        extraOptions += QLatin1String("--standalone");
+    if (panel->isBindOptionEnabled())
+        extraOptions += QLatin1String("--bind");
+    if (panel->isSwitchOptionEnabled())
+        extraOptions += QLatin1String("--switch");
+    if (panel->isHardLinkOptionEnabled())
+        extraOptions += QLatin1String("--hardlink");
+    if (panel->isNoTreeOptionEnabled())
+        extraOptions += QLatin1String("--no-tree");
+    if (!panel->revision().isEmpty())
+        extraOptions << QLatin1String("-r") << panel->revision();
     const BazaarClient *client = BazaarPlugin::instance()->client();
     args << client->vcsCommandString(BazaarClient::CloneCommand)
          << client->cloneArguments(page->repository(), page->directory(), extraOptions);

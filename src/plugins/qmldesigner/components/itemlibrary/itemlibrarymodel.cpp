@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -301,7 +301,7 @@ bool ItemLibrarySectionModel::updateSectionVisibility(const QString &searchText,
 
 void ItemLibrarySectionModel::updateItemIconSize(const QSize &itemIconSize)
 {
-    foreach (ItemLibraryItemModel *item, m_sectionEntries.elements().values()) {
+    foreach (ItemLibraryItemModel *item, m_sectionEntries.elements()) {
         item->setItemIconSize(itemIconSize);
     }
 }
@@ -383,10 +383,11 @@ bool ItemLibraryModel::isItemVisible(int itemLibId)
     return elementModel(sectionLibId)->isItemVisible(itemLibId);
 }
 
-QString entryToImport(const ItemLibraryEntry &entry)
+Import entryToImport(const ItemLibraryEntry &entry)
 {
-    return entry.requiredImport() + QLatin1Char(' ') + QString::number(entry.majorVersion())
-            + QLatin1Char('.') + QString::number(entry.minorVersion());
+    return Import::createLibraryImport(entry.requiredImport(), QString::number(entry.majorVersion()) + QLatin1Char('.') +
+                                                               QString::number(entry.minorVersion()));
+
 }
 
 void ItemLibraryModel::update(ItemLibraryInfo *itemLibraryInfo, Model *model)
@@ -407,7 +408,7 @@ void ItemLibraryModel::update(ItemLibraryInfo *itemLibraryInfo, Model *model)
 
          bool valid = model->metaInfo(entry.typeName(), entry.majorVersion(), entry.minorVersion()).isValid();
 
-        if (valid && (entry.requiredImport().isEmpty() || imports.contains(entryToImport(entry), Qt::CaseInsensitive))) {
+        if (valid && (entry.requiredImport().isEmpty() || model->hasImport(entryToImport(entry), true, true) || entry.forceImport())) {
             QString itemSectionName = entry.category();
             ItemLibrarySectionModel *sectionModel;
             ItemLibraryItemModel *itemModel;
@@ -528,15 +529,15 @@ int ItemLibraryModel::getHeight(const ItemLibraryEntry &itemLibraryEntry)
     return 64;
 }
 
-QPixmap ItemLibraryModel::createDragPixmap(int width, int height)
+QPixmap ItemLibraryModel::createDragPixmap(int , int )
 {
-    QImage dragImage(width, height, QImage::Format_RGB32); // TODO: draw item drag icon
-    dragImage.fill(0xffffffff);
+    QImage dragImage(10, 10, QImage::Format_ARGB32); // TODO: draw item drag icon
+    dragImage.fill(0x00ffffff); //### todo for now we disable the preview image
     QPainter p(&dragImage);
     QPen pen(Qt::gray);
-    pen.setWidth(2);
-    p.setPen(pen);
-    p.drawRect(1, 1, dragImage.width() - 2, dragImage.height() - 2);
+//    pen.setWidth(2);
+//    p.setPen(pen);
+//    p.drawRect(1, 1, dragImage.width() - 2, dragImage.height() - 2);
     return QPixmap::fromImage(dragImage);
 }
 

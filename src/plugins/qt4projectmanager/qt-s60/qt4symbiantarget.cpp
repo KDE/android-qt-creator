@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,6 +42,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <symbianutils/symbiandevicemanager.h>
+#include <extensionsystem/pluginmanager.h>
 #include <QtGui/QPainter>
 #include <QtGui/QApplication>
 
@@ -52,8 +53,7 @@ Qt4SymbianTarget::Qt4SymbianTarget(Qt4Project *parent, const QString &id) :
     Qt4BaseTarget(parent, id),
     m_connectedPixmap(QLatin1String(":/projectexplorer/images/ConnectionOn.png")),
     m_disconnectedPixmap(QLatin1String(":/projectexplorer/images/ConnectionOff.png")),
-    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this)),
-    m_deployConfigurationFactory(new S60DeployConfigurationFactory(this))
+    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this))
 {
     setDisplayName(defaultDisplayName(id));
     setIcon(iconForId(id));
@@ -91,11 +91,6 @@ Qt4BuildConfigurationFactory *Qt4SymbianTarget::buildConfigurationFactory() cons
     return m_buildConfigurationFactory;
 }
 
-ProjectExplorer::DeployConfigurationFactory *Qt4SymbianTarget::deployConfigurationFactory() const
-{
-    return m_deployConfigurationFactory;
-}
-
 QList<ProjectExplorer::ToolChain *> Qt4SymbianTarget::possibleToolChains(ProjectExplorer::BuildConfiguration *bc) const
 {
     QList<ProjectExplorer::ToolChain *> candidates = Qt4BaseTarget::possibleToolChains(bc);
@@ -114,11 +109,6 @@ QList<ProjectExplorer::ToolChain *> Qt4SymbianTarget::possibleToolChains(Project
     }
 
     return tmp;
-}
-
-QString Qt4SymbianTarget::defaultBuildDirectory() const
-{
-    return project()->projectDirectory();
 }
 
 void Qt4SymbianTarget::createApplicationProFiles()
@@ -178,7 +168,6 @@ bool Qt4SymbianTarget::isSymbianConnectionAvailable(QString &tooltipText)
     if (!s60DeployConf)
         return false;
     switch (s60DeployConf->communicationChannel()) {
-    case S60DeployConfiguration::CommunicationTrkSerialConnection:
     case S60DeployConfiguration::CommunicationCodaSerialConnection: {
         const SymbianUtils::SymbianDeviceManager *sdm = SymbianUtils::SymbianDeviceManager::instance();
         const int deviceIndex = sdm->findByPortName(s60DeployConf->serialPortName());

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #ifndef S60PUBLISHEROVI_H
@@ -39,6 +39,10 @@ QT_BEGIN_NAMESPACE
 class QProcess;
 QT_END_NAMESPACE
 
+namespace QtSupport {
+class ProFileReader;
+}
+
 namespace ProjectExplorer {
 class Project;
 }
@@ -48,7 +52,7 @@ class Qt4BuildConfiguration;
 class Qt4Project;
 namespace Internal {
 class Qt4SymbianTarget;
-class ProFileReader;
+class S60PublishStep;
 
 namespace Constants {
 const char * const REJECTED_VENDOR_NAMES_VENDOR = "Vendor";
@@ -105,10 +109,12 @@ public:
     void cleanUp();
     void completeCreation();
 
+    QString displayName() const;
     QString globalVendorName() const;
     QString localisedVendorNames() const;
     bool isVendorNameValid(const QString &vendorName) const;
 
+    QString nameFromTarget() const;
     QString qtVersion() const;
 
     QString uid3() const;
@@ -128,6 +134,7 @@ public:
 
     bool hasSucceeded();
 
+    void setDisplayName(const QString &displayName);
     void setVendorName(const QString &vendorName);
     void setLocalVendorNames(const QString &localVendorNames);
     void setAppUid(const QString &appuid);
@@ -135,37 +142,89 @@ public:
 signals:
     void progressReport(const QString& status, QColor c);
     void succeeded();
+    void finished();
 
 public slots:
-    void runQMake();
-    void runBuild(int result);
-    void runCreateSis(int result);
-    void endBuild(int result);
+    void publishStepFinished(bool succeeded);
+    void printMessage(QString message, bool error);
 
 private:
-    void runStep(int result, const QString& buildStep, const QString& command, QProcess* currProc, QProcess* prevProc);
+    bool nextStep();
+    bool runStep();
 
+    bool sisExists(QString &sisFile);
+    bool isDynamicLibrary(const Qt4Project &project) const;
+
+private:
     QColor m_errorColor;
     QColor m_commandColor;
     QColor m_okColor;
     QColor m_normalColor;
 
-    QProcess* m_qmakeProc;
-    QProcess* m_buildProc;
-    QProcess* m_createSisProc;
-
     Qt4BuildConfiguration * m_qt4bc;
     const Qt4SymbianTarget * m_activeTargetOfProject;
     Qt4Project * m_qt4project;
-    ProFileReader *m_reader;
+    QtSupport::ProFileReader *m_reader;
     QStringList m_rejectedVendorNames;
     QStringList m_capabilitiesForCertifiedSigned;
     QStringList m_capabilitesForManufacturerApproved;
+    QString m_vendorInfoVariable;
     QString m_vendorName;
     QString m_localVendorNames;
     QString m_appUid;
+    QString m_displayName;
+
+    QList<S60PublishStep *> m_publishSteps;
 
     bool m_finishedAndSuccessful;
+};
+
+class S60PublishStep : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit S60PublishStep(bool mandatory, QObject *parent = 0);
+    virtual void start() = 0;
+
+    virtual QString displayDescription() const = 0;
+    bool succeeded() const;
+    bool mandatory() const;
+
+signals:
+    void finished(bool succeeded);
+    void output(QString output, bool error);
+
+protected:
+    void setSucceeded(bool succeeded);
+
+private:
+    bool m_succeeded;
+    bool m_mandatory;
+};
+
+class S60CommandPublishStep : public S60PublishStep
+{
+    Q_OBJECT
+
+public:
+    explicit S60CommandPublishStep(const Qt4BuildConfiguration& bc,
+                                   const QString &command,
+                                   const QString &name,
+                                   bool mandatory = true,
+                                   QObject *parent = 0);
+
+    virtual void start();
+    virtual QString displayDescription() const;
+
+private slots:
+    void processFinished(int exitCode);
+
+private:
+    QProcess* m_proc;
+    const QString m_command;
+    const QString m_name;
+
 };
 
 } // namespace Internal

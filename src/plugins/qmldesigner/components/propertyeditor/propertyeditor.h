@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -86,7 +86,7 @@ public:
 
     void setQmlDir(const QString &qmlDirPath);
 
-    QWidget* createPropertiesPage();
+    QWidget *widget();
 
     void selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
                               const QList<ModelNode> &lastSelectedNodeList);
@@ -105,10 +105,12 @@ public:
     void variantPropertiesChanged(const QList<VariantProperty>& propertyList, PropertyChangeFlags propertyChange);
     void bindingPropertiesChanged(const QList<BindingProperty>& propertyList, PropertyChangeFlags propertyChange);
 
-    void instanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
 
     void nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId);
     void scriptFunctionsChanged(const ModelNode &node, const QStringList &scriptFunctionList);
+
+    void resetView();
 
 protected:
     void timerEvent(QTimerEvent *event);
@@ -133,7 +135,6 @@ private: //functions
     QString locateQmlFile(const QString &relativePath) const;
     void select(const ModelNode& node);
 
-    void resetView();
     void delayedResetView();
 
 

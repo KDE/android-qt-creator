@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -306,7 +306,6 @@ LocatorWidget::LocatorWidget(LocatorPlugin *qop) :
     setWindowIcon(QIcon(QLatin1String(":/locator/images/locator.png")));
     QPixmap image(Core::Constants::ICON_MAGNIFIER);
     m_fileLineEdit->setButtonPixmap(Utils::FancyLineEdit::Left, image);
-    m_fileLineEdit->setPlaceholderText(tr("Type to locate"));
     m_fileLineEdit->setButtonToolTip(Utils::FancyLineEdit::Left, tr("Options"));
     m_fileLineEdit->setFocusPolicy(Qt::ClickFocus);
     m_fileLineEdit->setButtonVisible(Utils::FancyLineEdit::Left, true);
@@ -341,6 +340,11 @@ LocatorWidget::LocatorWidget(LocatorPlugin *qop) :
     m_showPopupTimer->setInterval(100);
     m_showPopupTimer->setSingleShot(true);
     connect(m_showPopupTimer, SIGNAL(timeout()), SLOT(showPopupNow()));
+}
+
+void LocatorWidget::setPlaceholderText(const QString &text)
+{
+    m_fileLineEdit->setPlaceholderText(text);
 }
 
 void LocatorWidget::updateFilterList()

@@ -28,23 +28,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
-
 
 #ifndef ANALYZER_INTERNAL_ANALYZERRUNCONFIGWIDGET_H
 #define ANALYZER_INTERNAL_ANALYZERRUNCONFIGWIDGET_H
 
 #include <projectexplorer/runconfiguration.h>
-
-QT_BEGIN_NAMESPACE
-class QStandardItemModel;
-
-namespace Ui {
-class AnalyzerConfigWidget;
-}
-QT_END_NAMESPACE
+#include <analyzerbase/analyzerbase_global.h>
 
 namespace Utils {
 class DetailsWidget;
@@ -54,9 +46,7 @@ namespace Analyzer {
 
 class AnalyzerSettings;
 
-namespace Internal {
-
-class AnalyzerRunConfigWidget : public ProjectExplorer::RunConfigWidget
+class ANALYZER_EXPORT AnalyzerRunConfigWidget : public ProjectExplorer::RunConfigWidget
 {
     Q_OBJECT
 
@@ -71,7 +61,6 @@ private:
     Utils::DetailsWidget *m_detailsWidget;
 };
 
-}
-}
+} // namespace Analyzer
 
 #endif // ANALYZER_INTERNAL_ANALYZERRUNCONFIGWIDGET_H

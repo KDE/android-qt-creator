@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -60,7 +60,7 @@ Import::Import(const QString &url, const QString &file, const QString &version, 
 {
 }
 
-QString Import::toString(bool addSemicolon) const
+QString Import::toString(bool addSemicolon, bool skipAlias) const
 {
     QString result = QLatin1String("import ");
 
@@ -74,7 +74,7 @@ QString Import::toString(bool addSemicolon) const
     if (hasVersion())
         result += ' ' + version();
 
-    if (hasAlias())
+    if (hasAlias() && !skipAlias)
         result += " as " + alias();
 
     if (addSemicolon)

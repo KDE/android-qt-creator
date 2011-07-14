@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -143,6 +143,8 @@ public:
                                 QString *errorMessage = 0);
     bool synchronousBranchCmd(const QString &workingDirectory, QStringList branchArgs,
                               QString *output, QString *errorMessage);
+    bool synchronousRemoteCmd(const QString &workingDirectory, QStringList remoteArgs,
+                              QString *output, QString *errorMessage);
     bool synchronousShow(const QString &workingDirectory, const QString &id,
                               QString *output, QString *errorMessage);
     bool synchronousParentRevisions(const QString &workingDirectory,
@@ -165,7 +167,7 @@ public:
 
     bool cloneRepository(const QString &directory, const QByteArray &url);
     QString vcsGetRepositoryURL(const QString &directory);
-    bool synchronousFetch(const QString &workingDirectory);
+    bool synchronousFetch(const QString &workingDirectory, const QString &remote);
     bool synchronousPull(const QString &workingDirectory);
     bool synchronousPush(const QString &workingDirectory);
 
@@ -305,6 +307,8 @@ public:
                            const QStringList &args);
 
     virtual QStringList arguments() const = 0;
+
+public slots:
     virtual void redoCommand() = 0;
 
 protected slots:

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 #ifndef QMLJSINSPECTORCONSTANTS_H
@@ -35,30 +35,19 @@
 namespace QmlJSInspector {
 namespace Constants {
 
-const char * const RUN = "QmlInspector.Run";
-const char * const STOP = "QmlInspector.Stop";
-
-const char * const COMPLETE_THIS = "QmlInspector.CompleteThis";
-
-const char * const M_DEBUG_SIMULTANEOUSLY = "QmlInspector.Menu.SimultaneousDebug";
-
 const char * const INFO_EXPERIMENTAL = "QmlInspector.Experimental";
 const char * const INFO_OUT_OF_SYNC = "QmlInspector.OutOfSyncWarning";
 
-const char * const DESIGNMODE_ACTION = "QmlInspector.DesignMode";
 const char * const PLAY_ACTION = "QmlInspector.Play";
 const char * const SELECT_ACTION = "QmlInspector.Select";
-const char * const SELECT_MARQUEE_ACTION = "QmlInspector.SelectMarquee";
 const char * const ZOOM_ACTION = "QmlInspector.Zoom";
 const char * const COLOR_PICKER_ACTION = "QmlInspector.ColorPicker";
-const char * const TO_QML_ACTION = "QmlInspector.ToQml";
 const char * const FROM_QML_ACTION = "QmlInspector.FromQml";
 const char * const SHOW_APP_ON_TOP_ACTION = "QmlInspector.ShowAppOnTop";
 
 // settings
 const char * const S_QML_INSPECTOR    = "QML.Inspector";
 const char * const S_LIVE_PREVIEW_WARNING_KEY = "ShowLivePreview";
-const char * const ARG_DESIGNMODE = "-designmode";
 
 enum DesignTool {
     NoTool = 0,

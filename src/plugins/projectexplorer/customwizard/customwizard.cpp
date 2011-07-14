@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <extensionsystem/pluginmanager.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QDebug>
@@ -55,6 +56,20 @@ static const char configFileC[] = "wizard.xml";
 
 namespace ProjectExplorer {
 
+/*!
+    \class ProjectExplorer::ICustomWizardFactory
+    \brief Factory for creating custom wizards extending the base class
+           (CustomWizard or CustomProjectWizard)
+
+    The factory can be registered under a name in CustomWizard. The name can
+    be specified in the  \c <wizard class=''...> attribute in the \c wizard.xml file
+    and thus allows for specifying a C++ derived wizard class.
+    For example, this is currently used in Qt4ProjectManager to get Qt-specific
+    aspects into the custom wizard.
+
+    \sa ProjectExplorer::CustomWizard, ProjectExplorer::CustomProjectWizard
+*/
+
 struct CustomWizardPrivate {
     CustomWizardPrivate() : m_context(new Internal::CustomWizardContext) {}
 
@@ -64,6 +79,16 @@ struct CustomWizardPrivate {
 };
 
 int CustomWizardPrivate::verbose = 0;
+
+/*!
+    \class ProjectExplorer::CustomWizard
+
+    \brief Base classes for custom wizards based on file templates and a XML
+    configuration file (\c share/qtcreator/templates/wizards).
+
+    Presents CustomWizardDialog (fields page containing path control) for wizards
+    of type "class" or "file". Serves as base class for project wizards.
+*/
 
 CustomWizard::CustomWizard(const Core::BaseFileWizardParameters& baseFileParameters,
                            QObject *parent) :
@@ -158,23 +183,19 @@ static inline bool createFile(Internal::CustomWizardFile cwFile,
     // Read contents of source file
     const QFile::OpenMode openMode
             = cwFile.binary ? QIODevice::ReadOnly : (QIODevice::ReadOnly|QIODevice::Text);
-    QFile file(sourcePath);
-    if (!file.open(openMode)) {
-        *errorMessage = QString::fromLatin1("Cannot open %1: %2").arg(sourcePath, file.errorString());
+    Utils::FileReader reader;
+    if (!reader.fetch(sourcePath, openMode, errorMessage))
         return false;
-    }
-    const QByteArray contentData = file.readAll();
-    file.close();
 
     Core::GeneratedFile generatedFile;
     generatedFile.setPath(targetPath);
     if (cwFile.binary) {
         // Binary file: Set data.
         generatedFile.setBinary(true);
-        generatedFile.setBinaryContents(contentData);
+        generatedFile.setBinaryContents(reader.data());
     } else {
         // Template file: Preprocess.
-        const QString contentsIn = QString::fromLocal8Bit(contentData);
+        const QString contentsIn = QString::fromLocal8Bit(reader.data());
         generatedFile.setContents(Internal::CustomWizardContext::processFile(fm, contentsIn));
     }
 
@@ -238,10 +259,11 @@ bool CustomWizard::writeFiles(const Core::GeneratedFiles &files, QString *errorM
         return false;
     if (d->m_parameters->filesGeneratorScript.isEmpty())
         return true;
-
     // Prepare run of the custom script to generate. In the case of a
     // project wizard that is entirely created by a script,
     // the target project directory might not exist.
+    // Known issue: By nature, the script does not honor
+    // Core::GeneratedFile::KeepExistingFileAttribute.
     const CustomWizardContextPtr ctx = context();
     const QString scriptWorkingDir = scriptWorkingDirectory(ctx, d->m_parameters);
     const QDir scriptWorkingDirDir(scriptWorkingDir);
@@ -360,7 +382,7 @@ static QString listWizards()
     QString rc;
     QTextStream str(&rc);
     CategoryWizardMap categoryWizardMap;
-    foreach(const  Core::IWizard *w, Core::IWizard::allWizards())
+    foreach (const Core::IWizard *w, Core::IWizard::allWizards())
         categoryWizardMap.insert(w->category(), w);
     str << "### Registered wizards (" << categoryWizardMap.size() << ")\n";
     // Format
@@ -379,8 +401,16 @@ static QString listWizards()
     return rc;
 }
 
-// Scan the subdirectories of the template directory for directories
-// containing valid configuration files and parse them into wizards.
+/*!
+    \brief Reads \c share/qtcreator/templates/wizards and creates all custom wizards.
+
+    As other plugins might register factories for derived
+    classes, call it in extensionsInitialized().
+
+    Scans the subdirectories of the template directory for directories
+    containing valid configuration files and parse them into wizards.
+*/
+
 QList<CustomWizard*> CustomWizard::createWizards()
 {
     QList<CustomWizard*> rc;
@@ -464,13 +494,29 @@ QList<CustomWizard*> CustomWizard::createWizards()
     return rc;
 }
 
-// --------------- CustomProjectWizard
+/*!
+    \class ProjectExplorer::CustomProjectWizard
+    \brief A custom project wizard.
+
+    Presents a CustomProjectWizardDialog (Project intro page and fields page)
+    for wizards of type "project".
+    Overwrites postGenerateFiles() to open the project files according to the
+    file attributes. Also inserts \c '%ProjectName%' into the base
+    replacement map once the intro page is left to have it available
+    for QLineEdit-type fields' default text.
+*/
 
 CustomProjectWizard::CustomProjectWizard(const Core::BaseFileWizardParameters& baseFileParameters,
                                          QObject *parent) :
     CustomWizard(baseFileParameters, parent)
 {
 }
+
+/*!
+    \brief Can be reimplemented to create custom project wizards.
+
+    initProjectWizardDialog() needs to be called.
+*/
 
 QWizard *CustomProjectWizard::createWizardDialog(QWidget *parent,
                                         const QString &defaultPath,
@@ -528,6 +574,11 @@ Core::GeneratedFiles CustomProjectWizard::generateFiles(const QWizard *w, QStrin
     const Core::GeneratedFiles generatedFiles = generateWizardFiles(errorMessage);
     return generatedFiles;
 }
+
+/*!
+    \brief Utility to open the projects and editors for the files that have
+    the respective attributes set.
+*/
 
 bool CustomProjectWizard::postGenerateOpen(const Core::GeneratedFiles &l, QString *errorMessage)
 {

@@ -26,20 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "qt4runconfiguration.h"
 
 #include "makestep.h"
-#include "profilereader.h"
 #include "qt4nodes.h"
 #include "qt4project.h"
 #include "qt4target.h"
 #include "qt4buildconfiguration.h"
 #include "qt4projectmanagerconstants.h"
-#include "qtoutputformatter.h"
 #include "qt4desktoptarget.h"
 #include "qmakestep.h"
 
@@ -58,6 +56,9 @@
 #include <utils/pathchooser.h>
 #include <utils/detailswidget.h>
 #include <utils/debuggerlanguagechooser.h>
+#include <qtsupport/qtoutputformatter.h>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/profilereader.h>
 
 #include <QtGui/QFormLayout>
 #include <QtGui/QInputDialog>
@@ -92,11 +93,6 @@ QString pathFromId(const QString &id)
     return id.mid(QString::fromLatin1(QT4_RC_PREFIX).size());
 }
 
-QString pathToId(const QString &path)
-{
-    return QString::fromLatin1(QT4_RC_PREFIX) + path;
-}
-
 } // namespace
 
 //
@@ -109,7 +105,8 @@ Qt4RunConfiguration::Qt4RunConfiguration(Qt4BaseTarget *parent, const QString &p
     m_runMode(Gui),
     m_isUsingDyldImageSuffix(false),
     m_baseEnvironmentBase(Qt4RunConfiguration::BuildEnvironmentBase),
-    m_parseSuccess(parent->qt4Project()->validParse(m_proFilePath))
+    m_parseSuccess(parent->qt4Project()->validParse(m_proFilePath)),
+    m_parseInProgress(parent->qt4Project()->parseInProgress(m_proFilePath))
 {
     ctor();
 }
@@ -123,7 +120,8 @@ Qt4RunConfiguration::Qt4RunConfiguration(Qt4BaseTarget *parent, Qt4RunConfigurat
     m_userWorkingDirectory(source->m_userWorkingDirectory),
     m_userEnvironmentChanges(source->m_userEnvironmentChanges),
     m_baseEnvironmentBase(source->m_baseEnvironmentBase),
-    m_parseSuccess(source->m_parseSuccess)
+    m_parseSuccess(source->m_parseSuccess),
+    m_parseInProgress(source->m_parseInProgress)
 {
     ctor();
 }
@@ -137,34 +135,35 @@ Qt4DesktopTarget *Qt4RunConfiguration::qt4Target() const
     return static_cast<Qt4DesktopTarget *>(target());
 }
 
-bool Qt4RunConfiguration::isEnabled(ProjectExplorer::BuildConfiguration * /* configuration */) const
+bool Qt4RunConfiguration::isEnabled() const
 {
+    return m_parseSuccess && !m_parseInProgress;
+}
+
+QString Qt4RunConfiguration::disabledReason() const
+{
+    if (m_parseInProgress)
+        return tr("The .pro file is currently being parsed.");
     if (!m_parseSuccess)
-        return false;
-    return true;
+        return tr("The .pro file could not be parsed.");
+    return QString();
 }
 
-void Qt4RunConfiguration::handleParseState(bool success)
-{
-    bool enabled = isEnabled();
-    m_parseSuccess = success;
-    if (enabled != isEnabled())
-        emit isEnabledChanged(!enabled);
-}
-
-void Qt4RunConfiguration::proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro, bool success)
+void Qt4RunConfiguration::proFileUpdated(Qt4ProjectManager::Qt4ProFileNode *pro, bool success, bool parseInProgress)
 {
     if (m_proFilePath != pro->path())
         return;
-    handleParseState(success);
-    emit effectiveTargetInformationChanged();
-}
 
-void Qt4RunConfiguration::proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro)
-{
-    if (pro->path() != m_proFilePath)
-        return;
-    handleParseState(false);
+    bool enabled = isEnabled();
+    m_parseSuccess = success;
+    m_parseInProgress = parseInProgress;
+    if (enabled != isEnabled())
+        emit isEnabledChanged(!enabled);
+
+    if (!parseInProgress) {
+        emit effectiveTargetInformationChanged();
+        emit baseEnvironmentChanged();
+    }
 }
 
 void Qt4RunConfiguration::ctor()
@@ -173,11 +172,8 @@ void Qt4RunConfiguration::ctor()
 
     connect(qt4Target(), SIGNAL(environmentChanged()),
             this, SIGNAL(baseEnvironmentChanged()));
-    connect(qt4Target()->qt4Project(), SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)),
-            this, SLOT(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)));
-
-    connect(qt4Target()->qt4Project(), SIGNAL(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode*)),
-            this, SLOT(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode*)));
+    connect(qt4Target()->qt4Project(), SIGNAL(proFileUpdated(Qt4ProjectManager::Qt4ProFileNode*,bool,bool)),
+            this, SLOT(proFileUpdated(Qt4ProjectManager::Qt4ProFileNode*,bool,bool)));
 }
 
 //////
@@ -193,6 +189,17 @@ Qt4RunConfigurationWidget::Qt4RunConfigurationWidget(Qt4RunConfiguration *qt4Run
 {
     QVBoxLayout *vboxTopLayout = new QVBoxLayout(this);
     vboxTopLayout->setMargin(0);
+
+    QHBoxLayout *hl = new QHBoxLayout();
+    hl->addStretch();
+    m_disabledIcon = new QLabel(this);
+    m_disabledIcon->setPixmap(QPixmap(QString::fromUtf8(":/projectexplorer/images/compile_warning.png")));
+    hl->addWidget(m_disabledIcon);
+    m_disabledReason = new QLabel(this);
+    m_disabledReason->setVisible(false);
+    hl->addWidget(m_disabledReason);
+    hl->addStretch();
+    vboxTopLayout->addLayout(hl);
 
     m_detailsContainer = new Utils::DetailsWidget(this);
     m_detailsContainer->setState(Utils::DetailsWidget::NoSummary);
@@ -234,17 +241,11 @@ Qt4RunConfigurationWidget::Qt4RunConfigurationWidget(Qt4RunConfiguration *qt4Run
     toplayout->addRow(QString(), m_useTerminalCheck);
     m_useTerminalCheck->setVisible(qt4RunConfiguration->target()->id() != Constants::QT_SIMULATOR_TARGET_ID);
 
-    QWidget *debuggerLabelWidget = new QWidget(this);
-    QVBoxLayout *debuggerLabelLayout = new QVBoxLayout(debuggerLabelWidget);
-    debuggerLabelLayout->setMargin(0);
-    debuggerLabelLayout->setSpacing(0);
-    debuggerLabelWidget->setLayout(debuggerLabelLayout);
     QLabel *debuggerLabel = new QLabel(tr("Debugger:"), this);
-    debuggerLabelLayout->addWidget(debuggerLabel);
-    debuggerLabelLayout->addStretch(10);
+    debuggerLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::MinimumExpanding);
 
     m_debuggerLanguageChooser = new Utils::DebuggerLanguageChooser(this);
-    toplayout->addRow(debuggerLabelWidget, m_debuggerLanguageChooser);
+    toplayout->addRow(debuggerLabel, m_debuggerLanguageChooser);
 
     m_debuggerLanguageChooser->setCppChecked(m_qt4RunConfiguration->useCppDebugger());
     m_debuggerLanguageChooser->setQmlChecked(m_qt4RunConfiguration->useQmlDebugger());
@@ -289,7 +290,7 @@ Qt4RunConfigurationWidget::Qt4RunConfigurationWidget(Qt4RunConfiguration *qt4Run
     m_environmentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     vboxTopLayout->addWidget(m_environmentWidget);
 
-    setEnabled(m_qt4RunConfiguration->isEnabled());
+    runConfigurationEnabledChange(m_qt4RunConfiguration->isEnabled());
 
     connect(m_workingDirectoryEdit, SIGNAL(changed(QString)),
             this, SLOT(workDirectoryEdited()));
@@ -334,8 +335,6 @@ Qt4RunConfigurationWidget::Qt4RunConfigurationWidget(Qt4RunConfiguration *qt4Run
 
     connect(qt4RunConfiguration, SIGNAL(isEnabledChanged(bool)),
             this, SLOT(runConfigurationEnabledChange(bool)));
-
-    setEnabled(qt4RunConfiguration->isEnabled());
 }
 
 Qt4RunConfigurationWidget::~Qt4RunConfigurationWidget()
@@ -393,7 +392,11 @@ void Qt4RunConfigurationWidget::userChangesEdited()
 
 void Qt4RunConfigurationWidget::runConfigurationEnabledChange(bool enabled)
 {
-    setEnabled(enabled);
+    m_detailsContainer->setEnabled(enabled);
+    m_environmentWidget->setEnabled(enabled);
+    m_disabledIcon->setVisible(!enabled);
+    m_disabledReason->setVisible(!enabled);
+    m_disabledReason->setText(m_qt4RunConfiguration->disabledReason());
 }
 
 void Qt4RunConfigurationWidget::workDirectoryEdited()
@@ -516,6 +519,7 @@ bool Qt4RunConfiguration::fromMap(const QVariantMap &map)
     m_baseEnvironmentBase = static_cast<BaseEnvironmentBase>(map.value(QLatin1String(BASE_ENVIRONMENT_BASE_KEY), static_cast<int>(Qt4RunConfiguration::BuildEnvironmentBase)).toInt());
 
     m_parseSuccess = qt4Target()->qt4Project()->validParse(m_proFilePath);
+    m_parseInProgress = qt4Target()->qt4Project()->parseInProgress(m_proFilePath);
 
     return RunConfiguration::fromMap(map);
 }
@@ -600,15 +604,13 @@ Utils::Environment Qt4RunConfiguration::baseEnvironment() const
         env.set("DYLD_IMAGE_SUFFIX", "_debug");
     }
 
-#ifdef Q_OS_WIN
-    // On windows the user could be linking to a library found via a -L/some/dir switch
+    // The user could be linking to a library found via a -L/some/dir switch
     // to find those libraries while actually running we explicitly prepend those
-    // dirs to the path
+    // dirs to the library search path
     const Qt4ProFileNode *node = qt4Target()->qt4Project()->rootProjectNode()->findProFileFor(m_proFilePath);
     if (node)
         foreach(const QString &dir, node->variableValue(LibDirectoriesVar))
-            env.prependOrSetPath(dir);
-#endif
+            env.prependOrSetLibrarySearchPath(dir);
     return env;
 }
 
@@ -662,7 +664,7 @@ QString Qt4RunConfiguration::proFilePath() const
 
 QString Qt4RunConfiguration::dumperLibrary() const
 {
-    QtVersion *version = qt4Target()->activeBuildConfiguration()->qtVersion();
+    QtSupport::BaseQtVersion *version = qt4Target()->activeBuildConfiguration()->qtVersion();
     if (version)
         return version->gdbDebuggingHelperLibrary();
     return QString();
@@ -670,7 +672,7 @@ QString Qt4RunConfiguration::dumperLibrary() const
 
 QStringList Qt4RunConfiguration::dumperLibraryLocations() const
 {
-    QtVersion *version = qt4Target()->activeBuildConfiguration()->qtVersion();
+    QtSupport::BaseQtVersion *version = qt4Target()->activeBuildConfiguration()->qtVersion();
     if (version)
         return version->debuggingHelperLibraryLocations();
     return QStringList();
@@ -699,9 +701,9 @@ Qt4RunConfiguration::BaseEnvironmentBase Qt4RunConfiguration::baseEnvironmentBas
     return m_baseEnvironmentBase;
 }
 
-ProjectExplorer::OutputFormatter *Qt4RunConfiguration::createOutputFormatter() const
+Utils::OutputFormatter *Qt4RunConfiguration::createOutputFormatter() const
 {
-    return new QtOutputFormatter(qt4Target()->qt4Project());
+    return new QtSupport::QtOutputFormatter(qt4Target()->qt4Project());
 }
 
 ///

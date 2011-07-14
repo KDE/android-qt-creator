@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,8 +36,11 @@
 #define IANALYZERENGINE_H
 
 #include "analyzerbase_global.h"
+#include "analyzerstartparameters.h"
 
 #include <projectexplorer/task.h>
+#include <utils/ssh/sshconnection.h>
+#include <utils/outputformat.h>
 
 #include <QtCore/QObject>
 #include <QtCore/QString>
@@ -48,28 +51,59 @@ class RunConfiguration;
 
 namespace Analyzer {
 
+class IAnalyzerTool;
+
+/**
+ * An IAnalyzerEngine instance handles the launch of an analyzation tool.
+ *
+ * It gets created for each launch and deleted when the launch is stopped or ended.
+ */
 class ANALYZER_EXPORT IAnalyzerEngine : public QObject
 {
     Q_OBJECT
-public:
-    explicit IAnalyzerEngine(ProjectExplorer::RunConfiguration *runConfiguration);
 
+public:
+    IAnalyzerEngine(IAnalyzerTool *tool, const AnalyzerStartParameters &sp,
+        ProjectExplorer::RunConfiguration *runConfiguration = 0);
+    IAnalyzerEngine(IAnalyzerTool *tool,
+        ProjectExplorer::RunConfiguration *runConfiguration);
+
+    /// Start analyzation process.
     virtual void start() = 0;
-    /// trigger async stop
+    /// Trigger async stop of the analyzation process.
     virtual void stop() = 0;
 
-    ProjectExplorer::RunConfiguration *runConfiguration() const;
+    /// Controller actions.
+    virtual bool canPause() const { return false; }
+    virtual void pause() {}
+    virtual void unpause() {}
+
+    /// The active run configuration for this engine, might be zero.
+    ProjectExplorer::RunConfiguration *runConfiguration() const { return m_runConfig; }
+
+    /// The start parameters for this engine.
+    const AnalyzerStartParameters &startParameters() const { return m_sp; }
+
+    /// The tool this engine is associated with.
+    IAnalyzerTool *tool() const { return m_tool; }
+    StartMode mode() const { return m_sp.startMode; }
 
 signals:
-    void standardOutputReceived(const QString &);
-    void standardErrorReceived(const QString &);
+    /// Should be emitted when the debuggee outputted something.
+    void outputReceived(const QString &, Utils::OutputFormat format);
+    /// Can be emitted when you want to show a task, e.g. to display an error.
     void taskToBeAdded(ProjectExplorer::Task::TaskType type, const QString &description,
                        const QString &file, int line);
+
+    /// Must be emitted when the engine finished.
     void finished();
-    void starting(const IAnalyzerEngine *);
+    /// Must be emitted when the engine is starting.
+    void starting(const Analyzer::IAnalyzerEngine *);
 
 private:
     ProjectExplorer::RunConfiguration *m_runConfig;
+    AnalyzerStartParameters m_sp;
+    IAnalyzerTool *m_tool;
 };
 
 } // namespace Analyzer

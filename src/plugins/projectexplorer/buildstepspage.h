@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,8 +56,13 @@ class BuildConfiguration;
 
 namespace Internal {
 
-struct BuildStepsWidgetStruct
+class BuildStepsWidgetData
 {
+public:
+    BuildStepsWidgetData(BuildStep *s);
+    ~BuildStepsWidgetData();
+
+    BuildStep *step;
     BuildStepConfigWidget *widget;
     Utils::DetailsWidget *detailsWidget;
     QToolButton *upButton;
@@ -77,11 +82,14 @@ public:
 
 private slots:
     void updateAddBuildStepMenu();
-    void addBuildStep();
+    void triggerAddBuildStep();
+    void addBuildStep(int pos);
     void updateSummary();
-    void stepMoveUp(int pos);
-    void stepMoveDown(int pos);
-    void stepRemove(int pos);
+    void triggerStepMoveUp(int pos);
+    void stepMoved(int from, int to);
+    void triggerStepMoveDown(int pos);
+    void triggerRemoveBuildStep(int pos);
+    void removeBuildStep(int pos);
 
 private:
     void setupUi();
@@ -91,7 +99,7 @@ private:
     BuildStepList *m_buildStepList;
     QHash<QAction *, QPair<QString, ProjectExplorer::IBuildStepFactory *> > m_addBuildStepHash;
 
-    QList<Internal::BuildStepsWidgetStruct> m_buildSteps;
+    QList<Internal::BuildStepsWidgetData *> m_buildStepsData;
 
     QVBoxLayout *m_vbox;
 

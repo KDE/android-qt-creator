@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,6 @@
 #include "qt4projectmanager.h"
 #include "qt4projectmanagerconstants.h"
 #include "profileeditorfactory.h"
-#include "addlibrarywizard.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -59,16 +58,11 @@ using namespace Qt4ProjectManager::Internal;
 //
 
 ProFileEditor::ProFileEditor(ProFileEditorWidget *editor)
-  : BaseTextEditor(editor),
-    m_context(Qt4ProjectManager::Constants::C_PROFILEEDITOR,
-              TextEditor::Constants::C_TEXTEDITOR)
+  : BaseTextEditor(editor)
 {
+    setContext(Core::Context(Qt4ProjectManager::Constants::C_PROFILEEDITOR,
+              TextEditor::Constants::C_TEXTEDITOR));
 //    m_contexts << uidm->uniqueIdentifier(Qt4ProjectManager::Constants::PROJECT_KIND);
-}
-
-Core::Context ProFileEditor::context() const
-{
-    return m_context;
 }
 
 Core::IEditor *ProFileEditor::duplicate(QWidget *parent)
@@ -101,10 +95,6 @@ ProFileEditorWidget::ProFileEditorWidget(QWidget *parent, ProFileEditorFactory *
     baseTextDocument()->setSyntaxHighlighter(new ProFileHighlighter);
     m_commentDefinition.clearCommentStyles();
     m_commentDefinition.setSingleLine(QString(QLatin1Char('#')));
-}
-
-ProFileEditorWidget::~ProFileEditorWidget()
-{
 }
 
 void ProFileEditorWidget::unCommentSelection()
@@ -241,26 +231,6 @@ void ProFileEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
     const QVector<QTextCharFormat> formats = fs.toTextCharFormats(categories);
     highlighter->setFormats(formats.constBegin(), formats.constEnd());
     highlighter->rehighlight();
-}
-
-void ProFileEditorWidget::addLibrary()
-{
-    AddLibraryWizard wizard(file()->fileName(), this);
-    if (wizard.exec() != QDialog::Accepted)
-        return;
-
-    TextEditor::BaseTextEditor *editable = editor();
-    const int endOfDoc = editable->position(TextEditor::ITextEditor::EndOfDoc);
-    editable->setCursorPosition(endOfDoc);
-    QString snippet = wizard.snippet();
-
-    // add extra \n in case the last line is not empty
-    int line, column;
-    editable->convertPosition(endOfDoc, &line, &column);
-    if (!editable->textAt(endOfDoc - column, column).simplified().isEmpty())
-        snippet = QLatin1Char('\n') + snippet;
-
-    editable->insert(snippet);
 }
 
 void ProFileEditorWidget::jumpToFile()

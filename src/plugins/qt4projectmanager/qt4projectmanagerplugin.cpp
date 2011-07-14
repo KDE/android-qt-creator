@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -49,19 +49,17 @@
 #include "qt4projectmanagerconstants.h"
 #include "qt4project.h"
 #include "profileeditor.h"
-#include "profilereader.h"
-#include "qtversionmanager.h"
-#include "qtoptionspage.h"
 #include "externaleditors.h"
-#include "gettingstartedwelcomepage.h"
-#include "profilecompletion.h"
+#include "profilecompletionassist.h"
 
-#include "qt-maemo/maemomanager.h"
 #include "qt-s60/s60manager.h"
 #include "qt-desktop/qt4desktoptargetfactory.h"
 #include "qt-desktop/qt4simulatortargetfactory.h"
 #include "qt-desktop/qt4runconfiguration.h"
 #include "qt-android/androidmanager.h"
+#include "qt-desktop/desktopqtversionfactory.h"
+#include "qt-desktop/simulatorqtversionfactory.h"
+#include "winceqtversionfactory.h"
 
 #include <coreplugin/uniqueidmanager.h>
 #include <coreplugin/icore.h>
@@ -101,17 +99,13 @@ Qt4ProjectManagerPlugin::~Qt4ProjectManagerPlugin()
     delete m_proFileEditorFactory;
     removeObject(m_qt4ProjectManager);
     delete m_qt4ProjectManager;
-    removeObject(m_welcomePage);
-    delete m_welcomePage;
 }
 
 bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments)
-    m_projectContext = Core::Context(Qt4ProjectManager::Constants::PROJECT_ID);
-
-    ProFileParser::initialize();
-    ProFileEvaluator::initialize();
+    const Core::Context projectContext(Qt4ProjectManager::Constants::PROJECT_ID);
+    Core::Context projecTreeContext(ProjectExplorer::Constants::C_PROJECT_TREE);
 
     Core::ICore *core = Core::ICore::instance();
     if (!core->mimeDatabase()->addMimeTypes(QLatin1String(":qt4projectmanager/Qt4ProjectManager.mimetypes.xml"), errorMessage))
@@ -119,15 +113,6 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
 
     m_projectExplorer = ProjectExplorer::ProjectExplorerPlugin::instance();
     Core::ActionManager *am = core->actionManager();
-
-    QtVersionManager *mgr = new QtVersionManager;
-    addAutoReleasedObject(mgr);
-    addAutoReleasedObject(new QtOptionsPage);
-
-    m_welcomePage = new GettingStartedWelcomePage;
-    addObject(m_welcomePage);
-    connect(mgr, SIGNAL(updateExamples(QString,QString,QString)),
-            m_welcomePage, SLOT(updateExamples(QString,QString,QString)));
 
     //create and register objects
     m_qt4ProjectManager = new Qt4Manager(this);
@@ -166,20 +151,15 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     addAutoReleasedObject(new LinguistExternalEditor);
 
     addAutoReleasedObject(new S60Manager);
-    addAutoReleasedObject(new MaemoManager);
     addAutoReleasedObject(new AndroidManager);
     addAutoReleasedObject(new Qt4DesktopTargetFactory);
     addAutoReleasedObject(new Qt4SimulatorTargetFactory);
 
-    ProFileCompletion *completion = new ProFileCompletion;
-    addAutoReleasedObject(completion);
-    // Set completion settings and keep them up to date
-    TextEditor::TextEditorSettings *textEditorSettings = TextEditor::TextEditorSettings::instance();
-    completion->setCompletionSettings(textEditorSettings->completionSettings());
-    connect(textEditorSettings, SIGNAL(completionSettingsChanged(TextEditor::CompletionSettings)),
-            completion, SLOT(setCompletionSettings(TextEditor::CompletionSettings)));
+    addAutoReleasedObject(new DesktopQtVersionFactory);
+    addAutoReleasedObject(new SimulatorQtVersionFactory);
+    addAutoReleasedObject(new WinCeQtVersionFactory);
 
-    new ProFileCacheManager(this);
+    addAutoReleasedObject(new ProFileCompletionAssistProvider);
 
     // TODO reenable
     //m_embeddedPropertiesPage = new EmbeddedPropertiesPage;
@@ -199,13 +179,13 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     QIcon qmakeIcon(QLatin1String(":/qt4projectmanager/images/run_qmake.png"));
     qmakeIcon.addFile(QLatin1String(":/qt4projectmanager/images/run_qmake_small.png"));
     m_runQMakeAction = new QAction(qmakeIcon, tr("Run qmake"), this);
-    command = am->registerAction(m_runQMakeAction, Constants::RUNQMAKE, m_projectContext);
+    command = am->registerAction(m_runQMakeAction, Constants::RUNQMAKE, projectContext);
     command->setAttribute(Core::Command::CA_Hide);
     mbuild->addAction(command, ProjectExplorer::Constants::G_BUILD_PROJECT);
     connect(m_runQMakeAction, SIGNAL(triggered()), m_qt4ProjectManager, SLOT(runQMake()));
 
     m_runQMakeActionContextMenu = new QAction(qmakeIcon, tr("Run qmake"), this);
-    command = am->registerAction(m_runQMakeActionContextMenu, Constants::RUNQMAKECONTEXTMENU, m_projectContext);
+    command = am->registerAction(m_runQMakeActionContextMenu, Constants::RUNQMAKECONTEXTMENU, projectContext);
     command->setAttribute(Core::Command::CA_Hide);
     mproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_BUILD);
     msubproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_BUILD);
@@ -214,7 +194,7 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     QIcon buildIcon(ProjectExplorer::Constants::ICON_BUILD);
     buildIcon.addFile(ProjectExplorer::Constants::ICON_BUILD_SMALL);
     m_buildSubProjectContextMenu = new QAction(buildIcon, tr("Build"), this);
-    command = am->registerAction(m_buildSubProjectContextMenu, Constants::BUILDSUBDIR, m_projectContext);
+    command = am->registerAction(m_buildSubProjectContextMenu, Constants::BUILDSUBDIR, projectContext);
     command->setAttribute(Core::Command::CA_Hide);
     msubproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_BUILD);
     connect(m_buildSubProjectContextMenu, SIGNAL(triggered()), m_qt4ProjectManager, SLOT(buildSubDirContextMenu()));
@@ -222,7 +202,7 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     QIcon rebuildIcon(ProjectExplorer::Constants::ICON_REBUILD);
     rebuildIcon.addFile(ProjectExplorer::Constants::ICON_REBUILD_SMALL);
     m_rebuildSubProjectContextMenu = new QAction(rebuildIcon, tr("Rebuild"), this);
-    command = am->registerAction(m_rebuildSubProjectContextMenu, Constants::REBUILDSUBDIR, m_projectContext);
+    command = am->registerAction(m_rebuildSubProjectContextMenu, Constants::REBUILDSUBDIR, projectContext);
     command->setAttribute(Core::Command::CA_Hide);
     msubproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_BUILD);
     connect(m_rebuildSubProjectContextMenu, SIGNAL(triggered()), m_qt4ProjectManager, SLOT(rebuildSubDirContextMenu()));
@@ -230,7 +210,7 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     QIcon cleanIcon(ProjectExplorer::Constants::ICON_CLEAN);
     cleanIcon.addFile(ProjectExplorer::Constants::ICON_CLEAN_SMALL);
     m_cleanSubProjectContextMenu = new QAction(cleanIcon, tr("Clean"), this);
-    command = am->registerAction(m_cleanSubProjectContextMenu, Constants::CLEANSUBDIR, m_projectContext);
+    command = am->registerAction(m_cleanSubProjectContextMenu, Constants::CLEANSUBDIR, projectContext);
     command->setAttribute(Core::Command::CA_Hide);
     msubproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_BUILD);
     connect(m_cleanSubProjectContextMenu, SIGNAL(triggered()), m_qt4ProjectManager, SLOT(cleanSubDirContextMenu()));
@@ -243,35 +223,43 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
             this, SLOT(buildStateChanged(ProjectExplorer::Project *)));
     connect(m_projectExplorer, SIGNAL(currentProjectChanged(ProjectExplorer::Project *)),
             this, SLOT(currentProjectChanged()));
+    connect(m_projectExplorer, SIGNAL(currentNodeChanged(ProjectExplorer::Node*,ProjectExplorer::Project*)),
+            this, SLOT(currentNodeChanged(ProjectExplorer::Node*)));
 
     Core::ActionContainer *contextMenu = am->createMenu(Qt4ProjectManager::Constants::M_CONTEXT);
-
-    Core::Command *cmd;
 
     Core::Context proFileEditorContext = Core::Context(Qt4ProjectManager::Constants::C_PROFILEEDITOR);
 
     QAction *jumpToFile = new QAction(tr("Jump to File Under Cursor"), this);
-    cmd = am->registerAction(jumpToFile,
+    command = am->registerAction(jumpToFile,
         Constants::JUMP_TO_FILE, proFileEditorContext);
-    cmd->setDefaultKeySequence(QKeySequence(Qt::Key_F2));
+    command->setDefaultKeySequence(QKeySequence(Qt::Key_F2));
     connect(jumpToFile, SIGNAL(triggered()),
             this, SLOT(jumpToFile()));
-    contextMenu->addAction(cmd);
+    contextMenu->addAction(command);
 
-    QAction *addLibrary = new QAction(tr("Add Library..."), this);
-    cmd = am->registerAction(addLibrary,
+    m_addLibraryAction = new QAction(tr("Add Library..."), this);
+    command = am->registerAction(m_addLibraryAction,
         Constants::ADDLIBRARY, proFileEditorContext);
-    connect(addLibrary, SIGNAL(triggered()),
-            this, SLOT(addLibrary()));
-    contextMenu->addAction(cmd);
+    connect(m_addLibraryAction, SIGNAL(triggered()),
+            m_qt4ProjectManager, SLOT(addLibrary()));
+    contextMenu->addAction(command);
+
+    m_addLibraryActionContextMenu = new QAction(tr("Add Library..."), this);
+    command = am->registerAction(m_addLibraryActionContextMenu,
+        Constants::ADDLIBRARY, projecTreeContext);
+    connect(m_addLibraryActionContextMenu, SIGNAL(triggered()),
+            m_qt4ProjectManager, SLOT(addLibraryContextMenu()));
+    mproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_FILES);
+    msubproject->addAction(command, ProjectExplorer::Constants::G_PROJECT_FILES);
 
     QAction *separator = new QAction(this);
     separator->setSeparator(true);
     contextMenu->addAction(am->registerAction(separator,
                   Core::Id(Constants::SEPARATOR), proFileEditorContext));
 
-    cmd = am->command(TextEditor::Constants::UN_COMMENT_SELECTION);
-    contextMenu->addAction(cmd);
+    command = am->command(TextEditor::Constants::UN_COMMENT_SELECTION);
+    contextMenu->addAction(command);
 
     return true;
 }
@@ -317,6 +305,11 @@ void Qt4ProjectManagerPlugin::currentProjectChanged()
     m_runQMakeAction->setEnabled(!m_projectExplorer->buildManager()->isBuilding(m_projectExplorer->currentProject()));
 }
 
+void Qt4ProjectManagerPlugin::currentNodeChanged(ProjectExplorer::Node *node)
+{
+    m_addLibraryActionContextMenu->setEnabled(qobject_cast<Qt4ProFileNode *>(node));
+}
+
 void Qt4ProjectManagerPlugin::buildStateChanged(ProjectExplorer::Project *pro)
 {
     ProjectExplorer::Project *currentProject = m_projectExplorer->currentProject();
@@ -324,14 +317,6 @@ void Qt4ProjectManagerPlugin::buildStateChanged(ProjectExplorer::Project *pro)
         m_runQMakeAction->setEnabled(!m_projectExplorer->buildManager()->isBuilding(currentProject));
     if (pro == m_qt4ProjectManager->contextProject())
         m_runQMakeActionContextMenu->setEnabled(!m_projectExplorer->buildManager()->isBuilding(pro));
-}
-
-void Qt4ProjectManagerPlugin::addLibrary()
-{
-    Core::EditorManager *em = Core::EditorManager::instance();
-    ProFileEditorWidget *editor = qobject_cast<ProFileEditorWidget*>(em->currentEditor()->widget());
-    if (editor)
-        editor->addLibrary();
 }
 
 void Qt4ProjectManagerPlugin::jumpToFile()

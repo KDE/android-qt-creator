@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -217,8 +217,9 @@ void QDeclarativeTester::save()
         if (!fe.hash.isEmpty()) {
             ts << "        hash: \"" << fe.hash.toHex() << "\"\n";
         } else if (!fe.image.isNull()) {
-            QString filename = filenameInfo.baseName() + "." + QString::number(imgCount) + ".png";
-            fe.image.save(m_script + "." + QString::number(imgCount) + ".png");
+            QString filename = filenameInfo.baseName() + QLatin1Char('.')
+                               + QString::number(imgCount) + ".png";
+            fe.image.save(m_script + QLatin1Char('.') + QString::number(imgCount) + ".png");
             imgCount++;
             ts << "        image: \"" << filename << "\"\n";
         }

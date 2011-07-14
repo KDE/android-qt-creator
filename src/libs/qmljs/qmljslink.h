@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -54,12 +54,17 @@ class QMLJS_EXPORT Link
     Q_DECLARE_TR_FUNCTIONS(QmlJS::Link)
 
 public:
-    // Link all documents in snapshot
-    Link(Interpreter::Context *context, const Document::Ptr &doc, const Snapshot &snapshot,
+    Link(Interpreter::Context *context, const Snapshot &snapshot,
          const QStringList &importPaths);
-    ~Link();
 
-    QList<DiagnosticMessage> diagnosticMessages() const;
+    // Link all documents in snapshot, collecting all diagnostic messages (if messages != 0)
+    void operator()(QHash<QString, QList<DiagnosticMessage> > *messages = 0);
+
+    // Link all documents in snapshot, appending the diagnostic messages
+    // for 'doc' in 'messages'
+    void operator()(const Document::Ptr &doc, QList<DiagnosticMessage> *messages);
+
+    ~Link();
 
 private:
     Interpreter::Engine *engine();
@@ -68,25 +73,29 @@ private:
 
     void linkImports();
 
-    void populateImportedTypes(Interpreter::TypeEnvironment *typeEnv, Document::Ptr doc);
-    Interpreter::ObjectValue *importFileOrDirectory(Document::Ptr doc, const Interpreter::ImportInfo &importInfo);
-    Interpreter::ObjectValue *importNonFile(Document::Ptr doc, const Interpreter::ImportInfo &importInfo, const QString &forcedPackageName = QString::null);
+    void populateImportedTypes(Interpreter::Imports *imports, Document::Ptr doc);
+    Interpreter::Import importFileOrDirectory(
+        Document::Ptr doc,
+        const Interpreter::ImportInfo &importInfo);
+    Interpreter::Import importNonFile(
+        Document::Ptr doc,
+        const Interpreter::ImportInfo &importInfo);
     void importObject(Bind *bind, const QString &name, Interpreter::ObjectValue *object, NameId *targetNamespace);
 
     bool importLibrary(Document::Ptr doc,
-                       Interpreter::ObjectValue *import,
                        const QString &libraryPath,
-                       const Interpreter::ImportInfo &importInfo,
+                       Interpreter::Import *import,
                        const QString &importPath = QString());
     void loadQmldirComponents(Interpreter::ObjectValue *import,
                               LanguageUtils::ComponentVersion version,
                               const LibraryInfo &libraryInfo,
                               const QString &libraryPath);
-    void loadImplicitDirectoryImports(Interpreter::TypeEnvironment *typeEnv, Document::Ptr doc);
-    void loadImplicitDefaultImports(Interpreter::TypeEnvironment *typeEnv);
+    void loadImplicitDirectoryImports(Interpreter::Imports *imports, Document::Ptr doc);
+    void loadImplicitDefaultImports(Interpreter::Imports *imports);
 
     void error(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message);
     void warning(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message);
+    void appendDiagnostic(const Document::Ptr &doc, const DiagnosticMessage &message);
 
 private:
     QScopedPointer<LinkPrivate> d_ptr;

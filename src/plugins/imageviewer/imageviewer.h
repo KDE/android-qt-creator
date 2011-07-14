@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,11 +55,8 @@ public:
     explicit ImageViewer(QWidget *parent = 0);
     ~ImageViewer();
 
-    Core::Context context() const;
-    QWidget *widget();
-
     bool createNew(const QString &contents = QString());
-    bool open(const QString &fileName = QString());
+    bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     Core::IFile *file();
     QString id() const;
     QString displayName() const;

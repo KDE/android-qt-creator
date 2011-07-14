@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,10 @@
 #include <QtCore/QMap>
 #include <QtCore/QString>
 #include <QtGui/QColor>
+
+QT_BEGIN_NAMESPACE
+class QWidget;
+QT_END_NAMESPACE
 
 namespace TextEditor {
 
@@ -101,7 +105,7 @@ public:
 
     void clear();
 
-    bool save(const QString &fileName) const;
+    bool save(const QString &fileName, QWidget *parent) const;
     bool load(const QString &fileName);
 
     inline bool equals(const ColorScheme &cs) const

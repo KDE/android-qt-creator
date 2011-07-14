@@ -26,18 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "gccetoolchain.h"
 #include "qt4projectmanagerconstants.h"
-#include "qtversionmanager.h"
 
 #include <utils/environment.h>
 #include <utils/synchronousprocess.h>
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <qtsupport/qtversionmanager.h>
 
 #include <QtCore/QDir>
 
@@ -72,8 +72,9 @@ static QString gcceVersion(const QString &command)
         return QString();
     }
 
-    if (gxx.canReadLine())
-        return gxx.readLine().trimmed();
+    QString version = QString::fromLocal8Bit(gxx.readLine().trimmed());
+    if (version.contains(QRegExp("^\\d+\\.\\d+\\.\\d+.*$")))
+        return version;
 
     return QString();
 }
@@ -118,9 +119,29 @@ void GcceToolChain::addToEnvironment(Utils::Environment &env) const
     env.set(QLatin1String("LANG"), QString(QLatin1Char('C')));
 }
 
+QString GcceToolChain::makeCommand() const
+{
+#if defined(Q_OS_WIN)
+    return QLatin1String("make.exe");
+#else
+    return QLatin1String("make");
+#endif
+}
+
+QString GcceToolChain::mkspec() const
+{
+    return QString(); // always use default from Qt version
+}
+
 QString GcceToolChain::defaultMakeTarget() const
 {
     return QLatin1String("gcce");
+}
+
+void GcceToolChain::setCompilerPath(const QString &path)
+{
+    m_gcceVersion.clear();
+    GccToolChain::setCompilerPath(path);
 }
 
 ProjectExplorer::ToolChain *GcceToolChain::clone() const
@@ -152,7 +173,7 @@ QList<ProjectExplorer::ToolChain *> GcceToolChainFactory::autoDetect()
 
     // Compatibility to pre-2.2:
     while (true) {
-        const QString path = QtVersionManager::instance()->popPendingGcceUpdate();
+        const QString path = QtSupport::QtVersionManager::instance()->popPendingGcceUpdate();
         if (path.isNull())
             break;
 
@@ -167,16 +188,19 @@ QList<ProjectExplorer::ToolChain *> GcceToolChainFactory::autoDetect()
     }
 
     QString fullPath = Utils::Environment::systemEnvironment().searchInPath(QLatin1String("arm-none-symbianelf-gcc"));
-    if (!fullPath.isEmpty()) {
+    QString version = gcceVersion(fullPath);
+    // If version is empty then this is not a GCC but e.g. bullseye!
+    if (!fullPath.isEmpty() && !version.isEmpty()) {
         GcceToolChain *tc = new GcceToolChain(true);
         tc->setCompilerPath(fullPath);
-        tc->setDisplayName(tr("GCCE (%1)").arg(gcceVersion(fullPath)));
+        tc->setDisplayName(tr("GCCE (%1)").arg(version));
+        tc->setDebuggerCommand(ProjectExplorer::ToolChainManager::instance()->defaultDebugger(tc->targetAbi()));
         if (tc->targetAbi() == ProjectExplorer::Abi(ProjectExplorer::Abi::ArmArchitecture,
                                                     ProjectExplorer::Abi::SymbianOS,
                                                     ProjectExplorer::Abi::SymbianDeviceFlavor,
                                                     ProjectExplorer::Abi::ElfFormat,
                                                     32))
-        result.append(tc);
+            result.append(tc);
     }
     return result;
 }

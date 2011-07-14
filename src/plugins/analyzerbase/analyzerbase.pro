@@ -19,7 +19,8 @@ SOURCES += \
     analyzersettings.cpp \
     analyzeroptionspage.cpp \
     analyzerrunconfigwidget.cpp \
-    analyzeroutputpane.cpp
+    analyzerutils.cpp \
+    startremotedialog.cpp
 
 HEADERS += \
     ianalyzerengine.h \
@@ -30,9 +31,14 @@ HEADERS += \
     analyzerruncontrol.h \
     analyzermanager.h \
     analyzersettings.h \
+    analyzerstartparameters.h \
     analyzeroptionspage.h \
     analyzerrunconfigwidget.h \
-    analyzeroutputpane.h
+    analyzerutils.h \
+    startremotedialog.h
+
+FORMS += \
+    startremotedialog.ui
 
 RESOURCES += \
     analyzerbase.qrc

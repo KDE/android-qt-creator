@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -66,7 +66,7 @@ const char * const DEVICE_ADDRESS_KEY("Qt4ProjectManager.S60DeployConfiguration.
 const char * const DEVICE_PORT_KEY("Qt4ProjectManager.S60DeployConfiguration.DevicePort");
 const char * const COMMUNICATION_CHANNEL_KEY("Qt4ProjectManager.S60DeployConfiguration.CommunicationChannel");
 
-const char * const DEFAULT_TCF_TRK_TCP_PORT("65029");
+const char * const DEFAULT_CODA_TCP_PORT("65029");
 
 QString pathFromId(const QString &id)
 {
@@ -75,10 +75,6 @@ QString pathFromId(const QString &id)
     return id.mid(QString::fromLatin1(S60_DC_PREFIX).size());
 }
 
-QString pathToId(const QString &path)
-{
-    return QString::fromLatin1(S60_DC_PREFIX) + path;
-}
 }
 
 // ======== S60DeployConfiguration
@@ -93,8 +89,8 @@ S60DeployConfiguration::S60DeployConfiguration(Target *parent) :
 #endif
     m_installationDrive('C'),
     m_silentInstall(true),
-    m_devicePort(QLatin1String(DEFAULT_TCF_TRK_TCP_PORT)),
-    m_communicationChannel(CommunicationTrkSerialConnection)
+    m_devicePort(QLatin1String(DEFAULT_CODA_TCP_PORT)),
+    m_communicationChannel(CommunicationCodaSerialConnection)
 {
     ctor();
 }
@@ -117,10 +113,8 @@ void S60DeployConfiguration::ctor()
     setDefaultDisplayName(defaultDisplayName());
     // TODO disable S60 Deploy Configuration while parsing
     // requires keeping track of the parsing state of the project
-//    connect(qt4Target()->qt4Project(), SIGNAL(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode*)),
-//            this, SLOT(targetInformationInvalidated()));
-    connect(qt4Target()->qt4Project(), SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)),
-            this, SIGNAL(targetInformationChanged()));
+    connect(qt4Target()->qt4Project(), SIGNAL(proFileUpdated(Qt4ProjectManager::Qt4ProFileNode*,bool, bool)),
+            this, SLOT(slotTargetInformationChanged(Qt4ProjectManager::Qt4ProFileNode*,bool,bool)));
     connect(qt4Target(), SIGNAL(activeBuildConfigurationChanged(ProjectExplorer::BuildConfiguration*)),
             this, SLOT(updateActiveBuildConfiguration(ProjectExplorer::BuildConfiguration*)));
     connect(qt4Target(), SIGNAL(activeRunConfigurationChanged(ProjectExplorer::RunConfiguration*)),
@@ -135,6 +129,13 @@ S60DeployConfiguration::~S60DeployConfiguration()
 ProjectExplorer::DeployConfigurationWidget *S60DeployConfiguration::configurationWidget() const
 {
     return new S60DeployConfigurationWidget();
+}
+
+void S60DeployConfiguration::slotTargetInformationChanged(Qt4ProjectManager::Qt4ProFileNode*,bool success, bool parseInProgress)
+{
+    Q_UNUSED(success)
+    if (!parseInProgress)
+        emit targetInformationChanged();
 }
 
 bool S60DeployConfiguration::isStaticLibrary(const Qt4ProFileNode &projectNode) const
@@ -152,26 +153,9 @@ bool S60DeployConfiguration::isApplication(const Qt4ProFileNode &projectNode) co
     return projectNode.projectType() == ApplicationTemplate;
 }
 
-bool S60DeployConfiguration::isDeployable(const Qt4ProFileNode &projectNode) const
-{
-    const QStringList &deployment(projectNode.variableValue(Deployment));
-    // default_*deployment are default for DEPLOYMENT
-    const char * defaultDeploymentStart = "default_";
-    const char * defaultDeploymentEnd = "deployment";
-
-    //we need to filter out the default_*deployment
-    for (int i = deployment.count() - 1; i >= 0; --i) {
-        const QString var = deployment.at(i);
-        if (!var.startsWith(QLatin1String(defaultDeploymentStart))
-                || !var.endsWith(QLatin1String(defaultDeploymentEnd)))
-            return true;
-    }
-    return false;
-}
-
 bool S60DeployConfiguration::hasSisPackage(const Qt4ProFileNode &projectNode) const
 {
-    return isDeployable(projectNode) || isApplication(projectNode);
+    return projectNode.isDeployable();
 }
 
 QStringList S60DeployConfiguration::signedPackages() const
@@ -191,8 +175,8 @@ QStringList S60DeployConfiguration::signedPackages() const
 QString S60DeployConfiguration::createPackageName(const QString &baseName) const
 {
     QString name(baseName);
-    name += isSigned() ? QLatin1String("") : QLatin1String("_unsigned");
     name += runSmartInstaller() ? QLatin1String("_installer") : QLatin1String("");
+    name += isSigned() ? QLatin1String("") : QLatin1String("_unsigned");
     name += QLatin1String(".sis");
     return name;
 }
@@ -284,7 +268,7 @@ ProjectExplorer::ToolChain *S60DeployConfiguration::toolChain() const
 bool S60DeployConfiguration::isDebug() const
 {
     const Qt4BuildConfiguration *qt4bc = qt4Target()->activeBuildConfiguration();
-    return (qt4bc->qmakeBuildConfiguration() & QtVersion::DebugBuild);
+    return (qt4bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild);
 }
 
 QString S60DeployConfiguration::symbianTarget() const
@@ -292,7 +276,7 @@ QString S60DeployConfiguration::symbianTarget() const
     return isDebug() ? QLatin1String("udeb") : QLatin1String("urel");
 }
 
-const QtVersion *S60DeployConfiguration::qtVersion() const
+const QtSupport::BaseQtVersion *S60DeployConfiguration::qtVersion() const
 {
     if (const Qt4BuildConfiguration *qt4bc = qt4Target()->activeBuildConfiguration())
         return qt4bc->qtVersion();
@@ -349,9 +333,9 @@ bool S60DeployConfiguration::fromMap(const QVariantMap &map)
                           .toChar().toAscii();
     m_silentInstall = map.value(QLatin1String(SILENT_INSTALL_KEY), QVariant(true)).toBool();
     m_deviceAddress = map.value(QLatin1String(DEVICE_ADDRESS_KEY)).toString();
-    m_devicePort = map.value(QLatin1String(DEVICE_PORT_KEY), QString(QLatin1String(DEFAULT_TCF_TRK_TCP_PORT))).toString();
+    m_devicePort = map.value(QLatin1String(DEVICE_PORT_KEY), QString(QLatin1String(DEFAULT_CODA_TCP_PORT))).toString();
     m_communicationChannel = static_cast<CommunicationChannel>(map.value(QLatin1String(COMMUNICATION_CHANNEL_KEY),
-                                                                         QVariant(CommunicationTrkSerialConnection)).toInt());
+                                                                         QVariant(CommunicationCodaSerialConnection)).toInt());
 
     setDefaultDisplayName(defaultDisplayName());
     return true;
@@ -421,7 +405,7 @@ void S60DeployConfiguration::setDevicePort(const QString &port)
 {
     if (m_devicePort != port) {
         if (port.isEmpty()) //setup the default CODA's port
-            m_devicePort = QLatin1String(DEFAULT_TCF_TRK_TCP_PORT);
+            m_devicePort = QLatin1String(DEFAULT_CODA_TCP_PORT);
         else
             m_devicePort = port;
         emit devicePortChanged();

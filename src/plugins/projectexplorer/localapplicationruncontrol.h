@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -62,14 +62,16 @@ public:
     virtual void start();
     virtual StopResult stop();
     virtual bool isRunning() const;
+    virtual QIcon icon() const;
 private slots:
     void processExited(int exitCode);
-    void slotAppendMessage(const QString &err, ProjectExplorer::OutputFormat isError);
+    void slotAppendMessage(const QString &err, Utils::OutputFormat isError);
 private:
     ProjectExplorer::ApplicationLauncher m_applicationLauncher;
     QString m_executable;
     QString m_commandLineArguments;
     ProjectExplorer::ApplicationLauncher::Mode m_runMode;
+    ProcessHandle m_applicationProcessHandle;
 };
 
 } // namespace Internal

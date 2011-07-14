@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,7 @@
 #include <QtGui/QHBoxLayout>
 #include <QtGui/QToolButton>
 #include <QtGui/QSpacerItem>
+#include <QtGui/QShortcut>
 
 enum { debug = 0 };
 enum { defaultLineWidth = 72 };
@@ -172,9 +173,11 @@ struct SubmitEditorWidgetPrivate
     QList<AdditionalContextMenuAction> descriptionEditContextMenuActions;
     QVBoxLayout *m_fieldLayout;
     QList<SubmitFieldWidget *> m_fieldWidgets;
+    QShortcut *m_submitShortcut;
     int m_lineWidth;
 
     bool m_commitEnabled;
+    bool m_ignoreChange;
 };
 
 SubmitEditorWidgetPrivate::SubmitEditorWidgetPrivate() :
@@ -183,8 +186,10 @@ SubmitEditorWidgetPrivate::SubmitEditorWidgetPrivate() :
     m_activatedRow(-1),
     m_emptyFileListEnabled(false),
     m_fieldLayout(0),
+    m_submitShortcut(0),
     m_lineWidth(defaultLineWidth),
-    m_commitEnabled(false)
+    m_commitEnabled(false),
+    m_ignoreChange(false)
 {
 }
 
@@ -209,6 +214,9 @@ SubmitEditorWidget::SubmitEditorWidget(QWidget *parent) :
     m_d->m_ui.fileView->setRootIsDecorated(false);
     connect(m_d->m_ui.fileView, SIGNAL(doubleClicked(QModelIndex)),
             this, SLOT(diffActivated(QModelIndex)));
+
+    connect(m_d->m_ui.checkAllCheckBox, SIGNAL(stateChanged(int)),
+            this, SLOT(checkAllToggled()));
 
     setFocusPolicy(Qt::StrongFocus);
     setFocusProxy(m_d->m_ui.description);
@@ -248,6 +256,9 @@ void SubmitEditorWidget::registerActions(QAction *editorUndoAction, QAction *edi
             actionSlotHelper = new QActionSetTextSlotHelper(submitAction);
         connect(this, SIGNAL(submitActionTextChanged(QString)), actionSlotHelper, SLOT(setText(QString)));
         m_d->m_ui.buttonLayout->addWidget(new QActionPushButton(submitAction));
+        if (!m_d->m_submitShortcut)
+            m_d->m_submitShortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Return), this);
+        connect(m_d->m_submitShortcut, SIGNAL(activated()), submitAction, SLOT(trigger()));
     }
     if (diffAction) {
         if (debug)
@@ -401,6 +412,10 @@ void SubmitEditorWidget::setFileModel(QAbstractItemModel *model)
             this, SLOT(updateSubmitAction()));
     connect(model, SIGNAL(modelReset()),
             this, SLOT(updateSubmitAction()));
+    connect(model, SIGNAL(dataChanged(QModelIndex,QModelIndex)),
+            this, SLOT(updateCheckAllComboBox()));
+    connect(model, SIGNAL(modelReset()),
+            this, SLOT(updateCheckAllComboBox()));
     connect(model, SIGNAL(rowsInserted(QModelIndex,int,int)),
             this, SLOT(updateSubmitAction()));
     connect(model, SIGNAL(rowsRemoved(QModelIndex,int,int)),
@@ -472,6 +487,7 @@ void SubmitEditorWidget::updateActions()
 {
     updateSubmitAction();
     updateDiffAction();
+    updateCheckAllComboBox();
 }
 
 // Enable submit depending on having checked files
@@ -488,8 +504,9 @@ void SubmitEditorWidget::updateSubmitAction()
         // Update button text.
         const int fileCount = m_d->m_ui.fileView->model()->rowCount();
         const QString msg = checkedCount ?
-                            tr("Commit %1/%n Files", 0, fileCount).arg(checkedCount) :
-                            tr("Commit");
+                            tr("%1 %2/%n File(s)", 0, fileCount)
+                            .arg(commitName()).arg(checkedCount) :
+                            commitName();
         emit submitActionTextChanged(msg);
     }
 }
@@ -504,6 +521,19 @@ void SubmitEditorWidget::updateDiffAction()
     }
 }
 
+void SubmitEditorWidget::updateCheckAllComboBox()
+{
+    m_d->m_ignoreChange = true;
+    int checkedCount = checkedFilesCount();
+    if (checkedCount == 0)
+        m_d->m_ui.checkAllCheckBox->setCheckState(Qt::Unchecked);
+    else if (checkedCount == m_d->m_ui.fileView->model()->rowCount())
+        m_d->m_ui.checkAllCheckBox->setCheckState(Qt::Checked);
+    else
+        m_d->m_ui.checkAllCheckBox->setCheckState(Qt::PartiallyChecked);
+    m_d->m_ignoreChange = false;
+}
+
 bool SubmitEditorWidget::hasSelection() const
 {
     // Not present until model is set
@@ -512,14 +542,14 @@ bool SubmitEditorWidget::hasSelection() const
     return false;
 }
 
-unsigned SubmitEditorWidget::checkedFilesCount() const
+int SubmitEditorWidget::checkedFilesCount() const
 {
-    unsigned checkedCount = 0;
+    int checkedCount = 0;
     if (const QAbstractItemModel *model = m_d->m_ui.fileView->model()) {
         const int count = model->rowCount();
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < count; ++i)
             if (listModelChecked(model, i, checkableColumn))
-                checkedCount++;
+                ++checkedCount;
     }
     return checkedCount;
 }
@@ -550,6 +580,11 @@ bool SubmitEditorWidget::canSubmit() const
 {
     const unsigned checkedCount = checkedFilesCount();
     return m_d->m_emptyFileListEnabled || checkedCount > 0;
+}
+
+QString SubmitEditorWidget::commitName() const
+{
+    return tr("&Commit");
 }
 
 void SubmitEditorWidget::addSubmitFieldWidget(SubmitFieldWidget *f)
@@ -597,6 +632,20 @@ void SubmitEditorWidget::editorCustomContextMenuRequested(const QPoint &pos)
         }
     }
     menu->exec(m_d->m_ui.description->mapToGlobal(pos));
+}
+
+void SubmitEditorWidget::checkAllToggled()
+{
+    if (m_d->m_ignoreChange)
+        return;
+    if (m_d->m_ui.checkAllCheckBox->checkState() == Qt::Checked
+            || m_d->m_ui.checkAllCheckBox->checkState() == Qt::PartiallyChecked) {
+        setListModelChecked(m_d->m_ui.fileView->model(), true, checkableColumn);
+    } else {
+        setListModelChecked(m_d->m_ui.fileView->model(), false, checkableColumn);
+    }
+    // Reset that again, so that the user can't do it
+    m_d->m_ui.checkAllCheckBox->setTristate(false);
 }
 
 void SubmitEditorWidget::checkAll()

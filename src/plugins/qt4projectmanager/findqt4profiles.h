@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -36,9 +36,8 @@
 #include <projectexplorer/nodesvisitor.h>
 
 namespace Qt4ProjectManager {
-namespace Internal {
-
 class Qt4ProFileNode;
+namespace Internal {
 
 class FindQt4ProFiles: protected ProjectExplorer::NodesVisitor {
 

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -133,15 +133,15 @@ void StatesEditorView::addState()
     QString newStateName;
     int index = 1;
     while (true) {
-        newStateName = tr("State%1", "Default name for newly created states").arg(index++);
+        newStateName = QString("State%1").arg(index++);
         if (!modelStateNames.contains(newStateName))
             break;
     }
 
     try {
         if ((rootStateGroup().allStates().count() < 1) && //QtQuick import might be missing
-            (!model()->imports().contains(Import::createLibraryImport("QtQuick", "1.0")) &&
-             !model()->imports().contains(Import::createLibraryImport("QtQuick", "1.1"))))
+            (!model()->hasImport(Import::createLibraryImport("QtQuick", "1.0"), true) &&
+             !model()->hasImport(Import::createLibraryImport("QtQuick", "1.1"), true)))
             model()->changeImports(QList<Import>() << Import::createLibraryImport("QtQuick", "1.0"), QList<Import>());
         ModelNode newState = rootStateGroup().addState(newStateName);
         setCurrentState(newState);

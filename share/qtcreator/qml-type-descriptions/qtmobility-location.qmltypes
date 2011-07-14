@@ -179,11 +179,14 @@ Module {
     }
     Component {
         name: "QDeclarativeGeoMapCircleObject"
-        prototype: "QGeoMapCircleObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeGeoMapObject"
         exports: [
-            "QtMobility.location/MapCircle 1.1"
+            "QtMobility.location/MapCircle 1.1",
+            "QtMobility.location/MapCircle 1.2"
         ]
         Property { name: "center"; type: "QDeclarativeCoordinate"; isPointer: true }
+        Property { name: "radius"; type: "qreal" }
         Property { name: "color"; type: "QColor" }
         Property {
             name: "border"
@@ -192,8 +195,12 @@ Module {
             isPointer: true
         }
         Signal {
-            name: "declarativeCenterChanged"
+            name: "centerChanged"
             Parameter { name: "center"; type: "const QDeclarativeCoordinate"; isPointer: true }
+        }
+        Signal {
+            name: "radiusChanged"
+            Parameter { name: "radius"; type: "qreal" }
         }
         Signal {
             name: "colorChanged"
@@ -201,19 +208,126 @@ Module {
         }
     }
     Component {
-        name: "QDeclarativeGeoMapObject"
-        defaultProperty: "objects"
-        prototype: "QGeoMapGroupObject"
+        name: "QDeclarativeGeoMapGroupObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeGeoMapObject"
         exports: [
-            "QtMobility.location/MapGroup 1.1"
+            "QtMobility.location/MapGroup 1.1",
+            "QtMobility.location/MapGroup 1.2"
         ]
-        Property { name: "objects"; type: "QGeoMapObject"; isList: true; isReadonly: true }
+        Property { name: "objects"; type: "QDeclarativeGeoMapObject"; isList: true; isReadonly: true }
+    }
+    Component {
+        name: "QDeclarativeGeoMapMouseArea"
+        defaultProperty: "data"
+        prototype: "QDeclarativeItem"
+        exports: [
+            "QtMobility.location/MapMouseArea 1.2"
+        ]
+        Property { name: "mouseX"; type: "qreal"; isReadonly: true }
+        Property { name: "mouseY"; type: "qreal"; isReadonly: true }
+        Property { name: "containsMouse"; type: "bool"; isReadonly: true }
+        Property { name: "pressed"; type: "bool"; isReadonly: true }
+        Property { name: "enabled"; type: "bool" }
+        Property { name: "pressedButton"; type: "Qt::MouseButton"; isReadonly: true }
+        Property { name: "acceptedButtons"; type: "Qt::MouseButtons" }
+        Property { name: "hoverEnabled"; type: "bool" }
+        Signal { name: "mousePositionChanged" }
+        Signal {
+            name: "hoveredChanged"
+            Parameter { name: "hovered"; type: "bool" }
+        }
+        Signal {
+            name: "pressedChanged"
+            Parameter { name: "pressed"; type: "bool" }
+        }
+        Signal {
+            name: "enabledChanged"
+            Parameter { name: "enabled"; type: "bool" }
+        }
+        Signal {
+            name: "pressedButtonChanged"
+            Parameter { name: "pressedButton"; type: "Qt::MouseButtons" }
+        }
+        Signal {
+            name: "acceptedButtonsChanged"
+            Parameter { name: "acceptedButtons"; type: "Qt::MouseButtons" }
+        }
+        Signal {
+            name: "hoverEnabledChanged"
+            Parameter { name: "hoverEnabled"; type: "bool" }
+        }
+        Signal {
+            name: "positionChanged"
+            Parameter { name: "mouse"; type: "QDeclarativeGeoMapMouseEvent"; isPointer: true }
+        }
+        Signal {
+            name: "pressed"
+            Parameter { name: "mouse"; type: "QDeclarativeGeoMapMouseEvent"; isPointer: true }
+        }
+        Signal {
+            name: "released"
+            Parameter { name: "mouse"; type: "QDeclarativeGeoMapMouseEvent"; isPointer: true }
+        }
+        Signal {
+            name: "clicked"
+            Parameter { name: "mouse"; type: "QDeclarativeGeoMapMouseEvent"; isPointer: true }
+        }
+        Signal {
+            name: "doubleClicked"
+            Parameter { name: "mouse"; type: "QDeclarativeGeoMapMouseEvent"; isPointer: true }
+        }
+        Signal { name: "entered" }
+        Signal { name: "exited" }
+    }
+    Component {
+        name: "QDeclarativeGeoMapMouseEvent"
+        prototype: "QObject"
+        exports: [
+            "QtMobility.location/MapMouseEvent 1.2"
+        ]
+        Property { name: "accepted"; type: "bool" }
+        Property { name: "button"; type: "int"; isReadonly: true }
+        Property { name: "modifiers"; type: "int"; isReadonly: true }
+        Property { name: "x"; type: "int"; isReadonly: true }
+        Property { name: "y"; type: "int"; isReadonly: true }
+        Property { name: "coordinate"; type: "QDeclarativeCoordinate"; isReadonly: true; isPointer: true }
+    }
+    Component {
+        name: "QDeclarativeGeoMapObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeItem"
+        exports: [
+            "QtMobility.location/MapObject 1.2"
+        ]
+        Property { name: "visible"; type: "bool" }
+        Signal {
+            name: "visibleChanged"
+            Parameter { name: "visible"; type: "bool" }
+        }
+    }
+    Component {
+        name: "QDeclarativeGeoMapObjectView"
+        prototype: "QObject"
+        exports: [
+            "QtMobility.location/MapObjectView 1.2"
+        ]
+        Property { name: "model"; type: "QVariant" }
+        Property { name: "delegate"; type: "QDeclarativeComponent"; isPointer: true }
+        Property { name: "visible"; type: "bool" }
+        Property { name: "z"; type: "qreal" }
+        Signal { name: "modelChanged" }
+        Signal { name: "delegateChanged" }
+        Signal { name: "visibleChanged" }
+        Signal { name: "zChanged" }
     }
     Component {
         name: "QDeclarativeGeoMapPixmapObject"
-        prototype: "QGeoMapPixmapObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeGeoMapObject"
         exports: [
-            "QtMobility.location/MapImage 1.1"
+            "QtMobility.location/MapImage 1.1",
+            "QtMobility.location/MapImage 1.2"
         ]
         Enum {
             name: "Status"
@@ -226,14 +340,19 @@ Module {
         }
         Property { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
         Property { name: "source"; type: "QUrl" }
+        Property { name: "offset"; type: "QPoint" }
         Property { name: "status"; type: "Status"; isReadonly: true }
         Signal {
-            name: "declarativeCoordinateChanged"
+            name: "coordinateChanged"
             Parameter { name: "coordinate"; type: "const QDeclarativeCoordinate"; isPointer: true }
         }
         Signal {
             name: "sourceChanged"
             Parameter { name: "source"; type: "QUrl" }
+        }
+        Signal {
+            name: "offsetChanged"
+            Parameter { name: "offset"; type: "QPoint" }
         }
         Signal {
             name: "statusChanged"
@@ -242,10 +361,11 @@ Module {
     }
     Component {
         name: "QDeclarativeGeoMapPolygonObject"
-        defaultProperty: "path"
-        prototype: "QGeoMapPolygonObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeGeoMapObject"
         exports: [
-            "QtMobility.location/MapPolygon 1.1"
+            "QtMobility.location/MapPolygon 1.1",
+            "QtMobility.location/MapPolygon 1.2"
         ]
         Property { name: "path"; type: "QDeclarativeCoordinate"; isList: true; isReadonly: true }
         Property { name: "color"; type: "QColor" }
@@ -259,13 +379,23 @@ Module {
             name: "colorChanged"
             Parameter { name: "color"; type: "QColor" }
         }
+        Signal { name: "pathChanged" }
+        Method {
+            name: "addCoordinate"
+            Parameter { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
+        }
+        Method {
+            name: "removeCoordinate"
+            Parameter { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
+        }
     }
     Component {
         name: "QDeclarativeGeoMapPolylineObject"
-        defaultProperty: "path"
-        prototype: "QGeoMapPolylineObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeGeoMapObject"
         exports: [
-            "QtMobility.location/MapPolyline 1.1"
+            "QtMobility.location/MapPolyline 1.1",
+            "QtMobility.location/MapPolyline 1.2"
         ]
         Property { name: "path"; type: "QDeclarativeCoordinate"; isList: true; isReadonly: true }
         Property {
@@ -274,12 +404,23 @@ Module {
             isReadonly: true
             isPointer: true
         }
+        Signal { name: "pathChanged" }
+        Method {
+            name: "addCoordinate"
+            Parameter { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
+        }
+        Method {
+            name: "removeCoordinate"
+            Parameter { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
+        }
     }
     Component {
         name: "QDeclarativeGeoMapRectangleObject"
-        prototype: "QGeoMapRectangleObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeGeoMapObject"
         exports: [
-            "QtMobility.location/MapRectangle 1.1"
+            "QtMobility.location/MapRectangle 1.1",
+            "QtMobility.location/MapRectangle 1.2"
         ]
         Property { name: "topLeft"; type: "QDeclarativeCoordinate"; isPointer: true }
         Property { name: "bottomRight"; type: "QDeclarativeCoordinate"; isPointer: true }
@@ -291,11 +432,11 @@ Module {
             isPointer: true
         }
         Signal {
-            name: "declarativeTopLeftChanged"
+            name: "topLeftChanged"
             Parameter { name: "center"; type: "const QDeclarativeCoordinate"; isPointer: true }
         }
         Signal {
-            name: "declarativeBottomRightChanged"
+            name: "bottomRightChanged"
             Parameter { name: "center"; type: "const QDeclarativeCoordinate"; isPointer: true }
         }
         Signal {
@@ -305,9 +446,11 @@ Module {
     }
     Component {
         name: "QDeclarativeGeoMapTextObject"
-        prototype: "QGeoMapTextObject"
+        defaultProperty: "data"
+        prototype: "QDeclarativeGeoMapObject"
         exports: [
-            "QtMobility.location/MapText 1.1"
+            "QtMobility.location/MapText 1.1",
+            "QtMobility.location/MapText 1.2"
         ]
         Enum {
             name: "HorizontalAlignment"
@@ -326,16 +469,31 @@ Module {
             }
         }
         Property { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
+        Property { name: "text"; type: "string" }
+        Property { name: "font"; type: "QFont" }
         Property { name: "color"; type: "QColor" }
+        Property { name: "offset"; type: "QPoint" }
         Property { name: "horizontalAlignment"; type: "HorizontalAlignment" }
         Property { name: "verticalAlignment"; type: "VerticalAlignment" }
         Signal {
-            name: "declarativeCoordinateChanged"
+            name: "coordinateChanged"
             Parameter { name: "coordinate"; type: "const QDeclarativeCoordinate"; isPointer: true }
+        }
+        Signal {
+            name: "textChanged"
+            Parameter { name: "text"; type: "string" }
+        }
+        Signal {
+            name: "fontChanged"
+            Parameter { name: "font"; type: "QFont" }
         }
         Signal {
             name: "colorChanged"
             Parameter { name: "color"; type: "QColor" }
+        }
+        Signal {
+            name: "offsetChanged"
+            Parameter { name: "offset"; type: "QPoint" }
         }
         Signal {
             name: "horizontalAlignmentChanged"
@@ -360,26 +518,12 @@ Module {
         Signal { name: "addressChanged" }
     }
     Component {
-        name: "QDeclarativeGeoSearchModel"
-        prototype: "QAbstractListModel"
-        Property { name: "plugin"; type: "QDeclarativeGeoServiceProvider"; isPointer: true }
-        Property { name: "error"; type: "string"; isReadonly: true }
-        Signal {
-            name: "pluginChanged"
-            Parameter { name: "plugin"; type: "QDeclarativeGeoServiceProvider"; isPointer: true }
-        }
-        Signal {
-            name: "errorChanged"
-            Parameter { name: "error"; type: "string" }
-        }
-        Signal { name: "placesChanged" }
-    }
-    Component {
         name: "QDeclarativeGeoServiceProvider"
         defaultProperty: "parameters"
         prototype: "QObject"
         exports: [
-            "QtMobility.location/Plugin 1.1"
+            "QtMobility.location/Plugin 1.1",
+            "QtMobility.location/Plugin 1.2"
         ]
         Property { name: "name"; type: "string" }
         Property {
@@ -397,7 +541,8 @@ Module {
         name: "QDeclarativeGeoServiceProviderParameter"
         prototype: "QObject"
         exports: [
-            "QtMobility.location/PluginParameter 1.1"
+            "QtMobility.location/PluginParameter 1.1",
+            "QtMobility.location/PluginParameter 1.2"
         ]
         Property { name: "name"; type: "string" }
         Property { name: "value"; type: "QVariant" }
@@ -411,23 +556,12 @@ Module {
         }
     }
     Component {
-        name: "QDeclarativeGeocodeModel"
-        prototype: "QDeclarativeGeoSearchModel"
-        exports: [
-            "QtMobility.location/GeocodeModel 1.1"
-        ]
-        Property { name: "address"; type: "QDeclarativeGeoAddress"; isPointer: true }
-        Signal {
-            name: "addressChanged"
-            Parameter { name: "address"; type: "QDeclarativeGeoAddress"; isPointer: true }
-        }
-    }
-    Component {
         name: "QDeclarativeGraphicsGeoMap"
-        defaultProperty: "objects"
+        defaultProperty: "data"
         prototype: "QDeclarativeItem"
         exports: [
-            "QtMobility.location/Map 1.1"
+            "QtMobility.location/Map 1.1",
+            "QtMobility.location/Map 1.2"
         ]
         Enum {
             name: "MapType"
@@ -456,7 +590,6 @@ Module {
         Property { name: "mapType"; type: "MapType" }
         Property { name: "center"; type: "QDeclarativeCoordinate"; isPointer: true }
         Property { name: "connectivityMode"; type: "ConnectivityMode" }
-        Property { name: "objects"; type: "QGeoMapObject"; isList: true; isReadonly: true }
         Signal {
             name: "pluginChanged"
             Parameter { name: "plugin"; type: "QDeclarativeGeoServiceProvider"; isPointer: true }
@@ -487,6 +620,14 @@ Module {
             Parameter { name: "dy"; type: "int" }
         }
         Method {
+            name: "addMapObject"
+            Parameter { name: "object"; type: "QDeclarativeGeoMapObject"; isPointer: true }
+        }
+        Method {
+            name: "removeMapObject"
+            Parameter { name: "object"; type: "QDeclarativeGeoMapObject"; isPointer: true }
+        }
+        Method {
             name: "toCoordinate"
             type: "QDeclarativeCoordinate*"
             Parameter { name: "screenPosition"; type: "QPointF" }
@@ -496,6 +637,7 @@ Module {
             type: "QPointF"
             Parameter { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
         }
+        Method { name: "testGetDeclarativeMapObjectCount"; type: "int" }
     }
     Component {
         name: "QDeclarativeLandmark"
@@ -691,6 +833,10 @@ Module {
         Property { name: "timestamp"; type: "QDateTime"; isReadonly: true }
         Property { name: "speed"; type: "double"; isReadonly: true }
         Property { name: "speedValid"; type: "bool"; isReadonly: true }
+        Property { name: "horizontalAccuracy"; type: "qreal" }
+        Property { name: "verticalAccuracy"; type: "qreal" }
+        Property { name: "horizontalAccuracyValid"; type: "bool"; isReadonly: true }
+        Property { name: "verticalAccuracyValid"; type: "bool"; isReadonly: true }
         Signal { name: "latitudeValidChanged" }
         Signal { name: "longitudeValidChanged" }
         Signal { name: "altitudeValidChanged" }
@@ -698,6 +844,10 @@ Module {
         Signal { name: "speedChanged" }
         Signal { name: "speedValidChanged" }
         Signal { name: "coordinateChanged" }
+        Signal { name: "horizontalAccuracyChanged" }
+        Signal { name: "horizontalAccuracyValidChanged" }
+        Signal { name: "verticalAccuracyChanged" }
+        Signal { name: "verticalAccuracyValidChanged" }
     }
     Component {
         name: "QDeclarativePositionSource"
@@ -729,62 +879,18 @@ Module {
         Method { name: "stop" }
     }
     Component {
-        name: "QDeclarativeReverseGeocodeModel"
-        prototype: "QDeclarativeGeoSearchModel"
-        exports: [
-            "QtMobility.location/ReverseGeocodeModel 1.1"
-        ]
-        Property { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
-        Signal {
-            name: "coordinateChanged"
-            Parameter { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
-        }
-    }
-    Component {
-        name: "QGeoMapCircleObject"
-        prototype: "QGeoMapObject"
-        Property { name: "center"; type: "QGeoCoordinate" }
-        Property { name: "radius"; type: "qreal" }
-        Property { name: "pen"; type: "QPen" }
-        Property { name: "brush"; type: "QBrush" }
-        Signal {
-            name: "centerChanged"
-            Parameter { name: "center"; type: "QGeoCoordinate" }
-        }
-        Signal {
-            name: "radiusChanged"
-            Parameter { name: "radius"; type: "qreal" }
-        }
-        Signal {
-            name: "penChanged"
-            Parameter { name: "pen"; type: "QPen" }
-        }
-        Signal {
-            name: "brushChanged"
-            Parameter { name: "brush"; type: "QBrush" }
-        }
-    }
-    Component {
-        name: "QGeoMapGroupObject"
-        prototype: "QGeoMapObject"
-        Signal {
-            name: "childAdded"
-            Parameter { name: "childObject"; type: "QGeoMapObject"; isPointer: true }
-        }
-        Signal {
-            name: "childRemoved"
-            Parameter { name: "childObject"; type: "QGeoMapObject"; isPointer: true }
-        }
-    }
-    Component {
         name: "QGeoMapObject"
         prototype: "QObject"
         exports: [
-            "QtMobility.location/QGeoMapObject 1.1"
+            "QtMobility.location/QGeoMapObject 1.1",
+            "QtMobility.location/QGeoMapObject 1.2"
         ]
         Property { name: "zValue"; type: "int" }
         Property { name: "visible"; type: "bool" }
         Property { name: "selected"; type: "bool" }
+        Property { name: "origin"; type: "QGeoCoordinate"; isReadonly: true }
+        Property { name: "units"; type: "CoordinateUnit"; isReadonly: true }
+        Property { name: "transformType"; type: "TransformType"; isReadonly: true }
         Signal {
             name: "zValueChanged"
             Parameter { name: "zValue"; type: "int" }
@@ -797,120 +903,56 @@ Module {
             name: "selectedChanged"
             Parameter { name: "selected"; type: "bool" }
         }
+        Signal {
+            name: "originChanged"
+            Parameter { name: "origin"; type: "QGeoCoordinate" }
+        }
+        Signal {
+            name: "unitsChanged"
+            Parameter { name: "units"; type: "QGeoMapObject::CoordinateUnit" }
+        }
+        Signal {
+            name: "transformTypeChanged"
+            Parameter { name: "transformType"; type: "QGeoMapObject::TransformType" }
+        }
     }
     Component {
-        name: "QGeoMapPixmapObject"
-        prototype: "QGeoMapObject"
-        Property { name: "coordinate"; type: "QGeoCoordinate" }
-        Property { name: "pixmap"; type: "QPixmap" }
-        Property { name: "offset"; type: "QPoint" }
+        name: "QDeclarativeGeoSearchModel"
+        prototype: "QAbstractListModel"
+        Property { name: "plugin"; type: "QDeclarativeGeoServiceProvider"; isPointer: true }
+        Property { name: "error"; type: "string"; isReadonly: true }
+        Signal {
+            name: "pluginChanged"
+            Parameter { name: "plugin"; type: "QDeclarativeGeoServiceProvider"; isPointer: true }
+        }
+        Signal {
+            name: "errorChanged"
+            Parameter { name: "error"; type: "string" }
+        }
+        Signal { name: "placesChanged" }
+    }
+    Component {
+        name: "QDeclarativeGeocodeModel"
+        prototype: "QDeclarativeGeoSearchModel"
+        exports: [
+            "QtMobility.location/GeocodeModel 1.1"
+        ]
+        Property { name: "address"; type: "QDeclarativeGeoAddress"; isPointer: true }
+        Signal {
+            name: "addressChanged"
+            Parameter { name: "address"; type: "QDeclarativeGeoAddress"; isPointer: true }
+        }
+    }
+    Component {
+        name: "QDeclarativeReverseGeocodeModel"
+        prototype: "QDeclarativeGeoSearchModel"
+        exports: [
+            "QtMobility.location/ReverseGeocodeModel 1.1"
+        ]
+        Property { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
         Signal {
             name: "coordinateChanged"
-            Parameter { name: "coordinate"; type: "QGeoCoordinate" }
-        }
-        Signal {
-            name: "pixmapChanged"
-            Parameter { name: "pixmap"; type: "QPixmap" }
-        }
-        Signal {
-            name: "offsetChanged"
-            Parameter { name: "offset"; type: "QPoint" }
-        }
-    }
-    Component {
-        name: "QGeoMapPolygonObject"
-        prototype: "QGeoMapObject"
-        Property { name: "path"; type: "QList<QGeoCoordinate>" }
-        Property { name: "pen"; type: "QPen" }
-        Property { name: "brush"; type: "QBrush" }
-        Signal {
-            name: "pathChanged"
-            Parameter { name: "path"; type: "QList<QGeoCoordinate>" }
-        }
-        Signal {
-            name: "penChanged"
-            Parameter { name: "pen"; type: "QPen" }
-        }
-        Signal {
-            name: "brushChanged"
-            Parameter { name: "brush"; type: "QBrush" }
-        }
-    }
-    Component {
-        name: "QGeoMapPolylineObject"
-        prototype: "QGeoMapObject"
-        Property { name: "path"; type: "QList<QGeoCoordinate>" }
-        Property { name: "pen"; type: "QPen" }
-        Signal {
-            name: "pathChanged"
-            Parameter { name: "path"; type: "QList<QGeoCoordinate>" }
-        }
-        Signal {
-            name: "penChanged"
-            Parameter { name: "pen"; type: "QPen" }
-        }
-    }
-    Component {
-        name: "QGeoMapRectangleObject"
-        prototype: "QGeoMapObject"
-        Property { name: "topLeft"; type: "QGeoCoordinate" }
-        Property { name: "bottomRight"; type: "QGeoCoordinate" }
-        Property { name: "pen"; type: "QPen" }
-        Property { name: "brush"; type: "QBrush" }
-        Signal {
-            name: "topLeftChanged"
-            Parameter { name: "topLeft"; type: "QGeoCoordinate" }
-        }
-        Signal {
-            name: "bottomRightChanged"
-            Parameter { name: "bottomRight"; type: "QGeoCoordinate" }
-        }
-        Signal {
-            name: "penChanged"
-            Parameter { name: "pen"; type: "QPen" }
-        }
-        Signal {
-            name: "brushChanged"
-            Parameter { name: "brush"; type: "QBrush" }
-        }
-    }
-    Component {
-        name: "QGeoMapTextObject"
-        prototype: "QGeoMapObject"
-        Property { name: "coordinate"; type: "QGeoCoordinate" }
-        Property { name: "text"; type: "string" }
-        Property { name: "font"; type: "QFont" }
-        Property { name: "pen"; type: "QPen" }
-        Property { name: "brush"; type: "QBrush" }
-        Property { name: "offset"; type: "QPoint" }
-        Property { name: "alignment"; type: "Qt::Alignment" }
-        Signal {
-            name: "coordinateChanged"
-            Parameter { name: "coordinate"; type: "QGeoCoordinate" }
-        }
-        Signal {
-            name: "textChanged"
-            Parameter { name: "text"; type: "string" }
-        }
-        Signal {
-            name: "fontChanged"
-            Parameter { name: "font"; type: "QFont" }
-        }
-        Signal {
-            name: "penChanged"
-            Parameter { name: "pen"; type: "QPen" }
-        }
-        Signal {
-            name: "brushChanged"
-            Parameter { name: "brush"; type: "QBrush" }
-        }
-        Signal {
-            name: "offsetChanged"
-            Parameter { name: "offset"; type: "QPoint" }
-        }
-        Signal {
-            name: "alignmentChanged"
-            Parameter { name: "alignment"; type: "Qt::Alignment" }
+            Parameter { name: "coordinate"; type: "QDeclarativeCoordinate"; isPointer: true }
         }
     }
 }

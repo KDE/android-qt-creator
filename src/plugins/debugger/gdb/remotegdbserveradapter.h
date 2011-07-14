@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -35,8 +35,6 @@
 
 #include "abstractgdbadapter.h"
 #include "localgdbprocess.h"
-
-#include <projectexplorer/abi.h>
 
 namespace Debugger {
 namespace Internal {
@@ -52,7 +50,7 @@ class RemoteGdbServerAdapter : public AbstractGdbAdapter
     Q_OBJECT
 
 public:
-    RemoteGdbServerAdapter(GdbEngine *engine, const ProjectExplorer::Abi &abi, QObject *parent = 0);
+    RemoteGdbServerAdapter(GdbEngine *engine);
 
 private:
     DumperHandling dumperHandling() const;
@@ -93,8 +91,6 @@ private:
     void callTargetRemote();
     void handleTargetRemote(const GdbResponse &response);
     void handleInterruptInferior(const GdbResponse &response);
-
-    const ProjectExplorer::Abi m_abi;
 
     QProcess m_uploadProc;
     LocalGdbProcess m_gdbProc;

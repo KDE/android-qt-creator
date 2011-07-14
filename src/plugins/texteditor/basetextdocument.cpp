@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,6 +55,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <utils/qtcassert.h>
+#include <utils/fileutils.h>
 #include <utils/reloadpromptutils.h>
 
 namespace {
@@ -83,6 +84,8 @@ class DocumentMarker : public ITextMarkable
 public:
     DocumentMarker(QTextDocument *);
 
+    TextMarks marks() const { return m_marksCache; }
+
     // ITextMarkable
     bool addMark(ITextMark *mark, int line);
     TextMarks marksAt(int line) const;
@@ -91,6 +94,9 @@ public:
     void updateMark(ITextMark *mark);
 
 private:
+    double recalculateMaxMarkWidthFactor() const;
+
+    TextMarks m_marksCache; // not owned
     QTextDocument *document;
 };
 
@@ -103,20 +109,32 @@ bool DocumentMarker::addMark(TextEditor::ITextMark *mark, int line)
 {
     QTC_ASSERT(line >= 1, return false);
     int blockNumber = line - 1;
-    BaseTextDocumentLayout *documentLayout = qobject_cast<BaseTextDocumentLayout*>(document->documentLayout());
+    BaseTextDocumentLayout *documentLayout =
+        qobject_cast<BaseTextDocumentLayout*>(document->documentLayout());
     QTC_ASSERT(documentLayout, return false);
     QTextBlock block = document->findBlockByNumber(blockNumber);
 
     if (block.isValid()) {
         TextBlockUserData *userData = BaseTextDocumentLayout::userData(block);
         userData->addMark(mark);
+        m_marksCache.append(mark);
         mark->updateLineNumber(blockNumber + 1);
         mark->updateBlock(block);
         documentLayout->hasMarks = true;
+        documentLayout->maxMarkWidthFactor = qMax(mark->widthFactor(),
+            documentLayout->maxMarkWidthFactor);
         documentLayout->requestUpdate();
         return true;
     }
     return false;
+}
+
+double DocumentMarker::recalculateMaxMarkWidthFactor() const
+{
+    double maxWidthFactor = 1.0;
+    foreach (const ITextMark *mark, marks())
+        maxWidthFactor = qMax(mark->widthFactor(), maxWidthFactor);
+    return maxWidthFactor;
 }
 
 TextEditor::TextMarks DocumentMarker::marksAt(int line) const
@@ -134,6 +152,10 @@ TextEditor::TextMarks DocumentMarker::marksAt(int line) const
 
 void DocumentMarker::removeMark(TextEditor::ITextMark *mark)
 {
+    BaseTextDocumentLayout *documentLayout =
+        qobject_cast<BaseTextDocumentLayout*>(document->documentLayout());
+    QTC_ASSERT(documentLayout, return)
+
     bool needUpdate = false;
     QTextBlock block = document->begin();
     while (block.isValid()) {
@@ -142,8 +164,12 @@ void DocumentMarker::removeMark(TextEditor::ITextMark *mark)
         }
         block = block.next();
     }
-    if (needUpdate)
+    m_marksCache.removeAll(mark);
+
+    if (needUpdate) {
+        documentLayout->maxMarkWidthFactor = recalculateMaxMarkWidthFactor();
         updateMark(0);
+    }
 }
 
 bool DocumentMarker::hasMark(TextEditor::ITextMark *mark) const
@@ -162,7 +188,8 @@ bool DocumentMarker::hasMark(TextEditor::ITextMark *mark) const
 void DocumentMarker::updateMark(ITextMark *mark)
 {
     Q_UNUSED(mark)
-    BaseTextDocumentLayout *documentLayout = qobject_cast<BaseTextDocumentLayout*>(document->documentLayout());
+    BaseTextDocumentLayout *documentLayout =
+        qobject_cast<BaseTextDocumentLayout*>(document->documentLayout());
     QTC_ASSERT(documentLayout, return);
     documentLayout->requestUpdate();
 }
@@ -201,8 +228,11 @@ public:
 
     bool m_fileIsReadOnly;
     bool m_hasDecodingError;
+    bool m_hasHighlightWarning;
     QByteArray m_decodingErrorSample;
     static const int kChunkSize;
+
+    int m_autoSaveRevision;
 };
 
 const int BaseTextDocumentPrivate::kChunkSize = 65536;
@@ -215,7 +245,9 @@ BaseTextDocumentPrivate::BaseTextDocumentPrivate(BaseTextDocument *q) :
     m_codec(Core::EditorManager::instance()->defaultTextCodec()),
     m_fileHasUtf8Bom(false),
     m_fileIsReadOnly(false),
-    m_hasDecodingError(false)
+    m_hasDecodingError(false),
+    m_hasHighlightWarning(false),
+    m_autoSaveRevision(-1)
 {
 }
 
@@ -336,15 +368,25 @@ ITextMarkable *BaseTextDocument::documentMarker() const
     return d->m_documentMarker;
 }
 
-bool BaseTextDocument::save(const QString &fileName)
+bool BaseTextDocument::save(QString *errorString, const QString &fileName, bool autoSave)
 {
     QTextCursor cursor(d->m_document);
+
+    // When autosaving, we don't want to modify the document/location under the user's fingers.
+    BaseTextEditorWidget *editorWidget = 0;
+    int savedPosition, savedAnchor;
+    int undos = d->m_document->availableUndoSteps();
 
     // When saving the current editor, make sure to maintain the cursor position for undo
     Core::IEditor *currentEditor = Core::EditorManager::instance()->currentEditor();
     if (BaseTextEditor *editable = qobject_cast<BaseTextEditor*>(currentEditor)) {
-        if (editable->file() == this)
-            cursor.setPosition(editable->editorWidget()->textCursor().position());
+        if (editable->file() == this) {
+            editorWidget = editable->editorWidget();
+            QTextCursor cur = editorWidget->textCursor();
+            savedPosition = cur.position();
+            savedAnchor = cur.anchor();
+            cursor.setPosition(cur.position());
+        }
     }
 
     cursor.beginEditBlock();
@@ -360,26 +402,38 @@ bool BaseTextDocument::save(const QString &fileName)
     if (!fileName.isEmpty())
         fName = fileName;
 
-    QFile file(fName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        return false;
+    Utils::FileSaver saver(fName);
+    if (!saver.hasError()) {
+        QString plainText = d->m_document->toPlainText();
 
-    QString plainText = d->m_document->toPlainText();
+        if (d->m_lineTerminatorMode == BaseTextDocumentPrivate::CRLFLineTerminator)
+            plainText.replace(QLatin1Char('\n'), QLatin1String("\r\n"));
 
-    if (d->m_lineTerminatorMode == BaseTextDocumentPrivate::CRLFLineTerminator)
-        plainText.replace(QLatin1Char('\n'), QLatin1String("\r\n"));
+        if (d->m_codec->name() == "UTF-8"
+                && (d->m_extraEncodingSettings.m_utf8BomSetting == ExtraEncodingSettings::AlwaysAdd
+                    || (d->m_extraEncodingSettings.m_utf8BomSetting == ExtraEncodingSettings::OnlyKeep
+                        && d->m_fileHasUtf8Bom))) {
+            saver.write("\xef\xbb\xbf", 3);
+        }
 
-    if (d->m_codec->name() == "UTF-8"
-            && (d->m_extraEncodingSettings.m_utf8BomSetting == ExtraEncodingSettings::AlwaysAdd
-                || (d->m_extraEncodingSettings.m_utf8BomSetting == ExtraEncodingSettings::OnlyKeep
-                    && d->m_fileHasUtf8Bom))) {
-        file.write("\xef\xbb\xbf", 3);
+        saver.write(d->m_codec->fromUnicode(plainText));
     }
 
-    file.write(d->m_codec->fromUnicode(plainText));
-    if (!file.flush())
+    if (autoSave && undos < d->m_document->availableUndoSteps()) {
+        d->m_document->undo();
+        if (editorWidget) {
+            QTextCursor cur = editorWidget->textCursor();
+            cur.setPosition(savedAnchor);
+            cur.setPosition(savedPosition, QTextCursor::KeepAnchor);
+            editorWidget->setTextCursor(cur);
+        }
+    }
+
+    if (!saver.finalize(errorString))
         return false;
-    file.close();
+    d->m_autoSaveRevision = d->m_document->revision();
+    if (autoSave)
+        return true;
 
     const QFileInfo fi(fName);
     d->m_fileName = QDir::cleanPath(fi.absoluteFilePath());
@@ -392,6 +446,11 @@ bool BaseTextDocument::save(const QString &fileName)
     d->m_decodingErrorSample.clear();
 
     return true;
+}
+
+bool BaseTextDocument::shouldAutoSave() const
+{
+    return d->m_autoSaveRevision != d->m_document->revision();
 }
 
 void BaseTextDocument::rename(const QString &newName)
@@ -429,7 +488,7 @@ void BaseTextDocument::checkPermissions()
         emit changed();
 }
 
-bool BaseTextDocument::open(const QString &fileName)
+bool BaseTextDocument::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     QString title = tr("untitled");
     if (!fileName.isEmpty()) {
@@ -437,16 +496,16 @@ bool BaseTextDocument::open(const QString &fileName)
         d->m_fileIsReadOnly = !fi.isWritable();
         d->m_fileName = QDir::cleanPath(fi.absoluteFilePath());
 
-        QFile file(fileName);
-        if (!file.open(QIODevice::ReadOnly))
-            return false;
-
         title = fi.fileName();
 
         QByteArray buf;
         try {
-            buf = file.readAll();
+            Utils::FileReader reader;
+            if (!reader.fetch(realFileName, errorString))
+                return false;
+            buf = reader.data();
         } catch (std::bad_alloc) {
+            *errorString = tr("Out of memory");
             return false;
         }
         int bytesRead = buf.size();
@@ -558,50 +617,41 @@ bool BaseTextDocument::open(const QString &fileName)
         BaseTextDocumentLayout *documentLayout =
             qobject_cast<BaseTextDocumentLayout*>(d->m_document->documentLayout());
         QTC_ASSERT(documentLayout, return true);
-        documentLayout->lastSaveRevision = d->m_document->revision();
-        d->m_document->setModified(false);
+        documentLayout->lastSaveRevision = d->m_autoSaveRevision = d->m_document->revision();
+        d->m_document->setModified(fileName != realFileName);
         emit titleChanged(title);
         emit changed();
     }
     return true;
 }
 
-void BaseTextDocument::reload(QTextCodec *codec)
+bool BaseTextDocument::reload(QString *errorString, QTextCodec *codec)
 {
-    QTC_ASSERT(codec, return);
+    QTC_ASSERT(codec, return false);
     d->m_codec = codec;
-    reload();
+    return reload(errorString);
 }
 
-void BaseTextDocument::reload()
+bool BaseTextDocument::reload(QString *errorString)
 {
     emit aboutToReload();
     documentClosing(); // removes text marks non-permanently
 
-    if (open(d->m_fileName))
-        emit reloaded();
+    if (!open(errorString, d->m_fileName, d->m_fileName))
+        return false;
+    emit reloaded();
+    return true;
 }
 
-Core::IFile::ReloadBehavior BaseTextDocument::reloadBehavior(ChangeTrigger state, ChangeType type) const
-{
-    if (type == TypePermissions)
-        return BehaviorSilent;
-    if (type == TypeContents) {
-        if (state == TriggerInternal && !isModified())
-            return BehaviorSilent;
-        return BehaviorAsk;
-    }
-    return BehaviorAsk;
-}
-
-void BaseTextDocument::reload(ReloadFlag flag, ChangeType type)
+bool BaseTextDocument::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
     if (flag == FlagIgnore)
-        return;
+        return true;
     if (type == TypePermissions) {
         checkPermissions();
+        return true;
     } else {
-        reload();
+        return reload(errorString);
     }
 }
 
@@ -687,6 +737,16 @@ void BaseTextDocument::documentClosing()
             data->documentClosing();
         block = block.next();
     }
+}
+
+bool BaseTextDocument::hasHighlightWarning() const
+{
+    return d->m_hasHighlightWarning;
+}
+
+void BaseTextDocument::setHighlightWarning(bool has)
+{
+    d->m_hasHighlightWarning = has;
 }
 
 } // namespace TextEditor

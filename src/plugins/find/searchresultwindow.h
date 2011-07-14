@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -138,9 +138,11 @@ public:
     QString textToReplace() const;
 
     // search result object only lives till next startnewsearch call
-    SearchResult *startNewSearch(SearchMode searchOrSearchAndReplace = SearchOnly);
+    SearchResult *startNewSearch(SearchMode searchOrSearchAndReplace = SearchOnly,
+                                 const QString &cfgGroup = QString());
 
     void addResults(QList<SearchResultItem> &items, AddMode mode);
+
 public slots:
     void clearContents();
     void addResult(const QString &fileName, int lineNumber, const QString &lineText,
@@ -152,12 +154,15 @@ private slots:
     void handleJumpToSearchResult(const SearchResultItem &item);
     void handleReplaceButton();
     void showNoMatchesFound();
+    void hideNoUndoWarning();
 
 private:
     void setShowReplaceUI(bool show);
     void readSettings();
     void writeSettings();
     QList<SearchResultItem> checkedItems() const;
+    bool showWarningMessage() const;
+    void setShowWarningMessage(bool showWarningMessage);
 
     Internal::SearchResultWindowPrivate *d;
     static SearchResultWindow *m_instance;

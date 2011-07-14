@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -72,11 +72,12 @@ static inline QColor properColor(const QString &str)
         return QColor();
     int lalpha = 255;
     QString lcolorStr = str;
-    if (lcolorStr.at(0) == '#' && lcolorStr.length() == 9) {
+    const QChar hash = QLatin1Char('#');
+    if (lcolorStr.at(0) == hash && lcolorStr.length() == 9) {
         QString alphaStr = lcolorStr;
         alphaStr.truncate(3);
         lcolorStr.remove(0, 3);
-        lcolorStr = "#" + lcolorStr;
+        lcolorStr = hash + lcolorStr;
         alphaStr.remove(0,1);
         bool v;
         lalpha = alphaStr.toInt(&v, 16);
@@ -84,7 +85,7 @@ static inline QColor properColor(const QString &str)
             lalpha = 255;
     }
     QColor lcolor(lcolorStr);
-    if (lcolorStr.contains('#'))
+    if (lcolorStr.contains(hash))
         lcolor.setAlpha(lalpha);
     return lcolor;
 }

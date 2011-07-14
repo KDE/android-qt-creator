@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,6 +42,7 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 class QtQuickApp;
+struct QmlCppPlugin;
 
 struct QmlModule
 {
@@ -63,7 +64,7 @@ struct QmlModule
     const QFileInfo qmldir;         // 'qmldir' file.
     const bool isExternal;          // Either external or inside a source paths
     const QtQuickApp *qtQuickApp;
-    QHash<QString, struct QmlCppPlugin*> cppPlugins;   // Just as info. No ownership.
+    QHash<QString, QmlCppPlugin *> cppPlugins;   // Just as info. No ownership.
 };
 
 struct QmlCppPlugin
@@ -80,6 +81,7 @@ struct QtQuickAppGeneratedFileInfo : public AbstractGeneratedFileInfo
 {
     enum ExtendedFileType {
         MainQmlFile = ExtendedFile,
+        MainPageQmlFile,
         AppViewerPriFile,
         AppViewerCppFile,
         AppViewerHFile
@@ -103,7 +105,9 @@ public:
         AppViewerHOrigin,
         QmlDir,
         QmlDirProFileRelative,
-        ModulesDir
+        ModulesDir,
+        MainPageQml,
+        MainPageQmlOrigin
     };
 
     enum Mode {
@@ -111,8 +115,17 @@ public:
         ModeImport
     };
 
+    enum ComponentSet {
+        QtQuick10Components,
+        Symbian10Components,
+        Meego10Components
+    };
+
     QtQuickApp();
     virtual ~QtQuickApp();
+
+    void setComponentSet(ComponentSet componentSet);
+    ComponentSet componentSet() const;
 
     void setMainQml(Mode mode, const QString &file = QString());
     Mode mainQmlMode() const;
@@ -147,12 +160,14 @@ private:
     bool addCppPlugins(QmlModule *module);
     bool addCppPlugin(const QString &qmldirLine, QmlModule *module);
     void clearModulesAndPlugins();
+    QString componentSetDir(ComponentSet componentSet) const;
 
     QFileInfo m_mainQmlFile;
     Mode m_mainQmlMode;
     QStringList m_importPaths;
-    QList <QmlModule*> m_modules;
-    QList <QmlCppPlugin*> m_cppPlugins;
+    QList<QmlModule *> m_modules;
+    QList<QmlCppPlugin *> m_cppPlugins;
+    ComponentSet m_componentSet;
 };
 
 } // namespace Internal

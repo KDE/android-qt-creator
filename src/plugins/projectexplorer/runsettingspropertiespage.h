@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -61,7 +61,6 @@ namespace Ui {
 class RunSettingsPropertiesPage;
 }
 
-class RunSettingsWidget;
 class BuildStepListWidget;
 
 class RunSettingsPanelFactory : public ITargetPanelFactory
@@ -70,22 +69,7 @@ public:
     QString id() const;
     QString displayName() const;
     bool supports(Target *target);
-    IPropertiesPanel *createPanel(Target *target);
-};
-
-class RunSettingsPanel : public IPropertiesPanel
-{
-public:
-    RunSettingsPanel(Target *target);
-    ~RunSettingsPanel();
-
-    QString displayName() const;
-    QWidget *widget() const;
-    QIcon icon() const;
-
-private:
-    RunSettingsWidget *m_widget;
-    QIcon m_icon;
+    PropertiesPanel *createPanel(Target *target);
 };
 
 class RunSettingsWidget : public QWidget

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -58,9 +58,10 @@ using namespace TextEditor;
 using namespace TextEditor::Internal;
 
 PlainTextEditor::PlainTextEditor(PlainTextEditorWidget *editor)
-  : BaseTextEditor(editor),
-    m_context(Core::Constants::K_DEFAULT_TEXT_EDITOR_ID, TextEditor::Constants::C_TEXTEDITOR)
+  : BaseTextEditor(editor)
 {
+    setContext(Core::Context(Core::Constants::K_DEFAULT_TEXT_EDITOR_ID,
+                             TextEditor::Constants::C_TEXTEDITOR));
 }
 
 PlainTextEditorWidget::PlainTextEditorWidget(QWidget *parent)
@@ -81,14 +82,6 @@ PlainTextEditorWidget::PlainTextEditorWidget(QWidget *parent)
 
     connect(file(), SIGNAL(changed()), this, SLOT(configure()));
     connect(Manager::instance(), SIGNAL(mimeTypesRegistered()), this, SLOT(configure()));
-}
-
-PlainTextEditorWidget::~PlainTextEditorWidget()
-{}
-
-Core::Context PlainTextEditor::context() const
-{
-    return m_context;
 }
 
 Core::IEditor *PlainTextEditor::duplicate(QWidget *parent)
@@ -159,6 +152,11 @@ void PlainTextEditorWidget::configure()
     if (file())
         mimeType = Core::ICore::instance()->mimeDatabase()->findByFile(file()->fileName());
     configure(mimeType);
+}
+
+void PlainTextEditorWidget::configure(const QString &mimeType)
+{
+    configure(Core::ICore::instance()->mimeDatabase()->findByType(mimeType));
 }
 
 void PlainTextEditorWidget::configure(const Core::MimeType &mimeType)

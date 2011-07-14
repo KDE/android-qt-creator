@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,27 +41,23 @@ namespace Internal {
 
 struct ProjectWizardContext;
 
-/* Final file wizard processing steps:
- * 1) Add to a project file (*.pri/ *.pro)
- * 2) Initialize a version control repository (unless the path is already
- *    managed) and do 'add' if the VCS supports it.  */
 class ProjectFileWizardExtension : public Core::IFileWizardExtension
 {
     Q_OBJECT
 public:
     explicit ProjectFileWizardExtension();
-    virtual ~ProjectFileWizardExtension();
+    ~ProjectFileWizardExtension();
 
-    virtual QList<QWizardPage *> extensionPages(const Core::IWizard *wizard);
-    virtual bool process(const QList<Core::GeneratedFile> &files,
-                         bool *removeOpenProjectAttribute, QString *errorMessage);
+    QList<QWizardPage *> extensionPages(const Core::IWizard *wizard);
+    bool process(const QList<Core::GeneratedFile> &files,
+                 bool *removeOpenProjectAttribute, QString *errorMessage);
 
 public slots:
-    virtual void firstExtensionPageShown(const QList<Core::GeneratedFile> &files);
+    void firstExtensionPageShown(const QList<Core::GeneratedFile> &files);
+    void initializeVersionControlChoices();
 
 private:
     void initProjectChoices(const QString &generatedProjectFilePath);
-    void initializeVersionControlChoices();
     bool processProject(const QList<Core::GeneratedFile> &files,
                         bool *removeOpenProjectAttribute, QString *errorMessage);
     bool processVersionControl(const QList<Core::GeneratedFile> &files, QString *errorMessage);

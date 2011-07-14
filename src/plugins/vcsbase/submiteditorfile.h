@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,7 +38,6 @@
 namespace VCSBase {
 namespace Internal {
 
-// A non-saveable IFile for submit editor files.
 class SubmitEditorFile : public Core::IFile
 {
     Q_OBJECT
@@ -54,16 +53,16 @@ public:
     virtual QString mimeType() const;
     bool isReadOnly() const { return false; }
     bool isSaveAsAllowed() const { return false; }
-    bool save(const QString &fileName);
+    bool save(QString *errorString, const QString &fileName, bool autoSave);
     ReloadBehavior reloadBehavior(ChangeTrigger state, ChangeType type) const;
-    void reload(ReloadFlag flag, ChangeType type);
+    bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
     void rename(const QString &newName);
 
     void setFileName(const QString name);
     void setModified(bool modified = true);
 
 signals:
-    void saveMe(const QString &fileName);
+    void saveMe(QString *errorString, const QString &fileName, bool autoSave);
 
 private:
     const QString m_mimeType;

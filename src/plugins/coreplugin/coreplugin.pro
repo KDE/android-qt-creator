@@ -1,8 +1,7 @@
 TEMPLATE = lib
 TARGET = Core
 DEFINES += CORE_LIBRARY
-QT += xml \
-    network \
+QT += network \
     script \
     sql
 CONFIG += help
@@ -21,13 +20,13 @@ SOURCES += mainwindow.cpp \
     tabpositionindicator.cpp \
     fancyactionbar.cpp \
     fancytabwidget.cpp \
-    flowlayout.cpp \
     generalsettings.cpp \
     filemanager.cpp \
     uniqueidmanager.cpp \
     messagemanager.cpp \
     messageoutputwindow.cpp \
     outputpane.cpp \
+    outputwindow.cpp \
     vcsmanager.cpp \
     statusbarmanager.cpp \
     versiondialog.cpp \
@@ -70,6 +69,8 @@ SOURCES += mainwindow.cpp \
     fileiconprovider.cpp \
     mimedatabase.cpp \
     icore.cpp \
+    ifile.cpp \
+    infobar.cpp \
     editormanager/ieditor.cpp \
     dialogs/ioptionspage.cpp \
     dialogs/iwizard.cpp \
@@ -83,26 +84,28 @@ SOURCES += mainwindow.cpp \
     outputpanemanager.cpp \
     navigationsubwidget.cpp \
     sidebarwidget.cpp \
-    rssfetcher.cpp \
     externaltool.cpp \
     dialogs/externaltoolconfig.cpp \
     toolsettings.cpp \
     variablechooser.cpp \
     mimetypemagicdialog.cpp \
-    mimetypesettings.cpp
+    mimetypesettings.cpp \
+    dialogs/promptoverwritedialog.cpp \
+    multifeedrssmodel.cpp \
+    networkaccessmanager.cpp
 
 HEADERS += mainwindow.h \
     editmode.h \
     tabpositionindicator.h \
     fancyactionbar.h \
     fancytabwidget.h \
-    flowlayout.h \
     generalsettings.h \
     filemanager.h \
     uniqueidmanager.h \
     messagemanager.h \
     messageoutputwindow.h \
     outputpane.h \
+    outputwindow.h \
     vcsmanager.h \
     statusbarmanager.h \
     editormanager/editormanager.h \
@@ -136,6 +139,7 @@ HEADERS += mainwindow.h \
     icontext.h \
     icore.h \
     ifile.h \
+    infobar.h \
     ifilefactory.h \
     imode.h \
     ioutputpane.h \
@@ -174,13 +178,15 @@ HEADERS += mainwindow.h \
     outputpanemanager.h \
     navigationsubwidget.h \
     sidebarwidget.h \
-    rssfetcher.h \
     externaltool.h \
     dialogs/externaltoolconfig.h \
     toolsettings.h \
     variablechooser.h \
     mimetypemagicdialog.h \
-    mimetypesettings.h
+    mimetypesettings.h \
+    dialogs/promptoverwritedialog.h \
+    multifeedrssmodel.h \
+    networkaccessmanager.h
 
 FORMS += dialogs/newdialog.ui \
     actionmanager/commandmappings.ui \
@@ -207,9 +213,13 @@ else:macx {
 else:unix {
     SOURCES += progressmanager/progressmanager_x11.cpp
 
-    images.files = images/qtcreator_logo_*.png
-    images.path = /share/pixmaps
-    INSTALLS += images
+    IMAGE_SIZE_LIST = 16 24 32 48 64 128 256 512
+
+    for(imagesize, IMAGE_SIZE_LIST) {
+        eval(image$${imagesize}.files = images/logo/$${imagesize}/qtcreator.png)
+        eval(image$${imagesize}.path = /share/icons/hicolor/$${imagesize}x$${imagesize}/apps)
+        INSTALLS += image$${imagesize}
+    }
 }
 
 OTHER_FILES += editormanager/BinFiles.mimetypes.xml ide_version.h.in

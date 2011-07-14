@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -55,7 +55,7 @@ quint32 SshOutgoingPacket::macLength() const
     return m_encrypter.macLength();
 }
 
-void SshOutgoingPacket::generateKeyExchangeInitPacket()
+QByteArray SshOutgoingPacket::generateKeyExchangeInitPacket()
 {
     const QByteArray &supportedkeyExchangeMethods
         = encodeNameList(SshCapabilities::KeyExchangeMethods);
@@ -81,7 +81,9 @@ void SshOutgoingPacket::generateKeyExchangeInitPacket()
     m_data.append(supportedLanguages).append(supportedLanguages);
     appendBool(false); // No guessed packet.
     m_data.append(QByteArray(4, 0)); // Reserved.
+    QByteArray payload = m_data.mid(PayloadOffset);
     finalize();
+    return payload;
 }
 
 void SshOutgoingPacket::generateKeyDhInitPacket(const Botan::BigInt &e)
@@ -150,7 +152,24 @@ void SshOutgoingPacket::generateEnvPacket(quint32 remoteChannel,
     const QByteArray &var, const QByteArray &value)
 {
     init(SSH_MSG_CHANNEL_REQUEST).appendInt(remoteChannel).appendString("env")
-        .appendBool(false).appendString(var).appendString(value);
+        .appendBool(false).appendString(var).appendString(value).finalize();
+}
+
+void SshOutgoingPacket::generatePtyRequestPacket(quint32 remoteChannel,
+    const SshPseudoTerminal &terminal)
+{
+    init(SSH_MSG_CHANNEL_REQUEST).appendInt(remoteChannel)
+        .appendString("pty-req").appendBool(false)
+        .appendString(terminal.termType).appendInt(terminal.columnCount)
+        .appendInt(terminal.rowCount).appendInt(0).appendInt(0);
+    QByteArray modeString;
+    for (SshPseudoTerminal::ModeMap::ConstIterator it = terminal.modes.constBegin();
+         it != terminal.modes.constEnd(); ++it) {
+        modeString += char(it.key());
+        modeString += encodeInt(it.value());
+    }
+    modeString += char(0); // TTY_OP_END
+    appendString(modeString).finalize();
 }
 
 void SshOutgoingPacket::generateExecPacket(quint32 remoteChannel,

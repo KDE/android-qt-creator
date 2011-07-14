@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,6 +53,7 @@
 #include <QtGui/QLabel>
 #include <QtGui/QComboBox>
 #include <QtGui/QToolButton>
+#include <QtGui/QCheckBox>
 
 using namespace CMakeProjectManager;
 using namespace CMakeProjectManager::Internal;
@@ -136,6 +137,11 @@ QString CMakeRunConfiguration::executable() const
 ProjectExplorer::LocalApplicationRunConfiguration::RunMode CMakeRunConfiguration::runMode() const
 {
     return m_runMode;
+}
+
+void CMakeRunConfiguration::setRunMode(RunMode runMode)
+{
+    m_runMode = runMode;
 }
 
 QString CMakeRunConfiguration::workingDirectory() const
@@ -313,9 +319,16 @@ void CMakeRunConfiguration::setEnabled(bool b)
     setDefaultDisplayName(defaultDisplayName());
 }
 
-bool CMakeRunConfiguration::isEnabled(ProjectExplorer::BuildConfiguration *bc) const
+bool CMakeRunConfiguration::isEnabled() const
 {
-    return m_enabled && LocalApplicationRunConfiguration::isEnabled(bc);
+    return m_enabled;
+}
+
+QString CMakeRunConfiguration::disabledReason() const
+{
+    if (!m_enabled)
+        return tr("The executable is not built by the current buildconfiguration");
+    return QString();
 }
 
 // Configuration widget
@@ -347,17 +360,14 @@ CMakeRunConfigurationWidget::CMakeRunConfigurationWidget(CMakeRunConfiguration *
 
     fl->addRow(tr("Working directory:"), boxlayout);
 
-    QWidget *debuggerLabelWidget = new QWidget(this);
-    QVBoxLayout *debuggerLabelLayout = new QVBoxLayout(debuggerLabelWidget);
-    debuggerLabelLayout->setMargin(0);
-    debuggerLabelLayout->setSpacing(0);
-    debuggerLabelWidget->setLayout(debuggerLabelLayout);
+    QCheckBox *runInTerminal = new QCheckBox;
+    fl->addRow(tr("Run in Terminal"), runInTerminal);
+
     QLabel *debuggerLabel = new QLabel(tr("Debugger:"), this);
-    debuggerLabelLayout->addWidget(debuggerLabel);
-    debuggerLabelLayout->addStretch(10);
+    debuggerLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::MinimumExpanding);
 
     m_debuggerLanguageChooser = new Utils::DebuggerLanguageChooser(this);
-    fl->addRow(debuggerLabelWidget, m_debuggerLanguageChooser);
+    fl->addRow(debuggerLabel, m_debuggerLanguageChooser);
 
     m_debuggerLanguageChooser->setCppChecked(m_cmakeRunConfiguration->useCppDebugger());
     m_debuggerLanguageChooser->setQmlChecked(m_cmakeRunConfiguration->useQmlDebugger());
@@ -411,6 +421,9 @@ CMakeRunConfigurationWidget::CMakeRunConfigurationWidget(CMakeRunConfiguration *
     connect(resetButton, SIGNAL(clicked()),
             this, SLOT(resetWorkingDirectory()));
 
+    connect(runInTerminal, SIGNAL(toggled(bool)),
+            this, SLOT(runInTerminalToggled(bool)));
+
     connect(m_debuggerLanguageChooser, SIGNAL(cppLanguageToggled(bool)),
             this, SLOT(useCppDebuggerToggled(bool)));
     connect(m_debuggerLanguageChooser, SIGNAL(qmlLanguageToggled(bool)),
@@ -453,6 +466,12 @@ void CMakeRunConfigurationWidget::resetWorkingDirectory()
     // This emits a signal connected to workingDirectoryChanged()
     // that sets the m_workingDirectoryEdit
     m_cmakeRunConfiguration->setUserWorkingDirectory(QString());
+}
+
+void CMakeRunConfigurationWidget::runInTerminalToggled(bool toggled)
+{
+    m_cmakeRunConfiguration->setRunMode(toggled ? ProjectExplorer::LocalApplicationRunConfiguration::Console
+                                                : ProjectExplorer::LocalApplicationRunConfiguration::Gui);
 }
 
 void CMakeRunConfigurationWidget::useCppDebuggerToggled(bool toggled)

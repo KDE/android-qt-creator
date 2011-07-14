@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "vcsbaseclient.h"
 #include "vcsjobrunner.h"
 #include "vcsbaseclientsettings.h"
+#include "vcsbaseeditorparameterwidget.h"
 
 #include <QtDebug>
 
@@ -55,6 +56,16 @@
 #include <QtCore/QByteArray>
 #include <QtCore/QMetaType>
 
+/*!
+    \class VCSBase::VCSBaseClient
+
+    \brief Base class for Mercurial and Bazaar 'clients'.
+
+    Provides base functionality for common commands (diff, log, etc).
+
+    \sa VCSBase::VCSJobRunner
+*/
+
 Q_DECLARE_METATYPE(QVariant)
 
 inline Core::IEditor *locateEditor(const Core::ICore *core, const char *property, const QString &entry)
@@ -70,22 +81,23 @@ namespace VCSBase {
 class VCSBaseClientPrivate
 {
 public:
-    explicit VCSBaseClientPrivate(const VCSBaseClientSettings &settings);
+    explicit VCSBaseClientPrivate(VCSBaseClientSettings *settings);
 
     VCSJobRunner *m_jobManager;
     Core::ICore *m_core;
-    const VCSBaseClientSettings& m_clientSettings;
+    VCSBaseClientSettings* m_clientSettings;
 };
 
-VCSBaseClientPrivate::VCSBaseClientPrivate(const VCSBaseClientSettings &settings) :
+VCSBaseClientPrivate::VCSBaseClientPrivate(VCSBaseClientSettings *settings) :
     m_jobManager(0), m_core(Core::ICore::instance()), m_clientSettings(settings)
 {
 }
 
-VCSBaseClient::VCSBaseClient(const VCSBaseClientSettings &settings) :
+VCSBaseClient::VCSBaseClient(VCSBaseClientSettings *settings) :
     d(new VCSBaseClientPrivate(settings))
 {
     qRegisterMetaType<QVariant>();
+    connect(d->m_core, SIGNAL(saveSettingsRequested()), this, SLOT(saveSettings()));
 }
 
 VCSBaseClient::~VCSBaseClient()
@@ -111,7 +123,7 @@ bool VCSBaseClient::synchronousCreateRepository(const QString &workingDirectory)
 bool VCSBaseClient::synchronousClone(const QString &workingDir,
                                      const QString &srcLocation,
                                      const QString &dstLocation,
-                                     const ExtraCommandOptions &extraOptions)
+                                     const QStringList &extraOptions)
 {
     QStringList args;
     args << vcsCommandString(CloneCommand)
@@ -147,7 +159,7 @@ bool VCSBaseClient::synchronousMove(const QString &workingDir,
 
 bool VCSBaseClient::synchronousPull(const QString &workingDir,
                                     const QString &srcLocation,
-                                    const ExtraCommandOptions &extraOptions)
+                                    const QStringList &extraOptions)
 {
     QStringList args;
     args << vcsCommandString(PullCommand) << pullArguments(srcLocation, extraOptions);
@@ -165,7 +177,7 @@ bool VCSBaseClient::synchronousPull(const QString &workingDir,
 
 bool VCSBaseClient::synchronousPush(const QString &workingDir,
                                     const QString &dstLocation,
-                                    const ExtraCommandOptions &extraOptions)
+                                    const QStringList &extraOptions)
 {
     QStringList args;
     args << vcsCommandString(PushCommand) << pushArguments(dstLocation, extraOptions);
@@ -187,8 +199,8 @@ bool VCSBaseClient::vcsFullySynchronousExec(const QString &workingDir,
         vcsProcess.setWorkingDirectory(workingDir);
     VCSJobRunner::setProcessEnvironment(&vcsProcess);
 
-    const QString binary = d->m_clientSettings.binary();
-    const QStringList arguments = d->m_clientSettings.standardArguments() + args;
+    const QString binary = settings()->binary();
+    const QStringList arguments = settings()->standardArguments() + args;
 
     VCSBase::VCSBaseOutputWindow *outputWindow = VCSBase::VCSBaseOutputWindow::instance();
     outputWindow->appendCommand(workingDir, binary, args);
@@ -203,10 +215,10 @@ bool VCSBaseClient::vcsFullySynchronousExec(const QString &workingDir,
     vcsProcess.closeWriteChannel();
 
     QByteArray stdErr;
-    if (!Utils::SynchronousProcess::readDataFromProcess(vcsProcess, d->m_clientSettings.timeoutMilliSeconds(),
+    if (!Utils::SynchronousProcess::readDataFromProcess(vcsProcess, settings()->timeoutMilliSeconds(),
                                                         output, &stdErr, true)) {
         Utils::SynchronousProcess::stopProcess(vcsProcess);
-        outputWindow->appendError(VCSJobRunner::msgTimeout(binary, d->m_clientSettings.timeoutSeconds()));
+        outputWindow->appendError(VCSJobRunner::msgTimeout(binary, settings()->timeoutSeconds()));
         return false;
     }
     if (!stdErr.isEmpty())
@@ -221,10 +233,10 @@ Utils::SynchronousProcessResponse VCSBaseClient::vcsSynchronousExec(
     unsigned flags,
     QTextCodec *outputCodec)
 {
-    const QString binary = d->m_clientSettings.binary();
-    const QStringList arguments = d->m_clientSettings.standardArguments() + args;
+    const QString binary = settings()->binary();
+    const QStringList arguments = settings()->standardArguments() + args;
     return VCSBase::VCSBasePlugin::runVCS(workingDirectory, binary, arguments,
-                                          d->m_clientSettings.timeoutMilliSeconds(),
+                                          settings()->timeoutMilliSeconds(),
                                           flags, outputCodec);
 }
 
@@ -239,6 +251,11 @@ void VCSBaseClient::slotAnnotateRevisionRequested(const QString &source,
         change.truncate(blankPos);
     const QFileInfo fi(source);
     annotate(fi.absolutePath(), fi.fileName(), change, lineNumber);
+}
+
+void VCSBaseClient::saveSettings()
+{
+    d->m_clientSettings->writeSettings(d->m_core->settings());
 }
 
 void VCSBaseClient::annotate(const QString &workingDir, const QString &file,
@@ -261,29 +278,40 @@ void VCSBaseClient::annotate(const QString &workingDir, const QString &file,
     enqueueJob(job);
 }
 
-void VCSBaseClient::diff(const QString &workingDir, const QStringList &files)
+void VCSBaseClient::diff(const QString &workingDir, const QStringList &files,
+                         const QStringList &extraOptions)
 {
     const QString vcsCmdString = vcsCommandString(DiffCommand);
-    QStringList args;
-    args << vcsCmdString << diffArguments(files);
     const QString kind = vcsEditorKind(DiffCommand);
     const QString id = VCSBase::VCSBaseEditorWidget::getTitleId(workingDir, files);
     const QString title = vcsEditorTitle(vcsCmdString, id);
     const QString source = VCSBase::VCSBaseEditorWidget::getSource(workingDir, files);
     VCSBase::VCSBaseEditorWidget *editor = createVCSEditor(kind, title, source, true,
                                                            vcsCmdString.toLatin1().constData(), id);
+    editor->setRevertDiffChunkEnabled(true);
     editor->setDiffBaseDirectory(workingDir);
 
+    VCSBaseEditorParameterWidget *paramWidget = createDiffEditor(workingDir, files, extraOptions);
+    if (paramWidget != 0) {
+        connect(editor, SIGNAL(diffChunkReverted(VCSBase::DiffChunk)),
+                paramWidget, SLOT(executeCommand()));
+        editor->setConfigurationWidget(paramWidget);
+    }
+
+    QStringList args;
+    const QStringList paramArgs = paramWidget != 0 ? paramWidget->arguments() : QStringList();
+    args << vcsCmdString << diffArguments(files, extraOptions + paramArgs);
     QSharedPointer<VCSJob> job(new VCSJob(workingDir, args, editor));
     enqueueJob(job);
 }
 
 void VCSBaseClient::log(const QString &workingDir, const QStringList &files,
+                        const QStringList &extraOptions,
                         bool enableAnnotationContextMenu)
 {
     const QString vcsCmdString = vcsCommandString(LogCommand);
     QStringList args;
-    args << vcsCmdString << logArguments(files);
+    args << vcsCmdString << logArguments(files, extraOptions);
     const QString kind = vcsEditorKind(LogCommand);
     const QString id = VCSBase::VCSBaseEditorWidget::getTitleId(workingDir, files);
     const QString title = vcsEditorTitle(vcsCmdString, id);
@@ -398,7 +426,9 @@ void VCSBaseClient::view(const QString &source, const QString &id)
     VCSBase::VCSBaseEditorWidget *editor = createVCSEditor(kind, title, source,
                                                            true, "view", id);
 
-    QSharedPointer<VCSJob> job(new VCSJob(QFileInfo(source).absolutePath(), args, editor));
+    const QFileInfo fi(source);
+    const QString workingDirPath = fi.isFile() ? fi.absolutePath() : source;
+    QSharedPointer<VCSJob> job(new VCSJob(workingDirPath, args, editor));
     enqueueJob(job);
 }
 
@@ -418,7 +448,7 @@ void VCSBaseClient::update(const QString &repositoryRoot, const QString &revisio
 void VCSBaseClient::commit(const QString &repositoryRoot,
                            const QStringList &files,
                            const QString &commitMessageFile,
-                           const ExtraCommandOptions &extraOptions)
+                           const QStringList &extraOptions)
 {
     QStringList args(vcsCommandString(CommitCommand));
     args.append(commitArguments(files, commitMessageFile, extraOptions));
@@ -426,7 +456,7 @@ void VCSBaseClient::commit(const QString &repositoryRoot,
     enqueueJob(job);
 }
 
-const VCSBaseClientSettings &VCSBaseClient::settings() const
+VCSBaseClientSettings *VCSBaseClient::settings() const
 {
     return d->m_clientSettings;
 }
@@ -434,16 +464,27 @@ const VCSBaseClientSettings &VCSBaseClient::settings() const
 void VCSBaseClient::settingsChanged()
 {
     if (d->m_jobManager) {
-        d->m_jobManager->setSettings(d->m_clientSettings.binary(),
-                                     d->m_clientSettings.standardArguments(),
-                                     d->m_clientSettings.timeoutMilliSeconds());
+        d->m_jobManager->setSettings(settings()->binary(),
+                                     settings()->standardArguments(),
+                                     settings()->timeoutMilliSeconds());
         d->m_jobManager->restart();
     }
 }
 
+VCSBaseEditorParameterWidget *VCSBaseClient::createDiffEditor(const QString &workingDir,
+                                                              const QStringList &files,
+                                                              const QStringList &extraOptions)
+{
+    Q_UNUSED(workingDir);
+    Q_UNUSED(files);
+    Q_UNUSED(extraOptions);
+    return 0;
+}
+
+
 QString VCSBaseClient::vcsEditorTitle(const QString &vcsCmd, const QString &sourceId) const
 {
-    return QFileInfo(d->m_clientSettings.binary()).baseName() +
+    return QFileInfo(settings()->binary()).baseName() +
             QLatin1Char(' ') + vcsCmd + QLatin1Char(' ') +
             QFileInfo(sourceId).fileName();
 }
@@ -473,8 +514,8 @@ VCSBase::VCSBaseEditorWidget *VCSBaseClient::createVCSEditor(const QString &kind
             baseEditor->setCodec(VCSBase::VCSBaseEditorWidget::getCodec(source));
     }
 
-    d->m_core->editorManager()->activateEditor(outputEditor, Core::EditorManager::ModeSwitch);
     baseEditor->setForceReadOnly(true);
+    d->m_core->editorManager()->activateEditor(outputEditor, Core::EditorManager::ModeSwitch);
     return baseEditor;
 }
 
@@ -482,9 +523,9 @@ void VCSBaseClient::enqueueJob(const QSharedPointer<VCSJob> &job)
 {
     if (!d->m_jobManager) {
         d->m_jobManager = new VCSJobRunner();
-        d->m_jobManager->setSettings(d->m_clientSettings.binary(),
-                                     d->m_clientSettings.standardArguments(),
-                                     d->m_clientSettings.timeoutMilliSeconds());
+        d->m_jobManager->setSettings(settings()->binary(),
+                                     settings()->standardArguments(),
+                                     settings()->timeoutMilliSeconds());
         d->m_jobManager->start();
     }
     d->m_jobManager->enqueueJob(job);

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -70,7 +70,7 @@ CORESHARED_EXPORT QList<Internal::InternalNodePointer> toInternalNodeList(const 
 
 typedef QList<QPair<QString, QVariant> > PropertyListType;
 
-class CORESHARED_EXPORT ModelNode
+class CORESHARED_EXPORT  ModelNode
 {
     friend CORESHARED_EXPORT bool operator ==(const ModelNode &firstNode, const ModelNode &secondNode);
     friend CORESHARED_EXPORT bool operator !=(const ModelNode &firstNode, const ModelNode &secondNode);
@@ -86,6 +86,12 @@ class CORESHARED_EXPORT ModelNode
     friend class QmlDesigner::NodeProperty;
 
 public:
+    enum NodeSourceType {
+        NodeWithoutSource = 0,
+        NodeWithCustomParserSource = 1,
+        NodeWithComponentSource = 2
+    };
+
     ModelNode();
     ModelNode(const Internal::InternalNodePointer &internalNode, Model *model, AbstractView *view);
     ModelNode(const ModelNode modelNode, AbstractView *view);
@@ -165,10 +171,18 @@ public:
     QVariant toVariant() const;
 
     QVariant auxiliaryData(const QString &name) const;
-    void setAuxiliaryData(const QString &name, const QVariant &data);
+    void setAuxiliaryData(const QString &name, const QVariant &data) const;
     bool hasAuxiliaryData(const QString &name) const;
+    QHash<QString, QVariant> auxiliaryData() const;
 
     qint32 internalId() const;
+
+    void setNodeSource(const QString&);
+    QString nodeSource() const;
+
+    QString convertTypeToImportAlias() const;
+
+    NodeSourceType nodeSourceType() const;
 
 private: // functions
     Internal::InternalNodePointer internalNode() const;

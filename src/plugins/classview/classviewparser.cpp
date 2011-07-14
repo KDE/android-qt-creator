@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -436,7 +436,7 @@ ParserTreeItem::ConstPtr Parser::getParseDocumentTree(const CPlusPlus::Document:
     ParserTreeItem::Ptr itemPtr(new ParserTreeItem());
 
     unsigned total = doc->globalSymbolCount();
-    for (unsigned i = 0; i < total; i++)
+    for (unsigned i = 0; i < total; ++i)
         addSymbol(itemPtr, doc->globalSymbolAt(i));
 
     QWriteLocker locker(&d_ptr->docLocker);

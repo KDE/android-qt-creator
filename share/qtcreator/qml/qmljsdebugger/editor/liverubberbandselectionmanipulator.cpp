@@ -26,12 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "liverubberbandselectionmanipulator.h"
-#include "../qdeclarativeviewobserver_p.h"
+#include "../qdeclarativeviewinspector_p.h"
 
 #include <QtGui/QGraphicsItem>
 
@@ -40,7 +40,7 @@
 namespace QmlJSDebugger {
 
 LiveRubberBandSelectionManipulator::LiveRubberBandSelectionManipulator(QGraphicsObject *layerItem,
-                                                                       QDeclarativeViewObserver *editorView)
+                                                                       QDeclarativeViewInspector *editorView)
     : m_selectionRectangleElement(layerItem),
       m_editorView(editorView),
       m_beginFormEditorItem(0),
@@ -73,9 +73,9 @@ void LiveRubberBandSelectionManipulator::begin(const QPointF &beginPoint)
     m_selectionRectangleElement.setRect(m_beginPoint, m_beginPoint);
     m_selectionRectangleElement.show();
     m_isActive = true;
-    QDeclarativeViewObserverPrivate *observerPrivate
-            = QDeclarativeViewObserverPrivate::get(m_editorView);
-    m_beginFormEditorItem = topFormEditorItem(observerPrivate->selectableItems(beginPoint));
+    QDeclarativeViewInspectorPrivate *inspectorPrivate
+            = QDeclarativeViewInspectorPrivate::get(m_editorView);
+    m_beginFormEditorItem = topFormEditorItem(inspectorPrivate->selectableItems(beginPoint));
     m_oldSelectionList = m_editorView->selectedItems();
 }
 
@@ -93,10 +93,10 @@ void LiveRubberBandSelectionManipulator::end()
 
 void LiveRubberBandSelectionManipulator::select(SelectionType selectionType)
 {
-    QDeclarativeViewObserverPrivate *observerPrivate
-            = QDeclarativeViewObserverPrivate::get(m_editorView);
+    QDeclarativeViewInspectorPrivate *inspectorPrivate
+            = QDeclarativeViewInspectorPrivate::get(m_editorView);
     QList<QGraphicsItem*> itemList
-            = observerPrivate->selectableItems(m_selectionRectangleElement.rect(),
+            = inspectorPrivate->selectableItems(m_selectionRectangleElement.rect(),
                                                Qt::IntersectsItemShape);
     QList<QGraphicsItem*> newSelectionList;
 

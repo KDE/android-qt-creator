@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -40,7 +40,8 @@
 #include <formeditorwidget.h>
 #include <stateseditorwidget.h>
 #include <itemlibrarywidget.h>
-
+#include <componentaction.h>
+#include <toolbox.h>
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/modemanager.h>
@@ -56,6 +57,7 @@
 #include <extensionsystem/pluginmanager.h>
 
 #include <utils/parameteraction.h>
+#include <utils/fileutils.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QSettings>
@@ -152,6 +154,27 @@ QList<QToolButton *> ItemLibrarySideBarItem::createToolBarWidgets()
     return qobject_cast<ItemLibraryWidget*>(widget())->createToolBarWidgets();
 }
 
+class NavigatorSideBarItem : public Core::SideBarItem
+{
+public:
+    explicit NavigatorSideBarItem(NavigatorWidget *widget, const QString &id);
+    virtual ~NavigatorSideBarItem();
+
+    virtual QList<QToolButton *> createToolBarWidgets();
+};
+
+NavigatorSideBarItem::NavigatorSideBarItem(NavigatorWidget *widget, const QString &id) : Core::SideBarItem(widget, id) {}
+
+NavigatorSideBarItem::~NavigatorSideBarItem()
+{
+
+}
+
+QList<QToolButton *> NavigatorSideBarItem::createToolBarWidgets()
+{
+    return qobject_cast<NavigatorWidget*>(widget())->createToolBarWidgets();
+}
+
 void DocumentWarningWidget::goToError()
 {
     m_designModeWidget->textEditor()->gotoLine(m_error.line(), m_error.column() - 1);
@@ -168,7 +191,9 @@ DesignModeWidget::DesignModeWidget(QWidget *parent) :
     m_isDisabled(false),
     m_showSidebars(true),
     m_initStatus(NotInitialized),
-    m_warningWidget(0)
+    m_warningWidget(0),
+    m_navigatorHistoryCounter(-1),
+    m_keepNavigatorHistory(false)
 {
     m_undoAction = new QAction(tr("&Undo"), this);
     connect(m_undoAction, SIGNAL(triggered()), this, SLOT(undo()));
@@ -244,6 +269,13 @@ void DesignModeWidget::toggleSidebars()
 
 void DesignModeWidget::showEditor(Core::IEditor *editor)
 {
+    if (m_textEditor && editor)
+        if (m_textEditor->file()->fileName() != editor->file()->fileName()) {
+            if (!m_keepNavigatorHistory)
+                addNavigatorHistoryEntry(editor->file()->fileName());
+            setupNavigatorHistory();
+        }
+
     //
     // Prevent recursive calls to function by explicitly managing initialization status
     // (QApplication::processEvents is called explicitly at a number of places)
@@ -285,11 +317,12 @@ void DesignModeWidget::showEditor(Core::IEditor *editor)
             DesignDocumentController *newDocument = new DesignDocumentController(this);
 
             newDocument->setNodeInstanceView(m_nodeInstanceView.data());
-            newDocument->setAllPropertiesBox(m_allPropertiesBox.data());
-            newDocument->setNavigator(m_navigator.data());
+            newDocument->setPropertyEditorView(m_propertyEditorView.data());
+            newDocument->setNavigator(m_navigatorView.data());
             newDocument->setStatesEditorView(m_statesEditorView.data());
             newDocument->setItemLibraryView(m_itemLibraryView.data());
             newDocument->setFormEditorView(m_formEditorView.data());
+            newDocument->setComponentView(m_componentView.data());
 
 
             newDocument->setFileName(fileName);
@@ -512,23 +545,27 @@ void DesignModeWidget::setAutoSynchronization(bool sync)
     if (debug)
         qDebug() << Q_FUNC_INFO << sync;
 
+    RewriterView *rewriter = m_currentDesignDocumentController->rewriterView();
+
     m_currentDesignDocumentController->blockModelSync(!sync);
 
     if (sync) {
+        if (rewriter && m_currentDesignDocumentController->model())
+            rewriter->setSelectedModelNodes(QList<ModelNode>());
         // text editor -> visual editor
         if (!m_currentDesignDocumentController->model()) {
             m_currentDesignDocumentController->loadMaster(m_currentTextEdit.data());
         } else {
             m_currentDesignDocumentController->loadCurrentModel();
+            m_componentView->resetView();
         }
 
         QList<RewriterView::Error> errors = m_currentDesignDocumentController->qmlErrors();
         if (errors.isEmpty()) {
             // set selection to text cursor
-            RewriterView *rewriter = m_currentDesignDocumentController->rewriterView();
             const int cursorPos = m_currentTextEdit->textCursor().position();
             ModelNode node = nodeForPosition(cursorPos);
-            if (node.isValid()) {
+            if (rewriter && node.isValid()) {
                 rewriter->setSelectedModelNodes(QList<ModelNode>() << node);
             }
             enable();
@@ -633,31 +670,27 @@ void DesignModeWidget::setup()
             openDocumentsWidget->setWindowTitle(tr("Open Documents"));
         }
 
-        if (navigationView.widget)
-        {
-            QFile file(":/qmldesigner/stylesheet.css");
-            file.open(QFile::ReadOnly);
-            QFile file2(":/qmldesigner/scrollbar.css");
-            file2.open(QFile::ReadOnly);
-
-            QString labelStyle = QLatin1String("QLabel { background-color: #4f4f4f; }");
-
-            QString styleSheet = file.readAll() + file2.readAll() + labelStyle;
-            navigationView.widget->setStyleSheet(styleSheet);
+        if (navigationView.widget) {
+            QByteArray sheet = Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css");
+            sheet += Utils::FileReader::fetchQrc(":/qmldesigner/scrollbar.css");
+            sheet += "QLabel { background-color: #4f4f4f; }";
+            navigationView.widget->setStyleSheet(QString::fromLatin1(sheet));
         }
     }
 
     m_nodeInstanceView = new NodeInstanceView(this);
     connect(m_nodeInstanceView.data(), SIGNAL(qmlPuppetCrashed()), this, SLOT(qmlPuppetCrashed()));
      // Sidebar takes ownership
-    m_navigator = new NavigatorView;
-    m_allPropertiesBox = new AllPropertiesBox;
+    m_navigatorView = new NavigatorView;
+    m_propertyEditorView = new PropertyEditor(this);
     m_itemLibraryView = new ItemLibraryView(this);
 
     m_statesEditorView = new StatesEditorView(this);
     
     m_formEditorView = new FormEditorView(this);
 
+    m_componentView = new ComponentView(this);
+    m_formEditorView->widget()->toolBox()->addLeftSideAction(m_componentView->action());
     m_fakeToolBar = Core::EditorManager::createToolBar(this);
 
     m_mainSplitter = new MiniSplitter(this);
@@ -667,9 +700,9 @@ void DesignModeWidget::setup()
     m_warningWidget = new DocumentWarningWidget(this);
     m_warningWidget->setVisible(false);
 
-    Core::SideBarItem *navigatorItem = new Core::SideBarItem(m_navigator->widget(), QLatin1String(SB_NAVIGATOR));
+    Core::SideBarItem *navigatorItem = new NavigatorSideBarItem(m_navigatorView->widget(), QLatin1String(SB_NAVIGATOR));
     Core::SideBarItem *libraryItem = new ItemLibrarySideBarItem(m_itemLibraryView->widget(), QLatin1String(SB_LIBRARY));
-    Core::SideBarItem *propertiesItem = new Core::SideBarItem(m_allPropertiesBox.data(), QLatin1String(SB_PROPERTIES));
+    Core::SideBarItem *propertiesItem = new Core::SideBarItem(m_propertyEditorView->widget(), QLatin1String(SB_PROPERTIES));
 
     // default items
     m_sideBarItems << navigatorItem << libraryItem << propertiesItem;
@@ -700,9 +733,12 @@ void DesignModeWidget::setup()
 
     m_fakeToolBar->setToolbarCreationFlags(Core::EditorToolBar::FlagsStandalone);
     //m_fakeToolBar->addEditor(textEditor()); ### what does this mean?
-    m_fakeToolBar->setNavigationVisible(false);
+    m_fakeToolBar->setNavigationVisible(true);
 
     connect(m_fakeToolBar, SIGNAL(closeClicked()), this, SLOT(closeCurrentEditor()));
+    connect(m_fakeToolBar, SIGNAL(goForwardClicked()), this, SLOT(onGoForwardClicked()));
+    connect(m_fakeToolBar, SIGNAL(goBackClicked()), this, SLOT(onGoBackClicked()));
+    setupNavigatorHistory();
 
     // right area:
     QWidget *centerWidget = new QWidget;
@@ -714,8 +750,11 @@ void DesignModeWidget::setup()
         //### we now own these here
         rightLayout->addWidget(m_statesEditorView->widget());
 
-        FormEditorContext *context = new FormEditorContext(m_formEditorView->widget());
-        Core::ICore::instance()->addContextObject(context);
+        FormEditorContext *formEditorContext = new FormEditorContext(m_formEditorView->widget());
+        Core::ICore::instance()->addContextObject(formEditorContext);
+
+        NavigatorContext *navigatorContext = new NavigatorContext(m_navigatorView->widget());
+        Core::ICore::instance()->addContextObject(navigatorContext);
 
         // editor and output panes
         m_outputPlaceholderSplitter->addWidget(m_formEditorView->widget());
@@ -782,6 +821,30 @@ void DesignModeWidget::qmlPuppetCrashed()
     disable(errorList);
 }
 
+void DesignModeWidget::onGoBackClicked()
+{
+    if (m_navigatorHistoryCounter > 0) {
+        --m_navigatorHistoryCounter;
+        m_keepNavigatorHistory = true;
+
+        Core::EditorManager::instance()->openEditor(m_navigatorHistory.at(m_navigatorHistoryCounter));
+
+        m_keepNavigatorHistory = false;
+    }
+}
+
+void DesignModeWidget::onGoForwardClicked()
+{
+    if (m_navigatorHistoryCounter < (m_navigatorHistory.size() - 1)) {
+        ++m_navigatorHistoryCounter;
+        m_keepNavigatorHistory = true;
+
+        Core::EditorManager::instance()->openEditor(m_navigatorHistory.at(m_navigatorHistoryCounter));
+
+        m_keepNavigatorHistory = false;
+    }
+}
+
 void DesignModeWidget::resizeEvent(QResizeEvent *event)
 {
     if (m_warningWidget)
@@ -814,6 +877,24 @@ ModelNode DesignModeWidget::nodeForPosition(int cursorPos) const
     }
 
     return bestNode;
+}
+
+void DesignModeWidget::setupNavigatorHistory()
+{
+    const bool canGoBack = m_navigatorHistoryCounter > 0;
+    const bool canGoForward = m_navigatorHistoryCounter < (m_navigatorHistory.size() - 1);
+    m_fakeToolBar->setCanGoBack(canGoBack);
+    m_fakeToolBar->setCanGoForward(canGoForward);
+}
+
+void DesignModeWidget::addNavigatorHistoryEntry(const QString &fileName)
+{
+    if (m_navigatorHistoryCounter > 0)
+        m_navigatorHistory.insert(m_navigatorHistoryCounter + 1, fileName);
+    else
+        m_navigatorHistory.append(fileName);
+
+    ++m_navigatorHistoryCounter;
 }
 
 

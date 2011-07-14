@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,19 +38,19 @@
 
 QT_BEGIN_NAMESPACE
 class QGraphicsObject;
-class QGraphicsPolygonItem;
+class QGraphicsRectItem;
 class QGraphicsItem;
 class QPolygonF;
 QT_END_NAMESPACE
 
 namespace QmlJSDebugger {
 
-class QDeclarativeViewObserver;
+class QDeclarativeViewInspector;
 
 class LiveSelectionIndicator
 {
 public:
-    LiveSelectionIndicator(QDeclarativeViewObserver* editorView, QGraphicsObject *layerItem);
+    LiveSelectionIndicator(QDeclarativeViewInspector *viewInspector, QGraphicsObject *layerItem);
     ~LiveSelectionIndicator();
 
     void show();
@@ -61,13 +61,9 @@ public:
     void setItems(const QList<QWeakPointer<QGraphicsObject> > &itemList);
 
 private:
-    QPolygonF addBoundingRectToPolygon(QGraphicsItem *item, QPolygonF &polygon);
-
-private:
-    QHash<QGraphicsItem*, QGraphicsPolygonItem *> m_indicatorShapeHash;
+    QHash<QGraphicsItem*, QGraphicsRectItem *> m_indicatorShapeHash;
     QWeakPointer<QGraphicsObject> m_layerItem;
-    QDeclarativeViewObserver *m_view;
-
+    QDeclarativeViewInspector *m_view;
 };
 
 }

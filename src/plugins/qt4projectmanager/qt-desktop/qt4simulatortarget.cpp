@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -48,8 +48,7 @@ using namespace Qt4ProjectManager::Internal;
 
 Qt4SimulatorTarget::Qt4SimulatorTarget(Qt4Project *parent, const QString &id) :
     Qt4BaseTarget(parent, id),
-    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this)),
-    m_deployConfigurationFactory(new ProjectExplorer::DeployConfigurationFactory(this))
+    m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this))
 {
     setDisplayName(defaultDisplayName());
     setIcon(QIcon(":/projectexplorer/images/SymbianEmulator.png"));
@@ -67,11 +66,6 @@ QString Qt4SimulatorTarget::defaultDisplayName()
 Qt4BuildConfigurationFactory *Qt4SimulatorTarget::buildConfigurationFactory() const
 {
     return m_buildConfigurationFactory;
-}
-
-ProjectExplorer::DeployConfigurationFactory *Qt4SimulatorTarget::deployConfigurationFactory() const
-{
-    return m_deployConfigurationFactory;
 }
 
 void Qt4SimulatorTarget::createApplicationProFiles()

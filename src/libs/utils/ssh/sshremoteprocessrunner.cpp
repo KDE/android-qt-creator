@@ -26,11 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "sshremoteprocessrunner.h"
+
+#include "sshconnectionmanager.h"
+#include "sshpseudoterminal.h"
 
 #define ASSERT_STATE(states) assertState(states, Q_FUNC_INFO)
 
@@ -41,6 +44,7 @@
 */
 
 namespace Utils {
+namespace Internal {
 
 class SshRemoteProcessRunnerPrivate : public QObject
 {
@@ -50,7 +54,10 @@ public:
         QObject *parent);
     SshRemoteProcessRunnerPrivate(const SshConnection::Ptr &connection,
         QObject *parent);
-    void run(const QByteArray &command);
+    ~SshRemoteProcessRunnerPrivate();
+    void runWithoutTerminal(const QByteArray &command);
+    void runInTerminal(const QByteArray &command,
+        const SshPseudoTerminal &terminal);
     QByteArray command() const { return m_command; }
 
     const SshConnection::Ptr m_connection;
@@ -73,32 +80,54 @@ private slots:
 private:
     enum State { Inactive, Connecting, Connected, ProcessRunning };
 
+    void run(const QByteArray &command);
     void setState(State state);
     void assertState(const QList<State> &allowedStates, const char *func);
     void assertState(State allowedState, const char *func);
 
     State m_state;
+    bool m_needsRelease;
+    bool m_runInTerminal;
+    SshPseudoTerminal m_terminal;
     QByteArray m_command;
-    const SshConnectionParameters m_params;
 };
 
 
 SshRemoteProcessRunnerPrivate::SshRemoteProcessRunnerPrivate(const SshConnectionParameters &params,
     QObject *parent)
     : QObject(parent),
-      m_connection(SshConnection::create()),
+      m_connection(SshConnectionManager::instance().acquireConnection(params)),
       m_state(Inactive),
-      m_params(params)
+      m_needsRelease(true)
 {
 }
 
 SshRemoteProcessRunnerPrivate::SshRemoteProcessRunnerPrivate(const SshConnection::Ptr &connection,
     QObject *parent)
-    : QObject(parent),
-      m_connection(connection),
-      m_state(Inactive),
-      m_params(connection->connectionParameters())
+        : QObject(parent),
+          m_connection(connection),
+          m_state(Inactive),
+          m_needsRelease(false)
 {
+}
+
+SshRemoteProcessRunnerPrivate::~SshRemoteProcessRunnerPrivate()
+{
+    setState(Inactive);
+}
+
+void SshRemoteProcessRunnerPrivate::runWithoutTerminal(const QByteArray &command)
+{
+    m_runInTerminal = false;
+    run(command);
+}
+
+void SshRemoteProcessRunnerPrivate::runInTerminal(const QByteArray &command,
+    const SshPseudoTerminal &terminal)
+{
+    m_terminal = terminal;
+    m_runInTerminal = true;
+    run(command);
 }
 
 void SshRemoteProcessRunnerPrivate::run(const QByteArray &command)
@@ -116,7 +145,8 @@ void SshRemoteProcessRunnerPrivate::run(const QByteArray &command)
     } else {
         connect(m_connection.data(), SIGNAL(connected()),
             SLOT(handleConnected()));
-        m_connection->connectToHost(m_params);
+        if (m_connection->state() == SshConnection::Unconnected)
+            m_connection->connectToHost();
     }
 }
 
@@ -133,6 +163,8 @@ void SshRemoteProcessRunnerPrivate::handleConnected()
         SIGNAL(processOutputAvailable(QByteArray)));
     connect(m_process.data(), SIGNAL(errorOutputAvailable(QByteArray)),
         SIGNAL(processErrorOutputAvailable(QByteArray)));
+    if (m_runInTerminal)
+        m_process->requestTerminal(m_terminal);
     m_process->start();
 }
 
@@ -181,6 +213,8 @@ void SshRemoteProcessRunnerPrivate::setState(State state)
             if (m_process)
                 disconnect(m_process.data(), 0, this, 0);
             disconnect(m_connection.data(), 0, this, 0);
+            if (m_needsRelease)
+                SshConnectionManager::instance().releaseConnection(m_connection);
         }
     }
 }
@@ -198,6 +232,7 @@ void SshRemoteProcessRunnerPrivate::assertState(State allowedState,
     assertState(QList<State>() << allowedState, func);
 }
 
+} // namespace Internal
 
 SshRemoteProcessRunner::Ptr SshRemoteProcessRunner::create(const SshConnectionParameters &params)
 {
@@ -210,13 +245,13 @@ SshRemoteProcessRunner::Ptr SshRemoteProcessRunner::create(const SshConnection::
 }
 
 SshRemoteProcessRunner::SshRemoteProcessRunner(const SshConnectionParameters &params)
-    : d(new SshRemoteProcessRunnerPrivate(params, this))
+    : d(new Internal::SshRemoteProcessRunnerPrivate(params, this))
 {
     init();
 }
 
 SshRemoteProcessRunner::SshRemoteProcessRunner(const SshConnection::Ptr &connection)
-    : d(new SshRemoteProcessRunnerPrivate(connection, this))
+    : d(new Internal::SshRemoteProcessRunnerPrivate(connection, this))
 {
     init();
 }
@@ -235,7 +270,13 @@ void SshRemoteProcessRunner::init()
 
 void SshRemoteProcessRunner::run(const QByteArray &command)
 {
-    d->run(command);
+    d->runWithoutTerminal(command);
+}
+
+void SshRemoteProcessRunner::runInTerminal(const QByteArray &command,
+    const SshPseudoTerminal &terminal)
+{
+    d->runInTerminal(command, terminal);
 }
 
 QByteArray SshRemoteProcessRunner::command() const { return d->command(); }

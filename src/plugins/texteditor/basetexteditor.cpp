@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,8 +38,8 @@
 #include "behaviorsettings.h"
 #include "codecselector.h"
 #include "completionsettings.h"
-#include "completionsupport.h"
 #include "tabsettings.h"
+#include "tabpreferences.h"
 #include "texteditorconstants.h"
 #include "texteditorplugin.h"
 #include "syntaxhighlighter.h"
@@ -48,6 +48,10 @@
 #include "indenter.h"
 #include "autocompleter.h"
 #include "snippet.h"
+#include "codeassistant.h"
+#include "defaultassistinterface.h"
+#include "convenience.h"
+#include "texteditorsettings.h"
 
 #include <aggregation/aggregate.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -56,6 +60,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/infobar.h>
 #include <coreplugin/manhattanstyle.h>
 #include <coreplugin/uniqueidmanager.h>
 #include <extensionsystem/pluginmanager.h>
@@ -90,8 +95,21 @@
 #include <QtGui/QToolBar>
 #include <QtGui/QInputDialog>
 #include <QtGui/QMenu>
+#include <QtGui/QMessageBox>
 
 //#define DO_FOO
+
+/*!
+    \namespace TextEditor
+    \brief The TextEditor namespace contains the base text editor and several classes which
+    provide supporting functionality like snippets, highlighting, \l{CodeAssist}{code assist},
+    indentation and style, and others.
+*/
+
+/*!
+    \namespace TextEditor::Internal
+    \internal
+*/
 
 using namespace TextEditor;
 using namespace TextEditor::Internal;
@@ -234,11 +252,6 @@ BaseTextEditorWidget::BaseTextEditorWidget(QWidget *parent)
     d->m_highlightBlocksTimer->setSingleShot(true);
     connect(d->m_highlightBlocksTimer, SIGNAL(timeout()), this, SLOT(_q_highlightBlocks()));
 
-    d->m_requestAutoCompletionTimer = new QTimer(this);
-    d->m_requestAutoCompletionTimer->setSingleShot(true);
-    d->m_requestAutoCompletionTimer->setInterval(500);
-    connect(d->m_requestAutoCompletionTimer, SIGNAL(timeout()), this, SLOT(_q_requestAutoCompletion()));
-
     d->m_animator = 0;
 
     d->m_searchResultFormat.setBackground(QColor(0xffef0b));
@@ -250,9 +263,6 @@ BaseTextEditorWidget::BaseTextEditorWidget(QWidget *parent)
     d->m_delayedUpdateTimer = new QTimer(this);
     d->m_delayedUpdateTimer->setSingleShot(true);
     connect(d->m_delayedUpdateTimer, SIGNAL(timeout()), viewport(), SLOT(update()));
-
-    connect(Core::EditorManager::instance(), SIGNAL(currentEditorChanged(Core::IEditor*)),
-            this, SLOT(currentEditorChanged(Core::IEditor*)));
 
     d->m_moveLineUndoHack = false;
 }
@@ -491,7 +501,8 @@ ITextMarkable *BaseTextEditorWidget::markableInterface() const
 BaseTextEditor *BaseTextEditorWidget::editor() const
 {
     if (!d->m_editor) {
-        d->m_editor = const_cast<BaseTextEditorWidget*>(this)->createEditor();
+        d->m_editor = const_cast<BaseTextEditorWidget *>(this)->createEditor();
+        d->m_codeAssistant->configure(d->m_editor);
         connect(this, SIGNAL(textChanged()),
                 d->m_editor, SIGNAL(contentsChanged()));
         connect(this, SIGNAL(changed()),
@@ -501,33 +512,19 @@ BaseTextEditor *BaseTextEditorWidget::editor() const
 }
 
 
-void BaseTextEditorWidget::currentEditorChanged(Core::IEditor *ed)
-{
-    if (ed == editor()) {
-        if (d->m_document->hasDecodingError()) {
-            Core::EditorManager::instance()->showEditorInfoBar(QLatin1String(Constants::SELECT_ENCODING),
-                tr("<b>Error:</b> Could not decode \"%1\" with \"%2\"-encoding. Editing not possible.")
-                    .arg(displayName()).arg(QString::fromLatin1(d->m_document->codec()->name())),
-                tr("Select Encoding"),
-                this, SLOT(selectEncoding()));
-        }
-    }
-}
-
 void BaseTextEditorWidget::selectEncoding()
 {
     BaseTextDocument *doc = d->m_document;
     CodecSelector codecSelector(this, doc);
 
     switch (codecSelector.exec()) {
-    case CodecSelector::Reload:
-        doc->reload(codecSelector.selectedCodec());
-        setReadOnly(d->m_document->hasDecodingError());
-        if (doc->hasDecodingError())
-            currentEditorChanged(Core::EditorManager::instance()->currentEditor());
-        else
-            Core::EditorManager::instance()->hideEditorInfoBar(QLatin1String(Constants::SELECT_ENCODING));
-        break;
+    case CodecSelector::Reload: {
+        QString errorString;
+        if (!doc->reload(&errorString, codecSelector.selectedCodec())) {
+            QMessageBox::critical(this, tr("File Error"), errorString);
+            break;
+        }
+        break; }
     case CodecSelector::Save:
         doc->setCodec(codecSelector.selectedCodec());
         Core::EditorManager::instance()->saveEditor(editor());
@@ -555,11 +552,26 @@ bool BaseTextEditorWidget::createNew(const QString &contents)
     return true;
 }
 
-bool BaseTextEditorWidget::open(const QString &fileName)
+void BaseTextEditorWidget::updateCannotDecodeInfo()
 {
-    if (d->m_document->open(fileName)) {
+    setReadOnly(d->m_document->hasDecodingError());
+    if (d->m_document->hasDecodingError()) {
+        Core::InfoBarEntry info(
+            QLatin1String(Constants::SELECT_ENCODING),
+            tr("<b>Error:</b> Could not decode \"%1\" with \"%2\"-encoding. Editing not possible.")
+            .arg(displayName()).arg(QString::fromLatin1(d->m_document->codec()->name())));
+        info.setCustomButtonInfo(tr("Select Encoding"), this, SLOT(selectEncoding()));
+        d->m_document->infoBar()->addInfo(info);
+    } else {
+        d->m_document->infoBar()->removeInfo(QLatin1String(Constants::SELECT_ENCODING));
+    }
+}
+
+bool BaseTextEditorWidget::open(QString *errorString, const QString &fileName, const QString &realFileName)
+{
+    if (d->m_document->open(errorString, fileName, realFileName)) {
         moveCursor(QTextCursor::Start);
-        setReadOnly(d->m_document->hasDecodingError());
+        updateCannotDecodeInfo();
         return true;
     }
     return false;
@@ -668,6 +680,9 @@ void BaseTextEditorWidget::editorContentsChange(int position, int charsRemoved, 
 
     if (doc->isRedoAvailable())
         emit editor()->contentsChangedBecauseOfUndo();
+
+    if (charsAdded != 0 && characterAt(position + charsAdded - 1).isPrint())
+        d->m_assistRelevantContentAdded = true;
 }
 
 void BaseTextEditorWidget::slotSelectionChanged()
@@ -785,21 +800,25 @@ void BaseTextEditorWidget::gotoNextCharacterWithSelection()
 void BaseTextEditorWidget::gotoPreviousWord()
 {
     moveCursor(QTextCursor::PreviousWord);
+    setTextCursor(textCursor());
 }
 
 void BaseTextEditorWidget::gotoPreviousWordWithSelection()
 {
     moveCursor(QTextCursor::PreviousWord, QTextCursor::KeepAnchor);
+    setTextCursor(textCursor());
 }
 
 void BaseTextEditorWidget::gotoNextWord()
 {
     moveCursor(QTextCursor::NextWord);
+    setTextCursor(textCursor());
 }
 
 void BaseTextEditorWidget::gotoNextWordWithSelection()
 {
     moveCursor(QTextCursor::NextWord, QTextCursor::KeepAnchor);
+    setTextCursor(textCursor());
 }
 
 void BaseTextEditorWidget::gotoPreviousWordCamelCase()
@@ -1535,9 +1554,7 @@ void BaseTextEditorWidget::keyPressEvent(QKeyEvent *e)
 
     if (!ro
         && (e == QKeySequence::InsertParagraphSeparator
-            || (!d->m_lineSeparatorsAllowed && e == QKeySequence::InsertLineSeparator))
-        ) {
-
+            || (!d->m_lineSeparatorsAllowed && e == QKeySequence::InsertLineSeparator))) {
         if (d->m_snippetOverlay->isVisible()) {
             e->accept();
             d->m_snippetOverlay->hide();
@@ -1547,7 +1564,6 @@ void BaseTextEditorWidget::keyPressEvent(QKeyEvent *e)
             setTextCursor(cursor);
             return;
         }
-
 
         QTextCursor cursor = textCursor();
         if (d->m_inBlockSelectionMode)
@@ -1702,7 +1718,8 @@ void BaseTextEditorWidget::keyPressEvent(QKeyEvent *e)
     case Qt::Key_Right:
     case Qt::Key_Left:
 #ifndef Q_WS_MAC
-        if ((e->modifiers() & (Qt::AltModifier | Qt::ShiftModifier)) == (Qt::AltModifier | Qt::ShiftModifier)) {
+        if ((e->modifiers()
+             & (Qt::AltModifier | Qt::ShiftModifier)) == (Qt::AltModifier | Qt::ShiftModifier)) {
             int diff_row = 0;
             int diff_col = 0;
             if (e->key() == Qt::Key_Up)
@@ -1833,39 +1850,8 @@ void BaseTextEditorWidget::keyPressEvent(QKeyEvent *e)
     if (!ro && e->key() == Qt::Key_Delete && d->m_parenthesesMatchingEnabled)
         d->m_parenthesesMatchingTimer->start(50);
 
-
-    if (!ro && d->m_contentsChanged && !e->text().isEmpty() && e->text().at(0).isPrint()) {
-        maybeRequestAutoCompletion(e->text().at(0));
-    }
-
-}
-
-void BaseTextEditorWidget::maybeRequestAutoCompletion(const QChar &ch)
-{
-    if (ch.isLetterOrNumber() || ch == QLatin1Char('_')) {
-        if (CompletionSupport::instance()->isActive())
-            d->m_requestAutoCompletionTimer->stop();
-        else {
-            d->m_requestAutoCompletionRevision = document()->revision();
-            d->m_requestAutoCompletionPosition = position();
-            d->m_requestAutoCompletionTimer->start();
-        }
-    } else {
-        d->m_requestAutoCompletionTimer->stop();
-        CompletionSupport::instance()->complete(editor(), SemanticCompletion, false);
-    }
-}
-
-void BaseTextEditorWidget::_q_requestAutoCompletion()
-{
-    d->m_requestAutoCompletionTimer->stop();
-
-    if (CompletionSupport::instance()->isActive())
-        return;
-
-    if (d->m_requestAutoCompletionRevision == document()->revision()
-            && d->m_requestAutoCompletionPosition == position())
-        CompletionSupport::instance()->complete(editor(), SemanticCompletion, false);
+    if (!ro && d->m_contentsChanged && !e->text().isEmpty() && e->text().at(0).isPrint())
+        d->m_codeAssistant->process();
 }
 
 void BaseTextEditorWidget::insertCodeSnippet(const QTextCursor &cursor_arg, const QString &snippet)
@@ -2025,14 +2011,7 @@ int BaseTextEditorWidget::position(ITextEditor::PositionOperation posOp, int at)
 
 void BaseTextEditorWidget::convertPosition(int pos, int *line, int *column) const
 {
-    QTextBlock block = document()->findBlock(pos);
-    if (!block.isValid()) {
-        (*line) = -1;
-        (*column) = -1;
-    } else {
-        (*line) = block.blockNumber() + 1;
-        (*column) = pos - block.position();
-    }
+    Convenience::convertPosition(document(), pos, line, column);
 }
 
 QChar BaseTextEditorWidget::characterAt(int pos) const
@@ -2087,6 +2066,7 @@ BaseTextDocument *BaseTextEditorWidget::baseTextDocument() const
     return d->m_document;
 }
 
+
 void BaseTextEditorWidget::setBaseTextDocument(BaseTextDocument *doc)
 {
     if (doc) {
@@ -2117,6 +2097,7 @@ void BaseTextEditorWidget::documentReloaded()
 {
     // restore cursor position
     restoreState(d->m_tempState);
+    updateCannotDecodeInfo();
 }
 
 QByteArray BaseTextEditorWidget::saveState() const
@@ -2374,6 +2355,8 @@ BaseTextEditorPrivate::BaseTextEditorPrivate()
     m_formatRange(false),
     m_parenthesesMatchingTimer(0),
     m_extraArea(0),
+    m_tabPreferences(0),
+    m_codeStylePreferences(0),
     extraAreaSelectionAnchorBlockNumber(-1),
     extraAreaToggleMarkBlockNumber(-1),
     extraAreaHighlightFoldedBlockNumber(-1),
@@ -2402,9 +2385,8 @@ BaseTextEditorPrivate::BaseTextEditorPrivate()
     m_findScopeVerticalBlockSelectionFirstColumn(-1),
     m_findScopeVerticalBlockSelectionLastColumn(-1),
     m_highlightBlocksTimer(0),
-    m_requestAutoCompletionRevision(0),
-    m_requestAutoCompletionPosition(0),
-    m_requestAutoCompletionTimer(0),
+    m_codeAssistant(new CodeAssistant),
+    m_assistRelevantContentAdded(false),
     m_cursorBlockNumber(-1),
     m_autoCompleter(new AutoCompleter),
     m_indenter(new Indenter)
@@ -3558,7 +3540,8 @@ int BaseTextEditorWidget::extraAreaWidth(int *markWidthPtr) const
 
     if (d->m_lineNumbersVisible) {
         QFont fnt = d->m_extraArea->font();
-        // this works under the assumption that bold or italic can only make a font wider
+        // this works under the assumption that bold or italic
+        // can only make a font wider
         fnt.setBold(d->m_currentLineNumberFormat.font().bold());
         fnt.setItalic(d->m_currentLineNumberFormat.font().italic());
         const QFontMetrics linefm(fnt);
@@ -3574,7 +3557,8 @@ int BaseTextEditorWidget::extraAreaWidth(int *markWidthPtr) const
     int markWidth = 0;
 
     if (d->m_marksVisible) {
-        markWidth += fm.lineSpacing();
+        markWidth += documentLayout->maxMarkWidthFactor * fm.lineSpacing();
+
 //     if (documentLayout->doubleMarkCount)
 //         markWidth += fm.lineSpacing() / 3;
         space += markWidth;
@@ -3650,9 +3634,7 @@ void BaseTextEditorWidget::extraAreaPaintEvent(QPaintEvent *e)
     const int collapseColumnWidth = d->m_codeFoldingVisible ? foldBoxWidth(fm): 0;
     const int extraAreaWidth = d->m_extraArea->width() - collapseColumnWidth;
 
-    painter.fillRect(e->rect(), pal.color(QPalette::Base));
-    painter.fillRect(e->rect().intersected(QRect(0, 0, extraAreaWidth, INT_MAX)),
-                     pal.color(QPalette::Background));
+    painter.fillRect(e->rect(), pal.color(QPalette::Background));
 
     QTextBlock block = firstVisibleBlock();
     int blockNumber = block.blockNumber();
@@ -3708,11 +3690,11 @@ void BaseTextEditorWidget::extraAreaPaintEvent(QPaintEvent *e)
             if (TextBlockUserData *userData = static_cast<TextBlockUserData*>(block.userData())) {
                 if (d->m_marksVisible) {
                     int xoffset = 0;
-                    foreach (ITextMark *mrk, userData->marks()) {
-                        int x = 0;
-                        int radius = fmLineSpacing - 1;
-                        QRect r(x + xoffset, top, radius, radius);
-                        mrk->icon().paint(&painter, r, Qt::AlignCenter);
+                    foreach (ITextMark *mark, userData->marks()) {
+                        const int height = fmLineSpacing - 1;
+                        const int width = int(.5 + height * mark->widthFactor());
+                        const QRect r(xoffset, top, width, height);
+                        mark->paint(&painter, r);
                         xoffset += 2;
                     }
                 }
@@ -3784,6 +3766,7 @@ void BaseTextEditorWidget::extraAreaPaintEvent(QPaintEvent *e)
             const QString &number = QString::number(blockNumber + 1);
             bool selected = (
                     (selStart < block.position() + block.length()
+
                     && selEnd > block.position())
                     || (selStart == selEnd && selStart == block.position())
                     );
@@ -3958,6 +3941,7 @@ void BaseTextEditorWidget::slotCursorPositionChanged()
     } else if (d->m_contentsChanged) {
         saveCurrentCursorPositionForNavigation();
     }
+
     updateHighlights();
 }
 
@@ -4338,6 +4322,76 @@ const TabSettings &BaseTextEditorWidget::tabSettings() const
     return d->m_document->tabSettings();
 }
 
+void BaseTextEditorWidget::setLanguageSettingsId(const QString &settingsId)
+{
+    d->m_tabSettingsId = settingsId;
+}
+
+QString BaseTextEditorWidget::languageSettingsId() const
+{
+    return d->m_tabSettingsId;
+}
+
+void BaseTextEditorWidget::setTabPreferences(TabPreferences *tabPreferences)
+{
+    if (d->m_tabPreferences) {
+        disconnect(d->m_tabPreferences, SIGNAL(currentSettingsChanged(TextEditor::TabSettings)),
+                   this, SLOT(setTabSettings(TextEditor::TabSettings)));
+        disconnect(d->m_tabPreferences, SIGNAL(destroyed()),
+                   this, SLOT(onTabPreferencesDestroyed()));
+    }
+    d->m_tabPreferences = tabPreferences;
+    if (d->m_tabPreferences) {
+        connect(d->m_tabPreferences, SIGNAL(currentSettingsChanged(TextEditor::TabSettings)),
+                this, SLOT(setTabSettings(TextEditor::TabSettings)));
+        connect(d->m_tabPreferences, SIGNAL(destroyed()),
+                this, SLOT(onTabPreferencesDestroyed()));
+        setTabSettings(d->m_tabPreferences->currentSettings());
+    }
+}
+
+void BaseTextEditorWidget::setCodeStylePreferences(IFallbackPreferences *preferences)
+{
+    indenter()->setCodeStylePreferences(preferences);
+    if (d->m_codeStylePreferences) {
+        disconnect(d->m_codeStylePreferences, SIGNAL(currentValueChanged(QVariant)),
+                this, SLOT(slotCodeStyleSettingsChanged(QVariant)));
+        disconnect(d->m_codeStylePreferences, SIGNAL(destroyed()),
+                   this, SLOT(onCodeStylePreferencesDestroyed()));
+    }
+    d->m_codeStylePreferences = preferences;
+    if (d->m_codeStylePreferences) {
+        connect(d->m_codeStylePreferences, SIGNAL(currentValueChanged(QVariant)),
+                this, SLOT(slotCodeStyleSettingsChanged(QVariant)));
+        connect(d->m_codeStylePreferences, SIGNAL(destroyed()),
+                this, SLOT(onCodeStylePreferencesDestroyed()));
+        slotCodeStyleSettingsChanged(d->m_codeStylePreferences->currentValue());
+    }
+}
+
+void BaseTextEditorWidget::onTabPreferencesDestroyed()
+{
+    if (sender() != d->m_tabPreferences)
+        return;
+    // avoid failing disconnects, m_tabPreferences has already been reduced to QObject
+    d->m_tabPreferences = 0;
+    setTabPreferences(TextEditorSettings::instance()->tabPreferences(languageSettingsId()));
+}
+
+void BaseTextEditorWidget::onCodeStylePreferencesDestroyed()
+{
+    if (sender() != d->m_codeStylePreferences)
+        return;
+    // avoid failing disconnects, m_codeStylePreferences has already been reduced to QObject
+    d->m_codeStylePreferences = 0;
+    setCodeStylePreferences(TextEditorSettings::instance()->codeStylePreferences(languageSettingsId()));
+}
+
+void BaseTextEditorWidget::slotCodeStyleSettingsChanged(const QVariant &)
+{
+
+}
+
 const DisplaySettings &BaseTextEditorWidget::displaySettings() const
 {
     return d->m_displaySettings;
@@ -4363,34 +4417,41 @@ void BaseTextEditorWidget::indentOrUnindent(bool doIndent)
         QTextBlock startBlock = doc->findBlock(start);
         QTextBlock endBlock = doc->findBlock(end-1).next();
 
-        for (QTextBlock block = startBlock; block != endBlock; block = block.next()) {
-            QString text = block.text();
-            int indentPosition = tabSettings.lineIndentPosition(text);
-            if (!doIndent && !indentPosition)
-                indentPosition = tabSettings.firstNonSpace(text);
-            int targetColumn = tabSettings.indentedColumn(tabSettings.columnAt(text, indentPosition), doIndent);
-            cursor.setPosition(block.position() + indentPosition);
-            cursor.insertText(tabSettings.indentationString(0, targetColumn, block));
-            cursor.setPosition(block.position());
-            cursor.setPosition(block.position() + indentPosition, QTextCursor::KeepAnchor);
+        if (startBlock.next() == endBlock
+                && (start > startBlock.position() || end < endBlock.position() - 1)) {
+            // Only one line partially selected.
             cursor.removeSelectedText();
+        } else {
+            for (QTextBlock block = startBlock; block != endBlock; block = block.next()) {
+                QString text = block.text();
+                int indentPosition = tabSettings.lineIndentPosition(text);
+                if (!doIndent && !indentPosition)
+                    indentPosition = tabSettings.firstNonSpace(text);
+                int targetColumn = tabSettings.indentedColumn(tabSettings.columnAt(text, indentPosition), doIndent);
+                cursor.setPosition(block.position() + indentPosition);
+                cursor.insertText(tabSettings.indentationString(0, targetColumn, block));
+                cursor.setPosition(block.position());
+                cursor.setPosition(block.position() + indentPosition, QTextCursor::KeepAnchor);
+                cursor.removeSelectedText();
+            }
+            cursor.endEditBlock();
+            return;
         }
-        cursor.endEditBlock();
-    } else {
-        // Indent or unindent at cursor position
-        QTextBlock block = cursor.block();
-        QString text = block.text();
-        int indentPosition = cursor.positionInBlock();
-        int spaces = tabSettings.spacesLeftFromPosition(text, indentPosition);
-        int startColumn = tabSettings.columnAt(text, indentPosition - spaces);
-        int targetColumn = tabSettings.indentedColumn(tabSettings.columnAt(text, indentPosition), doIndent);
-        cursor.setPosition(block.position() + indentPosition);
-        cursor.setPosition(block.position() + indentPosition - spaces, QTextCursor::KeepAnchor);
-        cursor.removeSelectedText();
-        cursor.insertText(tabSettings.indentationString(startColumn, targetColumn, block));
-        cursor.endEditBlock();
-        setTextCursor(cursor);
     }
+
+    // Indent or unindent at cursor position
+    QTextBlock block = cursor.block();
+    QString text = block.text();
+    int indentPosition = cursor.positionInBlock();
+    int spaces = tabSettings.spacesLeftFromPosition(text, indentPosition);
+    int startColumn = tabSettings.columnAt(text, indentPosition - spaces);
+    int targetColumn = tabSettings.indentedColumn(tabSettings.columnAt(text, indentPosition), doIndent);
+    cursor.setPosition(block.position() + indentPosition);
+    cursor.setPosition(block.position() + indentPosition - spaces, QTextCursor::KeepAnchor);
+    cursor.removeSelectedText();
+    cursor.insertText(tabSettings.indentationString(startColumn, targetColumn, block));
+    cursor.endEditBlock();
+    setTextCursor(cursor);
 }
 
 void BaseTextEditorWidget::handleHomeKey(bool anchor)
@@ -5024,6 +5085,15 @@ void BaseTextEditorWidget::cutLine()
     cut();
 }
 
+// ctrl+ins
+void BaseTextEditorWidget::copyLine()
+{
+    QTextCursor prevCursor = textCursor();
+    maybeSelectLine();
+    copy();
+    setTextCursor(prevCursor);
+}
+
 void BaseTextEditorWidget::deleteLine()
 {
     maybeSelectLine();
@@ -5631,8 +5701,8 @@ void BaseTextEditorWidget::insertFromMimeData(const QMimeData *source)
         if (text.isEmpty())
             return;
 
-        if (CompletionSupport::instance()->isActive())
-            setFocus();
+        if (d->m_codeAssistant->hasContext())
+            d->m_codeAssistant->destroyContext();
 
         QStringList lines = text.split(QLatin1Char('\n'));
         QTextCursor cursor = textCursor();
@@ -5677,8 +5747,8 @@ void BaseTextEditorWidget::insertFromMimeData(const QMimeData *source)
     if (text.isEmpty())
         return;
 
-    if (CompletionSupport::instance()->isActive())
-        setFocus();
+    if (d->m_codeAssistant->hasContext())
+        d->m_codeAssistant->destroyContext();
 
     if (d->m_snippetOverlay->isVisible() && (text.contains(QLatin1Char('\n'))
                                              || text.contains(QLatin1Char('\t')))) {
@@ -5763,6 +5833,7 @@ void BaseTextEditorWidget::appendStandardContextMenuActions(QMenu *menu)
 BaseTextEditor::BaseTextEditor(BaseTextEditorWidget *editor)
   : e(editor)
 {
+    setWidget(e);
     using namespace Find;
     Aggregation::Aggregate *aggregate = new Aggregation::Aggregate;
     BaseTextFind *baseTextFind = new BaseTextFind(editor);
@@ -5862,18 +5933,7 @@ QString BaseTextEditor::selectedText() const
 
 QString BaseTextEditor::textAt(int pos, int length) const
 {
-    QTextCursor c = e->textCursor();
-
-    if (pos < 0)
-        pos = 0;
-    c.movePosition(QTextCursor::End);
-    if (pos + length > c.position())
-        length = c.position() - pos;
-
-    c.setPosition(pos);
-    c.setPosition(pos + length, QTextCursor::KeepAnchor);
-
-    return c.selectedText();
+    return Convenience::textAt(e->textCursor(), pos, length);
 }
 
 void BaseTextEditor::remove(int length)
@@ -6140,4 +6200,21 @@ void BaseTextEditorWidget::transformSelection(Internal::TransformationMethod met
     cursor.setPosition(anchor);
     cursor.setPosition(pos, QTextCursor::KeepAnchor);
     setTextCursor(cursor);
+}
+
+void BaseTextEditorWidget::inSnippetMode(bool *active)
+{
+    *active = d->m_snippetOverlay->isVisible();
+}
+
+void BaseTextEditorWidget::invokeAssist(AssistKind kind, IAssistProvider *provider)
+{
+    d->m_codeAssistant->invoke(kind, provider);
+}
+
+IAssistInterface *BaseTextEditorWidget::createAssistInterface(AssistKind kind,
+                                                              AssistReason reason) const
+{
+    Q_UNUSED(kind);
+    return new DefaultAssistInterface(document(), position(), d->m_document, reason);
 }

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,7 +56,8 @@ class QmlObjectNode;
 class RewriterView;
 class ItemLibraryView;
 class NavigatorView;
-class AllPropertiesBox;
+class ComponentView;
+class PropertyEditor;
 class StatesEditorView;
 class FormEditorView;
 
@@ -94,10 +95,13 @@ public:
 
     void setItemLibraryView(ItemLibraryView* itemLibraryView);
     void setNavigator(NavigatorView* navigatorView);
-    void setAllPropertiesBox(AllPropertiesBox* allPropertiesBox);
+    void setPropertyEditorView(PropertyEditor *propertyEditor);
     void setStatesEditorView(StatesEditorView* statesEditorView);
     void setFormEditorView(FormEditorView *formEditorView);
     void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
+    void setComponentView(ComponentView *componentView);
+
+    static DesignDocumentController *instance();
 
 signals:
     void displayNameChanged(const QString &newFileName);
@@ -120,6 +124,8 @@ public slots:
     void selectAll();
     void undo();
     void redo();
+    void activeQtVersionChanged();
+    void changeCurrentModelTo(const ModelNode &node);
 
 #ifdef ENABLE_TEXT_VIEW
     void showText();
@@ -128,15 +134,18 @@ public slots:
 
 private slots:
     void doRealSaveAs(const QString &fileName);
-    void showError(const QString &message, QWidget *parent = 0) const;
-    void changeCurrentModelTo(const ModelNode &node);
 
 private:
     void detachNodeInstanceView();
     void attachNodeInstanceView();
+    void changeToMasterModel();
+
     QWidget *centralWidget() const;
+    QString pathToQt() const;
+
     class DesignDocumentControllerPrivate *m_d;
-    bool save(QIODevice *device, QString *errorMessage);
+
+    static DesignDocumentController* m_this;
 };
 
 } // namespace QmlDesigner

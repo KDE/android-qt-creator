@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -196,6 +196,9 @@ void FormEditorScene::synchronizeOtherProperty(const QmlItemNode &qmlItemNode, c
         if (propertyName == "clip")
             item->setFlag(QGraphicsItem::ItemClipsChildrenToShape, qmlItemNode.instanceValue("clip").toBool());
 
+        if (propertyName == "z")
+            item->setZValue(qmlItemNode.instanceValue("z").toDouble());
+
         if (!qmlItemNode.isRootNode()) {
             if (propertyName == "visible")
                 item->setContentVisible(qmlItemNode.instanceValue("visible").toBool());
@@ -230,7 +233,6 @@ FormEditorItem *FormEditorScene::addFormEditorItem(const QmlItemNode &qmlItemNod
 
     return formEditorItem;
 }
-
 
 void FormEditorScene::dropEvent(QGraphicsSceneDragDropEvent * event)
 {
@@ -345,6 +347,11 @@ bool FormEditorScene::event(QEvent * event)
         case QEvent::GraphicsSceneHoverLeave :
             hoverLeaveEvent(static_cast<QGraphicsSceneHoverEvent *>(event));
             return true;
+        case QEvent::ShortcutOverride :
+            if (static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
+                currentTool()->keyPressEvent(static_cast<QKeyEvent*>(event));
+                return true;
+            }
         default: return QGraphicsScene::event(event);
     }
 

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -53,6 +53,7 @@ SaveItemsDialog::SaveItemsDialog(QWidget *parent,
     : QDialog(parent)
 {
     m_ui.setupUi(this);
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     QPushButton *discardButton = m_ui.buttonBox->addButton(tr("Do not Save"), QDialogButtonBox::DestructiveRole);
     m_ui.buttonBox->button(QDialogButtonBox::Save)->setDefault(true);
     m_ui.buttonBox->button(QDialogButtonBox::Save)->setFocus(Qt::TabFocusReason);

@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -46,6 +46,7 @@
 #include <extensionsystem/pluginmanager.h>
 
 #include <utils/stylehelper.h>
+#include <utils/flowlayout.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QSettings>
@@ -87,6 +88,14 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
 {
     //setup ui
     m_ui.setupUi(this);
+    // compensate for a vertically expanding spacer below the label
+    m_ui.replaceLabel->setMinimumHeight(m_ui.replaceEdit->sizeHint().height());
+    delete m_ui.replaceButtonsWidget->layout();
+    Utils::FlowLayout *flowlayout = new Utils::FlowLayout(m_ui.replaceButtonsWidget, 0, 3, 3);
+    flowlayout->addWidget(m_ui.replaceButton);
+    flowlayout->addWidget(m_ui.replaceNextButton);
+    flowlayout->addWidget(m_ui.replaceAllButton);
+    m_ui.replaceButtonsWidget->setLayout(flowlayout);
     setFocusProxy(m_ui.findEdit);
     setProperty("topBorder", true);
     setSingleRow(false);
@@ -348,9 +357,7 @@ void FindToolBar::updateToolBar()
     m_ui.replaceLabel->setEnabled(replaceEnabled);
     m_ui.replaceEdit->setVisible(replaceEnabled);
     m_ui.replaceLabel->setVisible(replaceEnabled);
-    m_ui.replaceButton->setVisible(replaceEnabled);
-    m_ui.replaceNextButton->setVisible(replaceEnabled);
-    m_ui.replaceAllButton->setVisible(replaceEnabled);
+    m_ui.replaceButtonsWidget->setVisible(replaceEnabled);
     m_ui.advancedButton->setVisible(replaceEnabled);
     layout()->invalidate();
 

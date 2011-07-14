@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -63,13 +63,18 @@ enum SshStateInternal {
     SocketUnconnected, // initial and after disconnect
     SocketConnecting, // After connectToHost()
     SocketConnected, // After socket's connected() signal
-    KeyExchangeStarted, // After server's KEXINIT message
-    KeyExchangeSuccess, // After server's DH_REPLY message
     UserAuthServiceRequested,
     UserAuthRequested,
-
     ConnectionEstablished // After service has been started
     // ...
+};
+
+enum SshKeyExchangeState {
+    NoKeyExchange,
+    KexInitSent,
+    DhInitSent,
+    NewKeysSent,
+    KeyExchangeSuccess  // After server's DH_REPLY message
 };
 
 class SshConnectionPrivate : public QObject
@@ -77,10 +82,11 @@ class SshConnectionPrivate : public QObject
     Q_OBJECT
     friend class Utils::SshConnection;
 public:
-    SshConnectionPrivate(SshConnection *conn);
+    SshConnectionPrivate(SshConnection *conn,
+        const SshConnectionParameters &serverInfo);
     ~SshConnectionPrivate();
 
-    void connectToHost(const SshConnectionParameters &serverInfo);
+    void connectToHost();
     void closeConnection(SshErrorCode sshError, SshError userError,
         const QByteArray &serverErrorString, const QString &userErrorString);
     QSharedPointer<SshRemoteProcess> createRemoteProcess(const QByteArray &command);
@@ -146,10 +152,11 @@ private:
 
     QTcpSocket *m_socket;
     SshStateInternal m_state;
+    SshKeyExchangeState m_keyExchangeState;
     SshIncomingPacket m_incomingPacket;
     SshSendFacility m_sendFacility;
     SshChannelManager * const m_channelManager;
-    SshConnectionParameters m_connParams;
+    const SshConnectionParameters m_connParams;
     QByteArray m_incomingData;
     SshError m_error;
     QString m_errorString;
@@ -159,6 +166,7 @@ private:
     bool m_ignoreNextPacket;
     SshConnection *m_conn;
     quint64 m_lastInvalidMsgSeqNr;
+    QByteArray m_serverId;
 };
 
 } // namespace Internal

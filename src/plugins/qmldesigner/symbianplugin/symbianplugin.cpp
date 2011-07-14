@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -41,12 +41,12 @@ SymbianPlugin::SymbianPlugin()
 {
 }
 
-QString SymbianPlugin::pluginName()
+QString SymbianPlugin::pluginName() const
 {
     return ("SymbianPlugin");
 }
 
-QString SymbianPlugin::metaInfo()
+QString SymbianPlugin::metaInfo() const
 {
     return QString(":/symbianplugin/symbian.metainfo");
 }

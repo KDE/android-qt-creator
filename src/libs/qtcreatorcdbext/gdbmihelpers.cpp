@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -215,7 +215,7 @@ bool threadList(CIDebugSystemObjects *debugSystemObjects,
     }
     // Create entries
     static WCHAR name[256];
-    for (ULONG i= 0; i < threadCount ; i++) {
+    for (ULONG i= 0; i < threadCount ; ++i) {
         const ULONG id = ids[i];
         Thread thread(id, systemIds[i]);
         // Thread name
@@ -296,7 +296,7 @@ Modules getModules(CIDebugSymbols *syms, std::string *errorMessage)
         return Modules();
     }
 
-    for (ULONG m = 0; m < count; m++) {
+    for (ULONG m = 0; m < count; ++m) {
         Module module;
         module.base = parameters[m].Base;
         module.size = parameters[m].Size;
@@ -321,7 +321,7 @@ std::string gdbmiModules(CIDebugSymbols *syms, bool humanReadable, std::string *
     std::ostringstream str;
     str << '[' << std::hex << std::showbase;
     const Modules::size_type size = modules.size();
-    for (Modules::size_type m = 0; m < size; m++) {
+    for (Modules::size_type m = 0; m < size; ++m) {
         const Module &module = modules.at(m);
         if (m)
             str << ',';
@@ -465,7 +465,7 @@ Registers getRegisters(CIDebugRegisters *regs,
     // Standard registers
     DEBUG_REGISTER_DESCRIPTION description;
     DEBUG_VALUE value;
-    for (ULONG r = 0; r < registerCount; r++) {
+    for (ULONG r = 0; r < registerCount; ++r) {
         hr = regs->GetDescriptionWide(r, buf, bufSize, NULL, &description);
         if (FAILED(hr)) {
             *errorMessage = msgDebugEngineComFailed("GetDescription", hr);
@@ -488,7 +488,7 @@ Registers getRegisters(CIDebugRegisters *regs,
     }
 
     // Pseudo
-    for (ULONG r = 0; r < pseudoRegisterCount; r++) {
+    for (ULONG r = 0; r < pseudoRegisterCount; ++r) {
         ULONG type;
         hr = regs->GetPseudoDescriptionWide(r, buf, bufSize, NULL, NULL, &type);
         if (FAILED(hr))
@@ -526,7 +526,7 @@ std::string gdbmiRegisters(CIDebugRegisters *regs,
     if (humanReadable)
         str << '\n';
     const Registers::size_type size = registers.size();
-    for (Registers::size_type r = 0; r < size; r++) {
+    for (Registers::size_type r = 0; r < size; ++r) {
         const Register &reg = registers.at(r);
         if (r)
             str << ',';
@@ -549,30 +549,27 @@ std::string gdbmiRegisters(CIDebugRegisters *regs,
     return str.str();
 }
 
-std::string memoryToBase64(CIDebugDataSpaces *ds, ULONG64 address, ULONG length, std::string *errorMessage)
+std::string memoryToBase64(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
+                           std::string *errorMessage /* = 0 */)
 {
-    unsigned char *buffer = new unsigned char[length];
-    std::fill(buffer, buffer + length, 0);
-    ULONG received = 0;
-    const HRESULT hr = ds->ReadVirtual(address, buffer, length, &received);
-    if (FAILED(hr)) {
+    if (const unsigned char *buffer = SymbolGroupValue::readMemory(ds, address, length, errorMessage)) {
+        std::ostringstream str;
+        base64Encode(str, buffer, length);
         delete [] buffer;
-        std::ostringstream estr;
-        estr << "Cannot read " << length << " bytes from " << address << ": "
-                << msgDebugEngineComFailed("ReadVirtual", hr);
-        *errorMessage = estr.str();
-        return std::string();
+        return str.str();
     }
-    if (received < length) {
-        std::ostringstream estr;
-        estr << "Warning: Received only " << received << " bytes of " << length << " requested at " << address << '.';
-        *errorMessage = estr.str();
-    }
+    return std::string();
+}
 
-    std::ostringstream str;
-    base64Encode(str, buffer, length);
-    delete [] buffer;
-    return str.str();
+std::wstring memoryToHexW(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
+                          std::string *errorMessage /* = 0 */)
+{
+    if (const unsigned char *buffer = SymbolGroupValue::readMemory(ds, address, length, errorMessage)) {
+        const std::wstring hex = dataToHexW(buffer, buffer + length);
+        delete [] buffer;
+        return hex;
+    }
+    return std::wstring();
 }
 
 // Format stack as GDBMI
@@ -592,7 +589,7 @@ static StackFrames getStackTrace(CIDebugControl *debugControl,
         *errorMessage = msgDebugEngineComFailed("GetStackTrace", hr);
     }
     StackFrames rc(frameCount, StackFrame());
-    for (ULONG f = 0; f < frameCount; f++)
+    for (ULONG f = 0; f < frameCount; ++f)
         getFrame(debugSymbols, frames[f], &(rc[f]));
     delete [] frames;
     return rc;
@@ -611,7 +608,7 @@ std::string gdbmiStack(CIDebugControl *debugControl,
     std::ostringstream str;
     str << '[';
     const StackFrames::size_type size = frames.size();
-    for (StackFrames::size_type i = 0; i < size; i++) {
+    for (StackFrames::size_type i = 0; i < size; ++i) {
         if (i)
             str << ',';
         frames.at(i).formatGDBMI(str, (int)i);
@@ -675,13 +672,29 @@ static inline void formatGdbmiFlag(std::ostream &str, const char *name, bool v)
     str << name << "=\"" << (v ? "true" : "false") << '"';
 }
 
+std::pair<ULONG64, ULONG> breakPointMemoryRange(IDebugBreakpoint *bp)
+{
+    // Get address. Can fail for deferred breakpoints.
+    std::pair<ULONG64, ULONG> result = std::pair<ULONG64, ULONG>(0, 0);
+    if (FAILED(bp->GetOffset(&result.first)) || result.first == 0)
+        return result;
+    // Fill 'size' only for data breakpoints
+    ULONG breakType = DEBUG_BREAKPOINT_CODE;
+    ULONG cpuType = 0;
+    if (FAILED(bp->GetType(&breakType, &cpuType)) || breakType != DEBUG_BREAKPOINT_DATA)
+        return result;
+    ULONG accessType = 0;
+    bp->GetDataParameters(&result.second, &accessType);
+    return result;
+}
+
 static bool gdbmiFormatBreakpoint(std::ostream &str,
                                   IDebugBreakpoint *bp,
                                   CIDebugSymbols *symbols  /* = 0 */,
+                                  CIDebugDataSpaces *dataSpaces /* = 0 */,
                                   unsigned verbose, std::string *errorMessage)
 {
     enum { BufSize = 512 };
-    ULONG64 offset = 0;
     ULONG flags = 0;
     ULONG id = 0;
     if (SUCCEEDED(bp->GetId(&id)))
@@ -705,15 +718,26 @@ static bool gdbmiFormatBreakpoint(std::ostream &str,
             str << ",passcount=\"" << passCount << '"';
     }
     // Offset: Fails for deferred ones
-    if (!deferred && SUCCEEDED(bp->GetOffset(&offset))) {
-        str << ",address=\"" << std::hex << std::showbase << offset
-            << std::dec << std::noshowbase << '"';
-        if (symbols) {
-            const std::string module = moduleNameByOffset(symbols, offset);
-            if (!module.empty())
-                str << ",module=\"" << module << '"';
-        }
-    }
+    if (!deferred) {
+        const std::pair<ULONG64, ULONG> memoryRange = breakPointMemoryRange(bp);
+        if (memoryRange.first) {
+            str << ",address=\"" << std::hex << std::showbase << memoryRange.first
+                << std::dec << std::noshowbase << '"';
+            // Resolve module to be specified in next run for speed-up.
+            if (symbols) {
+                const std::string module = moduleNameByOffset(symbols, memoryRange.first);
+                if (!module.empty())
+                    str << ",module=\"" << module << '"';
+            } // symbols
+            // Report the memory of watchpoints for comparing bitfields
+            if (dataSpaces && memoryRange.second > 0) {
+                str << ",size=\"" << memoryRange.second << '"';
+                const std::wstring memoryHex = memoryToHexW(dataSpaces, memoryRange.first, memoryRange.second);
+                if (!memoryHex.empty())
+                    str << ",memory=\"" << gdbmiWStringFormat(memoryHex) << '"';
+            }
+        } // Got address
+    } // !deferred
     // Expression
     if (verbose > 1) {
         char buf[BufSize];
@@ -726,6 +750,7 @@ static bool gdbmiFormatBreakpoint(std::ostream &str,
 // Format breakpoints as GDBMI
 std::string gdbmiBreakpoints(CIDebugControl *ctrl,
                              CIDebugSymbols *symbols /* = 0 */,
+                             CIDebugDataSpaces *dataSpaces /* = 0 */,
                              bool humanReadable, unsigned verbose, std::string *errorMessage)
 {
     ULONG breakPointCount = 0;
@@ -738,7 +763,7 @@ std::string gdbmiBreakpoints(CIDebugControl *ctrl,
     str << '[';
     if (humanReadable)
         str << '\n';
-    for (ULONG i = 0; i < breakPointCount; i++) {
+    for (ULONG i = 0; i < breakPointCount; ++i) {
         str << "{number=\"" << i << '"';
         IDebugBreakpoint *bp = 0;
         hr = ctrl->GetBreakpointByIndex(i, &bp);
@@ -746,7 +771,7 @@ std::string gdbmiBreakpoints(CIDebugControl *ctrl,
             *errorMessage = msgDebugEngineComFailed("GetBreakpointByIndex", hr);
             return std::string();
         }
-        if (!gdbmiFormatBreakpoint(str, bp, symbols, verbose, errorMessage))
+        if (!gdbmiFormatBreakpoint(str, bp, symbols, dataSpaces, verbose, errorMessage))
             return std::string();
         str << '}';
         if (humanReadable)
@@ -754,4 +779,55 @@ std::string gdbmiBreakpoints(CIDebugControl *ctrl,
     }
     str << ']';
     return str.str();
+}
+
+std::string msgEvaluateExpressionFailed(const std::string &expression,
+                                        const std::string &why)
+{
+    std::ostringstream str;
+    str << "Failed to evaluate expression '" << expression << "': " << why;
+    return str.str();
+}
+
+bool evaluateExpression(CIDebugControl *control, const std::string expression,
+                        ULONG desiredType, DEBUG_VALUE *v, std::string *errorMessage)
+{
+    // Ensure we are in C++
+    ULONG oldSyntax;
+    HRESULT hr = control->GetExpressionSyntax(&oldSyntax);
+    if (FAILED(hr)) {
+        *errorMessage = msgEvaluateExpressionFailed(expression, msgDebugEngineComFailed("GetExpressionSyntax", hr));
+        return false;
+    }
+    if (oldSyntax != DEBUG_EXPR_CPLUSPLUS) {
+        HRESULT hr = control->SetExpressionSyntax(DEBUG_EXPR_CPLUSPLUS);
+        if (FAILED(hr)) {
+            *errorMessage = msgEvaluateExpressionFailed(expression, msgDebugEngineComFailed("SetExpressionSyntax", hr));
+            return false;
+        }
+    }
+    hr = control->Evaluate(expression.c_str(), desiredType, v, NULL);
+    if (FAILED(hr)) {
+        *errorMessage = msgEvaluateExpressionFailed(expression, msgDebugEngineComFailed("Evaluate", hr));
+        return false;
+    }
+    if (oldSyntax != DEBUG_EXPR_CPLUSPLUS) {
+        HRESULT hr = control->SetExpressionSyntax(oldSyntax);
+        if (FAILED(hr)) {
+            *errorMessage = msgEvaluateExpressionFailed(expression, msgDebugEngineComFailed("SetExpressionSyntax", hr));
+            return false;
+        }
+    }
+    return true;
+}
+
+bool evaluateInt64Expression(CIDebugControl *control, const std::string expression,
+                            LONG64 *v, std::string *errorMessage)
+{
+    *v= 0;
+    DEBUG_VALUE dv;
+    if (!evaluateExpression(control, expression, DEBUG_VALUE_INT64, &dv, errorMessage))
+        return false;
+    *v = dv.I64;
+    return true;
 }

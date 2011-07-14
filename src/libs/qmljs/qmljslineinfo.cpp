@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -204,7 +204,7 @@ QString LineInfo::trimmedCodeLine(const QString &t)
             if (yyLinizerState.leftBraceFollows && !text.isEmpty() && text.at(0).isUpper()) {
                 int i = index;
 
-                // skip any preceeding 'identifier.'; these could appear in both cases
+                // skip any preceding 'identifier.'; these could appear in both cases
                 while (i >= 2) {
                     const Token &prev = yyLinizerState.tokens.at(i-1);
                     const Token &prevPrev = yyLinizerState.tokens.at(i-2);

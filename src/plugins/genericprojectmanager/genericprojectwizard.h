@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -50,7 +50,9 @@ class FileWizardPage;
 namespace GenericProjectManager {
 namespace Internal {
 
-    class GenericProjectWizardDialog : public Utils::Wizard
+class FilesSelectionWizardPage;
+
+class GenericProjectWizardDialog : public Utils::Wizard
 {
     Q_OBJECT
 
@@ -60,10 +62,13 @@ public:
 
     QString path() const;
     void setPath(const QString &path);
+    QStringList selectedFiles() const;
+    QStringList selectedPaths() const;
 
     QString projectName() const;
 
     Utils::FileWizardPage *m_firstPage;
+    FilesSelectionWizardPage *m_secondPage;
 };
 
 class GenericProjectWizard : public Core::BaseFileWizard

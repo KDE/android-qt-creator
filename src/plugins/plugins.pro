@@ -18,6 +18,7 @@ SUBDIRS   = plugin_coreplugin \
             plugin_git \
             plugin_cvs \
             plugin_cpptools \
+            plugin_qtsupport \
             plugin_qt4projectmanager \
             plugin_locator \
             plugin_debugger \
@@ -40,12 +41,10 @@ SUBDIRS   = plugin_coreplugin \
             plugin_analyzerbase \
             plugin_qmljstools \
             plugin_macros \
-            debugger/dumper.pro
-
-!win32 {
-     SUBDIRS += plugin_valgrindtoolbase \
-                plugin_memcheck
-}
+            debugger/dumper.pro \
+            plugin_qmlprofiler \
+            plugin_remotelinux \
+            plugin_valgrind
 
 linux-* {
      SUBDIRS += debugger/ptracepreload.pro
@@ -82,6 +81,7 @@ plugin_coreplugin.subdir = coreplugin
 
 plugin_welcome.subdir = welcome
 plugin_welcome.depends = plugin_coreplugin
+plugin_welcome.depends += plugin_projectexplorer
 
 plugin_find.subdir = find
 plugin_find.depends += plugin_coreplugin
@@ -138,12 +138,22 @@ plugin_projectexplorer.depends += plugin_find
 plugin_projectexplorer.depends += plugin_coreplugin
 plugin_projectexplorer.depends += plugin_texteditor
 
+plugin_qtsupport.subdir = qtsupport
+plugin_qtsupport.depends = plugin_projectexplorer
+
 plugin_qt4projectmanager.subdir = qt4projectmanager
 plugin_qt4projectmanager.depends = plugin_texteditor
 plugin_qt4projectmanager.depends += plugin_projectexplorer
+plugin_qt4projectmanager.depends += plugin_qtsupport
 plugin_qt4projectmanager.depends += plugin_cpptools
 plugin_qt4projectmanager.depends += plugin_debugger
 plugin_qt4projectmanager.depends += plugin_qmljseditor
+
+plugin_remotelinux.subdir = remotelinux
+plugin_remotelinux.depends += plugin_coreplugin
+plugin_remotelinux.depends += plugin_debugger
+plugin_remotelinux.depends += plugin_projectexplorer
+plugin_remotelinux.depends += plugin_qt4projectmanager
 
 plugin_locator.subdir = locator
 plugin_locator.depends = plugin_coreplugin
@@ -216,12 +226,15 @@ plugin_qmlprojectmanager.depends = plugin_texteditor
 plugin_qmlprojectmanager.depends += plugin_projectexplorer
 plugin_qmlprojectmanager.depends += plugin_qmljseditor
 plugin_qmlprojectmanager.depends += plugin_debugger
-plugin_qmlprojectmanager.depends += plugin_qt4projectmanager
+plugin_qmlprojectmanager.depends += plugin_qtsupport
 
 plugin_qmldesigner.subdir = qmldesigner
 plugin_qmldesigner.depends = plugin_coreplugin
 plugin_qmldesigner.depends += plugin_texteditor
 plugin_qmldesigner.depends += plugin_qmljseditor
+plugin_qmldesigner.depends += plugin_projectexplorer
+plugin_qmldesigner.depends += plugin_qt4projectmanager
+plugin_qmldesigner.depends += plugin_qmlprojectmanager
 
 plugin_qmljsinspector.subdir = qmljsinspector
 plugin_qmljsinspector.depends += plugin_projectexplorer
@@ -251,17 +264,18 @@ plugin_tasklist.depends += plugin_projectexplorer
 plugin_analyzerbase.subdir = analyzerbase
 plugin_analyzerbase.depends = plugin_coreplugin
 plugin_analyzerbase.depends += plugin_projectexplorer
+plugin_analyzerbase.depends += plugin_remotelinux
 
-!win32 {
-    plugin_valgrindtoolbase.subdir = valgrindtoolbase
-    plugin_valgrindtoolbase.depends = plugin_coreplugin
-    plugin_valgrindtoolbase.depends += plugin_analyzerbase
+plugin_valgrind.subdir = valgrind
+plugin_valgrind.depends = plugin_coreplugin
+plugin_valgrind.depends += plugin_analyzerbase
 
-    plugin_memcheck.subdir = memcheck
-    plugin_memcheck.depends = plugin_coreplugin
-    plugin_memcheck.depends += plugin_analyzerbase
-    plugin_memcheck.depends += plugin_valgrindtoolbase
-}
+plugin_qmlprofiler.subdir = qmlprofiler
+plugin_qmlprofiler.depends = plugin_coreplugin
+plugin_qmlprofiler.depends += plugin_analyzerbase
+plugin_qmlprofiler.depends += plugin_qmlprojectmanager
+plugin_qmlprofiler.depends += plugin_qt4projectmanager
+plugin_qmlprofiler.depends += plugin_remotelinux
 
 plugin_qmljstools.subdir = qmljstools
 plugin_qmljstools.depends = plugin_projectexplorer

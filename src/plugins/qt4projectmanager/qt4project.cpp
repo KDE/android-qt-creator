@@ -26,13 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #include "qt4project.h"
 
-#include "profilereader.h"
 #include "qt4projectmanager.h"
 #include "makestep.h"
 #include "qmakestep.h"
@@ -42,9 +41,9 @@
 #include "projectloadwizard.h"
 #include "qt4buildconfiguration.h"
 #include "findqt4profiles.h"
-#include "qmldumptool.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/icontext.h>
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/progressmanager/progressmanager.h>
@@ -56,7 +55,11 @@
 #include <projectexplorer/buildenvironmentwidget.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
+#include <qtsupport/qmldumptool.h>
+#include <qtsupport/baseqtversion.h>
+#include <qtsupport/profilereader.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QDir>
@@ -180,7 +183,7 @@ Qt4ProjectFile::Qt4ProjectFile(Qt4Project *project, const QString &filePath, QOb
 {
 }
 
-bool Qt4ProjectFile::save(const QString &)
+bool Qt4ProjectFile::save(QString *, const QString &, bool)
 {
     // This is never used
     return false;
@@ -236,10 +239,12 @@ Core::IFile::ReloadBehavior Qt4ProjectFile::reloadBehavior(ChangeTrigger state, 
     return BehaviorSilent;
 }
 
-void Qt4ProjectFile::reload(ReloadFlag flag, ChangeType type)
+bool Qt4ProjectFile::reload(QString *errorString, ReloadFlag flag, ChangeType type)
 {
+    Q_UNUSED(errorString)
     Q_UNUSED(flag)
     Q_UNUSED(type)
+    return true;
 }
 
 /*!
@@ -258,8 +263,12 @@ Qt4Project::Qt4Project(Qt4Manager *manager, const QString& fileName) :
     m_asyncUpdateFutureInterface(0),
     m_pendingEvaluateFuturesCount(0),
     m_asyncUpdateState(NoState),
-    m_cancelEvaluate(false)
+    m_cancelEvaluate(false),
+    m_codeModelCanceled(false)
 {
+    setProjectContext(Core::Context(Qt4ProjectManager::Constants::PROJECT_ID));
+    setProjectLanguage(Core::Context(ProjectExplorer::Constants::LANG_CXX));
+
     m_asyncUpdateTimer.setSingleShot(true);
     m_asyncUpdateTimer.setInterval(3000);
     connect(&m_asyncUpdateTimer, SIGNAL(timeout()), this, SLOT(asyncUpdate()));
@@ -330,11 +339,8 @@ bool Qt4Project::fromMap(const QVariantMap &map)
     foreach (Target *t, targets())
         onAddedTarget(t);
 
-    connect(m_nodesWatcher, SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)),
-            this, SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode *,bool)));
-
-    connect(m_nodesWatcher, SIGNAL(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode*)),
-            this, SIGNAL(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode*)));
+    connect(m_nodesWatcher, SIGNAL(proFileUpdated(Qt4ProjectManager::Qt4ProFileNode*,bool,bool)),
+            this, SIGNAL(proFileUpdated(Qt4ProjectManager::Qt4ProFileNode *,bool,bool)));
 
     // Now we emit update once :)
     m_rootProjectNode->emitProFileUpdated();
@@ -426,7 +432,9 @@ void Qt4Project::updateCppCodeModel()
     QStringList predefinedFrameworkPaths;
     QByteArray predefinedMacros;
 
-    QString qtFrameworkPath = activeBC->qtVersion()->frameworkInstallPath();
+    QString qtFrameworkPath;
+    if (activeBC->qtVersion())
+        qtFrameworkPath = activeBC->qtVersion()->frameworkInstallPath();
     if (!qtFrameworkPath.isEmpty())
         predefinedFrameworkPaths.append(qtFrameworkPath);
 
@@ -435,7 +443,8 @@ void Qt4Project::updateCppCodeModel()
         predefinedMacros = tc->predefinedMacros();
 
         QList<HeaderPath> headers = tc->systemHeaderPaths();
-        headers.append(activeBC->qtVersion()->systemHeaderPathes());
+        if (activeBC->qtVersion())
+            headers.append(activeBC->qtVersion()->systemHeaderPathes());
         foreach (const HeaderPath &headerPath, headers) {
             if (headerPath.kind() == HeaderPath::FrameworkHeaderPath)
                 predefinedFrameworkPaths.append(headerPath.path());
@@ -478,26 +487,11 @@ void Qt4Project::updateCppCodeModel()
             if (!allIncludePaths.contains(includePath))
                 allIncludePaths.append(includePath);
         }
-
-#if 0 // Experimental PKGCONFIG support
-        { // Pkg Config support
-            QStringList pkgConfig = pro->variableValue(PkgConfigVar);
-            if (!pkgConfig.isEmpty()) {
-                pkgConfig.prepend("--cflags-only-I");
-                QProcess process;
-                process.start("pkg-config", pkgConfig);
-                process.waitForFinished();
-                QString result = process.readAllStandardOutput();
-                foreach(const QString &part, result.trimmed().split(' ', QString::SkipEmptyParts)) {
-                    info.includes.append(part.mid(2)); // Chop off "-I"
-                }
-            }
-        }
-#endif
     }
 
     // Add mkspec directory
-    allIncludePaths.append(activeBC->qtVersion()->mkspecPath());
+    if (activeBC->qtVersion())
+        allIncludePaths.append(activeBC->qtVersion()->mkspecPath());
 
     allIncludePaths.append(predefinedIncludePaths);
 
@@ -517,7 +511,8 @@ void Qt4Project::updateCppCodeModel()
         && pinfo.includePaths == allIncludePaths
         && pinfo.frameworkPaths == allFrameworkPaths
         && fileList
-        && pinfo.precompiledHeaders == allPrecompileHeaders) {
+        && pinfo.precompiledHeaders == allPrecompileHeaders
+        && !m_codeModelCanceled) {
         // Nothing to update...
     } else {
         pinfo.sourceFiles.clear();
@@ -538,6 +533,7 @@ void Qt4Project::updateCppCodeModel()
 
         modelmanager->updateProjectInfo(pinfo);
         m_codeModelFuture = modelmanager->updateSourceFiles(pinfo.sourceFiles);
+        m_codeModelCanceled = false;
     }
 }
 
@@ -553,20 +549,22 @@ void Qt4Project::updateQmlJSCodeModel()
     FindQt4ProFiles findQt4ProFiles;
     QList<Qt4ProFileNode *> proFiles = findQt4ProFiles(rootProjectNode());
 
+    projectInfo.importPaths.clear();
     foreach (Qt4ProFileNode *node, proFiles) {
         projectInfo.importPaths.append(node->variableValue(QmlImportPathVar));
     }
     bool preferDebugDump = false;
     if (activeTarget() && activeTarget()->activeBuildConfiguration()) {
-        preferDebugDump = activeTarget()->activeBuildConfiguration()->qmakeBuildConfiguration() & QtVersion::DebugBuild;
-        const QtVersion *qtVersion = activeTarget()->activeBuildConfiguration()->qtVersion();
-        if (qtVersion->isValid()) {
+        preferDebugDump = activeTarget()->activeBuildConfiguration()->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild;
+        QtSupport::BaseQtVersion *qtVersion = activeTarget()->activeBuildConfiguration()->qtVersion();
+        if (qtVersion && qtVersion->isValid()) {
             const QString qtVersionImportPath = qtVersion->versionInfo().value("QT_INSTALL_IMPORTS");
             if (!qtVersionImportPath.isEmpty())
                 projectInfo.importPaths += qtVersionImportPath;
         }
     }
-    QmlDumpTool::pathAndEnvironment(this, preferDebugDump, &projectInfo.qmlDumpPath, &projectInfo.qmlDumpEnvironment);
+    QtSupport::QmlDumpTool::pathAndEnvironment(this, activeTarget()->activeBuildConfiguration()->qtVersion(),
+                                               preferDebugDump, &projectInfo.qmlDumpPath, &projectInfo.qmlDumpEnvironment);
     projectInfo.importPaths.removeDuplicates();
 
     modelManager->updateProjectInfo(projectInfo);
@@ -619,7 +617,7 @@ void Qt4Project::scheduleAsyncUpdate(Qt4ProFileNode *node)
         // Add the node
         m_asyncUpdateState = AsyncPartialUpdatePending;
 
-        QList<Internal::Qt4ProFileNode *>::iterator it;
+        QList<Qt4ProFileNode *>::iterator it;
         bool add = true;
         if (debug)
             qDebug()<<"scheduleAsyncUpdate();"<<m_partialEvaluate.size()<<"nodes";
@@ -676,7 +674,8 @@ void Qt4Project::scheduleAsyncUpdate()
         m_cancelEvaluate = true;
         m_asyncUpdateState = AsyncFullUpdatePending;
         activeTarget()->activeBuildConfiguration()->setEnabled(false);
-        m_rootProjectNode->emitProFileInvalidated();
+        m_rootProjectNode->setParseInProgressRecursive();
+        m_rootProjectNode->emitProFileUpdated();
         return;
     }
 
@@ -684,12 +683,14 @@ void Qt4Project::scheduleAsyncUpdate()
         qDebug()<<"  starting timer for full update, setting state to full update pending";
     m_partialEvaluate.clear();
     activeTarget()->activeBuildConfiguration()->setEnabled(false);
-    m_rootProjectNode->emitProFileInvalidated();
+    m_rootProjectNode->setParseInProgressRecursive();
+    m_rootProjectNode->emitProFileUpdated();
     m_asyncUpdateState = AsyncFullUpdatePending;
     m_asyncUpdateTimer.start();
 
     // Cancel running code model update
     m_codeModelFuture.cancel();
+    m_codeModelCanceled = true;
 }
 
 
@@ -744,19 +745,6 @@ void Qt4Project::decrementPendingEvaluateFutures()
 bool Qt4Project::wasEvaluateCanceled()
 {
     return m_cancelEvaluate;
-}
-
-QString Qt4Project::defaultTopLevelBuildDirectory() const
-{
-    return defaultTopLevelBuildDirectory(file()->fileName());
-}
-
-QString Qt4Project::defaultTopLevelBuildDirectory(const QString &profilePath)
-{
-    if (profilePath.isEmpty())
-        return QString();
-    QFileInfo info(profilePath);
-    return QDir::cleanPath(projectDirectory(profilePath) + QLatin1String("/../") + info.baseName() + QLatin1String("-build"));
 }
 
 void Qt4Project::asyncUpdate()
@@ -881,7 +869,7 @@ void Qt4Project::proFileParseError(const QString &errorMessage)
     Core::ICore::instance()->messageManager()->printToOutputPanePopup(errorMessage);
 }
 
-ProFileReader *Qt4Project::createProFileReader(Qt4ProFileNode *qt4ProFileNode, Qt4BuildConfiguration *bc)
+QtSupport::ProFileReader *Qt4Project::createProFileReader(Qt4ProFileNode *qt4ProFileNode, Qt4BuildConfiguration *bc)
 {
     if (!m_proFileOption) {
         m_proFileOption = new ProFileOption;
@@ -891,12 +879,17 @@ ProFileReader *Qt4Project::createProFileReader(Qt4ProFileNode *qt4ProFileNode, Q
             bc = activeTarget()->activeBuildConfiguration();
 
         if (bc) {
-            QtVersion *version = bc->qtVersion();
-            if (version->isValid()) {
+            QtSupport::BaseQtVersion *version = bc->qtVersion();
+            if (version && version->isValid()) {
                 m_proFileOption->properties = version->versionInfo();
                 if (bc->toolChain())
                     m_proFileOption->sysroot = bc->qtVersion()->systemRoot();
             }
+
+            Utils::Environment env = bc->environment();
+            Utils::Environment::const_iterator eit = env.constBegin(), eend = env.constEnd();
+            for (; eit != eend; ++eit)
+                m_proFileOption->environment.insert(env.key(eit), env.value(eit));
 
             QStringList args;
             if (QMakeStep *qs = bc->qmakeStep())
@@ -906,26 +899,26 @@ ProFileReader *Qt4Project::createProFileReader(Qt4ProFileNode *qt4ProFileNode, Q
             m_proFileOption->setCommandLineArguments(args);
         }
 
-        ProFileCacheManager::instance()->incRefCount();
+        QtSupport::ProFileCacheManager::instance()->incRefCount();
     }
     ++m_proFileOptionRefCnt;
 
-    ProFileReader *reader = new ProFileReader(m_proFileOption);
+    QtSupport::ProFileReader *reader = new QtSupport::ProFileReader(m_proFileOption);
 
     reader->setOutputDir(qt4ProFileNode->buildDir());
 
     return reader;
 }
 
-void Qt4Project::destroyProFileReader(ProFileReader *reader)
+void Qt4Project::destroyProFileReader(QtSupport::ProFileReader *reader)
 {
     delete reader;
     if (!--m_proFileOptionRefCnt) {
         QString dir = QFileInfo(m_fileInfo->fileName()).absolutePath();
         if (!dir.endsWith(QLatin1Char('/')))
             dir += QLatin1Char('/');
-        ProFileCacheManager::instance()->discardFiles(dir);
-        ProFileCacheManager::instance()->decRefCount();
+        QtSupport::ProFileCacheManager::instance()->discardFiles(dir);
+        QtSupport::ProFileCacheManager::instance()->decRefCount();
 
         delete m_proFileOption;
         m_proFileOption = 0;
@@ -943,6 +936,14 @@ bool Qt4Project::validParse(const QString &proFilePath) const
         return false;
     const Qt4ProFileNode *node = m_rootProjectNode->findProFileFor(proFilePath);
     return node && node->validParse();
+}
+
+bool Qt4Project::parseInProgress(const QString &proFilePath) const
+{
+    if (!m_rootProjectNode)
+        return false;
+    const Qt4ProFileNode *node = m_rootProjectNode->findProFileFor(proFilePath);
+    return node && node->parseInProgress();
 }
 
 QList<BuildConfigWidget*> Qt4Project::subConfigWidgets()
@@ -965,8 +966,8 @@ void Qt4Project::collectAllfProFiles(QList<Qt4ProFileNode *> &list, Qt4ProFileNo
 
 void Qt4Project::collectApplicationProFiles(QList<Qt4ProFileNode *> &list, Qt4ProFileNode *node)
 {
-    if (node->projectType() == Internal::ApplicationTemplate
-        || node->projectType() == Internal::ScriptTemplate) {
+    if (node->projectType() == ApplicationTemplate
+        || node->projectType() == ScriptTemplate) {
         list.append(node);
     }
     foreach (ProjectNode *n, node->subProjectNodes()) {
@@ -1053,9 +1054,10 @@ void Qt4Project::notifyChanged(const QString &name)
         QList<Qt4ProFileNode *> list;
         findProFile(name, rootProjectNode(), list);
         foreach(Qt4ProFileNode *node, list) {
-            ProFileCacheManager::instance()->discardFile(name);
+            QtSupport::ProFileCacheManager::instance()->discardFile(name);
             node->update();
         }
+        updateFileList();
     }
 }
 

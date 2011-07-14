@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -94,12 +94,12 @@ LayoutWidget::~LayoutWidget()
  {
         if (url.scheme() == QLatin1String("file")) {
             QFile file(url.toLocalFile());
-            file.open(QIODevice::ReadOnly);
-            if (file.isOpen()) {
+            if (file.open(QIODevice::ReadOnly)) {
                 QPixmap pixmap(url.toLocalFile());
                 button->setIcon(pixmap);
             } else {
-                qWarning() << QLatin1String("setIconFromFile: ") << url << QLatin1String(" not found!");
+                qWarning() << QString::fromLatin1("setIconFromFile: %1: %2").arg(
+                                  file.fileName(), file.errorString());
             }
         }
  }

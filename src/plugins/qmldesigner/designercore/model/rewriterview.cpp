@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -323,7 +323,7 @@ void RewriterView::importRemoved(const Import &import)
         applyChanges();
 }
 
-void RewriterView::fileUrlChanged(const QUrl &/*oldUrl*/, const QUrl &/*newUrl*/)
+void RewriterView::fileUrlChanged(const QUrl & /*oldUrl*/, const QUrl & /*newUrl*/)
 {
 }
 
@@ -375,34 +375,44 @@ void RewriterView::customNotification(const AbstractView * /*view*/, const QStri
         return; // we emitted this ourselves, so just ignore these notifications.
 }
 
-void RewriterView::scriptFunctionsChanged(const ModelNode &/*node*/, const QStringList &/*scriptFunctionList*/)
+void RewriterView::scriptFunctionsChanged(const ModelNode & /*node*/, const QStringList & /*scriptFunctionList*/)
 {
 }
 
-void RewriterView::instancePropertyChange(const QList<QPair<ModelNode, QString> > &/*propertyList*/)
+void RewriterView::instancePropertyChange(const QList<QPair<ModelNode, QString> > & /*propertyList*/)
 {
 }
 
-void RewriterView::instancesCompleted(const QVector<ModelNode> &/*completedNodeList*/)
+void RewriterView::instancesCompleted(const QVector<ModelNode> & /*completedNodeList*/)
 {
 }
 
-void RewriterView::instanceInformationsChange(const QVector<ModelNode> &/*nodeList*/)
-{
-
-}
-
-void RewriterView::instancesRenderImageChanged(const QVector<ModelNode> &/*nodeList*/)
+void RewriterView::instanceInformationsChange(const QMultiHash<ModelNode, InformationName> & /* informationChangeHash */)
 {
 
 }
 
-void RewriterView::instancesPreviewImageChanged(const QVector<ModelNode> &/*nodeList*/)
+void RewriterView::instancesRenderImageChanged(const QVector<ModelNode> & /*nodeList*/)
 {
 
 }
 
-void RewriterView::instancesChildrenChanged(const QVector<ModelNode> &/*nodeList*/)
+void RewriterView::instancesPreviewImageChanged(const QVector<ModelNode> & /*nodeList*/)
+{
+
+}
+
+void RewriterView::instancesChildrenChanged(const QVector<ModelNode> & /*nodeList*/)
+{
+
+}
+
+void RewriterView::instancesToken(const QString &/*tokenName*/, int /*tokenNumber*/, const QVector<ModelNode> &/*nodeVector*/)
+{
+
+}
+
+void RewriterView::nodeSourceChanged(const ModelNode &, const QString & /*newNodeSource*/)
 {
 
 }
@@ -424,7 +434,7 @@ void RewriterView::rewriterEndTransaction()
     }
 }
 
-void RewriterView::actualStateChanged(const ModelNode &/*node*/)
+void RewriterView::actualStateChanged(const ModelNode & /*node*/)
 {
 }
 
@@ -624,6 +634,53 @@ QmlJS::Document *RewriterView::document() const
     return textToModelMerger()->document();
 }
 
+static inline QString getUrlFromType(const QString& typeName)
+{
+    QStringList nameComponents = typeName.split('.');
+    QString result;
+
+    for (int i = 0; i < (nameComponents.count() - 1); i++) {
+        result += nameComponents.at(i);
+    }
+
+    return result;
+}
+
+QString RewriterView::convertTypeToImportAlias(const QString &type) const
+{
+    QString url;
+    QString simplifiedType = type;
+    if (type.contains('.')) {
+        QStringList nameComponents = type.split('.');
+        url = getUrlFromType(type);
+        simplifiedType = nameComponents.last();
+    }
+
+    QString alias;
+    if (!url.isEmpty()) {
+        foreach (const Import &import, model()->imports()) {
+            if (import.url() == url) {
+                alias = import.alias();
+                break;
+            }
+            if (import.file() == url) {
+                alias = import.alias();
+                break;
+            }
+        }
+    }
+
+    QString result;
+
+    if (!alias.isEmpty())
+        result = alias + '.';
+
+    result += simplifiedType;
+
+    return result;
+}
+
+
 void RewriterView::qmlTextChanged()
 {
     if (inErrorState())
@@ -659,6 +716,12 @@ void RewriterView::qmlTextChanged()
             }
         }
     }
+}
+
+void RewriterView::delayedSetup()
+{
+    if (m_textToModelMerger)
+        m_textToModelMerger->delayedSetup();
 }
 
 } //QmlDesigner

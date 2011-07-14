@@ -24,6 +24,7 @@ isEmpty(vcproj) {
 }
 
 DATA_DIRS = \
+    welcomescreen \
     examplebrowser \
     snippets \
     templates \
@@ -31,13 +32,14 @@ DATA_DIRS = \
     schemes \
     styles \
     rss \
-    gdbmacros \
+    dumper \
     qmldesigner \
     qmlicons \
     qml \
     qml-type-descriptions \
     generic-highlighter \
     glsl
+macx: DATA_DIRS += scripts
 
 # conditionally deployed data
 !isEmpty(copydata) {

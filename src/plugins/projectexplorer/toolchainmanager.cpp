@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,14 +42,15 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
 #include <QtCore/QSettings>
+#include <QtGui/QMainWindow>
 
-static const char *const TOOLCHAIN_DATA_KEY = "ToolChain.";
-static const char *const TOOLCHAIN_COUNT_KEY = "ToolChain.Count";
-static const char *const TOOLCHAIN_FILE_VERSION_KEY = "Version";
-static const char *const DEFAULT_DEBUGGER_COUNT_KEY = "DefaultDebugger.Count";
-static const char *const DEFAULT_DEBUGGER_ABI_KEY = "DefaultDebugger.Abi.";
-static const char *const DEFAULT_DEBUGGER_PATH_KEY = "DefaultDebugger.Path.";
-static const char *const TOOLCHAIN_FILENAME = "/toolChains.xml";
+static const char TOOLCHAIN_DATA_KEY[] = "ToolChain.";
+static const char TOOLCHAIN_COUNT_KEY[] = "ToolChain.Count";
+static const char TOOLCHAIN_FILE_VERSION_KEY[] = "Version";
+static const char DEFAULT_DEBUGGER_COUNT_KEY[] = "DefaultDebugger.Count";
+static const char DEFAULT_DEBUGGER_ABI_KEY[] = "DefaultDebugger.Abi.";
+static const char DEFAULT_DEBUGGER_PATH_KEY[] = "DefaultDebugger.Path.";
+static const char TOOLCHAIN_FILENAME[] = "/toolChains.xml";
 
 static QString settingsFileName()
 {
@@ -95,6 +96,12 @@ ToolChainManager::ToolChainManager(QObject *parent) :
     m_instance = this;
     connect(Core::ICore::instance(), SIGNAL(saveSettingsRequested()),
             this, SLOT(saveToolChains()));
+    connect(this, SIGNAL(toolChainAdded(ProjectExplorer::ToolChain*)),
+            this, SIGNAL(toolChainsChanged()));
+    connect(this, SIGNAL(toolChainRemoved(ProjectExplorer::ToolChain*)),
+            this, SIGNAL(toolChainsChanged()));
+    connect(this, SIGNAL(toolChainUpdated(ProjectExplorer::ToolChain*)),
+            this, SIGNAL(toolChainsChanged()));
 }
 
 void ToolChainManager::restoreToolChains()
@@ -144,7 +151,7 @@ void ToolChainManager::saveToolChains()
         }
     }
     writer.saveValue(QLatin1String(TOOLCHAIN_COUNT_KEY), count);
-    writer.save(settingsFileName(), "QtCreatorToolChains");
+    writer.save(settingsFileName(), "QtCreatorToolChains", Core::ICore::instance()->mainWindow());
 
     // Do not save default debuggers! Those are set by the SDK!
 }
@@ -168,7 +175,7 @@ void ToolChainManager::restoreToolChains(const QString &fileName, bool autoDetec
         if (!data.contains(abiKey))
             continue;
         const QString pathKey = QString::fromLatin1(DEFAULT_DEBUGGER_PATH_KEY) + QString::number(i);
-        if (!data.contains(abiKey))
+        if (!data.contains(pathKey))
             continue;
         m_d->m_abiToDebugger.insert(data.value(abiKey).toString(), data.value(pathKey).toString());
     }
@@ -240,17 +247,18 @@ void ToolChainManager::notifyAboutUpdate(ProjectExplorer::ToolChain *tc)
     emit toolChainUpdated(tc);
 }
 
-void ToolChainManager::registerToolChain(ToolChain *tc)
+bool ToolChainManager::registerToolChain(ToolChain *tc)
 {
     if (!tc || m_d->m_toolChains.contains(tc))
-        return;
+        return true;
     foreach (ToolChain *current, m_d->m_toolChains) {
         if (*tc == *current)
-            return;
+            return false;
     }
 
     m_d->m_toolChains.append(tc);
     emit toolChainAdded(tc);
+    return true;
 }
 
 void ToolChainManager::deregisterToolChain(ToolChain *tc)

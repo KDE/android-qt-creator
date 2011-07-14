@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -188,9 +188,9 @@ bool AutoCompleter::contextAllowsAutoParentheses(const QTextCursor &cursor,
         // if a string literal doesn't start with a quote, it must be multiline
         if (quote != QLatin1Char('"') && quote != QLatin1Char('\'')) {
             const int startState = blockStartState(cursor.block());
-            if (startState == Scanner::MultiLineStringDQuote)
+            if ((startState & Scanner::MultiLineMask) == Scanner::MultiLineStringDQuote)
                 quote = QLatin1Char('"');
-            else if (startState == Scanner::MultiLineStringSQuote)
+            else if ((startState & Scanner::MultiLineMask) == Scanner::MultiLineStringSQuote)
                 quote = QLatin1Char('\'');
         }
 

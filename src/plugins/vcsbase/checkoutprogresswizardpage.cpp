@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,15 @@
 
 #include <QtGui/QApplication>
 #include <QtGui/QCursor>
+
+/*!
+    \class VCSBase::CheckoutProgressWizardPage
+
+    \brief Page showing the progress of an initial project checkout. Turns complete when the job
+           succeeds.
+
+    \sa VCSBase::BaseCheckoutWizard
+*/
 
 namespace VCSBase {
 namespace Internal {

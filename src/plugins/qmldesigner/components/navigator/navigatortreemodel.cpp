@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,7 @@
 #include <nodeproperty.h>
 #include <metainfo.h>
 #include <qgraphicswidget.h>
-#include <abstractview.h>
+#include <qmlmodelview.h>
 #include <rewriterview.h>
 #include <invalididexception.h>
 #include <rewritingexception.h>
@@ -221,7 +221,7 @@ NavigatorTreeModel::ItemRow NavigatorTreeModel::createItemRow(const ModelNode &n
     }
 
     QMap<QString, QStandardItem *> propertyItems;
-    foreach (QString propertyName, visibleProperties(node)) {
+    foreach (const QString &propertyName, visibleProperties(node)) {
         QStandardItem *propertyItem = new QStandardItem;
         propertyItem->setSelectable(false);
         propertyItem->setDragEnabled(false);
@@ -376,7 +376,7 @@ NavigatorTreeModel::ItemRow NavigatorTreeModel::itemRowForNode(const ModelNode &
     return m_nodeItemHash.value(node);
 }
 
-void NavigatorTreeModel::setView(AbstractView *view)
+void NavigatorTreeModel::setView(QmlModelView *view)
 {
     m_view = view;
     m_hiddenProperties.clear();
@@ -572,7 +572,7 @@ QList<ModelNode> NavigatorTreeModel::modelNodeChildren(const ModelNode &parentNo
 
     properties << visibleProperties(parentNode);
 
-    foreach (QString propertyName, properties) {
+    foreach (const QString &propertyName, properties) {
         AbstractProperty property(parentNode.property(propertyName));
         if (property.isNodeProperty())
             children << property.toNodeProperty().modelNode();
@@ -639,6 +639,12 @@ void NavigatorTreeModel::setVisible(const QModelIndex &index, bool visible)
     ModelNode node = nodeForIndex(index);
     ItemRow itemRow = itemRowForNode(node);
     itemRow.visibilityItem->setCheckState(visible ? Qt::Checked : Qt::Unchecked);
+}
+
+void NavigatorTreeModel::openContextMenu(const QPoint &p)
+{
+    if (m_view)
+        m_view->showContextMenu(p, QPoint(), false);
 }
 
 } // QmlDesigner

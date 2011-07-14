@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -1184,15 +1184,15 @@ void MainWindow::aboutToShutdown()
     hide();
 }
 
-static const char *settingsGroup = "MainWindow";
-static const char *colorKey = "Color";
-static const char *windowGeometryKey = "WindowGeometry";
-static const char *windowStateKey = "WindowState";
+static const char settingsGroup[] = "MainWindow";
+static const char colorKey[] = "Color";
+static const char windowGeometryKey[] = "WindowGeometry";
+static const char windowStateKey[] = "WindowState";
 
 // TODO compat for <= 2.1, remove later
-static const char *geometryKey = "Geometry";
-static const char *maxKey = "Maximized";
-static const char *fullScreenKey = "FullScreen";
+static const char geometryKey[] = "Geometry";
+static const char maxKey[] = "Maximized";
+static const char fullScreenKey[] = "FullScreen";
 
 void MainWindow::readSettings()
 {
@@ -1317,6 +1317,14 @@ void MainWindow::aboutToShowRecentFiles()
         connect(action, SIGNAL(triggered()), this, SLOT(openRecentFile()));
     }
     aci->menu()->setEnabled(hasRecentFiles);
+
+    // add the Clear Menu item
+    if (hasRecentFiles) {
+        aci->menu()->addSeparator();
+        QAction *action = aci->menu()->addAction(QCoreApplication::translate(
+                                                     "Core", Core::Constants::TR_CLEAR_MENU));
+        connect(action, SIGNAL(triggered()), m_fileManager, SLOT(clearRecentFiles()));
+    }
 }
 
 void MainWindow::openRecentFile()

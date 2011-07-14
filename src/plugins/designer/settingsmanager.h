@@ -26,15 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
 #ifndef SETTINGSMANAGER_H
 #define SETTINGSMANAGER_H
 
-#include "qt_private/abstractsettings_p.h"
-#include <QtCore/QSettings>
+#if QT_VERSION >= 0x050000
+#    include <QtDesigner/QDesignerSettingsInterface>
+#else
+#    include "qt_private/abstractsettings_p.h"
+#endif
 
 namespace Designer {
 namespace Internal {
@@ -50,12 +53,11 @@ public:
 
     virtual bool contains(const QString &key) const;
     virtual void setValue(const QString &key, const QVariant &value);
-    virtual QVariant value(const QString &key, const QVariant &defaultValue = QVariant()) const ;
+    virtual QVariant value(const QString &key, const QVariant &defaultValue = QVariant()) const;
     virtual void remove(const QString &key);
 
 private:
     QString addPrefix(const QString &name) const;
-    QSettings m_settings;
 };
 
 } // namespace Internal

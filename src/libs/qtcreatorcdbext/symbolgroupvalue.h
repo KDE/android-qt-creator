@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -113,6 +113,7 @@ public:
     static std::string moduleOfType(const std::string &type);
     // pointer type, return number of characters to strip
     static unsigned isPointerType(const std::string &);
+    static bool isVTableType(const std::string &t);
     // add pointer type 'Foo' -> 'Foo *', 'Foo *' -> 'Foo **'
     static std::string pointerType(const std::string &type);
     // Symbol Name/(Expression) of a pointed-to instance ('Foo' at 0x10') ==> '*(Foo *)0x10'
@@ -131,6 +132,21 @@ public:
     static SymbolList resolveSymbol(const char *pattern,
                                     const SymbolGroupValueContext &c,
                                     std::string *errorMessage = 0);
+
+    static unsigned char *readMemory(CIDebugDataSpaces *ds, ULONG64 address, ULONG length,
+                                     std::string *errorMessage = 0);
+    static ULONG64 readPointerValue(CIDebugDataSpaces *ds, ULONG64 address,
+                                    std::string *errorMessage = 0);
+    static ULONG64 readUnsignedValue(CIDebugDataSpaces *ds,
+                                     ULONG64 address, ULONG debuggeeTypeSize, ULONG64 defaultValue = 0,
+                                     std::string *errorMessage = 0);
+    static double readDouble(CIDebugDataSpaces *ds,
+                             ULONG64 address, double defaultValue = 0.0,
+                             std::string *errorMessage = 0);
+
+    static bool writeMemory(CIDebugDataSpaces *ds, ULONG64 address,
+                            const unsigned char *data, ULONG length,
+                            std::string *errorMessage = 0);
 
     static unsigned pointerSize();
     static unsigned intSize();
@@ -154,6 +170,8 @@ std::ostream &operator<<(std::ostream &, const SymbolGroupValue &v);
 
 struct QtInfo
 {
+    QtInfo() : version(0) {}
+
     static const QtInfo &get(const SymbolGroupValueContext &ctx);
 
     // Prepend core module and Qt namespace. To be able to work with some
@@ -162,15 +180,23 @@ struct QtInfo
         { return QtInfo::prependModuleAndNameSpace(type, coreModule, nameSpace); }
     std::string prependQtGuiModule(const std::string &type) const
         { return QtInfo::prependModuleAndNameSpace(type, guiModule, nameSpace); }
+    std::string prependQtNetworkModule(const std::string &type) const
+        { return QtInfo::prependModuleAndNameSpace(type, networkModule, nameSpace); }
+    std::string prependQtScriptModule(const std::string &type) const
+        { return QtInfo::prependModuleAndNameSpace(type, scriptModule, nameSpace); }
+
     // Prepend module and namespace if missing with some smartness
     // ('Foo' or -> 'nsp::Foo') => 'QtCored4!nsp::Foo'
     static std::string prependModuleAndNameSpace(const std::string &type,
                                                  const std::string &module,
                                                  const std::string &nameSpace);
 
+    int version;
     std::string nameSpace;
     std::string coreModule;
     std::string guiModule;
+    std::string networkModule;
+    std::string scriptModule;
     // Fully qualified types with module and namespace
     std::string qObjectType;
     std::string qObjectPrivateType;
@@ -205,6 +231,17 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
                         int *knownType = 0,
                         int *containerSizeIn = 0,
                         void **specialInfoIn = 0);
+
+enum AssignEncoding
+{
+    AssignPlainValue,
+    AssignHexEncoded,
+    AssignHexEncodedUtf16
+};
+
+bool assignType(SymbolGroupNode  *n, int valueEncoding, const std::string &value,
+                const SymbolGroupValueContext &ctx,
+                std::string *errorMessage);
 
 // Non-container complex dumpers (QObjects/QVariants).
 std::vector<AbstractSymbolGroupNode *>

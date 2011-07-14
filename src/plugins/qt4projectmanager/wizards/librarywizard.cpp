@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,7 +45,7 @@
 #include <QtCore/QTextStream>
 #include <QtGui/QIcon>
 
-static const char *sharedHeaderPostfixC = "_global";
+static const char sharedHeaderPostfixC[] = "_global";
 
 namespace Qt4ProjectManager {
 

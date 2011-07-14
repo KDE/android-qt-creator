@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -56,8 +56,6 @@ class QmlJSTextEditorWidget;
 
 namespace Internal {
 
-class SemanticInfo;
-
 class HoverHandler : public TextEditor::BaseHoverHandler
 {
     Q_OBJECT
@@ -78,6 +76,8 @@ private:
                         unsigned pos);
     void handleOrdinaryMatch(const QmlJS::LookupContext::Ptr &lookupContext,
                              QmlJS::AST::Node *node);
+    void handleImport(const QmlJS::LookupContext::Ptr &lookupContext,
+                      QmlJS::AST::UiImport *node);
 
     void prettyPrintTooltip(const QmlJS::Interpreter::Value *value,
                             const QmlJS::Interpreter::Context *context);

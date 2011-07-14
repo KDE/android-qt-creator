@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -37,8 +37,10 @@
 #include "s60emulatorrunconfiguration.h"
 #include "s60devicerunconfiguration.h"
 #include "s60createpackagestep.h"
+#include "s60deployconfiguration.h"
 #include "s60deploystep.h"
 #include "s60runcontrolfactory.h"
+#include "s60devicedebugruncontrol.h"
 
 #include "qt4symbiantargetfactory.h"
 #include "s60publishingwizardfactories.h"
@@ -46,6 +48,7 @@
 #include "gccetoolchain.h"
 #include "rvcttoolchain.h"
 #include "winscwtoolchain.h"
+#include "symbianqtversionfactory.h"
 
 #include <symbianutils/symbiandevicemanager.h>
 
@@ -124,8 +127,10 @@ S60Manager::S60Manager(QObject *parent) : QObject(parent)
 
     addAutoReleasedObject(new S60DeviceDebugRunControlFactory);
     addAutoReleasedObject(new Qt4SymbianTargetFactory);
+    addAutoReleasedObject(new S60DeployConfigurationFactory);
 
     addAutoReleasedObject(new S60PublishingWizardFactoryOvi);
+    addAutoReleasedObject(new SymbianQtVersionFactory);
 
     connect(Core::ICore::instance()->mainWindow(), SIGNAL(deviceChange()),
             SymbianUtils::SymbianDeviceManager::instance(), SLOT(update()));

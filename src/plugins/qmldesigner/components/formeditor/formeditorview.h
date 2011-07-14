@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -100,16 +100,16 @@ public:
     void changeToAnchorTool();
     void changeToTransformTools();
 
-    void setCursor(const QCursor &cursor);
-
     void nodeSlidedToIndex(const NodeListProperty &listProperty, int newIndex, int oldIndex);
     void auxiliaryDataChanged(const ModelNode &node, const QString &name, const QVariant &data);
 
     void instancesCompleted(const QVector<ModelNode> &completedNodeList);
-    void instanceInformationsChange(const QVector<ModelNode> &nodeList);
+    void instanceInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash);
     void instancesRenderImageChanged(const QVector<ModelNode> &nodeList);
     void instancesPreviewImageChanged(const QVector<ModelNode> &nodeList);
     void instancesChildrenChanged(const QVector<ModelNode> &nodeList);
+    void instancePropertyChange(const QList<QPair<ModelNode, QString> > &propertyList);
+    void instancesToken(const QString &tokenName, int tokenNumber, const QVector<ModelNode> &nodeVector);
 
     void rewriterBeginTransaction();
     void rewriterEndTransaction();
@@ -125,7 +125,6 @@ signals:
     void ItemCreatorDeActivated();
 
 protected:
-    void otherPropertyChanged(const QmlObjectNode &qmlObjectNode, const QString &propertyName);
     void stateChanged(const QmlModelState &newQmlModelState, const QmlModelState &oldQmlModelState);
     void reset();
 
@@ -138,7 +137,8 @@ protected slots:
 
 private: //functions
     void setupFormEditorItemTree(const QmlItemNode &qmlItemNode);
-
+    void removeNodeFromScene(const QmlItemNode &qmlItemNode);
+    void hideNodeFromScene(const QmlItemNode &qmlItemNode);
 
 private: //variables
     QWeakPointer<FormEditorWidget> m_formEditorWidget;

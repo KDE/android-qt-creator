@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -45,6 +45,7 @@
 #include <QtXml/QXmlStreamReader>
 #include <QtCore/QDebug>
 #include <QPlainTextEdit>
+#include <QHashIterator>
 
 #include "abstractview.h"
 #include "nodeinstanceview.h"
@@ -94,7 +95,7 @@ ModelPrivate::ModelPrivate(Model *model) :
         m_writeLock(false),
         m_internalIdCounter(1)
 {
-    m_rootInternalNode = createNode("QtQuick/Item", 1, 0, PropertyListType(), true);
+    m_rootInternalNode = createNode("QtQuick/Item", 1, 0, PropertyListType(), PropertyListType(), QString(), ModelNode::NodeWithoutSource,true);
 }
 
 ModelPrivate::~ModelPrivate()
@@ -202,6 +203,9 @@ InternalNode::Pointer ModelPrivate::createNode(const QString &typeString,
                                                int majorVersion,
                                                int minorVersion,
                                                const QList<QPair<QString, QVariant> > &propertyList,
+                                               const QList<QPair<QString, QVariant> > &auxPropertyList,
+                                               const QString &nodeSource,
+                                               ModelNode::NodeSourceType nodeSourceType,
                                                bool isRootNode)
 {
     if (typeString.isEmpty())
@@ -213,6 +217,7 @@ InternalNode::Pointer ModelPrivate::createNode(const QString &typeString,
         internalId = m_internalIdCounter++;
 
     InternalNode::Pointer newInternalNodePointer = InternalNode::create(typeString, majorVersion, minorVersion, internalId);
+    newInternalNodePointer->setNodeSourceType(nodeSourceType);
 
     typedef QPair<QString, QVariant> PropertyPair;
 
@@ -221,8 +226,15 @@ InternalNode::Pointer ModelPrivate::createNode(const QString &typeString,
         newInternalNodePointer->variantProperty(propertyPair.first)->setValue(propertyPair.second);
     }
 
+    foreach (const PropertyPair &propertyPair, auxPropertyList) {
+        newInternalNodePointer->setAuxiliaryData(propertyPair.first, propertyPair.second);
+    }
+
     m_nodeSet.insert(newInternalNodePointer);
     m_internalIdNodeHash.insert(newInternalNodePointer->internalId(), newInternalNodePointer);
+
+    if (!nodeSource.isNull())
+        newInternalNodePointer->setNodeSource(nodeSource);
 
     notifyNodeCreated(newInternalNodePointer);
 
@@ -355,6 +367,38 @@ void ModelPrivate::notifyAuxiliaryDataChanged(const InternalNodePointer &interna
     }
 }
 
+void ModelPrivate::notifyNodeSourceChanged(const InternalNodePointer &internalNode, const QString &newNodeSource)
+{
+    bool resetModel = false;
+    QString description;
+
+    try {
+        if (rewriterView()) {
+            ModelNode node(internalNode, model(), rewriterView());
+            rewriterView()->nodeSourceChanged(node, newNodeSource);
+        }
+    } catch (RewritingException &e) {
+        description = e.description();
+        resetModel = true;
+    }
+
+    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+        Q_ASSERT(view != 0);
+        ModelNode node(internalNode, model(), view.data());
+        view->nodeSourceChanged(node, newNodeSource);
+
+    }
+
+    if (nodeInstanceView()) {
+        ModelNode node(internalNode, model(), nodeInstanceView());
+        nodeInstanceView()->nodeSourceChanged(node, newNodeSource);
+    }
+
+    if (resetModel) {
+        resetModelByRewriter(description);
+    }
+}
+
 void ModelPrivate::notifyRootNodeTypeChanged(const QString &type, int majorVersion, int minorVersion)
 {
     bool resetModel = false;
@@ -429,16 +473,27 @@ void ModelPrivate::notifyInstancesCompleted(const QVector<ModelNode> &nodeVector
     }
 }
 
-void ModelPrivate::notifyInstancesInformationsChange(const QVector<ModelNode> &nodeVector)
+QMultiHash<ModelNode, InformationName> convertModelNodeInformationHash(const QMultiHash<ModelNode, InformationName> &informationChangeHash, AbstractView *view)
+{
+    QMultiHash<ModelNode, InformationName>  convertedModelNodeInformationHash;
+
+    QHashIterator<ModelNode, InformationName> hashIterator(informationChangeHash);
+    while (hashIterator.hasNext()) {
+        hashIterator.next();
+        convertedModelNodeInformationHash.insert(ModelNode(hashIterator.key(), view), hashIterator.value());
+    }
+
+    return convertedModelNodeInformationHash;
+}
+
+void ModelPrivate::notifyInstancesInformationsChange(const QMultiHash<ModelNode, InformationName> &informationChangeHash)
 {
     bool resetModel = false;
     QString description;
 
-    QVector<Internal::InternalNode::Pointer> internalVector(toInternalNodeVector(nodeVector));
-
     try {
         if (rewriterView())
-            rewriterView()->instanceInformationsChange(toModelNodeVector(internalVector, rewriterView()));
+            rewriterView()->instanceInformationsChange(convertModelNodeInformationHash(informationChangeHash, rewriterView()));
     } catch (RewritingException &e) {
         description = e.description();
         resetModel = true;
@@ -446,11 +501,11 @@ void ModelPrivate::notifyInstancesInformationsChange(const QVector<ModelNode> &n
 
     foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
         Q_ASSERT(view != 0);
-        view->instanceInformationsChange(toModelNodeVector(internalVector, view.data()));
+        view->instanceInformationsChange(convertModelNodeInformationHash(informationChangeHash, view.data()));
     }
 
     if (nodeInstanceView()) {
-        nodeInstanceView()->instanceInformationsChange(toModelNodeVector(internalVector, nodeInstanceView()));
+        nodeInstanceView()->instanceInformationsChange(convertModelNodeInformationHash(informationChangeHash, nodeInstanceView()));
     }
 
     if (resetModel) {
@@ -550,6 +605,8 @@ void ModelPrivate::notifyActualStateChanged(const ModelNode &node)
     bool resetModel = false;
     QString description;
 
+    m_acutalStateNode = node.internalNode();
+
     try {
         if (rewriterView())
             rewriterView()->actualStateChanged(ModelNode(node.internalNode(), model(), rewriterView()));
@@ -619,6 +676,36 @@ void ModelPrivate::notifyRewriterEndTransaction()
 
     if (nodeInstanceView()) {
         nodeInstanceView()->rewriterEndTransaction();
+    }
+
+    if (resetModel) {
+        resetModelByRewriter(description);
+    }
+}
+
+void ModelPrivate::notifyInstanceToken(const QString &token, int number, const QVector<ModelNode> &nodeVector)
+{
+    bool resetModel = false;
+    QString description;
+
+    QVector<Internal::InternalNode::Pointer> internalVector(toInternalNodeVector(nodeVector));
+
+
+    try {
+        if (rewriterView())
+            rewriterView()->instancesToken(token, number, toModelNodeVector(internalVector, rewriterView()));
+    } catch (RewritingException &e) {
+        description = e.description();
+        resetModel = true;
+    }
+
+    foreach (const QWeakPointer<AbstractView> &view, m_viewList) {
+        Q_ASSERT(view != 0);
+        view->instancesToken(token, number, toModelNodeVector(internalVector, view.data()));
+    }
+
+    if (nodeInstanceView()) {
+        nodeInstanceView()->instancesToken(token, number, toModelNodeVector(internalVector, nodeInstanceView()));
     }
 
     if (resetModel) {
@@ -1456,6 +1543,12 @@ void ModelPrivate::setScriptFunctions(const InternalNode::Pointer &internalNode,
     notifyScriptFunctionsChanged(internalNode, scriptFunctionList);
 }
 
+void ModelPrivate::setNodeSource(const InternalNodePointer &internalNode, const QString &nodeSource)
+{
+    internalNode->setNodeSource(nodeSource);
+    notifyNodeSourceChanged(internalNode, nodeSource);
+}
+
 void ModelPrivate::changeNodeOrder(const InternalNode::Pointer &internalParentNode, const QString &listPropertyName, int from, int to)
 {
     InternalNodeListProperty::Pointer nodeList(internalParentNode->nodeListProperty(listPropertyName));
@@ -1545,6 +1638,11 @@ QList<InternalNodePointer> ModelPrivate::allNodes() const
 bool ModelPrivate::isWriteLocked() const
 {
     return m_writeLock;
+}
+
+InternalNode::Pointer ModelPrivate::actualStateNode() const
+{
+    return m_acutalStateNode;
 }
 
 
@@ -1679,6 +1777,56 @@ QList<Import> Model::imports() const
 void Model::changeImports(const QList<Import> &importsToBeAdded, const QList<Import> &importsToBeRemoved)
 {
     m_d->changeImports(importsToBeAdded, importsToBeRemoved);
+}
+
+
+static bool compareVersions(const QString &version1, const QString &version2, bool allowHigherVersion)
+{
+    if (version1 == version2)
+        return true;
+    if (!allowHigherVersion)
+        return false;
+    QStringList version1List = version1.split('.');
+    QStringList version2List = version2.split('.');
+    if (version1List.count() == 2 && version2List.count() == 2) {
+        bool ok;
+        int major1 = version1List.first().toInt(&ok);
+        if (!ok)
+            return false;
+        int major2 = version2List.first().toInt(&ok);
+        if (!ok)
+            return false;
+        if (major1 >= major2) {
+            int minor1 = version1List.last().toInt(&ok);
+            if (!ok)
+                return false;
+            int minor2 = version2List.last().toInt(&ok);
+            if (!ok)
+                return false;
+            if (minor1 >= minor2)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+bool Model::hasImport(const Import &import, bool ignoreAlias, bool allowHigherVersion)
+{
+    if (imports().contains(import))
+        return true;
+    if (!ignoreAlias)
+        return false;
+
+    foreach (const Import &existingImport, imports()) {
+        if (existingImport.isFileImport() && import.isFileImport())
+            if (existingImport.file() == import.file() && compareVersions(existingImport.version(), import.version(), allowHigherVersion))
+                return true;
+        if (existingImport.isLibraryImport() && import.isLibraryImport())
+            if (existingImport.url() == import.url()  && compareVersions(existingImport.version(), import.version(), allowHigherVersion))
+                return true;
+    }
+    return false;
 }
 
 RewriterView *Model::rewriterView() const

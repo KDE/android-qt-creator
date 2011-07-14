@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
@@ -42,6 +42,7 @@ namespace Ui {
 class WizardPage;
 }
 
+// Documentation inside.
 class ProjectWizardPage : public QWizardPage {
     Q_OBJECT
     Q_DISABLE_COPY(ProjectWizardPage)
@@ -71,6 +72,7 @@ protected:
 
 private slots:
     void slotProjectChanged(int);
+    void slotManageVcs();
 
 private:
     inline void setProjectToolTip(const QString &);
