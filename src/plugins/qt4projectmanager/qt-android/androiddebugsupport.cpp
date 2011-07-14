@@ -36,6 +36,7 @@ namespace Qt4ProjectManager {
 namespace Internal {
 
 static const char * const qMakeVariables[] = {
+         "QT_INSTALL_LIBS",
          "QT_INSTALL_PLUGINS",
          "QT_INSTALL_IMPORTS"
 };
@@ -59,9 +60,6 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
         if (node->projectType() == ApplicationTemplate)
             params.solibSearchPath.append(node->targetInformation().buildDir);
 
-    // Make sure libs comes first
-    params.solibSearchPath.append(runConfig->activeQt4BuildConfiguration()->qtVersion()->libraryInstallPath());
-    // Add the other paths e.g. plugins,imports
     params.solibSearchPath.append(qtSoPaths(runConfig->activeQt4BuildConfiguration()->qtVersion()));
 
     params.useServerStartScript = true;
@@ -129,7 +127,7 @@ void AndroidDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
         m_runControl->showMessage(QString::fromUtf8(output), AppError);
 }
 
-QStringList AndroidDebugSupport::qtSoPaths(QtVersion * qtVersion)
+QStringList AndroidDebugSupport::qtSoPaths(QtSupport::BaseQtVersion * qtVersion)
 {
     QSet<QString> paths;
     for (uint i = 0; i < sizeof qMakeVariables / sizeof qMakeVariables[0]; ++i)

@@ -22,12 +22,10 @@ are required by law.
 namespace Debugger {
 class DebuggerRunControl;
 }
-
+namespace QtSupport {class BaseQtVersion; }
 namespace ProjectExplorer { class RunControl; }
 
 namespace Qt4ProjectManager {
-
-class QtVersion;
 
 namespace Internal {
 
@@ -52,7 +50,7 @@ private slots:
     void handleRemoteErrorOutput(const QByteArray &output);
 
 private:
-    static QStringList qtSoPaths(QtVersion * qtVersion);
+    static QStringList qtSoPaths(QtSupport::BaseQtVersion * qtVersion);
 
 private:
     const QPointer<Debugger::DebuggerRunControl> m_runControl;

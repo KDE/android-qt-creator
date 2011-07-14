@@ -13,7 +13,6 @@ are required by law.
 #include "qt4androidtarget.h"
 
 #include "qt4projectmanagerconstants.h"
-#include "qtversionmanager.h"
 
 #include <projectexplorer/gccparser.h>
 #include <projectexplorer/headerpath.h>
@@ -155,6 +154,11 @@ bool AndroidToolChain::fromMap(const QVariantMap &data)
     return isValid();
 }
 
+QString AndroidToolChain::mkspec() const
+{
+    return "android-g++";
+}
+
 void AndroidToolChain::setQtVersionId(int id)
 {
     if (id < 0) {
@@ -164,7 +168,7 @@ void AndroidToolChain::setQtVersionId(int id)
         return;
     }
 
-    QtVersion *version = QtVersionManager::instance()->version(id);
+    QtSupport::BaseQtVersion *version = QtSupport::QtVersionManager::instance()->version(id);
     Q_ASSERT(version);
     m_qtVersionId = id;
 
@@ -194,7 +198,7 @@ AndroidToolChainConfigWidget::AndroidToolChainConfigWidget(AndroidToolChain *tc)
 {
     QVBoxLayout *layout = new QVBoxLayout(this);
     QLabel *label = new QLabel;
-    QtVersion *v = QtVersionManager::instance()->version(tc->qtVersionId());
+    QtSupport::BaseQtVersion *v = QtSupport::QtVersionManager::instance()->version(tc->qtVersionId());
     Q_ASSERT(v);
     label->setText(tr("NDK Root: %1").arg(AndroidConfigurations::instance().config().NDKLocation));
     layout->addWidget(label);
@@ -237,12 +241,12 @@ QList<ProjectExplorer::ToolChain *> AndroidToolChainFactory::autoDetect()
 {
     QList<ProjectExplorer::ToolChain *> result;
 
-    QtVersionManager *vm = QtVersionManager::instance();
+    QtSupport::QtVersionManager *vm = QtSupport::QtVersionManager::instance();
     connect(vm, SIGNAL(qtVersionsChanged(QList<int>)),
             this, SLOT(handleQtVersionChanges(QList<int>)));
 
     QList<int> versionList;
-    foreach (QtVersion *v, vm->versions())
+    foreach (QtSupport::BaseQtVersion *v, vm->versions())
         versionList.append(v->uniqueId());
 
     return createToolChainList(versionList);
@@ -259,11 +263,11 @@ void AndroidToolChainFactory::handleQtVersionChanges(const QList<int> &changes)
 QList<ProjectExplorer::ToolChain *> AndroidToolChainFactory::createToolChainList(const QList<int> &changes)
 {
     ProjectExplorer::ToolChainManager *tcm = ProjectExplorer::ToolChainManager::instance();
-    QtVersionManager *vm = QtVersionManager::instance();
+    QtSupport::QtVersionManager *vm = QtSupport::QtVersionManager::instance();
     QList<ProjectExplorer::ToolChain *> result;
 
     foreach (int i, changes) {
-        QtVersion *v = vm->version(i);
+        QtSupport::BaseQtVersion *v = vm->version(i);
         if (!v) {
             // remove ToolChain:
             QList<ProjectExplorer::ToolChain *> toRemove;

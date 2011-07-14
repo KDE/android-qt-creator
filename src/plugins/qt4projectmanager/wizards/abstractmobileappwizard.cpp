@@ -111,8 +111,6 @@ int AbstractMobileAppWizardDialog::addPageWithTitle(QWizardPage *page, const QSt
 
 int AbstractMobileAppWizardDialog::nextId() const
 {
-// warning check me !!!
-//            || m_targetsPage->isTargetSelected(QLatin1String(Constants::ANDROID_DEVICE_TARGET_ID));
     if (currentPage() == m_targetsPage) {
         if ((isSymbianTargetSelected() && !m_ignoreGeneralOptions) || isFremantleTargetSelected())
             return m_genericOptionsPageId;

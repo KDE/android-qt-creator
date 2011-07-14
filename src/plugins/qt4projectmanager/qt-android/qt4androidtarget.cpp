@@ -33,7 +33,7 @@ are required by law.
 #include <QtCore/QProcess>
 #include <QtGui/QMessageBox>
 #include <QtGui/QApplication>
-#include <QDomDocument>
+#include <QtXml/QDomDocument>
 
 #include <cctype>
 
@@ -76,15 +76,6 @@ Qt4BuildConfigurationFactory *Qt4AndroidTarget::buildConfigurationFactory() cons
 ProjectExplorer::DeployConfigurationFactory *Qt4AndroidTarget::deployConfigurationFactory() const
 {
     return m_deployConfigurationFactory;
-}
-
-QString Qt4AndroidTarget::defaultBuildDirectory() const
-{
-    //TODO why?
-#if defined(Q_OS_WIN)
-    return project()->projectDirectory();
-#endif
-    return Qt4BaseTarget::defaultBuildDirectory();
 }
 
 void Qt4AndroidTarget::createApplicationProFiles()

@@ -397,8 +397,7 @@ bool QMakeStep::isQmlDebuggingLibrarySupported(QString *reason) const
             *reason = tr("Invalid Qt version.");
         return false;
     }
-#warning CHECK ME
-// For some reason (probably folder name) C:/Qt/Git Qt fails here. 
+
     if (version->qtVersion() < QtSupport::QtVersionNumber(4, 7, 1)) {
         if (reason)
             *reason = tr("Requires Qt 4.7.1 or newer.");

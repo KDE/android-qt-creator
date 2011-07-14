@@ -26,10 +26,10 @@ namespace Qt4ProjectManager {
 
 class Qt4BuildConfiguration;
 class Qt4Project;
+class Qt4ProFileNode;
 
 namespace Internal {
 
-class Qt4ProFileNode;
 
 class AndroidDeviceConfigListModel;
 class AndroidDeployStep;
@@ -56,7 +56,7 @@ public:
     using ProjectExplorer::RunConfiguration::isEnabled;
     bool isEnabled(ProjectExplorer::BuildConfiguration *config) const;
     QWidget *createConfigurationWidget();
-    ProjectExplorer::OutputFormatter *createOutputFormatter() const;
+    Utils::OutputFormatter *createOutputFormatter() const;
     Qt4AndroidTarget *androidTarget() const;
     Qt4BuildConfiguration *activeQt4BuildConfiguration() const;
 
@@ -107,8 +107,8 @@ protected:
     QString defaultDisplayName();
 
 private slots:
-    void proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode *pro, bool success);
-    void proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro);
+    void proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success);
+    void proFileInvalidated(Qt4ProjectManager::Qt4ProFileNode *pro);
     void updateDeviceConfigurations();
     void handleDeployConfigChanged();
 
@@ -127,7 +127,7 @@ private:
     bool m_validParse;
 };
 
-    } // namespace Internal
+} // namespace Internal
 } // namespace Qt4ProjectManager
 
 #endif // ANDROIDRUNCONFIGURATION_H

@@ -15,8 +15,6 @@ are required by law.
 #include "androidtoolchain.h"
 #include "qt4androidtarget.h"
 
-#include "qtoutputformatter.h"
-
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 
@@ -28,6 +26,8 @@ are required by law.
 
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
+
+#include <qtsupport/qtoutputformatter.h>
 
 #include <QtCore/QStringBuilder>
 
@@ -109,9 +109,9 @@ QWidget *AndroidRunConfiguration::createConfigurationWidget()
     return new AndroidRunConfigurationWidget(this);
 }
 
-ProjectExplorer::OutputFormatter *AndroidRunConfiguration::createOutputFormatter() const
+Utils::OutputFormatter *AndroidRunConfiguration::createOutputFormatter() const
 {
-    return new QtOutputFormatter(androidTarget()->qt4Project());
+    return new QtSupport::QtOutputFormatter(androidTarget()->qt4Project());
 }
 
 void AndroidRunConfiguration::handleParseState(bool success)
@@ -122,14 +122,14 @@ void AndroidRunConfiguration::handleParseState(bool success)
         emit isEnabledChanged(!enabled);
 }
 
-void AndroidRunConfiguration::proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *pro)
+void AndroidRunConfiguration::proFileInvalidated(Qt4ProjectManager::Qt4ProFileNode *pro)
 {
     if (m_proFilePath != pro->path())
         return;
     handleParseState(false);
 }
 
-void AndroidRunConfiguration::proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode *pro, bool success)
+void AndroidRunConfiguration::proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success)
 {
     if (m_proFilePath == pro->path()) {
         handleParseState(success);

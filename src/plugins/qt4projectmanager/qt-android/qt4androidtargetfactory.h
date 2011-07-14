@@ -33,12 +33,11 @@ public:
     QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id);
 
     bool supportsTargetId(const QString &id) const;
+    virtual QSet<QString> targetFeatures(const QString &id) const;
 
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &proFilePath);
     Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id);
     Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id, const QList<BuildConfigurationInfo> &infos);
 
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtVersionNumber &minimumQtVersion);
     bool isMobileTarget(const QString &id);
     bool supportsShadowBuilds(const QString &id);
 

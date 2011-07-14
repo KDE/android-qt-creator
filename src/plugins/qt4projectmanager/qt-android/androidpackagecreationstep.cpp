@@ -151,7 +151,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 
     QString androidLibPath;
     if (bc->qt4Target()->qt4Project()->rootProjectNode()
-            ->variableValue(Qt4ProjectManager::Internal::ConfigVar).contains("armeabi-v7a"))
+            ->variableValue(Qt4ProjectManager::ConfigVar).contains("armeabi-v7a"))
         androidLibPath=androidDir+QLatin1String("/libs/armeabi-v7a");
     else
         androidLibPath=androidDir+QLatin1String("/libs/armeabi");
@@ -210,7 +210,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     QStringList build;
     build<<"debug";
     QFile::remove(androidLibPath+QLatin1String("/gdbserver"));
-    if (bc->qmakeBuildConfiguration() & QtVersion::DebugBuild)
+    if (bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
     {
             if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(),
                              androidLibPath+QLatin1String("/gdbserver")))

@@ -63,9 +63,6 @@ public:
         const QList<Qt4ProjectManager::BuildConfigurationInfo> &infos);
 
     QSet<QString> targetFeatures(const QString &id) const;
-private:
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &proFilePath,
-        const QString &id);
 };
 
 } // namespace Internal

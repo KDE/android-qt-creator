@@ -1,3 +1,5 @@
+QT += xml
+
 HEADERS += \
     $$PWD/androidconstants.h \
     $$PWD/androidconfigurations.h \
@@ -24,7 +26,9 @@ HEADERS += \
     $$PWD/androiddevicesmodel.h \
     $$PWD/qt4androiddeployconfiguration.h \
     $$PWD/qt4androidtarget.h \
-    $$PWD/qt4androidtargetfactory.h
+    $$PWD/qt4androidtargetfactory.h \
+    $$PWD/androidqtversionfactory.h \
+    $$PWD/androidqtversion.h
 
 SOURCES += \
     $$PWD/androidconfigurations.cpp \
@@ -50,7 +54,9 @@ SOURCES += \
     $$PWD/androiddevicesmodel.cpp \
     $$PWD/qt4androiddeployconfiguration.cpp \
     $$PWD/qt4androidtarget.cpp \
-    $$PWD/qt4androidtargetfactory.cpp
+    $$PWD/qt4androidtargetfactory.cpp \
+    $$PWD/androidqtversionfactory.cpp \
+    $$PWD/androidqtversion.cpp
 
 
 FORMS += \

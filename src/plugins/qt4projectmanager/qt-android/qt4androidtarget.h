@@ -17,7 +17,7 @@ are required by law.
 #include <QtCore/QObject>
 #include <QtCore/QSharedPointer>
 #include <QtGui/QIcon>
-#include <QDomDocument>
+#include <QtXml/QDomDocument>
 
 QT_FORWARD_DECLARE_CLASS(QFileSystemWatcher);
 
@@ -31,9 +31,9 @@ namespace Qt4ProjectManager {
 
 class Qt4Project;
 class Qt4Target;
+class Qt4ProFileNode;
 
 namespace Internal {
-class Qt4ProFileNode;
 class Qt4AndroidDeployConfigurationFactory;
 class Qt4AndroidTargetFactory;
 
@@ -64,9 +64,8 @@ public:
     explicit Qt4AndroidTarget(Qt4Project *parent, const QString &id);
     virtual ~Qt4AndroidTarget();
 
-    Internal::Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
+    Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
     ProjectExplorer::DeployConfigurationFactory *deployConfigurationFactory() const;
-    QString defaultBuildDirectory() const;
     void createApplicationProFiles();
 
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);

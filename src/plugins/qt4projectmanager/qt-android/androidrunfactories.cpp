@@ -18,6 +18,7 @@ are required by law.
 #include <projectexplorer/projectexplorerconstants.h>
 #include <debugger/debuggerconstants.h>
 #include <qt4projectmanager/qt4project.h>
+#include <qt4projectmanager/qt4nodes.h>
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 
 namespace Qt4ProjectManager {

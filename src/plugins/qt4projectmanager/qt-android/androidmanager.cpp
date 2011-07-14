@@ -20,7 +20,6 @@ are required by law.
 #include "qt4androidtargetfactory.h"
 
 #include <extensionsystem/pluginmanager.h>
-#include <qt4projectmanager/qtversionmanager.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFile>

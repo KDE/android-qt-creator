@@ -49,7 +49,7 @@ void AndroidRunControl::start()
         SLOT(handleRemoteOutput(QByteArray)));
     connect(m_runner, SIGNAL(remoteProcessFinished(const QString &)),
         SLOT(handleRemoteProcessFinished(const QString &)));
-    appendMessage(tr("Starting remote process ..."), NormalMessageFormat);
+    appendMessage(tr("Starting remote process ..."), Utils::NormalMessageFormat);
     m_runner->start();
 }
 
@@ -61,7 +61,7 @@ ProjectExplorer::RunControl::StopResult AndroidRunControl::stop()
 
 void AndroidRunControl::handleRemoteProcessFinished(const QString &error)
 {
-    appendMessage(error , ErrorMessageFormat);
+    appendMessage(error , Utils::ErrorMessageFormat);
     disconnect(m_runner, 0, this, 0);
     m_running = false;
     emit finished();
@@ -69,12 +69,12 @@ void AndroidRunControl::handleRemoteProcessFinished(const QString &error)
 
 void AndroidRunControl::handleRemoteOutput(const QByteArray &output)
 {
-    appendMessage(QString::fromUtf8(output), StdOutFormatSameLine);
+    appendMessage(QString::fromUtf8(output), Utils::StdOutFormatSameLine);
 }
 
 void AndroidRunControl::handleRemoteErrorOutput(const QByteArray &output)
 {
-    appendMessage(QString::fromUtf8(output), StdErrFormatSameLine);
+    appendMessage(QString::fromUtf8(output), Utils::StdErrFormatSameLine);
 }
 
 bool AndroidRunControl::isRunning() const
@@ -85,6 +85,11 @@ bool AndroidRunControl::isRunning() const
 QString AndroidRunControl::displayName() const
 {
     return m_runner->displayName();
+}
+
+QIcon AndroidRunControl::icon() const
+{
+    return QIcon(ProjectExplorer::Constants::ICON_DEBUG_SMALL);
 }
 
 } // namespace Internal
