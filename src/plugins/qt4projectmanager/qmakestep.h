@@ -42,6 +42,7 @@ QT_END_NAMESPACE
 #include <projectexplorer/abstractprocessstep.h>
 
 #include <QtCore/QStringList>
+#include <qt4projectmanager/qt4projectmanager_global.h>
 
 namespace ProjectExplorer {
 class BuildStep;
@@ -75,7 +76,7 @@ public:
 } // namespace Internal
 
 
-class QMakeStep : public ProjectExplorer::AbstractProcessStep
+class QT4PROJECTMANAGER_EXPORT QMakeStep : public ProjectExplorer::AbstractProcessStep
 {
     Q_OBJECT
     friend class Internal::QMakeStepFactory;

@@ -106,7 +106,6 @@ const char * const QTQUICKCOMPONENTS_MEEGO_TARGETFEATURE_ID
 // Tool chains:
 const char * const GCCE_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.GCCE";
 const char * const MAEMO_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.Maemo";
-const char * const ANDROID_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.Android";
 const char * const RVCT_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.RVCT";
 const char * const WINSCW_TOOLCHAIN_ID = "Qt4ProjectManager.ToolChain.WINSCW";
 

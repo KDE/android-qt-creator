@@ -58,8 +58,6 @@
 #include "qt-desktop/qt4runconfiguration.h"
 #include "qt-desktop/desktopqtversionfactory.h"
 #include "qt-desktop/simulatorqtversionfactory.h"
-#include "qt-android/androidmanager.h"
-#include "qt-android/androidqtversionfactory.h"
 #include "winceqtversionfactory.h"
 
 #include <coreplugin/uniqueidmanager.h>
@@ -152,13 +150,11 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     addAutoReleasedObject(new LinguistExternalEditor);
 
     addAutoReleasedObject(new S60Manager);
-    addAutoReleasedObject(new AndroidManager);
     addAutoReleasedObject(new Qt4DesktopTargetFactory);
     addAutoReleasedObject(new Qt4SimulatorTargetFactory);
 
     addAutoReleasedObject(new DesktopQtVersionFactory);
     addAutoReleasedObject(new SimulatorQtVersionFactory);
-    addAutoReleasedObject(new AndroidQtVersionFactory);
     addAutoReleasedObject(new WinCeQtVersionFactory);
 
     addAutoReleasedObject(new ProFileCompletionAssistProvider);

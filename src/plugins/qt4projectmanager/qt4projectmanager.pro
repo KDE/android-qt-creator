@@ -144,7 +144,6 @@ RESOURCES += qt4projectmanager.qrc \
 
 include(qt-s60/qt-s60.pri)
 include(qt-desktop/qt-desktop.pri)
-include(qt-android/qt-android.pri)
 include(customwidgetwizard/customwidgetwizard.pri)
 
 DEFINES += QT_NO_CAST_TO_ASCII

@@ -36,6 +36,7 @@
 #include <projectexplorer/abstractprocessstep.h>
 #include <projectexplorer/buildstep.h>
 #include <projectexplorer/task.h>
+#include <qt4projectmanager/qt4projectmanager_global.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -77,7 +78,7 @@ public:
 
 class Qt4Project;
 
-class MakeStep : public ProjectExplorer::AbstractProcessStep
+class QT4PROJECTMANAGER_EXPORT MakeStep : public ProjectExplorer::AbstractProcessStep
 {
     Q_OBJECT
     friend class Internal::MakeStepFactory;

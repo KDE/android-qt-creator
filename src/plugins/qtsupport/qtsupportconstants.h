@@ -49,7 +49,6 @@ const char * const MAEMOQT     = "Qt4ProjectManager.QtVersion.Maemo";
 const char * const DESKTOPQT   = "Qt4ProjectManager.QtVersion.Desktop";
 const char * const SIMULATORQT = "Qt4ProjectManager.QtVersion.Simulator";
 const char * const WINCEQT     = "Qt4ProjectManager.QtVersion.WinCE";
-const char * const ANDROIDQT   = "Qt4ProjectManager.QtVersion.Android";
 
 // QML wizard categories
 // both the qt4projectmanager and the qmlprojectmanager do have qt quick wizards

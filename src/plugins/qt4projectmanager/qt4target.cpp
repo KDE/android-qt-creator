@@ -39,9 +39,6 @@
 #include "qt4basetargetfactory.h"
 #include "qt4projectconfigwidget.h"
 #include "qt4projectmanagerconstants.h"
-#include "qt-android/androiddeploystep.h"
-#include "qt-android/androidpackagecreationstep.h"
-#include "qt-android/androidrunconfiguration.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>

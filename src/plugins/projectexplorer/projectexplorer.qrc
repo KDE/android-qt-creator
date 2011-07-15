@@ -38,7 +38,6 @@
         <file>images/targetpanel_gradient.png</file>
         <file>images/targetaddbutton_disabled.png</file>
         <file>images/targetremovebutton_disabled.png</file>
-        <file>images/AndroidDevice.png</file>
         <file>images/window.png</file>
         <file>images/stop_small.png</file>
     </qresource>
