@@ -103,7 +103,7 @@ void AndroidPackageCreationStep::checkRequiredLibraries()
                                  " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
         return;
     }
-    readelfProc.start(AndroidConfigurations::instance().readelfPath(),
+    readelfProc.start(AndroidConfigurations::instance().readelfPath(androidTarget()->activeRunConfiguration()->abi().architecture()),
                       QStringList()<<"-d"<<"-W"<<appPath);
     if (!readelfProc.waitForFinished(-1))
     {
@@ -212,10 +212,10 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     QFile::remove(androidLibPath+QLatin1String("/gdbserver"));
     if (bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
     {
-            if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(),
+            if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(target->activeRunConfiguration()->abi().architecture()),
                              androidLibPath+QLatin1String("/gdbserver")))
             {
-                raiseError(tr("Can't copy gdbserver from '%1' to '%2'").arg(AndroidConfigurations::instance().gdbServerPath())
+                raiseError(tr("Can't copy gdbserver from '%1' to '%2'").arg(AndroidConfigurations::instance().gdbServerPath(target->activeRunConfiguration()->abi().architecture()))
                            .arg(androidLibPath+QLatin1String("/gdbserver")));
                 return false;
             }
@@ -237,12 +237,12 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     return true;
 }
 
-void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files)
+void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files, ProjectExplorer::Abi::Architecture architecture)
 {
     QProcess stripProcess;
     foreach(QString file, files)
     {
-        stripProcess.start(AndroidConfigurations::instance().stripPath()+" --strip-unneeded "+file);
+        stripProcess.start(AndroidConfigurations::instance().stripPath(architecture)+" --strip-unneeded "+file);
         if (!stripProcess.waitForFinished(-1))
             stripProcess.terminate();
     }

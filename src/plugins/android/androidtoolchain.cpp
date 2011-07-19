@@ -90,10 +90,9 @@ void AndroidToolChain::addToEnvironment(Utils::Environment &env) const
                      ,ndk_host);
     env.set(QLatin1String("ANDROID_NDK_ROOT")
                      ,QDir::toNativeSeparators(AndroidConfigurations::instance().config().NDKLocation));
-    env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_PREFIX")
-                     ,AndroidConfigurations::instance().config().NDKToolchainVersion.left(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')));
-    env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_VERSION")
-                     ,AndroidConfigurations::instance().config().NDKToolchainVersion.mid(AndroidConfigurations::instance().config().NDKToolchainVersion.lastIndexOf('-')+1));
+    env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_PREFIX"), AndroidConfigurations::toolchainPrefix(m_targetAbi.architecture()));
+    env.set(QLatin1String("ANDROID_NDK_TOOLS_PREFIX"), AndroidConfigurations::toolsPrefix(m_targetAbi.architecture()));
+    env.set(QLatin1String("ANDROID_NDK_TOOLCHAIN_VERSION"),AndroidConfigurations::instance().config().NDKToolchainVersion);
 
     Qt4Project *qt4pro = qobject_cast<Qt4Project *>(ProjectExplorer::ProjectExplorerPlugin::instance()->currentProject());
     if (!qt4pro)
@@ -187,6 +186,11 @@ int AndroidToolChain::qtVersionId() const
     return m_qtVersionId;
 }
 
+QList<ProjectExplorer::Abi> AndroidToolChain::detectSupportedAbis() const
+{
+    return QList<ProjectExplorer::Abi>()<<m_targetAbi;
+}
+
 void AndroidToolChain::updateId()
 {
     setId(QString::fromLatin1("%1:%2").arg(Constants::ANDROID_TOOLCHAIN_ID).arg(m_qtVersionId));
@@ -273,7 +277,7 @@ QList<ProjectExplorer::ToolChain *> AndroidToolChainFactory::createToolChainList
         QtSupport::BaseQtVersion *v = vm->version(i);
         QList<ProjectExplorer::ToolChain *> toRemove;
         foreach (ProjectExplorer::ToolChain *tc, tcm->toolChains()) {
-            if (!tc->id().startsWith(QLatin1String(Constants::ANDROID_TOOLCHAIN_ID)))
+            if (tc->id()!=QLatin1String(Constants::ANDROID_TOOLCHAIN_ID))
                 continue;
             AndroidToolChain *aTc = static_cast<AndroidToolChain *>(tc);
             if (aTc->qtVersionId() == i)
@@ -288,8 +292,10 @@ QList<ProjectExplorer::ToolChain *> AndroidToolChainFactory::createToolChainList
 
         AndroidToolChain *aTc = new AndroidToolChain(true);
         aTc->setQtVersionId(i);
-        aTc->setDisplayName(tr("Android GCC (%2)").arg(AndroidConfigurations::instance().config().NDKToolchainVersion));
-        aTc->setCompilerPath(AndroidConfigurations::instance().gccPath());
+        aTc->setDisplayName(tr("Android GCC (%1-%2)")
+                            .arg(ProjectExplorer::Abi::toString(aTc->targetAbi().architecture()))
+                            .arg(AndroidConfigurations::instance().config().NDKToolchainVersion));
+        aTc->setCompilerPath(AndroidConfigurations::instance().gccPath(aTc->targetAbi().architecture()));
         result.append(aTc);
     }
     return result;

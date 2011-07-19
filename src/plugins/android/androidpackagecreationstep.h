@@ -10,6 +10,7 @@ are required by law.
 #ifndef ANDROIDPACKAGECREATIONSTEP_H
 #define ANDROIDPACKAGECREATIONSTEP_H
 
+#include <projectexplorer/abi.h>
 #include <projectexplorer/buildstep.h>
 
 QT_BEGIN_NAMESPACE
@@ -36,7 +37,7 @@ public:
 
     static bool removeDirectory(const QString &dirPath);
 
-    static void stripAndroidLibs(const QStringList & files);
+    static void stripAndroidLibs(const QStringList & files, ProjectExplorer::Abi::Architecture architecture);
 
     static const QLatin1String DefaultVersionNumber;
 

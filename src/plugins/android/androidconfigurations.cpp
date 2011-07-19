@@ -41,27 +41,69 @@ namespace {
     const QLatin1String NDKLocationKey("NDKLocation");
     const QLatin1String NDKToolchainVersionKey("NDKToolchainVersion");
     const QLatin1String AntLocationKey("AntLocation");
-    const QLatin1String GdbLocationKey("GdbLocation");
-    const QLatin1String GdbserverLocationKey("GdbserverLocation");
+    const QLatin1String ArmGdbLocationKey("GdbLocation");
+    const QLatin1String ArmGdbserverLocationKey("GdbserverLocation");
+    const QLatin1String X86GdbLocationKey("X86GdbLocation");
+    const QLatin1String X86GdbserverLocationKey("X86GdbserverLocation");
     const QLatin1String OpenJDKLocationKey("OpenJDKLocation");
     const QLatin1String PartitionSizeKey("PartitionSize");
+    const QLatin1String NDKGccVersionRegExp("\\d\\.\\d\\.\\d");
+    const QLatin1String ArmToolchainPrefix("arm-linux-androideabi");
+    const QLatin1String X86ToolchainPrefix("x86");
+    const QLatin1String ArmToolsPrefix("arm-linux-androideabi");
+    const QLatin1String X86ToolsPrefix("i686-android-linux");
+    const QLatin1String Unknown("unknown");
     bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
     {
         return dev1.sdk< dev2.sdk;
     }
 }
 
+const QLatin1String & AndroidConfigurations::toolchainPrefix(ProjectExplorer::Abi::Architecture architecture)
+{
+    switch(architecture)
+    {
+    case ProjectExplorer::Abi::ArmArchitecture:
+        return ArmToolchainPrefix;
+    case ProjectExplorer::Abi::X86Architecture:
+        return X86ToolchainPrefix;
+    default:
+        return Unknown;
+    }
+}
+
+
+const QLatin1String & AndroidConfigurations::toolsPrefix(ProjectExplorer::Abi::Architecture architecture)
+{
+    switch(architecture)
+    {
+    case ProjectExplorer::Abi::ArmArchitecture:
+        return ArmToolsPrefix;
+    case ProjectExplorer::Abi::X86Architecture:
+        return X86ToolsPrefix;
+    default:
+        return Unknown;
+    }
+}
 
 AndroidConfig::AndroidConfig(const QSettings &settings)
     : SDKLocation(settings.value(SDKLocationKey).toString()),
       NDKLocation(settings.value(NDKLocationKey).toString()),
-      NDKToolchainVersion(settings.value(NDKToolchainVersionKey).toString()),
       AntLocation(settings.value(AntLocationKey).toString()),
-      GdbLocation(settings.value(GdbLocationKey).toString()),
-      GdbserverLocation(settings.value(GdbserverLocationKey).toString()),
+      ArmGdbLocation(settings.value(ArmGdbLocationKey).toString()),
+      ArmGdbserverLocation(settings.value(ArmGdbserverLocationKey).toString()),
+      X86GdbLocation(settings.value(X86GdbLocationKey).toString()),
+      X86GdbserverLocation(settings.value(X86GdbserverLocationKey).toString()),
       OpenJDKLocation(settings.value(OpenJDKLocationKey).toString()),
       PartitionSize(settings.value(PartitionSizeKey, 1024).toInt())
 {
+    QRegExp versionRegExp(NDKGccVersionRegExp);
+    const QString & value=settings.value(NDKToolchainVersionKey).toString();
+    if (versionRegExp.exactMatch(value))
+        NDKToolchainVersion=value;
+    else
+        NDKToolchainVersion=value.mid(versionRegExp.indexIn(value));
+
 }
 
 AndroidConfig::AndroidConfig()
@@ -75,8 +117,10 @@ void AndroidConfig::save(QSettings &settings) const
     settings.setValue(NDKLocationKey, NDKLocation);
     settings.setValue(NDKToolchainVersionKey, NDKToolchainVersion);
     settings.setValue(AntLocationKey, AntLocation);
-    settings.setValue(GdbLocationKey, GdbLocation);
-    settings.setValue(GdbserverLocationKey, GdbserverLocation);
+    settings.setValue(ArmGdbLocationKey, ArmGdbLocation);
+    settings.setValue(ArmGdbserverLocationKey, ArmGdbserverLocation);
+    settings.setValue(X86GdbLocationKey, X86GdbLocation);
+    settings.setValue(X86GdbserverLocationKey, X86GdbserverLocation);
     settings.setValue(OpenJDKLocationKey, OpenJDKLocation);
     settings.setValue(PartitionSizeKey, PartitionSize);
 }
@@ -127,10 +171,20 @@ QStringList AndroidConfigurations::sdkTargets(int minApiLevel)
 
 QStringList AndroidConfigurations::ndkToolchainVersions()
 {
-#ifdef __GNUC__
-#warning TODO list the content of NDK_path/toolchains and get only the folders which contain "prebuilt" folder
-#endif
-    return QStringList()<<"arm-linux-androideabi-4.4.3";
+    QRegExp versionRegExp(NDKGccVersionRegExp);
+    QStringList result;
+    QDirIterator it(m_config.NDKLocation+"/toolchains", QStringList()<<"*", QDir::Dirs);
+    while(it.hasNext())
+    {
+        const QString & fileName=it.next();
+        int idx=versionRegExp.indexIn(fileName);
+        if (-1==idx)
+            continue;
+        QString version=fileName.mid(idx);
+        if (!result.contains(version))
+            result.append(version);
+    }
+    return result;
 }
 
 QString AndroidConfigurations::adbToolPath()
@@ -166,33 +220,71 @@ QString AndroidConfigurations::emulatorToolPath()
     return m_config.SDKLocation+QString("/tools/emulator"ANDROID_EXE_SUFFIX);
 }
 
-QString AndroidConfigurations::stripPath()
+QString AndroidConfigurations::toolPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-strip"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return m_config.NDKLocation+QString("/toolchains/%1-%2/prebuilt/%3/bin/%4")
+            .arg(toolchainPrefix(architecture))
+            .arg(m_config.NDKToolchainVersion)
+            .arg(ToolchainHost)
+            .arg(toolsPrefix(architecture));
 }
 
-QString AndroidConfigurations::readelfPath()
+QString AndroidConfigurations::stripPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-readelf"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return toolPath(architecture)+"-strip"ANDROID_EXE_SUFFIX;
 }
 
-QString AndroidConfigurations::gccPath()
+QString AndroidConfigurations::readelfPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gcc"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    return toolPath(architecture)+"-readelf"ANDROID_EXE_SUFFIX;
 }
 
-QString AndroidConfigurations::gdbServerPath()
+QString AndroidConfigurations::gccPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    if (m_config.GdbserverLocation.length())
-        return m_config.GdbserverLocation;
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/gdbserver").arg(m_config.NDKToolchainVersion);
+    return toolPath(architecture)+"-gcc"ANDROID_EXE_SUFFIX;
 }
 
-QString AndroidConfigurations::gdbPath()
+QString AndroidConfigurations::gdbServerPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    if (m_config.GdbLocation.length())
-        return m_config.GdbLocation;
-    return m_config.NDKLocation+QString("/toolchains/%1/prebuilt/%2/bin/%3-gdb"ANDROID_EXE_SUFFIX).arg(m_config.NDKToolchainVersion).arg(ToolchainHost).arg(m_config.NDKToolchainVersion.left(m_config.NDKToolchainVersion.lastIndexOf('-')));
+    QString gdbServerPath;
+    switch(architecture)
+    {
+    case ProjectExplorer::Abi::ArmArchitecture:
+        gdbServerPath=m_config.ArmGdbserverLocation;
+        break;
+    case ProjectExplorer::Abi::X86Architecture:
+        gdbServerPath=m_config.X86GdbserverLocation;
+        break;
+    default:
+        gdbServerPath=Unknown;
+        break;
+    }
+
+    if (gdbServerPath.length())
+        return gdbServerPath;
+    return m_config.NDKLocation+QString("/toolchains/%1-%2/prebuilt/gdbserver")
+            .arg(toolchainPrefix(architecture))
+            .arg(m_config.NDKToolchainVersion);
+}
+
+QString AndroidConfigurations::gdbPath(ProjectExplorer::Abi::Architecture architecture)
+{
+    QString gdbPath;
+    switch(architecture)
+    {
+    case ProjectExplorer::Abi::ArmArchitecture:
+        gdbPath=m_config.ArmGdbLocation;
+        break;
+    case ProjectExplorer::Abi::X86Architecture:
+        gdbPath=m_config.X86GdbLocation;
+        break;
+    default:
+        gdbPath=Unknown;
+        break;
+    }
+    if (gdbPath.length())
+        return gdbPath;
+    return toolPath(architecture)+"-gdb"ANDROID_EXE_SUFFIX;
 }
 
 QString AndroidConfigurations::openJDKPath()

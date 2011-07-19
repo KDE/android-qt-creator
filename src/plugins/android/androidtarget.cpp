@@ -720,7 +720,7 @@ bool AndroidTarget::QtLibrariesLessThan(const Library & a, const Library & b)
 
 QStringList AndroidTarget::availableQtLibs()
 {
-    const QString readelfPath=AndroidConfigurations::instance().readelfPath();
+    const QString readelfPath=AndroidConfigurations::instance().readelfPath(activeRunConfiguration()->abi().architecture());
     QStringList libs;
     const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
     if (!qt4Project)

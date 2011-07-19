@@ -92,7 +92,7 @@
      <item row="4" column="0">
       <widget class="QLabel" name="GdbLocationLabel">
        <property name="text">
-        <string>GDB location:</string>
+        <string>arm GDB location:</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -112,7 +112,7 @@
      <item row="5" column="0">
       <widget class="QLabel" name="GdbserverLocationLabel">
        <property name="text">
-        <string>GDBserver location:</string>
+        <string>arm GDBserver location:</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -130,6 +130,46 @@
       </widget>
      </item>
      <item row="6" column="0">
+      <widget class="QLabel" name="GdbLocationLabelx86">
+       <property name="text">
+        <string>x86 GDB location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QLineEdit" name="GdbLocationLineEditx86"/>
+     </item>
+     <item row="6" column="2">
+      <widget class="QPushButton" name="GdbLocationPushButtonx86">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="GdbserverLocationLabelx86">
+       <property name="text">
+        <string>x86 GDBserver location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QLineEdit" name="GdbserverLocationLineEditx86"/>
+     </item>
+     <item row="7" column="2">
+      <widget class="QPushButton" name="GdbserverLocationPushButtonx86">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0">
       <widget class="QLabel" name="OpenJDKLocationLabel">
        <property name="text">
         <string>OpenJDK location:</string>
@@ -139,10 +179,10 @@
        </property>
       </widget>
      </item>
-     <item row="6" column="1">
+     <item row="8" column="1">
       <widget class="QLineEdit" name="OpenJDKLocationLineEdit"/>
      </item>
-     <item row="6" column="2">
+     <item row="8" column="2">
       <widget class="QPushButton" name="OpenJDKLocationPushButton">
        <property name="text">
         <string>Browse</string>
@@ -571,6 +611,70 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>GdbLocationLineEditx86</sender>
+   <signal>editingFinished()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>GdbLocationX86EditingFinished()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>399</x>
+     <y>184</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>338</x>
+     <y>248</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>GdbLocationPushButtonx86</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>browseGdbLocationX86()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>637</x>
+     <y>184</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>338</x>
+     <y>248</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>GdbserverLocationLineEditx86</sender>
+   <signal>editingFinished()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>GdbserverLocationX86EditingFinished()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>399</x>
+     <y>212</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>338</x>
+     <y>248</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>GdbserverLocationPushButtonx86</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>browseGdbserverLocationX86()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>637</x>
+     <y>212</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>338</x>
+     <y>248</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>SDKLocationEditingFinished()</slot>
@@ -591,5 +695,9 @@
   <slot>browseGdbserverLocation()</slot>
   <slot>OpenJDKLocationEditingFinished()</slot>
   <slot>browseOpenJDKLocation()</slot>
+  <slot>GdbLocationX86EditingFinished()</slot>
+  <slot>browseGdbLocationX86()</slot>
+  <slot>GdbserverLocationX86EditingFinished()</slot>
+  <slot>browseGdbserverLocationX86()</slot>
  </slots>
 </ui>

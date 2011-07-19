@@ -16,6 +16,7 @@ are required by law.
 #include <QtCore/QPair>
 #include <QtCore/QString>
 #include <QtCore/QVector>
+#include <projectexplorer/abi.h>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -49,8 +50,10 @@ public:
     QString NDKLocation;
     QString NDKToolchainVersion;
     QString AntLocation;
-    QString GdbLocation;
-    QString GdbserverLocation;
+    QString ArmGdbLocation;
+    QString ArmGdbserverLocation;
+    QString X86GdbLocation;
+    QString X86GdbserverLocation;
     QString OpenJDKLocation;
     unsigned PartitionSize;
 };
@@ -75,12 +78,12 @@ public:
     QString androidToolPath();
     QString antToolPath();
     QString emulatorToolPath();
-    QString gccPath();
-    QString gdbServerPath();
-    QString gdbPath();
+    QString gccPath(ProjectExplorer::Abi::Architecture architecture);
+    QString gdbServerPath(ProjectExplorer::Abi::Architecture architecture);
+    QString gdbPath(ProjectExplorer::Abi::Architecture architecture);
     QString openJDKPath();
-    QString stripPath();
-    QString readelfPath();
+    QString stripPath(ProjectExplorer::Abi::Architecture architecture);
+    QString readelfPath(ProjectExplorer::Abi::Architecture architecture);
     QString getDeployDeviceSerialNumber(int & apiLevel);
     bool createAVD(const QString & target, const QString & name, int sdcardSize );
     bool removeAVD(const QString & name);
@@ -88,6 +91,10 @@ public:
     QVector<AndroidDevice> androidVirtualDevices();
     QString startAVD(int & apiLevel, const QString & name = QString());
     QString bestMatch(const QString & targetAPI);
+
+    static const QLatin1String & toolchainPrefix(ProjectExplorer::Abi::Architecture architecture);
+    static const QLatin1String & toolsPrefix(ProjectExplorer::Abi::Architecture architecture);
+
 signals:
     void updated();
 
@@ -95,6 +102,8 @@ public slots:
     bool createAVD(int minApiLevel=0);
 
 private:
+    QString toolPath(ProjectExplorer::Abi::Architecture architecture);
+
     AndroidConfigurations(QObject *parent);
     void load();
     void save();

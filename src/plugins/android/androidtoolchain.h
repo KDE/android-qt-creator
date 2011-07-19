@@ -50,6 +50,9 @@ public:
     void setQtVersionId(int);
     int qtVersionId() const;
 
+protected:
+    virtual QList<ProjectExplorer::Abi> detectSupportedAbis() const;
+
 private:
     void updateId();
 
@@ -59,7 +62,6 @@ private:
     int m_qtVersionId;
     mutable QString m_sysroot;
     ProjectExplorer::Abi m_targetAbi;
-
     friend class AndroidToolChainFactory;
 };
 

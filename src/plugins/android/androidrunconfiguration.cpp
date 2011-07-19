@@ -193,7 +193,7 @@ const AndroidToolChain *AndroidRunConfiguration::toolchain() const
 
 const QString AndroidRunConfiguration::gdbCmd() const
 {
-    return AndroidConfigurations::instance().gdbPath();
+    return AndroidConfigurations::instance().gdbPath(activeQt4BuildConfiguration()->toolChain()->targetAbi().architecture());
 }
 
 AndroidDeployStep *AndroidRunConfiguration::deployStep() const

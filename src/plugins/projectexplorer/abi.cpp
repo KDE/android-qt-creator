@@ -423,6 +423,8 @@ bool Abi::isCompatibleWith(const Abi &other) const
                  && binaryFormat() == other.binaryFormat()
                  && wordWidth() == other.wordWidth())
         isCompat = true;
+    if (osFlavor() == AndroidLinuxFlavor || other.osFlavor()==AndroidLinuxFlavor)
+        isCompat = (osFlavor() == other.osFlavor() && architecture() == other.architecture());
     return isCompat;
 }
 

@@ -61,12 +61,16 @@ private slots:
     void AntLocationEditingFinished();
     void GdbLocationEditingFinished();
     void GdbserverLocationEditingFinished();
+    void GdbLocationX86EditingFinished();
+    void GdbserverLocationX86EditingFinished();
     void OpenJDKLocationEditingFinished();
     void browseSDKLocation();
     void browseNDKLocation();
     void browseAntLocation();
     void browseGdbLocation();
     void browseGdbserverLocation();
+    void browseGdbLocationX86();
+    void browseGdbserverLocationX86();
     void browseOpenJDKLocation();
     void toolchainVersionIndexChanged(QString);
     void addAVD();

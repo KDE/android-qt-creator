@@ -28,7 +28,6 @@ AndroidQtVersion::AndroidQtVersion(const QString &path, bool isAutodetected, con
     : QtSupport::BaseQtVersion(path, isAutodetected, autodetectionSource),
       m_qtAbisUpToDate(false)
 {
-
 }
 
 AndroidQtVersion::~AndroidQtVersion()
@@ -69,6 +68,11 @@ QList<ProjectExplorer::Abi> AndroidQtVersion::qtAbis() const
         m_qtAbisUpToDate = true;
         ensureMkSpecParsed();
         m_qtAbis = qtAbisFromLibrary(qtCorePath(versionInfo(), qtVersionString()));
+        for(int i=0;i<m_qtAbis.size();i++)
+            m_qtAbis[i]=ProjectExplorer::Abi(m_qtAbis[i].architecture(),ProjectExplorer::Abi::LinuxOS,
+                                                                   ProjectExplorer::Abi::AndroidLinuxFlavor,
+                                                                   ProjectExplorer::Abi::ElfFormat,
+                                                                   32);
     }
     return m_qtAbis;
 }
