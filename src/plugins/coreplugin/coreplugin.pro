@@ -221,7 +221,6 @@ else:unix {
         INSTALLS += image$${imagesize}
     }
 }
-
 OTHER_FILES += editormanager/BinFiles.mimetypes.xml ide_version.h.in
 
 QMAKE_SUBSTITUTES += ide_version.h.in

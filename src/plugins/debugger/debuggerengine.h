@@ -61,7 +61,6 @@ class DebuggerEnginePrivate;
 class DebuggerRunControl;
 class DebuggerStartParameters;
 
-
 DEBUGGER_EXPORT QDebug operator<<(QDebug str, const DebuggerStartParameters &);
 DEBUGGER_EXPORT QDebug operator<<(QDebug str, DebuggerState state);
 

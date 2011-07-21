@@ -80,6 +80,7 @@ Qt4BaseTargetFactory::Qt4BaseTargetFactory(QObject *parent) :
 
 Qt4BaseTargetFactory::~Qt4BaseTargetFactory()
 {
+
 }
 
 Qt4TargetSetupWidget *Qt4BaseTargetFactory::createTargetSetupWidget(const QString &id,
