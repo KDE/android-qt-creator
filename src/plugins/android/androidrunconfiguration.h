@@ -108,8 +108,7 @@ protected:
     QString defaultDisplayName();
 
 private slots:
-    void proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success);
-    void proFileInvalidated(Qt4ProjectManager::Qt4ProFileNode *pro);
+    void proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success, bool parseInProgress);
     void updateDeviceConfigurations();
     void handleDeployConfigChanged();
 

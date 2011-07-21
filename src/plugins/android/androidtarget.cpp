@@ -723,7 +723,7 @@ QStringList AndroidTarget::availableQtLibs()
     const QString readelfPath=AndroidConfigurations::instance().readelfPath(activeRunConfiguration()->abi().architecture());
     QStringList libs;
     const Qt4Project * const qt4Project = qobject_cast<const Qt4Project *>(project());
-    if (!qt4Project)
+    if (!qt4Project || !qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion())
         return libs;
     QString qtLibsPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"];
     if (!QFile::exists(readelfPath))

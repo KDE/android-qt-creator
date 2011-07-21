@@ -78,10 +78,8 @@ void AndroidRunConfiguration::init()
     handleDeployConfigChanged();
 
     Qt4Project *pro = androidTarget()->qt4Project();
-    connect(pro, SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)),
-            this, SLOT(proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool)));
-    connect(pro, SIGNAL(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode *)),
-            this, SLOT(proFileInvalidated(Qt4ProjectManager::Internal::Qt4ProFileNode*)));
+    connect(pro, SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool,bool)),
+            this, SLOT(proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool,bool)));
 }
 
 AndroidRunConfiguration::~AndroidRunConfiguration()
@@ -123,18 +121,12 @@ void AndroidRunConfiguration::handleParseState(bool success)
         emit isEnabledChanged(!enabled);
 }
 
-void AndroidRunConfiguration::proFileInvalidated(Qt4ProjectManager::Qt4ProFileNode *pro)
-{
-    if (m_proFilePath != pro->path())
-        return;
-    handleParseState(false);
-}
-
-void AndroidRunConfiguration::proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success)
+void AndroidRunConfiguration::proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success, bool parseInProgress)
 {
     if (m_proFilePath == pro->path()) {
         handleParseState(success);
-        emit targetInformationChanged();
+        if (!parseInProgress)
+            emit targetInformationChanged();
     }
 }
 
