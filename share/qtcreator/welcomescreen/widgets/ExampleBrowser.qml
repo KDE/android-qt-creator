@@ -32,20 +32,31 @@
 
 import QtQuick 1.0
 import components 1.0 as Components
+import widgets 1.0 as Widgets
 
 Item {
     id: exampleBrowserRoot
-    Item {
+
+    Rectangle {
+        color:"#f4f4f4"
         id : lineEditRoot
         width: parent.width
-        height: lineEdit.height
+        height: lineEdit.height + 6
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottomMargin: - 8
+        anchors.leftMargin: - 8
+        anchors.rightMargin: scrollArea.verticalScrollBar.visible ? 0 : -8
 
-        LineEdit {
-            Behavior on width { NumberAnimation{} }
+        Widgets.LineEdit {
             placeholderText: !checkBox.checked ? qsTr("Search in Tutorials") : qsTr("Search in Tutorials, Examples and Demos")
             focus: true
             id: lineEdit
-            width: lineEditRoot.width - checkBox.width - 20 - tagFilterButton.width
+            anchors.left: parent.left
+            anchors.leftMargin:4
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(lineEditRoot.width - checkBox.width - 28 - tagFilterButton.width, 100)
             onTextChanged: examplesModel.filterRegExp = RegExp('.*'+text, "im")
         }
 
@@ -63,10 +74,9 @@ Item {
         Button {
             id: tagFilterButton
             property string tag
-            Behavior on width { NumberAnimation{} }
             onTagChanged: { examplesModel.filterTag = tag; examplesModel.updateFilter() }
-            anchors.leftMargin: 6
             anchors.left: checkBox.right
+            anchors.leftMargin: 6
             anchors.verticalCenter: lineEdit.verticalCenter
             visible: !examplesModel.showTutorialsOnly
             text: tag === "" ? qsTr("Filter by Tag") : qsTr("Tag Filter: %1").arg(tag)
@@ -78,21 +88,40 @@ Item {
     }
     Components.ScrollArea  {
         id: scrollArea
-        anchors.topMargin: lineEditRoot.height+12
+        anchors.bottomMargin: lineEditRoot.height - 8
+        anchors.margins:-8
         anchors.fill: parent
-        clip: true
         frame: false
         Column {
             Repeater {
                 id: repeater
                 model: examplesModel
-                delegate: ExampleDelegate {
-                    width: scrollArea.width-20;
-                    property int count: repeater.count
-                }
+                delegate: ExampleDelegate { width: scrollArea.width }
             }
         }
+        Component.onCompleted: verticalScrollBar.anchors.bottomMargin = -(scrollArea.anchors.bottomMargin + 8)
     }
+
+    Rectangle {
+        anchors.bottom: scrollArea.bottom
+        height:4
+        anchors.left: scrollArea.left
+        anchors.right: scrollArea.right
+        anchors.rightMargin: scrollArea.verticalScrollBar.visible ?
+                               scrollArea.verticalScrollBar.width : 0
+        width:parent.width
+        gradient: Gradient{
+            GradientStop{position:1 ; color:"#10000000"}
+            GradientStop{position:0 ; color:"#00000000"}
+        }
+        Rectangle{
+            height:1
+            color:"#ccc"
+            anchors.bottom: parent.bottom
+            width:parent.width
+        }
+    }
+
 
     Loader {
         id: tagBrowserLoader

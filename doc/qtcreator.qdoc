@@ -465,6 +465,13 @@
     can change the information that the device has about its configuration
     and environment.
 
+    Qt Simulator does not support any device specific APIs by design. Therefore,
+    applications that run well on Qt Simulator also run on any device that hosts
+    the Qt and Qt Mobility libraries. However, this means that you cannot use
+    Qt Simulator to test applications that use device specific libraries, such
+    as Symbian C++ APIs. To test such applications, use the device emulators or
+    real devices.
+
     The Qt Simulator is installed as part of the \QSDK. After it is
     installed, you can select it as a build target in Qt Creator.
 
@@ -1319,16 +1326,62 @@
 
     \image qmldesigner-element-properties.png
 
-    The default values of properties are displayed in white color, while the values
-    that you specify explicitly are highlighted with blue color. In addition, property
-    changes in states are highlighted with blue.
-
     You can use a context-menu to reset some element properties. To reset the
     position or size property of an element, right-click the element and select
     \gui {Edit > Reset Position} or \gui {Reset Size} in the context menu. To
     set the visibility of the component, select \gui {Edit > Visibility}.
 
     For more information on the properties available for an element, press \key {F1}.
+
+    \section2 Viewing Changes in Properties
+
+    The default values of properties are displayed in white color, while the
+    values that you specify explicitly are highlighted with blue color. In
+    addition, property changes in states are highlighted with blue.
+
+    This allows you to easily see which values are set in the .qml file and
+    which values are default characteristics of an element or a component.
+
+    When editing states, you can easily see which values are explicitly set in
+    the current state and which values are derived from the base state.
+
+    The following images illustrate this. In the base state, the \gui Position,
+    \gui Size, and \gui Colors values are explicitly set and highlighted.
+
+    \image qmldesigner-properties-explicit-base.png "Explicitly set properties"
+
+    In \gui State1, only the color is explicitly set and highlighted.
+
+    \image qmldesigner-properties-explicit-state1.png "Explicitly set properties"
+
+    Resetting a property sets it back to the default value and removes the value
+    from the .qml file.
+
+    \note As a result, all boolean values can be visualized in four different
+    ways.
+
+    For example, visibility can be visualized as follows:
+
+    \table
+        \row
+            \i  \image qmldesigner-boolean-true.png
+            \i  TRUE
+            \i  The element is visible by default. The visibility might be
+                overridden by the visibility set in the base state.
+        \row
+            \i  \image qmldesigner-boolean-true-blue.png
+            \i  TRUE (highlighted)
+            \i  The element is explicitly set to visible.
+        \row
+            \i  \image qmldesigner-boolean-false.png
+            \i  FALSE
+            \i  The element is hidden by default. The visibility might be
+                overridden by the visibility set in the base state.
+        \row
+            \i  \image qmldesigner-boolean-false-blue.png
+            \i  FALSE (hightlighted)
+            \i  The item is explicitly set to hidden.
+    \endtable
 
     \section2 Setting Expressions
 
@@ -7951,6 +8004,9 @@
     Symbol Server provided by Microsoft to the symbol search path of the debugger.
     For more information, see \l{Setting the Symbol Server in Windows}.
 
+    \note To use the Free Software Foundation (FSF) GDB on Mac OS, you must
+    sign it and add it to Qt Creator as a tool chain.
+
     This section explains the
     options you have for debugging C++ code and provides installation notes for the
     supported native debuggers.
@@ -7958,9 +8014,8 @@
     \section1 Supported Native Debugger Versions
 
     The debugger plugin supports different builds of the GDB debugger, both
-    with and without the ability to use Python scripting. The Python enabled
-    versions are preferred, but they are not available on Mac and on older
-    versions of Linux.
+    with and without the ability to use Python scripting. Use a Python enabled
+    version if one is available.
     On Windows, Symbian, Maemo, and MeeGo Harmattan, only the Python version is
     supported.
 
@@ -7997,10 +8052,16 @@
             \o Yes
             \o Plain, Terminal, Attach, Remote, Core
         \row
-            \o Mac OS
+            \o Mac OS/GDB
             \o GCC
             \o GDB
             \o No
+            \o Plain, Terminal, Attach, Core
+        \row
+            \o Mac OS/FSF GDB (experimental)
+            \o GCC
+            \o FSF GDB
+            \o Yes
             \o Plain, Terminal, Attach, Core
         \row
             \o Windows/MinGW
@@ -8131,7 +8192,7 @@
            \o The Qt binary distribution contains both debug and release
               variants of the libraries. But you have to explicitly tell the
               runtime linker that you want to use the debug libraries even if
-              your application is compiled as debug as release is the default
+              your application is compiled as debug, as release is the default
               library.
 
               If you use a qmake based project in Qt Creator,  you can set a
@@ -8139,9 +8200,17 @@
               configuration, select \gui{Use debug version of frameworks}.
 
               For more detailed information about debugging on the Mac OS X, see:
-              \l{http://developer.apple.com/mac/library/technotes/tn2004/tn2124.html}{Mac OS X Debugging Magic}.
+              \l{http://developer.apple.com/library/mac/#technotes/tn2124/_index.html#//apple_ref/doc/uid/DTS10003391}
+              {Mac OS X Debugging Magic}.
 
-        \note The Mac OS X Snow Leopard (10.6) has a bug that might cause the
+              You can download an experimental version of FSF GDB that
+              supports Python from
+              \l{ftp://ftp.qt.nokia.com/misc/gdb/7.2/gdb72_mac_platform.tar.bz2}.
+              To use FSF GDB on Mac OS, you must sign it and add it to the Qt
+              Creator tool chains. For more information, see
+              \l{Setting up FSF GDB for Mac OS}.
+
+              \note The Mac OS X Snow Leopard (10.6) has a bug that might cause the
               application to crash. For a workaround, see:
               \l{http://bugreports.qt.nokia.com/browse/QTBUG-4962}{QTBUG-4962}.
 
@@ -8170,6 +8239,64 @@
     Debugging tools for Windows, Qt Creator prompts you to add the Symbol
     Server.
 
+    \section1 Setting up FSF GDB for Mac OS
+
+    To use FSF GDB on Mac OS, you must sign it and add it to the Qt Creator tool
+    chains.
+
+    \list 1
+
+        \o  To create a key for signing FSF GDB, select \gui {Keychain Access >
+            Certificate Assistant > Create a Certificate}:
+
+        \list 1
+
+            \o  In the \gui {Certificate Type} field, select \gui {Code Signing}.
+
+            \o  Select the \gui {Let me override defaults} check box.
+
+            \o  Select \gui Continue, and follow the instructions of the
+                wizard (use the default settings), until the \gui {Select a
+                Location for the Certificate} dialog opens.
+
+            \o  In the \gui Keychain field, select \gui System.
+
+            \o  Select \gui {Keychain Access > System}, and locate the
+                certificate.
+
+            \o  Double click the certificate to view certificate information.
+
+            \o  In the \gui Trust field, select \gui {Always Trust}.
+
+        \endlist
+
+        \o  To sign the binary, enter the following command in the terminal,
+            where $USER is the name of the certificate (which is the same as the
+            user name, by default):
+
+            \code
+            codesign -f -s "$USER" $INSTALL_LOCATION/fsfgdb
+            \endcode
+
+        \o  In Qt Creator, select \gui {Tools > Preferences… > Tool Chains}, to
+            add a tool chain that uses the debugger:
+
+        \list 1
+
+            \o  Select a native tool chain (usually, a x86 64-bit tool chain)
+                and click \gui Clone to clone it.
+
+            \o  In the \gui Debugger field, specify the path to FSF GDB
+                (\c $HOME/gdb72/bin/fsfgdb, but with an explicit value for
+                \c $HOME).
+
+        \endlist
+
+        \o  To use the debugger, select the tool chain in the \gui {Tool chain}
+            field in the \gui {Build Settings} of the project.
+
+    \endlist
+
 */
 
 /*!
@@ -8191,7 +8318,9 @@
     By default, the views are locked into place in the workspace. Select
     \gui {Window > Views > Locked} to unlock the views. Drag and drop the
     views into new positions on the screen. Drag view borders to resize the
-    views. The size and position of views are saved for future sessions.
+    views. The size and position of views are saved for future sessions. Select
+    \gui {Window > Views > Reset to Default Layout} to reset the views to
+    their original sizes and positions.
 
     \section1 Using the Debugger
 
@@ -9080,6 +9209,10 @@
     \note You need Qt 4.7.1 or later to debug Qt Quick projects. Debugging projects
     not created with the Qt Quick wizards is only supported with Qt 4.8, or later.
 
+    To debug Qt Quick applications running on devices, you must install
+    Qt 4.7.4, or later, libraries on devices. To debug applications on Symbian
+    devices, you must install also QML Viewer on them.
+
     \section1 Setting Up QML Debugging
 
     The process of setting up debugging for Qt Quick projects depends on the type of
@@ -9122,6 +9255,10 @@
         project.
 
     \endlist
+
+    To debug Qt Quick Applications on devices, install Qt 4.7.4, or later,
+    libraries on devices. Then select the device as the target before you
+    start debugging.
 
     \section1 Starting QML Debugging
 
@@ -12277,9 +12414,11 @@
 
     Stack traces can get quite large and confusing, and therefore, reading them
     from the bottom up can help. If the stack trace is not big enough or it is
-    too big, select \gui {Tools > Options... > Analyzer > Memory Analysis}.
+    too big, select \gui {Tools > Options... > Analyzer}.
     Define the length of the stack trace in the \gui {Backtrace frame count}
     field.
+
+    \image qtcreator-valgrind-memcheck-options.png "Memory Analysis options"
 
     Memcheck also reports uses of uninitialised values, most commonly with the
     message \gui {Conditional jump or move depends on uninitialised value(s).}
@@ -12299,10 +12438,6 @@
     For more information about writing suppression files, see
     \l{http://valgrind.org/docs/manual/manual-core.html#manual-core.suppress}
     {Suppressing Errors} in the Valgrind documentation.
-
-    \image qtcreator-valgrind-memcheck-options.png "Memory Analysis options"
-
-
 
     */
 
@@ -12362,12 +12497,12 @@
 
     \section1 Selecting Profiling Options
 
-    To specify settings for Callgrind, select \gui {Tools > Options... >
-    Analyzer > Profiling}.
+    To specify settings for Valgrind, select \gui {Tools > Options... >
+    Analyzer}. The \gui {Profiling Options} group contains Callgrind options.
 
-    \image qtcreator-valgrind-callgrind-options.png "Profiling options"
+    \image qtcreator-valgrind-callgrind-options.png "Valgrind options"
 
-    In the \gui {Result view: Show events with inclusive costs higher than}
+    In the \gui {Result view: Minimum event cost}
     field, limit the amount of results the profiler gives you to increase
     profiler performance.
 
@@ -12523,15 +12658,23 @@
 
     \image qtcreator-analyze-menu "Analyze mode menu"
 
+    By default, the views in the \gui Analyze mode are locked into place in the
+    workspace. Select \gui {Window > Views > Locked} to unlock the views. Drag
+    and drop the views into new positions on the screen. Drag view borders to
+    resize the views. The size and position of views are saved for future
+    sessions. Select \gui {Window > Views > Reset to Default Layout} to reset
+    the views to their original sizes and positions.
+
     To run the Valgrind tools on a remote host over SSH, select \gui {Analyze
-    > Valgring Analyze Memory (Remote)} or \gui {Valgring Function Profile
+    > Valgrind Analyze Memory (Remote)} or \gui {Valgrind Function Profile
     (Remote)}.
 
     To stop the currently running analyzer, select \gui {Analyze
     > Stop}.
 
     To select options for the Valgrind tools, select \gui {Tools > Options... >
-    Analyzer}.
+    Analyzer}. You can override the general settings for each project in the
+    \gui {Run Settings} for the project.
 
     The following sections describe how to use the code analysis tools:
 
@@ -12730,8 +12873,8 @@
 
     \list 1
 
-        \o  Select \gui {Analyze > Valgring Analyze Memory (Remote)} or
-            \gui {Valgring Function Profile (Remote)}.
+        \o  Select \gui {Analyze > Valgrind Analyze Memory (Remote)} or
+            \gui {Valgrind Function Profile (Remote)}.
 
             \image qtcreator-valgrind-remote-settings.png "Start Debugger dialog"
 

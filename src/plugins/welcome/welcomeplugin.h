@@ -35,6 +35,10 @@
 
 #include <extensionsystem/iplugin.h>
 
+QT_BEGIN_HEADER
+class QDeclarativeEngine;
+QT_END_HEADER
+
 namespace Welcome {
 namespace Internal {
 
