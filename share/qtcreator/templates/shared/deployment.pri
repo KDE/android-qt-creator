@@ -115,7 +115,9 @@ symbian {
     !android {
         target.path = $${installPrefix}/bin
     } else {
-        armeabi-v7a {
+        x86 {
+            target.path = /libs/x86
+        } else: armeabi-v7a {
             target.path = /libs/armeabi-v7a
         } else {
             target.path = /libs/armeabi
