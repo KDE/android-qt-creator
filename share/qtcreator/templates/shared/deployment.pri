@@ -88,8 +88,11 @@ symbian {
             QMAKE_EXTRA_TARGETS += first copydeploymentfolders
         }
     }
-    CONFIG(android) : installPrefix = /assets
-               else : installPrefix = /opt/$${TARGET}
+    android {
+        installPrefix = /assets
+    } else {
+        installPrefix = /opt/$${TARGET}
+    }
     for(deploymentfolder, DEPLOYMENTFOLDERS) {
         item = item$${deploymentfolder}
         itemfiles = $${item}.files
@@ -101,7 +104,7 @@ symbian {
         INSTALLS += $$item
     }
 
-    !CONFIG(android): !isEmpty(desktopfile.path) {
+    !android: !isEmpty(desktopfile.path) {
         export(icon.files)
         export(icon.path)
         export(desktopfile.files)
@@ -109,10 +112,14 @@ symbian {
         INSTALLS += icon desktopfile
     }
 
-    !CONFIG(android): target.path = $${installPrefix}/bin
-    else {
-        CONFIG(armeabi-v7a) : target.path = /libs/armeabi-v7a
-                       else : target.path = /libs/armeabi
+    !android {
+        target.path = $${installPrefix}/bin
+    } else {
+        armeabi-v7a {
+            target.path = /libs/armeabi-v7a
+        } else {
+            target.path = /libs/armeabi
+        }
     }
     export(target.path)
     INSTALLS += target
