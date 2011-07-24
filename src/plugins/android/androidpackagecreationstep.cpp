@@ -23,12 +23,16 @@ are required by law.
 #include <qt4projectmanager/qt4target.h>
 #include <utils/environment.h>
 
+#include <QtCore/QAbstractListModel>
 #include <QtCore/QDateTime>
 #include <QtCore/QProcess>
 #include <QtCore/QRegExp>
 #include <QtCore/QStringBuilder>
+#include <QtCore/QVector>
+#include <QtCore/QPair>
 #include <QtGui/QWidget>
 #include <QtGui/QMessageBox>
+#include <QtGui/QInputDialog>
 
 using namespace ProjectExplorer::Constants;
 using ProjectExplorer::BuildStepList;
@@ -38,7 +42,51 @@ using ProjectExplorer::Task;
 namespace Android {
 namespace Internal {
 
+namespace {
+    const QLatin1String KeystoreLocationKey("KeystoreLocation");
+}
+
+
 using namespace Qt4ProjectManager;
+
+
+class CertificatesModel: public QAbstractListModel
+{
+public:
+    CertificatesModel(const QString & rowCertificates, QObject * parent):QAbstractListModel(parent)
+    {
+        int from=rowCertificates.indexOf("Alias name:");
+        QPair<QString, QString> item;
+        while(from>-1)
+        {
+            from+=11;
+            static int eol=rowCertificates.indexOf("\n", from);
+            item.first=rowCertificates.mid(from, eol-from).trimmed();
+            static int eoc=rowCertificates.indexOf("*******************************************", eol);
+            item.second=rowCertificates.mid(eol+1,eoc-eol-2).trimmed();
+            from=rowCertificates.indexOf("Alias name:", eoc);
+            m_certs.push_back(item);
+        }
+    }
+
+protected:
+    int rowCount ( const QModelIndex & parent = QModelIndex() ) const
+    {
+        Q_UNUSED(parent)
+        return m_certs.size();
+    }
+    QVariant data ( const QModelIndex & index, int role = Qt::DisplayRole ) const
+    {
+        if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::ToolTipRole) )
+            return QVariant();
+        if (role == Qt::DisplayRole)
+            return m_certs[index.row()].first;
+        return m_certs[index.row()].second;
+    }
+private:
+    QVector<QPair<QString,QString> > m_certs;
+};
+
 
 AndroidPackageCreationStep::AndroidPackageCreationStep(BuildStepList *bsl)
     : ProjectExplorer::BuildStep(bsl, CreatePackageId)
@@ -140,6 +188,80 @@ void AndroidPackageCreationStep::checkRequiredLibraries()
     emit updateRequiredLibrariesModels();
 }
 
+QString AndroidPackageCreationStep::keystorePath()
+{
+    return m_keystorePath;
+}
+
+void AndroidPackageCreationStep::setKeystorePath(const QString & path)
+{
+    m_keystorePath=path;
+    m_certificatePasswd.clear();
+    m_keystorePasswd.clear();
+}
+
+void AndroidPackageCreationStep::setKeystorePassword(const QString & pwd)
+{
+    m_keystorePasswd=pwd;
+}
+
+void AndroidPackageCreationStep::setCertificateAlias(const QString & alias)
+{
+    m_certificateAlias=alias;
+}
+
+void AndroidPackageCreationStep::setCertificatePassword(const QString & pwd)
+{
+    m_certificatePasswd=pwd;
+}
+
+
+QAbstractItemModel * AndroidPackageCreationStep::keystoreCertificates()
+{
+    QString rawCerts;
+    QProcess keytoolProc;
+    while(!m_keystorePasswd.length())
+    {
+        QStringList params;
+        params<<"-list"<<"-v"<<"-keystore"<<m_keystorePath<<"-storepass";
+        keystorePassword();
+        if (!m_keystorePasswd.length())
+            return 0;
+        params<<m_keystorePasswd;
+        keytoolProc.start(AndroidConfigurations::instance().keytoolPath(), params);
+        if (!keytoolProc.waitForStarted() || !keytoolProc.waitForFinished())
+        {
+            QMessageBox::critical(0, tr("Error"),
+                                  tr("Failed to run keytool"));
+            return 0;
+        }
+
+        if (keytoolProc.exitCode())
+        {
+            QMessageBox::critical(0, tr("Error"),
+                                  tr("Invalid password"));
+            m_keystorePasswd.clear();
+        }
+        rawCerts=keytoolProc.readAllStandardOutput();
+    }
+    return new CertificatesModel(rawCerts, this);
+}
+
+bool AndroidPackageCreationStep::fromMap(const QVariantMap &map)
+{
+    if (!BuildStep::fromMap(map))
+        return false;
+    m_keystorePath= map.value(KeystoreLocationKey).toString();
+    return true;
+}
+
+QVariantMap AndroidPackageCreationStep::toMap() const
+{
+    QVariantMap map(BuildStep::toMap());
+    map.insert(KeystoreLocationKey, m_keystorePath);
+    return map;
+}
+
 bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 {
     const Qt4BuildConfiguration * bc=static_cast<Qt4BuildConfiguration *>(buildConfiguration());
@@ -151,67 +273,20 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 
     QString androidLibPath;
     if (bc->qt4Target()->qt4Project()->rootProjectNode()
+            ->variableValue(Qt4ProjectManager::ConfigVar).contains("x86"))
+        androidLibPath=androidDir+QLatin1String("/libs/x86");
+    else
+        if (bc->qt4Target()->qt4Project()->rootProjectNode()
             ->variableValue(Qt4ProjectManager::ConfigVar).contains("armeabi-v7a"))
         androidLibPath=androidDir+QLatin1String("/libs/armeabi-v7a");
-    else
-        androidLibPath=androidDir+QLatin1String("/libs/armeabi");
-//    removeDirectory(androidLibPath);
-//    QDir d(androidDir);
-//    d.mkpath(androidLibPath);
-
-//    QStringList stripFiles;
-//    QList<Qt4ProFileNode *> nodes = bc->qt4Target()->qt4Project()->allProFiles();
-//    foreach(Qt4ProFileNode * node, nodes)
-//    {
-//        QString fileName;
-//        QString androidFileName;
-//        switch(node->projectType())
-//        {
-//            case ApplicationTemplate:
-//                fileName=node->targetInformation().target;
-//                if (node->targetInformation().target.endsWith(QLatin1String(".so")))
-//                    androidFileName=node->targetInformation().target;
-//                else
-//                {
-//                    androidFileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
-//                    QFile::remove(node->targetInformation().buildDir+QLatin1Char('/')+androidFileName);
-//                    if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
-//                                node->targetInformation().buildDir+QLatin1Char('/')+androidFileName))
-//                    {
-//                        raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
-//                                   .arg(node->targetInformation().buildDir)
-//                                   .arg(node->targetInformation().buildDir));
-//                        return false;
-//                    }
-//                }
-//                break;
-//            case LibraryTemplate:
-//                fileName=QLatin1String("lib")+node->targetInformation().target+QLatin1String(".so");
-//                androidFileName=fileName;
-//                break;
-//            default:
-//                continue;
-//        }
-
-////        if (!QFile::copy(node->targetInformation().buildDir+QLatin1Char('/')+fileName,
-////                    androidLibPath+QLatin1Char('/')+androidFileName))
-////        {
-////            raiseError(tr("Can't copy '%1' from '%2' to '%3'").arg(fileName)
-////                       .arg(node->targetInformation().buildDir)
-////                       .arg(androidLibPath));
-////            return false;
-////        }
-//        stripFiles<<androidLibPath+QLatin1Char('/')+androidFileName;
-//    }
-
-//    emit addOutput(tr("Stripping libraries, please wait"), BuildStep::MessageOutput);
-//    stripAndroidLibs(stripFiles);
-
+        else
+            androidLibPath=androidDir+QLatin1String("/libs/armeabi");
     QStringList build;
-    build<<"debug";
+    build<<"clean";
     QFile::remove(androidLibPath+QLatin1String("/gdbserver"));
     if (bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
     {
+            build<<"debug";
             if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(target->activeRunConfiguration()->abi().architecture()),
                              androidLibPath+QLatin1String("/gdbserver")))
             {
@@ -220,6 +295,8 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
                 return false;
             }
     }
+    else
+        build<<"release";
 
     emit addOutput(tr("Creating package file ..."), MessageOutput);
     if (!target->createAndroidTemplatesIfNecessary())
@@ -309,6 +386,17 @@ void AndroidPackageCreationStep::handleBuildOutput()
     if (!errorOut.isEmpty()) {
         emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput);
     }
+}
+
+void AndroidPackageCreationStep::keystorePassword()
+{
+    m_keystorePasswd.clear();
+    bool ok;
+    QString text = QInputDialog::getText(0, tr("Keystore"),
+                                               tr("Keystore password:"), QLineEdit::Password,
+                                               "", &ok);
+    if (ok && !text.isEmpty())
+        m_keystorePasswd = text;
 }
 
 void AndroidPackageCreationStep::raiseError(const QString &shortMsg,

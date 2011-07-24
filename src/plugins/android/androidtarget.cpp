@@ -200,7 +200,7 @@ QString AndroidTarget::androidSrcPath()
 
 QString AndroidTarget::apkPath()
 {
-    return project()->projectDirectory()+QLatin1Char('/')+AndroidDirName+QString("/bin/%1-debug.apk").arg(applicationName());
+    return project()->projectDirectory()+QLatin1Char('/')+AndroidDirName+QString("/bin/%1-*.apk").arg(applicationName());
 }
 
 QString AndroidTarget::localLibsRulesFilePath()

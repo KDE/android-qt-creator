@@ -46,7 +46,7 @@ bool AndroidTargetFactory::supportsTargetId(const QString &id) const
     return id == Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID;
 }
 
-QSet<QString> AndroidTargetFactory::targetFeatures(const QString &id) const
+QSet<QString> AndroidTargetFactory::targetFeatures(const QString &/*id*/) const
 {
     QSet<QString> features;
     features << Qt4ProjectManager::Constants::DESKTOP_TARGETFEATURE_ID;

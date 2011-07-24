@@ -55,6 +55,7 @@ public:
     QString X86GdbLocation;
     QString X86GdbserverLocation;
     QString OpenJDKLocation;
+    QString KeystoreLocation;
     unsigned PartitionSize;
 };
 
@@ -82,6 +83,8 @@ public:
     QString gdbServerPath(ProjectExplorer::Abi::Architecture architecture);
     QString gdbPath(ProjectExplorer::Abi::Architecture architecture);
     QString openJDKPath();
+    QString keytoolPath();
+    QString jarsignerPath();
     QString stripPath(ProjectExplorer::Abi::Architecture architecture);
     QString readelfPath(ProjectExplorer::Abi::Architecture architecture);
     QString getDeployDeviceSerialNumber(int & apiLevel);
@@ -103,6 +106,7 @@ public slots:
 
 private:
     QString toolPath(ProjectExplorer::Abi::Architecture architecture);
+    QString openJDKBinPath();
 
     AndroidConfigurations(QObject *parent);
     void load();
