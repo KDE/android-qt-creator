@@ -112,6 +112,8 @@ private slots:
     void on_certificatesAliasComboBox_activated(const QString &alias);
     void on_certificatesAliasComboBox_currentIndexChanged(const QString &alias);
 
+    void on_openPackageLocationCheckBox_toggled(bool checked);
+
 private:
     AndroidPackageCreationStep * const m_step;
     Ui::AndroidPackageCreationWidget * const m_ui;

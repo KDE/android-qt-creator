@@ -78,8 +78,8 @@ void AndroidRunConfiguration::init()
     handleDeployConfigChanged();
 
     Qt4Project *pro = androidTarget()->qt4Project();
-    connect(pro, SIGNAL(proFileUpdated(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool,bool)),
-            this, SLOT(proFileUpdate(Qt4ProjectManager::Internal::Qt4ProFileNode*,bool,bool)));
+    connect(pro, SIGNAL(proFileUpdated(Qt4ProjectManager::Qt4ProFileNode*,bool,bool)),
+            this, SLOT(proFileUpdate(Qt4ProjectManager::Qt4ProFileNode*,bool,bool)));
 }
 
 AndroidRunConfiguration::~AndroidRunConfiguration()

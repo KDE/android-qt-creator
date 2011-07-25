@@ -93,7 +93,6 @@ private:
     QString m_QASIPackagePath;
     AndroidDeployAction m_deployAction;
     bool m_useLocalQtLibs;
-    QProcess m_proc;
 
     static const QLatin1String Id;
 };

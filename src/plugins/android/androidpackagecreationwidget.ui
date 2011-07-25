@@ -23,7 +23,7 @@
       <enum>QTabWidget::South</enum>
      </property>
      <property name="currentIndex">
-      <number>4</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
@@ -1149,9 +1149,9 @@ p, li { white-space: pre-wrap; }
        <string>Sign package</string>
       </attribute>
       <layout class="QFormLayout" name="formLayout_3">
-       <item row="0" column="0">
+       <item row="0" column="0" colspan="2">
         <layout class="QGridLayout" name="gridLayout_3">
-         <item row="0" column="0">
+         <item row="0" column="0" colspan="2">
           <layout class="QHBoxLayout" name="horizontalLayout_4">
            <item>
             <widget class="QLabel" name="KeystoreLocationLabel">
@@ -1193,7 +1193,17 @@ p, li { white-space: pre-wrap; }
            </property>
           </widget>
          </item>
-         <item row="2" column="0">
+         <item row="1" column="1">
+          <widget class="QCheckBox" name="openPackageLocationCheckBox">
+           <property name="text">
+            <string>Open package location after is complete</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0" colspan="2">
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
             <widget class="QLabel" name="KeystoreLocationLabel_2">
@@ -1218,6 +1228,7 @@ p, li { white-space: pre-wrap; }
        </item>
       </layout>
       <zorder></zorder>
+      <zorder>openPackageLocationCheckBox</zorder>
      </widget>
     </widget>
    </item>

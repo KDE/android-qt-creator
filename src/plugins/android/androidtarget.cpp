@@ -198,9 +198,13 @@ QString AndroidTarget::androidSrcPath()
     return androidDirPath()+QLatin1String("/src");
 }
 
-QString AndroidTarget::apkPath()
+QString AndroidTarget::apkPath(BuildType buildType)
 {
-    return project()->projectDirectory()+QLatin1Char('/')+AndroidDirName+QString("/bin/%1-*.apk").arg(applicationName());
+    return project()->projectDirectory()+QLatin1Char('/')
+            +AndroidDirName
+            +QString("/bin/%1-%2.apk")
+            .arg(applicationName())
+            .arg(buildType==DebugBuild?"debug":(buildType==ReleaseBuildUnsigned)?"unsigned":"signed");
 }
 
 QString AndroidTarget::localLibsRulesFilePath()

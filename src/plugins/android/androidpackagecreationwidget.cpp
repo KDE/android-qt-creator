@@ -540,6 +540,11 @@ void AndroidPackageCreationWidget::on_certificatesAliasComboBox_currentIndexChan
         m_step->setCertificateAlias(alias);
 }
 
+void AndroidPackageCreationWidget::on_openPackageLocationCheckBox_toggled(bool checked)
+{
+    m_step->setOpenPackageLocation(checked);
+}
+
 } // namespace Internal
 } // namespace Android
 

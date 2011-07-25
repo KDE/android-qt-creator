@@ -18,6 +18,7 @@ are required by law.
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/foldernavigationwidget.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4target.h>
@@ -34,6 +35,7 @@ are required by law.
 #include <QtGui/QMessageBox>
 #include <QtGui/QInputDialog>
 
+using namespace ProjectExplorer;
 using namespace ProjectExplorer::Constants;
 using ProjectExplorer::BuildStepList;
 using ProjectExplorer::BuildStepConfigWidget;
@@ -44,6 +46,7 @@ namespace Internal {
 
 namespace {
     const QLatin1String KeystoreLocationKey("KeystoreLocation");
+    const char * const AliasString="Alias name:";
 }
 
 
@@ -55,16 +58,16 @@ class CertificatesModel: public QAbstractListModel
 public:
     CertificatesModel(const QString & rowCertificates, QObject * parent):QAbstractListModel(parent)
     {
-        int from=rowCertificates.indexOf("Alias name:");
+        int from=rowCertificates.indexOf(AliasString);
         QPair<QString, QString> item;
         while(from>-1)
         {
-            from+=11;
-            static int eol=rowCertificates.indexOf("\n", from);
+            from+=11;// strlen(AliasString);
+            const int eol=rowCertificates.indexOf("\n", from);
             item.first=rowCertificates.mid(from, eol-from).trimmed();
-            static int eoc=rowCertificates.indexOf("*******************************************", eol);
+            const int eoc=rowCertificates.indexOf("*******************************************", eol);
             item.second=rowCertificates.mid(eol+1,eoc-eol-2).trimmed();
-            from=rowCertificates.indexOf("Alias name:", eoc);
+            from=rowCertificates.indexOf(AliasString, eoc);
             m_certs.push_back(item);
         }
     }
@@ -89,7 +92,7 @@ private:
 
 
 AndroidPackageCreationStep::AndroidPackageCreationStep(BuildStepList *bsl)
-    : ProjectExplorer::BuildStep(bsl, CreatePackageId)
+    : BuildStep(bsl, CreatePackageId)
 {
     ctor();
 }
@@ -108,6 +111,7 @@ AndroidPackageCreationStep::~AndroidPackageCreationStep()
 void AndroidPackageCreationStep::ctor()
 {
     setDefaultDisplayName(tr("Packaging for Android"));
+    m_openPackageLocation = true;
 }
 
 bool AndroidPackageCreationStep::init()
@@ -117,16 +121,7 @@ bool AndroidPackageCreationStep::init()
 
 void AndroidPackageCreationStep::run(QFutureInterface<bool> &fi)
 {
-    QProcess * const buildProc = new QProcess;
-    connect(buildProc, SIGNAL(readyReadStandardOutput()), this,
-        SLOT(handleBuildOutput()));
-    connect(buildProc, SIGNAL(readyReadStandardError()), this,
-        SLOT(handleBuildOutput()));
-    bool success=createPackage(buildProc);
-    disconnect(buildProc, 0, this, 0);
-    buildProc->deleteLater();
-
-    fi.reportResult(success);
+    fi.reportResult(createPackage());
 }
 
 BuildStepConfigWidget *AndroidPackageCreationStep::createConfigWidget()
@@ -215,16 +210,21 @@ void AndroidPackageCreationStep::setCertificatePassword(const QString & pwd)
     m_certificatePasswd=pwd;
 }
 
+void AndroidPackageCreationStep::setOpenPackageLocation(bool open)
+{
+    m_openPackageLocation = open;
+}
 
 QAbstractItemModel * AndroidPackageCreationStep::keystoreCertificates()
 {
     QString rawCerts;
     QProcess keytoolProc;
-    while(!m_keystorePasswd.length())
+    while(!rawCerts.length() || !m_keystorePasswd.length())
     {
         QStringList params;
         params<<"-list"<<"-v"<<"-keystore"<<m_keystorePath<<"-storepass";
-        keystorePassword();
+        if (!m_keystorePasswd.length())
+            keystorePassword();
         if (!m_keystorePasswd.length())
             return 0;
         params<<m_keystorePasswd;
@@ -262,7 +262,7 @@ QVariantMap AndroidPackageCreationStep::toMap() const
     return map;
 }
 
-bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
+bool AndroidPackageCreationStep::createPackage()
 {
     const Qt4BuildConfiguration * bc=static_cast<Qt4BuildConfiguration *>(buildConfiguration());
     AndroidTarget * target=androidTarget();
@@ -284,7 +284,7 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
     QStringList build;
     build<<"clean";
     QFile::remove(androidLibPath+QLatin1String("/gdbserver"));
-    if (bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
+    if (bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild || !m_certificateAlias.length())
     {
             build<<"debug";
             if (!QFile::copy(AndroidConfigurations::instance().gdbServerPath(target->activeRunConfiguration()->abi().architecture()),
@@ -304,17 +304,80 @@ bool AndroidPackageCreationStep::createPackage(QProcess *buildProc)
 
     target->updateProject(target->targetSDK(), target->applicationName());
 
+    QProcess * const buildProc = new QProcess;
+
+    connect(buildProc, SIGNAL(readyReadStandardOutput()), this,
+        SLOT(handleBuildOutput()));
+    connect(buildProc, SIGNAL(readyReadStandardError()), this,
+        SLOT(handleBuildOutput()));
+
     buildProc->setWorkingDirectory(androidDir);
 
     if (!runCommand(buildProc, AndroidConfigurations::instance().antToolPath(), build))
+    {
+        disconnect(buildProc, 0, this, 0);
+        buildProc->deleteLater();
         return false;
+    }
 
+    if (!(bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild) && m_certificateAlias.length())
+    {
+        emit addOutput(tr("Signing package ..."), MessageOutput);
+        while(true)
+        {
+            if (!m_certificatePasswd.length())
+                QMetaObject::invokeMethod(this,"certificatePassword", Qt::BlockingQueuedConnection);
+
+            if (!m_certificatePasswd.length())
+            {
+                disconnect(buildProc, 0, this, 0);
+                buildProc->deleteLater();
+                return false;
+            }
+
+            QByteArray keyPass(m_certificatePasswd.toUtf8());
+            keyPass+="\n";
+            build.clear();
+            build<<"-verbose"<<"-keystore"<<m_keystorePath<<"-storepass"<<m_keystorePasswd
+                <<target->apkPath(AndroidTarget::ReleaseBuildUnsigned)
+                <<m_certificateAlias;
+            buildProc->start(AndroidConfigurations::instance().jarsignerPath(), build);
+            if (!buildProc->waitForStarted())
+            {
+                disconnect(buildProc, 0, this, 0);
+                buildProc->deleteLater();
+                return false;
+            }
+            buildProc->write(keyPass);
+            if (!buildProc->waitForBytesWritten() || !buildProc->waitForFinished())
+            {
+                disconnect(buildProc, 0, this, 0);
+                buildProc->deleteLater();
+                return false;
+            }
+            if (!buildProc->exitCode())
+                break;
+            emit addOutput(tr("Failed, try again"), ErrorMessageOutput);
+            m_certificatePasswd.clear();
+        }
+        if (QFile::rename(target->apkPath(AndroidTarget::ReleaseBuildUnsigned), target->apkPath(AndroidTarget::ReleaseBuildSigned)))
+        {
+            emit addOutput(tr("Release signed package created to %1")
+                           .arg(target->apkPath(AndroidTarget::ReleaseBuildSigned))
+                           , MessageOutput);
+
+            if (m_openPackageLocation)
+                FolderNavigationWidget::showInGraphicalShell(0,
+                                                                              target->apkPath(AndroidTarget::ReleaseBuildSigned));
+        }
+    }
     emit addOutput(tr("Package created."), BuildStep::MessageOutput);
-
+    disconnect(buildProc, 0, this, 0);
+    buildProc->deleteLater();
     return true;
 }
 
-void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files, ProjectExplorer::Abi::Architecture architecture)
+void AndroidPackageCreationStep::stripAndroidLibs(const QStringList & files, Abi::Architecture architecture)
 {
     QProcess stripProcess;
     foreach(QString file, files)
@@ -379,8 +442,8 @@ void AndroidPackageCreationStep::handleBuildOutput()
     QProcess * const buildProc = qobject_cast<QProcess *>(sender());
     if (!buildProc)
         return;
-	const QByteArray &stdOut = buildProc->readAllStandardOutput();
-	const QByteArray &errorOut = buildProc->readAllStandardError();
+    const QByteArray &stdOut = buildProc->readAllStandardOutput();
+    const QByteArray &errorOut = buildProc->readAllStandardError();
     if (!stdOut.isEmpty())
         emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
     if (!errorOut.isEmpty()) {
@@ -397,6 +460,17 @@ void AndroidPackageCreationStep::keystorePassword()
                                                "", &ok);
     if (ok && !text.isEmpty())
         m_keystorePasswd = text;
+}
+
+void AndroidPackageCreationStep::certificatePassword()
+{
+    m_certificatePasswd.clear();
+    bool ok;
+    QString text = QInputDialog::getText(0, tr("Certificate"),
+                                         tr("Certificate password (%1):").arg(m_certificateAlias), QLineEdit::Password,
+                                               "", &ok);
+    if (ok && !text.isEmpty())
+        m_certificatePasswd = text;
 }
 
 void AndroidPackageCreationStep::raiseError(const QString &shortMsg,
