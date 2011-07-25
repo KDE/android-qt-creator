@@ -14,6 +14,7 @@ are required by law.
 #include "androidconfigurations.h"
 
 #include "androidconstants.h"
+#include "androidcreatekeystorecertificate.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
@@ -116,6 +117,8 @@ QString AndroidSettingsWidget::searchKeywords() const
         << ' ' << m_ui->GdbserverLocationLineEditx86->text()
         << ' ' << m_ui->OpenJDKLocationLabel->text()
         << ' ' << m_ui->OpenJDKLocationLineEdit->text()
+        << ' ' << m_ui->KeystoreLocationLabel->text()
+        << ' ' << m_ui->KeystoreLocationLineEdit->text()
         << ' ' << m_ui->AVDManagerLabel->text()
         << ' ' << m_ui->DataPartitionSizeLable->text()
         << ' ' << m_ui->DataPartitionSizeSpinBox->text();
@@ -141,6 +144,7 @@ void AndroidSettingsWidget::initGui()
     m_ui->GdbLocationLineEditx86->setText(m_androidConfig.X86GdbLocation);
     m_ui->GdbserverLocationLineEditx86->setText(m_androidConfig.X86GdbserverLocation);
     m_ui->OpenJDKLocationLineEdit->setText(m_androidConfig.OpenJDKLocation);
+    m_ui->KeystoreLocationLineEdit->setText(m_androidConfig.KeystoreLocation);
     m_ui->DataPartitionSizeSpinBox->setValue(m_androidConfig.PartitionSize);
     m_ui->AVDTableView->setModel(&m_AVDModel);
     m_AVDModel.setAvdList(AndroidConfigurations::instance().androidVirtualDevices());
@@ -290,6 +294,14 @@ void AndroidSettingsWidget::OpenJDKLocationEditingFinished()
     m_androidConfig.OpenJDKLocation = location;
 }
 
+void AndroidSettingsWidget::KeystoreLocationEditingFinished()
+{
+    QString location=m_ui->KeystoreLocationLineEdit->text();
+    if (!location.length() || !QFile::exists(location))
+        return;
+    m_androidConfig.KeystoreLocation = location;
+}
+
 void AndroidSettingsWidget::browseSDKLocation()
 {
     QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"));
@@ -375,6 +387,27 @@ void AndroidSettingsWidget::browseOpenJDKLocation()
         return;
     m_ui->OpenJDKLocationLineEdit->setText(file);
     OpenJDKLocationEditingFinished();
+}
+
+void AndroidSettingsWidget::browseKeystoreLocation()
+{
+    QString keystorePath=AndroidConfigurations::instance().config().KeystoreLocation;
+    if (!keystorePath.length())
+        keystorePath=QDir::homePath();
+    QString file=QFileDialog::getOpenFileName(this, tr("Select keystore file"), keystorePath, tr("Keystore files (*.keystore *.jks)"));
+    if (!file.length())
+        return;
+    m_ui->KeystoreLocationLineEdit->setText(file);
+    KeystoreLocationEditingFinished();
+}
+
+void AndroidSettingsWidget::createKeystore()
+{
+    AndroidCreateKeystoreCertificate d;
+    if (d.exec()!=QDialog::Accepted)
+        return;
+    m_ui->KeystoreLocationLineEdit->setText(d.keystoreFilePath());
+    KeystoreLocationEditingFinished();
 }
 
 void AndroidSettingsWidget::addAVD()

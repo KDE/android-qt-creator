@@ -33,6 +33,7 @@
 #ifndef FOLDERNAVIGATIONWIDGET_H
 #define FOLDERNAVIGATIONWIDGET_H
 
+#include "projectexplorer_export.h"
 #include <coreplugin/inavigationwidgetfactory.h>
 
 #include <QtGui/QWidget>
@@ -53,9 +54,7 @@ class ProjectExplorerPlugin;
 class Project;
 class Node;
 
-namespace Internal {
-
-class FolderNavigationWidget : public QWidget
+class PROJECTEXPLORER_EXPORT FolderNavigationWidget : public QWidget
 {
     Q_OBJECT
     Q_PROPERTY(bool autoSynchronization READ autoSynchronization WRITE setAutoSynchronization)
@@ -96,6 +95,8 @@ private:
     QLabel *m_title;
     bool m_autoSync;
 };
+
+namespace Internal {
 
 class FolderNavigationWidgetFactory : public Core::INavigationWidgetFactory
 {

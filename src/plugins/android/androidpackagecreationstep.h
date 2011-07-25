@@ -12,6 +12,7 @@ are required by law.
 
 #include <projectexplorer/abi.h>
 #include <projectexplorer/buildstep.h>
+#include <QtCore/QAbstractItemModel>
 
 QT_BEGIN_NAMESPACE
 class QDateTime;
@@ -45,8 +46,22 @@ public:
 
     void checkRequiredLibraries();
 
+    QString keystorePath();
+    void setKeystorePath(const QString & path);
+    void setKeystorePassword(const QString & pwd);
+    void setCertificateAlias(const QString & alias);
+    void setCertificatePassword(const QString & pwd);
+    void setOpenPackageLocation(bool open);
+    QAbstractItemModel * keystoreCertificates();
+
+protected:
+    virtual bool fromMap(const QVariantMap &map);
+    virtual QVariantMap toMap() const;
+
 private slots:
     void handleBuildOutput();
+    void keystorePassword();
+    void certificatePassword();
 
 private:
     AndroidPackageCreationStep(ProjectExplorer::BuildStepList *buildConfig,
@@ -57,13 +72,19 @@ private:
     virtual void run(QFutureInterface<bool> &fi);
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const { return true; }
-    bool createPackage(QProcess *buildProc);
+    bool createPackage();
     bool runCommand(QProcess *buildProc, const QString &program, const QStringList & arguments);
     void raiseError(const QString &shortMsg,
                     const QString &detailedMsg = QString());
 
     static const QLatin1String CreatePackageId;
 
+private:
+    QString m_keystorePath;
+    QString m_keystorePasswd;
+    QString m_certificateAlias;
+    QString m_certificatePasswd;
+    bool    m_openPackageLocation;
 signals:
     void updateRequiredLibrariesModels();
 };

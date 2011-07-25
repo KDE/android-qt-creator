@@ -225,15 +225,16 @@ bool AndroidDeployStep::deployPackage()
         return false;
     }
 
-    connect(&m_proc, SIGNAL(readyReadStandardOutput()), this,
+    QProcess * const deployProc = new QProcess;
+    connect(deployProc, SIGNAL(readyReadStandardOutput()), this,
         SLOT(handleBuildOutput()));
-    connect(&m_proc, SIGNAL(readyReadStandardError()), this,
+    connect(deployProc, SIGNAL(readyReadStandardError()), this,
         SLOT(handleBuildOutput()));
 
     if (m_deployAction == DeployLocal)
     {
         writeOutput(tr("Clean old qt libs"));
-        runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
+        runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                    QStringList()<<"-s"<<m_deviceSerialNumber
                    <<"shell"<<"rm"<<"-r"<<"/data/local/qt");
 
@@ -245,7 +246,7 @@ bool AndroidDeployStep::deployPackage()
         copyLibs(bc->qtVersion()->sourcePath()+"/plugins", tempPath+"/plugins",stripFiles);
         copyLibs(bc->qtVersion()->sourcePath()+"/imports", tempPath+"/imports",stripFiles);
         AndroidPackageCreationStep::stripAndroidLibs(stripFiles, target()->activeRunConfiguration()->abi().architecture());
-        runCommand(&m_proc,AndroidConfigurations::instance().adbToolPath(),
+        runCommand(deployProc,AndroidConfigurations::instance().adbToolPath(),
                    QStringList()<<"-s"<<m_deviceSerialNumber
                    <<"push"<<tempPath<<"/data/local/qt");
         AndroidPackageCreationStep::removeDirectory(tempPath);
@@ -254,34 +255,45 @@ bool AndroidDeployStep::deployPackage()
 
     if (m_deployAction == InstallQASI)
     {
-        if (!runCommand(&m_proc,AndroidConfigurations::instance().adbToolPath(),
+        if (!runCommand(deployProc,AndroidConfigurations::instance().adbToolPath(),
                         QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<"-r "<<m_QASIPackagePath))
         {
             raiseError(tr("Qt Android smart installer instalation failed"));
+            disconnect(deployProc, 0, this, 0);
+            deployProc->deleteLater();
             return false;
         }
         emit (resetDelopyAction());
     }
-    m_proc.setWorkingDirectory(androidTarget->androidDirPath());
+    deployProc->setWorkingDirectory(androidTarget->androidDirPath());
 
     writeOutput(tr("Installing package onto %1.").arg(m_deviceSerialNumber));
-    runCommand(&m_proc,AndroidConfigurations::instance().adbToolPath(),
+    runCommand(deployProc,AndroidConfigurations::instance().adbToolPath(),
                QStringList()<<"-s"<<m_deviceSerialNumber<<"uninstall"<<packageName);
+    QString package=androidTarget->apkPath(AndroidTarget::DebugBuild);
 
-    if (!runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
-                    QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<androidTarget->apkPath()))
+    if ( !(bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
+         && QFile::exists(androidTarget->apkPath(AndroidTarget::ReleaseBuildSigned)))
+        package=androidTarget->apkPath(AndroidTarget::ReleaseBuildSigned);
+
+    if (!runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
+                    QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<package))
     {
         raiseError(tr("Package instalation failed"));
+        disconnect(deployProc, 0, this, 0);
+        deployProc->deleteLater();
         return false;
     }
 
     writeOutput(tr("Pulling files necessary for debugging"));
-    runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
+    runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList()<<"-s"<<m_deviceSerialNumber<<"pull"<<"/system/bin/app_process"<<QString("%1/app_process")
                                         .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
-    runCommand(&m_proc, AndroidConfigurations::instance().adbToolPath(),
+    runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList()<<"-s"<<m_deviceSerialNumber<<"pull"<<"/system/lib/libc.so"<<QString("%1/libc.so")
                                         .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+    disconnect(deployProc, 0, this, 0);
+    deployProc->deleteLater();
     return true;
 }
 

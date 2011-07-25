@@ -46,6 +46,7 @@ namespace {
     const QLatin1String X86GdbLocationKey("X86GdbLocation");
     const QLatin1String X86GdbserverLocationKey("X86GdbserverLocation");
     const QLatin1String OpenJDKLocationKey("OpenJDKLocation");
+    const QLatin1String KeystoreLocationKey("KeystoreLocation");
     const QLatin1String PartitionSizeKey("PartitionSize");
     const QLatin1String NDKGccVersionRegExp("\\d\\.\\d\\.\\d");
     const QLatin1String ArmToolchainPrefix("arm-linux-androideabi");
@@ -53,6 +54,8 @@ namespace {
     const QLatin1String ArmToolsPrefix("arm-linux-androideabi");
     const QLatin1String X86ToolsPrefix("i686-android-linux");
     const QLatin1String Unknown("unknown");
+    const QLatin1String keytoolName("keytool");
+    const QLatin1String jarsignerName("jarsigner");
     bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
     {
         return dev1.sdk< dev2.sdk;
@@ -95,6 +98,7 @@ AndroidConfig::AndroidConfig(const QSettings &settings)
       X86GdbLocation(settings.value(X86GdbLocationKey).toString()),
       X86GdbserverLocation(settings.value(X86GdbserverLocationKey).toString()),
       OpenJDKLocation(settings.value(OpenJDKLocationKey).toString()),
+      KeystoreLocation(settings.value(KeystoreLocationKey).toString()),
       PartitionSize(settings.value(PartitionSizeKey, 1024).toInt())
 {
     QRegExp versionRegExp(NDKGccVersionRegExp);
@@ -122,6 +126,7 @@ void AndroidConfig::save(QSettings &settings) const
     settings.setValue(X86GdbLocationKey, X86GdbLocation);
     settings.setValue(X86GdbserverLocationKey, X86GdbserverLocation);
     settings.setValue(OpenJDKLocationKey, OpenJDKLocation);
+    settings.setValue(KeystoreLocationKey, KeystoreLocation);
     settings.setValue(PartitionSizeKey, PartitionSize);
 }
 
@@ -290,6 +295,23 @@ QString AndroidConfigurations::gdbPath(ProjectExplorer::Abi::Architecture archit
 QString AndroidConfigurations::openJDKPath()
 {
     return m_config.OpenJDKLocation;
+}
+
+QString AndroidConfigurations::openJDKBinPath()
+{
+    if (m_config.OpenJDKLocation.length())
+        return m_config.OpenJDKLocation+"/bin/";
+    return QString();
+}
+
+QString AndroidConfigurations::keytoolPath()
+{
+    return openJDKBinPath()+keytoolName;
+}
+
+QString AndroidConfigurations::jarsignerPath()
+{
+    return openJDKBinPath()+jarsignerName;
 }
 
 QString AndroidConfigurations::getDeployDeviceSerialNumber(int & apiLevel)

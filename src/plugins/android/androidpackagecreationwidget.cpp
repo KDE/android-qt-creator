@@ -10,6 +10,7 @@ are required by law.
 #include "androidpackagecreationwidget.h"
 #include "androidpackagecreationstep.h"
 #include "androidconfigurations.h"
+#include "androidcreatekeystorecertificate.h"
 #include "androidtarget.h"
 #include "ui_androidpackagecreationwidget.h"
 
@@ -248,6 +249,7 @@ void AndroidPackageCreationWidget::initGui()
     m_ui->qtLibsListView->setModel(m_qtLibsModel);
     m_ui->prebundledLibsListView->setModel(m_prebundledLibs);
     m_ui->permissionsListView->setModel(m_permissionsModel);
+    m_ui->KeystoreLocationLineEdit->setText(m_step->keystorePath());
 }
 
 void AndroidPackageCreationWidget::updateAndroidProjectInfo()
@@ -485,5 +487,66 @@ QString AndroidPackageCreationWidget::displayName() const
     return m_step->displayName();
 }
 
+void AndroidPackageCreationWidget::setCertificates()
+{
+    QAbstractItemModel * certificates=m_step->keystoreCertificates();
+    m_ui->signPackageCheckBox->setChecked(certificates);
+    m_ui->certificatesAliasComboBox->setModel(certificates);
+}
+
+void AndroidPackageCreationWidget::on_signPackageCheckBox_toggled(bool checked)
+{
+    if (!checked)
+        return;
+    if (m_step->keystorePath().length())
+        setCertificates();
+}
+
+void AndroidPackageCreationWidget::on_KeystoreCreatePushButton_clicked()
+{
+    AndroidCreateKeystoreCertificate d;
+    if (d.exec()!=QDialog::Accepted)
+        return;
+    m_ui->KeystoreLocationLineEdit->setText(d.keystoreFilePath());
+    m_step->setKeystorePath(d.keystoreFilePath());
+    m_step->setKeystorePassword(d.keystorePassword());
+    m_step->setCertificateAlias(d.certificateAlias());
+    m_step->setCertificatePassword(d.certificatePassword());
+    setCertificates();
+}
+
+void AndroidPackageCreationWidget::on_KeystoreLocationPushButton_clicked()
+{
+    QString keystorePath=m_step->keystorePath();
+    if (!keystorePath.length())
+        keystorePath=QDir::homePath();
+    QString file=QFileDialog::getOpenFileName(this, tr("Select keystore file"), keystorePath, tr("Keystore files (*.keystore *.jks)"));
+    if (!file.length())
+        return;
+    m_ui->KeystoreLocationLineEdit->setText(file);
+    m_step->setKeystorePath(file);
+    m_ui->signPackageCheckBox->setChecked(false);
+}
+
+void AndroidPackageCreationWidget::on_certificatesAliasComboBox_activated(const QString &alias)
+{
+    if (alias.length())
+        m_step->setCertificateAlias(alias);
+}
+
+void AndroidPackageCreationWidget::on_certificatesAliasComboBox_currentIndexChanged(const QString &alias)
+{
+    if (alias.length())
+        m_step->setCertificateAlias(alias);
+}
+
+void AndroidPackageCreationWidget::on_openPackageLocationCheckBox_toggled(bool checked)
+{
+    m_step->setOpenPackageLocation(checked);
+}
+
 } // namespace Internal
 } // namespace Android
+
+
+

@@ -76,6 +76,7 @@ public slots:
 
 private:
     void setEnabledSaveDiscardButtons(bool enabled);
+    void setCertificates();
 
 private slots:
     void initGui();
@@ -104,8 +105,14 @@ private slots:
     void removePermission();
     void savePermissionsButton();
     void discardPermissionsButton();
-
     void updateRequiredLibrariesModels();
+    void on_signPackageCheckBox_toggled(bool checked);
+    void on_KeystoreCreatePushButton_clicked();
+    void on_KeystoreLocationPushButton_clicked();
+    void on_certificatesAliasComboBox_activated(const QString &alias);
+    void on_certificatesAliasComboBox_currentIndexChanged(const QString &alias);
+
+    void on_openPackageLocationCheckBox_toggled(bool checked);
 
 private:
     AndroidPackageCreationStep * const m_step;

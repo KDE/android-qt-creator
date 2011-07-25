@@ -61,6 +61,13 @@ class AndroidTarget  : public Qt4ProjectManager::Qt4BaseTarget
         QString name;
     };
     typedef QMap<QString, Library>  LibrariesMap;
+public:
+    enum BuildType
+    {
+        DebugBuild,
+        ReleaseBuildUnsigned,
+        ReleaseBuildSigned
+    };
 
 public:
     explicit AndroidTarget(Qt4ProjectManager::Qt4Project *parent, const QString &id);
@@ -124,7 +131,7 @@ public:
     QString androidStringsPath();
     QString androidDefaultPropertiesPath();
     QString androidSrcPath();
-    QString apkPath();
+    QString apkPath(BuildType buildType);
     QString localLibsRulesFilePath();
     QString loadLocalLibs(int apiLevel);
 

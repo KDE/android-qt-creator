@@ -33,7 +33,8 @@ HEADERS += \
     androidqtversion.h \
     androiddeployconfiguration.h \
     androidtarget.h \
-    androidtargetfactory.h
+    androidtargetfactory.h \
+    androidcreatekeystorecertificate.h
 
 SOURCES += \
     androidconfigurations.cpp \
@@ -60,17 +61,22 @@ SOURCES += \
     androidqtversion.cpp \
     androiddeployconfiguration.cpp \
     androidtarget.cpp \
-    androidtargetfactory.cpp
+    androidtargetfactory.cpp \
+    androidcreatekeystorecertificate.cpp
 
 
 FORMS += \
     androidsettingswidget.ui \
     androidpackagecreationwidget.ui \
     androiddeploystepwidget.ui \
-    addnewavddialog.ui
+    addnewavddialog.ui \
+    androidcreatekeystorecertificate.ui
 
 OTHER_FILES += Android.pluginspec.in
 
 RESOURCES = android.qrc
 DEFINES += QT_NO_CAST_TO_ASCII
 DEFINES += ANDROID_LIBRARY
+
+
+
