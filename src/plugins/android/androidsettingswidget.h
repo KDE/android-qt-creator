@@ -64,7 +64,6 @@ private slots:
     void GdbLocationX86EditingFinished();
     void GdbserverLocationX86EditingFinished();
     void OpenJDKLocationEditingFinished();
-    void KeystoreLocationEditingFinished();
     void browseSDKLocation();
     void browseNDKLocation();
     void browseAntLocation();
@@ -73,8 +72,6 @@ private slots:
     void browseGdbLocationX86();
     void browseGdbserverLocationX86();
     void browseOpenJDKLocation();
-    void browseKeystoreLocation();
-    void createKeystore();
     void toolchainVersionIndexChanged(QString);
     void addAVD();
     void removeAVD();

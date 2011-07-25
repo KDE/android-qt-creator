@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>688</width>
-    <height>533</height>
+    <height>389</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,59 +16,6 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="6" column="0">
-      <widget class="QLabel" name="GdbLocationLabelx86">
-       <property name="text">
-        <string>x86 GDB location:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="1" colspan="2">
-      <widget class="QLineEdit" name="GdbLocationLineEditx86"/>
-     </item>
-     <item row="1" column="3">
-      <widget class="QPushButton" name="NDKLocationPushButton">
-       <property name="text">
-        <string>Browse</string>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="1" colspan="2">
-      <widget class="QLineEdit" name="OpenJDKLocationLineEdit"/>
-     </item>
-     <item row="2" column="1" colspan="2">
-      <widget class="QComboBox" name="toolchainVersionComboBox"/>
-     </item>
-     <item row="9" column="2">
-      <widget class="QPushButton" name="KeystoreCreatePushButton">
-       <property name="text">
-        <string>Create</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1" colspan="2">
-      <widget class="QLineEdit" name="SDKLocationLineEdit"/>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="NDKToolchainVersionLabel">
-       <property name="text">
-        <string>Android NDK toolchain version:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="3">
-      <widget class="QPushButton" name="GdbserverLocationPushButton">
-       <property name="text">
-        <string>Browse</string>
-       </property>
-      </widget>
-     </item>
      <item row="0" column="0">
       <widget class="QLabel" name="SDKLocationLabel">
        <property name="text">
@@ -79,75 +26,13 @@
        </property>
       </widget>
      </item>
-     <item row="7" column="1" colspan="2">
-      <widget class="QLineEdit" name="GdbserverLocationLineEditx86"/>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="SDKLocationLineEdit"/>
      </item>
-     <item row="9" column="1">
-      <widget class="QLineEdit" name="KeystoreLocationLineEdit"/>
-     </item>
-     <item row="4" column="0">
-      <widget class="QLabel" name="GdbLocationLabel">
-       <property name="text">
-        <string>arm GDB location:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="3">
-      <widget class="QPushButton" name="OpenJDKLocationPushButton">
+     <item row="0" column="2">
+      <widget class="QPushButton" name="SDKLocationPushButton">
        <property name="text">
         <string>Browse</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1" colspan="2">
-      <widget class="QLineEdit" name="NDKLocationLineEdit"/>
-     </item>
-     <item row="5" column="1" colspan="2">
-      <widget class="QLineEdit" name="GdbserverLocationLineEdit"/>
-     </item>
-     <item row="9" column="0">
-      <widget class="QLabel" name="KeystoreLocationLabel">
-       <property name="text">
-        <string>Keystore location:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="1" colspan="2">
-      <widget class="QLineEdit" name="GdbLocationLineEdit"/>
-     </item>
-     <item row="8" column="0">
-      <widget class="QLabel" name="OpenJDKLocationLabel">
-       <property name="text">
-        <string>OpenJDK location:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="AntLocationLabel">
-       <property name="text">
-        <string>Ant location:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="0">
-      <widget class="QLabel" name="GdbserverLocationLabel">
-       <property name="text">
-        <string>arm GDBserver location:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
      </item>
@@ -161,6 +46,109 @@
        </property>
       </widget>
      </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="NDKLocationLineEdit"/>
+     </item>
+     <item row="1" column="2">
+      <widget class="QPushButton" name="NDKLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="NDKToolchainVersionLabel">
+       <property name="text">
+        <string>Android NDK toolchain version:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="toolchainVersionComboBox"/>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="AntLocationLabel">
+       <property name="text">
+        <string>Ant location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="AntLocationLineEdit"/>
+     </item>
+     <item row="3" column="2">
+      <widget class="QPushButton" name="AntLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="GdbLocationLabel">
+       <property name="text">
+        <string>arm GDB location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="GdbLocationLineEdit"/>
+     </item>
+     <item row="4" column="2">
+      <widget class="QPushButton" name="GdbLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="GdbserverLocationLabel">
+       <property name="text">
+        <string>arm GDBserver location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLineEdit" name="GdbserverLocationLineEdit"/>
+     </item>
+     <item row="5" column="2">
+      <widget class="QPushButton" name="GdbserverLocationPushButton">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="GdbLocationLabelx86">
+       <property name="text">
+        <string>x86 GDB location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QLineEdit" name="GdbLocationLineEditx86"/>
+     </item>
+     <item row="6" column="2">
+      <widget class="QPushButton" name="GdbLocationPushButtonx86">
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
      <item row="7" column="0">
       <widget class="QLabel" name="GdbserverLocationLabelx86">
        <property name="text">
@@ -171,50 +159,35 @@
        </property>
       </widget>
      </item>
-     <item row="3" column="3">
-      <widget class="QPushButton" name="AntLocationPushButton">
-       <property name="text">
-        <string>Browse</string>
-       </property>
-      </widget>
+     <item row="7" column="1">
+      <widget class="QLineEdit" name="GdbserverLocationLineEditx86"/>
      </item>
-     <item row="7" column="3">
+     <item row="7" column="2">
       <widget class="QPushButton" name="GdbserverLocationPushButtonx86">
        <property name="text">
         <string>Browse</string>
        </property>
       </widget>
      </item>
-     <item row="0" column="3">
-      <widget class="QPushButton" name="SDKLocationPushButton">
+     <item row="8" column="0">
+      <widget class="QLabel" name="OpenJDKLocationLabel">
+       <property name="text">
+        <string>OpenJDK location:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="1">
+      <widget class="QLineEdit" name="OpenJDKLocationLineEdit"/>
+     </item>
+     <item row="8" column="2">
+      <widget class="QPushButton" name="OpenJDKLocationPushButton">
        <property name="text">
         <string>Browse</string>
        </property>
       </widget>
-     </item>
-     <item row="4" column="3">
-      <widget class="QPushButton" name="GdbLocationPushButton">
-       <property name="text">
-        <string>Browse</string>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="3">
-      <widget class="QPushButton" name="KeystoreLocationPushButton">
-       <property name="text">
-        <string>Browse</string>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="3">
-      <widget class="QPushButton" name="GdbLocationPushButtonx86">
-       <property name="text">
-        <string>Browse</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1" colspan="2">
-      <widget class="QLineEdit" name="AntLocationLineEdit"/>
      </item>
     </layout>
    </item>
@@ -695,54 +668,6 @@
     <hint type="sourcelabel">
      <x>637</x>
      <y>212</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>338</x>
-     <y>248</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>KeystoreLocationLineEdit</sender>
-   <signal>editingFinished()</signal>
-   <receiver>AndroidSettingsWidget</receiver>
-   <slot>KeystoreLocationEditingFinished()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>399</x>
-     <y>268</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>338</x>
-     <y>248</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>KeystoreLocationPushButton</sender>
-   <signal>clicked()</signal>
-   <receiver>AndroidSettingsWidget</receiver>
-   <slot>browseKeystoreLocation()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>637</x>
-     <y>268</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>338</x>
-     <y>248</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>KeystoreCreatePushButton</sender>
-   <signal>clicked()</signal>
-   <receiver>AndroidSettingsWidget</receiver>
-   <slot>createKeystore()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>563</x>
-     <y>268</y>
     </hint>
     <hint type="destinationlabel">
      <x>338</x>
