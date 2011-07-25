@@ -150,6 +150,7 @@ bool Qt4ProjectManagerPlugin::initialize(const QStringList &arguments, QString *
     addAutoReleasedObject(new LinguistExternalEditor);
 
     addAutoReleasedObject(new S60Manager);
+
     addAutoReleasedObject(new Qt4DesktopTargetFactory);
     addAutoReleasedObject(new Qt4SimulatorTargetFactory);
 
