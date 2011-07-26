@@ -269,14 +269,9 @@ int main(int argc, char **argv)
     if (!settingsPath.isEmpty())
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
 
-    // Must be done before any QSettings class is created - they were the defaults anyway.
-#if defined(Q_OS_MAC)
-//    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
-//            QDir::homePath() + "/.config");
-#elif defined(Q_OS_LINUX)
-//    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
-//            QCoreApplication::applicationDirPath()+QLatin1String(SHARE_PATH));
-#endif
+    // Must be done before any QSettings class is created
+    QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope,
+                       QCoreApplication::applicationDirPath()+QLatin1String(SHARE_PATH));
 
     // plugin manager takes control of this settings object
     QSettings *settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,

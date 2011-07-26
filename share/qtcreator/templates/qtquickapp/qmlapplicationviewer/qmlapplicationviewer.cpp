@@ -50,6 +50,9 @@ class QmlApplicationViewerPrivate
 
 QString QmlApplicationViewerPrivate::adjustPath(const QString &path)
 {
+#ifdef Q_OS_ANDROID
+    return path;
+#endif
 #ifdef Q_OS_UNIX
 #ifdef Q_OS_MAC
     if (!QDir::isAbsolutePath(path))
@@ -74,6 +77,10 @@ QmlApplicationViewer::QmlApplicationViewer(QWidget *parent) :
 {
     connect(engine(), SIGNAL(quit()), SLOT(close()));
     setResizeMode(QDeclarativeView::SizeRootObjectToView);
+
+#ifdef Q_OS_ANDROID
+    engine()->setBaseUrl(QUrl::fromLocalFile("/"));
+#endif
     // Qt versions prior to 4.8.0 don't have QML/JS debugging services built in
 #if defined(QMLJSDEBUGGER) && QT_VERSION < 0x040800
 #if !defined(NO_JSDEBUGGER)
@@ -92,13 +99,8 @@ QmlApplicationViewer::~QmlApplicationViewer()
 
 void QmlApplicationViewer::setMainQmlFile(const QString &file)
 {
-#ifndef Q_OS_ANDROID
     m_d->mainQmlFile = QmlApplicationViewerPrivate::adjustPath(file);
     setSource(QUrl::fromLocalFile(m_d->mainQmlFile));
-#else
-    engine()->setBaseUrl(QUrl::fromLocalFile("/"));
-    setSource(QUrl::fromLocalFile(file));
-#endif
 }
 
 void QmlApplicationViewer::addImportPath(const QString &path)

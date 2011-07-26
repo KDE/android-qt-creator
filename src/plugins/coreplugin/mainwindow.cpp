@@ -127,7 +127,7 @@ MainWindow::MainWindow() :
     m_uniqueIDManager(new UniqueIDManager()),
     m_additionalContexts(Constants::C_GLOBAL),
     m_settings(ExtensionSystem::PluginManager::instance()->settings()),
-    m_globalSettings(new QSettings(QSettings::IniFormat, QSettings::UserScope,
+    m_globalSettings(new QSettings(QSettings::IniFormat, QSettings::SystemScope,
                              QLatin1String(NQTC_SETTINGS_ORG), QLatin1String(NQTC_SETTINGS_APPNAME), this)),
     m_settingsDatabase(new SettingsDatabase(QFileInfo(m_settings->fileName()).path(),
                                             QLatin1String(NQTC_SETTINGS_APPNAME),
