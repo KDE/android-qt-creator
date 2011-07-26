@@ -1,9 +1,0 @@
-#!/bin/sh
-
-BIN_PATH=`dirname $0`
-BIN_PATH=`(cd "$BIN_PATH"; /bin/pwd)`
-
-export LD_LIBRARY_PATH=$BIN_PATH/../Qt/lib:$LD_LIBRARY_PATH
-export QT_PLUGIN_PATH=$BIN_PATH/../Qt/plugins:$QT_PLUGIN_PATH
-export QT_IMPORT_PATH=$BIN_PATH/../Qt/imports:$QT_IMPORT_PATH
-exec $BIN_PATH/qtcreator $*
