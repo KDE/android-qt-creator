@@ -353,11 +353,8 @@ static bool isStringType(const char *type)
     return isEqual(type, NS"QString")
         || isEqual(type, NS"QByteArray")
         || isEqual(type, "std::string")
-#ifdef _GLIBCXX_USE_WCHAR_T
         || isEqual(type, "std::wstring")
-        || isEqual(type, "wstring")
-#endif
-;
+        || isEqual(type, "wstring");
 }
 
 static bool isMovableType(const char *type)
@@ -909,7 +906,6 @@ static void qDumpStdStringValue(QDumper &d, const std::string &str)
     d.putItem("numchild", "0", d.currentChildNumChild);
 }
 
-#ifdef _GLIBCXX_USE_WCHAR_T
 static void qDumpStdWStringValue(QDumper &d, const std::wstring &str)
 {
     d.beginItem("value");
@@ -919,7 +915,6 @@ static void qDumpStdWStringValue(QDumper &d, const std::wstring &str)
     d.putItem("type", "std::wstring", d.currentChildType);
     d.putItem("numchild", "0", d.currentChildNumChild);
 }
-#endif
 
 // Called by templates, so, not static.
 static void qDumpInnerQCharValue(QDumper &d, QChar c, const char *field)
@@ -1033,13 +1028,10 @@ void qDumpInnerValueHelper(QDumper &d, const char *type, const void *addr,
                 || isEqual(type, stdStringTypeC)) {
                 d.putCommaIfNeeded();
                 qDumpStdStringValue(d, *reinterpret_cast<const std::string*>(addr));
-            }
-#ifdef _GLIBCXX_USE_WCHAR_T
-            else if (isEqual(type, "std::wstring")
+            } else if (isEqual(type, "std::wstring")
                 || isEqual(type, stdWideStringTypeUShortC)) {
                 qDumpStdWStringValue(d, *reinterpret_cast<const std::wstring*>(addr));
             }
-#endif
             break;
         default:
             break;
@@ -3305,8 +3297,6 @@ static void qDumpStdSetHelper(QDumper &d)
 static void qDumpStdSet(QDumper &d)
 {
     qDumpStdSetHelper<int>(d);
-#ifdef _GLIBCXX_USE_WCHAR_T
-#endif
 }
 
 static void qDumpStdString(QDumper &d)
@@ -3324,7 +3314,6 @@ static void qDumpStdString(QDumper &d)
     d.disarm();
 }
 
-#ifdef _GLIBCXX_USE_WCHAR_T
 static void qDumpStdWString(QDumper &d)
 {
     const std::wstring &str = *reinterpret_cast<const std::wstring *>(d.data);
@@ -3338,7 +3327,6 @@ static void qDumpStdWString(QDumper &d)
     qDumpStdWStringValue(d, str);
     d.disarm();
 }
-#endif
 
 static void qDumpStdVector(QDumper &d)
 {
@@ -3564,12 +3552,10 @@ static void handleProtocolVersion2and3(QDumper &d)
             else if (isEqual(type, "QSizeF"))
                 qDumpQSizeF(d);
             break;
-#ifdef _GLIBCXX_USE_WCHAR_T
         case 's':
             if (isEqual(type, "wstring"))
                 qDumpStdWString(d);
             break;
-#endif
         case 't':
             if (isEqual(type, "std::vector"))
                 qDumpStdVector(d);
@@ -3583,11 +3569,9 @@ static void handleProtocolVersion2and3(QDumper &d)
                 qDumpStdSet(d);
             else if (isEqual(type, "std::string") || isEqual(type, "string"))
                 qDumpStdString(d);
-#ifdef _GLIBCXX_USE_WCHAR_T
             else if (isEqual(type, "std::wstring"))
                 qDumpStdWString(d);
             break;
-#endif
         case 'T':
 #            ifndef QT_BOOTSTRAPPED
             if (isEqual(type, "QTextCodec"))
@@ -3635,10 +3619,6 @@ void *watchPoint(int x, int y)
 }
 #endif
 
-#ifdef _GLIBCXX_USE_WCHAR_T
-#endif
-#ifdef _GLIBCXX_USE_WCHAR_T
-#endif
 extern "C" Q_DECL_EXPORT
 void *qDumpObjectData440(
     int protocolVersion,
@@ -3722,18 +3702,14 @@ void *qDumpObjectData440(
             "\"vector\","
 #endif
             "\"string\","
-#ifdef _GLIBCXX_USE_WCHAR_T
             "\"wstring\","
-#endif
             "\"std::basic_string\","
             "\"std::list\","
             "\"std::map\","
             "\"std::set\","
             "\"std::string\","
             "\"std::vector\","
-#ifdef _GLIBCXX_USE_WCHAR_T
             "\"std::wstring\","
-#endif
             "]");
         d.put(",qtversion=["
             "\"").put(((QT_VERSION >> 16) & 255)).put("\","
@@ -3741,8 +3717,6 @@ void *qDumpObjectData440(
             "\"").put(((QT_VERSION)       & 255)).put("\"]");
         d.put(",namespace=\""NS"\",");
         d.put("dumperversion=\"1.3\",");
-#ifdef _GLIBCXX_USE_WCHAR_T
-#endif
         d.disarm();
     }
 
