@@ -11,7 +11,6 @@ HEADERS += \
     androidconfigurations.h \
     androidmanager.h \
     androidrunconfiguration.h \
-    androidrunconfigurationwidget.h \
     androidruncontrol.h \
     androidrunfactories.h \
     androidsettingspage.h \
@@ -41,7 +40,6 @@ SOURCES += \
     androidconfigurations.cpp \
     androidmanager.cpp \
     androidrunconfiguration.cpp \
-    androidrunconfigurationwidget.cpp \
     androidruncontrol.cpp \
     androidrunfactories.cpp \
     androidsettingspage.cpp \
