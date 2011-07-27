@@ -34,7 +34,8 @@ HEADERS += \
     androiddeployconfiguration.h \
     androidtarget.h \
     androidtargetfactory.h \
-    androidcreatekeystorecertificate.h
+    androidcreatekeystorecertificate.h \
+    javaparser.h
 
 SOURCES += \
     androidconfigurations.cpp \
@@ -62,7 +63,8 @@ SOURCES += \
     androiddeployconfiguration.cpp \
     androidtarget.cpp \
     androidtargetfactory.cpp \
-    androidcreatekeystorecertificate.cpp
+    androidcreatekeystorecertificate.cpp \
+    javaparser.cpp
 
 
 FORMS += \
@@ -77,6 +79,3 @@ OTHER_FILES += Android.pluginspec.in
 RESOURCES = android.qrc
 DEFINES += QT_NO_CAST_TO_ASCII
 DEFINES += ANDROID_LIBRARY
-
-
-

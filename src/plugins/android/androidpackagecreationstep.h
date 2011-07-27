@@ -13,6 +13,7 @@ are required by law.
 #include <projectexplorer/abi.h>
 #include <projectexplorer/buildstep.h>
 #include <QtCore/QAbstractItemModel>
+#include "javaparser.h"
 
 QT_BEGIN_NAMESPACE
 class QDateTime;
@@ -59,7 +60,8 @@ protected:
     virtual QVariantMap toMap() const;
 
 private slots:
-    void handleBuildOutput();
+    void handleBuildStdOutOutput();
+    void handleBuildStdErrOutput();
     void keystorePassword();
     void certificatePassword();
 
@@ -85,6 +87,7 @@ private:
     QString m_certificateAlias;
     QString m_certificatePasswd;
     bool    m_openPackageLocation;
+    JavaParser m_outputParser;
 signals:
     void updateRequiredLibrariesModels();
 };
