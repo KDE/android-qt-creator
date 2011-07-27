@@ -63,7 +63,11 @@ void QmlModelView::setCurrentState(const QmlModelState &state)
     if (!state.isValid())
         return;
 
-    setAcutalStateNode(state.modelNode());
+    if (!model())
+        return;
+
+    if (actualStateNode() != state.modelNode())
+        setAcutalStateNode(state.modelNode());
 }
 
 QmlModelState QmlModelView::currentState() const
@@ -440,16 +444,8 @@ void QmlModelView::rewriterEndTransaction()
 
 }
 
-void QmlModelView::actualStateChanged(const ModelNode &node)
+void QmlModelView::actualStateChanged(const ModelNode & /*node*/)
 {
-    QmlModelState newState(node);
-    QmlModelState oldState = currentState();
-
-    if (!newState.isValid())
-        newState = baseState();
-
-    if (newState != oldState)
-        stateChanged(newState, oldState);
 
 }
 
@@ -480,8 +476,5 @@ void QmlModelView::otherPropertyChanged(const QmlObjectNode &/*qmlObjectNode*/, 
 {
 }
 
-void  QmlModelView::stateChanged(const QmlModelState &/*newQmlModelState*/, const QmlModelState &/*oldQmlModelState*/)
-{
-}
 
 } //QmlDesigner

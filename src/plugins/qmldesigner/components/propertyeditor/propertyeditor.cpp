@@ -295,7 +295,7 @@ PropertyEditor::PropertyEditor(QWidget *parent) :
 
     m_stackedWidget->setStyleSheet(
             QLatin1String(Utils::FileReader::fetchQrc(":/qmldesigner/stylesheet.css")));
-    m_stackedWidget->setMinimumWidth(300);
+    m_stackedWidget->setMinimumWidth(320);
     m_stackedWidget->move(0, 0);
     connect(m_stackedWidget, SIGNAL(resized()), this, SLOT(updateSize()));
 
@@ -610,7 +610,7 @@ void PropertyEditor::setQmlDir(const QString &qmlDir)
 void PropertyEditor::delayedResetView()
 {
     if (m_timerId == 0)
-        m_timerId = startTimer(200);
+        m_timerId = startTimer(100);
 }
 
 void PropertyEditor::timerEvent(QTimerEvent *timerEvent)
@@ -933,9 +933,11 @@ QWidget *PropertyEditor::widget()
     return m_stackedWidget;
 }
 
-void PropertyEditor::stateChanged(const QmlModelState &newQmlModelState, const QmlModelState &oldQmlModelState)
+
+void PropertyEditor::actualStateChanged(const ModelNode &node)
 {
-    QmlModelView::stateChanged(newQmlModelState, oldQmlModelState);
+    QmlModelView::actualStateChanged(node);
+    QmlModelState newQmlModelState(node);
     Q_ASSERT(newQmlModelState.isValid());
     if (debug)
         qDebug() << Q_FUNC_INFO << newQmlModelState.name();

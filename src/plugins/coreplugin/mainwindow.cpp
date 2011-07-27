@@ -103,6 +103,7 @@
 #include <QtGui/QToolButton>
 #include <QtGui/QMessageBox>
 #include <QtGui/QMenuBar>
+#include <QtGui/QPushButton>
 
 /*
 #ifdef Q_OS_UNIX
@@ -710,7 +711,7 @@ void MainWindow::registerDefaultActions()
 
     // Goto Action
     icon = QIcon::fromTheme(QLatin1String("go-jump"));
-    tmpaction = new QAction(icon, tr("&Go To Line..."), this);
+    tmpaction = new QAction(icon, tr("&Go to Line..."), this);
     cmd = am->registerAction(tmpaction, Constants::GOTO, globalContext);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+L")));
     medit->addAction(cmd, Constants::G_EDIT_OTHER);

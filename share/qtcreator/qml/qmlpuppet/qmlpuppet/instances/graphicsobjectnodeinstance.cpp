@@ -34,6 +34,8 @@
 
 #include <QGraphicsObject>
 #include "private/qgraphicsitem_p.h"
+#include <private/qdeclarativemetatype_p.h>
+
 #include <QStyleOptionGraphicsItem>
 #include <QPixmap>
 #include <QSizeF>
@@ -57,9 +59,28 @@ QGraphicsObject *GraphicsObjectNodeInstance::graphicsObject() const
     return static_cast<QGraphicsObject*>(object());
 }
 
+bool GraphicsObjectNodeInstance::childrenHasContent(QGraphicsItem *graphicsItem) const
+{
+    QGraphicsObject *graphicsObject = graphicsItem->toGraphicsObject();
+
+    if (graphicsObject && !nodeInstanceServer()->hasInstanceForObject(graphicsObject) && !graphicsItem->flags().testFlag(QGraphicsItem::ItemHasNoContents))
+        return true;
+
+    foreach (QGraphicsItem *childItem, graphicsItem->childItems()) {
+        bool childHasContent = childrenHasContent(childItem);
+        if (childHasContent)
+            return true;
+    }
+
+    return false;
+}
+
 bool GraphicsObjectNodeInstance::hasContent() const
 {
-    return m_hasContent;
+    if (m_hasContent)
+        return true;
+
+    return childrenHasContent(graphicsObject());
 }
 
 QList<ServerNodeInstance> GraphicsObjectNodeInstance::childItems() const
@@ -180,6 +201,11 @@ QObject *GraphicsObjectNodeInstance::parent() const
     return graphicsObject()->parentItem()->toGraphicsObject();
 }
 
+static inline bool isRectangleSane(const QRectF &rect)
+{
+    return rect.isValid() && (rect.width() < 10000) && (rect.height() < 10000);
+}
+
 QRectF GraphicsObjectNodeInstance::boundingRectWithStepChilds(QGraphicsItem *parentItem) const
 {
     QRectF boundingRect = parentItem->boundingRect();
@@ -188,7 +214,8 @@ QRectF GraphicsObjectNodeInstance::boundingRectWithStepChilds(QGraphicsItem *par
         QGraphicsObject *childObject = childItem->toGraphicsObject();
         if (!(childObject && nodeInstanceServer()->hasInstanceForObject(childObject))) {
             QRectF transformedRect = childItem->mapRectToParent(boundingRectWithStepChilds(childItem));
-            boundingRect = boundingRect.united(transformedRect);
+            if (isRectangleSane(transformedRect))
+                boundingRect = boundingRect.united(transformedRect);
         }
     }
 

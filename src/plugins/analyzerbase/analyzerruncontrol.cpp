@@ -119,9 +119,11 @@ void AnalyzerRunControl::start()
     TaskHub *hub = pm->getObject<TaskHub>();
     hub->clearTasks(Constants::ANALYZERTASK_ID);
 
-    d->m_isRunning = true;
-    emit started();
-    d->m_engine->start();
+    if (d->m_engine->start()) {
+        d->m_isRunning = true;
+        emit started();
+    }
+
 }
 
 RunControl::StopResult AnalyzerRunControl::stop()
@@ -160,7 +162,10 @@ QString AnalyzerRunControl::displayName() const
 {
     if (!d->m_engine)
         return QString();
-    return d->m_engine->startParameters().displayName;
+    if (d->m_engine->runConfiguration())
+        return d->m_engine->runConfiguration()->displayName();
+    else
+        return d->m_engine->startParameters().displayName;
 }
 
 QIcon AnalyzerRunControl::icon() const

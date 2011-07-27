@@ -60,7 +60,7 @@ ComponentNodeInstance::Pointer ComponentNodeInstance::create(QObject  *object)
 
     Pointer instance(new ComponentNodeInstance(component));
 
-    instance->populateResetValueHash();
+    instance->populateResetHashes();
 
     return instance;
 }
@@ -87,7 +87,6 @@ void ComponentNodeInstance::setNodeSource(const QString &source)
     setId(id());
 
     if (component()->isError()) {
-        qDebug() << source;
         foreach(const QDeclarativeError &error, component()->errors())
             qDebug() << error;
     }

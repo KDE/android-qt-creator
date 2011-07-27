@@ -80,9 +80,22 @@ PositionerNodeInstance::Pointer PositionerNodeInstance::create(QObject *object)
 
     static_cast<QDeclarativeParserStatus*>(positioner)->classBegin();
 
-    instance->populateResetValueHash();
+    instance->populateResetHashes();
 
     return instance;
 }
+
+QDeclarativeBasePositioner *PositionerNodeInstance::positioner() const
+{
+    Q_ASSERT(qobject_cast<QDeclarativeBasePositioner*>(object()));
+    return static_cast<QDeclarativeBasePositioner*>(object());
+}
+
+void PositionerNodeInstance::refreshPositioner()
+{
+    bool success = QMetaObject::invokeMethod(positioner(), "prePositioning");
+    Q_ASSERT(success);
+}
+
 }
 } // namespace QmlDesigner

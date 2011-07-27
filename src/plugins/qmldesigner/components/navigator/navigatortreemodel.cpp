@@ -35,6 +35,7 @@
 #include <nodeabstractproperty.h>
 #include <nodelistproperty.h>
 #include <nodeproperty.h>
+#include <variantproperty.h>
 #include <metainfo.h>
 #include <qgraphicswidget.h>
 #include <qmlmodelview.h>
@@ -45,6 +46,18 @@
 #include <QMimeData>
 #include <QMessageBox>
 #include <QApplication>
+#include <QTransform>
+#include <QPointF>
+
+static inline void setScenePos(const QmlDesigner::ModelNode &modelNode,const QPointF &pos)
+{
+    QmlDesigner::QmlItemNode parentNode = modelNode.parentProperty().parentQmlObjectNode().toQmlItemNode();
+    if (parentNode.isValid()) {
+        QPointF localPos = parentNode.instanceSceneTransform().inverted().map(pos);
+        modelNode.variantProperty(QLatin1String("x")) = localPos.toPoint().x();
+        modelNode.variantProperty(QLatin1String("y")) = localPos.toPoint().y();
+    }
+}
 
 namespace QmlDesigner {
 
@@ -542,7 +555,14 @@ void NavigatorTreeModel::moveNodesInteractive(NodeAbstractProperty parentPropert
                                  currentNode.removeProperty("y");
                              parentProperty.reparentHere(currentNode);
                         } else {
-                            parentProperty.reparentHere(node);
+                            if (QmlItemNode(node).isValid()) {
+                                QPointF scenePos = QmlItemNode(node).instanceScenePosition();
+                                parentProperty.reparentHere(node);
+                                if (!scenePos.isNull())
+                                    setScenePos(node, scenePos);
+                            } else {
+                                parentProperty.reparentHere(node);
+                            }
                         }
                     }
 
@@ -610,7 +630,7 @@ QStringList NavigatorTreeModel::visibleProperties(const ModelNode &node) const
 
             QString qmlType = qmlTypeInQtContainer(node.metaInfo().propertyTypeName(propertyName));
             if (node.model()->metaInfo(qmlType).isValid() &&
-                node.model()->metaInfo(qmlType).isSubclassOf("QGraphicsObject", -1, -1)) {
+                node.model()->metaInfo(qmlType).isSubclassOf("<cpp>.QGraphicsObject", -1, -1)) {
                 propertyList.append(propertyName);
             }
         }

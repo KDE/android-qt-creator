@@ -374,6 +374,18 @@ void ObjectNodeInstance::reparent(const ObjectNodeInstance::Pointer &oldParentIn
         addToNewProperty(object(), newParentInstance->object(), newParentProperty);
     }
 }
+QVariant ObjectNodeInstance::convertSpecialCharacter(const QVariant& value) const
+{
+    QVariant specialCharacterConvertedValue = value;
+    if (value.type() == QVariant::String) {
+        QString string = value.toString();
+        string.replace(QLatin1String("\\n"), QLatin1String("\n"));
+        string.replace(QLatin1String("\\t"), QLatin1String("\t"));
+        specialCharacterConvertedValue = string;
+    }
+
+    return specialCharacterConvertedValue;
+}
 
 void ObjectNodeInstance::setPropertyVariant(const QString &name, const QVariant &value)
 {
@@ -390,8 +402,11 @@ void ObjectNodeInstance::setPropertyVariant(const QString &name, const QVariant 
             nodeInstanceServer()->removeFilePropertyFromFileSystemWatcher(object(), name, path);
     }
 
+    if (hasValidResetBinding(name)) {
+        QDeclarativePropertyPrivate::setBinding(property, 0, QDeclarativePropertyPrivate::BypassInterceptor | QDeclarativePropertyPrivate::DontRemoveBinding);
+    }
 
-    bool isWritten = property.write(value);
+    bool isWritten = property.write(convertSpecialCharacter(value));
 
     if (!isWritten)
         qDebug() << "ObjectNodeInstance.setPropertyVariant: Cannot be written: " << object() << name << value;
@@ -417,7 +432,7 @@ void ObjectNodeInstance::setPropertyBinding(const QString &name, const QString &
         binding->setTarget(property);
         binding->setNotifyOnValueChanged(true);
         QDeclarativeAbstractBinding *oldBinding = QDeclarativePropertyPrivate::setBinding(property, binding);
-        if (oldBinding)
+        if (oldBinding && !hasValidResetBinding(name))
             oldBinding->destroy();
         binding->update();
         if (binding->hasError())
@@ -512,12 +527,17 @@ void ObjectNodeInstance::doResetProperty(const QString &propertyName)
 
 
     QDeclarativeAbstractBinding *binding = QDeclarativePropertyPrivate::binding(property);
-    if (binding) {
+    if (binding && !(hasValidResetBinding(propertyName) && resetBinding(propertyName) == binding)) {
         binding->setEnabled(false, 0);
         binding->destroy();
     }
 
-    if (property.isResettable()) {
+
+    if (hasValidResetBinding(propertyName)) {
+        QDeclarativeAbstractBinding *binding = resetBinding(propertyName);
+        QDeclarativePropertyPrivate::setBinding(property, binding, QDeclarativePropertyPrivate::DontRemoveBinding);
+        binding->update();
+    } else if (property.isResettable()) {
         property.reset();
     } else if (property.propertyTypeCategory() == QDeclarativeProperty::List) {
         QDeclarativeListReference list = qvariant_cast<QDeclarativeListReference>(property.read());
@@ -639,7 +659,7 @@ ObjectNodeInstance::Pointer ObjectNodeInstance::create(QObject *object)
 {
     Pointer instance(new ObjectNodeInstance(object));
 
-    instance->populateResetValueHash();
+    instance->populateResetHashes();
 
     return instance;
 }
@@ -784,6 +804,14 @@ static inline QString fixComponentPathForIncompatibleQt(const QString &component
         fixedComponentPath.replace(QLatin1Char('\\'), QLatin1Char('/'));
         if (QFileInfo(fixedComponentPath).exists())
             return fixedComponentPath;
+        QString fixedPath = QFileInfo(fixedComponentPath).path();
+        if (fixedPath.endsWith(QLatin1String(".1.0"))) {
+        //plugin directories might contain the version number
+            fixedPath.chop(4);
+            fixedPath += QLatin1Char('/') + QFileInfo(componentPath).fileName();
+            if (QFileInfo(fixedPath).exists())
+                return fixedPath;
+        }
     }
 
     return result;
@@ -890,6 +918,10 @@ void ObjectNodeInstance::setInPositioner(bool isInPositioner)
     m_isInPositioner = isInPositioner;
 }
 
+void ObjectNodeInstance::refreshPositioner()
+{
+}
+
 void ObjectNodeInstance::updateAnchors()
 {
 }
@@ -951,15 +983,30 @@ QStringList propertyNameForWritableProperties(QObject *object, const QString &ba
     return propertyNameList;
 }
 
-void ObjectNodeInstance::populateResetValueHash()
+void ObjectNodeInstance::populateResetHashes()
 {
     QStringList propertyNameList = propertyNameForWritableProperties(object());
 
     foreach(const QString &propertyName, propertyNameList) {
         QDeclarativeProperty property(object(), propertyName, QDeclarativeEngine::contextForObject(object()));
-        if (property.isWritable())
+
+        QDeclarativeAbstractBinding::Pointer binding = QDeclarativeAbstractBinding::getPointer(QDeclarativePropertyPrivate::binding(property));
+        if (binding) {
+            m_resetBindingHash.insert(propertyName, binding);
+        } else if (property.isWritable()) {
             m_resetValueHash.insert(propertyName, property.read());
+        }
     }
+}
+
+QDeclarativeAbstractBinding *ObjectNodeInstance::resetBinding(const QString &propertyName) const
+{
+    return m_resetBindingHash.value(propertyName).data();
+}
+
+bool ObjectNodeInstance::hasValidResetBinding(const QString &propertyName) const
+{
+    return m_resetBindingHash.contains(propertyName) &&  m_resetBindingHash.value(propertyName).data();
 }
 
 QVariant ObjectNodeInstance::resetValue(const QString &propertyName) const
