@@ -14,13 +14,13 @@ are required by law.
 #include "androidglobal.h"
 #include "androidpackagecreationwidget.h"
 #include "androidtarget.h"
-#include "qt4projectmanager/qt4nodes.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/foldernavigationwidget.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4project.h>
+#include <qt4projectmanager/qt4nodes.h>
 #include <qt4projectmanager/qt4target.h>
 #include <utils/environment.h>
 
@@ -112,6 +112,7 @@ void AndroidPackageCreationStep::ctor()
 {
     setDefaultDisplayName(tr("Packaging for Android"));
     m_openPackageLocation = true;
+    connect(&m_outputParser, SIGNAL(addTask(ProjectExplorer::Task)), this, SIGNAL(addTask(ProjectExplorer::Task)));
 }
 
 bool AndroidPackageCreationStep::init()
@@ -307,9 +308,9 @@ bool AndroidPackageCreationStep::createPackage()
     QProcess * const buildProc = new QProcess;
 
     connect(buildProc, SIGNAL(readyReadStandardOutput()), this,
-        SLOT(handleBuildOutput()));
+        SLOT(handleBuildStdOutOutput()));
     connect(buildProc, SIGNAL(readyReadStandardError()), this,
-        SLOT(handleBuildOutput()));
+        SLOT(handleBuildStdErrOutput()));
 
     buildProc->setWorkingDirectory(androidDir);
 
@@ -437,17 +438,33 @@ bool AndroidPackageCreationStep::runCommand(QProcess *buildProc
     return true;
 }
 
-void AndroidPackageCreationStep::handleBuildOutput()
+void AndroidPackageCreationStep::handleBuildStdOutOutput()
 {
-    QProcess * const buildProc = qobject_cast<QProcess *>(sender());
-    if (!buildProc)
+    QProcess * const process = qobject_cast<QProcess *>(sender());
+    if (!process)
         return;
-    const QByteArray &stdOut = buildProc->readAllStandardOutput();
-    const QByteArray &errorOut = buildProc->readAllStandardError();
-    if (!stdOut.isEmpty())
-        emit addOutput(QString::fromLocal8Bit(stdOut), BuildStep::NormalOutput);
-    if (!errorOut.isEmpty()) {
-        emit addOutput(QString::fromLocal8Bit(errorOut), BuildStep::ErrorOutput);
+
+    process->setReadChannel(QProcess::StandardOutput);
+    while (process->canReadLine())
+    {
+        QString line = QString::fromLocal8Bit(process->readLine());
+        m_outputParser.stdOutput(line);
+        emit addOutput(line, BuildStep::NormalOutput, BuildStep::DontAppendNewline);
+    }
+}
+
+void AndroidPackageCreationStep::handleBuildStdErrOutput()
+{
+    QProcess * const process = qobject_cast<QProcess *>(sender());
+    if (!process)
+        return;
+
+    process->setReadChannel(QProcess::StandardError);
+    while (process->canReadLine())
+    {
+        QString line = QString::fromLocal8Bit(process->readLine());
+        m_outputParser.stdError(line);
+        emit addOutput(line, BuildStep::ErrorOutput, BuildStep::DontAppendNewline);
     }
 }
 

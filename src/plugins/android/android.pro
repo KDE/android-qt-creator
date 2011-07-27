@@ -11,7 +11,6 @@ HEADERS += \
     androidconfigurations.h \
     androidmanager.h \
     androidrunconfiguration.h \
-    androidrunconfigurationwidget.h \
     androidruncontrol.h \
     androidrunfactories.h \
     androidsettingspage.h \
@@ -34,13 +33,13 @@ HEADERS += \
     androiddeployconfiguration.h \
     androidtarget.h \
     androidtargetfactory.h \
-    androidcreatekeystorecertificate.h
+    androidcreatekeystorecertificate.h \
+    javaparser.h
 
 SOURCES += \
     androidconfigurations.cpp \
     androidmanager.cpp \
     androidrunconfiguration.cpp \
-    androidrunconfigurationwidget.cpp \
     androidruncontrol.cpp \
     androidrunfactories.cpp \
     androidsettingspage.cpp \
@@ -62,7 +61,8 @@ SOURCES += \
     androiddeployconfiguration.cpp \
     androidtarget.cpp \
     androidtargetfactory.cpp \
-    androidcreatekeystorecertificate.cpp
+    androidcreatekeystorecertificate.cpp \
+    javaparser.cpp
 
 
 FORMS += \
@@ -77,6 +77,3 @@ OTHER_FILES += Android.pluginspec.in
 RESOURCES = android.qrc
 DEFINES += QT_NO_CAST_TO_ASCII
 DEFINES += ANDROID_LIBRARY
-
-
-

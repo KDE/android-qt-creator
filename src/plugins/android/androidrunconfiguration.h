@@ -55,7 +55,6 @@ public:
     virtual ~AndroidRunConfiguration();
 
     using ProjectExplorer::RunConfiguration::isEnabled;
-    bool isEnabled(ProjectExplorer::BuildConfiguration *config) const;
     QWidget *createConfigurationWidget();
     Utils::OutputFormatter *createOutputFormatter() const;
     AndroidTarget *androidTarget() const;
@@ -63,9 +62,6 @@ public:
 
     AndroidDeployStep *deployStep() const;
 
-    const AndroidToolChain *toolchain() const;
-    QString localExecutableFilePath() const;
-    const QString arguments() const;
     void setArguments(const QString &args);
     AndroidConfig config() const;
     void updateFactoryState() { emit isEnabledChanged(true); }
@@ -77,54 +73,16 @@ public:
     const QString remoteChannel() const;
     const QString dumperLib() const;
 
-    virtual QVariantMap toMap() const;
-
-    QString baseEnvironmentText() const;
-    BaseEnvironmentBase baseEnvironmentBase() const;
-    void setBaseEnvironmentBase(BaseEnvironmentBase env);
-
-    Utils::Environment environment() const;
-    Utils::Environment baseEnvironment() const;
-
-    QList<Utils::EnvironmentItem> userEnvironmentChanges() const;
-    void setUserEnvironmentChanges(const QList<Utils::EnvironmentItem> &diff);
-
-    Utils::Environment systemEnvironment() const;
-    void setSystemEnvironment(const Utils::Environment &environment);
-
-    int portsUsedByDebuggers() const;
-
-signals:
-    void deviceConfigurationChanged(ProjectExplorer::Target *target);
-    void targetInformationChanged() const;
-
-    void baseEnvironmentChanged();
-    void systemEnvironmentChanged();
-    void userEnvironmentChangesChanged(const QList<Utils::EnvironmentItem> &diff);
-
 protected:
     AndroidRunConfiguration(AndroidTarget *parent, AndroidRunConfiguration *source);
-    virtual bool fromMap(const QVariantMap &map);
     QString defaultDisplayName();
-
-private slots:
-    void proFileUpdate(Qt4ProjectManager::Qt4ProFileNode *pro, bool success, bool parseInProgress);
-    void updateDeviceConfigurations();
-    void handleDeployConfigChanged();
 
 private:
     void init();
-    void handleParseState(bool success);
 
     QString m_proFilePath;
     mutable QString m_gdbPath;
-    QString m_arguments;
-    bool m_useRemoteGdb;
 
-    BaseEnvironmentBase m_baseEnvironmentBase;
-    Utils::Environment m_systemEnvironment;
-    QList<Utils::EnvironmentItem> m_userEnvironmentChanges;
-    bool m_validParse;
 };
 
 } // namespace Internal

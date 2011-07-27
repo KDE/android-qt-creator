@@ -48,12 +48,13 @@ public:
         ProjectExplorer::RunConfiguration *runConfiguration);
     ~QmlProfilerEngine();
 
+    static void showNonmodalWarning(const QString &warningMsg);
 signals:
     void processRunning(int port);
     void stopRecording();
 
 public slots:
-    void start();
+    bool start();
     void stop();
 
 private slots:
