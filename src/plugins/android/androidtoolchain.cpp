@@ -106,6 +106,8 @@ void AndroidToolChain::addToEnvironment(Utils::Environment &env) const
     // the latest official Nokia QtCreator; can't use qgetenv("PATHEXT") either as it's already dead.
     env.set("PATHEXT", ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC");
 #endif
+#endif
+
     Qt4Project *qt4pro = qobject_cast<Qt4Project *>(ProjectExplorer::ProjectExplorerPlugin::instance()->currentProject());
     if (!qt4pro)
         return;

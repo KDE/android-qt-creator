@@ -142,7 +142,7 @@ void AndroidPackageCreationStep::checkRequiredLibraries()
     {
         raiseError(tr("Can't find read elf information"),
                    tr("Can't find '%1'.\n"
-                      "Please make sure your appication "
+                      "Please make sure your appication is"
                       " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
         return;
     }
