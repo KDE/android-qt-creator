@@ -287,7 +287,15 @@ void QmlCppEngine::updateAll()
 
 void QmlCppEngine::attemptBreakpointSynchronization()
 {
-    d->m_cppEngine->attemptBreakpointSynchronization();
+    if (d->m_qmlEngine->state() == InferiorRunOk
+            || d->m_qmlEngine->state() == InferiorRunRequested
+            || d->m_qmlEngine->state() == InferiorStopOk
+            || d->m_qmlEngine->state() == InferiorStopRequested) {
+        // We expect both engines to be set up correctly before hitting
+        // any breakpoints, therefore ignore any breakpoints that would
+        // be hit before QDeclarativeEngine is set up.
+        d->m_cppEngine->attemptBreakpointSynchronization();
+    }
     d->m_qmlEngine->attemptBreakpointSynchronization();
 }
 
@@ -317,7 +325,7 @@ void QmlCppEngine::detachDebugger()
 void QmlCppEngine::executeStep()
 {
     if (d->m_activeEngine == d->m_qmlEngine) {
-        QTC_ASSERT(d->m_cppEngine->state() == InferiorRunOk, /**/);
+        QTC_CHECK(d->m_cppEngine->state() == InferiorRunOk);
         if (d->m_cppEngine->setupQmlStep(true))
             return; // Wait for callback to readyToExecuteQmlStep()
     } else {
@@ -407,7 +415,11 @@ void QmlCppEngine::executeJumpToLine(const ContextData &data)
 
 void QmlCppEngine::executeDebuggerCommand(const QString &command)
 {
-    d->m_cppEngine->executeDebuggerCommand(command);
+    if (d->m_qmlEngine->state() == InferiorStopOk) {
+        d->m_qmlEngine->executeDebuggerCommand(command);
+    } else {
+        d->m_cppEngine->executeDebuggerCommand(command);
+    }
 }
 
 /////////////////////////////////////////////////////////
@@ -549,15 +561,18 @@ void QmlCppEngine::slaveEngineStateChanged
 
     case InferiorRunOk:
         if (state() == EngineRunRequested) {
-            if (otherEngine->state() == InferiorRunOk)
+            if (otherEngine->state() == InferiorRunOk) {
+                attemptBreakpointSynchronization();
                 notifyEngineRunAndInferiorRunOk();
-            else if (otherEngine->state() == InferiorStopOk)
-                notifyEngineRunAndInferiorStopOk();
-            else
+            } else {
                 EDEBUG("... WAITING FOR OTHER INFERIOR RUN");
+            }
         } else {
             if (otherEngine->state() == InferiorRunOk) {
                 EDEBUG("PLANNED INFERIOR RUN");
+                if (state() == InferiorStopOk) {
+                    notifyInferiorRunRequested();
+                }
                 notifyInferiorRunOk();
             } else if (otherEngine->state() == InferiorStopOk) {
                 EDEBUG("PLANNED SINGLE INFERIOR RUN");
@@ -595,9 +610,6 @@ void QmlCppEngine::slaveEngineStateChanged
             } else if (state() == InferiorStopRequested) {
                 EDEBUG("... AN INFERIOR STOPPED EXPECTEDLY");
                 notifyInferiorStopOk();
-            } else if (otherEngine->state() == EngineRunRequested && otherEngine == d->m_qmlEngine) {
-                EDEBUG("... BREAKPOINT HIT IN C++ BEFORE QML STARTUP");
-                QTimer::singleShot(0, this, SLOT(skipCppBreakpoint()));
             } else if (state() == EngineRunRequested) {
                 EDEBUG("... AN INFERIOR FAILED STARTUP, OTHER STOPPED EXPECTEDLY");
                 // wait for failure notification from other engine
@@ -666,7 +678,7 @@ void QmlCppEngine::slaveEngineStateChanged
 void QmlCppEngine::handleRemoteSetupDone(int gdbServerPort, int qmlPort)
 {
     EDEBUG("MASTER REMOTE SETUP DONE");
-    d->m_qmlEngine->handleRemoteSetupDone(gdbServerPort, qmlPort);
+    d->m_qmlEngine->startParameters().qmlServerPort = qmlPort;
     d->m_cppEngine->handleRemoteSetupDone(gdbServerPort, qmlPort);
 }
 
@@ -684,32 +696,6 @@ void QmlCppEngine::showMessage(const QString &msg, int channel, int timeout) con
         d->m_qmlEngine->filterApplicationMessage(msg, channel);
     }
     DebuggerEngine::showMessage(msg, channel, timeout);
-}
-
-void QmlCppEngine::skipCppBreakpoint()
-{
-    // only used to skip breakpoint in CPP when QML not ready yet
-    QTC_ASSERT(d->m_cppEngine->state() == InferiorStopOk, return);
-    QTC_ASSERT(d->m_qmlEngine->state() == EngineRunRequested, return);
-
-    if (!d->m_msg) {
-        Core::ICore * const core = Core::ICore::instance();
-        d->m_msg = new QMessageBox(core->mainWindow());
-    }
-
-    if (d->m_msg->isHidden()) {
-        d->m_msg->setIcon(QMessageBox::Warning);
-        d->m_msg->setWindowTitle(tr("QML/C++ Debugging"));
-        d->m_msg->setText(tr("Cannot stop execution before QML engine is started. Skipping breakpoint.\n"
-                             "Suggestions: Move the breakpoint after QmlApplicationViewer instantiation or switch to C++ only debugging."));
-        d->m_msg->setStandardButtons(QMessageBox::Ok);
-        d->m_msg->setDefaultButton(QMessageBox::Ok);
-        d->m_msg->setModal(false);
-        d->m_msg->show();
-    }
-
-    d->m_cppEngine->continueInferior();
-    resetLocation();
 }
 
 DebuggerEngine *QmlCppEngine::cppEngine() const

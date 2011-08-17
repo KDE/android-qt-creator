@@ -33,6 +33,7 @@
 #ifndef QMAKESTEP_H
 #define QMAKESTEP_H
 
+#include "qt4projectmanager_global.h"
 #include <QtCore/qglobal.h>
 
 QT_BEGIN_NAMESPACE

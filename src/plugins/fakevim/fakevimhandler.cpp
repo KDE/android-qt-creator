@@ -906,8 +906,8 @@ public:
     Input m_semicolonType;  // 'f', 'F', 't', 'T'
     QString m_semicolonKey;
 
-    // visual line mode
-    void enterVisualMode(VisualMode visualMode);
+    // visual modes
+    void toggleVisualMode(VisualMode visualMode);
     void leaveVisualMode();
     VisualMode m_visualMode;
     VisualMode m_oldVisualMode;
@@ -1234,7 +1234,7 @@ void FakeVimHandler::Private::exportSelection()
         } else if (m_visualMode == VisualCharMode) {
             /* Nothing */
         } else {
-            QTC_ASSERT(false, /**/);
+            QTC_CHECK(false);
         }
     } else {
         setAnchorAndPosition(pos, pos);
@@ -1644,7 +1644,7 @@ void FakeVimHandler::Private::updateMiniBuffer()
         if (!msg.isEmpty() && m_mode != CommandMode)
             msg += QChar(10073); // '|'; // FIXME: Use a real "cursor"
     } else {
-        QTC_ASSERT(m_mode == CommandMode && m_subsubmode != SearchSubSubMode, /**/);
+        QTC_CHECK(m_mode == CommandMode && m_subsubmode != SearchSubSubMode);
         msg = "-- COMMAND --";
     }
 
@@ -2520,11 +2520,11 @@ EventResult FakeVimHandler::Private::handleCommandMode2(const Input &input)
         scrollToLine(cursorLine() - sline);
         finishMovement();
     } else if (input.is('v')) {
-        enterVisualMode(VisualCharMode);
+        toggleVisualMode(VisualCharMode);
     } else if (input.is('V')) {
-        enterVisualMode(VisualLineMode);
+        toggleVisualMode(VisualLineMode);
     } else if (input.isControl('v')) {
-        enterVisualMode(VisualBlockMode);
+        toggleVisualMode(VisualBlockMode);
     } else if (input.is('w')) { // tested
         // Special case: "cw" and "cW" work the same as "ce" and "cE" if the
         // cursor is on a non-blank - except if the cursor is on the last
@@ -2709,6 +2709,21 @@ EventResult FakeVimHandler::Private::handleReplaceMode(const Input &input)
         m_submode = NoSubMode;
         m_mode = CommandMode;
         finishMovement();
+    } else if (input.isKey(Key_Left)) {
+        breakEditBlock();
+        moveLeft(1);
+        setTargetColumn();
+    } else if (input.isKey(Key_Right)) {
+        breakEditBlock();
+        moveRight(1);
+        setTargetColumn();
+    } else if (input.isKey(Key_Up)) {
+        breakEditBlock();
+        moveUp(1);
+        setTargetColumn();
+    } else if (input.isKey(Key_Down)) {
+        breakEditBlock();
+        moveDown(1);
     } else {
         joinPreviousEditBlock();
         if (!atEndOfLine()) {
@@ -3226,7 +3241,7 @@ bool FakeVimHandler::Private::handleExSubstituteCommand(const ExCommand &cmd)
                 }
             }
             text = text.left(pos) + repl + text.mid(pos + matched.size());
-            pos += matched.size();
+            pos += repl.size();
             if (!global)
                 break;
         }
@@ -3368,7 +3383,7 @@ bool FakeVimHandler::Private::handleExSetCommand(const ExCommand &cmd)
 
     showBlackMessage(QString());
     SavedAction *act = theFakeVimSettings()->item(cmd.args);
-    QTC_ASSERT(!cmd.args.isEmpty(), /**/); // Handled by plugin.
+    QTC_CHECK(!cmd.args.isEmpty()); // Handled by plugin.
     if (act && act->value().type() == QVariant::Bool) {
         // Boolean config to be switched on.
         bool oldValue = act->value().toBool();
@@ -4255,7 +4270,7 @@ void FakeVimHandler::Private::scrollToLine(int line)
     QScrollBar *scrollBar = EDITOR(verticalScrollBar());
     //qDebug() << "SCROLL: " << scrollBar->value() << line;
     scrollBar->setValue(line);
-    //QTC_ASSERT(firstVisibleLine() == line, /**/);
+    //QTC_CHECK(firstVisibleLine() == line);
 }
 
 int FakeVimHandler::Private::firstVisibleLine() const
@@ -4598,17 +4613,21 @@ int FakeVimHandler::Private::lineForPosition(int pos) const
     return tc.block().blockNumber() + 1;
 }
 
-void FakeVimHandler::Private::enterVisualMode(VisualMode visualMode)
+void FakeVimHandler::Private::toggleVisualMode(VisualMode visualMode)
 {
-    m_positionPastEnd = false;
-    m_anchorPastEnd = false;
-    m_visualMode = visualMode;
-    const int pos = position();
-    //setMark('<', pos);
-    //setMark('>', pos + 1);
-    setAnchorAndPosition(pos, pos);
-    updateMiniBuffer();
-    updateSelection();
+    if (isVisualMode()) {
+        leaveVisualMode();
+    } else {
+        m_positionPastEnd = false;
+        m_anchorPastEnd = false;
+        m_visualMode = visualMode;
+        const int pos = position();
+        //setMark('<', pos);
+        //setMark('>', pos + 1);
+        setAnchorAndPosition(pos, pos);
+        updateMiniBuffer();
+        updateSelection();
+    }
 }
 
 void FakeVimHandler::Private::leaveVisualMode()

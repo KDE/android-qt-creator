@@ -200,7 +200,6 @@ bool QtVersionManager::restoreQtVersions()
 
 void QtVersionManager::updateFromInstaller()
 {
-    bool debug = true;
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
     QList<QtVersionFactory *> factories = pm->getObjects<QtVersionFactory>();
     ProjectExplorer::PersistentSettingsReader reader;
@@ -498,13 +497,8 @@ void QtVersionManager::updateDocumentation()
     helpManager->registerDocumentation(files);
 }
 
-void QtVersionManager::updateQtVersion(int id)
+void QtVersionManager::updateDumpFor(const QString &qmakeCommand)
 {
-    BaseQtVersion *qtVersion = version(id);
-    QTC_ASSERT(qtVersion, return);
-
-    // update actually all Qt versions with the same qmake command
-    const QString qmakeCommand = qtVersion->qmakeCommand();
     foreach (BaseQtVersion *v, versions()) {
         if (v->qmakeCommand() == qmakeCommand)
             v->recheckDumper();
