@@ -416,6 +416,7 @@ static inline void addStackLayoutMemoryView(DebuggerEngine *engine,
                                             QWidget *parent)
 {
     typedef QPair<quint64, QString> RegisterValueNamePair;
+    QTC_ASSERT(engine && m, return ;)
 
     // Determine suitable address range from locals
     quint64 start = Q_UINT64_C(0xFFFFFFFFFFFFFFFF);
@@ -705,6 +706,7 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     const bool canHandleWatches = engineCapabilities & AddWatcherCapability;
     const DebuggerState state = engine->state();
     const bool canInsertWatches = state == InferiorStopOk
+        || state == InferiorUnrunnable
         || (state == InferiorRunOk && engine->acceptsWatchesWhileRunning());
 
     QMenu breakpointMenu;
@@ -895,7 +897,7 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     } else if (act == actOpenMemoryViewAtPointerValue) {
         addVariableMemoryView(currentEngine(), true, mi0, true, ev->globalPos(), this);
     } else if (act == actOpenMemoryEditorStackLayout) {
-        addStackLayoutMemoryView(currentEngine(), false, mi0.model(), ev->globalPos(), this);
+        addStackLayoutMemoryView(currentEngine(), false, model(), ev->globalPos(), this);
     } else if (act == actSetWatchpointAtVariableAddress) {
         setWatchpointAtAddress(address, size);
     } else if (act == actSetWatchpointAtPointerValue) {

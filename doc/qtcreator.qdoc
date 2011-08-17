@@ -6501,9 +6501,8 @@
 
     \list 1
 
-        \o On the \gui Welcome page, select \gui {Choose an Example...}
-        in the \gui {Explore Qt Quick Examples} field, and then select
-        \gui {Toys > Clocks}.
+        \o On the \gui Welcome page, select the \gui {Show Examples and Demos}
+        check box, and then select \gui {Clocks} in the list of examples.
 
         \image qtcreator-gs-build-example-open.png "Selecting an example"
 
@@ -9486,6 +9485,13 @@
     To debug Qt Quick Applications on devices, install Qt 4.7.4, or later,
     libraries on devices. Then select the device as the target before you
     start debugging.
+
+    \section1 Mixed C++/QML Debugging
+
+    You can debug both the C++ and QML parts of your application at the same time:
+    Select the checkboxes for both languages in the \gui{Run Settings}. However,
+    C++ breakpoints will be ignored until the debugger has attached also to the QML
+    engine.
 
     \section1 Starting QML Debugging
 

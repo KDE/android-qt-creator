@@ -30,6 +30,8 @@
 **************************************************************************/
 
 #include "syntaxhighlighter.h"
+#include "basetextdocument.h"
+#include "basetextdocumentlayout.h"
 
 #include <qtextdocument.h>
 #include <qtextlayout.h>
@@ -75,10 +77,12 @@ public:
     }
 
     void applyFormatChanges(int from, int charsRemoved, int charsAdded);
+
     QVector<QTextCharFormat> formatChanges;
     QTextBlock currentBlock;
     bool rehighlightPending;
     bool inReformatBlocks;
+    BaseTextDocumentLayout::FoldValidator foldValidator;
 };
 
 static bool adjustRange(QTextLayout::FormatRange &range, int from, int charsRemoved, int charsAdded) {
@@ -179,6 +183,8 @@ void SyntaxHighlighterPrivate::_q_reformatBlocks(int from, int charsRemoved, int
 
 void SyntaxHighlighterPrivate::reformatBlocks(int from, int charsRemoved, int charsAdded)
 {
+    foldValidator.reset();
+
     rehighlightPending = false;
 
     QTextBlock block = doc->findBlock(from);
@@ -205,6 +211,8 @@ void SyntaxHighlighterPrivate::reformatBlocks(int from, int charsRemoved, int ch
     }
 
     formatChanges.clear();
+
+    foldValidator.finalize();
 }
 
 void SyntaxHighlighterPrivate::reformatBlock(const QTextBlock &block, int from, int charsRemoved, int charsAdded)
@@ -218,6 +226,8 @@ void SyntaxHighlighterPrivate::reformatBlock(const QTextBlock &block, int from, 
     formatChanges.fill(QTextCharFormat(), block.length() - 1);
     q->highlightBlock(block.text());
     applyFormatChanges(from, charsRemoved, charsAdded);
+
+    foldValidator.process(currentBlock);
 
     currentBlock = QTextBlock();
 }
@@ -324,6 +334,13 @@ SyntaxHighlighter::SyntaxHighlighter(QTextDocument *parent)
     setDocument(parent);
 }
 
+SyntaxHighlighter::SyntaxHighlighter(BaseTextDocument *parent)
+    : d_ptr(new SyntaxHighlighterPrivate)
+{
+    d_ptr->q_ptr = this;
+    parent->setSyntaxHighlighter(this); // Extra logic (including setting the parent).
+}
+
 /*!
     Constructs a SyntaxHighlighter and installs it on \a parent 's
     QTextDocument. The specified QTextEdit also becomes the owner of
@@ -367,6 +384,7 @@ void SyntaxHighlighter::setDocument(QTextDocument *doc)
                 this, SLOT(_q_reformatBlocks(int,int,int)));
         d->rehighlightPending = true;
         QTimer::singleShot(0, this, SLOT(_q_delayedRehighlight()));
+        d->foldValidator.setup(qobject_cast<BaseTextDocumentLayout *>(doc->documentLayout()));
     }
 }
 
