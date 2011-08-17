@@ -10,7 +10,6 @@ are required by law.
 #include "androidrunconfiguration.h"
 #include "androiddeploystep.h"
 #include "androidglobal.h"
-#include "androidrunconfigurationwidget.h"
 #include "androidtoolchain.h"
 #include "androidtarget.h"
 
