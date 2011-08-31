@@ -175,11 +175,11 @@ void RemoteGdbServerAdapter::setupInferior()
     const QByteArray remoteArch = startParameters().remoteArchitecture.toLatin1();
     const QByteArray gnuTarget = startParameters().gnuTarget.toLatin1();
     QByteArray solibPath =
-         QFileInfo(startParameters().dumperLibrary).path().toLocal8Bit();
+            QFileInfo(startParameters().dumperLibrary).path().toLocal8Bit();
 
-    if (solibPath.size() && startParameters().solibSearchPath.size())
-        solibPath+=PATHSEP;
-    solibPath+=startParameters().solibSearchPath.join(PATHSEP).toLatin1();
+    if (!solibPath.isEmpty() && !startParameters().solibSearchPath.isEmpty())
+        solibPath += PATHSEP;
+    solibPath += startParameters().solibSearchPath.join(PATHSEP).toLocal8Bit();
 
     const QString args = startParameters().processArgs;
 
