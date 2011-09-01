@@ -58,7 +58,7 @@ public:
 
 public slots:
     void setDeployAction(AndroidDeployAction deploy);
-    void setDeployQASIPackagePath(const QString & package);
+    void setDeployQASIPackagePath(const QString &package);
     void setUseLocalQtLibs(bool useLocal);
 
 signals:
@@ -81,11 +81,11 @@ private:
 
     virtual QVariantMap toMap() const;
     virtual bool fromMap(const QVariantMap &map);
-    void copyLibs(const QString &srcPath, const QString & destPath, QStringList & copiedLibs, const QStringList &filter=QStringList());
+    void copyLibs(const QString &srcPath, const QString &destPath, QStringList &copiedLibs, const QStringList &filter = QStringList());
     void ctor();
     void raiseError(const QString &error);
     void writeOutput(const QString &text, OutputFormat = MessageOutput);
-    bool runCommand(QProcess *buildProc, const QString &program, const QStringList & arguments);
+    bool runCommand(QProcess *buildProc, const QString &program, const QStringList &arguments);
 
 private:
     QString m_deviceSerialNumber;

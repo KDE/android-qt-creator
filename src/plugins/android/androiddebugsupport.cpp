@@ -57,7 +57,7 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     params.solibSearchPath.clear();
 
     QList<Qt4ProFileNode *> nodes = runConfig->androidTarget()->qt4Project()->allProFiles();
-    foreach(Qt4ProFileNode * node, nodes)
+    foreach (Qt4ProFileNode * node, nodes)
         if (node->projectType() == ApplicationTemplate)
             params.solibSearchPath.append(node->targetInformation().buildDir);
 
@@ -109,7 +109,7 @@ void AndroidDebugSupport::handleRemoteProcessStarted(int gdbServerPort, int qmlP
     m_runControl->engine()->handleRemoteSetupDone(gdbServerPort, qmlPort);
 }
 
-void AndroidDebugSupport::handleRemoteProcessFinished(const QString & errorMsg)
+void AndroidDebugSupport::handleRemoteProcessFinished(const QString &errorMsg)
 {
     disconnect(m_runner, SIGNAL(remoteProcessFinished(const QString &)),
         this,SLOT(handleRemoteProcessFinished(const QString &)));
@@ -131,13 +131,11 @@ void AndroidDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
 QStringList AndroidDebugSupport::qtSoPaths(QtSupport::BaseQtVersion * qtVersion)
 {
     QSet<QString> paths;
-    for (uint i = 0; i < sizeof qMakeVariables / sizeof qMakeVariables[0]; ++i)
-    {
+    for (uint i = 0; i < sizeof qMakeVariables / sizeof qMakeVariables[0]; ++i) {
         if (!qtVersion->versionInfo().contains(qMakeVariables[i]))
             continue;
-        QDirIterator it(qtVersion->versionInfo()[qMakeVariables[i]], QStringList()<<"*.so", QDir::Files, QDirIterator::Subdirectories);
-        while(it.hasNext())
-        {
+        QDirIterator it(qtVersion->versionInfo()[qMakeVariables[i]], QStringList() << "*.so", QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
             it.next();
             paths.insert(it.fileInfo().absolutePath());
         }

@@ -56,16 +56,15 @@ namespace {
     const QLatin1String Unknown("unknown");
     const QLatin1String keytoolName("keytool");
     const QLatin1String jarsignerName("jarsigner");
-    bool androidDevicesLessThan(const AndroidDevice & dev1, const AndroidDevice & dev2)
+    bool androidDevicesLessThan(const AndroidDevice &dev1, const AndroidDevice &dev2)
     {
-        return dev1.sdk< dev2.sdk;
+        return dev1.sdk < dev2.sdk;
     }
 }
 
-const QLatin1String & AndroidConfigurations::toolchainPrefix(ProjectExplorer::Abi::Architecture architecture)
+const QLatin1String &AndroidConfigurations::toolchainPrefix(ProjectExplorer::Abi::Architecture architecture)
 {
-    switch(architecture)
-    {
+    switch (architecture) {
     case ProjectExplorer::Abi::ArmArchitecture:
         return ArmToolchainPrefix;
     case ProjectExplorer::Abi::X86Architecture:
@@ -76,10 +75,9 @@ const QLatin1String & AndroidConfigurations::toolchainPrefix(ProjectExplorer::Ab
 }
 
 
-const QLatin1String & AndroidConfigurations::toolsPrefix(ProjectExplorer::Abi::Architecture architecture)
+const QLatin1String &AndroidConfigurations::toolsPrefix(ProjectExplorer::Abi::Architecture architecture)
 {
-    switch(architecture)
-    {
+    switch (architecture) {
     case ProjectExplorer::Abi::ArmArchitecture:
         return ArmToolsPrefix;
     case ProjectExplorer::Abi::X86Architecture:
@@ -102,11 +100,11 @@ AndroidConfig::AndroidConfig(const QSettings &settings)
       PartitionSize(settings.value(PartitionSizeKey, 1024).toInt())
 {
     QRegExp versionRegExp(NDKGccVersionRegExp);
-    const QString & value=settings.value(NDKToolchainVersionKey).toString();
+    const QString &value = settings.value(NDKToolchainVersionKey).toString();
     if (versionRegExp.exactMatch(value))
-        NDKToolchainVersion=value;
+        NDKToolchainVersion = value;
     else
-        NDKToolchainVersion=value.mid(versionRegExp.indexIn(value));
+        NDKToolchainVersion = value.mid(versionRegExp.indexIn(value));
 
 }
 
@@ -141,11 +139,10 @@ void AndroidConfigurations::setConfig(const AndroidConfig &devConfigs)
 void AndroidConfigurations::updateAvailablePlatforms()
 {
     m_availablePlatforms.clear();
-    QDirIterator it(m_config.NDKLocation+"/platforms", QStringList()<<"android-*", QDir::Dirs);
-    while(it.hasNext())
-    {
-        const QString & fileName=it.next();
-        m_availablePlatforms.push_back(fileName.mid(fileName.lastIndexOf('-')+1).toInt());
+    QDirIterator it(m_config.NDKLocation + "/platforms", QStringList() << "android-*", QDir::Dirs);
+    while (it.hasNext()) {
+        const QString &fileName = it.next();
+        m_availablePlatforms.push_back(fileName.mid(fileName.lastIndexOf('-') + 1).toInt());
     }
     qSort(m_availablePlatforms.begin(), m_availablePlatforms.end(), qGreater<int>());
 }
@@ -155,20 +152,18 @@ QStringList AndroidConfigurations::sdkTargets(int minApiLevel)
     QStringList targets;
     QProcess proc;
     proc.start(androidToolPath(), QStringList() << "list" << "target"); // list avaialbe AVDs
-    if (!proc.waitForFinished(-1))
-    {
+    if (!proc.waitForFinished(-1)) {
         proc.terminate();
         return targets;
     }
-    QList<QByteArray> avds=proc.readAll().trimmed().split('\n');
-    for (int i=0;i<avds.size();i++)
-    {
-        QString line=avds[i];
+    QList<QByteArray> avds = proc.readAll().trimmed().split('\n');
+    for (int i = 0; i<avds.size(); i++) {
+        QString line = avds[i];
         int index = line.indexOf("\"android-");
-        if (-1 == index)
+        if (index == -1)
             continue;
-        QString apiLevel=line.mid(index+1, line.length()-index-2);
-        if (apiLevel.mid(apiLevel.lastIndexOf('-')+1).toInt()>=minApiLevel)
+        QString apiLevel = line.mid(index + 1, line.length() - index - 2);
+        if (apiLevel.mid(apiLevel.lastIndexOf('-') + 1).toInt() >= minApiLevel)
             targets.push_back(apiLevel);
     }
     return targets;
@@ -178,14 +173,13 @@ QStringList AndroidConfigurations::ndkToolchainVersions()
 {
     QRegExp versionRegExp(NDKGccVersionRegExp);
     QStringList result;
-    QDirIterator it(m_config.NDKLocation+"/toolchains", QStringList()<<"*", QDir::Dirs);
-    while(it.hasNext())
-    {
-        const QString & fileName=it.next();
-        int idx=versionRegExp.indexIn(fileName);
-        if (-1==idx)
+    QDirIterator it(m_config.NDKLocation+"/toolchains", QStringList() << "*", QDir::Dirs);
+    while (it.hasNext()) {
+        const QString &fileName = it.next();
+        int idx = versionRegExp.indexIn(fileName);
+        if (idx == -1)
             continue;
-        QString version=fileName.mid(idx);
+        QString version = fileName.mid(idx);
         if (!result.contains(version))
             result.append(version);
     }
@@ -202,13 +196,13 @@ QString AndroidConfigurations::androidToolPath()
 #ifdef Q_OS_WIN32
     // I want to switch from using android.bat to using an executable. All it really does is call
     // Java and I've made some progress on it. So if android.exe exists, return that instead.
-    QFileInfo fi(m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXE_SUFFIX));
+    QFileInfo fi(m_config.SDKLocation + QLatin1String("/tools/android"ANDROID_EXE_SUFFIX));
     if (fi.exists())
         return m_config.SDKLocation + QString("/tools/android"ANDROID_EXE_SUFFIX);
     else
-        return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_BAT_SUFFIX);
+        return m_config.SDKLocation + QLatin1String("/tools/android"ANDROID_BAT_SUFFIX);
 #else
-    return m_config.SDKLocation+QLatin1String("/tools/android"ANDROID_EXE_SUFFIX);
+    return m_config.SDKLocation + QLatin1String("/tools/android"ANDROID_EXE_SUFFIX);
 #endif
 }
 
@@ -222,12 +216,12 @@ QString AndroidConfigurations::antToolPath()
 
 QString AndroidConfigurations::emulatorToolPath()
 {
-    return m_config.SDKLocation+QString("/tools/emulator"ANDROID_EXE_SUFFIX);
+    return m_config.SDKLocation + QString("/tools/emulator"ANDROID_EXE_SUFFIX);
 }
 
 QString AndroidConfigurations::toolPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    return m_config.NDKLocation+QString("/toolchains/%1-%2/prebuilt/%3/bin/%4")
+    return m_config.NDKLocation + QString("/toolchains/%1-%2/prebuilt/%3/bin/%4")
             .arg(toolchainPrefix(architecture))
             .arg(m_config.NDKToolchainVersion)
             .arg(ToolchainHost)
@@ -236,32 +230,31 @@ QString AndroidConfigurations::toolPath(ProjectExplorer::Abi::Architecture archi
 
 QString AndroidConfigurations::stripPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    return toolPath(architecture)+"-strip"ANDROID_EXE_SUFFIX;
+    return toolPath(architecture) + "-strip"ANDROID_EXE_SUFFIX;
 }
 
 QString AndroidConfigurations::readelfPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    return toolPath(architecture)+"-readelf"ANDROID_EXE_SUFFIX;
+    return toolPath(architecture) + "-readelf"ANDROID_EXE_SUFFIX;
 }
 
 QString AndroidConfigurations::gccPath(ProjectExplorer::Abi::Architecture architecture)
 {
-    return toolPath(architecture)+"-gcc"ANDROID_EXE_SUFFIX;
+    return toolPath(architecture) + "-gcc"ANDROID_EXE_SUFFIX;
 }
 
 QString AndroidConfigurations::gdbServerPath(ProjectExplorer::Abi::Architecture architecture)
 {
     QString gdbServerPath;
-    switch(architecture)
-    {
+    switch (architecture) {
     case ProjectExplorer::Abi::ArmArchitecture:
-        gdbServerPath=m_config.ArmGdbserverLocation;
+        gdbServerPath = m_config.ArmGdbserverLocation;
         break;
     case ProjectExplorer::Abi::X86Architecture:
-        gdbServerPath=m_config.X86GdbserverLocation;
+        gdbServerPath = m_config.X86GdbserverLocation;
         break;
     default:
-        gdbServerPath=Unknown;
+        gdbServerPath = Unknown;
         break;
     }
 
@@ -275,21 +268,20 @@ QString AndroidConfigurations::gdbServerPath(ProjectExplorer::Abi::Architecture 
 QString AndroidConfigurations::gdbPath(ProjectExplorer::Abi::Architecture architecture)
 {
     QString gdbPath;
-    switch(architecture)
-    {
+    switch (architecture) {
     case ProjectExplorer::Abi::ArmArchitecture:
-        gdbPath=m_config.ArmGdbLocation;
+        gdbPath = m_config.ArmGdbLocation;
         break;
     case ProjectExplorer::Abi::X86Architecture:
-        gdbPath=m_config.X86GdbLocation;
+        gdbPath = m_config.X86GdbLocation;
         break;
     default:
-        gdbPath=Unknown;
+        gdbPath = Unknown;
         break;
     }
-    if (gdbPath.length())
+    if (!gdbPath.isEmpty())
         return gdbPath;
-    return toolPath(architecture)+"-gdb"ANDROID_EXE_SUFFIX;
+    return toolPath(architecture) + "-gdb"ANDROID_EXE_SUFFIX;
 }
 
 QString AndroidConfigurations::openJDKPath()
@@ -314,14 +306,13 @@ QString AndroidConfigurations::jarsignerPath()
     return openJDKBinPath()+jarsignerName;
 }
 
-QString AndroidConfigurations::getDeployDeviceSerialNumber(int & apiLevel)
+QString AndroidConfigurations::getDeployDeviceSerialNumber(int &apiLevel)
 {
-    QVector<AndroidDevice> devices=connectedDevices();
+    QVector<AndroidDevice> devices = connectedDevices();
 
-    foreach(AndroidDevice device, devices)
-        if (device.sdk>=apiLevel)
-        {
-            apiLevel=device.sdk;
+    foreach (AndroidDevice device, devices)
+        if (device.sdk >= apiLevel) {
+            apiLevel = device.sdk;
             return device.serialNumber;
         }
     return startAVD(apiLevel);
@@ -332,19 +323,17 @@ QVector<AndroidDevice> AndroidConfigurations::connectedDevices(int apiLevel)
     QVector<AndroidDevice> devices;
     QProcess adbProc;
     adbProc.start(adbToolPath(), QStringList() << "devices");
-    if (!adbProc.waitForFinished(-1))
-    {
+    if (!adbProc.waitForFinished(-1)) {
         adbProc.terminate();
         return devices;
     }
     QList<QByteArray> adbDevs=adbProc.readAll().trimmed().split('\n');
     adbDevs.removeFirst();
     AndroidDevice dev;
-    foreach(QByteArray device, adbDevs)
-    {
-        dev.serialNumber=device.left(device.indexOf('\t')).trimmed();
-        dev.sdk=getSDKVersion(dev.serialNumber);
-        if (-1 != apiLevel && dev.sdk != apiLevel)
+    foreach (const QByteArray &device, adbDevs) {
+        dev.serialNumber = device.left(device.indexOf('\t')).trimmed();
+        dev.sdk = getSDKVersion(dev.serialNumber);
+        if (apiLevel != -1 && dev.sdk != apiLevel)
             continue;
         devices.push_back(dev);
     }
@@ -359,8 +348,7 @@ bool AndroidConfigurations::createAVD(int minApiLevel)
     avdDialog.setupUi(&d);
     QStringListModel model(sdkTargets(minApiLevel));
     avdDialog.targetComboBox->setModel(&model);
-    if (!model.rowCount())
-    {
+    if (!model.rowCount()) {
         QMessageBox::critical(0, tr("Create AVD error"), tr("Can't create a new AVD, not enough android SDKs available\n"
                                                             "Please install one SDK with api version >=%1").arg(minApiLevel));
         return false;
@@ -369,33 +357,31 @@ bool AndroidConfigurations::createAVD(int minApiLevel)
     QRegExp rx("\\S+");
     QRegExpValidator v(rx, 0);
     avdDialog.nameLineEdit->setValidator(&v);
-    if (d.exec()!=QDialog::Accepted)
+    if (d.exec() != QDialog::Accepted)
         return false;
     return createAVD(avdDialog.targetComboBox->currentText(), avdDialog.nameLineEdit->text(), avdDialog.sizeSpinBox->value());
 }
 
-bool AndroidConfigurations::createAVD(const QString & target, const QString & name, int sdcardSize )
+bool AndroidConfigurations::createAVD(const QString &target, const QString &name, int sdcardSize )
 {
     QProcess proc;
     proc.start(androidToolPath(), QStringList() << "create" << "avd" << "-a" << "-t" << target
-            << "-n" << name << "-c" << QString::fromLatin1("%1M").arg(sdcardSize));
+               << "-n" << name << "-c" << QString::fromLatin1("%1M").arg(sdcardSize));
     if (!proc.waitForStarted())
         return false;
     proc.write(QByteArray("no\n"));
-    if (!proc.waitForFinished(-1))
-    {
+    if (!proc.waitForFinished(-1)) {
         proc.terminate();
         return false;
     }
     return !proc.exitCode();
 }
 
-bool AndroidConfigurations::removeAVD(const QString & name)
+bool AndroidConfigurations::removeAVD(const QString &name)
 {
     QProcess proc;
     proc.start(androidToolPath(), QStringList() << "delete" << "avd" << "-n" << name); // list avaialbe AVDs
-    if (!proc.waitForFinished(-1))
-    {
+    if (!proc.waitForFinished(-1)) {
         proc.terminate();
         return false;
     }
@@ -407,28 +393,25 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
     QVector<AndroidDevice> devices;
     QProcess proc;
     proc.start(androidToolPath(), QStringList() << "list" << "avd"); // list available AVDs
-    if (!proc.waitForFinished(-1))
-    {
+    if (!proc.waitForFinished(-1)) {
         proc.terminate();
         return devices;
     }
-    QList<QByteArray> avds=proc.readAll().trimmed().split('\n');
+    QList<QByteArray> avds = proc.readAll().trimmed().split('\n');
     avds.removeFirst();
     AndroidDevice dev;
-    for (int i=0;i<avds.size();i++)
-    {
-        QString line=avds[i];
+    for (int i = 0; i < avds.size(); i++) {
+        QString line = avds[i];
         if (!line.contains("Name:"))
             continue;
 
-        dev.serialNumber=line.mid(line.indexOf(':')+2).trimmed();
+        dev.serialNumber = line.mid(line.indexOf(':')+2).trimmed();
         ++i;
-        for(;i<avds.size();++i)
-        {
-            line=avds[i];
+        for (; i < avds.size(); ++i) {
+            line = avds[i];
             if (!line.contains("Target:"))
                 continue;
-            dev.sdk=line.mid(line.lastIndexOf(' ')).remove(')').toInt();
+            dev.sdk = line.mid(line.lastIndexOf(' ')).remove(')').toInt();
             break;
         }
         ++i;
@@ -439,40 +422,36 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
     return devices;
 }
 
-QString AndroidConfigurations::startAVD(int & apiLevel, const QString & name)
+QString AndroidConfigurations::startAVD(int &apiLevel, const QString &name)
 {
-    QProcess * m_avdProcess = new QProcess();
+    QProcess *m_avdProcess = new QProcess();
     connect(this, SIGNAL(destroyed()), m_avdProcess, SLOT(deleteLater()));
     connect(m_avdProcess, SIGNAL(finished(int)), m_avdProcess, SLOT(deleteLater()));
 
     QString avdName = name;
     QVector<AndroidDevice> devices;
     bool createAVDOnce=false;
-    while(true)
-    {
-        if (!avdName.length())
-        {
-            devices=androidVirtualDevices();
-            foreach(AndroidDevice device, devices)
-                if (device.sdk>=apiLevel) // take first emulator how supports this package
-                {
+    while (true) {
+        if (!avdName.length()) {
+            devices = androidVirtualDevices();
+            foreach (AndroidDevice device, devices)
+                if (device.sdk >= apiLevel) { // take first emulator how supports this package
                     apiLevel = device.sdk;
-                    avdName=device.serialNumber;
+                    avdName = device.serialNumber;
                     break;
                 }
         }
         // if no emulators found try to create one once
-        if (!avdName.length() && !createAVDOnce)
-        {
+        if (!avdName.length() && !createAVDOnce) {
             createAVDOnce = true;
             QMetaObject::invokeMethod(this,"createAVD", Qt::BlockingQueuedConnection,
                                       Q_ARG(int, apiLevel));
-        }
-        else
+        } else {
             break;
+        }
     }
 
-    if (!avdName.length())// stop here if no emulators found
+    if (avdName.isEmpty())// stop here if no emulators found
         return avdName;
 
     // start the emulator
@@ -483,8 +462,7 @@ QString AndroidConfigurations::startAVD(int & apiLevel, const QString & name)
     // wait until the emulator is online
     QProcess proc;
     proc.start(adbToolPath(), QStringList() << QLatin1String("-e") << "wait-for-device");
-    if (!proc.waitForFinished(-1))
-    {
+    if (!proc.waitForFinished(-1)) {
         proc.terminate();
         return QString();
     }
@@ -492,16 +470,15 @@ QString AndroidConfigurations::startAVD(int & apiLevel, const QString & name)
 
     // workaround for stupid adb bug
     proc.start(adbToolPath(), QStringList() << QLatin1String("devices"));
-    if (!proc.waitForFinished(-1))
-    {
+    if (!proc.waitForFinished(-1)) {
         proc.terminate();
         return QString();
     }
 
     // get connected devices
     devices = connectedDevices(apiLevel);
-    foreach(AndroidDevice device, devices)
-        if (device.sdk==apiLevel)
+    foreach (AndroidDevice device, devices)
+        if (device.sdk == apiLevel)
             return device.serialNumber;
     // this should not happen, but ...
     return QString();
@@ -512,8 +489,7 @@ int AndroidConfigurations::getSDKVersion(const QString & device)
 
     QProcess adbProc;
     adbProc.start(adbToolPath(), QStringList()<< "-s" << device << "shell" << "getprop" << "ro.build.version.sdk");
-    if (!adbProc.waitForFinished(-1))
-    {
+    if (!adbProc.waitForFinished(-1)) {
         adbProc.terminate();
         return -1;
     }
@@ -522,10 +498,9 @@ int AndroidConfigurations::getSDKVersion(const QString & device)
 
 QString AndroidConfigurations::bestMatch(const QString &targetAPI)
 {
-    int target=targetAPI.mid(targetAPI.lastIndexOf('-')+1).toInt();
-    foreach(int apiLevel, m_availablePlatforms)
-    {
-        if(apiLevel<=target)
+    int target = targetAPI.mid(targetAPI.lastIndexOf('-')+1).toInt();
+    foreach (int apiLevel, m_availablePlatforms) {
+        if (apiLevel <= target)
             return QString("android-%1").arg(apiLevel);
     }
     return "android-4";

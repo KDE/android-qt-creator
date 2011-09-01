@@ -54,13 +54,11 @@ QString AndroidCreateKeystoreCertificate::certificatePassword()
 
 AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificate::checkKeystrorePassword()
 {
-    if (ui->keystorePassLineEdit->text().length()<6)
-    {
+    if (ui->keystorePassLineEdit->text().length() < 6) {
         ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Password is too short</span>"));
         return Invald;
     }
-    if (ui->keystorePassLineEdit->text() != ui->keystoreRetypePassLineEdit->text())
-    {
+    if (ui->keystorePassLineEdit->text() != ui->keystoreRetypePassLineEdit->text()) {
             ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
             return DontMatch;
     }
@@ -70,13 +68,11 @@ AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificat
 
 AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificate::checkCertificatePassword()
 {
-    if (ui->certificatePassLineEdit->text().length()<6)
-    {
+    if (ui->certificatePassLineEdit->text().length() < 6) {
         ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Password is too short</span>"));
         return Invald;
     }
-    if (ui->certificatePassLineEdit->text() != ui->certificateRetypePassLineEdit->text())
-    {
+    if (ui->certificatePassLineEdit->text() != ui->certificateRetypePassLineEdit->text()) {
             ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
             return DontMatch;
     }
@@ -98,8 +94,7 @@ void AndroidCreateKeystoreCertificate::on_certificateShowPassCheckBox_stateChang
 
 void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
 {
-    switch(checkKeystrorePassword())
-    {
+    switch (checkKeystrorePassword()) {
     case Invald:
         ui->keystorePassLineEdit->setFocus();
         return;
@@ -110,8 +105,7 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
         break;
     }
 
-    switch(checkCertificatePassword())
-    {
+    switch (checkCertificatePassword()) {
     case Invald:
         ui->certificatePassLineEdit->setFocus();
         return;
@@ -138,15 +132,15 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
         ui->countryLineEdit->setFocus();
 
     m_keystoreFilePath=QFileDialog::getSaveFileName(this, tr("Keystore file name"),
-                                                    QDir::homePath()+"/android_release.keystore",
+                                                    QDir::homePath() + "/android_release.keystore",
                                                     tr("Keystore files (*.keystore *.jks)"));
     if (!m_keystoreFilePath.length())
         return;
     QString distinguishedNames(QString("CN=%1, O=%2, L=%3, C=%4")
-                               .arg(ui->commonNameLineEdit->text().replace(",","\\,"))
-                               .arg(ui->organizationNameLineEdit->text().replace(",","\\,"))
-                               .arg(ui->localityNameLineEdit->text().replace(",","\\,"))
-                               .arg(ui->countryLineEdit->text().replace(",","\\,")));
+                               .arg(ui->commonNameLineEdit->text().replace(",", "\\,"))
+                               .arg(ui->organizationNameLineEdit->text().replace(",", "\\,"))
+                               .arg(ui->localityNameLineEdit->text().replace(",", "\\,"))
+                               .arg(ui->countryLineEdit->text().replace(",", "\\,")));
 
     if (ui->organizationUnitLineEdit->text().length())
         distinguishedNames+=", OU="+ui->organizationUnitLineEdit->text().replace(",","\\,");
@@ -170,8 +164,7 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
     if (!genKeyCertProc.waitForStarted() || !genKeyCertProc.waitForFinished())
         return;
 
-    if (genKeyCertProc.exitCode())
-    {
+    if (genKeyCertProc.exitCode()) {
         QMessageBox::critical(this, tr("Error")
                               , genKeyCertProc.readAllStandardOutput()
                               + genKeyCertProc.readAllStandardError());

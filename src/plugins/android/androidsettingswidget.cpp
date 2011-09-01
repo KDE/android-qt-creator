@@ -31,21 +31,20 @@ namespace Internal {
 
 void AVDModel::setAvdList(QVector<AndroidDevice> list)
 {
-    m_list= list;
+    m_list = list;
     reset();
 }
 
-QString AVDModel::avdName(const QModelIndex & index)
+QString AVDModel::avdName(const QModelIndex &index)
 {
     return m_list[index.row()].serialNumber;
 }
 
-QVariant AVDModel::data( const QModelIndex & index, int role) const
+QVariant AVDModel::data(const QModelIndex &index, int role) const
 {
     if (role != Qt::DisplayRole || !index.isValid())
         return QVariant();
-    switch (index.column())
-    {
+    switch (index.column()) {
         case 0:
             return m_list[index.row()].serialNumber;
         case 1:
@@ -54,12 +53,10 @@ QVariant AVDModel::data( const QModelIndex & index, int role) const
     return QVariant();
 }
 
-QVariant AVDModel::headerData ( int section, Qt::Orientation orientation, int role ) const
+QVariant AVDModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    if (orientation == Qt::Horizontal &&  role == Qt::DisplayRole)
-    {
-        switch (section)
-        {
+    if (orientation == Qt::Horizontal &&  role == Qt::DisplayRole) {
+        switch (section) {
             case 0:
                 return tr("AVD Name");
             case 1:
@@ -69,12 +66,12 @@ QVariant AVDModel::headerData ( int section, Qt::Orientation orientation, int ro
     return  QAbstractItemModel::headerData(section, orientation, role );
 }
 
-int AVDModel::rowCount ( const QModelIndex & /*parent*/) const
+int AVDModel::rowCount(const QModelIndex & /*parent*/) const
 {
     return m_list.size();
 }
 
-int AVDModel::columnCount ( const QModelIndex & /*parent*/) const
+int AVDModel::columnCount(const QModelIndex & /*parent*/) const
 {
     return 2;
 }
@@ -151,13 +148,12 @@ void AndroidSettingsWidget::initGui()
 void AndroidSettingsWidget::saveSettings(bool saveNow)
 {
     // We must defer this step because of a stupid bug on MacOS. See QTCREATORBUG-1675.
-    if (saveNow)
-    {
+    if (saveNow) {
         AndroidConfigurations::instance().setConfig(m_androidConfig);
         m_saveSettingsRequested = false;
-    }
-    else
+    } else {
         m_saveSettingsRequested = true;
+    }
 }
 
 
@@ -165,9 +161,10 @@ bool AndroidSettingsWidget::checkSDK(const QString & location)
 {
     if (!location.length())
         return false;
-    if ( !QFile::exists(location+QLatin1String("/platform-tools/adb" ANDROID_EXE_SUFFIX)) || 
-        (!QFile::exists(location+QLatin1String("/tools/android" ANDROID_EXE_SUFFIX)) && !QFile::exists(location+QLatin1String("/tools/android" ANDROID_BAT_SUFFIX))) || 
-         !QFile::exists(location+QLatin1String("/tools/emulator" ANDROID_EXE_SUFFIX)) )
+    if (!QFile::exists(location+QLatin1String("/platform-tools/adb" ANDROID_EXE_SUFFIX))
+            || (!QFile::exists(location+QLatin1String("/tools/android" ANDROID_EXE_SUFFIX))
+                && !QFile::exists(location+QLatin1String("/tools/android" ANDROID_BAT_SUFFIX)))
+            || !QFile::exists(location+QLatin1String("/tools/emulator" ANDROID_EXE_SUFFIX)))
     {
         QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android SDK top folder").arg(location));
         return false;
@@ -184,7 +181,9 @@ bool AndroidSettingsWidget::checkNDK(const QString & location)
     m_ui->GdbserverLocationPushButton->setEnabled(false);
     if (!location.length())
         return false;
-    if (!QFile::exists(location+QLatin1String("/platforms")) || !QFile::exists(location+QLatin1String("/toolchains")) || !QFile::exists(location+QLatin1String("/sources/cxx-stl")) )
+    if (!QFile::exists(location+QLatin1String("/platforms"))
+            || !QFile::exists(location+QLatin1String("/toolchains"))
+            || !QFile::exists(location+QLatin1String("/sources/cxx-stl")))
     {
         QMessageBox::critical(this, tr("Android SDK Folder"), tr("\"%1\" doesn't seem to be an Android NDK top folder").arg(location));
         return false;
@@ -201,9 +200,8 @@ bool AndroidSettingsWidget::checkNDK(const QString & location)
 
 void AndroidSettingsWidget::SDKLocationEditingFinished()
 {
-    QString location=m_ui->SDKLocationLineEdit->text();
-    if (!checkSDK(location))
-    {
+    QString location = m_ui->SDKLocationLineEdit->text();
+    if (!checkSDK(location)) {
         m_ui->AVDManagerFrame->setEnabled(false);
         return;
     }
@@ -215,7 +213,7 @@ void AndroidSettingsWidget::SDKLocationEditingFinished()
 
 void AndroidSettingsWidget::NDKLocationEditingFinished()
 {
-    QString location=m_ui->NDKLocationLineEdit->text();
+    QString location = m_ui->NDKLocationLineEdit->text();
     if (!checkNDK(location))
         return;
     m_androidConfig.NDKLocation = location;
@@ -225,11 +223,11 @@ void AndroidSettingsWidget::NDKLocationEditingFinished()
 void AndroidSettingsWidget::fillToolchainVersions()
 {
     m_ui->toolchainVersionComboBox->clear();
-    QStringList toolchainVersions=AndroidConfigurations::instance().ndkToolchainVersions();
-    QString toolchain=m_androidConfig.NDKToolchainVersion;
-    foreach(QString item, toolchainVersions)
+    QStringList toolchainVersions = AndroidConfigurations::instance().ndkToolchainVersions();
+    QString toolchain = m_androidConfig.NDKToolchainVersion;
+    foreach (const QString &item, toolchainVersions)
         m_ui->toolchainVersionComboBox->addItem(item);
-    if (toolchain.length())
+    if (!toolchain.isEmpty())
         m_ui->toolchainVersionComboBox->setCurrentIndex(toolchainVersions.indexOf(toolchain));
     else
         m_ui->toolchainVersionComboBox->setCurrentIndex(0);
@@ -237,14 +235,14 @@ void AndroidSettingsWidget::fillToolchainVersions()
 
 void AndroidSettingsWidget::toolchainVersionIndexChanged(QString version)
 {
-    m_androidConfig.NDKToolchainVersion=version;
+    m_androidConfig.NDKToolchainVersion = version;
     saveSettings(true);
 }
 
 
 void AndroidSettingsWidget::AntLocationEditingFinished()
 {
-    QString location=m_ui->AntLocationLineEdit->text();
+    QString location = m_ui->AntLocationLineEdit->text();
     if (!location.length() || !QFile::exists(location))
         return;
     m_androidConfig.AntLocation = location;
@@ -252,7 +250,7 @@ void AndroidSettingsWidget::AntLocationEditingFinished()
 
 void AndroidSettingsWidget::GdbLocationEditingFinished()
 {
-    QString location=m_ui->GdbLocationLineEdit->text();
+    QString location = m_ui->GdbLocationLineEdit->text();
     if (!location.length() || !QFile::exists(location))
         return;
     m_androidConfig.ArmGdbLocation = location;
@@ -260,7 +258,7 @@ void AndroidSettingsWidget::GdbLocationEditingFinished()
 
 void AndroidSettingsWidget::GdbserverLocationEditingFinished()
 {
-    QString location=m_ui->GdbserverLocationLineEdit->text();
+    QString location = m_ui->GdbserverLocationLineEdit->text();
     if (!location.length() || !QFile::exists(location))
         return;
     m_androidConfig.ArmGdbserverLocation = location;
@@ -268,7 +266,7 @@ void AndroidSettingsWidget::GdbserverLocationEditingFinished()
 
 void AndroidSettingsWidget::GdbLocationX86EditingFinished()
 {
-    QString location=m_ui->GdbLocationLineEditx86->text();
+    QString location = m_ui->GdbLocationLineEditx86->text();
     if (!location.length() || !QFile::exists(location))
         return;
     m_androidConfig.X86GdbLocation = location;
@@ -276,7 +274,7 @@ void AndroidSettingsWidget::GdbLocationX86EditingFinished()
 
 void AndroidSettingsWidget::GdbserverLocationX86EditingFinished()
 {
-    QString location=m_ui->GdbserverLocationLineEditx86->text();
+    QString location = m_ui->GdbserverLocationLineEditx86->text();
     if (!location.length() || !QFile::exists(location))
         return;
     m_androidConfig.X86GdbserverLocation = location;
@@ -284,7 +282,7 @@ void AndroidSettingsWidget::GdbserverLocationX86EditingFinished()
 
 void AndroidSettingsWidget::OpenJDKLocationEditingFinished()
 {
-    QString location=m_ui->OpenJDKLocationLineEdit->text();
+    QString location = m_ui->OpenJDKLocationLineEdit->text();
     if (!location.length() || !QFile::exists(location))
         return;
     m_androidConfig.OpenJDKLocation = location;
@@ -292,7 +290,7 @@ void AndroidSettingsWidget::OpenJDKLocationEditingFinished()
 
 void AndroidSettingsWidget::browseSDKLocation()
 {
-    QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"));
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Android SDK folder"));
     if (!checkSDK(dir))
         return;
     m_ui->SDKLocationLineEdit->setText(dir);
@@ -301,7 +299,7 @@ void AndroidSettingsWidget::browseSDKLocation()
 
 void AndroidSettingsWidget::browseNDKLocation()
 {
-    QString dir=QFileDialog::getExistingDirectory(this, tr("Select Android NDK folder"));
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Android NDK folder"));
     if (!checkNDK(dir))
         return;
     m_ui->NDKLocationLineEdit->setText(dir);
@@ -310,17 +308,17 @@ void AndroidSettingsWidget::browseNDKLocation()
 
 void AndroidSettingsWidget::browseAntLocation()
 {
-    QString dir=QDir::homePath();
+    QString dir = QDir::homePath();
 #if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
-    dir=QLatin1String("/usr/bin/ant");
+    dir = QLatin1String("/usr/bin/ant");
     QLatin1String antApp("ant");
 #elif defined(Q_OS_WIN)
     QLatin1String antApp("ant.bat");
 #elif defined(Q_OS_DARWIN)
-    dir=QLatin1String("/opt/local/bin/ant");
+    dir = QLatin1String("/opt/local/bin/ant");
     QLatin1String antApp("ant");
 #endif
-    QString file=QFileDialog::getOpenFileName(this, tr("Select ant script"),dir,antApp);
+    QString file = QFileDialog::getOpenFileName(this, tr("Select ant script"),dir,antApp);
     if (!file.length())
         return;
     m_ui->AntLocationLineEdit->setText(file);
@@ -329,8 +327,8 @@ void AndroidSettingsWidget::browseAntLocation()
 
 void AndroidSettingsWidget::browseGdbLocation()
 {
-    QString gdbPath=AndroidConfigurations::instance().gdbPath(ProjectExplorer::Abi::ArmArchitecture);
-    QString file=QFileDialog::getOpenFileName(this, tr("Select gdb executable"),gdbPath);
+    QString gdbPath = AndroidConfigurations::instance().gdbPath(ProjectExplorer::Abi::ArmArchitecture);
+    QString file = QFileDialog::getOpenFileName(this, tr("Select gdb executable"),gdbPath);
     if (!file.length())
         return;
     m_ui->GdbLocationLineEdit->setText(file);
@@ -339,8 +337,8 @@ void AndroidSettingsWidget::browseGdbLocation()
 
 void AndroidSettingsWidget::browseGdbserverLocation()
 {
-    QString gdbserverPath=AndroidConfigurations::instance().gdbServerPath(ProjectExplorer::Abi::ArmArchitecture);
-    QString file=QFileDialog::getOpenFileName(this, tr("Select gdbserver android executable"),gdbserverPath);
+    QString gdbserverPath = AndroidConfigurations::instance().gdbServerPath(ProjectExplorer::Abi::ArmArchitecture);
+    QString file = QFileDialog::getOpenFileName(this, tr("Select gdbserver android executable"),gdbserverPath);
     if (!file.length())
         return;
     m_ui->GdbserverLocationLineEdit->setText(file);
@@ -349,8 +347,8 @@ void AndroidSettingsWidget::browseGdbserverLocation()
 
 void AndroidSettingsWidget::browseGdbLocationX86()
 {
-    QString gdbPath=AndroidConfigurations::instance().gdbPath(ProjectExplorer::Abi::X86Architecture);
-    QString file=QFileDialog::getOpenFileName(this, tr("Select gdb executable"),gdbPath);
+    QString gdbPath = AndroidConfigurations::instance().gdbPath(ProjectExplorer::Abi::X86Architecture);
+    QString file = QFileDialog::getOpenFileName(this, tr("Select gdb executable"),gdbPath);
     if (!file.length())
         return;
     m_ui->GdbLocationLineEditx86->setText(file);
@@ -359,8 +357,8 @@ void AndroidSettingsWidget::browseGdbLocationX86()
 
 void AndroidSettingsWidget::browseGdbserverLocationX86()
 {
-    QString gdbserverPath=AndroidConfigurations::instance().gdbServerPath(ProjectExplorer::Abi::X86Architecture);
-    QString file=QFileDialog::getOpenFileName(this, tr("Select gdbserver android executable"),gdbserverPath);
+    QString gdbserverPath = AndroidConfigurations::instance().gdbServerPath(ProjectExplorer::Abi::X86Architecture);
+    QString file = QFileDialog::getOpenFileName(this, tr("Select gdbserver android executable"),gdbserverPath);
     if (!file.length())
         return;
     m_ui->GdbserverLocationLineEditx86->setText(file);
@@ -369,8 +367,8 @@ void AndroidSettingsWidget::browseGdbserverLocationX86()
 
 void AndroidSettingsWidget::browseOpenJDKLocation()
 {
-    QString openJDKPath=AndroidConfigurations::instance().openJDKPath();
-    QString file=QFileDialog::getOpenFileName(this, tr("Select OpenJDK path"),openJDKPath);
+    QString openJDKPath = AndroidConfigurations::instance().openJDKPath();
+    QString file = QFileDialog::getOpenFileName(this, tr("Select OpenJDK path"),openJDKPath);
     if (!file.length())
         return;
     m_ui->OpenJDKLocationLineEdit->setText(file);

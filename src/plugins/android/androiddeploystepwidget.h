@@ -44,7 +44,7 @@ private:
     virtual QString displayName() const;
 
     Ui::AndroidDeployStepWidget *ui;
-    AndroidDeployStep * m_step;
+    AndroidDeployStep *m_step;
 };
 
 } // namespace Internal

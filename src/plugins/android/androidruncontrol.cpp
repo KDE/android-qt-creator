@@ -61,7 +61,7 @@ ProjectExplorer::RunControl::StopResult AndroidRunControl::stop()
 
 void AndroidRunControl::handleRemoteProcessFinished(const QString &error)
 {
-    appendMessage(error , Utils::ErrorMessageFormat);
+    appendMessage(error, Utils::ErrorMessageFormat);
     disconnect(m_runner, 0, this, 0);
     m_running = false;
     emit finished();

@@ -43,14 +43,14 @@ public:
     ~AndroidDebugSupport();
 
 private slots:
-    void handleRemoteProcessStarted(int gdbServerPort=-1, int qmlPort=-1);
-    void handleRemoteProcessFinished(const QString & errorMsg);
+    void handleRemoteProcessStarted(int gdbServerPort = -1, int qmlPort = -1);
+    void handleRemoteProcessFinished(const QString &errorMsg);
 
     void handleRemoteOutput(const QByteArray &output);
     void handleRemoteErrorOutput(const QByteArray &output);
 
 private:
-    static QStringList qtSoPaths(QtSupport::BaseQtVersion * qtVersion);
+    static QStringList qtSoPaths(QtSupport::BaseQtVersion *qtVersion);
 
 private:
     const QPointer<Debugger::DebuggerRunControl> m_runControl;

@@ -46,14 +46,13 @@ AndroidDeployStepWidget::~AndroidDeployStepWidget()
 void AndroidDeployStepWidget::init()
 {
     ui->useLocalQtLibs->setChecked(m_step->useLocalQtLibs());
-    switch(m_step->deployAction())
-    {
-        case AndroidDeployStep::DeployLocal:
-            ui->deployQtLibs->setChecked(true);
-            break;
-        default:
-            ui->devicesQtLibs->setChecked(true);
-            break;
+    switch (m_step->deployAction()) {
+    case AndroidDeployStep::DeployLocal:
+        ui->deployQtLibs->setChecked(true);
+        break;
+    default:
+        ui->devicesQtLibs->setChecked(true);
+        break;
     }
 }
 

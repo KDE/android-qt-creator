@@ -7,8 +7,8 @@ this work for any purpose, without any conditions, unless such conditions
 are required by law.
 */
 
-#ifndef ANDROIDDEVICECONFIGURATIONS_H
-#define ANDROIDDEVICECONFIGURATIONS_H
+#ifndef ANDROIDCONFIGURATIONS_H
+#define ANDROIDCONFIGURATIONS_H
 
 
 #include <QtCore/QList>
@@ -73,7 +73,7 @@ public:
     static AndroidConfigurations &instance(QObject *parent = 0);
     AndroidConfig config() const { return m_config; }
     void setConfig(const AndroidConfig &config);
-    QStringList sdkTargets(int minApiLevel=0);
+    QStringList sdkTargets(int minApiLevel = 0);
     QStringList ndkToolchainVersions();
     QString adbToolPath();
     QString androidToolPath();
@@ -87,12 +87,12 @@ public:
     QString jarsignerPath();
     QString stripPath(ProjectExplorer::Abi::Architecture architecture);
     QString readelfPath(ProjectExplorer::Abi::Architecture architecture);
-    QString getDeployDeviceSerialNumber(int & apiLevel);
-    bool createAVD(const QString & target, const QString & name, int sdcardSize );
-    bool removeAVD(const QString & name);
-    QVector<AndroidDevice> connectedDevices(int apiLevel=-1);
+    QString getDeployDeviceSerialNumber(int &apiLevel);
+    bool createAVD(const QString &target, const QString &name, int sdcardSize);
+    bool removeAVD(const QString &name);
+    QVector<AndroidDevice> connectedDevices(int apiLevel = -1);
     QVector<AndroidDevice> androidVirtualDevices();
-    QString startAVD(int & apiLevel, const QString & name = QString());
+    QString startAVD(int & apiLevel, const QString &name = QString());
     QString bestMatch(const QString & targetAPI);
 
     static const QLatin1String & toolchainPrefix(ProjectExplorer::Abi::Architecture architecture);
@@ -102,7 +102,7 @@ signals:
     void updated();
 
 public slots:
-    bool createAVD(int minApiLevel=0);
+    bool createAVD(int minApiLevel = 0);
 
 private:
     QString toolPath(ProjectExplorer::Abi::Architecture architecture);
@@ -112,7 +112,7 @@ private:
     void load();
     void save();
 
-    int getSDKVersion(const QString & device);
+    int getSDKVersion(const QString &device);
     void updateAvailablePlatforms();
 private:
     static AndroidConfigurations *m_instance;
@@ -124,4 +124,4 @@ private:
 } // namespace Internal
 } // namespace Android
 
-#endif // ANDROIDDEVICECONFIGURATIONS_H
+#endif // ANDROIDCONFIGURATIONS_H

@@ -68,7 +68,7 @@ QList<ProjectExplorer::Abi> AndroidQtVersion::qtAbis() const
         m_qtAbisUpToDate = true;
         ensureMkSpecParsed();
         m_qtAbis = qtAbisFromLibrary(qtCorePath(versionInfo(), qtVersionString()));
-        for(int i=0;i<m_qtAbis.size();i++)
+        for (int i = 0; i < m_qtAbis.size(); i++)
             m_qtAbis[i]=ProjectExplorer::Abi(m_qtAbis[i].architecture(),ProjectExplorer::Abi::LinuxOS,
                                                                    ProjectExplorer::Abi::AndroidLinuxFlavor,
                                                                    ProjectExplorer::Abi::ElfFormat,

@@ -33,13 +33,13 @@ class AVDModel: public QAbstractTableModel
     Q_OBJECT
 public:
     void setAvdList(QVector<AndroidDevice> list);
-    QString avdName(const QModelIndex & index);
+    QString avdName(const QModelIndex &index);
 
 protected:
-    QVariant data( const QModelIndex & index, int role = Qt::DisplayRole) const;
+    QVariant data( const QModelIndex &index, int role = Qt::DisplayRole) const;
     QVariant headerData ( int section, Qt::Orientation orientation, int role = Qt::DisplayRole ) const;
-    int rowCount ( const QModelIndex & parent = QModelIndex() ) const;
-    int columnCount ( const QModelIndex & parent = QModelIndex() ) const;
+    int rowCount ( const QModelIndex &parent = QModelIndex() ) const;
+    int columnCount ( const QModelIndex &parent = QModelIndex() ) const;
 
 private:
     QVector<AndroidDevice> m_list;
