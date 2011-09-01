@@ -456,8 +456,10 @@ QString AndroidConfigurations::startAVD(int &apiLevel, const QString &name)
 
     // start the emulator
     m_avdProcess->start(emulatorToolPath(), QStringList() << "-partition-size" << QString::number(config().PartitionSize) << "-avd" << avdName);
-    if (!m_avdProcess->waitForStarted(-1))
+    if (!m_avdProcess->waitForStarted(-1)) {
+        delete m_avdProcess;
         return QString();
+    }
 
     // wait until the emulator is online
     QProcess proc;
