@@ -21,8 +21,8 @@ AndroidCreateKeystoreCertificate::AndroidCreateKeystoreCertificate(QWidget *pare
     ui(new Ui::AndroidCreateKeystoreCertificate)
 {
     ui->setupUi(this);
-    connect(ui->keystorePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystrorePassword()));
-    connect(ui->keystoreRetypePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystrorePassword()));
+    connect(ui->keystorePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystorePassword()));
+    connect(ui->keystoreRetypePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystorePassword()));
     connect(ui->certificatePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkCertificatePassword()));
     connect(ui->certificateRetypePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkCertificatePassword()));
 }
@@ -52,11 +52,11 @@ QString AndroidCreateKeystoreCertificate::certificatePassword()
     return ui->certificatePassLineEdit->text();
 }
 
-AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificate::checkKeystrorePassword()
+AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificate::checkKeystorePassword()
 {
     if (ui->keystorePassLineEdit->text().length() < 6) {
         ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Password is too short</span>"));
-        return Invald;
+        return Invalid;
     }
     if (ui->keystorePassLineEdit->text() != ui->keystoreRetypePassLineEdit->text()) {
             ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
@@ -70,7 +70,7 @@ AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificat
 {
     if (ui->certificatePassLineEdit->text().length() < 6) {
         ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Password is too short</span>"));
-        return Invald;
+        return Invalid;
     }
     if (ui->certificatePassLineEdit->text() != ui->certificateRetypePassLineEdit->text()) {
             ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
@@ -94,8 +94,8 @@ void AndroidCreateKeystoreCertificate::on_certificateShowPassCheckBox_stateChang
 
 void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
 {
-    switch (checkKeystrorePassword()) {
-    case Invald:
+    switch (checkKeystorePassword()) {
+    case Invalid:
         ui->keystorePassLineEdit->setFocus();
         return;
     case DontMatch:
@@ -106,7 +106,7 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
     }
 
     switch (checkCertificatePassword()) {
-    case Invald:
+    case Invalid:
         ui->certificatePassLineEdit->setFocus();
         return;
     case DontMatch:

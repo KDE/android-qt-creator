@@ -22,8 +22,8 @@ class AndroidCreateKeystoreCertificate : public QDialog
     Q_OBJECT
     enum PasswordStatus
     {
-        Invald,
-        DontMatch,
+        Invalid,
+        NoMatch,
         Match
     };
 
@@ -36,7 +36,7 @@ public:
     QString certificatePassword();
 
 private slots:
-    PasswordStatus checkKeystrorePassword();
+    PasswordStatus checkKeystorePassword();
     PasswordStatus checkCertificatePassword();
     void on_keystoreShowPassCheckBox_stateChanged(int state);
     void on_certificateShowPassCheckBox_stateChanged(int state);
