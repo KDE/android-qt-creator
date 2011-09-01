@@ -54,7 +54,6 @@ public:
     AndroidRunConfiguration(AndroidTarget *parent, const QString &proFilePath);
     virtual ~AndroidRunConfiguration();
 
-    using ProjectExplorer::RunConfiguration::isEnabled;
     QWidget *createConfigurationWidget();
     Utils::OutputFormatter *createOutputFormatter() const;
     AndroidTarget *androidTarget() const;
