@@ -94,11 +94,6 @@ QVariant CheckModel::data(const QModelIndex &index, int role) const
 
 void CheckModel::swap(int index1, int index2)
 {
-    // HACK prevent qt (4.7.1) crash
-    if (index1 < index2)
-        qSwap(index1, index2);
-    // HACK
-
     beginMoveRows(QModelIndex(), index1, index1, QModelIndex(), index2);
     const QString &item1 = m_availableItems[index1];
     const QString &item2 = m_availableItems[index2];
