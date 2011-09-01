@@ -95,8 +95,8 @@ public:
     QString startAVD(int & apiLevel, const QString &name = QString());
     QString bestMatch(const QString & targetAPI);
 
-    static const QLatin1String & toolchainPrefix(ProjectExplorer::Abi::Architecture architecture);
-    static const QLatin1String & toolsPrefix(ProjectExplorer::Abi::Architecture architecture);
+    static QLatin1String toolchainPrefix(ProjectExplorer::Abi::Architecture architecture);
+    static QLatin1String toolsPrefix(ProjectExplorer::Abi::Architecture architecture);
 
 signals:
     void updated();

@@ -62,7 +62,7 @@ namespace {
     }
 }
 
-const QLatin1String &AndroidConfigurations::toolchainPrefix(ProjectExplorer::Abi::Architecture architecture)
+QLatin1String AndroidConfigurations::toolchainPrefix(ProjectExplorer::Abi::Architecture architecture)
 {
     switch (architecture) {
     case ProjectExplorer::Abi::ArmArchitecture:
@@ -75,7 +75,7 @@ const QLatin1String &AndroidConfigurations::toolchainPrefix(ProjectExplorer::Abi
 }
 
 
-const QLatin1String &AndroidConfigurations::toolsPrefix(ProjectExplorer::Abi::Architecture architecture)
+QLatin1String AndroidConfigurations::toolsPrefix(ProjectExplorer::Abi::Architecture architecture)
 {
     switch (architecture) {
     case ProjectExplorer::Abi::ArmArchitecture:
