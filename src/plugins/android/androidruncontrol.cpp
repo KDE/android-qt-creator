@@ -25,9 +25,9 @@ namespace Internal {
 using ProjectExplorer::RunConfiguration;
 using namespace ProjectExplorer;
 
-AndroidRunControl::AndroidRunControl(RunConfiguration *rc)
+AndroidRunControl::AndroidRunControl(AndroidRunConfiguration *rc)
     : RunControl(rc, ProjectExplorer::Constants::RUNMODE)
-    , m_runner(new AndroidRunner(this, qobject_cast<AndroidRunConfiguration *>(rc), false))
+    , m_runner(new AndroidRunner(this, rc, false))
     , m_running(false)
 {
 }
