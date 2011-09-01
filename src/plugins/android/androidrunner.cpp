@@ -151,22 +151,18 @@ void AndroidRunner::start()
         return;
     }
     QTime startTime=QTime::currentTime();
-    while (-1 == m_processPID && startTime.secsTo(QTime::currentTime())<5); // wait up to 5 seconds for application to start
-    {
+    while (m_processPID == -1 && startTime.secsTo(QTime::currentTime()) < 5) { // wait up to 5 seconds for application to start
         checkPID();
     }
-    if (-1== m_processPID)
-    {
+    if (m_processPID == -1) {
         m_exitStatus = -1;
         emit remoteProcessFinished(tr("Can't find %1 process").arg(m_packageName));
         return;
     }
 
-    if (m_debugingMode)
-    {
+    if (m_debugingMode) {
         startTime=QTime::currentTime();
-        while (m_gdbserverPID==-1 && startTime.secsTo(QTime::currentTime())<25); // wait up to 25 seconds to connect
-        {
+        while (m_gdbserverPID == -1 && startTime.secsTo(QTime::currentTime()) < 25) { // wait up to 25 seconds to connect
             checkPID();
         }
         sleep(1); // give gdbserver more time to start
