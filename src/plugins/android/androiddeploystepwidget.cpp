@@ -16,7 +16,7 @@ are required by law.
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
-#include <icore.h>
+#include <coreplugin/icore.h>
 
 #include <QtGui/QMessageBox>
 #include <QtGui/QFileDialog>
