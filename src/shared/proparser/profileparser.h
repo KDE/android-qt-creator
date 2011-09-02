@@ -42,8 +42,10 @@
 # include <QtCore/QWaitCondition>
 #endif
 
-// Be fast even for debug builds
-#ifdef __GNUC__
+// Be fast even for debug builds, except MinGW32 (gcc 4.5.2), where:
+// ../../shared/proparser/profileparser.cpp:203:20: sorry, unimplemented: inlining failed in call to 'void ProFileParser::putBlockLen(ushort*&, uint)': function not inlinable
+// happens.
+#if defined(__GNUC__) && !defined(__MINGW32__)
 # define ALWAYS_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
 # define ALWAYS_INLINE __forceinline
