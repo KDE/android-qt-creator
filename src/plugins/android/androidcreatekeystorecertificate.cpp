@@ -60,7 +60,7 @@ AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificat
     }
     if (ui->keystorePassLineEdit->text() != ui->keystoreRetypePassLineEdit->text()) {
             ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
-            return DontMatch;
+            return NoMatch;
     }
     ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#00ff00;\">Password is ok</span>"));
     return Match;
@@ -74,7 +74,7 @@ AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificat
     }
     if (ui->certificatePassLineEdit->text() != ui->certificateRetypePassLineEdit->text()) {
             ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
-            return DontMatch;
+            return NoMatch;
     }
     ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#00ff00;\">Password is ok</span>"));
     return Match;
@@ -98,7 +98,7 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
     case Invalid:
         ui->keystorePassLineEdit->setFocus();
         return;
-    case DontMatch:
+    case NoMatch:
         ui->keystoreRetypePassLineEdit->setFocus();
         return;
     default:
@@ -109,7 +109,7 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
     case Invalid:
         ui->certificatePassLineEdit->setFocus();
         return;
-    case DontMatch:
+    case NoMatch:
         ui->certificateRetypePassLineEdit->setFocus();
         return;
     default:
