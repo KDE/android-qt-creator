@@ -27,9 +27,9 @@ class CheckModel: public QAbstractListModel
     Q_OBJECT
 public:
     CheckModel(QObject * parent = 0 );
-    void setAvailableItems(const QStringList & items);
-    void setCheckedItems(const QStringList & items);
-    const QStringList & checkedItems();
+    void setAvailableItems(const QStringList &items);
+    void setCheckedItems(const QStringList &items);
+    const QStringList &checkedItems();
     QVariant data(const QModelIndex &index, int role) const;
     void swap(int index1, int index2);
     int rowCount(const QModelIndex &parent) const;
@@ -46,11 +46,11 @@ class PermissionsModel: public QAbstractListModel
 {
     Q_OBJECT
 public:
-    PermissionsModel(QObject * parent = 0 );
-    void setPermissions(const QStringList & permissions);
+    PermissionsModel(QObject *parent = 0 );
+    void setPermissions(const QStringList &permissions);
     const QStringList & permissions();
-    QModelIndex addPermission(const QString & permission);
-    bool updatePermission(QModelIndex index,const QString & permission);
+    QModelIndex addPermission(const QString &permission);
+    bool updatePermission(QModelIndex index,const QString &permission);
     void removePermission(int index);
     QVariant data(const QModelIndex &index, int role) const;
 
@@ -84,14 +84,14 @@ private slots:
 
     void setPackageName();
     void setApplicationName();
-    void setTargetSDK(const QString & target);
+    void setTargetSDK(const QString &target);
     void setVersionCode();
     void setVersionName();
-    void setTarget(const QString & target);
+    void setTarget(const QString &target);
 
     void setQtLibs(QModelIndex,QModelIndex);
     void setPrebundledLibs(QModelIndex,QModelIndex);
-    void prebundledLibSelected(const QModelIndex & index);
+    void prebundledLibSelected(const QModelIndex &index);
     void prebundledLibMoveUp();
     void prebundledLibMoveDown();
 
@@ -115,8 +115,8 @@ private slots:
     void on_openPackageLocationCheckBox_toggled(bool checked);
 
 private:
-    AndroidPackageCreationStep * const m_step;
-    Ui::AndroidPackageCreationWidget * const m_ui;
+    AndroidPackageCreationStep *const m_step;
+    Ui::AndroidPackageCreationWidget *const m_ui;
     CheckModel * m_qtLibsModel;
     CheckModel * m_prebundledLibs;
     PermissionsModel * m_permissionsModel;

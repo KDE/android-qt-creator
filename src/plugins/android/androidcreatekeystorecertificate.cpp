@@ -21,8 +21,8 @@ AndroidCreateKeystoreCertificate::AndroidCreateKeystoreCertificate(QWidget *pare
     ui(new Ui::AndroidCreateKeystoreCertificate)
 {
     ui->setupUi(this);
-    connect(ui->keystorePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystrorePassword()));
-    connect(ui->keystoreRetypePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystrorePassword()));
+    connect(ui->keystorePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystorePassword()));
+    connect(ui->keystoreRetypePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkKeystorePassword()));
     connect(ui->certificatePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkCertificatePassword()));
     connect(ui->certificateRetypePassLineEdit, SIGNAL(textChanged(QString)), this, SLOT(checkCertificatePassword()));
 }
@@ -52,17 +52,15 @@ QString AndroidCreateKeystoreCertificate::certificatePassword()
     return ui->certificatePassLineEdit->text();
 }
 
-AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificate::checkKeystrorePassword()
+AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificate::checkKeystorePassword()
 {
-    if (ui->keystorePassLineEdit->text().length()<6)
-    {
+    if (ui->keystorePassLineEdit->text().length() < 6) {
         ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Password is too short</span>"));
-        return Invald;
+        return Invalid;
     }
-    if (ui->keystorePassLineEdit->text() != ui->keystoreRetypePassLineEdit->text())
-    {
+    if (ui->keystorePassLineEdit->text() != ui->keystoreRetypePassLineEdit->text()) {
             ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
-            return DontMatch;
+            return NoMatch;
     }
     ui->keystorePassInfoLabel->setText(tr("<span style=\" color:#00ff00;\">Password is ok</span>"));
     return Match;
@@ -70,15 +68,13 @@ AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificat
 
 AndroidCreateKeystoreCertificate::PasswordStatus AndroidCreateKeystoreCertificate::checkCertificatePassword()
 {
-    if (ui->certificatePassLineEdit->text().length()<6)
-    {
+    if (ui->certificatePassLineEdit->text().length() < 6) {
         ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Password is too short</span>"));
-        return Invald;
+        return Invalid;
     }
-    if (ui->certificatePassLineEdit->text() != ui->certificateRetypePassLineEdit->text())
-    {
+    if (ui->certificatePassLineEdit->text() != ui->certificateRetypePassLineEdit->text()) {
             ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#ff0000;\">Passwords don't match</span>"));
-            return DontMatch;
+            return NoMatch;
     }
     ui->certificatePassInfoLabel->setText(tr("<span style=\" color:#00ff00;\">Password is ok</span>"));
     return Match;
@@ -98,24 +94,22 @@ void AndroidCreateKeystoreCertificate::on_certificateShowPassCheckBox_stateChang
 
 void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
 {
-    switch(checkKeystrorePassword())
-    {
-    case Invald:
+    switch (checkKeystorePassword()) {
+    case Invalid:
         ui->keystorePassLineEdit->setFocus();
         return;
-    case DontMatch:
+    case NoMatch:
         ui->keystoreRetypePassLineEdit->setFocus();
         return;
     default:
         break;
     }
 
-    switch(checkCertificatePassword())
-    {
-    case Invald:
+    switch (checkCertificatePassword()) {
+    case Invalid:
         ui->certificatePassLineEdit->setFocus();
         return;
-    case DontMatch:
+    case NoMatch:
         ui->certificateRetypePassLineEdit->setFocus();
         return;
     default:
@@ -138,15 +132,15 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
         ui->countryLineEdit->setFocus();
 
     m_keystoreFilePath=QFileDialog::getSaveFileName(this, tr("Keystore file name"),
-                                                    QDir::homePath()+"/android_release.keystore",
+                                                    QDir::homePath() + "/android_release.keystore",
                                                     tr("Keystore files (*.keystore *.jks)"));
     if (!m_keystoreFilePath.length())
         return;
     QString distinguishedNames(QString("CN=%1, O=%2, L=%3, C=%4")
-                               .arg(ui->commonNameLineEdit->text().replace(",","\\,"))
-                               .arg(ui->organizationNameLineEdit->text().replace(",","\\,"))
-                               .arg(ui->localityNameLineEdit->text().replace(",","\\,"))
-                               .arg(ui->countryLineEdit->text().replace(",","\\,")));
+                               .arg(ui->commonNameLineEdit->text().replace(",", "\\,"))
+                               .arg(ui->organizationNameLineEdit->text().replace(",", "\\,"))
+                               .arg(ui->localityNameLineEdit->text().replace(",", "\\,"))
+                               .arg(ui->countryLineEdit->text().replace(",", "\\,")));
 
     if (ui->organizationUnitLineEdit->text().length())
         distinguishedNames+=", OU="+ui->organizationUnitLineEdit->text().replace(",","\\,");
@@ -170,8 +164,7 @@ void AndroidCreateKeystoreCertificate::on_buttonBox_accepted()
     if (!genKeyCertProc.waitForStarted() || !genKeyCertProc.waitForFinished())
         return;
 
-    if (genKeyCertProc.exitCode())
-    {
+    if (genKeyCertProc.exitCode()) {
         QMessageBox::critical(this, tr("Error")
                               , genKeyCertProc.readAllStandardOutput()
                               + genKeyCertProc.readAllStandardError());

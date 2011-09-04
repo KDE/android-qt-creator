@@ -23,7 +23,7 @@ class AndroidRunControl : public ProjectExplorer::RunControl
 {
     Q_OBJECT
 public:
-    explicit AndroidRunControl(ProjectExplorer::RunConfiguration *runConfig);
+    explicit AndroidRunControl(AndroidRunConfiguration *runConfig);
     virtual ~AndroidRunControl();
 
     virtual void start();

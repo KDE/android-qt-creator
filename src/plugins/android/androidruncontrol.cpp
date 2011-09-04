@@ -25,9 +25,9 @@ namespace Internal {
 using ProjectExplorer::RunConfiguration;
 using namespace ProjectExplorer;
 
-AndroidRunControl::AndroidRunControl(RunConfiguration *rc)
+AndroidRunControl::AndroidRunControl(AndroidRunConfiguration *rc)
     : RunControl(rc, ProjectExplorer::Constants::RUNMODE)
-    , m_runner(new AndroidRunner(this, qobject_cast<AndroidRunConfiguration *>(rc), false))
+    , m_runner(new AndroidRunner(this, rc, false))
     , m_running(false)
 {
 }
@@ -61,7 +61,7 @@ ProjectExplorer::RunControl::StopResult AndroidRunControl::stop()
 
 void AndroidRunControl::handleRemoteProcessFinished(const QString &error)
 {
-    appendMessage(error , Utils::ErrorMessageFormat);
+    appendMessage(error, Utils::ErrorMessageFormat);
     disconnect(m_runner, 0, this, 0);
     m_running = false;
     emit finished();

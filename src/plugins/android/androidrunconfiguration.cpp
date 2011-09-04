@@ -37,7 +37,7 @@ namespace Internal {
 using namespace ProjectExplorer;
 
 AndroidRunConfiguration::AndroidRunConfiguration(AndroidTarget *parent,
-        const QString &proFilePath)
+                                                 const QString &proFilePath)
     : RunConfiguration(parent, QLatin1String(ANDROID_RC_ID))
     , m_proFilePath(proFilePath)
 {
@@ -45,7 +45,7 @@ AndroidRunConfiguration::AndroidRunConfiguration(AndroidTarget *parent,
 }
 
 AndroidRunConfiguration::AndroidRunConfiguration(AndroidTarget *parent,
-        AndroidRunConfiguration *source)
+                                                 AndroidRunConfiguration *source)
     : RunConfiguration(parent, source)
     , m_proFilePath(source->m_proFilePath)
     , m_gdbPath(source->m_gdbPath)

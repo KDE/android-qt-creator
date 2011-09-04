@@ -32,8 +32,8 @@ AndroidPackageInstallationFactory::AndroidPackageInstallationFactory(QObject *pa
 QStringList AndroidPackageInstallationFactory::availableCreationIds(BuildStepList *parent) const
 {
     if (parent->id() == QLatin1String(ProjectExplorer::Constants::BUILDSTEPS_DEPLOY)
-        && parent->target()->id() == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID)
-        && !parent->contains(AndroidPackageInstallationStep::Id))
+            && parent->target()->id() == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID)
+            && !parent->contains(AndroidPackageInstallationStep::Id))
         return QStringList() << AndroidPackageInstallationStep::Id;
     return QStringList();
 }

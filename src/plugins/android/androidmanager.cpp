@@ -21,9 +21,7 @@ are required by law.
 #include "androidqtversionfactory.h"
 #include "androidtargetfactory.h"
 
-
 #include <QtCore/QtPlugin>
-
 
 using namespace Android;
 using namespace Android::Internal;
@@ -37,7 +35,7 @@ AndroidManager::~AndroidManager()
 }
 
 bool AndroidManager::initialize(const QStringList &arguments,
-    QString *error_message)
+                                QString *error_message)
 {
     Q_UNUSED(arguments)
     Q_UNUSED(error_message)

@@ -13,10 +13,6 @@ are required by law.
 #include <projectexplorer/gcctoolchain.h>
 #include <projectexplorer/toolchainconfigwidget.h>
 
-namespace Qt4ProjectManager {
-class QtVersion;
-}
-
 namespace Android {
 
 namespace Internal {

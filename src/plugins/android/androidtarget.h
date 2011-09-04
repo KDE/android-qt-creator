@@ -83,21 +83,21 @@ public:
 
 
     QString packageName();
-    bool setPackageName(const QString & name);
+    bool setPackageName(const QString &name);
 
     QString intentName();
     QString activityName();
 
     QString applicationName();
-    bool setApplicationName(const QString & name);
+    bool setApplicationName(const QString &name);
 
     QStringList availableTargetApplications();
     QString targetApplication();
-    bool setTargetApplication(const QString & name);
+    bool setTargetApplication(const QString &name);
     QString targetApplicationPath();
 
     QString targetSDK();
-    bool setTargetSDK(const QString & target);
+    bool setTargetSDK(const QString &target);
 
     int versionCode();
     bool setVersionCode(int version);
@@ -110,11 +110,11 @@ public:
 
     QStringList availableQtLibs();
     QStringList qtLibs();
-    bool setQtLibs(const QStringList & qtLibs);
+    bool setQtLibs(const QStringList &qtLibs);
 
     QStringList availablePrebundledLibs();
     QStringList prebundledLibs();
-    bool setPrebundledLibs(const QStringList & qtLibs);
+    bool setPrebundledLibs(const QStringList &qtLibs);
 
     QIcon highDpiIcon();
     bool setHighDpiIcon(const QString &iconFilePath);
@@ -136,12 +136,11 @@ public:
     QString loadLocalLibs(int apiLevel);
 
 public slots:
-    bool createAndroidTemplatesIfNecessary(bool forceJava=false);
-    void updateProject(const QString &targetSDK, const QString &name=QString());
+    bool createAndroidTemplatesIfNecessary(bool forceJava = false);
+    void updateProject(const QString &targetSDK, const QString &name = QString());
 
 signals:
     void androidDirContentsChanged();
-
 
 private slots:
     void handleTargetAdded(ProjectExplorer::Target *target);
@@ -149,25 +148,25 @@ private slots:
 
 private:
     void raiseError(const QString &reason);
-    bool openXmlFile(QDomDocument & doc, const QString & fileName);
-    bool saveXmlFile(QDomDocument & doc, const QString & fileName);
-    bool openAndroidManifest(QDomDocument & doc);
-    bool saveAndroidManifest(QDomDocument & doc);
-    bool openLibsXml(QDomDocument & doc);
-    bool saveLibsXml(QDomDocument & doc);
+    bool openXmlFile(QDomDocument &doc, const QString &fileName);
+    bool saveXmlFile(QDomDocument &doc, const QString &fileName);
+    bool openAndroidManifest(QDomDocument &doc);
+    bool saveAndroidManifest(QDomDocument &doc);
+    bool openLibsXml(QDomDocument &doc);
+    bool saveLibsXml(QDomDocument &doc);
 
     QIcon androidIcon(AndroidIconType type);
     bool setAndroidIcon(AndroidIconType type, const QString &iconFileName);
 
-    QStringList libsXml(const QString & tag);
-    bool setLibsXml(const QStringList & qtLibs, const QString & tag);
+    QStringList libsXml(const QString &tag);
+    bool setLibsXml(const QStringList &qtLibs, const QString &tag);
 
-    static bool QtLibrariesLessThan(const AndroidTarget::Library & a, const AndroidTarget::Library & b);
-    QStringList getDependencies(const QString &  readelfPath, const QString & lib);
-    int setLibraryLevel(const QString & library, LibrariesMap & mapLibs);
+    static bool QtLibrariesLessThan(const AndroidTarget::Library &a, const AndroidTarget::Library &b);
+    QStringList getDependencies(const QString &readelfPath, const QString &lib);
+    int setLibraryLevel(const QString &library, LibrariesMap &mapLibs);
 
 
-    QFileSystemWatcher * const m_androidFilesWatcher;
+    QFileSystemWatcher *const m_androidFilesWatcher;
 
     Qt4ProjectManager::Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
     AndroidDeployConfigurationFactory *m_deployConfigurationFactory;

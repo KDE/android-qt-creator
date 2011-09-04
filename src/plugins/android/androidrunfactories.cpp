@@ -53,7 +53,7 @@ bool AndroidRunConfigurationFactory::canCreate(Target *parent,
 {
     AndroidTarget *target = qobject_cast<AndroidTarget *>(parent);
     if (!target
-        || target->id() != QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID)) {
+            || target->id() != QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID)) {
         return false;
     }
     return true;
@@ -65,7 +65,7 @@ bool AndroidRunConfigurationFactory::canRestore(Target *parent,
     if (!qobject_cast<AndroidTarget *>(parent))
         return false;
     return ProjectExplorer::idFromMap(map)
-        .startsWith(QLatin1String(ANDROID_RC_ID));
+            .startsWith(QLatin1String(ANDROID_RC_ID));
 }
 
 bool AndroidRunConfigurationFactory::canClone(Target *parent,
@@ -77,14 +77,12 @@ bool AndroidRunConfigurationFactory::canClone(Target *parent,
 QStringList AndroidRunConfigurationFactory::availableCreationIds(Target *parent) const
 {
     QStringList ids;
-    if (AndroidTarget *t = qobject_cast<AndroidTarget *>(parent))
-    {
-        if (t->id() == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID))
-        {
+    if (AndroidTarget *t = qobject_cast<AndroidTarget *>(parent)) {
+        if (t->id() == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID)) {
             QList<Qt4ProFileNode *> nodes = t->qt4Project()->allProFiles();
-            foreach(Qt4ProFileNode * node, nodes)
+            foreach (Qt4ProFileNode *node, nodes)
                 if (node->projectType() == ApplicationTemplate || node->projectType() == LibraryTemplate)
-                    ids<<node->targetInformation().target;
+                    ids << node->targetInformation().target;
         }
     }
     return ids;
@@ -150,7 +148,7 @@ RunControl* AndroidRunControlFactory::create(RunConfiguration *runConfig,
     const QString &mode)
 {
     Q_ASSERT(mode == ProjectExplorer::Constants::RUNMODE
-        || mode == Debugger::Constants::DEBUGMODE);
+             || mode == Debugger::Constants::DEBUGMODE);
     Q_ASSERT(canRun(runConfig, mode));
     AndroidRunConfiguration *rc = qobject_cast<AndroidRunConfiguration *>(runConfig);
     Q_ASSERT(rc);

@@ -150,7 +150,7 @@ bool AndroidDeployStep::runCommand(QProcess *buildProc,
 
 void AndroidDeployStep::handleBuildOutput()
 {
-    QProcess * const buildProc = qobject_cast<QProcess *>(sender());
+    QProcess *const buildProc = qobject_cast<QProcess *>(sender());
     if (!buildProc)
         return;
     // Doing both reads before doing emit addOutput() reduces the frequency ofa crash
@@ -187,15 +187,13 @@ void AndroidDeployStep::copyLibs(const QString &srcPath, const QString &destPath
     QDir dir;
     dir.mkpath(destPath);
     QDirIterator libsIt(srcPath, filter, QDir::NoFilter, QDirIterator::Subdirectories);
-    int pos=srcPath.size();
-    while(libsIt.hasNext())
-    {
+    int pos = srcPath.size();
+    while (libsIt.hasNext()) {
         libsIt.next();
         const QString destFile(destPath+libsIt.filePath().mid(pos));
-        if (libsIt.fileInfo().isDir())
+        if (libsIt.fileInfo().isDir()) {
             dir.mkpath(destFile);
-        else
-        {
+        } else  {
             QFile::copy(libsIt.filePath(), destFile);
             copiedLibs.append(destFile);
         }
@@ -207,8 +205,7 @@ bool AndroidDeployStep::deployPackage()
     const Qt4BuildConfiguration * const bc
         = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
     AndroidTarget * androidTarget = qobject_cast<AndroidTarget *>(target());
-    if (!androidTarget)
-    {
+    if (!androidTarget) {
         raiseError(tr("Cannot deploy: current target is not android."));
         return false;
     }
@@ -216,23 +213,21 @@ bool AndroidDeployStep::deployPackage()
     const QString targetSDK=androidTarget->targetSDK();
 
     writeOutput(tr("Please wait, searching for a suitable device for target:%1.").arg(targetSDK));
-    m_deviceAPILevel=targetSDK.mid(targetSDK.indexOf('-')+1).toInt();
+    m_deviceAPILevel = targetSDK.mid(targetSDK.indexOf('-')+1).toInt();
     m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(m_deviceAPILevel);
-    if (!m_deviceSerialNumber.length())
-    {
+    if (!m_deviceSerialNumber.length()) {
         m_deviceSerialNumber.clear();
         raiseError(tr("Cannot deploy: no devices or emulators found for your package."));
         return false;
     }
 
-    QProcess * const deployProc = new QProcess;
+    QProcess *const deployProc = new QProcess;
     connect(deployProc, SIGNAL(readyReadStandardOutput()), this,
         SLOT(handleBuildOutput()));
     connect(deployProc, SIGNAL(readyReadStandardError()), this,
         SLOT(handleBuildOutput()));
 
-    if (m_deployAction == DeployLocal)
-    {
+    if (m_deployAction == DeployLocal) {
         writeOutput(tr("Clean old qt libs"));
         runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                    QStringList()<<"-s"<<m_deviceSerialNumber
@@ -253,11 +248,9 @@ bool AndroidDeployStep::deployPackage()
         emit (resetDelopyAction());
     }
 
-    if (m_deployAction == InstallQASI)
-    {
+    if (m_deployAction == InstallQASI) {
         if (!runCommand(deployProc,AndroidConfigurations::instance().adbToolPath(),
-                        QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<"-r "<<m_QASIPackagePath))
-        {
+                        QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<"-r "<<m_QASIPackagePath)) {
             raiseError(tr("Qt Android smart installer instalation failed"));
             disconnect(deployProc, 0, this, 0);
             deployProc->deleteLater();
@@ -272,13 +265,12 @@ bool AndroidDeployStep::deployPackage()
                QStringList()<<"-s"<<m_deviceSerialNumber<<"uninstall"<<packageName);
     QString package=androidTarget->apkPath(AndroidTarget::DebugBuild);
 
-    if ( !(bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
+    if (!(bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
          && QFile::exists(androidTarget->apkPath(AndroidTarget::ReleaseBuildSigned)))
         package=androidTarget->apkPath(AndroidTarget::ReleaseBuildSigned);
 
     if (!runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
-                    QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<package))
-    {
+                    QStringList() << "-s" << m_deviceSerialNumber << "install" << package)) {
         raiseError(tr("Package instalation failed"));
         disconnect(deployProc, 0, this, 0);
         deployProc->deleteLater();
@@ -287,10 +279,10 @@ bool AndroidDeployStep::deployPackage()
 
     writeOutput(tr("Pulling files necessary for debugging"));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
-               QStringList()<<"-s"<<m_deviceSerialNumber<<"pull"<<"/system/bin/app_process"<<QString("%1/app_process")
+               QStringList() << "-s" << m_deviceSerialNumber << "pull" << "/system/bin/app_process" << QString("%1/app_process")
                                         .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
-               QStringList()<<"-s"<<m_deviceSerialNumber<<"pull"<<"/system/lib/libc.so"<<QString("%1/libc.so")
+               QStringList() << "-s" << m_deviceSerialNumber << "pull"<<"/system/lib/libc.so" << QString("%1/libc.so")
                                         .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
     disconnect(deployProc, 0, this, 0);
     deployProc->deleteLater();

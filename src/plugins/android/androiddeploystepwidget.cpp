@@ -16,7 +16,7 @@ are required by law.
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/target.h>
 #include <utils/qtcassert.h>
-#include <icore.h>
+#include <coreplugin/icore.h>
 
 #include <QtGui/QMessageBox>
 #include <QtGui/QFileDialog>
@@ -46,14 +46,13 @@ AndroidDeployStepWidget::~AndroidDeployStepWidget()
 void AndroidDeployStepWidget::init()
 {
     ui->useLocalQtLibs->setChecked(m_step->useLocalQtLibs());
-    switch(m_step->deployAction())
-    {
-        case AndroidDeployStep::DeployLocal:
-            ui->deployQtLibs->setChecked(true);
-            break;
-        default:
-            ui->devicesQtLibs->setChecked(true);
-            break;
+    switch (m_step->deployAction()) {
+    case AndroidDeployStep::DeployLocal:
+        ui->deployQtLibs->setChecked(true);
+        break;
+    default:
+        ui->devicesQtLibs->setChecked(true);
+        break;
     }
 }
 

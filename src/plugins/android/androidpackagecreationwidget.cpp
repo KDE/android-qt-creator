@@ -57,24 +57,24 @@ bool checkPackageName(const QString & packageName)
 }
 
 ///////////////////////////// CheckModel /////////////////////////////
-CheckModel::CheckModel(QObject * parent ):QAbstractListModel ( parent )
+CheckModel::CheckModel(QObject *parent):QAbstractListModel(parent)
 {
 
 }
 
-void CheckModel::setAvailableItems(const QStringList & items)
+void CheckModel::setAvailableItems(const QStringList &items)
 {
     m_availableItems = items;
     reset();
 }
 
-void CheckModel::setCheckedItems(const QStringList & items)
+void CheckModel::setCheckedItems(const QStringList &items)
 {
     m_checkedItems=items;
     reset();
 }
 
-const QStringList & CheckModel::checkedItems()
+const QStringList &CheckModel::checkedItems()
 {
     return m_checkedItems;
 }
@@ -83,8 +83,7 @@ QVariant CheckModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid())
         return QVariant();
-    switch(role)
-    {
+    switch (role) {
     case Qt::CheckStateRole:
         return m_checkedItems.contains(m_availableItems.at(index.row()))?Qt::Checked:Qt::Unchecked;
     case Qt::DisplayRole:
@@ -95,18 +94,13 @@ QVariant CheckModel::data(const QModelIndex &index, int role) const
 
 void CheckModel::swap(int index1, int index2)
 {
-    // HACK prevent qt (4.7.1) crash
-    if (index1<index2)
-        qSwap(index1, index2);
-    // HACK
-
     beginMoveRows(QModelIndex(), index1, index1, QModelIndex(), index2);
-    const QString & item1 = m_availableItems[index1];
-    const QString & item2 = m_availableItems[index2];
+    const QString &item1 = m_availableItems[index1];
+    const QString &item2 = m_availableItems[index2];
     m_availableItems.swap(index1, index2);
     index1 = m_checkedItems.indexOf(item1);
     index2 = m_checkedItems.indexOf(item2);
-    if (index1>-1 && index2>-1)
+    if (index1 > -1 && index2 > -1)
         m_checkedItems.swap(index1, index2);
     endMoveRows();
 }
@@ -136,43 +130,43 @@ Qt::ItemFlags CheckModel::flags(const QModelIndex &/*index*/) const
 
 
 ///////////////////////////// PermissionsModel /////////////////////////////
-PermissionsModel::PermissionsModel( QObject * parent ):QAbstractListModel(parent)
+PermissionsModel::PermissionsModel(QObject *parent):QAbstractListModel(parent)
 {
 }
 
-void PermissionsModel::setPermissions(const QStringList & permissions)
+void PermissionsModel::setPermissions(const QStringList &permissions)
 {
     m_permissions = permissions;
     reset();
 }
-const QStringList & PermissionsModel::permissions()
+const QStringList &PermissionsModel::permissions()
 {
     return m_permissions;
 }
 
-QModelIndex PermissionsModel::addPermission(const QString & permission)
+QModelIndex PermissionsModel::addPermission(const QString &permission)
 {
-    const int idx= m_permissions.count();
+    const int idx = m_permissions.count();
     beginInsertRows(QModelIndex(), idx, idx+1);
     m_permissions.push_back(permission);
     endInsertRows();
     return index(idx);
 }
 
-bool PermissionsModel::updatePermission(QModelIndex index, const QString & permission)
+bool PermissionsModel::updatePermission(QModelIndex index, const QString &permission)
 {
     if (!index.isValid())
         return false;
     if (m_permissions[index.row()] == permission)
         return false;
-    m_permissions[index.row()]= permission;
+    m_permissions[index.row()] = permission;
     emit dataChanged(index, index);
     return true;
 }
 
 void PermissionsModel::removePermission(int index)
 {
-    if (index>=m_permissions.size())
+    if (index >= m_permissions.size())
         return;
     beginRemoveRows(QModelIndex(), index, index+1);
     m_permissions.removeAt(index);
@@ -261,8 +255,7 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
     m_ui->targetSDKComboBox->setCurrentIndex(targets.indexOf(target->targetSDK()));
     m_ui->packageNameLineEdit->setText(target->packageName());
     m_ui->appNameLineEdit->setText(target->applicationName());
-    if (!m_ui->appNameLineEdit->text().length())
-    {
+    if (!m_ui->appNameLineEdit->text().length()) {
         QString applicationName = target->project()->displayName();
         target->setPackageName(cleanPackageName(target->packageName()+"."+applicationName));
         m_ui->packageNameLineEdit->setText(target->packageName());
@@ -286,8 +279,7 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
     m_ui->targetComboBox->clear();
     m_ui->targetComboBox->addItems(targets);
     m_ui->targetComboBox->setCurrentIndex(targets.indexOf(target->targetApplication()));
-    if (-1 == m_ui->targetComboBox->currentIndex() && targets.count())
-    {
+    if (m_ui->targetComboBox->currentIndex() == -1 && targets.count()) {
         m_ui->targetComboBox->setCurrentIndex(0);
         m_step->androidTarget()->setTargetApplication(m_ui->targetComboBox->currentText());
     }
@@ -299,8 +291,7 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
 void AndroidPackageCreationWidget::setPackageName()
 {
     const QString packageName= m_ui->packageNameLineEdit->text();
-    if (!checkPackageName(packageName))
-    {
+    if (!checkPackageName(packageName)) {
         QMessageBox::critical(this, tr("Invalid package name")
                               , tr("The package name '%1' is not valid.\nPlease choose a valid package name for your application (e.g. \"org.example.myapplication\").").arg(packageName));
         m_ui->packageNameLineEdit->selectAll();
@@ -489,7 +480,7 @@ QString AndroidPackageCreationWidget::displayName() const
 
 void AndroidPackageCreationWidget::setCertificates()
 {
-    QAbstractItemModel * certificates=m_step->keystoreCertificates();
+    QAbstractItemModel * certificates = m_step->keystoreCertificates();
     m_ui->signPackageCheckBox->setChecked(certificates);
     m_ui->certificatesAliasComboBox->setModel(certificates);
 }
@@ -517,10 +508,10 @@ void AndroidPackageCreationWidget::on_KeystoreCreatePushButton_clicked()
 
 void AndroidPackageCreationWidget::on_KeystoreLocationPushButton_clicked()
 {
-    QString keystorePath=m_step->keystorePath();
+    QString keystorePath = m_step->keystorePath();
     if (!keystorePath.length())
         keystorePath=QDir::homePath();
-    QString file=QFileDialog::getOpenFileName(this, tr("Select keystore file"), keystorePath, tr("Keystore files (*.keystore *.jks)"));
+    QString file = QFileDialog::getOpenFileName(this, tr("Select keystore file"), keystorePath, tr("Keystore files (*.keystore *.jks)"));
     if (!file.length())
         return;
     m_ui->KeystoreLocationLineEdit->setText(file);

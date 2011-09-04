@@ -32,8 +32,8 @@ AndroidDeployStepFactory::AndroidDeployStepFactory(QObject *parent)
 QStringList AndroidDeployStepFactory::availableCreationIds(BuildStepList *parent) const
 {
     if (parent->id() == QLatin1String(ProjectExplorer::Constants::BUILDSTEPS_DEPLOY)
-        && parent->target()->id() == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID)
-        && !parent->contains(AndroidDeployStep::Id))
+            && parent->target()->id() == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID)
+            && !parent->contains(AndroidDeployStep::Id))
         return QStringList() << AndroidDeployStep::Id;
     return QStringList();
 }

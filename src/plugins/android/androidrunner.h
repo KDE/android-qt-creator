@@ -41,8 +41,8 @@ public slots:
 
 
 signals:
-    void remoteProcessStarted(int gdbServerPort=-1, int qmlPort=-1);
-    void remoteProcessFinished(const QString &errString="");
+    void remoteProcessStarted(int gdbServerPort = -1, int qmlPort = -1);
+    void remoteProcessFinished(const QString &errString = "");
 
     void remoteOutput(const QByteArray &output);
     void remoteErrorOutput(const QByteArray &output);
@@ -58,7 +58,7 @@ private:
 
 private:
     int m_exitStatus;
-    bool    m_debugingMode;
+    bool m_debugingMode;
     QProcess m_adbLogcatProcess;
     QByteArray m_logcat;
     QString m_intentName;

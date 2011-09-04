@@ -36,8 +36,7 @@ AndroidPackageInstallationStep::~AndroidPackageInstallationStep()
 bool AndroidPackageInstallationStep::init()
 {
     AndroidTarget * androidTarget = qobject_cast<AndroidTarget *>(target());
-    if (!androidTarget)
-    {
+    if (!androidTarget) {
         emit addOutput(tr("Current target is not an android target"), BuildStep::MessageOutput);
         return false;
     }

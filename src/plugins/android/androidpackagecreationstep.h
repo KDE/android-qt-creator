@@ -39,7 +39,7 @@ public:
 
     static bool removeDirectory(const QString &dirPath);
 
-    static void stripAndroidLibs(const QStringList & files, ProjectExplorer::Abi::Architecture architecture);
+    static void stripAndroidLibs(const QStringList &files, ProjectExplorer::Abi::Architecture architecture);
 
     static const QLatin1String DefaultVersionNumber;
 
@@ -48,10 +48,10 @@ public:
     void checkRequiredLibraries();
 
     QString keystorePath();
-    void setKeystorePath(const QString & path);
-    void setKeystorePassword(const QString & pwd);
-    void setCertificateAlias(const QString & alias);
-    void setCertificatePassword(const QString & pwd);
+    void setKeystorePath(const QString &path);
+    void setKeystorePassword(const QString &pwd);
+    void setCertificateAlias(const QString &alias);
+    void setCertificatePassword(const QString &pwd);
     void setOpenPackageLocation(bool open);
     QAbstractItemModel * keystoreCertificates();
 
@@ -75,7 +75,7 @@ private:
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const { return true; }
     bool createPackage();
-    bool runCommand(QProcess *buildProc, const QString &program, const QStringList & arguments);
+    bool runCommand(QProcess *buildProc, const QString &program, const QStringList &arguments);
     void raiseError(const QString &shortMsg,
                     const QString &detailedMsg = QString());
 
