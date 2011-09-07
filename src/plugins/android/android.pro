@@ -27,7 +27,6 @@ HEADERS += \
     androidglobal.h \
     androidrunner.h \
     androiddebugsupport.h \
-    androiddevicesmodel.h \
     androidqtversionfactory.h \
     androidqtversion.h \
     androiddeployconfiguration.h \
@@ -55,7 +54,6 @@ SOURCES += \
     androiddeploystepfactory.cpp \
     androidrunner.cpp \
     androiddebugsupport.cpp \
-    androiddevicesmodel.cpp \
     androidqtversionfactory.cpp \
     androidqtversion.cpp \
     androiddeployconfiguration.cpp \
@@ -77,3 +75,5 @@ OTHER_FILES += Android.pluginspec.in
 RESOURCES = android.qrc
 DEFINES += QT_NO_CAST_TO_ASCII
 DEFINES += ANDROID_LIBRARY
+
+
