@@ -43,7 +43,7 @@ public:
 
     static const QLatin1String DefaultVersionNumber;
 
-    AndroidTarget * androidTarget() const;
+    AndroidTarget *androidTarget() const;
 
     void checkRequiredLibraries();
 
@@ -53,7 +53,7 @@ public:
     void setCertificateAlias(const QString &alias);
     void setCertificatePassword(const QString &pwd);
     void setOpenPackageLocation(bool open);
-    QAbstractItemModel * keystoreCertificates();
+    QAbstractItemModel *keystoreCertificates();
 
 protected:
     virtual bool fromMap(const QVariantMap &map);
