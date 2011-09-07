@@ -1227,8 +1227,6 @@ p, li { white-space: pre-wrap; }
         </layout>
        </item>
       </layout>
-      <zorder></zorder>
-      <zorder>openPackageLocationCheckBox</zorder>
      </widget>
     </widget>
    </item>
