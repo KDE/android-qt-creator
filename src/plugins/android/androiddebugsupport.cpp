@@ -74,7 +74,7 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
 
 AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
     DebuggerRunControl *runControl)
-    : QObject(runControl), m_runControl(runControl), m_runConfig(runConfig),
+    : QObject(runControl), m_runControl(runControl),
       m_runner(new AndroidRunner(this, runConfig, true)),
       m_debuggingType(runConfig->debuggingType()),
       m_gdbServerPort(5039), m_qmlPort(-1)
