@@ -187,6 +187,7 @@ void AndroidRunner::start()
 void AndroidRunner::stop()
 {
     m_adbLogcatProcess.terminate();
+    m_adbLogcatProcess.waitForFinished(-1);
     m_checkPIDTimer.stop();
     if (m_processPID == -1)
         return; // don't emit another signal
