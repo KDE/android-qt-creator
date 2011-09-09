@@ -30,6 +30,17 @@ AndroidDeployStepWidget::AndroidDeployStepWidget(AndroidDeployStep *step) :
     m_step(step)
 {
     ui->setupUi(this);
+
+    ui->useLocalQtLibs->setChecked(m_step->useLocalQtLibs());
+    switch (m_step->deployAction()) {
+    case AndroidDeployStep::DeployLocal:
+        ui->deployQtLibs->setChecked(true);
+        break;
+    default:
+        ui->devicesQtLibs->setChecked(true);
+        break;
+    }
+
     connect(m_step, SIGNAL(resetDelopyAction()), SLOT(resetAction()));
     connect(ui->devicesQtLibs, SIGNAL(clicked()), SLOT(resetAction()));
     connect(ui->deployQtLibs, SIGNAL(clicked()), SLOT(setDeployLocalQtLibs()));
@@ -41,19 +52,6 @@ AndroidDeployStepWidget::AndroidDeployStepWidget(AndroidDeployStep *step) :
 AndroidDeployStepWidget::~AndroidDeployStepWidget()
 {
     delete ui;
-}
-
-void AndroidDeployStepWidget::init()
-{
-    ui->useLocalQtLibs->setChecked(m_step->useLocalQtLibs());
-    switch (m_step->deployAction()) {
-    case AndroidDeployStep::DeployLocal:
-        ui->deployQtLibs->setChecked(true);
-        break;
-    default:
-        ui->devicesQtLibs->setChecked(true);
-        break;
-    }
 }
 
 QString AndroidDeployStepWidget::displayName() const
@@ -91,7 +89,7 @@ void AndroidDeployStepWidget::useLocalQtLibsStateChanged(int state)
 
 void AndroidDeployStepWidget::editRulesFile()
 {
-    Core::ICore::instance()->openFiles(QStringList()<<m_step->localLibsRulesFilePath(), Core::ICore::SwitchMode);
+    Core::ICore::instance()->openFiles(QStringList() << m_step->localLibsRulesFilePath(), Core::ICore::SwitchMode);
 }
 
 } // namespace Internal

@@ -102,7 +102,7 @@ void AndroidDeployStep::setDeployQASIPackagePath(const QString & package)
 
 void AndroidDeployStep::setUseLocalQtLibs(bool useLocal)
 {
-    m_useLocalQtLibs=useLocal;
+    m_useLocalQtLibs = useLocal;
 }
 
 QVariantMap AndroidDeployStep::toMap() const
@@ -125,7 +125,6 @@ bool AndroidDeployStep::fromMap(const QVariantMap &map)
 bool AndroidDeployStep::runCommand(QProcess *buildProc,
     const QString &program, const QStringList & arguments)
 {
-
     writeOutput(tr("Package deploy: Running command '%1 %2'.").arg(program).arg(arguments.join(" ")), BuildStep::MessageOutput);
     buildProc->start(program, arguments);
     if (!buildProc->waitForStarted()) {
@@ -135,7 +134,7 @@ bool AndroidDeployStep::runCommand(QProcess *buildProc,
     }
     buildProc->waitForFinished(-1);
     if (buildProc->error() != QProcess::UnknownError
-        || buildProc->exitCode() != 0) {
+            || buildProc->exitCode() != 0) {
         QString mainMessage = tr("Packaging Error: Command '%1 %2' failed.")
                 .arg(program).arg(arguments.join(" "));
         if (buildProc->error() != QProcess::UnknownError)
@@ -176,13 +175,13 @@ int AndroidDeployStep::deviceAPILevel()
 
 QString AndroidDeployStep::localLibsRulesFilePath()
 {
-    AndroidTarget * androidTarget = qobject_cast<AndroidTarget *>(target());
+    AndroidTarget *androidTarget = qobject_cast<AndroidTarget *>(target());
     if (!androidTarget)
         return "";
     return androidTarget->localLibsRulesFilePath();
 }
 
-void AndroidDeployStep::copyLibs(const QString &srcPath, const QString &destPath, QStringList & copiedLibs, const QStringList &filter)
+void AndroidDeployStep::copyLibs(const QString &srcPath, const QString &destPath, QStringList &copiedLibs, const QStringList &filter)
 {
     QDir dir;
     dir.mkpath(destPath);
@@ -202,18 +201,18 @@ void AndroidDeployStep::copyLibs(const QString &srcPath, const QString &destPath
 
 bool AndroidDeployStep::deployPackage()
 {
-    const Qt4BuildConfiguration * const bc
+    const Qt4BuildConfiguration *const bc
         = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
-    AndroidTarget * androidTarget = qobject_cast<AndroidTarget *>(target());
+    AndroidTarget *androidTarget = qobject_cast<AndroidTarget *>(target());
     if (!androidTarget) {
         raiseError(tr("Cannot deploy: current target is not android."));
         return false;
     }
-    const QString packageName=androidTarget->packageName();
-    const QString targetSDK=androidTarget->targetSDK();
+    const QString packageName = androidTarget->packageName();
+    const QString targetSDK = androidTarget->targetSDK();
 
     writeOutput(tr("Please wait, searching for a suitable device for target:%1.").arg(targetSDK));
-    m_deviceAPILevel = targetSDK.mid(targetSDK.indexOf('-')+1).toInt();
+    m_deviceAPILevel = targetSDK.mid(targetSDK.indexOf('-') + 1).toInt();
     m_deviceSerialNumber=AndroidConfigurations::instance().getDeployDeviceSerialNumber(m_deviceAPILevel);
     if (!m_deviceSerialNumber.length()) {
         m_deviceSerialNumber.clear();
@@ -230,40 +229,40 @@ bool AndroidDeployStep::deployPackage()
     if (m_deployAction == DeployLocal) {
         writeOutput(tr("Clean old qt libs"));
         runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
-                   QStringList()<<"-s"<<m_deviceSerialNumber
-                   <<"shell"<<"rm"<<"-r"<<"/data/local/qt");
+                   QStringList() << "-s" << m_deviceSerialNumber
+                   << "shell" << "rm" << "-r" << "/data/local/qt");
 
         writeOutput(tr("Deploy qt libs ... this may take some time, please wait"));
-        const QString tempPath=QDir::tempPath()+"/android_qt_libs_"+packageName;
+        const QString tempPath = QDir::tempPath() + "/android_qt_libs_" + packageName;
         AndroidPackageCreationStep::removeDirectory(tempPath);
         QStringList stripFiles;
-        copyLibs(bc->qtVersion()->sourcePath()+"/lib", tempPath+"/lib",stripFiles,QStringList()<<"*.so");
-        copyLibs(bc->qtVersion()->sourcePath()+"/plugins", tempPath+"/plugins",stripFiles);
-        copyLibs(bc->qtVersion()->sourcePath()+"/imports", tempPath+"/imports",stripFiles);
+        copyLibs(bc->qtVersion()->sourcePath() +"/lib", tempPath + "/lib", stripFiles, QStringList() << "*.so");
+        copyLibs(bc->qtVersion()->sourcePath() + "/plugins", tempPath + "/plugins", stripFiles);
+        copyLibs(bc->qtVersion()->sourcePath() + "/imports", tempPath + "/imports", stripFiles);
         AndroidPackageCreationStep::stripAndroidLibs(stripFiles, target()->activeRunConfiguration()->abi().architecture());
-        runCommand(deployProc,AndroidConfigurations::instance().adbToolPath(),
-                   QStringList()<<"-s"<<m_deviceSerialNumber
-                   <<"push"<<tempPath<<"/data/local/qt");
+        runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
+                   QStringList() << "-s" << m_deviceSerialNumber
+                   << "push" << tempPath << "/data/local/qt");
         AndroidPackageCreationStep::removeDirectory(tempPath);
         emit (resetDelopyAction());
     }
 
     if (m_deployAction == InstallQASI) {
         if (!runCommand(deployProc,AndroidConfigurations::instance().adbToolPath(),
-                        QStringList()<<"-s"<<m_deviceSerialNumber<<"install"<<"-r "<<m_QASIPackagePath)) {
+                        QStringList() << "-s" << m_deviceSerialNumber << "install" << "-r " << m_QASIPackagePath)) {
             raiseError(tr("Qt Android smart installer instalation failed"));
             disconnect(deployProc, 0, this, 0);
             deployProc->deleteLater();
             return false;
         }
-        emit (resetDelopyAction());
+        emit resetDelopyAction();
     }
     deployProc->setWorkingDirectory(androidTarget->androidDirPath());
 
     writeOutput(tr("Installing package onto %1.").arg(m_deviceSerialNumber));
-    runCommand(deployProc,AndroidConfigurations::instance().adbToolPath(),
-               QStringList()<<"-s"<<m_deviceSerialNumber<<"uninstall"<<packageName);
-    QString package=androidTarget->apkPath(AndroidTarget::DebugBuild);
+    runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
+               QStringList() << "-s" << m_deviceSerialNumber << "uninstall" << packageName);
+    QString package = androidTarget->apkPath(AndroidTarget::DebugBuild);
 
     if (!(bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
          && QFile::exists(androidTarget->apkPath(AndroidTarget::ReleaseBuildSigned)))

@@ -72,7 +72,7 @@ BuildStep *AndroidPackageCreationFactory::restore(ProjectExplorer::BuildStepList
                                                 const QVariantMap &map)
 {
     Q_ASSERT(canRestore(parent, map));
-    AndroidPackageCreationStep * const step
+    AndroidPackageCreationStep *const step
         = new AndroidPackageCreationStep(parent);
     if (!step->fromMap(map)) {
         delete step;

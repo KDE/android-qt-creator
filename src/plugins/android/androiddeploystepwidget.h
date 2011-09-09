@@ -38,8 +38,6 @@ private slots:
     void editRulesFile();
 
 private:
-
-    virtual void init();
     virtual QString summaryText() const;
     virtual QString displayName() const;
 

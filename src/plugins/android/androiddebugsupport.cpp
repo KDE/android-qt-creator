@@ -49,7 +49,7 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     params.toolChainAbi = runConfig->abi();
     params.dumperLibrary = runConfig->dumperLib();
     params.startMode = AttachToRemote;
-    params.executable = runConfig->androidTarget()->qt4Project()->rootProjectNode()->buildDir()+"/app_process";
+    params.executable = runConfig->androidTarget()->qt4Project()->rootProjectNode()->buildDir() + "/app_process";
     params.debuggerCommand = runConfig->gdbCmd();
     params.remoteChannel = runConfig->remoteChannel();
     params.displayName = runConfig->androidTarget()->packageName();
@@ -74,7 +74,7 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
 
 AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
     DebuggerRunControl *runControl)
-    : QObject(runControl), m_runControl(runControl), m_runConfig(runConfig),
+    : QObject(runControl), m_runControl(runControl),
       m_runner(new AndroidRunner(this, runConfig, true)),
       m_debuggingType(runConfig->debuggingType()),
       m_gdbServerPort(5039), m_qmlPort(-1)
@@ -82,10 +82,10 @@ AndroidDebugSupport::AndroidDebugSupport(AndroidRunConfiguration *runConfig,
 #ifdef __GNUC__
 #warning FIXME Android m_gdbServerPort(5039)
 #endif
-    connect(m_runControl->engine(), SIGNAL(requestRemoteSetup()), m_runner,
-        SLOT(start()));
-    connect(m_runControl, SIGNAL(finished()), m_runner,
-            SLOT(stop()));
+    connect(m_runControl->engine(), SIGNAL(requestRemoteSetup()),
+            m_runner, SLOT(start()));
+    connect(m_runControl, SIGNAL(finished()),
+            m_runner, SLOT(stop()));
 
     connect(m_runner, SIGNAL(remoteProcessStarted(int,int)),
         SLOT(handleRemoteProcessStarted(int,int)));
@@ -128,7 +128,7 @@ void AndroidDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
         m_runControl->showMessage(QString::fromUtf8(output), AppError);
 }
 
-QStringList AndroidDebugSupport::qtSoPaths(QtSupport::BaseQtVersion * qtVersion)
+QStringList AndroidDebugSupport::qtSoPaths(QtSupport::BaseQtVersion *qtVersion)
 {
     QSet<QString> paths;
     for (uint i = 0; i < sizeof qMakeVariables / sizeof qMakeVariables[0]; ++i) {

@@ -54,7 +54,6 @@ private:
 
 private:
     const QPointer<Debugger::DebuggerRunControl> m_runControl;
-    const QPointer<AndroidRunConfiguration> m_runConfig;
     AndroidRunner * const m_runner;
     const AndroidRunConfiguration::DebuggingType m_debuggingType;
     const QString m_dumperLib;

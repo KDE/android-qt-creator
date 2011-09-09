@@ -124,7 +124,11 @@ void AndroidRunner::start()
     QString extraParams;
     QProcess adbStarProc;
     if (m_debugingMode) {
-        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"forward"<<QString("tcp%1").arg(m_runConfig->remoteChannel())<<QString("localfilesystem:/data/data/%1/debug-socket").arg(m_packageName));
+        QStringList arguments;
+        arguments << "-s" << m_deviceSerialNumber
+                  << "forward" << QString("tcp%1").arg(m_runConfig->remoteChannel())
+                  << QString("localfilesystem:/data/data/%1/debug-socket").arg(m_packageName);
+        adbStarProc.start(AndroidConfigurations::instance().adbToolPath(), arguments);
         if (!adbStarProc.waitForStarted()) {
             emit remoteProcessFinished(tr("Failed to forward debugging ports. Reason: $1").arg(adbStarProc.errorString()));
             return;
@@ -138,9 +142,12 @@ void AndroidRunner::start()
 
     if (m_runConfig->deployStep()->useLocalQtLibs()) {
         extraParams+=" -e use_local_qt_libs true";
-        extraParams+=" -e load_local_libs "+m_runConfig->androidTarget()->loadLocalLibs(m_runConfig->deployStep()->deviceAPILevel());
+        extraParams+=" -e load_local_libs " + m_runConfig->androidTarget()->loadLocalLibs(m_runConfig->deployStep()->deviceAPILevel());
     }
-    adbStarProc.start(AndroidConfigurations::instance().adbToolPath(),QStringList()<<"-s"<<m_deviceSerialNumber<<"shell"<<"am"<<"start"<<"-n"<<m_intentName<<extraParams.trimmed().split(" "));
+    QStringList arguments;
+    arguments << "-s" << m_deviceSerialNumber
+              << "shell" << "am" << "start" << "-n" << m_intentName << extraParams.trimmed().split(" ");
+    adbStarProc.start(AndroidConfigurations::instance().adbToolPath(), arguments);
     if (!adbStarProc.waitForStarted()) {
         emit remoteProcessFinished(tr("Failed to forward debugging ports. Reason: $1").arg(adbStarProc.errorString()));
         return;
@@ -180,6 +187,7 @@ void AndroidRunner::start()
 void AndroidRunner::stop()
 {
     m_adbLogcatProcess.terminate();
+    m_adbLogcatProcess.waitForFinished(-1);
     m_checkPIDTimer.stop();
     if (m_processPID == -1)
         return; // don't emit another signal
