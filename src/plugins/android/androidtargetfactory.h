@@ -30,7 +30,6 @@ public:
     bool canCreate(ProjectExplorer::Project *parent, const QString &id) const;
     bool canRestore(ProjectExplorer::Project *parent, const QVariantMap &map) const;
     Qt4ProjectManager::Qt4BaseTarget *restore(ProjectExplorer::Project *parent, const QVariantMap &map);
-    QString defaultShadowBuildDirectory(const QString &projectLocation, const QString &id);
 
     bool supportsTargetId(const QString &id) const;
     virtual QSet<QString> targetFeatures(const QString &id) const;
@@ -38,8 +37,7 @@ public:
     Qt4ProjectManager::Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id);
     Qt4ProjectManager::Qt4BaseTarget *create(ProjectExplorer::Project *parent, const QString &id, const QList<Qt4ProjectManager::BuildConfigurationInfo> &infos);
 
-    bool isMobileTarget(const QString &id);
-    bool supportsShadowBuilds(const QString &id);
+    QString buildNameForId(const QString &id) const;
 };
 
 } // namespace Internal
