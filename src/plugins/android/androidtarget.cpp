@@ -55,7 +55,6 @@ AndroidTarget::AndroidTarget(Qt4Project *parent, const QString &id) :
     Qt4BaseTarget(parent, id)
   , m_androidFilesWatcher(new QFileSystemWatcher(this))
   , m_buildConfigurationFactory(new Qt4BuildConfigurationFactory(this))
-  , m_deployConfigurationFactory(new AndroidDeployConfigurationFactory(this))
 {
     setDisplayName(defaultDisplayName());
     setDefaultDisplayName(defaultDisplayName());
@@ -72,11 +71,6 @@ AndroidTarget::~AndroidTarget()
 Qt4BuildConfigurationFactory *AndroidTarget::buildConfigurationFactory() const
 {
     return m_buildConfigurationFactory;
-}
-
-ProjectExplorer::DeployConfigurationFactory *AndroidTarget::deployConfigurationFactory() const
-{
-    return m_deployConfigurationFactory;
 }
 
 void AndroidTarget::createApplicationProFiles()

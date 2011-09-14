@@ -20,6 +20,7 @@ are required by law.
 #include "androidtoolchain.h"
 #include "androidqtversionfactory.h"
 #include "androidtargetfactory.h"
+#include "androiddeployconfiguration.h"
 
 #include <QtCore/QtPlugin>
 
@@ -51,6 +52,7 @@ bool AndroidManager::initialize(const QStringList &arguments,
     addAutoReleasedObject(new AndroidTargetFactory);
     addAutoReleasedObject(new AndroidQtVersionFactory);
     addAutoReleasedObject(new AndroidToolChainFactory);
+    addAutoReleasedObject(new AndroidDeployConfigurationFactory);
     return true;
 }
 
