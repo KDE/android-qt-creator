@@ -148,7 +148,8 @@ Qt4BaseTarget *AndroidTargetFactory::create(ProjectExplorer::Project *parent,
                                     info.directory);
     }
 
-    target->addDeployConfiguration(target->deployConfigurationFactory()->create(target, ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
+    target->addDeployConfiguration(target->createDeployConfiguration(ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
+
     target->createApplicationProFiles();
     if (target->runConfigurations().isEmpty())
         target->addRunConfiguration(new ProjectExplorer::CustomExecutableRunConfiguration(target));

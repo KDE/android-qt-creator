@@ -36,7 +36,6 @@ class Qt4ProFileNode;
 
 namespace Android {
 namespace Internal {
-class AndroidDeployConfigurationFactory;
 class AndroidTargetFactory;
 
 class AndroidTarget  : public Qt4ProjectManager::Qt4BaseTarget
@@ -69,12 +68,10 @@ public:
         ReleaseBuildSigned
     };
 
-public:
     explicit AndroidTarget(Qt4ProjectManager::Qt4Project *parent, const QString &id);
     virtual ~AndroidTarget();
 
     Qt4ProjectManager::Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
-    ProjectExplorer::DeployConfigurationFactory *deployConfigurationFactory() const;
     void createApplicationProFiles();
 
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);
@@ -169,7 +166,6 @@ private:
     QFileSystemWatcher *const m_androidFilesWatcher;
 
     Qt4ProjectManager::Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
-    AndroidDeployConfigurationFactory *m_deployConfigurationFactory;
 
 };
 
