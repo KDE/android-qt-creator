@@ -49,7 +49,7 @@ bool AndroidTargetFactory::supportsTargetId(const QString &id) const
 QSet<QString> AndroidTargetFactory::targetFeatures(const QString &/*id*/) const
 {
     QSet<QString> features;
-    features << Qt4ProjectManager::Constants::DESKTOP_TARGETFEATURE_ID;
+    features << Qt4ProjectManager::Constants::MOBILE_TARGETFEATURE_ID;
     features << Qt4ProjectManager::Constants::SHADOWBUILD_TARGETFEATURE_ID;
     // how to check check whether they component set is really installed?
     features << Qt4ProjectManager::Constants::QTQUICKCOMPONENTS_MEEGO_TARGETFEATURE_ID;
