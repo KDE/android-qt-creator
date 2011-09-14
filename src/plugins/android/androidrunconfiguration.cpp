@@ -48,7 +48,6 @@ AndroidRunConfiguration::AndroidRunConfiguration(AndroidTarget *parent,
                                                  AndroidRunConfiguration *source)
     : RunConfiguration(parent, source)
     , m_proFilePath(source->m_proFilePath)
-    , m_gdbPath(source->m_gdbPath)
 {
     init();
 }
