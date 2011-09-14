@@ -107,21 +107,6 @@ Qt4BaseTarget *AndroidTargetFactory::restore(ProjectExplorer::Project *parent, c
     return 0;
 }
 
-QString AndroidTargetFactory::defaultShadowBuildDirectory(const QString &projectLocation, const QString &id)
-{
-    QString suffix;
-    if (id == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID))
-        suffix = QLatin1String("android");
-    else
-        return QString();
-
-    // currently we can't have the build directory to be deeper than the source directory
-    // since that is broken in qmake
-    // Once qmake is fixed we can change that to have a top directory and
-    // subdirectories per build. (Replacing "QChar('-')" with "QChar('/') )
-    return projectLocation + QLatin1Char('-') + suffix;
-}
-
 Qt4BaseTarget *AndroidTargetFactory::create(ProjectExplorer::Project *parent, const QString &id)
 {
     if (!canCreate(parent, id))
@@ -170,13 +155,9 @@ Qt4BaseTarget *AndroidTargetFactory::create(ProjectExplorer::Project *parent,
     return target;
 }
 
-
-bool AndroidTargetFactory::isMobileTarget(const QString &/*id*/)
+QString AndroidTargetFactory::buildNameForId(const QString &id) const
 {
-    return true;
-}
-
-bool AndroidTargetFactory::supportsShadowBuilds(const QString &/*id*/)
-{
-    return true;
+    if (id == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID))
+        return QLatin1String("android");
+    return QString();
 }
