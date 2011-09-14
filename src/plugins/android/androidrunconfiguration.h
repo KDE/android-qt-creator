@@ -80,7 +80,6 @@ private:
     void init();
 
     QString m_proFilePath;
-    mutable QString m_gdbPath;
 
 };
 
