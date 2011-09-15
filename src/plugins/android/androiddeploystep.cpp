@@ -108,8 +108,10 @@ void AndroidDeployStep::setUseLocalQtLibs(bool useLocal)
 QVariantMap AndroidDeployStep::toMap() const
 {
     QVariantMap map(BuildStep::toMap());
-//    map.insert(AndroidDeployQtLibsKey, m_deployQtLibs);
-//    map.insert(AndroidForceDeployKey, m_forceDeploy);
+
+    map.insert(AndroidDeployActionKey, m_deployAction);
+    map.insert(AndroidUseLocalQtLibsKey, m_useLocalQtLibs);
+    map.insert(AndroidQASIPackagePath, m_QASIPackagePath);
     return map;
 }
 
@@ -117,8 +119,9 @@ bool AndroidDeployStep::fromMap(const QVariantMap &map)
 {
     if (!BuildStep::fromMap(map))
         return false;
-//    m_deployQtLibs = map.value(AndroidDeployQtLibsKey, m_deployQtLibs).toBool();
-//    m_forceDeploy = map.value(AndroidForceDeployKey, m_forceDeploy).toBool();
+    m_deployAction = AndroidDeployAction(map.value(AndroidDeployActionKey, NoDeploy).toInt());
+    m_useLocalQtLibs = map.value(AndroidUseLocalQtLibsKey, false).toBool();
+    m_QASIPackagePath = map.value(AndroidQASIPackagePath).toString();
     return true;
 }
 

@@ -14,8 +14,20 @@ are required by law.
 
 namespace Android {
 namespace Internal {
+class AndroidDeployConfigurationFactory;
 
-class Target;
+class AndroidDeployConfiguration : public ProjectExplorer::DeployConfiguration
+{
+    friend class AndroidDeployConfigurationFactory;
+public:
+    virtual QVariantMap toMap() const;
+
+    virtual ProjectExplorer::DeployConfigurationWidget *configurationWidget() const;
+protected:
+    AndroidDeployConfiguration(ProjectExplorer::Target *target, const QString &id);
+    AndroidDeployConfiguration(ProjectExplorer::Target *target, ProjectExplorer::DeployConfiguration *source);
+    virtual bool fromMap(const QVariantMap &map);
+};
 
 class AndroidDeployConfigurationFactory : public ProjectExplorer::DeployConfigurationFactory
 {
@@ -24,7 +36,17 @@ class AndroidDeployConfigurationFactory : public ProjectExplorer::DeployConfigur
 public:
     explicit AndroidDeployConfigurationFactory(QObject *parent = 0);
 
+    bool canCreate(ProjectExplorer::Target *parent, const QString &id) const;
     ProjectExplorer::DeployConfiguration *create(ProjectExplorer::Target *parent, const QString &id);
+    bool canRestore(ProjectExplorer::Target *parent, const QVariantMap &map) const;
+    ProjectExplorer::DeployConfiguration *restore(ProjectExplorer::Target *parent, const QVariantMap &map);
+    bool canClone(ProjectExplorer::Target *parent, ProjectExplorer::DeployConfiguration *source) const;
+    ProjectExplorer::DeployConfiguration *clone(ProjectExplorer::Target *parent, ProjectExplorer::DeployConfiguration *source);
+
+    QStringList availableCreationIds(ProjectExplorer::Target *parent) const;
+    // used to translate the ids to names to display to the user
+    QString displayNameForId(const QString &id) const;
+
 };
 
 } // namespace Internal

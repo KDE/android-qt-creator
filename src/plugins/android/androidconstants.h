@@ -35,6 +35,7 @@ enum AndroidQemuStatus {
 
 static const QLatin1String ANDROID_RC_ID(ANDROID_PREFIX);
 static const QLatin1String ANDROID_RC_ID_PREFIX(ANDROID_PREFIX ".");
+static const QLatin1String ANDROID_DEPLOY_ID("Qt4Projectmanager.Android.DeployConfiguration");
 
 static const QLatin1String AndroidArgumentsKey(ANDROID_PREFIX ".Arguments");
 static const QLatin1String AndroidSimulatorPathKey(ANDROID_PREFIX ".Simulator");
@@ -44,6 +45,11 @@ static const QLatin1String AndroidExportedLocalDirsKey(ANDROID_PREFIX ".Exported
 static const QLatin1String AndroidBaseEnvironmentBaseKey(ANDROID_PREFIX ".BaseEnvironmentBase");
 static const QLatin1String AndroidUserEnvironmentChangesKey(ANDROID_PREFIX ".UserEnvironmentChanges");
 static const QLatin1String AndroidUseRemoteGdbKey(ANDROID_PREFIX ".UseRemoteGdb");
+
+// deploy keys
+static const QLatin1String AndroidDeployActionKey(ANDROID_PREFIX ".DeployAction");
+static const QLatin1String AndroidUseLocalQtLibsKey(ANDROID_PREFIX ".UseLocalQt");
+static const QLatin1String AndroidQASIPackagePath(ANDROID_PREFIX ".QASIPackagePath");
 
 } // namespace Internal
 
