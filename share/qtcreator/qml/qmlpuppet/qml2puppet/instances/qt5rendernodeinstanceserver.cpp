@@ -60,16 +60,19 @@
 #include "completecomponentcommand.h"
 #include "componentcompletedcommand.h"
 #include "createscenecommand.h"
+#include "sgitemnodeinstance.h"
+
 
 #include "dummycontextobject.h"
 
-#include "designersupportfunctions.h"
+#include <designersupport.h>
 
 namespace QmlDesigner {
 
 Qt5RenderNodeInstanceServer::Qt5RenderNodeInstanceServer(NodeInstanceClientInterface *nodeInstanceClient) :
     Qt5NodeInstanceServer(nodeInstanceClient)
 {
+    Internal::SGItemNodeInstance::createEffectItem(true);
 }
 
 void Qt5RenderNodeInstanceServer::collectItemChangesAndSendChangeCommands()
@@ -78,31 +81,23 @@ void Qt5RenderNodeInstanceServer::collectItemChangesAndSendChangeCommands()
     if (!inFunction) {
         inFunction = true;
 
-        bool adjustSceneRect = false;
-
-        if (sgView()) {
+        if (sgView() && nodeInstanceClient()->bytesToWrite() < 10000) {
             foreach (QSGItem *item, allItems()) {
                 if (item && hasInstanceForObject(item)) {
                     ServerNodeInstance instance = instanceForObject(item);
-                    if (DesignerSupport::dirty(item, DesignerSupport::ContentUpdateMask))
+                    if (DesignerSupport::isDirty(item, DesignerSupport::ContentUpdateMask))
                         m_dirtyInstanceSet.insert(instance);
                 }
             }
 
             clearChangedPropertyList();
-            resetAllItems();
 
-            if (!m_dirtyInstanceSet.isEmpty() && nodeInstanceClient()->bytesToWrite() < 10000) {
+            if (!m_dirtyInstanceSet.isEmpty()) {
                 nodeInstanceClient()->pixmapChanged(createPixmapChangedCommand(m_dirtyInstanceSet.toList()));
                 m_dirtyInstanceSet.clear();
             }
 
-//            if (adjustSceneRect) {
-//                QRectF boundingRect = rootNodeInstance().boundingRect();
-//                if (boundingRect.isValid()) {
-//                    declarativeView()->setSceneRect(boundingRect);
-//                }
-//            }
+            resetAllItems();
 
             slowDownRenderTimer();
             nodeInstanceClient()->flush();
@@ -116,7 +111,7 @@ void Qt5RenderNodeInstanceServer::collectItemChangesAndSendChangeCommands()
 
 void Qt5RenderNodeInstanceServer::createScene(const CreateSceneCommand &command)
 {
-    NodeInstanceServer::createScene(command);
+    Qt5NodeInstanceServer::createScene(command);
 
     QList<ServerNodeInstance> instanceList;
     foreach (const InstanceContainer &container, command.instances()) {
@@ -131,20 +126,21 @@ void Qt5RenderNodeInstanceServer::createScene(const CreateSceneCommand &command)
 
 void Qt5RenderNodeInstanceServer::clearScene(const ClearSceneCommand &command)
 {
-    NodeInstanceServer::clearScene(command);
+    Qt5NodeInstanceServer::clearScene(command);
 
     m_dirtyInstanceSet.clear();
 }
 
 void Qt5RenderNodeInstanceServer::completeComponent(const CompleteComponentCommand &command)
 {
-    NodeInstanceServer::completeComponent(command);
+    Qt5NodeInstanceServer::completeComponent(command);
 
     QList<ServerNodeInstance> instanceList;
     foreach (qint32 instanceId, command.instances()) {
         ServerNodeInstance instance = instanceForId(instanceId);
         if (instance.isValid()) {
             instanceList.append(instance);
+            m_dirtyInstanceSet.insert(instance);
         }
     }
 

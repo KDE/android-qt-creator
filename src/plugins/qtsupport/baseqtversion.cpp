@@ -38,6 +38,7 @@
 #include "qtversionmanager.h"
 #include "profilereader.h"
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
 #include <projectexplorer/debugginghelper.h>
 #include <projectexplorer/gnumakeparser.h>
 #include <projectexplorer/projectexplorer.h>
@@ -45,6 +46,7 @@
 #include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/persistentsettings.h>
 
+#include <utils/environment.h>
 #include <utils/synchronousprocess.h>
 
 #include <QtCore/QDir>
@@ -297,7 +299,7 @@ bool BaseQtVersion::isValid() const
     return  !qmakeCommand().isEmpty()
             && !m_notInstalled
             && m_versionInfo.contains("QT_INSTALL_BINS")
-            && (!m_mkspecFullPath.isEmpty() || !m_mkspecUpToDate)
+            && !m_mkspecFullPath.isEmpty()
             && m_qmakeIsExecutable;
 }
 
@@ -338,6 +340,15 @@ bool BaseQtVersion::toolChainAvailable(const QString &id) const
         if (!ProjectExplorer::ToolChainManager::instance()->findToolChains(abi).isEmpty())
             return true;
     return false;
+}
+
+QList<ProjectExplorer::Abi> BaseQtVersion::qtAbis() const
+{
+    if (m_qtAbis.isEmpty())
+        m_qtAbis = detectQtAbis();
+    if (m_qtAbis.isEmpty())
+        m_qtAbis.append(ProjectExplorer::Abi()); // add empty ABI by default: This is compatible with all TCs.
+    return m_qtAbis;
 }
 
 bool BaseQtVersion::equals(BaseQtVersion *other)
@@ -486,7 +497,7 @@ QString BaseQtVersion::designerCommand() const
     if (!isValid())
         return QString();
     if (m_designerCommand.isNull())
-        m_designerCommand = findQtBinary(possibleGuiBinaries(QLatin1String("designer")));
+        m_designerCommand = findQtBinary(Designer);
     return m_designerCommand;
 }
 
@@ -495,7 +506,7 @@ QString BaseQtVersion::linguistCommand() const
     if (!isValid())
         return QString();
     if (m_linguistCommand.isNull())
-        m_linguistCommand = findQtBinary(possibleGuiBinaries(QLatin1String("linguist")));
+        m_linguistCommand = findQtBinary(Linguist);
     return m_linguistCommand;
 }
 
@@ -504,27 +515,72 @@ QString BaseQtVersion::qmlviewerCommand() const
     if (!isValid())
         return QString();
 
-    if (m_qmlviewerCommand.isNull()) {
-#ifdef Q_OS_MAC
-        const QString qmlViewerName = QLatin1String("QMLViewer");
-#else
-        const QString qmlViewerName = QLatin1String("qmlviewer");
-#endif
-
-        m_qmlviewerCommand = findQtBinary(possibleGuiBinaries(qmlViewerName));
-    }
+    if (m_qmlviewerCommand.isNull())
+        m_qmlviewerCommand = findQtBinary(QmlViewer);
     return m_qmlviewerCommand;
 }
 
-QString BaseQtVersion::findQtBinary(const QStringList &possibleCommands) const
+QString BaseQtVersion::findQtBinary(BINARIES binary) const
 {
-    QString qtdirbin = versionInfo().value(QLatin1String("QT_INSTALL_BINS"));
-    if (qtdirbin.isEmpty())
-        return QString();
-    qtdirbin += QLatin1Char('/');
+    QString baseDir;
+    if (qtVersion() < QtVersionNumber(5, 0, 0)) {
+        baseDir = versionInfo().value(QLatin1String("QT_INSTALL_BINS"));
+    } else {
+        ensureMkSpecParsed();
+        switch (binary) {
+        case QmlViewer:
+            baseDir = m_mkspecValues.value("QT.declarative.bins");
+            break;
+        case Designer:
+        case Linguist:
+            baseDir = m_mkspecValues.value("QT.designer.bins");
+            break;
+        case Uic:
+            baseDir = versionInfo().value(QLatin1String("QT_INSTALL_BINS"));
+            break;
+        default:
+            // Can't happen
+            Q_ASSERT(false);
+        }
+    }
 
+    if (baseDir.isEmpty())
+        return QString();
+    if (!baseDir.endsWith('/'))
+        baseDir += QLatin1Char('/');
+
+    QStringList possibleCommands;
+    switch (binary) {
+    case QmlViewer: {
+        if (qtVersion() < QtVersionNumber(5, 0, 0)) {
+            possibleCommands << possibleGuiBinaries(QLatin1String("qmlviewer"));
+        } else {
+#if defined(Q_OS_WIN)
+            possibleCommands << QLatin1String("qmlscene.exe");
+#else
+            possibleCommands << QLatin1String("qmlscene");
+#endif
+        }
+    }
+        break;
+    case Designer:
+        possibleCommands << possibleGuiBinaries(QLatin1String("designer"));
+        break;
+    case Linguist:
+        possibleCommands << possibleGuiBinaries(QLatin1String("linguist"));
+        break;
+    case Uic:
+#ifdef Q_OS_WIN
+        possibleCommands << QLatin1String("uic.exe");
+#else
+        possibleCommands << QLatin1String("uic-qt4") << QLatin1String("uic4") << QLatin1String("uic");
+#endif
+        break;
+    default:
+        Q_ASSERT(false);
+    }
     foreach (const QString &possibleCommand, possibleCommands) {
-        const QString fullPath = qtdirbin + possibleCommand;
+        const QString fullPath = baseDir + possibleCommand;
         if (QFileInfo(fullPath).isFile())
             return QDir::cleanPath(fullPath);
     }
@@ -537,13 +593,7 @@ QString BaseQtVersion::uicCommand() const
         return QString();
     if (!m_uicCommand.isNull())
         return m_uicCommand;
-#ifdef Q_OS_WIN
-    const QStringList possibleCommands(QLatin1String("uic.exe"));
-#else
-    QStringList possibleCommands;
-    possibleCommands << QLatin1String("uic-qt4") << QLatin1String("uic4") << QLatin1String("uic");
-#endif
-    m_uicCommand = findQtBinary(possibleCommands);
+    m_uicCommand = findQtBinary(Uic);
     return m_uicCommand;
 }
 
@@ -623,6 +673,9 @@ void BaseQtVersion::parseMkSpec(ProFileEvaluator *evaluator) const
         else if (value == "build_all")
             m_defaultConfigIsDebugAndRelease = true;
     }
+
+    m_mkspecValues.insert("QT.designer.bins", evaluator->value("QT.designer.bins"));
+    m_mkspecValues.insert("QT.declarative.bins", evaluator->value("QT.declarative.bins"));
 }
 
 QString BaseQtVersion::mkspec() const
@@ -1158,11 +1211,5 @@ QString BaseQtVersion::qtCorePath(const QHash<QString,QString> &versionInfo, con
 
 QList<ProjectExplorer::Abi> BaseQtVersion::qtAbisFromLibrary(const QString &coreLibrary)
 {
-    QList<ProjectExplorer::Abi> qtAbis = ProjectExplorer::Abi::abisOfBinary(coreLibrary);
-    if (qtAbis.isEmpty() && !coreLibrary.isEmpty()) {
-        qWarning("Warning: Could not find ABI for '%s'"
-                 "Qt Creator does not know about the system includes, "
-                 "nor the system defines.", qPrintable(coreLibrary));
-    }
-    return qtAbis;
+    return ProjectExplorer::Abi::abisOfBinary(coreLibrary);
 }

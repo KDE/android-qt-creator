@@ -39,7 +39,7 @@
 #include "modemanager.h"
 #include "actionmanager/actionmanager.h"
 #include "actionmanager/command.h"
-#include "uniqueidmanager.h"
+#include "id.h"
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -176,6 +176,7 @@ NavigationWidget::NavigationWidget(QAction *toggleSideBarAction) :
 NavigationWidget::~NavigationWidget()
 {
     NavigationWidgetPrivate::m_instance = 0;
+    delete d;
 }
 
 NavigationWidget *NavigationWidget::instance()

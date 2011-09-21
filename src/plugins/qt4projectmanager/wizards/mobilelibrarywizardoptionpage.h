@@ -41,7 +41,6 @@ namespace Internal {
 class MobileLibraryWizardOptionPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(MobileLibraryWizardOptionPage)
 
 public:
     explicit MobileLibraryWizardOptionPage(QWidget *parent = 0);
@@ -56,7 +55,7 @@ public:
     void setLibraryType(int type);
 
 private:
-    class MobileLibraryWizardOptionPagePrivate *m_d;
+    class MobileLibraryWizardOptionPagePrivate *d;
 };
 
 } // namespace Internal

@@ -40,14 +40,14 @@
 #include <QtCore/QDirIterator>
 #include <QtGui/QPushButton>
 #include <QtGui/QFileDialog>
+#include <QtGui/QHBoxLayout>
 #include <QtGui/QVBoxLayout>
 
 using namespace Find;
-using namespace TextEditor::Internal;
+using namespace TextEditor;
 
-FindInFiles::FindInFiles(SearchResultWindow *resultWindow)
-  : BaseFileFind(resultWindow),
-    m_configWidget(0),
+FindInFiles::FindInFiles()
+  : m_configWidget(0),
     m_directory(0)
 {
 }
@@ -70,9 +70,25 @@ void FindInFiles::findAll(const QString &txt, Find::FindFlags findFlags)
 
 Utils::FileIterator *FindInFiles::files() const
 {
-    return new Utils::SubDirFileIterator(QStringList() << m_directory->currentText(),
+    return new Utils::SubDirFileIterator(QStringList() << QDir::fromNativeSeparators(m_directory->currentText()),
                                          fileNameFilters(),
                                          Core::EditorManager::instance()->defaultTextCodec());
+}
+
+QString FindInFiles::label() const
+{
+    const QStringList &nonEmptyComponents = QDir::cleanPath(
+                QFileInfo(QDir::fromNativeSeparators(m_directory->currentText())).absoluteFilePath())
+            .split(QLatin1Char('/'), QString::SkipEmptyParts);
+    return tr("Directory '%1':").arg(nonEmptyComponents.isEmpty() ? "/" : nonEmptyComponents.last());
+}
+
+QString FindInFiles::toolTip() const
+{
+    // %3 is filled by BaseFileFind::runNewSearch
+    return tr("Path: %1\nFilter: %2\n%3")
+            .arg(QDir::toNativeSeparators(QFileInfo(m_directory->currentText()).absoluteFilePath()))
+            .arg(fileNameFilters().join(QLatin1String(",")));
 }
 
 QWidget *FindInFiles::createConfigWidget()
@@ -83,7 +99,7 @@ QWidget *FindInFiles::createConfigWidget()
         gridLayout->setMargin(0);
         m_configWidget->setLayout(gridLayout);
 
-        QLabel *dirLabel = new QLabel(tr("&Directory:"));
+        QLabel *dirLabel = new QLabel(tr("Director&y:"));
         gridLayout->addWidget(dirLabel, 0, 0, Qt::AlignRight);
         m_directory = new QComboBox;
         m_directory->setEditable(true);
@@ -100,7 +116,7 @@ QWidget *FindInFiles::createConfigWidget()
         gridLayout->addWidget(browseButton, 0, 2);
         connect(browseButton, SIGNAL(clicked()), this, SLOT(openFileBrowser()));
 
-        QLabel * const filePatternLabel = new QLabel(tr("File &pattern:"));
+        QLabel * const filePatternLabel = new QLabel(tr("Fi&le pattern:"));
         filePatternLabel->setMinimumWidth(80);
         filePatternLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
         filePatternLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -145,3 +161,9 @@ void FindInFiles::readSettings(QSettings *settings)
     settings->endGroup();
     syncComboWithSettings(m_directory, m_directorySetting);
 }
+
+void FindInFiles::setDirectory(const QString &directory)
+{
+    syncComboWithSettings(m_directory, directory);
+}
+

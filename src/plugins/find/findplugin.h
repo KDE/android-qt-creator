@@ -38,8 +38,6 @@
 
 #include <extensionsystem/iplugin.h>
 
-#include <QtGui/QTextDocument>
-
 QT_BEGIN_NAMESPACE
 class QStringListModel;
 QT_END_NAMESPACE
@@ -50,7 +48,6 @@ struct FindPluginPrivate;
 
 namespace Internal {
 class FindToolBar;
-class FindToolWindow;
 class CurrentDocumentFind;
 } // namespace Internal
 
@@ -69,7 +66,7 @@ public:
     };
 
     // IPlugin
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
@@ -81,6 +78,7 @@ public:
     QStringListModel *replaceCompletionModel() const;
     void setUseFakeVim(bool on);
     void openFindToolBar(FindDirection direction);
+    void openFindDialog(IFindFilter *filter);
 
 public slots:
     void setCaseSensitive(bool sensitive);

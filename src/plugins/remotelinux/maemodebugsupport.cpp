@@ -30,9 +30,10 @@
 **************************************************************************/
 #include "maemodebugsupport.h"
 
-#include <remotelinux/linuxdeviceconfiguration.h>
-
+#include "maemorunconfiguration.h"
 #include "maemosshrunner.h"
+
+#include <remotelinux/linuxdeviceconfiguration.h>
 
 namespace RemoteLinux {
 namespace Internal {
@@ -47,7 +48,7 @@ MaemoDebugSupport::~MaemoDebugSupport()
 {
 }
 
-RemoteLinuxApplicationRunner *MaemoDebugSupport::runner() const { return m_runner; }
+AbstractRemoteLinuxApplicationRunner *MaemoDebugSupport::runner() const { return m_runner; }
 
 } // namespace Internal
 } // namespace RemoteLinux

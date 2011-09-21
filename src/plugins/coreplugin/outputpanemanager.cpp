@@ -47,7 +47,7 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/findplaceholder.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -97,6 +97,8 @@ void OutputPaneManager::updateStatusButtons(bool visible)
     int idx = m_widgetComboBox->itemData(m_widgetComboBox->currentIndex()).toInt();
     if (m_buttons.value(idx))
         m_buttons.value(idx)->setChecked(visible);
+    if (m_pageMap.value(idx))
+        m_pageMap.value(idx)->visibilityChanged(visible);
     m_minMaxAction->setVisible(OutputPanePlaceHolder::getCurrent()
                                && OutputPanePlaceHolder::getCurrent()->canMaximizeOrMinimize());
 }
@@ -382,6 +384,8 @@ void OutputPaneManager::slotHide()
         int idx = m_widgetComboBox->itemData(m_widgetComboBox->currentIndex()).toInt();
         if (m_buttons.value(idx))
             m_buttons.value(idx)->setChecked(false);
+        if (m_pageMap.value(idx))
+            m_pageMap.value(idx)->visibilityChanged(false);
         if (IEditor *editor = Core::EditorManager::instance()->currentEditor())
             editor->widget()->setFocus();
     }
@@ -440,7 +444,7 @@ void OutputPaneManager::showPage(int idx, bool focus)
         if (!OutputPanePlaceHolder::getCurrent()) {
             // In this mode we don't have a placeholder
             // switch to the output mode and switch the page
-            ICore::instance()->modeManager()->activateMode(Constants::MODE_EDIT);
+            ModeManager::instance()->activateMode(Constants::MODE_EDIT);
         }
         if (OutputPanePlaceHolder::getCurrent()) {
             // make the page visible

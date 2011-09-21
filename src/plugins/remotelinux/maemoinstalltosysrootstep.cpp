@@ -32,18 +32,21 @@
 
 #include "maemoinstalltosysrootstep.h"
 
-#include "deploymentinfo.h"
 #include "maemoglobal.h"
 #include "maemopackagecreationstep.h"
 #include "maemoqtversion.h"
-#include "qt4maemodeployconfiguration.h"
 
 #include <utils/fileutils.h>
 
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4target.h>
 #include <qtsupport/baseqtversion.h>
+#include <remotelinux/deployablefile.h>
+#include <remotelinux/deploymentinfo.h>
+#include <remotelinux/remotelinuxdeployconfiguration.h>
 
+#include <QtCore/QDir>
+#include <QtCore/QFileInfo>
 #include <QtCore/QLatin1Char>
 #include <QtCore/QProcess>
 #include <QtCore/QWeakPointer>
@@ -71,7 +74,7 @@ public:
 
     virtual QString summaryText() const
     {
-        if (!MaemoGlobal::earlierBuildStep<AbstractMaemoPackageCreationStep>(m_step->deployConfiguration(), m_step)) {
+        if (!m_step->deployConfiguration()->earlierBuildStep<AbstractMaemoPackageCreationStep>(m_step)) {
             return QLatin1String("<font color=\"red\">")
                 + tr("Cannot deploy to sysroot: No packaging step found.")
                 + QLatin1String("</font>");
@@ -146,10 +149,16 @@ AbstractMaemoInstallPackageToSysrootStep::AbstractMaemoInstallPackageToSysrootSt
 {
 }
 
+RemoteLinuxDeployConfiguration *AbstractMaemoInstallPackageToSysrootStep::deployConfiguration() const
+{
+    return qobject_cast<RemoteLinuxDeployConfiguration *>(BuildStep::deployConfiguration());
+}
+
+
 void AbstractMaemoInstallPackageToSysrootStep::run(QFutureInterface<bool> &fi)
 {
     const Qt4BuildConfiguration * const bc
-        = qobject_cast<Qt4BaseTarget *>(target())->activeBuildConfiguration();
+        = qobject_cast<Qt4BaseTarget *>(target())->activeQt4BuildConfiguration();
     if (!bc) {
         addOutput(tr("Cannot install to sysroot without build configuration."),
             ErrorMessageOutput);
@@ -158,7 +167,7 @@ void AbstractMaemoInstallPackageToSysrootStep::run(QFutureInterface<bool> &fi)
     }
 
     const AbstractMaemoPackageCreationStep * const pStep
-        = MaemoGlobal::earlierBuildStep<AbstractMaemoPackageCreationStep>(deployConfiguration(), this);
+        = deployConfiguration()->earlierBuildStep<AbstractMaemoPackageCreationStep>(this);
     if (!pStep) {
         addOutput(tr("Cannot install package to sysroot without packaging step."),
             ErrorMessageOutput);
@@ -296,7 +305,7 @@ MaemoCopyToSysrootStep::MaemoCopyToSysrootStep(BuildStepList *bsl,
 void MaemoCopyToSysrootStep::run(QFutureInterface<bool> &fi)
 {
     const Qt4BuildConfiguration * const bc
-        = qobject_cast<Qt4BaseTarget *>(target())->activeBuildConfiguration();
+        = qobject_cast<Qt4BaseTarget *>(target())->activeQt4BuildConfiguration();
     if (!bc) {
         addOutput(tr("Cannot copy to sysroot without build configuration."),
             ErrorMessageOutput);
@@ -315,7 +324,7 @@ void MaemoCopyToSysrootStep::run(QFutureInterface<bool> &fi)
     emit addOutput(tr("Copying files to sysroot ..."), MessageOutput);
     QDir sysrootDir(qtVersion->systemRoot());
     const QSharedPointer<DeploymentInfo> deploymentInfo
-        = qobject_cast<Qt4MaemoDeployConfiguration *>(deployConfiguration())->deploymentInfo();
+        = qobject_cast<RemoteLinuxDeployConfiguration *>(deployConfiguration())->deploymentInfo();
     const QChar sep = QLatin1Char('/');
     for (int i = 0; i < deploymentInfo->deployableCount(); ++i) {
         const DeployableFile &deployable = deploymentInfo->deployableAt(i);

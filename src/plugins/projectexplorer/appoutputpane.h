@@ -84,6 +84,8 @@ public:
     bool aboutToClose() const;
     bool closeTabs(CloseTabMode mode);
 
+    QList<RunControl *> runControls() const;
+
 signals:
      void allRunControlsFinished();
 
@@ -100,6 +102,7 @@ private slots:
     void attachToRunControl();
     bool closeTab(int index);
     void tabChanged(int);
+    void contextMenuRequested(const QPoint &pos, int index);
     void runControlStarted();
     void runControlFinished();
 
@@ -129,11 +132,15 @@ private:
     RunControl *currentRunControl() const;
     int tabWidgetIndexOf(int runControlIndex) const;
     void handleOldOutput(Core::OutputWindow *window) const;
+    void updateCloseActions();
 
     QWidget *m_mainWidget;
-    QTabWidget *m_tabWidget;
+    class TabWidget *m_tabWidget;
     QList<RunControlTab> m_runControlTabs;
     QAction *m_stopAction;
+    QAction *m_closeCurrentTabAction;
+    QAction *m_closeAllTabsAction;
+    QAction *m_closeOtherTabsAction;
     QToolButton *m_reRunButton;
     QToolButton *m_stopButton;
     QToolButton *m_attachButton;

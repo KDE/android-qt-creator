@@ -46,7 +46,8 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/vcsmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/filemanager.h>
 #include <coreplugin/iversioncontrol.h>
 
@@ -436,6 +437,7 @@ GitClient::~GitClient()
 }
 
 const char *GitClient::noColorOption = "--no-color";
+const char *GitClient::decorateOption = "--decorate";
 
 QString GitClient::findRepositoryForDirectory(const QString &dir)
 {
@@ -511,19 +513,20 @@ void GitClient::diff(const QString &workingDirectory,
     const QString editorId = QLatin1String(Git::Constants::GIT_DIFF_EDITOR_ID);
     const QString title = tr("Git Diff");
 
-    QStringList userDiffArgs = diffArgs;
     VCSBase::VCSBaseEditorWidget *editor = findExistingVCSEditor("originalFileName", workingDirectory);
     if (!editor) {
         GitCommitDiffArgumentsWidget *argWidget =
                 new GitCommitDiffArgumentsWidget(&m_settings, this, workingDirectory, diffArgs,
                                                  unstagedFileNames, stagedFileNames);
-        userDiffArgs = argWidget->arguments();
 
         editor = createVCSEditor(editorId, title,
                                  workingDirectory, true, "originalFileName", workingDirectory, argWidget);
         connect(editor, SIGNAL(diffChunkReverted(VCSBase::DiffChunk)), argWidget, SLOT(redoCommand()));
         editor->setRevertDiffChunkEnabled(true);
     }
+
+    GitCommitDiffArgumentsWidget *argWidget = qobject_cast<GitCommitDiffArgumentsWidget *>(editor->configurationWidget());
+    QStringList userDiffArgs = argWidget->arguments();
     editor->setDiffBaseDirectory(workingDirectory);
 
     // Create a batch of 2 commands to be run after each other in case
@@ -568,18 +571,19 @@ void GitClient::diff(const QString &workingDirectory,
     const QString title = tr("Git Diff \"%1\"").arg(fileName);
     const QString sourceFile = VCSBase::VCSBaseEditorWidget::getSource(workingDirectory, fileName);
 
-    QStringList userDiffArgs = diffArgs;
     VCSBase::VCSBaseEditorWidget *editor = findExistingVCSEditor("originalFileName", sourceFile);
     if (!editor) {
         GitFileDiffArgumentsWidget *argWidget =
                 new GitFileDiffArgumentsWidget(&m_settings, this, workingDirectory,
                                                diffArgs, fileName);
-        userDiffArgs = argWidget->arguments();
 
         editor = createVCSEditor(editorId, title, sourceFile, true, "originalFileName", sourceFile, argWidget);
         connect(editor, SIGNAL(diffChunkReverted(VCSBase::DiffChunk)), argWidget, SLOT(redoCommand()));
         editor->setRevertDiffChunkEnabled(true);
     }
+
+    GitFileDiffArgumentsWidget *argWidget = qobject_cast<GitFileDiffArgumentsWidget *>(editor->configurationWidget());
+    QStringList userDiffArgs = argWidget->arguments();
 
     QStringList cmdArgs;
     cmdArgs << QLatin1String("diff") << QLatin1String(noColorOption)
@@ -601,20 +605,18 @@ void GitClient::diffBranch(const QString &workingDirectory,
     const QString title = tr("Git Diff Branch \"%1\"").arg(branchName);
     const QString sourceFile = VCSBase::VCSBaseEditorWidget::getSource(workingDirectory, QStringList());
 
-    QStringList userDiffArgs = diffArgs;
     VCSBase::VCSBaseEditorWidget *editor = findExistingVCSEditor("BranchName", branchName);
-    if (!editor) {
-        GitBranchDiffArgumentsWidget *argWidget =
-                new GitBranchDiffArgumentsWidget(&m_settings, this, workingDirectory,
-                                                 diffArgs, branchName);
-        userDiffArgs = argWidget->arguments();
+    if (!editor)
+        editor = createVCSEditor(editorId, title, sourceFile, true, "BranchName", branchName,
+                                 new GitBranchDiffArgumentsWidget(&m_settings, this, workingDirectory,
+                                                                  diffArgs, branchName));
 
-        editor = createVCSEditor(editorId, title, sourceFile, true, "BranchName", branchName, argWidget);
-    }
+    GitBranchDiffArgumentsWidget *argWidget = qobject_cast<GitBranchDiffArgumentsWidget *>(editor->configurationWidget());
+    QStringList userDiffArgs = argWidget->arguments();
 
     QStringList cmdArgs;
     cmdArgs << QLatin1String("diff") << QLatin1String(noColorOption)
-              << diffArgs  << branchName;
+              << userDiffArgs  << branchName;
 
     executeGit(workingDirectory, cmdArgs, editor);
 }
@@ -631,7 +633,7 @@ void GitClient::status(const QString &workingDirectory)
             Qt::QueuedConnection);
 }
 
-static const char graphLogFormatC[] = "%h %an %s %ci";
+static const char graphLogFormatC[] = "%h %d %an %s %ci";
 
 // Create a graphical log.
 void GitClient::graphLog(const QString &workingDirectory, const QString & branch)
@@ -668,7 +670,8 @@ void GitClient::log(const QString &workingDirectory, const QStringList &fileName
         qDebug() << "log" << workingDirectory << fileNames;
 
     QStringList arguments;
-    arguments << QLatin1String("log") << QLatin1String(noColorOption);
+    arguments << QLatin1String("log") << QLatin1String(noColorOption)
+              << QLatin1String(decorateOption);
 
     if (m_settings.logCount > 0)
          arguments << QLatin1String("-n") << QString::number(m_settings.logCount);
@@ -712,20 +715,19 @@ void GitClient::show(const QString &source, const QString &id, const QStringList
         return;
     }
 
-    QStringList userArgs = args;
     const QString title = tr("Git Show \"%1\"").arg(id);
     const QString editorId = QLatin1String(Git::Constants::GIT_DIFF_EDITOR_ID);
     VCSBase::VCSBaseEditorWidget *editor = findExistingVCSEditor("show", id);
-    if (!editor) {
-        GitShowArgumentsWidget *argWidget =
-                new GitShowArgumentsWidget(&m_settings, this, source,
-                                           QStringList(), id);
-        userArgs = argWidget->arguments();
-        editor = createVCSEditor(editorId, title, source, true, "show", id, argWidget);
-    }
+    if (!editor)
+        editor = createVCSEditor(editorId, title, source, true, "show", id,
+                                 new GitShowArgumentsWidget(&m_settings, this, source, args, id));
+
+    GitShowArgumentsWidget *argWidget = qobject_cast<GitShowArgumentsWidget *>(editor->configurationWidget());
+    QStringList userArgs = argWidget->arguments();
 
     QStringList arguments;
     arguments << QLatin1String("show") << QLatin1String(noColorOption);
+    arguments << QLatin1String(decorateOption);
     arguments.append(userArgs);
     arguments << id;
 
@@ -759,17 +761,17 @@ void GitClient::blame(const QString &workingDirectory,
     const QString title = tr("Git Blame \"%1\"").arg(id);
     const QString sourceFile = VCSBase::VCSBaseEditorWidget::getSource(workingDirectory, fileName);
 
-    QStringList userBlameArgs = args;
     VCSBase::VCSBaseEditorWidget *editor = findExistingVCSEditor("blameFileName", id);
     if (!editor) {
         GitBlameArgumentsWidget *argWidget =
-                new GitBlameArgumentsWidget(&m_settings, this, workingDirectory, userBlameArgs,
+                new GitBlameArgumentsWidget(&m_settings, this, workingDirectory, args,
                                             revision, fileName);
         editor = createVCSEditor(editorId, title, sourceFile, true, "blameFileName", id, argWidget);
         argWidget->setEditor(editor);
-
-        userBlameArgs = argWidget->arguments();
     }
+
+    GitBlameArgumentsWidget *argWidget = qobject_cast<GitBlameArgumentsWidget *>(editor->configurationWidget());
+    QStringList userBlameArgs = argWidget->arguments();
 
     QStringList arguments(QLatin1String("blame"));
     arguments << QLatin1String("--root");
@@ -965,6 +967,11 @@ bool GitClient::synchronousInit(const QString &workingDirectory)
     outputWindow()->append(commandOutputFromLocal8Bit(outputText));
     if (!rc)
         outputWindow()->appendError(commandOutputFromLocal8Bit(errorText));
+    else {
+        // TODO: Turn this into a VCSBaseClient and use resetCachedVcsInfo(...)
+        Core::VcsManager *vcsManager = m_core->vcsManager();
+        vcsManager->resetVersionControlForDirectory(workingDirectory);
+    }
     return rc;
 }
 
@@ -1365,7 +1372,7 @@ bool GitClient::synchronousShow(const QString &workingDirectory, const QString &
         return false;
     }
     QStringList args(QLatin1String("show"));
-    args << QLatin1String(noColorOption) << id;
+    args << QLatin1String(decorateOption) << QLatin1String(noColorOption) << id;
     QByteArray outputText;
     QByteArray errorText;
     const bool rc = fullySynchronousGit(workingDirectory, args, &outputText, &errorText);
@@ -2371,7 +2378,10 @@ bool GitClient::cloneRepository(const QString &directory,const QByteArray &url)
         workingDirectory.cdUp();
         const Utils::SynchronousProcessResponse resp =
                 synchronousGit(workingDirectory.path(), arguments, flags);
-        return resp.result == Utils::SynchronousProcessResponse::Finished;
+        // TODO: Turn this into a VCSBaseClient and use resetCachedVcsInfo(...)
+        Core::VcsManager *vcsManager = m_core->vcsManager();
+        vcsManager->resetVersionControlForDirectory(workingDirectory.absolutePath());
+        return (resp.result == Utils::SynchronousProcessResponse::Finished);
     }
 }
 

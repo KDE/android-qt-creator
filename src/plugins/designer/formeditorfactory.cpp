@@ -61,9 +61,9 @@ FormEditorFactory::FormEditorFactory()
                                                QLatin1String("ui"));
 }
 
-QString FormEditorFactory::id() const
+Core::Id FormEditorFactory::id() const
 {
-    return QLatin1String(K_DESIGNER_XML_EDITOR_ID);
+    return K_DESIGNER_XML_EDITOR_ID;
 }
 
 QString FormEditorFactory::displayName() const
@@ -98,7 +98,7 @@ QStringList FormEditorFactory::mimeTypes() const
 
 void FormEditorFactory::designerModeClicked()
 {
-    Core::ICore::instance()->modeManager()->activateMode(QLatin1String(Core::Constants::MODE_DESIGN));
+    Core::ModeManager::instance()->activateMode(QLatin1String(Core::Constants::MODE_DESIGN));
 }
 
 } // namespace Internal

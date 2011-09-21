@@ -54,6 +54,7 @@
 #include <utils/qtcprocess.h>
 #include <utils/pathchooser.h>
 #include <utils/detailswidget.h>
+#include <utils/stringutils.h>
 #include <utils/debuggerlanguagechooser.h>
 #include <qtsupport/qtoutputformatter.h>
 #include <qtsupport/baseqtversion.h>
@@ -66,6 +67,8 @@
 #include <QtGui/QCheckBox>
 #include <QtGui/QToolButton>
 #include <QtGui/QComboBox>
+#include <QtCore/QFileInfo>
+#include <QtCore/QDir>
 
 using namespace Qt4ProjectManager::Internal;
 using namespace Qt4ProjectManager;
@@ -526,7 +529,7 @@ bool Qt4RunConfiguration::fromMap(const QVariantMap &map)
 QString Qt4RunConfiguration::executable() const
 {
     Qt4Project *pro = qt4Target()->qt4Project();
-    TargetInformation ti = pro->rootProjectNode()->targetInformation(m_proFilePath);
+    TargetInformation ti = pro->rootQt4ProjectNode()->targetInformation(m_proFilePath);
     if (!ti.valid)
         return QString();
     return ti.executable;
@@ -562,8 +565,8 @@ QString Qt4RunConfiguration::baseWorkingDirectory() const
 
     // else what the pro file reader tells us
     Qt4Project *pro = qt4Target()->qt4Project();
-    TargetInformation ti = pro->rootProjectNode()->targetInformation(m_proFilePath);
-    if(!ti.valid)
+    TargetInformation ti = pro->rootQt4ProjectNode()->targetInformation(m_proFilePath);
+    if (!ti.valid)
         return QString();
     return ti.workingDir;
 }
@@ -606,10 +609,20 @@ Utils::Environment Qt4RunConfiguration::baseEnvironment() const
     // The user could be linking to a library found via a -L/some/dir switch
     // to find those libraries while actually running we explicitly prepend those
     // dirs to the library search path
-    const Qt4ProFileNode *node = qt4Target()->qt4Project()->rootProjectNode()->findProFileFor(m_proFilePath);
-    if (node)
-        foreach(const QString &dir, node->variableValue(LibDirectoriesVar))
-            env.prependOrSetLibrarySearchPath(dir);
+    const Qt4ProFileNode *node = qt4Target()->qt4Project()->rootQt4ProjectNode()->findProFileFor(m_proFilePath);
+    if (node) {
+        const QStringList libDirectories = node->variableValue(LibDirectoriesVar);
+        if (!libDirectories.isEmpty()) {
+            const QString proDirectory = QFileInfo(node->path()).absolutePath();
+            foreach (QString dir, libDirectories) {
+                // Fix up relative entries like "LIBS+=-L.."
+                const QFileInfo fi(dir);
+                if (!fi.isAbsolute())
+                    dir = QDir::cleanPath(proDirectory + QLatin1Char('/') + dir);
+                env.prependOrSetLibrarySearchPath(dir);
+            } // foreach
+        } // libDirectories
+    } // node
     return env;
 }
 
@@ -663,7 +676,7 @@ QString Qt4RunConfiguration::proFilePath() const
 
 QString Qt4RunConfiguration::dumperLibrary() const
 {
-    QtSupport::BaseQtVersion *version = qt4Target()->activeBuildConfiguration()->qtVersion();
+    QtSupport::BaseQtVersion *version = qt4Target()->activeQt4BuildConfiguration()->qtVersion();
     if (version)
         return version->gdbDebuggingHelperLibrary();
     return QString();
@@ -671,7 +684,7 @@ QString Qt4RunConfiguration::dumperLibrary() const
 
 QStringList Qt4RunConfiguration::dumperLibraryLocations() const
 {
-    QtSupport::BaseQtVersion *version = qt4Target()->activeBuildConfiguration()->qtVersion();
+    QtSupport::BaseQtVersion *version = qt4Target()->activeQt4BuildConfiguration()->qtVersion();
     if (version)
         return version->debuggingHelperLibraryLocations();
     return QStringList();

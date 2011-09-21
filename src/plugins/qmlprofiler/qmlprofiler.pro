@@ -9,7 +9,7 @@ include(../../plugins/analyzerbase/analyzerbase.pri)
 include(../../plugins/qmlprojectmanager/qmlprojectmanager.pri)
 include(../../plugins/qt4projectmanager/qt4projectmanager.pri)
 include(../../plugins/remotelinux/remotelinux.pri)
-include(../../libs/qmljsdebugclient/qmljsdebugclient-lib.pri)
+include(../../libs/qmljsdebugclient/qmljsdebugclient.pri)
 include(../../libs/extensionsystem/extensionsystem.pri)
 
 QT += network script declarative
@@ -26,7 +26,6 @@ SOURCES += \
     localqmlprofilerrunner.cpp \
     codaqmlprofilerrunner.cpp \
     remotelinuxqmlprofilerrunner.cpp \
-    qmlprofilertraceclient.cpp \
     qmlprofilereventview.cpp \
     qmlprofilerruncontrolfactory.cpp
 
@@ -43,9 +42,7 @@ HEADERS += \
     localqmlprofilerrunner.h \
     codaqmlprofilerrunner.h \
     remotelinuxqmlprofilerrunner.h \
-    qmlprofilertraceclient.h \
     qmlprofilereventview.h \
-    qmlprofilereventtypes.h \
     qmlprofilerruncontrolfactory.h
 
 RESOURCES += \

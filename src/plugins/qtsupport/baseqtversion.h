@@ -38,10 +38,17 @@
 #include <projectexplorer/abi.h>
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/task.h>
-#include <projectexplorer/ioutputparser.h>
-#include <utils/environment.h>
 
 #include <QtCore/QVariantMap>
+#include <QtGui/QWidget>
+
+namespace Utils {
+class Environment;
+} // namespace Utils
+
+namespace ProjectExplorer {
+class IOutputParser;
+} // namespace ProjectExplorer
 
 QT_BEGIN_NAMESPACE
 class ProFileEvaluator;
@@ -118,7 +125,8 @@ public:
 
     virtual bool supportsTargetId(const QString &id) const = 0;
     virtual QSet<QString> supportedTargetIds() const = 0;
-    virtual QList<ProjectExplorer::Abi> qtAbis() const = 0;
+    QList<ProjectExplorer::Abi> qtAbis() const;
+    virtual QList<ProjectExplorer::Abi> detectQtAbis() const = 0;
 
     // Returns the PREFIX, BINPREFIX, DOCPREFIX and similar information
     virtual QHash<QString,QString> versionInfo() const;
@@ -221,7 +229,8 @@ private:
     void ctor(const QString &qmakePath);
     void updateSourcePath() const;
     void updateVersionInfo() const;
-    QString findQtBinary(const QStringList &possibleName) const;
+    enum BINARIES { QmlViewer, Designer, Linguist, Uic };
+    QString findQtBinary(BINARIES binary) const;
     void updateMkspec() const;
     void setId(int id); // used by the qtversionmanager for legacy restore
                         // and by the qtoptionspage to replace qt versions
@@ -243,6 +252,7 @@ private:
     mutable bool m_mkspecReadUpToDate;
     mutable bool m_defaultConfigIsDebug;
     mutable bool m_defaultConfigIsDebugAndRelease;
+    mutable QHash<QString, QString> m_mkspecValues;
 
     mutable bool m_versionInfoUpToDate;
     mutable QHash<QString,QString> m_versionInfo;
@@ -259,6 +269,7 @@ private:
     mutable QString m_qmlviewerCommand;
 
     mutable bool m_qmakeIsExecutable;
+    mutable QList<ProjectExplorer::Abi> m_qtAbis;
 };
 }
 

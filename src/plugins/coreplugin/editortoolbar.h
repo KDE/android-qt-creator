@@ -35,12 +35,10 @@
 
 #include "core_global.h"
 
-#include <QtCore/QScopedPointer>
-
 #include <utils/styledbar.h>
 
 namespace Core {
-    class IEditor;
+class IEditor;
 
 struct EditorToolBarPrivate;
 
@@ -51,7 +49,7 @@ struct EditorToolBarPrivate;
 class CORE_EXPORT EditorToolBar : public Utils::StyledBar
 {
     Q_OBJECT
-    Q_DISABLE_COPY(EditorToolBar)
+
 public:
     explicit EditorToolBar(QWidget *parent = 0);
     virtual ~EditorToolBar();
@@ -104,7 +102,7 @@ private:
     void updateToolBar(QWidget *toolBar);
     IEditor *currentEditor() const;
 
-    QScopedPointer<EditorToolBarPrivate> d;
+    EditorToolBarPrivate *d;
 };
 
 } // namespace Core

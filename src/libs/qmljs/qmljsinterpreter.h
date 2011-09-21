@@ -51,12 +51,10 @@ namespace QmlJS {
 class NameId;
 class Document;
 
-namespace Interpreter {
-
 ////////////////////////////////////////////////////////////////////////////////
 // Forward declarations
 ////////////////////////////////////////////////////////////////////////////////
-class Engine;
+class ValueOwner;
 class Value;
 class NullValue;
 class UndefinedValue;
@@ -74,6 +72,9 @@ class AnchorLineValue;
 class Imports;
 class TypeScope;
 class JSImportScope;
+class Context;
+typedef QSharedPointer<const Context> ContextPtr;
+class ReferenceContext;
 
 typedef QList<const Value *> ValueList;
 
@@ -282,98 +283,23 @@ public:
     virtual bool processGeneratedSlot(const QString &name, const Value *value);
 };
 
-class QMLJS_EXPORT ScopeChain
-{
-public:
-    ScopeChain();
-
-    class QMLJS_EXPORT QmlComponentChain
-    {
-        Q_DISABLE_COPY(QmlComponentChain)
-    public:
-        QmlComponentChain();
-        ~QmlComponentChain();
-
-        QList<const QmlComponentChain *> instantiatingComponents;
-        Document::Ptr document;
-
-        void collect(QList<const ObjectValue *> *list) const;
-        void clear();
-    };
-
-    const ObjectValue *globalScope;
-    QSharedPointer<const QmlComponentChain> qmlComponentScope;
-    QList<const ObjectValue *> qmlScopeObjects;
-    const TypeScope *qmlTypes;
-    const JSImportScope *jsImports;
-    QList<const ObjectValue *> jsScopes;
-
-    // rebuilds the flat list of all scopes
-    void update();
-    QList<const ObjectValue *> all() const;
-
-private:
-    QList<const ObjectValue *> _all;
-};
-
-class QMLJS_EXPORT Context
-{
-public:
-    Context(const Snapshot &snapshot);
-    ~Context();
-
-    Engine *engine() const;
-    Snapshot snapshot() const;
-
-    const ScopeChain &scopeChain() const;
-    ScopeChain &scopeChain();
-
-    const Imports *imports(const Document *doc) const;
-    void setImports(const Document *doc, const Imports *imports);
-
-    const Value *lookup(const QString &name, const ObjectValue **foundInScope = 0) const;
-    const ObjectValue *lookupType(const Document *doc, AST::UiQualifiedId *qmlTypeName,
-                                  AST::UiQualifiedId *qmlTypeNameEnd = 0) const;
-    const ObjectValue *lookupType(const Document *doc, const QStringList &qmlTypeName) const;
-    const Value *lookupReference(const Value *value) const;
-
-    const Value *property(const ObjectValue *object, const QString &name) const;
-    void setProperty(const ObjectValue *object, const QString &name, const Value *value);
-
-    QString defaultPropertyName(const ObjectValue *object) const;
-
-private:
-    typedef QHash<QString, const Value *> Properties;
-
-    Snapshot _snapshot;
-    QSharedPointer<Engine> _engine;
-    QHash<const ObjectValue *, Properties> _properties;
-    QHash<const Document *, QSharedPointer<const Imports> > _imports;
-    ScopeChain _scopeChain;
-    int _qmlScopeObjectIndex;
-    bool _qmlScopeObjectSet;
-
-    // for avoiding reference cycles during lookup
-    mutable QList<const Reference *> _referenceStack;
-};
-
 class QMLJS_EXPORT Reference: public Value
 {
 public:
-    Reference(Engine *engine);
+    Reference(ValueOwner *valueOwner);
     virtual ~Reference();
 
-    Engine *engine() const;
+    ValueOwner *valueOwner() const;
 
     // Value interface
     virtual const Reference *asReference() const;
     virtual void accept(ValueVisitor *) const;
 
 private:
-    virtual const Value *value(const Context *context) const;
+    virtual const Value *value(ReferenceContext *referenceContext) const;
 
-    Engine *_engine;
-    friend class Context;
+    ValueOwner *_valueOwner;
+    friend class ReferenceContext;
 };
 
 class QMLJS_EXPORT ColorValue: public Value
@@ -395,10 +321,10 @@ public:
 class QMLJS_EXPORT ObjectValue: public Value
 {
 public:
-    ObjectValue(Engine *engine);
+    ObjectValue(ValueOwner *valueOwner);
     virtual ~ObjectValue();
 
-    Engine *engine() const;
+    ValueOwner *valueOwner() const;
 
     QString className() const;
     void setClassName(const QString &className);
@@ -407,6 +333,8 @@ public:
     const Value *prototype() const;
     // prototypes may form a cycle: use PrototypeIterator!
     const ObjectValue *prototype(const Context *context) const;
+    const ObjectValue *prototype(const ContextPtr &context) const
+    { return prototype(context.data()); }
     void setPrototype(const Value *prototype);
 
     virtual void processMembers(MemberProcessor *processor) const;
@@ -417,6 +345,10 @@ public:
     virtual const Value *lookupMember(const QString &name, const Context *context,
                                       const ObjectValue **foundInObject = 0,
                                       bool examinePrototypes = true) const;
+    const Value *lookupMember(const QString &name, const ContextPtr &context,
+                              const ObjectValue **foundInObject = 0,
+                              bool examinePrototypes = true) const
+    { return lookupMember(name, context.data(), foundInObject, examinePrototypes); }
 
     // Value interface
     virtual const ObjectValue *asObjectValue() const;
@@ -426,7 +358,7 @@ private:
     bool checkPrototype(const ObjectValue *prototype, QSet<const ObjectValue *> *processed) const;
 
 private:
-    Engine *_engine;
+    ValueOwner *_valueOwner;
     QHash<QString, const Value *> _members;
     QString _className;
 
@@ -445,6 +377,7 @@ public:
     };
 
     PrototypeIterator(const ObjectValue *start, const Context *context);
+    PrototypeIterator(const ObjectValue *start, const ContextPtr &context);
 
     bool hasNext();
     const ObjectValue *peekNext();
@@ -461,14 +394,33 @@ private:
     Error m_error;
 };
 
+class QmlObjectValue;
+
+class QMLJS_EXPORT QmlEnumValue: public NumberValue
+{
+public:
+    QmlEnumValue(const QmlObjectValue *owner, int index);
+    virtual ~QmlEnumValue();
+
+    QString name() const;
+    QStringList keys() const;
+    const QmlObjectValue *owner() const;
+
+private:
+    const QmlObjectValue *_owner;
+    int _enumIndex;
+};
+
+
 // A ObjectValue based on a FakeMetaObject.
 // May only have other QmlObjectValues as ancestors.
 class QMLJS_EXPORT QmlObjectValue: public ObjectValue
 {
 public:
     QmlObjectValue(LanguageUtils::FakeMetaObject::ConstPtr metaObject, const QString &className,
-                   const QString &packageName, const LanguageUtils::ComponentVersion version,
-                   Engine *engine);
+                   const QString &moduleName, const LanguageUtils::ComponentVersion &componentVersion,
+                   const LanguageUtils::ComponentVersion &importVersion,
+                   ValueOwner *valueOwner);
     virtual ~QmlObjectValue();
 
     virtual void processMembers(MemberProcessor *processor) const;
@@ -482,8 +434,9 @@ public:
 
     LanguageUtils::FakeMetaObject::ConstPtr metaObject() const;
 
-    QString packageName() const;
-    LanguageUtils::ComponentVersion version() const;
+    QString moduleName() const;
+    LanguageUtils::ComponentVersion componentVersion() const;
+    LanguageUtils::ComponentVersion importVersion() const;
 
     QString defaultPropertyName() const;
     QString propertyType(const QString &propertyName) const;
@@ -492,14 +445,9 @@ public:
     bool isPointer(const QString &propertyName) const;
     bool hasLocalProperty(const QString &typeName) const;
     bool hasProperty(const QString &typeName) const;
-    bool hasChildInPackage() const;
 
-    LanguageUtils::FakeMetaEnum getEnum(const QString &typeName) const;
-
-    // deprecated
-    bool isEnum(const QString &typeName) const;
-    QStringList keysForEnum(const QString &enumName) const;
-    bool enumContainsKey(const QString &enumName, const QString &enumKeyName) const;
+    LanguageUtils::FakeMetaEnum getEnum(const QString &typeName, const QmlObjectValue **foundInScope = 0) const;
+    const QmlEnumValue *getEnumValue(const QString &typeName, const QmlObjectValue **foundInScope = 0) const;
 protected:
     const Value *findOrCreateSignature(int index, const LanguageUtils::FakeMetaMethod &method,
                                        QString *methodName) const;
@@ -508,22 +456,14 @@ protected:
 private:
     QmlObjectValue *_attachedType;
     LanguageUtils::FakeMetaObject::ConstPtr _metaObject;
-    const QString _packageName;
+    const QString _moduleName;
+    // _componentVersion is the version of the export
+    // _importVersion is the version it's imported as, used to find correct prototypes
+    // needed in cases when B 1.0 has A 1.1 as prototype when imported as 1.1
     const LanguageUtils::ComponentVersion _componentVersion;
+    const LanguageUtils::ComponentVersion _importVersion;
     mutable QHash<int, const Value *> _metaSignature;
-};
-
-class QMLJS_EXPORT QmlEnumValue: public NumberValue
-{
-public:
-    QmlEnumValue(const LanguageUtils::FakeMetaEnum &metaEnum, Engine *engine);
-    virtual ~QmlEnumValue();
-
-    QString name() const;
-    QStringList keys() const;
-
-private:
-    LanguageUtils::FakeMetaEnum *_metaEnum;
+    QHash<QString, const QmlEnumValue * > _enums;
 };
 
 class QMLJS_EXPORT Activation
@@ -558,7 +498,7 @@ private:
 class QMLJS_EXPORT FunctionValue: public ObjectValue
 {
 public:
-    FunctionValue(Engine *engine);
+    FunctionValue(ValueOwner *valueOwner);
     virtual ~FunctionValue();
 
     // [[construct]]
@@ -588,25 +528,22 @@ public:
 class QMLJS_EXPORT Function: public FunctionValue
 {
 public:
-    Function(Engine *engine);
+    Function(ValueOwner *valueOwner);
     virtual ~Function();
 
-    void addArgument(const Value *argument);
+    void addArgument(const Value *argument, const QString &name = QString());
     void setReturnValue(const Value *returnValue);
-
-    // ObjectValue interface
-    virtual const Value *lookupMember(const QString &name, const Context *context,
-                                      const ObjectValue **foundInObject = 0,
-                                      bool examinePrototypes = true) const;
 
     // FunctionValue interface
     virtual const Value *returnValue() const;
     virtual int argumentCount() const;
     virtual const Value *argument(int index) const;
+    virtual QString argumentName(int index) const;
     virtual const Value *invoke(const Activation *activation) const;
 
 private:
     ValueList _arguments;
+    QStringList _argumentNames;
     const Value *_returnValue;
 };
 
@@ -618,63 +555,59 @@ private:
 class QMLJS_EXPORT CppQmlTypesLoader
 {
 public:
+    typedef QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> BuiltinObjects;
+
     /** Loads a set of qmltypes files into the builtin objects list
         and returns errors and warnings
     */
-    static void loadQmlTypes(const QFileInfoList &qmltypesFiles,
+    static BuiltinObjects loadQmlTypes(const QFileInfoList &qmltypesFiles,
                              QStringList *errors, QStringList *warnings);
 
-    static QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> builtinObjects;
-    static QHash<QString, QList<LanguageUtils::ComponentVersion> > builtinPackages;
+    static BuiltinObjects defaultQtObjects;
+    static BuiltinObjects defaultLibraryObjects;
 
     // parses the contents of a qmltypes file and fills the newObjects map
     static void parseQmlTypeDescriptions(
         const QByteArray &qmlTypes,
-        QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *newObjects,
+        BuiltinObjects *newObjects,
         QString *errorMessage, QString *warningMessage);
 };
 
 class QMLJS_EXPORT CppQmlTypes
 {
 public:
+    CppQmlTypes(ValueOwner *valueOwner);
+
     // package name for objects that should be always available
     static const QLatin1String defaultPackage;
     // package name for objects with their raw cpp name
     static const QLatin1String cppPackage;
 
     template <typename T>
-    QList<QmlObjectValue *> load(Interpreter::Engine *interpreter, const T &objects);
+    void load(const T &fakeMetaObjects, const QString &overridePackage = QString());
 
-    QList<Interpreter::QmlObjectValue *> typesForImport(const QString &prefix, LanguageUtils::ComponentVersion version) const;
-    Interpreter::QmlObjectValue *typeByCppName(const QString &cppName) const;
+    QList<const QmlObjectValue *> createObjectsForImport(const QString &package, LanguageUtils::ComponentVersion version);
+    bool hasModule(const QString &module) const;
 
-    bool hasPackage(const QString &package) const;
-
-    QHash<QString, QmlObjectValue *> types() const
-    { return _typesByFullyQualifiedName; }
-
-    static QString qualifiedName(const QString &package, const QString &type, LanguageUtils::ComponentVersion version);
-    QmlObjectValue *typeByQualifiedName(const QString &fullyQualifiedName) const;
-    QmlObjectValue *typeByQualifiedName(const QString &package, const QString &type,
-                                        LanguageUtils::ComponentVersion version) const;
+    static QString qualifiedName(const QString &module, const QString &type,
+                                 LanguageUtils::ComponentVersion version);
+    const QmlObjectValue *objectByQualifiedName(const QString &fullyQualifiedName) const;
+    const QmlObjectValue *objectByQualifiedName(
+            const QString &package, const QString &type,
+            LanguageUtils::ComponentVersion version) const;
+    const QmlObjectValue *objectByCppName(const QString &cppName) const;
 
 private:
-    void setPrototypes(QmlObjectValue *object);
-    QmlObjectValue *getOrCreate(Engine *engine,
-                                LanguageUtils::FakeMetaObject::ConstPtr metaObject,
-                                const LanguageUtils::FakeMetaObject::Export &exp,
-                                bool *wasCreated = 0);
-    QmlObjectValue *getOrCreateForPackage(const QString &package, const QString &cppName);
-
-
-    QHash<QString, QList<QmlObjectValue *> > _typesByPackage;
-    QHash<QString, QmlObjectValue *> _typesByFullyQualifiedName;
+    // "Package.CppName ImportVersion" ->  QmlObjectValue
+    QHash<QString, const QmlObjectValue *> _objectsByQualifiedName;
+    QHash<QString, QSet<LanguageUtils::FakeMetaObject::ConstPtr> > _fakeMetaObjectsByPackage;
+    ValueOwner *_valueOwner;
 };
 
 class ConvertToNumber: protected ValueVisitor // ECMAScript ToInt()
 {
 public:
-    ConvertToNumber(Engine *engine);
+    ConvertToNumber(ValueOwner *valueOwner);
 
     const Value *operator()(const Value *value);
 
@@ -690,14 +623,14 @@ protected:
     virtual void visit(const FunctionValue *);
 
 private:
-    Engine *_engine;
+    ValueOwner *_valueOwner;
     const Value *_result;
 };
 
 class ConvertToString: protected ValueVisitor // ECMAScript ToString
 {
 public:
-    ConvertToString(Engine *engine);
+    ConvertToString(ValueOwner *valueOwner);
 
     const Value *operator()(const Value *value);
 
@@ -713,14 +646,14 @@ protected:
     virtual void visit(const FunctionValue *);
 
 private:
-    Engine *_engine;
+    ValueOwner *_valueOwner;
     const Value *_result;
 };
 
 class ConvertToObject: protected ValueVisitor // ECMAScript ToObject
 {
 public:
-    ConvertToObject(Engine *engine);
+    ConvertToObject(ValueOwner *valueOwner);
 
     const Value *operator()(const Value *value);
 
@@ -736,7 +669,7 @@ protected:
     virtual void visit(const FunctionValue *);
 
 private:
-    Engine *_engine;
+    ValueOwner *_valueOwner;
     const Value *_result;
 };
 
@@ -759,149 +692,17 @@ protected:
     virtual void visit(const AnchorLineValue *);
 };
 
-class QMLJS_EXPORT Engine
-{
-    Q_DISABLE_COPY(Engine)
-
-public:
-    Engine();
-    ~Engine();
-
-    const NullValue *nullValue() const;
-    const UndefinedValue *undefinedValue() const;
-    const NumberValue *numberValue() const;
-    const RealValue *realValue() const;
-    const IntValue *intValue() const;
-    const BooleanValue *booleanValue() const;
-    const StringValue *stringValue() const;
-    const UrlValue *urlValue() const;
-    const ColorValue *colorValue() const;
-    const AnchorLineValue *anchorLineValue() const;
-
-    ObjectValue *newObject(const ObjectValue *prototype);
-    ObjectValue *newObject();
-    Function *newFunction();
-    const Value *newArray(); // ### remove me
-
-    // QML objects
-    const ObjectValue *qmlKeysObject();
-    const ObjectValue *qmlFontObject();
-    const ObjectValue *qmlPointObject();
-    const ObjectValue *qmlSizeObject();
-    const ObjectValue *qmlRectObject();
-    const ObjectValue *qmlVector3DObject();
-
-    const Value *defaultValueForBuiltinType(const QString &typeName) const;
-
-    // global object
-    ObjectValue *globalObject() const;
-    const ObjectValue *mathObject() const;
-    const ObjectValue *qtObject() const;
-
-    // prototypes
-    ObjectValue *objectPrototype() const;
-    ObjectValue *functionPrototype() const;
-    ObjectValue *numberPrototype() const;
-    ObjectValue *booleanPrototype() const;
-    ObjectValue *stringPrototype() const;
-    ObjectValue *arrayPrototype() const;
-    ObjectValue *datePrototype() const;
-    ObjectValue *regexpPrototype() const;
-
-    // ctors
-    const FunctionValue *objectCtor() const;
-    const FunctionValue *functionCtor() const;
-    const FunctionValue *arrayCtor() const;
-    const FunctionValue *stringCtor() const;
-    const FunctionValue *booleanCtor() const;
-    const FunctionValue *numberCtor() const;
-    const FunctionValue *dateCtor() const;
-    const FunctionValue *regexpCtor() const;
-
-    // operators
-    const Value *convertToBoolean(const Value *value);
-    const Value *convertToNumber(const Value *value);
-    const Value *convertToString(const Value *value);
-    const Value *convertToObject(const Value *value);
-    QString typeId(const Value *value);
-
-    // typing:
-    CppQmlTypes &cppQmlTypes()
-    { return _cppQmlTypes; }
-    const CppQmlTypes &cppQmlTypes() const
-    { return _cppQmlTypes; }
-
-    void registerValue(Value *value); // internal
-
-private:
-    void initializePrototypes();
-
-    void addFunction(ObjectValue *object, const QString &name, const Value *result, int argumentCount);
-    void addFunction(ObjectValue *object, const QString &name, int argumentCount);
-
-private:
-    ObjectValue *_objectPrototype;
-    ObjectValue *_functionPrototype;
-    ObjectValue *_numberPrototype;
-    ObjectValue *_booleanPrototype;
-    ObjectValue *_stringPrototype;
-    ObjectValue *_arrayPrototype;
-    ObjectValue *_datePrototype;
-    ObjectValue *_regexpPrototype;
-
-    Function *_objectCtor;
-    Function *_functionCtor;
-    Function *_arrayCtor;
-    Function *_stringCtor;
-    Function *_booleanCtor;
-    Function *_numberCtor;
-    Function *_dateCtor;
-    Function *_regexpCtor;
-
-    ObjectValue *_globalObject;
-    ObjectValue *_mathObject;
-    ObjectValue *_qtObject;
-    ObjectValue *_qmlKeysObject;
-    ObjectValue *_qmlFontObject;
-    ObjectValue *_qmlPointObject;
-    ObjectValue *_qmlSizeObject;
-    ObjectValue *_qmlRectObject;
-    ObjectValue *_qmlVector3DObject;
-
-    NullValue _nullValue;
-    UndefinedValue _undefinedValue;
-    NumberValue _numberValue;
-    RealValue _realValue;
-    IntValue _intValue;
-    BooleanValue _booleanValue;
-    StringValue _stringValue;
-    UrlValue _urlValue;
-    ColorValue _colorValue;
-    AnchorLineValue _anchorLineValue;
-    QList<Value *> _registeredValues;
-
-    ConvertToNumber _convertToNumber;
-    ConvertToString _convertToString;
-    ConvertToObject _convertToObject;
-    TypeId _typeId;
-
-    CppQmlTypes _cppQmlTypes;
-
-    QMutex _mutex;
-};
-
-
 // internal
 class QMLJS_EXPORT QmlPrototypeReference: public Reference
 {
 public:
-    QmlPrototypeReference(AST::UiQualifiedId *qmlTypeName, const Document *doc, Engine *engine);
+    QmlPrototypeReference(AST::UiQualifiedId *qmlTypeName, const Document *doc, ValueOwner *valueOwner);
     virtual ~QmlPrototypeReference();
 
     AST::UiQualifiedId *qmlTypeName() const;
 
 private:    
-    virtual const Value *value(const Context *context) const;
+    virtual const Value *value(ReferenceContext *referenceContext) const;
 
     AST::UiQualifiedId *_qmlTypeName;
     const Document *_doc;
@@ -910,23 +711,25 @@ private:
 class QMLJS_EXPORT ASTVariableReference: public Reference
 {
     AST::VariableDeclaration *_ast;
+    const Document *_doc;
 
 public:
-    ASTVariableReference(AST::VariableDeclaration *ast, Engine *engine);
+    ASTVariableReference(AST::VariableDeclaration *ast, const Document *doc, ValueOwner *valueOwner);
     virtual ~ASTVariableReference();
 
 private:
-    virtual const Value *value(const Context *context) const;
+    virtual const Value *value(ReferenceContext *referenceContext) const;
+    virtual bool getSourceLocation(QString *fileName, int *line, int *column) const;
 };
 
 class QMLJS_EXPORT ASTFunctionValue: public FunctionValue
 {
     AST::FunctionExpression *_ast;
     const Document *_doc;
-    QList<NameId *> _argumentNames;
+    QList<QString> _argumentNames;
 
 public:
-    ASTFunctionValue(AST::FunctionExpression *ast, const Document *doc, Engine *engine);
+    ASTFunctionValue(AST::FunctionExpression *ast, const Document *doc, ValueOwner *valueOwner);
     virtual ~ASTFunctionValue();
 
     AST::FunctionExpression *ast() const;
@@ -947,7 +750,7 @@ class QMLJS_EXPORT ASTPropertyReference: public Reference
     QString _onChangedSlotName;
 
 public:
-    ASTPropertyReference(AST::UiPublicMember *ast, const Document *doc, Engine *engine);
+    ASTPropertyReference(AST::UiPublicMember *ast, const Document *doc, ValueOwner *valueOwner);
     virtual ~ASTPropertyReference();
 
     AST::UiPublicMember *ast() const { return _ast; }
@@ -956,26 +759,29 @@ public:
     virtual bool getSourceLocation(QString *fileName, int *line, int *column) const;
 
 private:
-    virtual const Value *value(const Context *context) const;
+    virtual const Value *value(ReferenceContext *referenceContext) const;
 };
 
-class QMLJS_EXPORT ASTSignalReference: public Reference
+class QMLJS_EXPORT ASTSignal: public FunctionValue
 {
     AST::UiPublicMember *_ast;
     const Document *_doc;
     QString _slotName;
 
 public:
-    ASTSignalReference(AST::UiPublicMember *ast, const Document *doc, Engine *engine);
-    virtual ~ASTSignalReference();
+    ASTSignal(AST::UiPublicMember *ast, const Document *doc, ValueOwner *valueOwner);
+    virtual ~ASTSignal();
 
     AST::UiPublicMember *ast() const { return _ast; }
     QString slotName() const { return _slotName; }
 
-    virtual bool getSourceLocation(QString *fileName, int *line, int *column) const;
+    // FunctionValue interface
+    virtual int argumentCount() const;
+    virtual const Value *argument(int index) const;
+    virtual QString argumentName(int index) const;
 
-private:
-    virtual const Value *value(const Context *context) const;
+    // Value interface
+    virtual bool getSourceLocation(QString *fileName, int *line, int *column) const;
 };
 
 class QMLJS_EXPORT ASTObjectValue: public ObjectValue
@@ -984,14 +790,14 @@ class QMLJS_EXPORT ASTObjectValue: public ObjectValue
     AST::UiObjectInitializer *_initializer;
     const Document *_doc;
     QList<ASTPropertyReference *> _properties;
-    QList<ASTSignalReference *> _signals;
+    QList<ASTSignal *> _signals;
     ASTPropertyReference *_defaultPropertyRef;
 
 public:
     ASTObjectValue(AST::UiQualifiedId *typeName,
                    AST::UiObjectInitializer *initializer,
                    const Document *doc,
-                   Engine *engine);
+                   ValueOwner *valueOwner);
     virtual ~ASTObjectValue();
 
     bool getSourceLocation(QString *fileName, int *line, int *column) const;
@@ -1057,7 +863,7 @@ class Imports;
 class QMLJS_EXPORT TypeScope: public ObjectValue
 {
 public:
-    TypeScope(const Imports *imports, Engine *engine);
+    TypeScope(const Imports *imports, ValueOwner *valueOwner);
 
     virtual const Value *lookupMember(const QString &name, const Context *context,
                                       const ObjectValue **foundInObject = 0,
@@ -1071,7 +877,7 @@ private:
 class QMLJS_EXPORT JSImportScope: public ObjectValue
 {
 public:
-    JSImportScope(const Imports *imports, Engine *engine);
+    JSImportScope(const Imports *imports, ValueOwner *valueOwner);
 
     virtual const Value *lookupMember(const QString &name, const Context *context,
                                       const ObjectValue **foundInObject = 0,
@@ -1085,11 +891,12 @@ private:
 class QMLJS_EXPORT Imports
 {
 public:
-    Imports(Engine *engine);
+    Imports(ValueOwner *valueOwner);
 
     void append(const Import &import);
 
     ImportInfo info(const QString &name, const Context *context) const;
+    QString nameForImportedObject(const ObjectValue *value, const Context *context) const;
     QList<Import> all() const;
 
     const TypeScope *typeScope() const;
@@ -1107,6 +914,6 @@ private:
     JSImportScope *_jsImportScope;
 };
 
-} } // namespace QmlJS::Interpreter
+} // namespace QmlJS
 
 #endif // QMLJS_INTERPRETER_H

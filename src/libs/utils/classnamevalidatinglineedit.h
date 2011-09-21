@@ -43,10 +43,9 @@ struct ClassNameValidatingLineEditPrivate;
 class QTCREATOR_UTILS_EXPORT ClassNameValidatingLineEdit
   : public Utils::BaseValidatingLineEdit
 {
-    Q_DISABLE_COPY(ClassNameValidatingLineEdit)
+    Q_OBJECT
     Q_PROPERTY(bool namespacesEnabled READ namespacesEnabled WRITE setNamespacesEnabled DESIGNABLE true)
     Q_PROPERTY(bool lowerCaseFileName READ lowerCaseFileName WRITE setLowerCaseFileName)
-    Q_OBJECT
 
 public:
     explicit ClassNameValidatingLineEdit(QWidget *parent = 0);
@@ -71,7 +70,7 @@ protected:
     virtual void slotChanged(const QString &t);
 
 private:
-    ClassNameValidatingLineEditPrivate *m_d;
+    ClassNameValidatingLineEditPrivate *d;
 };
 
 } // namespace Utils

@@ -37,6 +37,8 @@
 #include <AST.h>
 #include <ASTVisitor.h>
 #include <TranslationUnit.h>
+#include <Literals.h>
+#include <Symbols.h>
 
 #include <coreplugin/icore.h>
 #include <coreplugin/mimedatabase.h>
@@ -285,7 +287,7 @@ InsertionLocation::InsertionLocation(const QString &fileName,
     , m_column(column)
 {}
 
-InsertionPointLocator::InsertionPointLocator(CppRefactoringChanges *refactoringChanges)
+InsertionPointLocator::InsertionPointLocator(const CppRefactoringChanges &refactoringChanges)
     : m_refactoringChanges(refactoringChanges)
 {
 }
@@ -295,7 +297,7 @@ InsertionLocation InsertionPointLocator::methodDeclarationInClass(
     const Class *clazz,
     AccessSpec xsSpec) const
 {
-    const Document::Ptr doc = m_refactoringChanges->file(fileName).cppDocument();
+    const Document::Ptr doc = m_refactoringChanges.file(fileName)->cppDocument();
     if (doc) {
         FindInClass find(doc, clazz, xsSpec);
         return find();
@@ -317,8 +319,235 @@ static bool isSourceFile(const QString &fileName)
     return suffixes.contains(fileInfo.suffix());
 }
 
-/// Currently, we return the end of fileName.cpp
-/// \todo take the definitions of the surrounding declarations into account
+namespace {
+template <class Key, class Value>
+class HighestValue
+{
+    Key _key;
+    Value _value;
+    bool _set;
+public:
+    HighestValue()
+        : _set(false)
+    {}
+
+    HighestValue(const Key &initialKey, const Value &initialValue)
+        : _key(initialKey)
+        , _value(initialValue)
+        , _set(true)
+    {}
+
+    void maybeSet(const Key &key, const Value &value)
+    {
+        if (!_set || key > _key) {
+            _value = value;
+            _key = key;
+            _set = true;
+        }
+    }
+
+    const Value &get() const
+    {
+        Q_ASSERT(_set);
+        return _value;
+    }
+};
+
+class FindMethodDefinitionInsertPoint : protected ASTVisitor
+{
+    QList<const Identifier *> _namespaceNames;
+    int _currentDepth;
+    HighestValue<int, int> _bestToken;
+
+public:
+    FindMethodDefinitionInsertPoint(TranslationUnit *translationUnit)
+        : ASTVisitor(translationUnit)
+    {}
+
+    void operator()(Declaration *decl, unsigned *line, unsigned *column)
+    {
+        *line = *column = 0;
+        if (translationUnit()->ast()->lastToken() < 2)
+            return;
+
+        QList<const Name *> names = LookupContext::fullyQualifiedName(decl);
+        foreach (const Name *name, names) {
+            const Identifier *id = name->asNameId();
+            if (!id)
+                break;
+            _namespaceNames += id;
+        }
+        _currentDepth = 0;
+
+        // default to end of file
+        _bestToken.maybeSet(-1, translationUnit()->ast()->lastToken() - 1);
+        accept(translationUnit()->ast());
+        translationUnit()->getTokenEndPosition(_bestToken.get(), line, column);
+    }
+
+protected:
+    bool preVisit(AST *ast)
+    {
+        return ast->asNamespace() || ast->asTranslationUnit() || ast->asLinkageBody();
+    }
+
+    bool visit(NamespaceAST *ast)
+    {
+        if (_currentDepth >= _namespaceNames.size())
+            return false;
+
+        // ignore anonymous namespaces
+        if (!ast->identifier_token)
+            return false;
+
+        const Identifier *name = translationUnit()->identifier(ast->identifier_token);
+        if (!name->equalTo(_namespaceNames.at(_currentDepth)))
+            return false;
+
+        // found a good namespace
+        _bestToken.maybeSet(_currentDepth, ast->lastToken() - 2);
+
+        ++_currentDepth;
+        accept(ast->linkage_body);
+        --_currentDepth;
+
+        return false;
+    }
+};
+
+class FindFunctionDefinition : protected ASTVisitor
+{
+    FunctionDefinitionAST *_result;
+    unsigned _line, _column;
+public:
+    FindFunctionDefinition(TranslationUnit *translationUnit)
+        : ASTVisitor(translationUnit)
+    {
+    }
+
+    FunctionDefinitionAST *operator()(unsigned line, unsigned column)
+    {
+        _result = 0;
+        _line = line;
+        _column = column;
+        accept(translationUnit()->ast());
+        return _result;
+    }
+
+protected:
+    bool preVisit(AST *ast)
+    {
+        if (_result)
+            return false;
+        unsigned line, column;
+        translationUnit()->getTokenStartPosition(ast->firstToken(), &line, &column);
+        if (line > _line || (line == _line && column > _column))
+            return false;
+        translationUnit()->getTokenEndPosition(ast->lastToken() - 1, &line, &column);
+        if (line < _line || (line == _line && column < _column))
+            return false;
+        return true;
+    }
+
+    bool visit(FunctionDefinitionAST *ast)
+    {
+        _result = ast;
+        return false;
+    }
+};
+
+} // anonymous namespace
+
+static Declaration *isNonVirtualFunctionDeclaration(Symbol *s)
+{
+    if (!s)
+        return 0;
+    Declaration *declaration = s->asDeclaration();
+    if (!declaration)
+        return 0;
+    Function *type = s->type()->asFunctionType();
+    if (!type || type->isPureVirtual())
+        return 0;
+    return declaration;
+}
+
+static InsertionLocation nextToSurroundingDefinitions(Declaration *declaration, const CppRefactoringChanges &changes)
+{
+    InsertionLocation noResult;
+    Class *klass = declaration->enclosingClass();
+    if (!klass)
+        return noResult;
+
+    // find the index of declaration
+    int declIndex = -1;
+    for (unsigned i = 0; i < klass->memberCount(); ++i) {
+        Symbol *s = klass->memberAt(i);
+        if (s == declaration) {
+            declIndex = i;
+            break;
+        }
+    }
+    if (declIndex == -1)
+        return noResult;
+
+    // scan preceding declarations for a function declaration
+    QString prefix, suffix;
+    Declaration *surroundingFunctionDecl = 0;
+    for (int i = declIndex - 1; i >= 0; --i) {
+        Symbol *s = klass->memberAt(i);
+        surroundingFunctionDecl = isNonVirtualFunctionDeclaration(s);
+        if (surroundingFunctionDecl) {
+            prefix = QLatin1String("\n\n");
+            break;
+        }
+    }
+    if (!surroundingFunctionDecl) {
+        // try to find one below
+        for (unsigned i = declIndex + 1; i < klass->memberCount(); ++i) {
+            Symbol *s = klass->memberAt(i);
+            surroundingFunctionDecl = isNonVirtualFunctionDeclaration(s);
+            if (surroundingFunctionDecl) {
+                suffix = QLatin1String("\n\n");
+                break;
+            }
+        }
+        if (!surroundingFunctionDecl)
+            return noResult;
+    }
+
+    // find the declaration's definition
+    Symbol *definition = changes.snapshot().findMatchingDefinition(surroundingFunctionDecl);
+    if (!definition)
+        return noResult;
+
+    unsigned line, column;
+    if (suffix.isEmpty()) {
+        Function *definitionFunction = definition->asFunction();
+        if (!definitionFunction)
+            return noResult;
+
+        Document::Ptr targetDoc = changes.snapshot().document(definition->fileName());
+        if (!targetDoc)
+            return noResult;
+
+        targetDoc->translationUnit()->getPosition(definitionFunction->endOffset(), &line, &column);
+    } else {
+        // we don't have an offset to the start of the function definition, so we need to manually find it...
+        CppRefactoringFilePtr targetFile = changes.file(definition->fileName());
+        if (!targetFile->isValid())
+            return noResult;
+
+        FindFunctionDefinition finder(targetFile->cppDocument()->translationUnit());
+        FunctionDefinitionAST *functionDefinition = finder(definition->line(), definition->column());
+        if (!functionDefinition)
+            return noResult;
+
+        targetFile->cppDocument()->translationUnit()->getTokenStartPosition(functionDefinition->firstToken(), &line, &column);
+    }
+
+    return InsertionLocation(definition->fileName(), prefix, suffix, line, column);
+}
+
 QList<InsertionLocation> InsertionPointLocator::methodDefinition(
     Declaration *declaration) const
 {
@@ -326,22 +555,7 @@ QList<InsertionLocation> InsertionPointLocator::methodDefinition(
     if (!declaration)
         return result;
 
-    const QString declFileName = QString::fromUtf8(declaration->fileName(),
-                                                   declaration->fileNameLength());
-    QString target = declFileName;
-    if (!isSourceFile(declFileName)) {
-        Internal::CppToolsPlugin *cpptools = Internal::CppToolsPlugin::instance();
-        QString candidate = cpptools->correspondingHeaderOrSource(declFileName);
-        if (!candidate.isEmpty())
-            target = candidate;
-    }
-
-    Document::Ptr doc = m_refactoringChanges->file(target).cppDocument();
-    if (doc.isNull())
-        return result;
-
-    Snapshot simplified = m_refactoringChanges->snapshot().simplified(doc);
-    if (Symbol *s = simplified.findMatchingDefinition(declaration)) {
+    if (Symbol *s = m_refactoringChanges.snapshot().findMatchingDefinition(declaration, true)) {
         if (Function *f = s->asFunction()) {
             if (f->isConst() == declaration->type().isConst()
                     && f->isVolatile() == declaration->type().isVolatile())
@@ -349,13 +563,28 @@ QList<InsertionLocation> InsertionPointLocator::methodDefinition(
         }
     }
 
-    TranslationUnit *xUnit = doc->translationUnit();
-    unsigned tokenCount = xUnit->tokenCount();
-    if (tokenCount < 2) // no tokens available
+    const InsertionLocation location = nextToSurroundingDefinitions(declaration, m_refactoringChanges);
+    if (location.isValid()) {
+        result += location;
+        return result;
+    }
+
+    const QString declFileName = QString::fromUtf8(declaration->fileName(),
+                                                   declaration->fileNameLength());
+    QString target = declFileName;
+    if (!isSourceFile(declFileName)) {
+        QString candidate = Internal::CppToolsPlugin::correspondingHeaderOrSource(declFileName);
+        if (!candidate.isEmpty())
+            target = candidate;
+    }
+
+    Document::Ptr doc = m_refactoringChanges.file(target)->cppDocument();
+    if (doc.isNull())
         return result;
 
     unsigned line = 0, column = 0;
-    xUnit->getTokenEndPosition(xUnit->tokenCount() - 2, &line, &column);
+    FindMethodDefinitionInsertPoint finder(doc->translationUnit());
+    finder(declaration, &line, &column);
 
     const QLatin1String prefix("\n\n");
     result.append(InsertionLocation(target, prefix, QString(), line, column));

@@ -43,12 +43,16 @@
 #include "ui_qt4projectconfigwidget.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/ifile.h>
 
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
+#include <projectexplorer/task.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <qtsupport/qtversionfactory.h>
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>

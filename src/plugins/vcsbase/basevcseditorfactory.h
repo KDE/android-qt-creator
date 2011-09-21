@@ -54,7 +54,7 @@ public:
     virtual QStringList mimeTypes() const;
     // IEditorFactory
 
-    virtual QString id() const;
+    virtual Core::Id id() const;
     virtual QString displayName() const;
 
     virtual Core::IFile *open(const QString &fileName);
@@ -66,7 +66,7 @@ private:
     virtual VCSBaseEditorWidget *createVCSBaseEditor(const VCSBaseEditorParameters *type,
                                                QWidget *parent) = 0;
 
-    BaseVCSEditorFactoryPrivate *m_d;
+    BaseVCSEditorFactoryPrivate *d;
 };
 
 // Utility template to create an editor.

@@ -39,7 +39,8 @@
 
 namespace Core {
 
-struct OpenEditorsModelPrivate {
+struct OpenEditorsModelPrivate
+{
     OpenEditorsModelPrivate();
 
     const QIcon m_lockedIcon;
@@ -67,6 +68,7 @@ OpenEditorsModel::OpenEditorsModel(QObject *parent) :
 
 OpenEditorsModel::~OpenEditorsModel()
 {
+    delete d;
 }
 
 QIcon OpenEditorsModel::lockedIcon() const
@@ -87,7 +89,7 @@ QString OpenEditorsModel::Entry::displayName() const {
     return editor ? editor->displayName() : m_displayName;
 }
 
-QString OpenEditorsModel::Entry::id() const
+Id OpenEditorsModel::Entry::id() const
 {
     return editor ? editor->id() : m_id;
 }
@@ -319,7 +321,7 @@ QVariant OpenEditorsModel::data(const QModelIndex &index, int role) const
     case Qt::UserRole + 1:
         return e.fileName();
     case Qt::UserRole + 2:
-        return e.editor ? e.editor->id() : e.id();
+        return QVariant::fromValue(e.editor ? e.editor->id() : e.id());
     default:
         return QVariant();
     }

@@ -37,12 +37,11 @@
 #include "stackhandler.h"
 #include "qmlengine.h"
 
+#include <coreplugin/icore.h>
 #include <utils/qtcassert.h>
 
-#include <coreplugin/icore.h>
-#include <QtGui/QMainWindow>
-#include <QtGui/QMessageBox>
 #include <QtCore/QTimer>
+#include <QtGui/QMainWindow>
 
 namespace Debugger {
 namespace Internal {
@@ -94,15 +93,13 @@ private:
     DebuggerEngine *m_cppEngine;
     DebuggerEngine *m_activeEngine;
     int m_stackBoundary;
-
-    QMessageBox *m_msg;
 };
 
 
 QmlCppEnginePrivate::QmlCppEnginePrivate(QmlCppEngine *parent,
         const DebuggerStartParameters &sp)
     : q(parent), m_qmlEngine(createQmlEngine(sp, q)),
-      m_cppEngine(0), m_activeEngine(0), m_msg(0)
+      m_cppEngine(0), m_activeEngine(0)
 {
     setObjectName(QLatin1String("QmlCppEnginePrivate"));
 }
@@ -129,7 +126,7 @@ void QmlCppEnginePrivate::qmlStackChanged()
 {
     StackFrames frames = m_qmlEngine->stackHandler()->frames();
     q->stackHandler()->setFrames(frames);
-    m_stackBoundary = frames.size();
+    m_stackBoundary = 0;
 }
 
 
@@ -153,9 +150,9 @@ QmlCppEngine::QmlCppEngine(const DebuggerStartParameters &sp,
     d->m_activeEngine = d->m_cppEngine;
 
     connect(d->m_cppEngine->stackHandler()->model(), SIGNAL(modelReset()),
-            d.data(), SLOT(cppStackChanged()), Qt::QueuedConnection);
+            d, SLOT(cppStackChanged()), Qt::QueuedConnection);
     connect(d->m_qmlEngine->stackHandler()->model(), SIGNAL(modelReset()),
-            d.data(), SLOT(qmlStackChanged()), Qt::QueuedConnection);
+            d, SLOT(qmlStackChanged()), Qt::QueuedConnection);
     connect(d->m_cppEngine, SIGNAL(stackFrameCompleted()), this, SIGNAL(stackFrameCompleted()));
     connect(d->m_cppEngine, SIGNAL(requestRemoteSetup()), this, SIGNAL(requestRemoteSetup()));
     connect(d->m_qmlEngine, SIGNAL(stackFrameCompleted()), this, SIGNAL(stackFrameCompleted()));
@@ -165,6 +162,7 @@ QmlCppEngine::~QmlCppEngine()
 {
     delete d->m_qmlEngine;
     delete d->m_cppEngine;
+    delete d;
 }
 
 bool QmlCppEngine::setToolTipExpression(const QPoint & mousePos,
@@ -252,17 +250,15 @@ void QmlCppEngine::setRegisterValue(int regnr, const QString &value)
 unsigned QmlCppEngine::debuggerCapabilities() const
 {
     // ### this could also be an OR of both engines' capabilities
-    return d->m_cppEngine->debuggerCapabilities();
-}
-
-bool QmlCppEngine::canWatchWidgets() const
-{
-    return d->m_activeEngine->canWatchWidgets();
-}
-
-bool QmlCppEngine::acceptsWatchesWhileRunning() const
-{
-    return d->m_activeEngine->acceptsWatchesWhileRunning();
+    unsigned result = d->m_cppEngine->debuggerCapabilities();
+    if (d->m_activeEngine != d->m_cppEngine) {
+        const unsigned qmlCapabilities = d->m_qmlEngine->debuggerCapabilities();
+        if (qmlCapabilities & AddWatcherWhileRunningCapability)
+            result |= AddWatcherWhileRunningCapability;
+        if (!(qmlCapabilities & WatchWidgetsCapability))
+            result &= ~WatchWidgetsCapability;
+    }
+    return result;
 }
 
 bool QmlCppEngine::isSynchronous() const

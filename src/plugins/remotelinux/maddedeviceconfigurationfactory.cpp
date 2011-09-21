@@ -31,15 +31,26 @@
 **************************************************************************/
 #include "maddedeviceconfigurationfactory.h"
 
+#include "maddedevicetester.h"
+#include "maemoconstants.h"
 #include "maemodeviceconfigwizard.h"
+#include "publickeydeploymentdialog.h"
 
+#include <remotelinux/linuxdevicetestdialog.h>
+#include <remotelinux/remotelinuxprocessesdialog.h>
+#include <remotelinux/remotelinuxprocesslist.h>
+#include <remotelinux/remotelinux_constants.h>
 #include <utils/qtcassert.h>
 
 namespace RemoteLinux {
 namespace Internal {
+namespace {
+const char MaddeDeviceTestActionId[] = "Madde.DeviceTestAction";
+const char MaddeRemoteProcessesActionId[] = "Madde.RemoteProcessesAction";
+} // anonymous namespace
 
 MaddeDeviceConfigurationFactory::MaddeDeviceConfigurationFactory(QObject *parent)
-    : GenericLinuxDeviceConfigurationFactory(parent)
+    : ILinuxDeviceConfigurationFactory(parent)
 {
 }
 
@@ -55,19 +66,52 @@ ILinuxDeviceConfigurationWizard *MaddeDeviceConfigurationFactory::createWizard(Q
 
 bool MaddeDeviceConfigurationFactory::supportsOsType(const QString &osType) const
 {
-    return osType == LinuxDeviceConfiguration::Maemo5OsType
-            || osType == LinuxDeviceConfiguration::HarmattanOsType
-            || osType == LinuxDeviceConfiguration::MeeGoOsType;
+    return osType == QLatin1String(Maemo5OsType) || osType == QLatin1String(HarmattanOsType)
+        || osType == QLatin1String(MeeGoOsType);
 }
 
 QString MaddeDeviceConfigurationFactory::displayNameForOsType(const QString &osType) const
 {
     QTC_ASSERT(supportsOsType(osType), return QString());
-    if (osType == LinuxDeviceConfiguration::Maemo5OsType)
+    if (osType == QLatin1String(Maemo5OsType))
         return tr("Maemo5/Fremantle");
-    if (osType == LinuxDeviceConfiguration::HarmattanOsType)
+    if (osType == QLatin1String(HarmattanOsType))
         return tr("MeeGo 1.2 Harmattan");
     return tr("Other MeeGo OS");
+}
+
+QStringList MaddeDeviceConfigurationFactory::supportedDeviceActionIds() const
+{
+    return QStringList() << QLatin1String(MaddeDeviceTestActionId)
+        << QLatin1String(Constants::GenericDeployKeyToDeviceActionId)
+        << QLatin1String(MaddeRemoteProcessesActionId);
+}
+
+QString MaddeDeviceConfigurationFactory::displayNameForActionId(const QString &actionId) const
+{
+    Q_ASSERT(supportedDeviceActionIds().contains(actionId));
+
+    if (actionId == QLatin1String(MaddeDeviceTestActionId))
+        return tr("Test");
+    if (actionId == QLatin1String(MaddeRemoteProcessesActionId))
+        return tr("Remote Processes");
+    if (actionId == QLatin1String(Constants::GenericDeployKeyToDeviceActionId))
+        return tr("Deploy Public Key");
+    return QString(); // Can't happen.
+}
+
+QDialog *MaddeDeviceConfigurationFactory::createDeviceAction(const QString &actionId,
+    const LinuxDeviceConfiguration::ConstPtr &deviceConfig, QWidget *parent) const
+{
+    Q_ASSERT(supportedDeviceActionIds().contains(actionId));
+
+    if (actionId == QLatin1String(MaddeDeviceTestActionId))
+        return new LinuxDeviceTestDialog(deviceConfig, new MaddeDeviceTester, parent);
+    if (actionId == QLatin1String(MaddeRemoteProcessesActionId))
+        return new RemoteLinuxProcessesDialog(new GenericRemoteLinuxProcessList(deviceConfig), parent);
+    if (actionId == QLatin1String(Constants::GenericDeployKeyToDeviceActionId))
+        return new PublicKeyDeploymentDialog(deviceConfig, parent);
+    return 0; // Can't happen.
 }
 
 } // namespace Internal

@@ -40,6 +40,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/synchronousprocess.cpp \
     $$PWD/savefile.cpp \
     $$PWD/fileutils.cpp \
+    $$PWD/textfileformat.cpp \
     $$PWD/submitfieldwidget.cpp \
     $$PWD/consoleprocess.cpp \
     $$PWD/uncommentselection.cpp \
@@ -86,6 +87,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/ssh/sftpchannel.cpp \
     $$PWD/ssh/sshremoteprocessrunner.cpp \
     $$PWD/ssh/sshconnectionmanager.cpp \
+    $$PWD/ssh/sshkeypasswordretriever.cpp \
     $$PWD/outputformatter.cpp \
     $$PWD/flowlayout.cpp \
     $$PWD/networkaccessmanager.cpp
@@ -134,6 +136,7 @@ HEADERS += \
     $$PWD/synchronousprocess.h \
     $$PWD/savefile.h \
     $$PWD/fileutils.h \
+    $$PWD/textfileformat.h \
     $$PWD/submitfieldwidget.h \
     $$PWD/uncommentselection.h \
     $$PWD/parameteraction.h \
@@ -186,6 +189,7 @@ HEADERS += \
     $$PWD/ssh/sshremoteprocessrunner.h \
     $$PWD/ssh/sshconnectionmanager.h \
     $$PWD/ssh/sshpseudoterminal.h \
+    $$PWD/ssh/sshkeypasswordretriever_p.h \
     $$PWD/statuslabel.h \
     $$PWD/outputformatter.h \
     $$PWD/outputformat.h \
@@ -199,8 +203,3 @@ FORMS += $$PWD/filewizardpage.ui \
     $$PWD/checkablemessagebox.ui
 
 RESOURCES += $$PWD/utils.qrc
-
-OTHER_FILES += $$PWD/app_version.h.in
-
-
-QMAKE_SUBSTITUTES += $$PWD/app_version.h.in

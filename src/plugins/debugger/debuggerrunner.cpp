@@ -212,6 +212,7 @@ DebuggerRunControl::~DebuggerRunControl()
         engine->disconnect();
         delete engine;
     }
+    delete d;
 }
 
 const DebuggerStartParameters &DebuggerRunControl::startParameters() const
@@ -249,20 +250,22 @@ void DebuggerRunControl::start()
         return;
     }
 
-    foreach (const BreakpointModelId &id, debuggerCore()->breakHandler()->allBreakpointIds()) {
-        if (d->m_engine->breakHandler()->breakpointData(id).enabled
-                && !d->m_engine->acceptsBreakpoint(id)) {
+    if (d->m_engine->startParameters().startMode == StartInternal) {
+        foreach (const BreakpointModelId &id, debuggerCore()->breakHandler()->allBreakpointIds()) {
+            if (d->m_engine->breakHandler()->breakpointData(id).enabled
+                    && !d->m_engine->acceptsBreakpoint(id)) {
 
-            QString warningMessage =
-                    DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
-                                       "languages currently active, and will be ignored.");
+                QString warningMessage =
+                        DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
+                                           "languages currently active, and will be ignored.");
 
-            debuggerCore()->showMessage(warningMessage, LogWarning);
+                debuggerCore()->showMessage(warningMessage, LogWarning);
 
-            QErrorMessage *msgBox = new QErrorMessage(debuggerCore()->mainWindow());
-            msgBox->setAttribute(Qt::WA_DeleteOnClose);
-            msgBox->showMessage(warningMessage);
-            break;
+                QErrorMessage *msgBox = new QErrorMessage(debuggerCore()->mainWindow());
+                msgBox->setAttribute(Qt::WA_DeleteOnClose);
+                msgBox->showMessage(warningMessage);
+                break;
+            }
         }
     }
 
@@ -449,10 +452,16 @@ static QList<DebuggerEngineType> enginesForMode(DebuggerStartMode startMode,
         }
         break;
     case AttachCore:
+#ifdef Q_OS_WIN
+        result.push_back(CdbEngineType);
+#endif
+        result.push_back(GdbEngineType);
+        break;
+    case StartRemote:
     case StartRemoteGdb:
         result.push_back(GdbEngineType);
         break;
-    case AttachToRemote:
+    case AttachToRemoteServer:
         if (!hardConstraintsOnly) {
 #ifdef Q_OS_WIN
             result.push_back(CdbEngineType);
@@ -467,6 +476,9 @@ static QList<DebuggerEngineType> enginesForMode(DebuggerStartMode startMode,
         // FIXME: Unclear IPC override. Someone please have a better idea.
         // For now thats the only supported IPC engine.
         result.push_back(LldbEngineType);
+        break;
+    case AttachToQmlPort:
+        result.push_back(QmlEngineType); // Only QML can do this
         break;
     }
     return result;
@@ -499,7 +511,7 @@ static QList<DebuggerEngineType> engineTypes(const DebuggerStartParameters &sp)
         return result;
     }
 
-    if (sp.startMode != AttachToRemote && !sp.executable.isEmpty())
+    if (sp.startMode != AttachToRemoteServer && !sp.executable.isEmpty())
         result = enginesForExecutable(sp.executable);
     if (!result.isEmpty())
         return result;

@@ -35,6 +35,7 @@
 
 #include "qt4project.h"
 #include "qt4target.h"
+#include "qt4nodes.h"
 #include "qt4buildconfiguration.h"
 #include "qt4projectmanagerconstants.h"
 
@@ -167,7 +168,7 @@ bool MakeStep::init()
 
     if (bc->subNodeBuild()) {
         QString makefile = bc->subNodeBuild()->makefile();
-        if(!makefile.isEmpty()) {
+        if (!makefile.isEmpty()) {
             Utils::QtcProcess::addArg(&args, QLatin1String("-f"));
             Utils::QtcProcess::addArg(&args, makefile);
             m_makeFileToCheck = QDir(workingDirectory).filePath(makefile);
@@ -222,7 +223,7 @@ bool MakeStep::init()
 
 void MakeStep::run(QFutureInterface<bool> & fi)
 {
-    if (qt4BuildConfiguration()->qt4Target()->qt4Project()->rootProjectNode()->projectType() == ScriptTemplate) {
+    if (qt4BuildConfiguration()->qt4Target()->qt4Project()->rootQt4ProjectNode()->projectType() == ScriptTemplate) {
         fi.reportResult(true);
         return;
     }

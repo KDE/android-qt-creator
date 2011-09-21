@@ -36,12 +36,14 @@
 #include "ui_maemodeviceconfigwizardreusekeyscheckpage.h"
 #include "ui_maemodeviceconfigwizardstartpage.h"
 
-#include "linuxdeviceconfigurations.h"
-#include "maemoconfigtestdialog.h"
+#include "maddedevicetester.h"
+#include "maemoconstants.h"
 #include "maemoglobal.h"
-#include "maemokeydeployer.h"
 
 #include <remotelinux/genericlinuxdeviceconfigurationwizardpages.h>
+#include <remotelinux/linuxdevicetestdialog.h>
+#include <remotelinux/remotelinuxutils.h>
+#include <remotelinux/sshkeydeployer.h>
 #include <utils/fileutils.h>
 #include <utils/ssh/sshkeygenerator.h>
 
@@ -60,14 +62,14 @@ namespace {
 
 QString defaultUser(const QString &osType)
 {
-    if (osType == LinuxDeviceConfiguration::MeeGoOsType)
+    if (osType == QLatin1String(MeeGoOsType))
         return QLatin1String("meego");
     return QLatin1String("developer");
 }
 
 QString defaultHost(LinuxDeviceConfiguration::DeviceType type)
 {
-    return QLatin1String(type == LinuxDeviceConfiguration::Physical ? "192.168.2.15" : "localhost");
+    return QLatin1String(type == LinuxDeviceConfiguration::Hardware ? "192.168.2.15" : "localhost");
 }
 
 struct WizardData
@@ -92,6 +94,7 @@ enum PageId {
 class MaemoDeviceConfigWizardStartPage : public QWizardPage
 {
     Q_OBJECT
+
 public:
     MaemoDeviceConfigWizardStartPage(QWidget *parent = 0)
         : QWizardPage(parent), m_ui(new Ui::MaemoDeviceConfigWizardStartPage)
@@ -100,12 +103,12 @@ public:
         setTitle(tr("General Information"));
         setSubTitle(QLatin1String(" ")); // For Qt bug (background color)
 
-        m_ui->osTypeComboBox->addItem(MaemoGlobal::osTypeToString(LinuxDeviceConfiguration::Maemo5OsType),
-            LinuxDeviceConfiguration::Maemo5OsType);
-        m_ui->osTypeComboBox->addItem(MaemoGlobal::osTypeToString(LinuxDeviceConfiguration::HarmattanOsType),
-            LinuxDeviceConfiguration::HarmattanOsType);
-        m_ui->osTypeComboBox->addItem(MaemoGlobal::osTypeToString(LinuxDeviceConfiguration::MeeGoOsType),
-            LinuxDeviceConfiguration::MeeGoOsType);
+        m_ui->osTypeComboBox->addItem(RemoteLinuxUtils::osTypeToString(QLatin1String(Maemo5OsType)),
+            QLatin1String(Maemo5OsType));
+        m_ui->osTypeComboBox->addItem(RemoteLinuxUtils::osTypeToString(QLatin1String(HarmattanOsType)),
+            QLatin1String(HarmattanOsType));
+        m_ui->osTypeComboBox->addItem(RemoteLinuxUtils::osTypeToString(QLatin1String(MeeGoOsType)),
+            QLatin1String(MeeGoOsType));
 
         QButtonGroup *buttonGroup = new QButtonGroup(this);
         buttonGroup->setExclusive(true);
@@ -115,7 +118,7 @@ public:
            SLOT(handleDeviceTypeChanged()));
 
         m_ui->nameLineEdit->setText(QLatin1String("(New Configuration)"));
-        m_ui->osTypeComboBox->setCurrentIndex(m_ui->osTypeComboBox->findData(LinuxDeviceConfiguration::HarmattanOsType));
+        m_ui->osTypeComboBox->setCurrentIndex(m_ui->osTypeComboBox->findData(QLatin1String(HarmattanOsType)));
         m_ui->hwButton->setChecked(true);
         handleDeviceTypeChanged();
         m_ui->hostNameLineEdit->setText(defaultHost(deviceType()));
@@ -150,7 +153,7 @@ public:
     LinuxDeviceConfiguration::DeviceType deviceType() const
     {
         return m_ui->hwButton->isChecked()
-            ? LinuxDeviceConfiguration::Physical : LinuxDeviceConfiguration::Emulator;
+            ? LinuxDeviceConfiguration::Hardware : LinuxDeviceConfiguration::Emulator;
     }
 
     int sshPort() const
@@ -162,7 +165,7 @@ public:
 private slots:
     void handleDeviceTypeChanged()
     {
-        const bool enable = deviceType() == LinuxDeviceConfiguration::Physical;
+        const bool enable = deviceType() == LinuxDeviceConfiguration::Hardware;
         m_ui->hostNameLabel->setEnabled(enable);
         m_ui->hostNameLineEdit->setEnabled(enable);
         m_ui->sshPortLabel->setEnabled(enable);
@@ -344,7 +347,7 @@ private:
         m_ui->statusLabel->setText(tr("Creating keys ... "));
         SshKeyGenerator keyGenerator;
         if (!keyGenerator.generateKeys(SshKeyGenerator::Rsa,
-             SshKeyGenerator::OpenSsl, 1024)) {
+             SshKeyGenerator::Mixed, 1024)) {
             QMessageBox::critical(this, tr("Cannot Create Keys"),
                 tr("Key creation failed: %1").arg(keyGenerator.error()));
             enableInput();
@@ -395,7 +398,7 @@ public:
             : QWizardPage(parent),
               m_ui(new Ui::MaemoDeviceConfigWizardKeyDeploymentPage),
               m_wizardData(wizardData),
-              m_keyDeployer(new MaemoKeyDeployer(this))
+              m_keyDeployer(new SshKeyDeployer(this))
     {
         m_ui->setupUi(this);
         m_instructionTextTemplate = m_ui->instructionLabel->text();
@@ -486,7 +489,7 @@ private:
     const QScopedPointer<Ui::MaemoDeviceConfigWizardKeyDeploymentPage> m_ui;
     bool m_isComplete;
     const WizardData &m_wizardData;
-    MaemoKeyDeployer * const m_keyDeployer;
+    SshKeyDeployer * const m_keyDeployer;
     QString m_instructionTextTemplate;
 };
 
@@ -547,7 +550,10 @@ MaemoDeviceConfigWizard::MaemoDeviceConfigWizard(QWidget *parent)
     d->finalPage.setCommitPage(true);
 }
 
-MaemoDeviceConfigWizard::~MaemoDeviceConfigWizard() {}
+MaemoDeviceConfigWizard::~MaemoDeviceConfigWizard()
+{
+    delete d;
+}
 
 LinuxDeviceConfiguration::Ptr MaemoDeviceConfigWizard::deviceConfiguration()
 {
@@ -559,7 +565,7 @@ LinuxDeviceConfiguration::Ptr MaemoDeviceConfigWizard::deviceConfiguration()
     sshParams.port = d->wizardData.sshPort;
     if (d->wizardData.deviceType == LinuxDeviceConfiguration::Emulator) {
         sshParams.authenticationType = Utils::SshConnectionParameters::AuthenticationByPassword;
-        sshParams.password = d->wizardData.osType == LinuxDeviceConfiguration::MeeGoOsType
+        sshParams.password = d->wizardData.osType == QLatin1String(MeeGoOsType)
             ? QLatin1String("meego") : QString();
         sshParams.timeout = 30;
         freePortsSpec = QLatin1String("13219,14168");
@@ -575,7 +581,7 @@ LinuxDeviceConfiguration::Ptr MaemoDeviceConfigWizard::deviceConfiguration()
         d->wizardData.osType, d->wizardData.deviceType, PortList::fromString(freePortsSpec),
         sshParams);
     if (doTest) {
-        MaemoConfigTestDialog dlg(devConf, this);
+        LinuxDeviceTestDialog dlg(devConf, new MaddeDeviceTester(this), this);
         dlg.exec();
     }
     return devConf;

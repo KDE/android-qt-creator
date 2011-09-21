@@ -46,6 +46,8 @@
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/toolchainmanager.h>
 
+#include <qtsupport/qtversionmanager.h>
+
 using ProjectExplorer::idFromMap;
 using ProjectExplorer::Task;
 using namespace Qt4ProjectManager;
@@ -223,7 +225,7 @@ ProjectExplorer::Target *Qt4SymbianTargetFactory::create(ProjectExplorer::Projec
     foreach (const BuildConfigurationInfo &info, infos)
         t->addQt4BuildConfiguration(msgBuildConfigurationName(info), QString(),
                                     info.version, info.buildConfig,
-                                    info.additionalArguments, info.directory);
+                                    info.additionalArguments, info.directory, info.importing);
 
     t->addDeployConfiguration(t->createDeployConfiguration(QLatin1String(Qt4ProjectManager::Constants::S60_DEVICE_TARGET_ID)));
 

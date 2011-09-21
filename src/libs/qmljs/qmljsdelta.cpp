@@ -83,11 +83,11 @@ static QString label(UiQualifiedId *id)
 {
     QString str;
     for (; id ; id = id->next) {
-        if (!id->name)
+        if (id->name.isEmpty())
             return QString();
         if (!str.isEmpty())
             str += QLatin1Char('.');
-        str += id->name->asString();
+        str += id->name;
     }
     return str;
 }
@@ -96,7 +96,7 @@ static QString label(UiQualifiedId *id)
 static QString label(UiObjectMember *member, Document::Ptr doc)
 {
     QString str;
-    if(!member)
+    if (!member)
         return str;
 
     if (UiObjectDefinition* foo = cast<UiObjectDefinition *>(member)) {
@@ -284,10 +284,10 @@ static QString _propertyName(UiQualifiedId *id)
     QString s;
 
     for (; id; id = id->next) {
-        if (! id->name)
+        if (id->name.isEmpty())
             return QString();
 
-        s += id->name->asString();
+        s += id->name;
 
         if (id->next)
             s += QLatin1Char('.');
@@ -300,7 +300,7 @@ static QString _methodName(UiSourceElement *source)
 {
     if (source) {
         if (FunctionDeclaration *declaration = cast<FunctionDeclaration*>(source->sourceElement)) {
-            return declaration->name->asString();
+            return declaration->name.toString();
         }
     }
     return QString();
@@ -511,13 +511,15 @@ Delta::DebugIdMap Delta::operator()(const Document::Ptr &doc1, const Document::P
 
         if (!M.way2.contains(y)) {
             UiObjectMember* parent = parents2.parent.value(y);
-            if ( parent->kind == QmlJS::AST::Node::Kind_UiArrayBinding )
-                parent = parents2.parent.value(parent);
+            if (parent) {
+                if ( parent->kind == QmlJS::AST::Node::Kind_UiArrayBinding )
+                    parent = parents2.parent.value(parent);
 
-            if (M.way2.contains(parent) && newDebuggIds.value(parent).count() > 0) {
-                if (debug)
-                    qDebug () << "Delta::operator():  insert " << label(y, doc2) << " to " << label(parent, doc2);
-                insert(y, parent, newDebuggIds.value(parent), doc2);
+                if (M.way2.contains(parent) && newDebuggIds.value(parent).count() > 0) {
+                    if (debug)
+                        qDebug () << "Delta::operator():  insert " << label(y, doc2) << " to " << label(parent, doc2);
+                    insert(y, parent, newDebuggIds.value(parent), doc2);
+                }
             }
             continue;
         }

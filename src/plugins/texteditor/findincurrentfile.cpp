@@ -47,9 +47,8 @@ using namespace Find;
 using namespace TextEditor;
 using namespace TextEditor::Internal;
 
-FindInCurrentFile::FindInCurrentFile(SearchResultWindow *resultWindow)
-  : BaseFileFind(resultWindow),
-    m_configWidget(0),
+FindInCurrentFile::FindInCurrentFile()
+  : m_configWidget(0),
     m_currentFile(0)
 {
     connect(Core::ICore::instance()->editorManager(), SIGNAL(currentEditorChanged(Core::IEditor*)),
@@ -76,6 +75,17 @@ Utils::FileIterator *FindInCurrentFile::files() const
     if (!codec)
         codec = Core::EditorManager::instance()->defaultTextCodec();
     return new Utils::FileIterator(QStringList() << fileName, QList<QTextCodec *>() << codec);
+}
+
+QString FindInCurrentFile::label() const
+{
+    return tr("File '%1':").arg(QFileInfo(m_currentFile->fileName()).fileName());
+}
+
+QString FindInCurrentFile::toolTip() const
+{
+    // %2 is filled by BaseFileFind::runNewSearch
+    return tr("File path: %1\n%2").arg(QDir::toNativeSeparators(m_currentFile->fileName()));
 }
 
 bool FindInCurrentFile::isEnabled() const

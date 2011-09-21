@@ -62,7 +62,7 @@ class DebuggingHelper;
 class QtOptionsPageWidget : public QWidget
 {
     Q_OBJECT
-    Q_DISABLE_COPY(QtOptionsPageWidget)
+
 public:
     QtOptionsPageWidget(QWidget *parent, QList<BaseQtVersion *> versions);
     ~QtOptionsPageWidget();

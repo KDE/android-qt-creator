@@ -816,6 +816,17 @@ void NodeInstanceServer::setInstanceAuxiliaryData(const PropertyValueContainer &
             rootNodeInstance().resetProperty(auxiliaryContainer.name());
         }
     }
+    if (auxiliaryContainer.name().endsWith(QLatin1String("@NodeInstance"))) {
+        QString propertyName = auxiliaryContainer.name().leftRef(auxiliaryContainer.name().count() - 12).toString();
+        if (!auxiliaryContainer.value().isNull()) {
+            setInstancePropertyVariant(PropertyValueContainer(auxiliaryContainer.instanceId(),
+                                                              propertyName,
+                                                              auxiliaryContainer.value(),
+                                                              auxiliaryContainer.dynamicTypeName()));
+        } else {
+            rootNodeInstance().resetProperty(propertyName);
+        }
+    }
 }
 
 
@@ -1045,7 +1056,7 @@ PixmapChangedCommand NodeInstanceServer::createPixmapChangedCommand(const QList<
     QVector<ImageContainer> imageVector;
 
     foreach (const ServerNodeInstance &instance, instanceList) {
-        if (instance.isValid())
+        if (instance.isValid() && instance.hasContent())
             imageVector.append(ImageContainer(instance.instanceId(), instance.renderImage()));
     }
 

@@ -34,13 +34,13 @@
 
 #include "remotelinuxapplicationrunner.h"
 #include "maemomountspecification.h"
-#include "maemorunconfiguration.h"
 
 namespace RemoteLinux {
 namespace Internal {
 class MaemoRemoteMounter;
+class MaemoRunConfiguration;
 
-class MaemoSshRunner : public RemoteLinuxApplicationRunner
+class MaemoSshRunner : public AbstractRemoteLinuxApplicationRunner
 {
     Q_OBJECT
 public:
@@ -59,10 +59,12 @@ private:
     enum MountState { InactiveMountState, InitialUnmounting, Mounting, Mounted, PostRunUnmounting };
 
     bool canRun(QString &whyNot) const;
+    void doDeviceSetup();
     void doAdditionalInitialCleanup();
     void doAdditionalInitializations();
-    void doAdditionalPostRunCleanup();
+    void doPostRunCleanup();
     void doAdditionalConnectionErrorHandling();
+    QString killApplicationCommandLine() const;
 
     void mount();
     void unmount();

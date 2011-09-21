@@ -33,7 +33,6 @@
 #define QMLDOCUMENT_H
 
 #include <QtCore/QList>
-#include <QtCore/QMap>
 #include <QtCore/QPair>
 #include <QtCore/QSharedPointer>
 #include <QtCore/QString>
@@ -56,18 +55,26 @@ class QMLJS_EXPORT Document
 public:
     typedef QSharedPointer<Document> Ptr;
 
+    enum Language
+    {
+        QmlLanguage = 0,
+        JavaScriptLanguage = 1,
+        UnknownLanguage = 2
+    };
+
 protected:
-    Document(const QString &fileName);
+    Document(const QString &fileName, Language language);
 
 public:
     ~Document();
 
-    static Document::Ptr create(const QString &fileName);
+    static Document::Ptr create(const QString &fileName, Language language);
 
     Document::Ptr ptr() const;
 
     bool isQmlDocument() const;
     bool isJSDocument() const;
+    Language language() const;
 
     AST::UiProgram *qmlProgram() const;
     AST::Program *jsProgram() const;
@@ -100,22 +107,20 @@ public:
 
 private:
     bool parse_helper(int kind);
-    static void extractPragmas(QString *source);
 
 private:
     QmlJS::Engine *_engine;
-    NodePool *_pool;
     AST::Node *_ast;
     Bind *_bind;
-    bool _isQmlDocument;
-    int _editorRevision;
-    bool _parsedCorrectly;
     QList<QmlJS::DiagnosticMessage> _diagnosticMessages;
     QString _fileName;
     QString _path;
     QString _componentName;
     QString _source;
     QWeakPointer<Document> _ptr;
+    int _editorRevision;
+    Language _language : 2;
+    bool _parsedCorrectly : 1;
 
     // for documentFromSource
     friend class Snapshot;
@@ -142,6 +147,7 @@ private:
     Status _status;
     QList<QmlDirParser::Component> _components;
     QList<QmlDirParser::Plugin> _plugins;
+    QList<QmlDirParser::TypeInfo> _typeinfos;
     typedef QList<LanguageUtils::FakeMetaObject::ConstPtr> FakeMetaObjectList;
     FakeMetaObjectList _metaObjects;
 
@@ -158,6 +164,9 @@ public:
 
     QList<QmlDirParser::Plugin> plugins() const
     { return _plugins; }
+
+    QList<QmlDirParser::TypeInfo> typeInfos() const
+    { return _typeinfos; }
 
     FakeMetaObjectList metaObjects() const
     { return _metaObjects; }
@@ -198,7 +207,7 @@ public:
     const_iterator begin() const { return _documents.begin(); }
     const_iterator end() const { return _documents.end(); }
 
-    void insert(const Document::Ptr &document);
+    void insert(const Document::Ptr &document, bool allowInvalid = false);
     void insertLibraryInfo(const QString &path, const LibraryInfo &info);
     void remove(const QString &fileName);
 
@@ -207,7 +216,8 @@ public:
     LibraryInfo libraryInfo(const QString &path) const;
 
     Document::Ptr documentFromSource(const QString &code,
-                                     const QString &fileName) const;
+                                     const QString &fileName,
+                                     Document::Language language) const;
 };
 
 } // namespace QmlJS

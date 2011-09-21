@@ -32,12 +32,12 @@
 #ifndef MADDEDEVICECONFIGURATIONFACTORY_H
 #define MADDEDEVICECONFIGURATIONFACTORY_H
 
-#include "genericlinuxdeviceconfigurationfactory.h"
+#include <remotelinux/linuxdeviceconfiguration.h>
 
 namespace RemoteLinux {
 namespace Internal {
 
-class MaddeDeviceConfigurationFactory : public GenericLinuxDeviceConfigurationFactory
+class MaddeDeviceConfigurationFactory : public RemoteLinux::ILinuxDeviceConfigurationFactory
 {
     Q_OBJECT
 public:
@@ -47,6 +47,10 @@ public:
     ILinuxDeviceConfigurationWizard *createWizard(QWidget *parent) const;
     bool supportsOsType(const QString &osType) const;
     QString displayNameForOsType(const QString &osType) const;
+    QStringList supportedDeviceActionIds() const;
+    QString displayNameForActionId(const QString &actionId) const;
+    QDialog *createDeviceAction(const QString &actionId,
+        const LinuxDeviceConfiguration::ConstPtr &deviceConfig, QWidget *parent) const;
 };
 
 } // namespace Internal

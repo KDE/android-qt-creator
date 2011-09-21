@@ -38,9 +38,8 @@
 #include "nodelistproperty.h"
 #include "modelnode.h"
 
-#include <qmljs/qmljslookupcontext.h>
 #include <qmljs/qmljsdocument.h>
-#include <qmljs/qmljslookupcontext.h>
+#include <qmljs/qmljsscopechain.h>
 
 #include <QtCore/QStringList>
 #include <QtCore/QTimer>
@@ -69,8 +68,8 @@ public:
     RewriterView *view() const
     { return m_rewriterView; }
 
-    QmlJS::LookupContext *lookupContext() const
-    { return m_lookupContext.data(); }
+    const QmlJS::ScopeChain &scopeChain() const
+    { return *m_scopeChain; }
 
     QmlJS::Document *document() const
     { return m_document.data(); }
@@ -141,7 +140,7 @@ private:
 private:
     RewriterView *m_rewriterView;
     bool m_isActive;
-    QmlJS::LookupContext::Ptr m_lookupContext;
+    QSharedPointer<const QmlJS::ScopeChain> m_scopeChain;
     QmlJS::Document::Ptr m_document;
     QTimer m_setupTimer;
     QSet<ModelNode> m_setupComponentList;
@@ -157,8 +156,8 @@ public:
     virtual ~DifferenceHandler()
     {}
 
-    virtual void modelMissesImport(const Import &import) = 0;
-    virtual void importAbsentInQMl(const Import &import) = 0;
+    virtual void modelMissesImport(const QmlDesigner::Import &import) = 0;
+    virtual void importAbsentInQMl(const QmlDesigner::Import &import) = 0;
     virtual void bindingExpressionsDiffer(BindingProperty &modelProperty,
                                           const QString &javascript,
                                           const QString &astType) = 0;
@@ -204,8 +203,8 @@ public:
     ~ModelValidator()
     {}
 
-    virtual void modelMissesImport(const Import &import);
-    virtual void importAbsentInQMl(const Import &import);
+    virtual void modelMissesImport(const QmlDesigner::Import &import);
+    virtual void importAbsentInQMl(const QmlDesigner::Import &import);
     virtual void bindingExpressionsDiffer(BindingProperty &modelProperty,
                                           const QString &javascript,
                                           const QString &astType);
@@ -248,8 +247,8 @@ public:
     ~ModelAmender()
     {}
 
-    virtual void modelMissesImport(const Import &import);
-    virtual void importAbsentInQMl(const Import &import);
+    virtual void modelMissesImport(const QmlDesigner::Import &import);
+    virtual void importAbsentInQMl(const QmlDesigner::Import &import);
     virtual void bindingExpressionsDiffer(BindingProperty &modelProperty,
                                           const QString &javascript,
                                           const QString &astType);

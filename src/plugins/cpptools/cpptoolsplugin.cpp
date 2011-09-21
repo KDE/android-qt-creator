@@ -54,7 +54,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/vcsmanager.h>
@@ -87,7 +87,7 @@ using namespace CPlusPlus;
 
 enum { debug = 0 };
 
-CppToolsPlugin *CppToolsPlugin::m_instance = 0;
+static CppToolsPlugin *m_instance = 0;
 
 CppToolsPlugin::CppToolsPlugin() :
     m_modelManager(0),
@@ -153,6 +153,12 @@ bool CppToolsPlugin::initialize(const QStringList &arguments, QString *error)
     command->setDefaultKeySequence(QKeySequence(Qt::Key_F4));
     mcpptools->addAction(command);
     connect(switchAction, SIGNAL(triggered()), this, SLOT(switchHeaderSource()));
+
+    TextEditor::TextEditorSettings *ts = TextEditor::TextEditorSettings::instance();
+    ts->registerMimeTypeForLanguageId(QLatin1String(Constants::C_SOURCE_MIMETYPE), Constants::CPP_SETTINGS_ID);
+    ts->registerMimeTypeForLanguageId(QLatin1String(Constants::C_HEADER_MIMETYPE), Constants::CPP_SETTINGS_ID);
+    ts->registerMimeTypeForLanguageId(QLatin1String(Constants::CPP_SOURCE_MIMETYPE), Constants::CPP_SETTINGS_ID);
+    ts->registerMimeTypeForLanguageId(QLatin1String(Constants::CPP_HEADER_MIMETYPE), Constants::CPP_SETTINGS_ID);
 
     return true;
 }
@@ -310,9 +316,9 @@ QString CppToolsPlugin::correspondingHeaderOrSourceI(const QString &fileName) co
     return QString();
 }
 
-QString CppToolsPlugin::correspondingHeaderOrSource(const QString &fileName) const
+QString CppToolsPlugin::correspondingHeaderOrSource(const QString &fileName)
 {
-    const QString rc = correspondingHeaderOrSourceI(fileName);
+    const QString rc = m_instance->correspondingHeaderOrSourceI(fileName);
     if (debug)
         qDebug() << Q_FUNC_INFO << fileName << rc;
     return rc;

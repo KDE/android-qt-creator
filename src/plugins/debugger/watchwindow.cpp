@@ -170,7 +170,7 @@ static inline uint sizeOf(const QModelIndex &m)
     return m.data(LocalsSizeRole).toUInt();
 }
 
-// Create a map of value->name for register markup
+// Create a map of value->name for register markup.
 typedef QMap<quint64, QString> RegisterMap;
 typedef RegisterMap::const_iterator RegisterMapConstIt;
 
@@ -190,12 +190,11 @@ RegisterMap registerMap(const DebuggerEngine *engine)
 // number and tooltip. Parts of it will be overwritten when recursing
 // over the children.
 
-typedef QPair<int, QString> ColorNumberToolTipPair;
-typedef QVector<ColorNumberToolTipPair> ColorNumberToolTipVector;
+typedef QPair<int, QString> ColorNumberToolTip;
+typedef QVector<ColorNumberToolTip> ColorNumberToolTips;
 
-static inline QString variableToolTip(const QString &name,
-                                      const QString &type,
-                                      quint64 offset)
+static QString variableToolTip(const QString &name, const QString &type,
+    quint64 offset)
 {
     return offset ?
            //: HTML tooltip of a variable in the memory editor
@@ -210,17 +209,19 @@ static int memberVariableRecursion(const QAbstractItemModel *model,
                                    const QString &name,
                                    quint64 start, quint64 end,
                                    int *colorNumberIn,
-                                   ColorNumberToolTipVector *cnmv)
+                                   ColorNumberToolTips *cnmv)
 {
     int childCount = 0;
     // Recurse over top level items if modelIndex is invalid.
     const bool isRoot = !modelIndex.isValid();
-    const int rowCount = isRoot ? model->rowCount() : modelIndex.model()->rowCount(modelIndex);
+    const int rowCount = isRoot
+        ? model->rowCount() : modelIndex.model()->rowCount(modelIndex);
     if (!rowCount)
         return childCount;
     const QString nameRoot = name.isEmpty() ? name : name +  QLatin1Char('.');
     for (int r = 0; r < rowCount; r++) {
-        const QModelIndex childIndex = isRoot ? model->index(r, 0) : modelIndex.child(r, 0);
+        const QModelIndex childIndex = isRoot
+            ? model->index(r, 0) : modelIndex.child(r, 0);
         const quint64 childAddress = addressOf(childIndex);
         const uint childSize = sizeOf(childIndex);
         if (childAddress && childAddress >= start
@@ -229,11 +230,12 @@ static int memberVariableRecursion(const QAbstractItemModel *model,
             const quint64 childOffset = childAddress - start;
             const QString toolTip
                 = variableToolTip(childName, typeOf(childIndex), childOffset);
-            const ColorNumberToolTipPair colorNumberNamePair((*colorNumberIn)++, toolTip);
-            const ColorNumberToolTipVector::iterator begin = cnmv->begin() + childOffset;
+            const ColorNumberToolTip colorNumberNamePair((*colorNumberIn)++, toolTip);
+            const ColorNumberToolTips::iterator begin = cnmv->begin() + childOffset;
             qFill(begin, begin + childSize, colorNumberNamePair);
             childCount++;
-            childCount += memberVariableRecursion(model, childIndex, childName, start, end, colorNumberIn, cnmv);
+            childCount += memberVariableRecursion(model, childIndex,
+                            childName, start, end, colorNumberIn, cnmv);
         }
     }
     return childCount;
@@ -282,7 +284,7 @@ static int memberVariableRecursion(const QAbstractItemModel *model,
 
 typedef QList<MemoryMarkup> MemoryMarkupList;
 
-static inline MemoryMarkupList
+static MemoryMarkupList
     variableMemoryMarkup(const QAbstractItemModel *model,
                          const QModelIndex &modelIndex,
                          const QString &rootName,
@@ -302,7 +304,7 @@ static inline MemoryMarkupList
     // leaving the padding areas of the parent colored with the base color.
     MemoryMarkupList result;
     int colorNumber = 0;
-    ColorNumberToolTipVector ranges(size, ColorNumberToolTipPair(colorNumber, rootToolTip));
+    ColorNumberToolTips ranges(size, ColorNumberToolTip(colorNumber, rootToolTip));
     const int childCount = memberVariableRecursion(model, modelIndex,
                                                    rootName, address, address + size,
                                                    &colorNumber, &ranges);
@@ -314,9 +316,8 @@ static inline MemoryMarkupList
         if (it.key() >= address) {
             const quint64 offset = it.key() - address;
             if (offset < size) {
-                ranges[offset] =
-                    ColorNumberToolTipPair(registerColorNumber,
-                                           WatchWindow::tr("Register <i>%1</i>").arg(it.value()));
+                ranges[offset] = ColorNumberToolTip(registerColorNumber,
+                           WatchWindow::tr("Register <i>%1</i>").arg(it.value()));
             } else {
                 break; // Sorted.
             }
@@ -328,7 +329,8 @@ static inline MemoryMarkupList
         QString name;
         for (unsigned i = 0; i < size; ++i)
             if (name != ranges.at(i).second) {
-                dbg << ",[" << i << ' ' << ranges.at(i).first << ' ' << ranges.at(i).second << ']';
+                dbg << ",[" << i << ' ' << ranges.at(i).first << ' '
+                    << ranges.at(i).second << ']';
                 name = ranges.at(i).second;
             }
     }
@@ -343,7 +345,7 @@ static inline MemoryMarkupList
     int lastColorNumber = 0;
     int childNumber = 0;
     for (unsigned i = 0; i < size; ++i) {
-        const ColorNumberToolTipPair &range = ranges.at(i);
+        const ColorNumberToolTip &range = ranges.at(i);
         if (result.isEmpty() || lastColorNumber != range.first) {
             lastColorNumber = range.first;
             // Base colors: Parent/register
@@ -369,7 +371,8 @@ static inline MemoryMarkupList
         QString name;
         for (unsigned i = 0; i < size; ++i)
             if (name != ranges.at(i).second) {
-                dbg << ',' << i << ' ' << ranges.at(i).first << ' ' << ranges.at(i).second;
+                dbg << ',' << i << ' ' << ranges.at(i).first << ' '
+                    << ranges.at(i).second;
                 name = ranges.at(i).second;
             }
         dbg << '\n';
@@ -381,11 +384,9 @@ static inline MemoryMarkupList
 }
 
 // Convenience to create a memory view of a variable.
-static void addVariableMemoryView(DebuggerEngine *engine,
-                                  bool separateView,
-                                  const QModelIndex &m, bool deferencePointer,
-                                  const QPoint &p,
-                                  QWidget *parent)
+static void addVariableMemoryView(DebuggerEngine *engine, bool separateView,
+    const QModelIndex &m, bool deferencePointer,
+    const QPoint &p, QWidget *parent)
 {
     const QColor background = parent->palette().color(QPalette::Normal, QPalette::Base);
     const quint64 address = deferencePointer ? pointerValueOf(m) : addressOf(m);
@@ -401,24 +402,25 @@ static void addVariableMemoryView(DebuggerEngine *engine,
                              address, size,
                              registerMap(engine),
                              sizeIsEstimate, background);
-    const unsigned flags = separateView ? (DebuggerEngine::MemoryView|DebuggerEngine::MemoryReadOnly) : 0;
-    const QString title = deferencePointer ?
-    WatchWindow::tr("Memory Referenced by Pointer '%1' (0x%2)").arg(nameOf(m)).arg(address, 0, 16) :
-    WatchWindow::tr("Memory at Variable '%1' (0x%2)").arg(nameOf(m)).arg(address, 0, 16);
+    const unsigned flags = separateView
+        ? DebuggerEngine::MemoryView|DebuggerEngine::MemoryReadOnly : 0;
+    const QString title = deferencePointer
+        ?  WatchWindow::tr("Memory Referenced by Pointer \"%1\" (0x%2)")
+                .arg(nameOf(m)).arg(address, 0, 16)
+        : WatchWindow::tr("Memory at Variable \"%1\" (0x%2)")
+                .arg(nameOf(m)).arg(address, 0, 16);
     engine->openMemoryView(address, flags, markup, p, title, parent);
 }
 
 // Add a memory view of the stack layout showing local variables
 // and registers.
-static inline void addStackLayoutMemoryView(DebuggerEngine *engine,
-                                            bool separateView,
-                                            const QAbstractItemModel *m, const QPoint &p,
-                                            QWidget *parent)
+static void addStackLayoutMemoryView(DebuggerEngine *engine, bool separateView,
+    const QAbstractItemModel *m, const QPoint &p, QWidget *parent)
 {
     typedef QPair<quint64, QString> RegisterValueNamePair;
     QTC_ASSERT(engine && m, return ;)
 
-    // Determine suitable address range from locals
+    // Determine suitable address range from locals.
     quint64 start = Q_UINT64_C(0xFFFFFFFFFFFFFFFF);
     quint64 end = 0;
     const int rootItemCount = m->rowCount();
@@ -439,7 +441,8 @@ static inline void addStackLayoutMemoryView(DebuggerEngine *engine,
     }
     // Anything found and everything in a sensible range (static data in-between)?
     if (end <= start || end - start > 100 * 1024) {
-        QMessageBox::information(parent, WatchWindow::tr("Cannot Display Stack Layout"),
+        QMessageBox::information(parent,
+            WatchWindow::tr("Cannot Display Stack Layout"),
             WatchWindow::tr("Could not determine a suitable address range."));
         return;
     }
@@ -461,7 +464,8 @@ static inline void addStackLayoutMemoryView(DebuggerEngine *engine,
         variableMemoryMarkup(m, QModelIndex(), QString(),
                              QString(), start, end - start,
                              regMap, true, background);
-    const unsigned flags = separateView ? (DebuggerEngine::MemoryView|DebuggerEngine::MemoryReadOnly) : 0;
+    const unsigned flags = separateView
+        ? (DebuggerEngine::MemoryView|DebuggerEngine::MemoryReadOnly) : 0;
     const QString title =
         WatchWindow::tr("Memory Layout of Local Variables at 0x%1").arg(start, 0, 16);
     engine->openMemoryView(start, flags, markup, p, title, parent);
@@ -573,8 +577,8 @@ void WatchWindow::mouseDoubleClickEvent(QMouseEvent *ev)
     QTreeView::mouseDoubleClickEvent(ev);
 }
 
-// Text for add watch action with truncated expression
-static inline QString addWatchActionText(QString exp)
+// Text for add watch action with truncated expression.
+static QString addWatchActionText(QString exp)
 {
     if (exp.isEmpty())
         return WatchWindow::tr("Evaluate Expression");
@@ -585,8 +589,8 @@ static inline QString addWatchActionText(QString exp)
     return WatchWindow::tr("Evaluate Expression \"%1\"").arg(exp);
 }
 
-// Text for add watch action with truncated expression
-static inline QString removeWatchActionText(QString exp)
+// Text for add watch action with truncated expression.
+static QString removeWatchActionText(QString exp)
 {
     if (exp.isEmpty())
         return WatchWindow::tr("Remove Evaluated Expression");
@@ -597,7 +601,7 @@ static inline QString removeWatchActionText(QString exp)
     return WatchWindow::tr("Remove Evaluated Expression \"%1\"").arg(exp);
 }
 
-static inline void copyToClipboard(const QString &clipboardText)
+static void copyToClipboard(const QString &clipboardText)
 {
     QClipboard *clipboard = QApplication::clipboard();
 #ifdef Q_WS_X11
@@ -641,6 +645,7 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     QAction *clearTypeFormatAction = 0;
     QAction *clearIndividualFormatAction = 0;
     QAction *showUnprintableUnicode = 0;
+    QAction *showUnprintableEscape = 0;
     QAction *showUnprintableOctal = 0;
     QAction *showUnprintableHexadecimal = 0;
     formatMenu.setTitle(tr("Change Display Format..."));
@@ -648,6 +653,10 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
         formatMenu.addAction(tr("Treat All Characters as Printable"));
     showUnprintableUnicode->setCheckable(true);
     showUnprintableUnicode->setChecked(unprintableBase == 0);
+    showUnprintableEscape =
+        formatMenu.addAction(tr("Show Unprintable Characters as Escape Sequences"));
+    showUnprintableEscape->setCheckable(true);
+    showUnprintableEscape->setChecked(unprintableBase == -1);
     showUnprintableOctal =
         formatMenu.addAction(tr("Show Unprintable Characters as Octal"));
     showUnprintableOctal->setCheckable(true);
@@ -707,7 +716,7 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     const DebuggerState state = engine->state();
     const bool canInsertWatches = state == InferiorStopOk
         || state == InferiorUnrunnable
-        || (state == InferiorRunOk && engine->acceptsWatchesWhileRunning());
+        || (state == InferiorRunOk && (engineCapabilities & AddWatcherWhileRunningCapability));
 
     QMenu breakpointMenu;
     breakpointMenu.setTitle(tr("Add Data Breakpoint..."));
@@ -751,21 +760,27 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     breakpointMenu.addAction(actSetWatchpointAtExpression);
 
     QMenu menu;
-    QAction *actInsertNewWatchItem = menu.addAction(tr("Insert New Evaluated Expression"));
+    QAction *actInsertNewWatchItem =
+        menu.addAction(tr("Insert New Evaluated Expression"));
     actInsertNewWatchItem->setEnabled(canHandleWatches && canInsertWatches);
     QAction *actSelectWidgetToWatch = menu.addAction(tr("Select Widget to Watch"));
-    actSelectWidgetToWatch->setEnabled(canHandleWatches && (engine->canWatchWidgets()));
-
+    actSelectWidgetToWatch->setEnabled(canHandleWatches
+           && (engine->debuggerCapabilities() & WatchWidgetsCapability));
     menu.addSeparator();
 
     QAction *actWatchExpression = new QAction(addWatchActionText(exp), &menu);
     actWatchExpression->setEnabled(canHandleWatches && !exp.isEmpty());
 
     // Can remove watch if engine can handle it or session engine.
-    QAction *actRemoveWatchExpression = new QAction(removeWatchActionText(exp), &menu);
+    QModelIndex p = mi0;
+    while (p.parent().isValid())
+        p = p.parent();
+    QString removeExp = p.data(LocalsExpressionRole).toString();
+    QAction *actRemoveWatchExpression = new QAction(removeWatchActionText(removeExp), &menu);
     actRemoveWatchExpression->setEnabled(
         (canHandleWatches || state == DebuggerNotReady) && !exp.isEmpty());
-    QAction *actRemoveWatches = new QAction(tr("Remove All Watch Items"), &menu);
+    QAction *actRemoveWatches =
+        new QAction(tr("Remove All Evaluated Expressions"), &menu);
     actRemoveWatches->setEnabled(!WatchHandler::watcherNames().isEmpty());
 
     if (m_type == LocalsType)
@@ -815,7 +830,8 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
                 tr("Open Memory View at Referenced Address"));
             actOpenMemoryViewAtPointerValue->setEnabled(false);
         }
-        actOpenMemoryEditorStackLayout->setText(tr("Open Memory Editor Showing Stack Layout"));
+        actOpenMemoryEditorStackLayout->setText(
+            tr("Open Memory Editor Showing Stack Layout"));
         actOpenMemoryEditorStackLayout->setEnabled(m_type == LocalsType);
         memoryMenu.addAction(actOpenMemoryViewAtVariableAddress);
         memoryMenu.addAction(actOpenMemoryViewAtPointerValue);
@@ -864,7 +880,8 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     menu.addAction(actShowInEditor);
     menu.addAction(debuggerCore()->action(SettingsDialog));
 
-    QAction *actCloseEditorToolTips = new QAction(tr("Close Editor Tooltips"), &menu);
+    QAction *actCloseEditorToolTips =
+        new QAction(tr("Close Editor Tooltips"), &menu);
     actCloseEditorToolTips->setEnabled(DebuggerToolTipManager::instance()->hasToolTips());
     menu.addAction(actCloseEditorToolTips);
 
@@ -910,7 +927,7 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
     } else if (act == actWatchExpression) {
         watchExpression(exp);
     } else if (act == actRemoveWatchExpression) {
-        removeWatchExpression(exp);
+        removeWatchExpression(removeExp);
     } else if (act == actCopy) {
         copyToClipboard(DebuggerToolTipWidget::treeModelClipboardContents(model()));
     } else if (act == actCopyValue) {
@@ -928,6 +945,8 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
         debuggerCore()->openTextEditor(tr("Locals & Watchers"), contents);
     } else if (act == showUnprintableUnicode) {
         handler->setUnprintableBase(0);
+    } else if (act == showUnprintableEscape) {
+        handler->setUnprintableBase(-1);
     } else if (act == showUnprintableOctal) {
         handler->setUnprintableBase(8);
     } else if (act == showUnprintableHexadecimal) {

@@ -43,7 +43,6 @@ namespace Internal {
 class RemoteLinuxQmlProfilerRunner : public AbstractQmlProfilerRunner
 {
     Q_OBJECT
-    Q_DISABLE_COPY(RemoteLinuxQmlProfilerRunner)
 
     using AbstractQmlProfilerRunner::appendMessage; // don't hide signal
 public:
@@ -66,7 +65,7 @@ private slots:
     void handleProgressReport(const QString &progressString);
 
 private:
-    RemoteLinux::RemoteLinuxApplicationRunner *runner() const;
+    RemoteLinux::AbstractRemoteLinuxApplicationRunner *runner() const;
 
     int m_port;
     RemoteLinux::AbstractRemoteLinuxRunControl *m_runControl;

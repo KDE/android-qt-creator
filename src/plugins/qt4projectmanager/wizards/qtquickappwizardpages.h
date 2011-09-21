@@ -33,8 +33,9 @@
 #ifndef QTQUICKAPPWIZARDPAGES_H
 #define QTQUICKAPPWIZARDPAGES_H
 
-#include <QtGui/QWizardPage>
 #include "qtquickapp.h"
+
+#include <QtGui/QWizardPage>
 
 namespace Qt4ProjectManager {
 namespace Internal {
@@ -42,7 +43,6 @@ namespace Internal {
 class QtQuickComponentSetOptionsPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(QtQuickComponentSetOptionsPage)
 
 public:
     explicit QtQuickComponentSetOptionsPage(QWidget *parent = 0);
@@ -59,7 +59,7 @@ private slots:
     void radioButtonChecked(int index);
 
 private:
-    class QtQuickComponentSetOptionsPagePrivate *m_d;
+    class QtQuickComponentSetOptionsPagePrivate *d;
 };
 
 } // namespace Internal

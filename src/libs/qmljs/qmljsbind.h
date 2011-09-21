@@ -35,6 +35,7 @@
 
 #include <qmljs/parser/qmljsastvisitor_p.h>
 #include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljsvalueowner.h>
 
 #include <QtCore/QHash>
 #include <QtCore/QStringList>
@@ -54,16 +55,16 @@ public:
     Bind(Document *doc, QList<DiagnosticMessage> *messages);
     virtual ~Bind();
 
-    QList<Interpreter::ImportInfo> imports() const;
+    QList<ImportInfo> imports() const;
 
-    Interpreter::ObjectValue *idEnvironment() const;
-    Interpreter::ObjectValue *rootObjectValue() const;
+    ObjectValue *idEnvironment() const;
+    ObjectValue *rootObjectValue() const;
 
-    Interpreter::ObjectValue *findQmlObject(AST::Node *node) const;
-    bool usesQmlPrototype(Interpreter::ObjectValue *prototype,
-                          const Interpreter::Context *context) const;
+    ObjectValue *findQmlObject(AST::Node *node) const;
+    bool usesQmlPrototype(ObjectValue *prototype,
+                          const ContextPtr &context) const;
 
-    Interpreter::ObjectValue *findAttachedJSScope(AST::Node *node) const;
+    ObjectValue *findAttachedJSScope(AST::Node *node) const;
     bool isGroupedPropertyBinding(AST::Node *node) const;
 
     static QString toString(AST::UiQualifiedId *qualifiedId, QChar delimiter = QChar('.'));
@@ -89,23 +90,24 @@ protected:
     virtual bool visit(AST::FunctionExpression *ast);
     virtual bool visit(AST::VariableDeclaration *ast);
 
-    Interpreter::ObjectValue *switchObjectValue(Interpreter::ObjectValue *newObjectValue);
-    Interpreter::ObjectValue *bindObject(AST::UiQualifiedId *qualifiedTypeNameId, AST::UiObjectInitializer *initializer);
+    ObjectValue *switchObjectValue(ObjectValue *newObjectValue);
+    ObjectValue *bindObject(AST::UiQualifiedId *qualifiedTypeNameId, AST::UiObjectInitializer *initializer);
 
 private:
     Document *_doc;
-    Interpreter::Engine _engine;
+    ValueOwner _valueOwner;
 
-    Interpreter::ObjectValue *_currentObjectValue;
-    Interpreter::ObjectValue *_idEnvironment;
-    Interpreter::ObjectValue *_rootObjectValue;
+    ObjectValue *_currentObjectValue;
+    ObjectValue *_idEnvironment;
+    ObjectValue *_rootObjectValue;
 
-    QHash<AST::Node *, Interpreter::ObjectValue *> _qmlObjects;
+    QHash<AST::Node *, ObjectValue *> _qmlObjects;
+    QMultiHash<QString, const ObjectValue *> _qmlObjectsByPrototypeName;
     QSet<AST::Node *> _groupedPropertyBindings;
-    QHash<AST::Node *, Interpreter::ObjectValue *> _attachedJSScopes;
+    QHash<AST::Node *, ObjectValue *> _attachedJSScopes;
     QStringList _includedScripts;
 
-    QList<Interpreter::ImportInfo> _imports;
+    QList<ImportInfo> _imports;
 
     QList<DiagnosticMessage> *_diagnosticMessages;
 };

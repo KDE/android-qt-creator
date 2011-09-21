@@ -57,7 +57,6 @@ public:
 namespace Internal {
 class BinEditorFactory;
 
-
 class BinEditorPlugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
@@ -66,7 +65,7 @@ public:
     BinEditorPlugin();
     ~BinEditorPlugin();
 
-    bool initialize(const QStringList &arguments, QString *error_message = 0);
+    bool initialize(const QStringList &arguments, QString *errorMessage = 0);
     void extensionsInitialized();
 
     // Connect editor to settings changed signals.
@@ -105,10 +104,9 @@ class BinEditorFactory : public Core::IEditorFactory
 public:
     explicit BinEditorFactory(BinEditorPlugin *owner);
 
-    virtual QStringList mimeTypes() const;
-
+    QStringList mimeTypes() const;
     Core::IEditor *createEditor(QWidget *parent);
-    QString id() const;
+    Core::Id id() const;
     QString displayName() const;
     Core::IFile *open(const QString &fileName);
 

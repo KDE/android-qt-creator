@@ -35,12 +35,12 @@
 #include "resizetool.h"
 #include "anchortool.h"
 #include "dragtool.h"
-#include "itemcreatortool.h"
 #include "formeditorview.h"
 #include "formeditorwidget.h"
 #include "formeditornodeinstanceview.h"
 #include "formeditoritem.h"
 #include "formeditorscene.h"
+#include "toolbox.h"
 #include <rewritertransaction.h>
 #include <modelnode.h>
 #include <itemlibraryinfo.h>
@@ -70,7 +70,6 @@ FormEditorView::FormEditorView(QObject *parent)
       m_resizeTool(new ResizeTool(this)),
       m_anchorTool(new AnchorTool(this)),
       m_dragTool(new DragTool(this)),
-      m_itemCreatorTool(new ItemCreatorTool(this)),
       m_currentTool(m_selectionTool),
       m_transactionCounter(0)
 {
@@ -285,6 +284,12 @@ FormEditorWidget *FormEditorView::widget() const
 void FormEditorView::nodeIdChanged(const ModelNode& node, const QString& newId, const QString& oldId)
 {
     QmlModelView::nodeIdChanged(node, newId, oldId);
+    QmlItemNode itemNode(node);
+
+    if (itemNode.isValid()) {
+        FormEditorItem *item = m_scene->itemForQmlItemNode(itemNode);
+        item->update();
+    }
 }
 
 void FormEditorView::selectedNodesChanged(const QList<ModelNode> &selectedNodeList,
@@ -380,20 +385,6 @@ void FormEditorView::changeToSelectionTool()
     m_currentTool->clear();
     m_currentTool = m_selectionTool;
     m_currentTool->clear();
-    m_currentTool->setItems(scene()->itemsForQmlItemNodes(selectedQmlItemNodes()));
-}
-
-void FormEditorView::changeToItemCreatorTool()
-{
-    if(m_currentTool == m_itemCreatorTool)
-        return;
-
-    scene()->setPaintMode(FormEditorScene::NormalMode);
-    m_scene->updateAllFormEditorItems();
-    m_currentTool->clear();
-    m_currentTool = m_itemCreatorTool;
-    m_currentTool->clear();
-    setSelectedQmlItemNodes(QList<QmlItemNode>());
     m_currentTool->setItems(scene()->itemsForQmlItemNodes(selectedQmlItemNodes()));
 }
 
@@ -570,24 +561,6 @@ double FormEditorView::spacing() const
     return m_formEditorWidget->spacing();
 }
 
-void FormEditorView::activateItemCreator(const QString &name)
-{
-    if (m_currentTool == m_itemCreatorTool) {
-        m_itemCreatorTool->setItemString(name);
-        return;
-    }
-    changeToItemCreatorTool();
-    m_itemCreatorTool->setItemString(name);
-}
-
-void FormEditorView::deActivateItemCreator()
-{
-    if (m_currentTool == m_itemCreatorTool) {
-        changeToSelectionTool();
-        emit ItemCreatorDeActivated();
-    }
-}
-
 QList<ModelNode> FormEditorView::adjustStatesForModelNodes(const QList<ModelNode> &nodeList) const
 {
     QList<ModelNode> adjustedNodeList;
@@ -667,6 +640,14 @@ void FormEditorView::actualStateChanged(const ModelNode &node)
 //    FormEditorItem *item = m_scene->itemForQmlItemNode(fxObjectNode);
 //
 //    m_currentTool->formEditorItemsChanged(itemList);
+}
+
+Utils::CrumblePath *FormEditorView::crumblePath() const
+{
+    if (widget() && widget()->toolBox()) {
+        return widget()->toolBox()->crumblePath();
+    }
+    return 0;
 }
 
 void FormEditorView::reset()

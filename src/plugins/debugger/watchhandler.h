@@ -107,7 +107,7 @@ private:
 
     void emitDataChanged(int column,
         const QModelIndex &parentIndex = QModelIndex());
-    void beginCycle(); // Called at begin of updateLocals() cycle.
+    void beginCycle(bool fullCycle); // Called at begin of updateLocals() cycle.
     void endCycle(); // Called after all results have been received.
 
     friend QDebug operator<<(QDebug d, const WatchModel &m);
@@ -121,9 +121,13 @@ signals:
 
 private:
     QString displayType(const WatchData &typeIn) const;
+    QString formattedValue(const WatchData &data) const;
+    QString removeInitialNamespace(QString str) const;
+    QString removeNamespaces(QString str) const;
     void formatRequests(QByteArray *out, const WatchItem *item) const;
     DebuggerEngine *engine() const;
     int itemFormat(const WatchData &data) const;
+    int m_generationCounter;
 
     WatchHandler *m_handler;
     WatchType m_type;
@@ -148,7 +152,7 @@ public:
 
     void beginCycle(bool fullCycle = true); // Called at begin of updateLocals() cycle
     void updateWatchers(); // Called after locals are fetched
-    void endCycle(bool fullCycle = true); // Called after all results have been received
+    void endCycle(); // Called after all results have been received
     void showEditValue(const WatchData &data);
 
     void insertData(const WatchData &data);
@@ -180,8 +184,8 @@ public:
 
     void addTypeFormats(const QByteArray &type, const QStringList &formats);
 
-    void setUnprintableBase(int base) { m_unprintableBase = base; }
-    int unprintableBase() const { return m_unprintableBase; }
+    void setUnprintableBase(int base);
+    static int unprintableBase();
 
     QByteArray watcherName(const QByteArray &exp);
     void synchronizeWatchers();
@@ -217,7 +221,8 @@ private:
     WatchModel *m_watchers;
     WatchModel *m_tooltips;
     DebuggerEngine *m_engine;
-    static int m_unprintableBase;
+
+    int m_watcherCounter;
 };
 
 } // namespace Internal

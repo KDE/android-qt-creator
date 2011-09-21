@@ -59,6 +59,7 @@
 #include <utils/parameteraction.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
+#include <utils/crumblepath.h>
 
 #include <QtCore/QSettings>
 #include <QtCore/QEvent>
@@ -93,6 +94,8 @@ const char * const SB_OPENDOCUMENTS = "OpenDocuments";
 
 namespace QmlDesigner {
 namespace Internal {
+
+DesignModeWidget *DesignModeWidget::s_instance = 0;
 
 DocumentWarningWidget::DocumentWarningWidget(DesignModeWidget *parent) :
         Utils::FakeToolTip(parent),
@@ -195,6 +198,7 @@ DesignModeWidget::DesignModeWidget(QWidget *parent) :
     m_navigatorHistoryCounter(-1),
     m_keepNavigatorHistory(false)
 {
+    s_instance = this;
     m_undoAction = new QAction(tr("&Undo"), this);
     connect(m_undoAction, SIGNAL(triggered()), this, SLOT(undo()));
     m_redoAction = new QAction(tr("&Redo"), this);
@@ -228,6 +232,7 @@ DesignModeWidget::DesignModeWidget(QWidget *parent) :
 
 DesignModeWidget::~DesignModeWidget()
 {
+    s_instance = 0;
 }
 
 void DesignModeWidget::restoreDefaultView()
@@ -329,7 +334,7 @@ void DesignModeWidget::showEditor(Core::IEditor *editor)
 
             newDocument->setFileName(fileName);
 
-            document = newDocument;          
+            document = newDocument;
 
             m_documentHash.insert(textEdit, document);
         }
@@ -698,8 +703,9 @@ void DesignModeWidget::setup()
     m_itemLibraryView = new ItemLibraryView(this);
 
     m_statesEditorView = new StatesEditorView(this);
-    
+
     m_formEditorView = new FormEditorView(this);
+    connect(m_formEditorView->crumblePath(), SIGNAL(elementClicked(QVariant)), this, SLOT(onCrumblePathElementClicked(QVariant)));
 
     m_componentView = new ComponentView(this);
     m_formEditorView->widget()->toolBox()->addLeftSideAction(m_componentView->action());
@@ -856,6 +862,17 @@ void DesignModeWidget::onGoForwardClicked()
         m_keepNavigatorHistory = false;
     }
 }
+
+void DesignModeWidget::onCrumblePathElementClicked(const QVariant &data)
+{
+    currentDesignDocumentController()->setCrumbleBarInfo(data.value<CrumbleBarInfo>());
+}
+
+DesignModeWidget *DesignModeWidget::instance()
+{
+    return s_instance;
+}
+
 
 void DesignModeWidget::resizeEvent(QResizeEvent *event)
 {

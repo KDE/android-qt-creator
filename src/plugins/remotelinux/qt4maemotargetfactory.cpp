@@ -43,6 +43,7 @@
 #include <qt4projectmanager/buildconfigurationinfo.h>
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/qtcassert.h>
 
 using namespace Qt4ProjectManager;
@@ -199,21 +200,21 @@ ProjectExplorer::Target *Qt4MaemoTargetFactory::create(ProjectExplorer::Project 
     QStringList deployConfigIds;
     if (id == QLatin1String(MAEMO5_DEVICE_TARGET_ID)) {
         target = new Qt4Maemo5Target(static_cast<Qt4Project *>(parent), id);
-        deployConfigIds << Qt4MaemoDeployConfiguration::FremantleWithPackagingId
-            << Qt4MaemoDeployConfiguration::FremantleWithoutPackagingId;
+        deployConfigIds << Qt4MaemoDeployConfiguration::fremantleWithPackagingId()
+            << Qt4MaemoDeployConfiguration::fremantleWithoutPackagingId();
     } else if (id == QLatin1String(HARMATTAN_DEVICE_TARGET_ID)) {
         target = new Qt4HarmattanTarget(static_cast<Qt4Project *>(parent), id);
-        deployConfigIds << Qt4MaemoDeployConfiguration::HarmattanId;
+        deployConfigIds << Qt4MaemoDeployConfiguration::harmattanId();
     } else if (id == QLatin1String(MEEGO_DEVICE_TARGET_ID)) {
         target = new Qt4MeegoTarget(static_cast<Qt4Project *>(parent), id);
-        deployConfigIds << Qt4MaemoDeployConfiguration::MeegoId;
+        deployConfigIds << Qt4MaemoDeployConfiguration::meegoId();
     }
     Q_ASSERT(target);
 
     foreach (const BuildConfigurationInfo &info, infos)
         target->addQt4BuildConfiguration(msgBuildConfigurationName(info), QString(),
                                          info.version, info.buildConfig,
-                                         info.additionalArguments, info.directory);
+                                         info.additionalArguments, info.directory, info.importing);
 
     foreach (const QString &deployConfigId, deployConfigIds) {
         target->addDeployConfiguration(target->createDeployConfiguration(deployConfigId));

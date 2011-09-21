@@ -31,14 +31,14 @@
 
 #include "remotelinuxruncontrol.h"
 
-#include "maemoglobal.h"
 #include "remotelinuxapplicationrunner.h"
 #include "remotelinuxrunconfiguration.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
 
-#include <QtGui/QMessageBox>
+#include <QtCore/QString>
+#include <QtGui/QIcon>
 
 using namespace ProjectExplorer;
 
@@ -99,7 +99,7 @@ void AbstractRemoteLinuxRunControl::startExecution()
 
 void AbstractRemoteLinuxRunControl::handleRemoteProcessFinished(qint64 exitCode)
 {
-    if (exitCode != RemoteLinuxApplicationRunner::InvalidExitCode) {
+    if (exitCode != AbstractRemoteLinuxApplicationRunner::InvalidExitCode) {
         appendMessage(tr("Finished running remote process. Exit code was %1.\n")
             .arg(exitCode), Utils::NormalMessageFormat);
     }
@@ -135,7 +135,6 @@ void AbstractRemoteLinuxRunControl::handleError(const QString &errString)
 {
     stop();
     appendMessage(errString, Utils::ErrorMessageFormat);
-    QMessageBox::critical(0, tr("Remote Execution Failure"), errString);
 }
 
 void AbstractRemoteLinuxRunControl::setFinished()
@@ -148,7 +147,7 @@ void AbstractRemoteLinuxRunControl::setFinished()
 
 RemoteLinuxRunControl::RemoteLinuxRunControl(ProjectExplorer::RunConfiguration *runConfig)
     : AbstractRemoteLinuxRunControl(runConfig),
-      m_runner(new RemoteLinuxApplicationRunner(this, qobject_cast<RemoteLinuxRunConfiguration *>(runConfig)))
+      m_runner(new GenericRemoteLinuxApplicationRunner(qobject_cast<RemoteLinuxRunConfiguration *>(runConfig), this))
 {
 }
 
@@ -156,7 +155,7 @@ RemoteLinuxRunControl::~RemoteLinuxRunControl()
 {
 }
 
-RemoteLinuxApplicationRunner *RemoteLinuxRunControl::runner() const
+AbstractRemoteLinuxApplicationRunner *RemoteLinuxRunControl::runner() const
 {
     return m_runner;
 }

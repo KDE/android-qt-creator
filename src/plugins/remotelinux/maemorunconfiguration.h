@@ -41,7 +41,7 @@ class MaemoRemoteMountsModel;
 class MaemoRunConfiguration : public RemoteLinuxRunConfiguration
 {
     Q_OBJECT
-    Q_DISABLE_COPY(MaemoRunConfiguration)
+
 public:
     MaemoRunConfiguration(AbstractQt4MaemoTarget *parent, const QString &proFilePath);
     MaemoRunConfiguration(AbstractQt4MaemoTarget *parent, MaemoRunConfiguration *source);
@@ -50,6 +50,7 @@ public:
     bool fromMap(const QVariantMap &map);
     bool isEnabled() const;
     QWidget *createConfigurationWidget();
+    QString environmentPreparationCommand() const;
     QString commandPrefix() const;
     PortList freePorts() const;
     DebuggingType debuggingType() const;

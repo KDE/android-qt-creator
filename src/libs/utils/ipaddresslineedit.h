@@ -42,7 +42,6 @@ class IpAddressLineEditPrivate;
 
 class QTCREATOR_UTILS_EXPORT IpAddressLineEdit : public Utils::BaseValidatingLineEdit
 {
-    Q_DISABLE_COPY(IpAddressLineEdit)
     Q_OBJECT
 
 public:
@@ -58,7 +57,7 @@ protected:
     virtual void slotChanged(const QString &t);
 
 private:
-    IpAddressLineEditPrivate *m_d;
+    IpAddressLineEditPrivate *d;
 };
 
 } // namespace Utils

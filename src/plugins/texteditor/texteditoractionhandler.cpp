@@ -45,7 +45,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QSet>
@@ -104,6 +104,10 @@ TextEditorActionHandler::TextEditorActionHandler(const char *context,
 {
     connect(Core::ICore::instance()->editorManager(), SIGNAL(currentEditorChanged(Core::IEditor*)),
         this, SLOT(updateCurrentEditor(Core::IEditor*)));
+}
+
+TextEditorActionHandler::~TextEditorActionHandler()
+{
 }
 
 void TextEditorActionHandler::setupActions(BaseTextEditorWidget *editor)

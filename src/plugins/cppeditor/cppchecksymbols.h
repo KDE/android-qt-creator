@@ -55,6 +55,7 @@ public:
     virtual ~CheckSymbols();
 
     typedef CppEditor::Internal::SemanticInfo::Use Use;
+    typedef CppEditor::Internal::SemanticInfo::UseKind UseKind;
 
     virtual void run();
 
@@ -110,8 +111,8 @@ protected:
     void checkNamespace(NameAST *name);
 
     void addUse(const Use &use);
-    void addUse(unsigned tokenIndex, Use::Kind kind);
-    void addUse(NameAST *name, Use::Kind kind);
+    void addUse(unsigned tokenIndex, UseKind kind);
+    void addUse(NameAST *name, UseKind kind);
 
     void addType(ClassOrNamespace *b, NameAST *ast);
 
@@ -167,8 +168,7 @@ private:
     QSet<QByteArray> _potentialStatics;
     QList<AST *> _astStack;
     QVector<Use> _usages;
-    bool _flushRequested;
-    unsigned _flushLine;
+    unsigned _lineOfLastUsage;
 };
 
 } // namespace CPlusPlus

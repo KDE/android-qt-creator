@@ -34,17 +34,12 @@
 #include "maemoconstants.h"
 #include "maemoqemumanager.h"
 
-#include <projectexplorer/projectexplorerconstants.h>
-
-#include <coreplugin/filemanager.h>
-#include <extensionsystem/pluginmanager.h>
-#include <utils/ssh/sshconnection.h>
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
-#include <qtsupport/qtversionmanager.h>
-#include <qt4projectmanager/qt4target.h>
+#include <qtsupport/baseqtversion.h>
+#include <remotelinux/linuxdeviceconfiguration.h>
+#include <remotelinux/remotelinux_constants.h>
 #include <utils/environment.h>
 
-#include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 #include <QtCore/QProcess>
@@ -83,40 +78,17 @@ bool MaemoGlobal::isMeegoTargetId(const QString &id)
 
 bool MaemoGlobal::isValidMaemo5QtVersion(const QString &qmakePath)
 {
-    return isValidMaemoQtVersion(qmakePath, LinuxDeviceConfiguration::Maemo5OsType);
+    return isValidMaemoQtVersion(qmakePath, QLatin1String(Maemo5OsType));
 }
 
 bool MaemoGlobal::isValidHarmattanQtVersion(const QString &qmakePath)
 {
-    return isValidMaemoQtVersion(qmakePath, LinuxDeviceConfiguration::HarmattanOsType);
+    return isValidMaemoQtVersion(qmakePath, QLatin1String(HarmattanOsType));
 }
 
 bool MaemoGlobal::isValidMeegoQtVersion(const QString &qmakePath)
 {
-    return isValidMaemoQtVersion(qmakePath, LinuxDeviceConfiguration::MeeGoOsType);
-}
-
-bool MaemoGlobal::isLinuxQt(const QtSupport::BaseQtVersion *qtVersion)
-{
-    if (!qtVersion)
-        return false;
-    const QList<ProjectExplorer::Abi> &abis = qtVersion->qtAbis();
-    foreach (const ProjectExplorer::Abi &abi, abis) {
-        if (abi.os() == ProjectExplorer::Abi::LinuxOS)
-            return true;
-    }
-    return false;
-}
-
-bool MaemoGlobal::hasLinuxQt(const ProjectExplorer::Target *target)
-{
-    const Qt4BaseTarget * const qtTarget
-        = qobject_cast<const Qt4BaseTarget *>(target);
-    if (!qtTarget)
-        return false;
-    const Qt4BuildConfiguration * const bc
-        = qtTarget->activeBuildConfiguration();
-    return bc && isLinuxQt(bc->qtVersion());
+    return isValidMaemoQtVersion(qmakePath, QLatin1String(MeeGoOsType));
 }
 
 bool MaemoGlobal::isValidMaemoQtVersion(const QString &qmakePath, const QString &osType)
@@ -156,29 +128,18 @@ QString MaemoGlobal::devrootshPath()
 
 int MaemoGlobal::applicationIconSize(const QString &osType)
 {
-    return osType == LinuxDeviceConfiguration::HarmattanOsType ? 80 : 64;
+    return osType == QLatin1String(HarmattanOsType) ? 80 : 64;
 }
 
 QString MaemoGlobal::remoteSudo(const QString &osType, const QString &uname)
 {
     if (uname == QLatin1String("root"))
         return QString();
-    if (osType == LinuxDeviceConfiguration::Maemo5OsType
-            || osType == LinuxDeviceConfiguration::HarmattanOsType
-            || osType == LinuxDeviceConfiguration::MeeGoOsType) {
+    if (osType == QLatin1String(Maemo5OsType) || osType == QLatin1String(HarmattanOsType)
+            || osType == QLatin1String(MeeGoOsType)) {
         return devrootshPath();
     }
     return QString(); // Using sudo would open a can of worms.
-}
-
-QString MaemoGlobal::remoteCommandPrefix(const QString &osType)
-{
-    QString prefix = QString::fromLocal8Bit("%1; ").arg(remoteSourceProfilesCommand());
-    if (osType != LinuxDeviceConfiguration::Maemo5OsType
-            && osType != LinuxDeviceConfiguration::HarmattanOsType) {
-        prefix += QLatin1String("DISPLAY=:0.0 ");
-    }
-    return prefix;
 }
 
 QString MaemoGlobal::remoteSourceProfilesCommand()
@@ -191,34 +152,12 @@ QString MaemoGlobal::remoteSourceProfilesCommand()
     return QString::fromAscii(remoteCall);
 }
 
-QString MaemoGlobal::failedToConnectToServerMessage(const Utils::SshConnection::Ptr &connection,
-    const LinuxDeviceConfiguration::ConstPtr &deviceConfig)
-{
-    QString errorMsg = tr("Could not connect to host: %1")
-        .arg(connection->errorString());
-
-    if (deviceConfig->type() == LinuxDeviceConfiguration::Emulator) {
-        if (connection->errorState() == Utils::SshTimeoutError
-                || connection->errorState() == Utils::SshSocketError) {
-            errorMsg += tr("\nDid you start Qemu?");
-        }
-   } else if (connection->errorState() == Utils::SshTimeoutError) {
-        errorMsg += tr("\nIs the device connected and set up for network access?");
-    }
-    return errorMsg;
-}
-
-QString MaemoGlobal::deviceConfigurationName(const LinuxDeviceConfiguration::ConstPtr &devConf)
-{
-    return devConf ? devConf->name() : tr("(No device)");
-}
-
 PortList MaemoGlobal::freePorts(const LinuxDeviceConfiguration::ConstPtr &devConf,
     const QtSupport::BaseQtVersion *qtVersion)
 {
     if (!devConf || !qtVersion)
         return PortList();
-    if (devConf->type() == LinuxDeviceConfiguration::Emulator) {
+    if (devConf->deviceType() == LinuxDeviceConfiguration::Emulator) {
         MaemoQemuRuntime rt;
         const int id = qtVersion->uniqueId();
         if (MaemoQemuManager::instance().runtimeForQtVersion(id, &rt))
@@ -256,7 +195,7 @@ QString MaemoGlobal::madCommand(const QString &qmakePath)
 
 QString MaemoGlobal::madDeveloperUiName(const QString &osType)
 {
-    return osType == LinuxDeviceConfiguration::HarmattanOsType
+    return osType == QLatin1String(HarmattanOsType)
         ? tr("SDK Connectivity") : tr("Mad Developer");
 }
 
@@ -264,12 +203,12 @@ QString MaemoGlobal::osType(const QString &qmakePath)
 {
     const QString &name = targetName(qmakePath);
     if (name.startsWith(QLatin1String("fremantle")))
-        return LinuxDeviceConfiguration::Maemo5OsType;
+        return QLatin1String(Maemo5OsType);
     if (name.startsWith(QLatin1String("harmattan")))
-        return LinuxDeviceConfiguration::HarmattanOsType;
+        return QLatin1String(HarmattanOsType);
     if (name.startsWith(QLatin1String("meego")))
-        return LinuxDeviceConfiguration::MeeGoOsType;
-    return LinuxDeviceConfiguration::GenericLinuxOsType;
+        return QLatin1String(MeeGoOsType);
+    return QLatin1String(Constants::GenericLinuxOsType);
 }
 
 QString MaemoGlobal::architecture(const QString &qmakePath)
@@ -351,28 +290,6 @@ QStringList MaemoGlobal::targetArgs(const QString &qmakePath, bool useTarget)
         args << QLatin1String("-t") << targetName(qmakePath);
     }
     return args;
-}
-
-QString MaemoGlobal::osTypeToString(const QString &osType)
-{
-    const QList<ILinuxDeviceConfigurationFactory *> &factories
-        = ExtensionSystem::PluginManager::instance()->getObjects<ILinuxDeviceConfigurationFactory>();
-    foreach (const ILinuxDeviceConfigurationFactory * const factory, factories) {
-        if (factory->supportsOsType(osType))
-            return factory->displayNameForOsType(osType);
-    }
-    return tr("Unknown OS");
-}
-
-MaemoGlobal::PackagingSystem MaemoGlobal::packagingSystem(const QString &osType)
-{
-    if (osType == LinuxDeviceConfiguration::Maemo5OsType
-           || osType == LinuxDeviceConfiguration::HarmattanOsType) {
-        return Dpkg;
-    }
-    if (osType == LinuxDeviceConfiguration::MeeGoOsType)
-        return Rpm;
-    return Tar;
 }
 
 } // namespace Internal

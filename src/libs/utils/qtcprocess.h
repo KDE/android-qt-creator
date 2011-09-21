@@ -47,12 +47,22 @@ class QTCREATOR_UTILS_EXPORT QtcProcess : public QProcess
     Q_OBJECT
 
 public:
-    QtcProcess(QObject *parent = 0) : QProcess(parent), m_haveEnv(false) {}
+    QtcProcess(QObject *parent = 0)
+      : QProcess(parent),
+        m_haveEnv(false)
+#ifdef Q_OS_WIN
+      , m_useCtrlCStub(false)
+#endif
+        {}
     void setEnvironment(const Environment &env)
         { m_environment = env; m_haveEnv = true; }
     void setCommand(const QString &command, const QString &arguments)
         { m_command = command; m_arguments = arguments; }
+#ifdef Q_OS_WIN
+    void setUseCtrlCStub(bool enabled) { m_useCtrlCStub = enabled; }
+#endif
     void start();
+    void terminate();
 
     enum SplitError {
         SplitOk = 0, //! All went just fine
@@ -142,6 +152,9 @@ private:
     QString m_arguments;
     Environment m_environment;
     bool m_haveEnv;
+#ifdef Q_OS_WIN
+    bool m_useCtrlCStub;
+#endif
 };
 
 }

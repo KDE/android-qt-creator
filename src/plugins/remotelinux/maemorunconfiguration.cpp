@@ -30,7 +30,6 @@
 **************************************************************************/
 #include "maemorunconfiguration.h"
 
-#include "abstractlinuxdevicedeploystep.h"
 #include "qt4maemotarget.h"
 #include "maemoconstants.h"
 #include "maemoglobal.h"
@@ -42,6 +41,8 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
+#include <remotelinux/portlist.h>
+#include <utils/ssh/sshconnection.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
@@ -109,14 +110,21 @@ bool MaemoRunConfiguration::fromMap(const QVariantMap &map)
     return true;
 }
 
+QString MaemoRunConfiguration::environmentPreparationCommand() const
+{
+    return MaemoGlobal::remoteSourceProfilesCommand();
+}
+
 QString MaemoRunConfiguration::commandPrefix() const
 {
     if (!deviceConfig())
         return QString();
 
-    return QString::fromLocal8Bit("%1 %2")
-        .arg(MaemoGlobal::remoteCommandPrefix(deviceConfig()->osType()),
-             userEnvironmentChangesAsString());
+    QString prefix = environmentPreparationCommand() + QLatin1Char(';');
+    if (deviceConfig()->osType() == QLatin1String(MeeGoOsType))
+        prefix += QLatin1String("DISPLAY=:0.0 ");
+
+    return QString::fromLocal8Bit("%1 %2").arg(prefix, userEnvironmentChangesAsString());
 }
 
 PortList MaemoRunConfiguration::freePorts() const

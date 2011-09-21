@@ -278,7 +278,7 @@ extern "C" HRESULT CALLBACK pid(CIDebugClient *client, PCSTR args)
 
     int token;
     commandTokens<StringList>(args, &token);
-    dprintf("Qt Creator CDB extension version 0.1 %d bit built %s.\n", sizeof(void *) > 4 ? 64 : 32, __DATE__);
+    dprintf("Qt Creator CDB extension version 0.11 (Qt 5 support) %d bit built %s.\n", sizeof(void *) > 4 ? 64 : 32, __DATE__);
     if (const ULONG pid = currentProcessId(client)) {
         ExtensionContext::instance().report('R', token, 0, "pid", "%u", pid);
     } else {
@@ -386,13 +386,15 @@ DumpCommandParameters::ParseOptionResult DumpCommandParameters::parseOption(Stri
         options->pop_front();
         if (options->front().empty())
             return Error;
-        dumpParameters.typeFormats = DumpParameters::decodeFormatArgument(options->front());
+        dumpParameters.typeFormats =
+            DumpParameters::decodeFormatArgument(options->front(), true);
         break;
-    case 'I': // individual formats: 'hex'ed name = formatnumber,...'
+    case 'I': // individual formats: iname= formatnumber,...'
         if (options->size() < 2)
             return Error;
         options->pop_front();
-        dumpParameters.individualFormats = DumpParameters::decodeFormatArgument(options->front());
+        dumpParameters.individualFormats =
+            DumpParameters::decodeFormatArgument(options->front(), false);
         break;
     default:
         knownOption = false;

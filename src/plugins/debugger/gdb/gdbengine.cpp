@@ -497,7 +497,7 @@ void GdbEngine::handleResponse(const QByteArray &buff)
                 foreach (const GdbMi &bkpt, result.children()) {
                     const QByteArray nr = bkpt.findChild("number").data();
                     BreakpointResponseId rid(nr);
-                    if (!isHiddenBreakpoint(rid)) { 
+                    if (!isHiddenBreakpoint(rid)) {
                         if (nr.contains('.')) {
                             // A sub-breakpoint.
                             BreakpointResponse sub;
@@ -1790,6 +1790,8 @@ void GdbEngine::handleExecuteContinue(const GdbResponse &response)
         QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
         showStatusMessage(tr("Stopped."), 5000);
         reloadStack(true);
+    } else if (msg.startsWith("Cannot access memory at address")) {
+        // Happens on single step on ARM prolog and epilogs.
     } else if (msg.startsWith("\"finish\" not meaningful in the outermost frame")) {
         notifyInferiorRunFailed();
         if (isDying())
@@ -1953,7 +1955,7 @@ AbstractGdbAdapter *GdbEngine::createAdapter()
     switch (sp.startMode) {
     case AttachCore:
         return new CoreGdbAdapter(this);
-    case AttachToRemote:
+    case AttachToRemoteServer:
         return new RemoteGdbServerAdapter(this);
     case StartRemoteGdb:
         return new RemotePlainGdbAdapter(this);
@@ -1999,6 +2001,7 @@ unsigned GdbEngine::debuggerCapabilities() const
         | WatchpointByAddressCapability
         | WatchpointByExpressionCapability
         | AddWatcherCapability
+        | WatchWidgetsCapability
         | ShowModuleSymbolsCapability
         | CatchCapability
         | OperateByInstructionCapability
@@ -2014,10 +2017,6 @@ unsigned GdbEngine::debuggerCapabilities() const
     return caps | SnapshotCapability;
 }
 
-bool GdbEngine::canWatchWidgets() const
-{
-    return true;
-}
 
 void GdbEngine::continueInferiorInternal()
 {
@@ -2078,7 +2077,8 @@ void GdbEngine::handleExecuteStep(const GdbResponse &response)
     }
     QByteArray msg = response.data.findChild("msg").data();
     if (msg.startsWith("Cannot find bounds of current function")
-            || msg.contains("Error accessing memory address")) {
+            || msg.contains("Error accessing memory address")
+            || msg.startsWith("Cannot access memory at address")) {
         // On S40: "40^error,msg="Warning:\nCannot insert breakpoint -39.\n"
         //" Error accessing memory address 0x11673fc: Input/output error.\n"
         notifyInferiorRunFailed();
@@ -3603,7 +3603,7 @@ void GdbEngine::reloadRegisters()
     if (m_gdbAdapter->isCodaAdapter()) {
         m_gdbAdapter->codaReloadRegisters();
     } else {
-        postCommand("-data-list-register-values x",
+        postCommand("-data-list-register-values r",
                     Discardable, CB(handleRegisterListValues));
     }
 }
@@ -3611,14 +3611,7 @@ void GdbEngine::reloadRegisters()
 void GdbEngine::setRegisterValue(int nr, const QString &value)
 {
     Register reg = registerHandler()->registers().at(nr);
-    //qDebug() << "NOT IMPLEMENTED: CHANGE REGISTER " << nr << reg.name << ":"
-    //    << value;
-    postCommand("-var-delete \"R@\"");
-    postCommand("-var-create \"R@\" * $" + reg.name);
-    postCommand("-var-assign \"R@\" " + value.toLatin1());
-    postCommand("-var-delete \"R@\"");
-    //postCommand("-data-list-register-values d",
-    //            Discardable, CB(handleRegisterListValues));
+    postCommand("set $" + reg.name  + "=" + value.toLatin1());
     reloadRegisters();
 }
 
@@ -3631,7 +3624,8 @@ void GdbEngine::handleRegisterListNames(const GdbResponse &response)
 
     Registers registers;
     foreach (const GdbMi &item, response.data.findChild("register-names").children())
-        registers.append(Register(item.data()));
+        if (!item.data().isEmpty())
+            registers.append(Register(item.data()));
 
     registerHandler()->setRegisters(registers);
 
@@ -3645,38 +3639,15 @@ void GdbEngine::handleRegisterListValues(const GdbResponse &response)
         return;
 
     Registers registers = registerHandler()->registers();
+    const int registerCount = registers.size();
 
     // 24^done,register-values=[{number="0",value="0xf423f"},...]
     const GdbMi values = response.data.findChild("register-values");
+    QTC_ASSERT(registerCount == values.children().size(), return);
     foreach (const GdbMi &item, values.children()) {
-        const int index = item.findChild("number").data().toInt();
-        if (index < registers.size()) {
-            Register &reg = registers[index];
-            GdbMi val = item.findChild("value");
-            QByteArray ba;
-            bool handled = false;
-            if (val.data().startsWith('{')) {
-                int pos1 = val.data().indexOf("v2_int32");
-                if (pos1 == -1)
-                    pos1 = val.data().indexOf("v4_int32");
-                if (pos1 != -1) {
-                    // FIXME: This block wastes cycles.
-                    pos1 = val.data().indexOf('{', pos1 + 1) + 1;
-                    int pos2 = val.data().indexOf('}', pos1);
-                    QByteArray ba2 = val.data().mid(pos1, pos2 - pos1);
-                    foreach (QByteArray ba3, ba2.split(',')) {
-                        ba3 = ba3.trimmed();
-                        QTC_ASSERT(ba3.size() >= 3, continue);
-                        QTC_ASSERT(ba3.size() <= 10, continue);
-                        ba.prepend(QByteArray(10 - ba3.size(), '0'));
-                        ba.prepend(ba3.mid(2));
-                    }
-                    ba.prepend("0x");
-                    handled = true;
-                }
-            }
-            reg.value = _(handled ? ba : val.data());
-        }
+        const int number = item.findChild("number").data().toInt();
+        if (number >= 0 && number < registerCount)
+            registers[number].value = item.findChild("value").data();
     }
     registerHandler()->setAndMarkRegisters(registers);
 }
@@ -4577,44 +4548,6 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
         gdbArgs << _("-n");
     gdbArgs += args;
 
-// android python it seems is not working 
-    if (sp.toolChainAbi.osFlavor() == Abi::WindowsMSysFlavor && false) {
-        // Set python path. By convention, python is located below gdb executable.
-        // Extend the environment set on the process in startAdapter().
-        const QFileInfo fi(m_gdb);
-        QTC_ASSERT(fi.isAbsolute(), return false; )
-
-        const QDir dir = fi.absoluteDir();
-
-        QProcessEnvironment environment = gdbProc()->processEnvironment();
-        const QString pythonPathVariable = _("PYTHONPATH");
-        QString pythonPath;
-
-        const QString environmentPythonPath = environment.value(pythonPathVariable);
-        if (dir.exists(_("lib"))) {
-            // Needed for our gdb 7.2 packages.
-            pythonPath = QDir::toNativeSeparators(dir.absoluteFilePath(_("lib")));
-        } else {
-            pythonPath = environmentPythonPath;
-        }
-        if (pythonPath.isEmpty()) {
-            const QString nativeGdb = QDir::toNativeSeparators(m_gdb);
-            showMessage(_("GDB %1 CANNOT FIND THE PYTHON INSTALLATION.").arg(nativeGdb));
-            showStatusMessage(_("%1 cannot find python").arg(nativeGdb));
-            const QString msg = tr("The GDB installed at %1 cannot "
-               "find a valid python installation in its subdirectories.\n"
-               "You may set the environment variable PYTHONPATH to point to your installation.")
-                    .arg(nativeGdb);
-            handleAdapterStartFailed(msg, settingsIdHint);
-            return false;
-        }
-        showMessage(_("Python path: %1").arg(pythonPath), LogMisc);
-        // Apply to process.
-        if (pythonPath != environmentPythonPath) {
-            environment.insert(pythonPathVariable, pythonPath);
-            gdbProc()->setProcessEnvironment(environment);
-        }
-    }
 
     connect(gdbProc(), SIGNAL(error(QProcess::ProcessError)),
         SLOT(handleGdbError(QProcess::ProcessError)));
@@ -4646,7 +4579,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
     //postCommand("define hookpost-stop\nprint 5\nend");
     //postCommand("define hook-call\nprint 6\nend");
     //postCommand("define hookpost-call\nprint 7\nend");
-    //postCommand("set print object on"); // works with CLI, but not MI
+    postCommand("set print object on");
     //postCommand("set step-mode on");  // we can't work with that yes
     //postCommand("set exec-done-display on");
     //postCommand("set print pretty on");
@@ -4697,7 +4630,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
         postCommand("set non-stop on");
     }
 
-    // Work around http://bugreports.qt.nokia.com/browse/QTCREATORBUG-2004
+    // Work around https://bugreports.qt.nokia.com/browse/QTCREATORBUG-2004
     postCommand("maintenance set internal-warning quit no", ConsoleCommand);
     postCommand("maintenance set internal-error quit no", ConsoleCommand);
 
@@ -4842,29 +4775,29 @@ void GdbEngine::handleInferiorPrepared()
 {
     typedef GlobalDebuggerOptions::SourcePathMap SourcePathMap;
     typedef SourcePathMap::const_iterator SourcePathMapIterator;
+    const DebuggerStartParameters &sp = startParameters();
 
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
 
     // Apply source path mappings from global options.
     const SourcePathMap sourcePathMap =
-            DebuggerSourcePathMappingWidget::mergePlatformQtPath(
-                startParameters().qtInstallPath,
+        DebuggerSourcePathMappingWidget::mergePlatformQtPath(sp.qtInstallPath,
                 debuggerCore()->globalDebuggerOptions()->sourcePathMap);
-
-    if (!sourcePathMap.isEmpty()) {
-        const SourcePathMapIterator cend = sourcePathMap.constEnd();
-        for (SourcePathMapIterator it = sourcePathMap.constBegin(); it != cend; ++it) {
-            QByteArray command = "set substitute-path ";
-            command += it.key().toLocal8Bit();
-            command += ' ';
-            command += it.value().toLocal8Bit();
-            postCommand(command);
-        }
+    const SourcePathMapIterator cend = sourcePathMap.constEnd();
+    SourcePathMapIterator it = sourcePathMap.constBegin();
+    for ( ; it != cend; ++it) {
+        QByteArray command = "set substitute-path ";
+        command += it.key().toLocal8Bit();
+        command += ' ';
+        command += it.value().toLocal8Bit();
+        postCommand(command);
     }
 
+    if (!sp.sysroot.isEmpty())
+        postCommand("set substitute-path / " + sp.sysroot.toLocal8Bit());
+
     // Initial attempt to set breakpoints.
-    if (startParameters().startMode != AttachCore
-            && !isSlaveEngine()) {
+    if (sp.startMode != AttachCore && !isSlaveEngine()) {
         showStatusMessage(tr("Setting breakpoints..."));
         showMessage(tr("Setting breakpoints..."));
         attemptBreakpointSynchronization();

@@ -34,11 +34,11 @@
 
 #include "deployablefile.h"
 #include "genericlinuxdeviceconfigurationfactory.h"
+#include "genericremotelinuxdeploystepfactory.h"
 #include "maddedeviceconfigurationfactory.h"
 #include "maemoconstants.h"
 #include "maemodeploystepfactory.h"
 #include "linuxdeviceconfigurations.h"
-#include "maemoglobal.h"
 #include "maemopackagecreationfactory.h"
 #include "maemopublishingwizardfactories.h"
 #include "maemoqemumanager.h"
@@ -49,8 +49,10 @@
 #include "maemoqtversionfactory.h"
 #include "qt4maemotargetfactory.h"
 #include "qt4projectmanager/qt4projectmanagerconstants.h"
+#include "remotelinuxdeployconfigurationfactory.h"
 #include "remotelinuxrunconfigurationfactory.h"
 #include "remotelinuxruncontrolfactory.h"
+#include "remotelinuxsettingspages.h"
 
 #include <QtCore/QtPlugin>
 
@@ -66,10 +68,10 @@ RemoteLinuxPlugin::~RemoteLinuxPlugin()
 }
 
 bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
-    QString *error_message)
+    QString *errorMessage)
 {
     Q_UNUSED(arguments)
-    Q_UNUSED(error_message)
+    Q_UNUSED(errorMessage)
 
     MaemoQemuManager::instance(this);
     LinuxDeviceConfigurations::instance(this);
@@ -80,7 +82,7 @@ bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
     addAutoReleasedObject(new Qt4MaemoDeployConfigurationFactory);
     addAutoReleasedObject(new MaemoPackageCreationFactory);
     addAutoReleasedObject(new MaemoDeployStepFactory);
-    addAutoReleasedObject(new MaemoDeviceConfigurationsSettingsPage);
+    addAutoReleasedObject(new LinuxDeviceConfigurationsSettingsPage);
     addAutoReleasedObject(new MaemoQemuSettingsPage);
     addAutoReleasedObject(new MaemoPublishingWizardFactoryFremantleFree);
     addAutoReleasedObject(new Qt4MaemoTargetFactory);
@@ -89,8 +91,10 @@ bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
     addAutoReleasedObject(new MaddeDeviceConfigurationFactory);
     addAutoReleasedObject(new RemoteLinuxRunConfigurationFactory);
     addAutoReleasedObject(new RemoteLinuxRunControlFactory);
+    addAutoReleasedObject(new RemoteLinuxDeployConfigurationFactory);
+    addAutoReleasedObject(new GenericRemoteLinuxDeployStepFactory);
 
-    qRegisterMetaType<DeployableFile>("DeployableFile");
+    qRegisterMetaType<RemoteLinux::DeployableFile>("RemoteLinux::DeployableFile");
 
     return true;
 }

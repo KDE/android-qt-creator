@@ -33,10 +33,11 @@
 #include "qmladapter.h"
 
 #include "debuggerstartparameters.h"
-#include "qmldebuggerclient.h"
+#include "qscriptdebuggerclient.h"
+#include "qmlv8debuggerclient.h"
 #include "qmljsprivateapi.h"
 
-#include "debuggerengine.h"
+#include "qmlengine.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcassert.h>
@@ -53,21 +54,17 @@ public:
     explicit QmlAdapterPrivate(DebuggerEngine *engine)
         : m_engine(engine)
         , m_qmlClient(0)
-        , m_connectionAttempts(0)
-        , m_maxConnectionAttempts(50) // overall time: 50 x 200ms
         , m_conn(0)
     {
-        m_connectionTimer.setInterval(200);
+        m_connectionTimer.setInterval(4000);
+        m_connectionTimer.setSingleShot(true);
     }
 
     QWeakPointer<DebuggerEngine> m_engine;
-    Internal::QmlDebuggerClient *m_qmlClient;
-
+    QmlDebuggerClient *m_qmlClient;
     QTimer m_connectionTimer;
-    int m_connectionAttempts;
-    int m_maxConnectionAttempts;
     QDeclarativeDebugConnection *m_conn;
-    QList<QByteArray> sendBuffer;
+    QHash<QString, QmlDebuggerClient*> debugClients;
 };
 
 } // namespace Internal
@@ -75,7 +72,7 @@ public:
 QmlAdapter::QmlAdapter(DebuggerEngine *engine, QObject *parent)
     : QObject(parent), d(new Internal::QmlAdapterPrivate(engine))
 {
-    connect(&d->m_connectionTimer, SIGNAL(timeout()), SLOT(pollInferior()));
+    connect(&d->m_connectionTimer, SIGNAL(timeout()), SLOT(checkConnectionState()));
     d->m_conn = new QDeclarativeDebugConnection(this);
     connect(d->m_conn, SIGNAL(stateChanged(QAbstractSocket::SocketState)),
             SLOT(connectionStateChanged()));
@@ -85,6 +82,8 @@ QmlAdapter::QmlAdapter(DebuggerEngine *engine, QObject *parent)
     ExtensionSystem::PluginManager *pluginManager =
         ExtensionSystem::PluginManager::instance();
     pluginManager->addObject(this);
+
+    createDebuggerClients();
 }
 
 QmlAdapter::~QmlAdapter()
@@ -92,45 +91,12 @@ QmlAdapter::~QmlAdapter()
     ExtensionSystem::PluginManager *pluginManager =
         ExtensionSystem::PluginManager::instance();
 
-    if (pluginManager->allObjects().contains(this)) {
+    if (pluginManager->allObjects().contains(this))
         pluginManager->removeObject(this);
-    }
+    delete d;
 }
 
 void QmlAdapter::beginConnection()
-{
-    d->m_connectionAttempts = 0;
-    d->m_connectionTimer.start();
-}
-
-void QmlAdapter::closeConnection()
-{
-    if (d->m_connectionTimer.isActive()) {
-        d->m_connectionTimer.stop();
-    } else {
-        if (d->m_conn) {
-            d->m_conn->close();
-        }
-    }
-}
-
-void QmlAdapter::pollInferior()
-{
-    ++d->m_connectionAttempts;
-
-    if (isConnected()) {
-        d->m_connectionTimer.stop();
-        d->m_connectionAttempts = 0;
-    } else if (d->m_connectionAttempts == d->m_maxConnectionAttempts) {
-        d->m_connectionTimer.stop();
-        d->m_connectionAttempts = 0;
-        emit connectionStartupFailed();
-    } else {
-        connectToViewer();
-    }
-}
-
-void QmlAdapter::connectToViewer()
 {
     if (d->m_engine.isNull()
             || (d->m_conn && d->m_conn->state() != QAbstractSocket::UnconnectedState))
@@ -147,15 +113,19 @@ void QmlAdapter::connectToViewer()
         showConnectionStatusMessage(tr("Connecting to debug server %1:%2").arg(address).arg(QString::number(port)));
         d->m_conn->connectToHost(address, port);
     }
+
+    //A timeout to check the connection state
+    d->m_connectionTimer.start();
 }
 
-void QmlAdapter::sendMessage(const QByteArray &msg)
+void QmlAdapter::closeConnection()
 {
-    if (d->m_qmlClient->status() == QDeclarativeDebugClient::Enabled) {
-        flushSendBuffer();
-        d->m_qmlClient->sendMessage(msg);
+    if (d->m_connectionTimer.isActive()) {
+        d->m_connectionTimer.stop();
     } else {
-        d->sendBuffer.append(msg);
+        if (d->m_conn) {
+            d->m_conn->close();
+        }
     }
 }
 
@@ -165,8 +135,12 @@ void QmlAdapter::connectionErrorOccurred(QAbstractSocket::SocketError socketErro
                                 .arg(socketError).arg(d->m_conn->errorString()));
 
     // this is only an error if we are already connected and something goes wrong.
-    if (isConnected())
+    if (isConnected()) {
         emit connectionError(socketError);
+    } else {
+        d->m_connectionTimer.stop();
+        emit connectionStartupFailed();
+    }
 }
 
 void QmlAdapter::clientStatusChanged(QDeclarativeDebugClient::Status status)
@@ -177,8 +151,11 @@ void QmlAdapter::clientStatusChanged(QDeclarativeDebugClient::Status status)
 
     logServiceStatusChange(serviceName, status);
 
-    if (status == QDeclarativeDebugClient::Enabled)
-        flushSendBuffer();
+    if (status == QDeclarativeDebugClient::Enabled) {
+        d->m_qmlClient = d->debugClients.value(serviceName);
+        d->m_qmlClient->flushSendBuffer();
+        d->m_qmlClient->startSession();
+    }
 }
 
 void QmlAdapter::connectionStateChanged()
@@ -201,8 +178,8 @@ void QmlAdapter::connectionStateChanged()
     {
         showConnectionStatusMessage(tr("connected.\n"));
 
-        if (!d->m_qmlClient)
-            createDebuggerClient();
+        d->m_connectionTimer.stop();
+
         //reloadEngines();
         emit connected();
         break;
@@ -216,16 +193,31 @@ void QmlAdapter::connectionStateChanged()
     }
 }
 
-void QmlAdapter::createDebuggerClient()
+void QmlAdapter::checkConnectionState()
 {
-    d->m_qmlClient = new Internal::QmlDebuggerClient(d->m_conn);
+    if (!isConnected()) {
+        closeConnection();
+        emit connectionStartupFailed();
+    }
+}
 
-    connect(d->m_qmlClient, SIGNAL(newStatus(QDeclarativeDebugClient::Status)),
+void QmlAdapter::createDebuggerClients()
+{
+
+    Internal::QScriptDebuggerClient *client1 = new Internal::QScriptDebuggerClient(d->m_conn);
+    connect(client1, SIGNAL(newStatus(QDeclarativeDebugClient::Status)),
             this, SLOT(clientStatusChanged(QDeclarativeDebugClient::Status)));
-    connect(d->m_engine.data(), SIGNAL(sendMessage(QByteArray)),
-            this, SLOT(sendMessage(QByteArray)));
-    connect(d->m_qmlClient, SIGNAL(messageWasReceived(QByteArray)),
-            d->m_engine.data(), SLOT(messageReceived(QByteArray)));
+
+    Internal::QmlV8DebuggerClient *client2 = new Internal::QmlV8DebuggerClient(d->m_conn);
+    connect(client2, SIGNAL(newStatus(QDeclarativeDebugClient::Status)),
+            this, SLOT(clientStatusChanged(QDeclarativeDebugClient::Status)));
+
+    d->debugClients.insert(client1->name(),client1);
+    d->debugClients.insert(client2->name(),client2);
+
+
+    client1->setEngine((Internal::QmlEngine*)(d->m_engine.data()));
+    client2->setEngine((Internal::QmlEngine*)(d->m_engine.data()));
 
     //engine->startSuccessful();  // FIXME: AAA: port to new debugger states
 }
@@ -243,13 +235,13 @@ QDeclarativeDebugConnection *QmlAdapter::connection() const
 void QmlAdapter::showConnectionStatusMessage(const QString &message)
 {
     if (!d->m_engine.isNull())
-        d->m_engine.data()->showMessage(QLatin1String("QmlJSDebugger: ") + message, LogStatus);
+        d->m_engine.data()->showMessage(QLatin1String("QML Debugger: ") + message, LogStatus);
 }
 
 void QmlAdapter::showConnectionErrorMessage(const QString &message)
 {
     if (!d->m_engine.isNull())
-        d->m_engine.data()->showMessage(QLatin1String("QmlJSDebugger: ") + message, LogError);
+        d->m_engine.data()->showMessage(QLatin1String("QML Debugger: ") + message, LogError);
 }
 
 bool QmlAdapter::disableJsDebugging(bool block)
@@ -271,22 +263,30 @@ bool QmlAdapter::disableJsDebugging(bool block)
     return isBlocked;
 }
 
+Internal::QmlDebuggerClient *QmlAdapter::activeDebuggerClient()
+{
+    return d->m_qmlClient;
+}
+
+QHash<QString, Internal::QmlDebuggerClient*> QmlAdapter::debuggerClients()
+{
+    return d->debugClients;
+}
 void QmlAdapter::logServiceStatusChange(const QString &service,
                                         QDeclarativeDebugClient::Status newStatus)
 {
     switch (newStatus) {
     case QDeclarativeDebugClient::Unavailable: {
-        showConnectionStatusMessage(tr("Debug service '%1' became unavailable.").arg(service));
-        emit serviceConnectionError(service);
+        showConnectionStatusMessage(tr("Status of '%1' changed to 'unavailable'.").arg(service));
         break;
     }
     case QDeclarativeDebugClient::Enabled: {
-        showConnectionStatusMessage(tr("Connected to debug service '%1'.").arg(service));
+        showConnectionStatusMessage(tr("Status of '%1' changed to 'enabled'.").arg(service));
         break;
     }
 
     case QDeclarativeDebugClient::NotConnected: {
-        showConnectionStatusMessage(tr("Not connected to debug service '%1'.").arg(service));
+        showConnectionStatusMessage(tr("Status of '%1' changed to 'not connected'.").arg(service));
         break;
     }
     }
@@ -296,14 +296,6 @@ void QmlAdapter::logServiceActivity(const QString &service, const QString &logMe
 {
     if (!d->m_engine.isNull())
         d->m_engine.data()->showMessage(QString("%1 %2").arg(service, logMessage), LogDebug);
-}
-
-void QmlAdapter::flushSendBuffer()
-{
-    QTC_ASSERT(d->m_qmlClient->status() == QDeclarativeDebugClient::Enabled, return);
-    foreach (const QByteArray &msg, d->sendBuffer)
-        d->m_qmlClient->sendMessage(msg);
-    d->sendBuffer.clear();
 }
 
 } // namespace Debugger

@@ -316,7 +316,6 @@ static inline bool validMode(DebuggerStartMode sm)
 {
     switch (sm) {
     case NoStartMode:
-    case AttachCore:
     case StartRemoteGdb:
         return false;
     default:
@@ -353,19 +352,24 @@ bool isCdbEngineEnabled()
 #endif
 }
 
-static inline QString msgNoCdbBinaryForToolChain(const ProjectExplorer::Abi &tc)
+static inline QString msgNoCdbBinaryForToolChain(const Abi &tc)
 {
     return CdbEngine::tr("There is no CDB binary available for binaries in format '%1'").arg(tc.toString());
+}
+
+static inline bool isMsvcFlavor(Abi::OSFlavor osf)
+{
+  return osf == Abi::WindowsMsvc2005Flavor
+      || osf == Abi::WindowsMsvc2008Flavor
+      || osf == Abi::WindowsMsvc2010Flavor;
 }
 
 static QString cdbBinary(const DebuggerStartParameters &sp)
 {
     if (!sp.debuggerCommand.isEmpty()) {
         // Do not use a GDB binary if we got started for a project with MinGW runtime.
-        const bool abiMatch = sp.toolChainAbi.os() == ProjectExplorer::Abi::WindowsOS
-                    && (sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2005Flavor
-                        || sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2008Flavor
-                        || sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2010Flavor);
+        const bool abiMatch = sp.toolChainAbi.os() == Abi::WindowsOS
+                   && isMsvcFlavor(sp.toolChainAbi.osFlavor());
         if (abiMatch)
             return sp.debuggerCommand;
     }
@@ -391,6 +395,11 @@ bool checkCdbConfiguration(const DebuggerStartParameters &sp, ConfigurationCheck
     if (sp.toolChainAbi.binaryFormat() != Abi::PEFormat || sp.toolChainAbi.os() != Abi::WindowsOS) {
         check->errorDetails.push_back(CdbEngine::tr("The CDB debug engine does not support the %1 ABI.").
                                       arg(sp.toolChainAbi.toString()));
+        return false;
+    }
+
+    if (sp.startMode == AttachCore && !isMsvcFlavor(sp.toolChainAbi.osFlavor())) {
+        check->errorDetails.push_back(CdbEngine::tr("The CDB debug engine cannot debug gdb core files."));
         return false;
     }
 
@@ -479,6 +488,7 @@ void CdbEngine::init()
     m_pendingBreakpointMap.clear();
     m_customSpecialStopData.clear();
     m_symbolAddressCache.clear();
+    m_coreStopReason.reset();
 
     // Create local list of mappings in native separators
     m_sourcePathMappings.clear();
@@ -731,7 +741,7 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
     const QString extensionFileName = extensionFi.fileName();
     // Prepare arguments
     QStringList arguments;
-    const bool isRemote = sp.startMode == AttachToRemote;
+    const bool isRemote = sp.startMode == AttachToRemoteServer;
     if (isRemote) { // Must be first
         arguments << QLatin1String("-remote") << sp.remoteChannel;
     } else {
@@ -757,7 +767,7 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
             nativeArguments.push_back(blank);
         nativeArguments += QDir::toNativeSeparators(sp.executable);
         break;
-    case AttachToRemote:
+    case AttachToRemoteServer:
         break;
     case AttachExternal:
     case AttachCrashedExternal:
@@ -768,6 +778,9 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
             if (isCreatorConsole(startParameters(), *m_options))
                 arguments << QLatin1String("-pr") << QLatin1String("-pb");
         }
+        break;
+    case AttachCore:
+        arguments << QLatin1String("-z") << sp.coreFile;
         break;
     default:
         *errorMessage = QString::fromLatin1("Internal error: Unsupported start mode %1.").arg(sp.startMode);
@@ -827,12 +840,15 @@ void CdbEngine::setupInferior()
 {
     if (debug)
         qDebug("setupInferior");
-    attemptBreakpointSynchronization();
-
-    if (startParameters().breakOnMain) {
-        const BreakpointParameters bp(BreakpointAtMain);
-        postCommand(cdbAddBreakpointCommand(bp, m_sourcePathMappings,
-                                            BreakpointModelId(-1), true), 0);
+    if (!isSlaveEngine()) {
+        // QmlCppEngine expects the QML engine to be connected before any breakpoints are hit
+        // (attemptBreakpointSynchronization() will be directly called then)
+        attemptBreakpointSynchronization();
+        if (startParameters().breakOnMain) {
+            const BreakpointParameters bp(BreakpointAtMain);
+            postCommand(cdbAddBreakpointCommand(bp, m_sourcePathMappings,
+                                                BreakpointModelId(-1), true), 0);
+        }
     }
     postCommand("sxn 0x4000001f", 0); // Do not break on WowX86 exceptions.
     postCommand(".asm source_line", 0); // Source line in assembly
@@ -845,7 +861,13 @@ void CdbEngine::runEngine()
         qDebug("runEngine");
     foreach (const QString &breakEvent, m_options->breakEvents)
             postCommand(QByteArray("sxe ") + breakEvent.toAscii(), 0);
-    postCommand("g", 0);
+    if (startParameters().startMode == AttachCore) {
+        QTC_ASSERT(!m_coreStopReason.isNull(), return; );
+        notifyInferiorUnrunnable();
+        processStop(*m_coreStopReason, false);
+    } else {
+        postCommand("g", 0);
+    }
 }
 
 bool CdbEngine::commandsPending() const
@@ -920,7 +942,7 @@ void CdbEngine::shutdownEngine()
         if (startParameters().startMode == AttachExternal || startParameters().startMode == AttachCrashedExternal)
             detachDebugger();
         // Remote requires a bit more force to quit.
-        if (m_effectiveStartMode == AttachToRemote) {
+        if (m_effectiveStartMode == AttachToRemoteServer) {
             postCommand(m_extensionCommandPrefixBA + "shutdownex", 0);
             postCommand("qq", 0);
         } else {
@@ -1074,18 +1096,13 @@ void CdbEngine::updateLocalVariable(const QByteArray &iname)
 unsigned CdbEngine::debuggerCapabilities() const
 {
     return DisassemblerCapability | RegisterCapability | ShowMemoryCapability
-           |WatchpointByAddressCapability|JumpToLineCapability|AddWatcherCapability
+           |WatchpointByAddressCapability|JumpToLineCapability|AddWatcherCapability|WatchWidgetsCapability
            |ReloadModuleCapability
            |BreakOnThrowAndCatchCapability // Sort-of: Can break on throw().
            |BreakConditionCapability|TracePointCapability
            |BreakModuleCapability
            |OperateByInstructionCapability
            |RunToLineCapability;
-}
-
-bool CdbEngine::canWatchWidgets() const
-{
-    return true;
 }
 
 void CdbEngine::executeStep()
@@ -1135,7 +1152,7 @@ void CdbEngine::doContinueInferior()
 
 bool CdbEngine::canInterruptInferior() const
 {
-    return m_effectiveStartMode != AttachToRemote && inferiorPid();
+    return m_effectiveStartMode != AttachToRemoteServer && inferiorPid();
 }
 
 void CdbEngine::interruptInferior()
@@ -1771,8 +1788,10 @@ void CdbEngine::reloadFullStack()
 
 void CdbEngine::handlePid(const CdbExtensionCommandPtr &reply)
 {
-    if (reply->success) {
+    // Fails for core dumps.
+    if (reply->success)
         notifyInferiorPid(reply->reply.toULongLong());
+    if (reply->success || startParameters().startMode == AttachCore) {
         STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSetupOk")
         notifyInferiorSetupOk();
     }  else {
@@ -1783,8 +1802,8 @@ void CdbEngine::handlePid(const CdbExtensionCommandPtr &reply)
     }
 }
 
-// Parse CDB gdbmi register syntax
-static inline Register parseRegister(const GdbMi &gdbmiReg)
+// Parse CDB gdbmi register syntax.
+static Register parseRegister(const GdbMi &gdbmiReg)
 {
     Register reg;
     reg.name = gdbmiReg.findChild("name").data();
@@ -1794,7 +1813,7 @@ static inline Register parseRegister(const GdbMi &gdbmiReg)
         reg.name += description.data();
         reg.name += ')';
     }
-    reg.value = QString::fromAscii(gdbmiReg.findChild("value").data());
+    reg.value = gdbmiReg.findChild("value").data();
     return reg;
 }
 
@@ -2112,8 +2131,14 @@ void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
     if (state() == EngineSetupRequested) { // Temporary stop at beginning
         STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyEngineSetupOk")
         notifyEngineSetupOk();
+        // Store stop reason to be handled in runEngine().
+        if (startParameters().startMode == AttachCore) {
+            m_coreStopReason.reset(new GdbMi);
+            m_coreStopReason->fromString(messageBA);
+        }
         return;
     }
+
     GdbMi stopReason;
     stopReason.fromString(messageBA);
     processStop(stopReason, false);
@@ -2141,12 +2166,14 @@ void CdbEngine::processStop(const GdbMi &stopReason, bool conditionalBreakPointT
     }
     // Notify about state and send off command sequence to get stack, etc.
     if (stopFlags & StopNotifyStop) {
-        if (state() == InferiorStopRequested) {
-            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorStopOk")
-            notifyInferiorStopOk();
-        } else {
-            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSpontaneousStop")
-            notifyInferiorSpontaneousStop();
+        if (startParameters().startMode != AttachCore) {
+            if (state() == InferiorStopRequested) {
+                STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorStopOk")
+                        notifyInferiorStopOk();
+            } else {
+                STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSpontaneousStop")
+                        notifyInferiorSpontaneousStop();
+            }
         }
         // Prevent further commands from being sent if shutdown is in progress
         if (stopFlags & StopShutdownInProgress) {
@@ -2525,6 +2552,7 @@ bool CdbEngine::acceptsBreakpoint(BreakpointModelId id) const
     case BreakpointAtFork:
     case WatchpointAtExpression:
     case BreakpointAtSysCall:
+    case BreakpointOnSignalHandler:
         return false;
     case WatchpointAtAddress:
     case BreakpointByFileAndLine:

@@ -32,8 +32,10 @@
 
 #include "qmldirparser_p.h"
 #include "qmlerror.h"
+bool Qml_isFileCaseCorrect(const QString &) { return true; }
 
 #include <QtCore/QTextStream>
+#include <QtCore/QFile>
 #include <QtCore/QtDebug>
 
 QT_BEGIN_NAMESPACE
@@ -55,6 +57,16 @@ QUrl QmlDirParser::url() const
 void QmlDirParser::setUrl(const QUrl &url)
 {
     _url = url;
+}
+
+QString QmlDirParser::fileSource() const
+{
+    return _filePathSouce;
+}
+
+void QmlDirParser::setFileSource(const QString &filePath)
+{
+    _filePathSouce = filePath;
 }
 
 QString QmlDirParser::source() const
@@ -82,6 +94,23 @@ bool QmlDirParser::parse()
     _errors.clear();
     _plugins.clear();
     _components.clear();
+
+    if (_source.isEmpty() && !_filePathSouce.isEmpty()) {
+        QFile file(_filePathSouce);
+        if (!Qml_isFileCaseCorrect(_filePathSouce)) {
+            QmlError error;
+            error.setDescription(QString::fromUtf8("cannot load module \"$$URI$$\": File name case mismatch for \"%1\"").arg(_filePathSouce));
+            _errors.prepend(error);
+            return false;
+        } else if (file.open(QFile::ReadOnly)) {
+            _source = QString::fromUtf8(file.readAll());
+        } else {
+            QmlError error;
+            error.setDescription(QString::fromUtf8("module \"$$URI$$\" definition \"%1\" not readable").arg(_filePathSouce));
+            _errors.prepend(error);
+            return false;
+        }
+    }
 
     QTextStream stream(&_source);
     int lineNumber = 0;
@@ -148,7 +177,7 @@ bool QmlDirParser::parse()
                             QString::fromUtf8("internal types require 2 arguments, but %1 were provided").arg(sectionCount - 1));
                 continue;
             }
-            Component entry(sections[1], sections[2], -1, -1);
+            Component entry(sections[1].toUtf8(), sections[2], -1, -1);
             entry.internal = true;
             _components.append(entry);
         } else if (sections[0] == QLatin1String("typeinfo")) {
@@ -164,7 +193,7 @@ bool QmlDirParser::parse()
 
         } else if (sectionCount == 2) {
             // No version specified (should only be used for relative qmldir files)
-            const Component entry(sections[0], sections[1], -1, -1);
+            const Component entry(sections[0].toUtf8(), sections[1], -1, -1);
             _components.append(entry);
         } else if (sectionCount == 3) {
             const QString &version = sections[1];
@@ -182,7 +211,7 @@ bool QmlDirParser::parse()
                     const int minorVersion = version.mid(dotIndex + 1).toInt(&validVersionNumber);
 
                     if (validVersionNumber) {
-                        const Component entry(sections[0], sections[2], majorVersion, minorVersion);
+                        const Component entry(sections[0].toUtf8(), sections[2], majorVersion, minorVersion);
 
                         _components.append(entry);
                     }
@@ -215,9 +244,16 @@ bool QmlDirParser::hasError() const
     return false;
 }
 
-QList<QmlError> QmlDirParser::errors() const
+QList<QmlError> QmlDirParser::errors(const QString &uri) const
 {
-    return _errors;
+    QList<QmlError> errors = _errors;
+    for (int i = 0; i < errors.size(); ++i) {
+        QmlError &e = errors[i];
+        QString description = e.description();
+        description.replace(QLatin1String("$$URI$$"), uri);
+        e.setDescription(description);
+    }
+    return errors;
 }
 
 QList<QmlDirParser::Plugin> QmlDirParser::plugins() const

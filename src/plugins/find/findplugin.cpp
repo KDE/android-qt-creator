@@ -45,7 +45,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -136,7 +136,7 @@ bool FindPlugin::initialize(const QStringList &, QString *)
 
     d->m_findToolBar = new Internal::FindToolBar(this, d->m_currentDocumentFind);
     d->m_findDialog = new Internal::FindToolWindow(this);
-    SearchResultWindow *searchResultWindow = new SearchResultWindow;
+    SearchResultWindow *searchResultWindow = new SearchResultWindow(d->m_findDialog);
     addAutoReleasedObject(searchResultWindow);
     return true;
 }
@@ -178,12 +178,18 @@ void FindPlugin::openFindFilter()
     QAction *action = qobject_cast<QAction*>(sender());
     QTC_ASSERT(action, return);
     IFindFilter *filter = action->data().value<IFindFilter *>();
+    openFindDialog(filter);
+}
+
+void FindPlugin::openFindDialog(IFindFilter *filter)
+{
     if (d->m_currentDocumentFind->candidateIsEnabled())
         d->m_currentDocumentFind->acceptCandidate();
     QString currentFindString = (d->m_currentDocumentFind->isEnabled() ? d->m_currentDocumentFind->currentFindString() : "");
     if (!currentFindString.isEmpty())
         d->m_findDialog->setFindText(currentFindString);
-    d->m_findDialog->open(filter);
+    d->m_findDialog->setCurrentFilter(filter);
+    SearchResultWindow::instance()->openNewSearchPanel();
 }
 
 void FindPlugin::setupMenu()

@@ -40,7 +40,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/icontext.h>
 
 #include <QtCore/QObject>
@@ -73,7 +73,7 @@ ActionMacroHandler::ActionMacroHandler():
     QList<Core::Command *> commands = am->commands();
     foreach (Core::Command *command, commands) {
         if (command->isScriptable()) {
-            QString id = Core::UniqueIDManager::instance()->stringForUniqueIdentifier(command->id());
+            QString id = Core::Id::fromUniqueIdentifier(command->id()).toString();
             registerCommand(id);
         }
     }

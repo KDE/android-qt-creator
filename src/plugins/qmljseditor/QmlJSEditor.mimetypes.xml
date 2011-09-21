@@ -5,6 +5,7 @@
         <sub-class-of type="text/plain"/>
         <comment>QML file</comment>
         <glob pattern="*.qml"/>
+        <glob pattern="*.qmlproject"/>
     </mime-type>
     <mime-type type="application/javascript">
         <alias type="application/x-javascript"/>
@@ -14,5 +15,6 @@
         <comment>Qt Script file</comment>
         <glob pattern="*.js"/>
         <glob pattern="*.qs"/>
+        <glob pattern="*.qtt"/>
     </mime-type>
 </mime-info>

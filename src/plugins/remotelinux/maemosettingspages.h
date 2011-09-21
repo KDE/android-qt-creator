@@ -36,34 +36,7 @@
 
 namespace RemoteLinux{
 namespace Internal {
-
-class MaemoDeviceConfigurationsSettingsWidget;
 class MaemoQemuSettingsWidget;
-
-class MaemoDeviceConfigurationsSettingsPage : public Core::IOptionsPage
-{
-    Q_OBJECT
-public:
-    MaemoDeviceConfigurationsSettingsPage(QObject *parent = 0);
-    ~MaemoDeviceConfigurationsSettingsPage();
-
-    virtual QString id() const;
-    virtual QString displayName() const;
-    virtual QString category() const;
-    virtual QString displayCategory() const;
-    virtual QIcon categoryIcon() const;
-    virtual bool matches(const QString &searchKeyWord) const;
-    virtual QWidget *createPage(QWidget *parent);
-    virtual void apply();
-    virtual void finish();
-
-    static const QString Id;
-    static const QString Category;
-
-private:
-    QString m_keywords;
-    MaemoDeviceConfigurationsSettingsWidget *m_widget;
-};
 
 class MaemoQemuSettingsPage : public Core::IOptionsPage
 {
@@ -82,10 +55,9 @@ public:
     virtual void apply();
     virtual void finish();
 
-    static const QString Id;
-    static const QString Category;
-
     static void showQemuCrashDialog();
+    static QString pageId();
+    static QString pageCategory();
 
 private:
     QString m_keywords;

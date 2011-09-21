@@ -203,7 +203,7 @@ static QPair<QString, unsigned short> splitIpAddressSpec(const QString &addressS
     const QString address = addressSpec.left(pos);
     bool ok;
     const unsigned short port = addressSpec.mid(pos + 1).toUShort(&ok);
-    if(!ok) {
+    if (!ok) {
         qWarning("Invalid IP address specification: '%s', defaulting to port %hu.", qPrintable(addressSpec), defaultPort);
         return QPair<QString, unsigned short>(addressSpec, defaultPort);
     }
@@ -1349,7 +1349,7 @@ void CodaGdbAdapter::handleReadRegisters(const CodaCommandResult &result)
         logMessage("ERROR: " + result.errorString(), LogError);
         return;
     }
-    if (result.values.isEmpty() || result.values.front().type() != JsonValue::String) {
+    if (result.values.isEmpty() || result.values.front().type() != Json::JsonValue::String) {
         logMessage(_("Format error in register message: ") + result.toString(),
             LogError);
         return;

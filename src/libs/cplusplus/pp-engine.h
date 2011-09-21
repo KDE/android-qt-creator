@@ -79,6 +79,9 @@ public:
     bool expandMacros() const;
     void setExpandMacros(bool expandMacros);
 
+    bool keepComments() const;
+    void setKeepComments(bool keepComments);
+
 private:
     enum { MAX_LEVEL = 512 };
 
@@ -177,6 +180,9 @@ private:
     QString string(const char *first, int len) const;
     bool maybeAfterComment() const;
 
+    bool maybeMultilineToken(TokenIterator tok);
+    void skipToNextLine();
+
 private:
     Client *client;
     Environment *env;
@@ -197,6 +203,7 @@ private:
 
     QString _originalSource;
     bool _expandMacros;
+    bool _keepComments;
 };
 
 } // namespace CPlusPlus

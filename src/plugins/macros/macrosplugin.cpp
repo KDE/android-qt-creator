@@ -44,7 +44,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/icontext.h>
 
 #include <QtCore/QtPlugin>
@@ -64,10 +64,10 @@ MacrosPlugin::~MacrosPlugin()
 {
 }
 
-bool MacrosPlugin::initialize(const QStringList &arguments, QString *error_message)
+bool MacrosPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments);
-    Q_UNUSED(error_message);
+    Q_UNUSED(errorMessage);
 
     addAutoReleasedObject(new MacroOptionsPage);
     addAutoReleasedObject(new MacroLocatorFilter);

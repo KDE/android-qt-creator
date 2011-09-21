@@ -165,7 +165,12 @@ static const char pp_configuration[] =
     "#define __RPC_FAR\n"
     "#define APIENTRY\n"
     "#define __declspec(a)\n"
-    "#define STDMETHOD(method) virtual HRESULT STDMETHODCALLTYPE method\n";
+    "#define STDMETHOD(method) virtual HRESULT STDMETHODCALLTYPE method\n"
+    "#define __try try\n"
+    "#define __except catch\n"
+    "#define __finally\n"
+    "#define __inline inline\n"
+    "#define __forceinline inline\n";
 
 #ifndef ICHECK_BUILD
 CppPreprocessor::CppPreprocessor(QPointer<CppModelManager> modelManager)
@@ -173,7 +178,9 @@ CppPreprocessor::CppPreprocessor(QPointer<CppModelManager> modelManager)
       m_modelManager(modelManager),
       preprocess(this, &env),
       m_revision(0)
-{ }
+{
+    preprocess.setKeepComments(true);
+}
 
 #else
 
@@ -290,15 +297,11 @@ public:
     void operator()()
     {
         _doc->check(_mode);
-        _doc->findExposedQmlTypes();
-        _doc->releaseSource();
-        _doc->releaseTranslationUnit();
-
-        if (_mode == Document::FastCheck)
-            _doc->control()->squeeze();
 
         if (_modelManager)
             _modelManager->emitDocumentUpdated(_doc); // ### TODO: compress
+
+        _doc->releaseSourceAndAST();
     }
 };
 } // end of anonymous namespace
@@ -334,7 +337,7 @@ bool CppPreprocessor::includeFile(const QString &absoluteFilePath, QString *resu
         return false;
 
     QFile file(absoluteFilePath);
-    if (file.open(QFile::ReadOnly)) {
+    if (file.open(QFile::ReadOnly | QFile::Text)) {
         m_included.insert(absoluteFilePath);
         QTextStream stream(&file);
         const QString contents = stream.readAll();
@@ -590,6 +593,7 @@ void CppPreprocessor::sourceNeeded(QString &fileName, IncludeType type, unsigned
     const QByteArray preprocessedCode = preprocess(fileName, contents);
 
     doc->setSource(preprocessedCode);
+    doc->keepSourceAndAST();
     doc->tokenize();
 
     snapshot.insert(doc);
@@ -695,6 +699,8 @@ CppModelManager::CppModelManager(QObject *parent)
     // thread connections
     connect(this, SIGNAL(documentUpdated(CPlusPlus::Document::Ptr)),
             this, SLOT(onDocumentUpdated(CPlusPlus::Document::Ptr)));
+    connect(this, SIGNAL(extraDiagnosticsUpdated(QString)),
+            this, SLOT(onExtraDiagnosticsUpdated(QString)));
 
     // Listen for editor closed and opened events so that we can keep track of changing files
     connect(m_core->editorManager(), SIGNAL(editorOpened(Core::IEditor *)),
@@ -969,6 +975,22 @@ void CppModelManager::onDocumentUpdated(Document::Ptr doc)
     if (outdated)
         return;
 
+    updateEditor(doc);
+}
+
+void CppModelManager::onExtraDiagnosticsUpdated(const QString &fileName)
+{
+    protectSnapshot.lock();
+    Document::Ptr doc = m_snapshot.document(fileName);
+    protectSnapshot.unlock();
+    if (doc)
+        updateEditor(doc);
+}
+
+void CppModelManager::updateEditor(Document::Ptr doc)
+{
+    const QString fileName = doc->fileName();
+
     QList<Core::IEditor *> openedEditors = m_core->editorManager()->openedEditors();
     foreach (Core::IEditor *editor, openedEditors) {
         if (editor->file()->fileName() == fileName) {
@@ -1061,7 +1083,9 @@ void CppModelManager::onDocumentUpdated(Document::Ptr doc)
             }
 #else
             QSet<int> lines;
-            foreach (const Document::DiagnosticMessage &m, doc->diagnosticMessages()) {
+            QList<Document::DiagnosticMessage> messages = doc->diagnosticMessages();
+            messages += extraDiagnostics(doc->fileName());
+            foreach (const Document::DiagnosticMessage &m, messages) {
                 if (m.fileName() != fileName)
                     continue;
                 else if (lines.contains(m.line()))
@@ -1085,6 +1109,7 @@ void CppModelManager::onDocumentUpdated(Document::Ptr doc)
                 }
                 c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
                 sel.cursor = c;
+                sel.format.setToolTip(m.text());
                 selections.append(sel);
             }
 #endif
@@ -1237,6 +1262,7 @@ void CppModelManager::parse(QFutureInterface<void> &future,
     }
 
     future.setProgressValue(files.size());
+    preproc->modelManager()->finishedRefreshingSourceFiles(files);
 
     delete preproc;
 }
@@ -1283,164 +1309,34 @@ void CppModelManager::GC()
     protectSnapshot.unlock();
 }
 
-static FullySpecifiedType stripPointerAndReference(const FullySpecifiedType &type)
+void CppModelManager::finishedRefreshingSourceFiles(const QStringList &files)
 {
-    Type *t = type.type();
-    while (t) {
-        if (PointerType *ptr = t->asPointerType())
-            t = ptr->elementType().type();
-        else if (ReferenceType *ref = t->asReferenceType())
-            t = ref->elementType().type();
-        else
-            break;
-    }
-    return FullySpecifiedType(t);
+    emit sourceFilesRefreshed(files);
 }
 
-static QString toQmlType(const FullySpecifiedType &type)
+
+void CppModelManager::setExtraDiagnostics(const QString &fileName, int kind,
+                                          const QList<Document::DiagnosticMessage> &diagnostics)
 {
-    Overview overview;
-    QString result = overview(stripPointerAndReference(type));
-    if (result == QLatin1String("QString"))
-        result = QLatin1String("string");
-    return result;
-}
-
-static Class *lookupClass(const QString &expression, Scope *scope, TypeOfExpression &typeOf)
-{
-    QList<LookupItem> results = typeOf(expression, scope);
-    Class *klass = 0;
-    foreach (const LookupItem &item, results) {
-        if (item.declaration()) {
-            klass = item.declaration()->asClass();
-            if (klass)
-                return klass;
-        }
-    }
-    return 0;
-}
-
-static void populate(LanguageUtils::FakeMetaObject::Ptr fmo, Class *klass,
-                     QHash<Class *, LanguageUtils::FakeMetaObject::Ptr> *classes,
-                     TypeOfExpression &typeOf)
-{
-    using namespace LanguageUtils;
-
-    Overview namePrinter;
-
-    classes->insert(klass, fmo);
-
-    for (unsigned i = 0; i < klass->memberCount(); ++i) {
-        Symbol *member = klass->memberAt(i);
-        if (!member->name())
-            continue;
-        if (Function *func = member->type()->asFunctionType()) {
-            if (!func->isSlot() && !func->isInvokable() && !func->isSignal())
-                continue;
-            FakeMetaMethod method(namePrinter(func->name()), toQmlType(func->returnType()));
-            if (func->isSignal())
-                method.setMethodType(FakeMetaMethod::Signal);
-            else
-                method.setMethodType(FakeMetaMethod::Slot);
-            for (unsigned a = 0; a < func->argumentCount(); ++a) {
-                Symbol *arg = func->argumentAt(a);
-                QString name(CppModelManager::tr("unnamed"));
-                if (arg->name())
-                    name = namePrinter(arg->name());
-                method.addParameter(name, toQmlType(arg->type()));
-            }
-            fmo->addMethod(method);
-        }
-        if (QtPropertyDeclaration *propDecl = member->asQtPropertyDeclaration()) {
-            const FullySpecifiedType &type = propDecl->type();
-            const bool isList = false; // ### fixme
-            const bool isWritable = propDecl->flags() & QtPropertyDeclaration::WriteFunction;
-            const bool isPointer = type.type() && type.type()->isPointerType();
-            const int revision = 0; // ### fixme
-            FakeMetaProperty property(
-                        namePrinter(propDecl->name()),
-                        toQmlType(type),
-                        isList, isWritable, isPointer,
-                        revision);
-            fmo->addProperty(property);
-        }
-        if (QtEnum *qtEnum = member->asQtEnum()) {
-            // find the matching enum
-            Enum *e = 0;
-            QList<LookupItem> result = typeOf(namePrinter(qtEnum->name()), klass);
-            foreach (const LookupItem &item, result) {
-                if (item.declaration()) {
-                    e = item.declaration()->asEnum();
-                    if (e)
-                        break;
-                }
-            }
-            if (!e)
-                continue;
-
-            FakeMetaEnum metaEnum(namePrinter(e->name()));
-            for (unsigned j = 0; j < e->memberCount(); ++j) {
-                Symbol *enumMember = e->memberAt(j);
-                if (!enumMember->name())
-                    continue;
-                metaEnum.addKey(namePrinter(enumMember->name()), 0);
-            }
-            fmo->addEnum(metaEnum);
-        }
-    }
-
-    // only single inheritance is supported
-    if (klass->baseClassCount() > 0) {
-        BaseClass *base = klass->baseClassAt(0);
-        if (!base->name())
+    {
+        QMutexLocker locker(&protectExtraDiagnostics);
+        if (m_extraDiagnostics[fileName][kind] == diagnostics)
             return;
-
-        const QString baseClassName = namePrinter(base->name());
-        fmo->setSuperclassName(baseClassName);
-
-        Class *baseClass = lookupClass(baseClassName, klass, typeOf);
-        if (!baseClass)
-            return;
-
-        FakeMetaObject::Ptr baseFmo = classes->value(baseClass);
-        if (!baseFmo) {
-            baseFmo = FakeMetaObject::Ptr(new FakeMetaObject);
-            populate(baseFmo, baseClass, classes, typeOf);
-        }
+        m_extraDiagnostics[fileName].insert(kind, diagnostics);
     }
+    emit extraDiagnosticsUpdated(fileName);
 }
 
-QList<LanguageUtils::FakeMetaObject::ConstPtr> CppModelManager::exportedQmlObjects(const Document::Ptr &doc) const
+QList<Document::DiagnosticMessage> CppModelManager::extraDiagnostics(const QString &fileName, int kind) const
 {
-    using namespace LanguageUtils;
-    QList<FakeMetaObject::ConstPtr> exportedObjects;
-    QHash<Class *, FakeMetaObject::Ptr> classes;
-
-    const QList<CPlusPlus::Document::ExportedQmlType> exported = doc->exportedQmlTypes();
-    if (exported.isEmpty())
-        return exportedObjects;
-
-    TypeOfExpression typeOf;
-    const Snapshot currentSnapshot = snapshot();
-    typeOf.init(doc, currentSnapshot);
-    foreach (const Document::ExportedQmlType &exportedType, exported) {
-        FakeMetaObject::Ptr fmo(new FakeMetaObject);
-        fmo->addExport(exportedType.typeName, exportedType.packageName,
-                       ComponentVersion(exportedType.majorVersion, exportedType.minorVersion));
-        exportedObjects += fmo;
-
-        Class *klass = lookupClass(exportedType.typeExpression, exportedType.scope, typeOf);
-        if (!klass)
-            continue;
-
-        // add the no-package export, so the cpp name can be used in properties
-        Overview overview;
-        fmo->addExport(overview(klass->name()), QString(), ComponentVersion());
-
-        populate(fmo, klass, &classes, typeOf);
+    QMutexLocker locker(&protectExtraDiagnostics);
+    if (kind == -1) {
+        QList<Document::DiagnosticMessage> messages;
+        foreach (const QList<Document::DiagnosticMessage> &list, m_extraDiagnostics.value(fileName))
+            messages += list;
+        return messages;
     }
-
-    return exportedObjects;
+    return m_extraDiagnostics.value(fileName).value(kind);
 }
 
 #endif

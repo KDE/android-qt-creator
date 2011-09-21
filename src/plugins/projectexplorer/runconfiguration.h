@@ -33,19 +33,23 @@
 #ifndef RUNCONFIGURATION_H
 #define RUNCONFIGURATION_H
 
-#include "abi.h"
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
 
-#include <utils/outputformatter.h>
+#include <utils/outputformat.h>
 
 #include <QtCore/QMetaType>
 #include <QtCore/QWeakPointer>
 #include <QtGui/QWidget>
-#include <QtGui/QIcon>
+
+QT_FORWARD_DECLARE_CLASS(QIcon)
+
+namespace Utils {
+class OutputFormatter;
+}
 
 namespace ProjectExplorer {
-
+class Abi;
 class BuildConfiguration;
 class IRunConfigurationAspect;
 class RunControl;
@@ -95,6 +99,7 @@ public:
     uint qmlDebugServerPort() const;
     void setQmlDebugServerPort(uint port);
 
+    virtual bool fromMap(const QVariantMap &map);
     virtual QVariantMap toMap() const;
 
     QList<IRunConfigurationAspect *> extraAspects() const;
@@ -123,8 +128,6 @@ protected:
 
     /// convenience method to get current build configuration.
     BuildConfiguration *activeBuildConfiguration() const;
-
-    virtual bool fromMap(const QVariantMap &map);
 
 private:
     void addExtraAspects();
@@ -232,6 +235,7 @@ public:
 
     ProcessHandle applicationProcessHandle() const;
     void setApplicationProcessHandle(const ProcessHandle &handle);
+    Abi abi() const;
 
     bool sameRunConfiguration(const RunControl *other) const;
 

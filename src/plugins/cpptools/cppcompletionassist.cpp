@@ -47,6 +47,7 @@
 #include <SymbolVisitor.h>
 #include <Scope.h>
 #include <TranslationUnit.h>
+#include <CppRewriter.h>
 
 #include <cplusplus/ResolveExpression.h>
 #include <cplusplus/MatchingText.h>
@@ -775,6 +776,7 @@ IAssistProposal *CppCompletionAssistProcessor::createContentProposal()
                 }
             }
         } else {
+            delete *it;
             it = m_completions.erase(it);
         }
     }
@@ -1614,40 +1616,38 @@ bool CppCompletionAssistProcessor::completeQtMethod(const QList<CPlusPlus::Looku
                     continue;
                 else if (! wantSignals && ! fun->isSlot())
                     continue;
-                BasicProposalItem *item = toCompletionItem(fun);
-                if (item) {
-                    unsigned count = fun->argumentCount();
-                    while (true) {
-                        BasicProposalItem *ci = item;
 
-                        QString signature;
-                        signature += Overview().prettyName(fun->name());
-                        signature += QLatin1Char('(');
-                        for (unsigned i = 0; i < count; ++i) {
-                            Symbol *arg = fun->argumentAt(i);
-                            if (i != 0)
-                                signature += QLatin1Char(',');
-                            signature += o.prettyType(arg->type());
-                        }
-                        signature += QLatin1Char(')');
-
-                        const QByteArray normalized =
-                                QMetaObject::normalizedSignature(signature.toLatin1());
-
-                        signature = QString::fromLatin1(normalized, normalized.size());
-
-                        if (! signatures.contains(signature)) {
-                            signatures.insert(signature);
-
-                            ci->setText(signature); // fix the completion item.
-                            m_completions.append(ci);
-                        }
-
-                        if (count && fun->argumentAt(count - 1)->asArgument()->hasInitializer())
-                            --count;
-                        else
-                            break;
+                unsigned count = fun->argumentCount();
+                while (true) {
+                    QString signature;
+                    signature += Overview().prettyName(fun->name());
+                    signature += QLatin1Char('(');
+                    for (unsigned i = 0; i < count; ++i) {
+                        Symbol *arg = fun->argumentAt(i);
+                        if (i != 0)
+                            signature += QLatin1Char(',');
+                        signature += o.prettyType(arg->type());
                     }
+                    signature += QLatin1Char(')');
+
+                    const QByteArray normalized =
+                            QMetaObject::normalizedSignature(signature.toLatin1());
+
+                    signature = QString::fromLatin1(normalized, normalized.size());
+
+                    if (! signatures.contains(signature)) {
+                        BasicProposalItem *ci = toCompletionItem(fun);
+                        if (!ci)
+                            break;
+                        signatures.insert(signature);
+                        ci->setText(signature); // fix the completion item.
+                        m_completions.append(ci);
+                    }
+
+                    if (count && fun->argumentAt(count - 1)->asArgument()->hasInitializer())
+                        --count;
+                    else
+                        break;
                 }
             }
         }
@@ -1857,14 +1857,29 @@ bool CppCompletionAssistProcessor::completeConstructorOrFunction(const QList<CPl
             }
 
             if (autocompleteSignature && !isDestructor) {
+                // set up for rewriting function types with minimally qualified names
+                // to do it correctly we'd need the declaration's context and scope, but
+                // that'd be too expensive to get here. instead, we just minimize locally
+                SubstitutionEnvironment env;
+                env.setContext(context);
+                env.switchScope(sc);
+                ClassOrNamespace *targetCoN = context.lookupType(sc);
+                if (!targetCoN)
+                    targetCoN = context.globalNamespace();
+                UseMinimalNames q(targetCoN);
+                env.enter(&q);
+                Control *control = context.control().data();
+
                 // set up signature autocompletion
                 foreach (Function *f, functions) {
                     Overview overview;
                     overview.setShowArgumentNames(true);
                     overview.setShowDefaultArguments(false);
 
+                    const FullySpecifiedType localTy = rewriteType(f->type(), &env, control);
+
                     // gets: "parameter list) cv-spec",
-                    QString completion = overview(f->type()).mid(1);
+                    QString completion = overview(localTy).mid(1);
 
                     addCompletionItem(completion, QIcon(), 0,
                                       QVariant::fromValue(CompleteFunctionDeclaration(f)));

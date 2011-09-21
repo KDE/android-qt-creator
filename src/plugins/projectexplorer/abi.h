@@ -50,7 +50,7 @@ public:
         ArmArchitecture,
         X86Architecture,
         ItaniumArchitecture,
-        MipsArcitecture,
+        MipsArchitecture,
         PowerPCArchitecture,
         UnknownArchitecture
     };
@@ -121,6 +121,7 @@ public:
     bool isCompatibleWith(const Abi &other) const;
 
     bool isValid() const;
+    bool isNull() const;
 
     Architecture architecture() const { return m_architecture; }
     OS os() const { return m_os; }

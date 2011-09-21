@@ -51,17 +51,18 @@ class VCSBaseEditorParameterWidgetPrivate;
 class VCSBASE_EXPORT VCSBaseEditorParameterWidget : public QWidget
 {
     Q_OBJECT
+
 public:
-    struct ComboBoxItem
+    explicit VCSBaseEditorParameterWidget(QWidget *parent = 0);
+    ~VCSBaseEditorParameterWidget();
+
+    struct VCSBASE_EXPORT ComboBoxItem
     {
         ComboBoxItem();
         ComboBoxItem(const QString &text, const QVariant &val);
         QString displayText;
         QVariant value;
     };
-
-    explicit VCSBaseEditorParameterWidget(QWidget *parent = 0);
-    ~VCSBaseEditorParameterWidget();
 
     QStringList baseArguments() const;
     void setBaseArguments(const QStringList &);
@@ -102,7 +103,7 @@ protected:
 
 private:
     friend class VCSBaseEditorParameterWidgetPrivate;
-    QScopedPointer<VCSBaseEditorParameterWidgetPrivate> d;
+    VCSBaseEditorParameterWidgetPrivate *d;
 };
 
 } // namespace VCSBase

@@ -73,6 +73,8 @@ public:
     QMap<QString, TabPreferences *> m_languageTabPreferences;
     QMap<QString, IFallbackPreferences *> m_languageCodeStylePreferences;
 
+    QMap<QString, QString> m_mimeTypeToLanguage;
+
     CompletionSettings m_completionSettings;
 
     void fontZoomRequested(int pointSize);
@@ -143,6 +145,33 @@ TextEditorSettings::TextEditorSettings(QObject *parent)
     FormatDescription virtualMethodFormatDescriptor(QLatin1String(C_VIRTUAL_METHOD), tr("Virtual Method"));
     virtualMethodFormatDescriptor.format().setItalic(true);
     formatDescriptions.append(virtualMethodFormatDescriptor);
+
+    formatDescriptions.append(FormatDescription(QLatin1String(C_BINDING), tr("QML Binding"), Qt::darkRed));
+
+    Format qmlLocalNameFormat;
+    qmlLocalNameFormat.setItalic(true);
+    formatDescriptions.append(FormatDescription(QLatin1String(C_QML_LOCAL_ID), tr("QML Local Id"), qmlLocalNameFormat));
+    formatDescriptions.append(FormatDescription(QLatin1String(C_QML_ROOT_OBJECT_PROPERTY), tr("QML Root Object Property"), qmlLocalNameFormat));
+    formatDescriptions.append(FormatDescription(QLatin1String(C_QML_SCOPE_OBJECT_PROPERTY), tr("QML Scope Object Property"), qmlLocalNameFormat));
+    formatDescriptions.append(FormatDescription(QLatin1String(C_QML_STATE_NAME), tr("QML State Name"), qmlLocalNameFormat));
+
+    formatDescriptions.append(FormatDescription(QLatin1String(C_QML_TYPE_ID), tr("QML Type Name"), Qt::darkMagenta));
+
+    Format qmlExternalNameFormat = qmlLocalNameFormat;
+    qmlExternalNameFormat.setForeground(Qt::darkBlue);
+    formatDescriptions.append(FormatDescription(QLatin1String(C_QML_EXTERNAL_ID), tr("QML External Id"), qmlExternalNameFormat));
+    formatDescriptions.append(FormatDescription(QLatin1String(C_QML_EXTERNAL_OBJECT_PROPERTY), tr("QML External Object Property"), qmlExternalNameFormat));
+
+    Format jsLocalFormat;
+    jsLocalFormat.setForeground(QColor(41, 133, 199)); // very light blue
+    jsLocalFormat.setItalic(true);
+    formatDescriptions.append(FormatDescription(QLatin1String(C_JS_SCOPE_VAR), tr("JavaScript Scope Var"), jsLocalFormat));
+
+    Format jsGlobalFormat;
+    jsGlobalFormat.setForeground(QColor(0, 85, 175)); // light blue
+    jsGlobalFormat.setItalic(true);
+    formatDescriptions.append(FormatDescription(QLatin1String(C_JS_IMPORT_VAR), tr("JavaScript Import"), jsGlobalFormat));
+    formatDescriptions.append(FormatDescription(QLatin1String(C_JS_GLOBAL_VAR), tr("JavaScript Global Var"), jsGlobalFormat));
 
     formatDescriptions.append(FormatDescription(QLatin1String(C_KEYWORD), tr("Keyword"), Qt::darkYellow));
     formatDescriptions.append(FormatDescription(QLatin1String(C_OPERATOR), tr("Operator")));
@@ -341,6 +370,16 @@ QMap<QString, IFallbackPreferences *> TextEditorSettings::languageCodeStylePrefe
 void TextEditorSettings::registerLanguageCodeStylePreferences(const QString &languageId, IFallbackPreferences *prefs)
 {
     m_d->m_languageCodeStylePreferences.insert(languageId, prefs);
+}
+
+void TextEditorSettings::registerMimeTypeForLanguageId(const QString &mimeType, const QString &languageId)
+{
+    m_d->m_mimeTypeToLanguage.insert(mimeType, languageId);
+}
+
+QString TextEditorSettings::languageId(const QString &mimeType) const
+{
+    return m_d->m_mimeTypeToLanguage.value(mimeType);
 }
 
 #include "moc_texteditorsettings.cpp"

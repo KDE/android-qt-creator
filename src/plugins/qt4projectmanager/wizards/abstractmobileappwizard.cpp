@@ -70,8 +70,8 @@ AbstractMobileAppWizardDialog::AbstractMobileAppWizardDialog(QWidget *parent, co
 
     m_genericOptionsPage = new Internal::MobileAppWizardGenericOptionsPage;
     m_symbianOptionsPage = new Internal::MobileAppWizardSymbianOptionsPage;
-    m_maemoOptionsPage = new Internal::MobileAppWizardMaemoOptionsPage(64);
-    m_harmattanOptionsPage = new Internal::MobileAppWizardMaemoOptionsPage(80);
+    m_maemoOptionsPage = new Internal::MobileAppWizardMaemoOptionsPage;
+    m_harmattanOptionsPage = new Internal::MobileAppWizardHarmattanOptionsPage;
 }
 
 void AbstractMobileAppWizardDialog::addMobilePages()
@@ -93,8 +93,7 @@ void AbstractMobileAppWizardDialog::addMobilePages()
     m_maemoItem = wizardProgress()->item(m_maemoOptionsPageId);
     m_harmattanItem = wizardProgress()->item(m_harmattanOptionsPageId);
 
-    m_genericItem->setNextShownItem(0);
-    m_symbianItem->setNextShownItem(0);
+    m_targetItem->setNextShownItem(0);
 }
 
 TargetSetupPage *AbstractMobileAppWizardDialog::targetsPage() const
@@ -151,12 +150,16 @@ void AbstractMobileAppWizardDialog::initializePage(int id)
 {
     if (id == startId()) {
         m_targetItem->setNextItems(QList<Utils::WizardProgressItem *>()
-            << m_genericItem << m_maemoItem << m_harmattanItem << itemOfNextGenericPage());
+            << m_genericItem << m_symbianItem << m_maemoItem << m_harmattanItem << itemOfNextGenericPage());
         m_genericItem->setNextItems(QList<Utils::WizardProgressItem *>()
             << m_symbianItem << m_maemoItem);
         m_symbianItem->setNextItems(QList<Utils::WizardProgressItem *>()
             << m_maemoItem << m_harmattanItem << itemOfNextGenericPage());
-    } else if (id == m_genericOptionsPageId) {
+        m_maemoItem->setNextItems(QList<Utils::WizardProgressItem *>()
+            << m_harmattanItem << itemOfNextGenericPage());
+    } else if (id == m_genericOptionsPageId
+               || id == m_symbianOptionsPageId
+               || id == m_maemoOptionsPageId) {
         QList<Utils::WizardProgressItem *> order;
         order << m_genericItem;
         if (isSymbianTargetSelected())
@@ -171,15 +174,6 @@ void AbstractMobileAppWizardDialog::initializePage(int id)
             order.at(i)->setNextShownItem(order.at(i + 1));
     }
     BaseProjectWizardDialog::initializePage(id);
-}
-
-void AbstractMobileAppWizardDialog::cleanupPage(int id)
-{
-    if (id == m_genericOptionsPageId) {
-        m_genericItem->setNextShownItem(0);
-        m_symbianItem->setNextShownItem(0);
-    }
-    BaseProjectWizardDialog::cleanupPage(id);
 }
 
 void AbstractMobileAppWizardDialog::setIgnoreGenericOptionsPage(bool ignore)
@@ -239,8 +233,9 @@ QWizard *AbstractMobileAppWizard::createWizardDialog(QWidget *parent,
     wdlg->m_genericOptionsPage->setOrientation(app()->orientation());
     wdlg->m_symbianOptionsPage->setSvgIcon(app()->symbianSvgIcon());
     wdlg->m_symbianOptionsPage->setNetworkEnabled(app()->networkEnabled());
-    wdlg->m_maemoOptionsPage->setPngIcon(app()->maemoPngIcon64());
-    wdlg->m_harmattanOptionsPage->setPngIcon(app()->maemoPngIcon80());
+    wdlg->m_maemoOptionsPage->setPngIcon(app()->pngIcon64());
+    wdlg->m_harmattanOptionsPage->setPngIcon(app()->pngIcon80());
+    wdlg->m_harmattanOptionsPage->setBoosterOptionEnabled(app()->canSupportMeegoBooster());
     connect(wdlg, SIGNAL(projectParametersChanged(QString, QString)),
         SLOT(useProjectPath(QString, QString)));
     foreach (QWizardPage *p, extensionPages)
@@ -257,8 +252,11 @@ Core::GeneratedFiles AbstractMobileAppWizard::generateFiles(const QWizard *wizar
     app()->setSymbianTargetUid(wdlg->m_symbianOptionsPage->symbianUid());
     app()->setSymbianSvgIcon(wdlg->m_symbianOptionsPage->svgIcon());
     app()->setNetworkEnabled(wdlg->m_symbianOptionsPage->networkEnabled());
-    app()->setMaemoPngIcon64(wdlg->m_maemoOptionsPage->pngIcon());
-    app()->setMaemoPngIcon80(wdlg->m_harmattanOptionsPage->pngIcon());
+    app()->setPngIcon64(wdlg->m_maemoOptionsPage->pngIcon());
+    app()->setPngIcon80(wdlg->m_harmattanOptionsPage->pngIcon());
+    if (wdlg->isHarmattanTargetSelected())
+        app()->setSupportsMeegoBooster(wdlg->isHarmattanTargetSelected()
+                                       && wdlg->m_harmattanOptionsPage->supportsBooster());
     prepareGenerateFiles(wizard, errorMessage);
     return app()->generateFiles(errorMessage);
 }

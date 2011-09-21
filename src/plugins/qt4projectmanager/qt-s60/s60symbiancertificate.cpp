@@ -281,9 +281,8 @@ void S60Extensions::decode_from(BER_Decoder& from_source)
         if (OIDS::name_of(oid, CERT_CAPABILITY_FIELD_NAME))
             ext = new S60CapabilityConstraint();
 
-        if(!ext)
-        {
-            if(!critical || !should_throw)
+        if (!ext) {
+            if (!critical || !should_throw)
                 continue;
 
             throw Decoding_Error("Encountered unknown X.509 extension marked "
@@ -739,12 +738,12 @@ AlternativeName create_alt_name(const Data_Store& info)
 
 // ======== S60SymbianCertificate
 
-S60SymbianCertificate::S60SymbianCertificate(const QString &filename) : m_d(0)
+S60SymbianCertificate::S60SymbianCertificate(const QString &filename) : d(0)
 {
     S60SymbianCertificatePrivate *certificate = 0;
     try {
         certificate = new S60SymbianCertificatePrivate(filename.toLatin1());
-        m_d = certificate;
+        d = certificate;
         certificate = 0;
     } catch (Botan::Exception &e) {
         m_errorString = QLatin1String(e.what());
@@ -754,12 +753,12 @@ S60SymbianCertificate::S60SymbianCertificate(const QString &filename) : m_d(0)
 
 S60SymbianCertificate::~S60SymbianCertificate()
 {
-    delete m_d;
+    delete d;
 }
 
 bool S60SymbianCertificate::isValid() const
 {
-    return m_d != 0;
+    return d != 0;
 }
 
 QString S60SymbianCertificate::errorString() const
@@ -769,11 +768,11 @@ QString S60SymbianCertificate::errorString() const
 
 QStringList S60SymbianCertificate::subjectInfo(const QString &name)
 {
-    Q_ASSERT(m_d);
+    Q_ASSERT(d);
     QStringList result;
     try {
         std::vector<std::string> subjectInfo =
-            m_d->subjectInfo(name.toLatin1().constData());
+            d->subjectInfo(name.toLatin1().constData());
         std::vector<std::string>::const_iterator i;
         for (i = subjectInfo.begin(); i != subjectInfo.end(); ++i)
             result << QString::fromLatin1(i->c_str());
@@ -785,11 +784,11 @@ QStringList S60SymbianCertificate::subjectInfo(const QString &name)
 
 QStringList S60SymbianCertificate::issuerInfo(const QString &name)
 {
-    Q_ASSERT(m_d);
+    Q_ASSERT(d);
     QStringList result;
     try {
         std::vector<std::string> issuerInfo =
-            m_d->issuerInfo(name.toLatin1().constData());
+            d->issuerInfo(name.toLatin1().constData());
 
         std::vector<std::string>::const_iterator i;
         for (i = issuerInfo.begin(); i != issuerInfo.end(); ++i)
@@ -816,22 +815,22 @@ QDateTime S60SymbianCertificate::parseTime(const QByteArray &time)
 
 QDateTime S60SymbianCertificate::startTime()
 {
-    Q_ASSERT(m_d);
-    return parseTime(m_d->startTime().c_str());
+    Q_ASSERT(d);
+    return parseTime(d->startTime().c_str());
 }
 
 QDateTime S60SymbianCertificate::endTime()
 {
-    Q_ASSERT(m_d);
-    return parseTime(m_d->endTime().c_str());
+    Q_ASSERT(d);
+    return parseTime(d->endTime().c_str());
 }
 
 quint32 S60SymbianCertificate::certificateVersion()
 {
-    Q_ASSERT(m_d);
+    Q_ASSERT(d);
     quint32 version = 0;
     try {
-        version = static_cast<quint32>(m_d->x509Version());
+        version = static_cast<quint32>(d->x509Version());
     } catch (Botan::Exception &e) {
         m_errorString = QString::fromLatin1(e.what());
     }
@@ -840,16 +839,16 @@ quint32 S60SymbianCertificate::certificateVersion()
 
 bool S60SymbianCertificate::isSelfSigned()
 {
-    Q_ASSERT(m_d);
-    return m_d->isSelfSigned();
+    Q_ASSERT(d);
+    return d->isSelfSigned();
 }
 
 bool S60SymbianCertificate::isCaCert()
 {
-    Q_ASSERT(m_d);
+    Q_ASSERT(d);
     bool isCaCertificate = false;
     try {
-        isCaCertificate = m_d->isCaCert();
+        isCaCertificate = d->isCaCert();
     } catch (Botan::Exception &e) {
         m_errorString = QString::fromLatin1(e.what());
     }

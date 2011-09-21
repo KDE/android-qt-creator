@@ -43,7 +43,7 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/imode.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -59,6 +59,15 @@
 #include <QtGui/QAction>
 
 namespace Core {
+
+/*!
+    \class Core::ModeManager
+
+    The mode manager handles everything related to the instances of IMode
+    that were added to the plugin manager's object pool as well as their
+    buttons and the tool bar with the round buttons in the lower left
+    corner of Qt Creator.
+*/
 
 struct ModeManagerPrivate
 {

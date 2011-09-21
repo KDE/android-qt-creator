@@ -34,7 +34,7 @@
 #define QMLJSLINK_H
 
 #include <qmljs/qmljsdocument.h>
-#include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljscontext.h>
 #include <qmljs/parser/qmljsastfwd_p.h>
 #include <languageutils/componentversion.h>
 
@@ -50,55 +50,24 @@ class LinkPrivate;
 */
 class QMLJS_EXPORT Link
 {
-    Q_DECLARE_PRIVATE(Link)
+    Q_DISABLE_COPY(Link)
     Q_DECLARE_TR_FUNCTIONS(QmlJS::Link)
 
 public:
-    Link(Interpreter::Context *context, const Snapshot &snapshot,
-         const QStringList &importPaths);
+    Link(const Snapshot &snapshot, const QStringList &importPaths, const LibraryInfo &builtins);
 
     // Link all documents in snapshot, collecting all diagnostic messages (if messages != 0)
-    void operator()(QHash<QString, QList<DiagnosticMessage> > *messages = 0);
+    ContextPtr operator()(QHash<QString, QList<DiagnosticMessage> > *messages = 0);
 
     // Link all documents in snapshot, appending the diagnostic messages
     // for 'doc' in 'messages'
-    void operator()(const Document::Ptr &doc, QList<DiagnosticMessage> *messages);
+    ContextPtr operator()(const Document::Ptr &doc, QList<DiagnosticMessage> *messages);
 
     ~Link();
 
 private:
-    Interpreter::Engine *engine();
-
-    static AST::UiQualifiedId *qualifiedTypeNameId(AST::Node *node);
-
-    void linkImports();
-
-    void populateImportedTypes(Interpreter::Imports *imports, Document::Ptr doc);
-    Interpreter::Import importFileOrDirectory(
-        Document::Ptr doc,
-        const Interpreter::ImportInfo &importInfo);
-    Interpreter::Import importNonFile(
-        Document::Ptr doc,
-        const Interpreter::ImportInfo &importInfo);
-    void importObject(Bind *bind, const QString &name, Interpreter::ObjectValue *object, NameId *targetNamespace);
-
-    bool importLibrary(Document::Ptr doc,
-                       const QString &libraryPath,
-                       Interpreter::Import *import,
-                       const QString &importPath = QString());
-    void loadQmldirComponents(Interpreter::ObjectValue *import,
-                              LanguageUtils::ComponentVersion version,
-                              const LibraryInfo &libraryInfo,
-                              const QString &libraryPath);
-    void loadImplicitDirectoryImports(Interpreter::Imports *imports, Document::Ptr doc);
-    void loadImplicitDefaultImports(Interpreter::Imports *imports);
-
-    void error(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message);
-    void warning(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message);
-    void appendDiagnostic(const Document::Ptr &doc, const DiagnosticMessage &message);
-
-private:
-    QScopedPointer<LinkPrivate> d_ptr;
+    LinkPrivate *d;
+    friend class LinkPrivate;
 };
 
 } // namespace QmlJS

@@ -32,23 +32,22 @@
 #ifndef DEPLOYMENTINFO_H
 #define DEPLOYMENTINFO_H
 
-#include "deployablefilesperprofile.h"
 #include "remotelinux_export.h"
 
 #include <QtCore/QAbstractListModel>
-#include <QtCore/QHash>
-#include <QtCore/QList>
-
-QT_FORWARD_DECLARE_CLASS(QTimer)
 
 namespace Qt4ProjectManager {
-class Qt4BuildConfiguration;
 class Qt4BaseTarget;
 class Qt4ProFileNode;
 } // namespace Qt4ProjectManager
 
 namespace RemoteLinux {
 class DeployableFile;
+class DeployableFilesPerProFile;
+
+namespace Internal {
+class DeploymentInfoPrivate;
+}
 
 class REMOTELINUX_EXPORT DeploymentInfo : public QAbstractListModel
 {
@@ -56,30 +55,25 @@ class REMOTELINUX_EXPORT DeploymentInfo : public QAbstractListModel
 public:
     DeploymentInfo(const Qt4ProjectManager::Qt4BaseTarget *target);
     ~DeploymentInfo();
+
     void setUnmodified();
     bool isModified() const;
     int deployableCount() const;
     DeployableFile deployableAt(int i) const;
     QString remoteExecutableFilePath(const QString &localExecutableFilePath) const;
-    int modelCount() const { return m_listModels.count(); }
-    DeployableFilesPerProFile *modelAt(int i) const { return m_listModels.at(i); }
+    int modelCount() const;
+    DeployableFilesPerProFile *modelAt(int i) const;
 
 private slots:
-    void startTimer(Qt4ProjectManager::Qt4ProFileNode *, bool success, bool parseInProgress);
+    void createModels();
 
 private:
-    typedef QHash<QString, DeployableFilesPerProFile::ProFileUpdateSetting> UpdateSettingsMap;
-
     virtual int rowCount(const QModelIndex &parent) const;
     virtual QVariant data(const QModelIndex &index, int role) const;
 
-    Q_SLOT void createModels();
     void createModels(const Qt4ProjectManager::Qt4ProFileNode *proFileNode);
 
-    QList<DeployableFilesPerProFile *> m_listModels;
-    UpdateSettingsMap m_updateSettings;
-    const Qt4ProjectManager::Qt4BaseTarget * const m_target;
-    QTimer *const m_updateTimer;
+    Internal::DeploymentInfoPrivate * const d;
 };
 
 } // namespace RemoteLinux

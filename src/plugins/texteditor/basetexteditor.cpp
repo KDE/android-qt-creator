@@ -52,6 +52,7 @@
 #include "defaultassistinterface.h"
 #include "convenience.h"
 #include "texteditorsettings.h"
+#include "texteditoroverlay.h"
 
 #include <aggregation/aggregate.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -62,7 +63,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/infobar.h>
 #include <coreplugin/manhattanstyle.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <extensionsystem/pluginmanager.h>
 #include <find/basetextfind.h>
 #include <utils/linecolumnlabel.h>
@@ -157,7 +158,7 @@ protected:
 } // namespace Internal
 } // namespace TextEditor
 
-ITextEditor *BaseTextEditorWidget::openEditorAt(const QString &fileName, int line, int column,
+Core::IEditor *BaseTextEditorWidget::openEditorAt(const QString &fileName, int line, int column,
                                  const QString &editorKind,
                                  Core::EditorManager::OpenEditorFlags flags,
                                  bool *newEditor)
@@ -168,12 +169,12 @@ ITextEditor *BaseTextEditorWidget::openEditorAt(const QString &fileName, int lin
     Core::IEditor *editor = editorManager->openEditor(fileName, editorKind,
             flags, newEditor);
     TextEditor::ITextEditor *texteditor = qobject_cast<TextEditor::ITextEditor *>(editor);
-    if (texteditor) {
+    if (texteditor && line != -1) {
         texteditor->gotoLine(line, column);
         return texteditor;
     }
 
-    return 0;
+    return editor;
 }
 
 static void convertToPlainText(QString &txt)
@@ -2295,6 +2296,16 @@ bool BaseTextEditorWidget::scrollWheelZoomingEnabled() const
     return d->m_behaviorSettings.m_scrollWheelZooming;
 }
 
+void BaseTextEditorWidget::setConstrainTooltips(bool b)
+{
+    d->m_behaviorSettings.m_constrainTooltips = b;
+}
+
+bool BaseTextEditorWidget::constrainTooltips() const
+{
+    return d->m_behaviorSettings.m_constrainTooltips;
+}
+
 void BaseTextEditorWidget::setRevisionsVisible(bool b)
 {
     d->m_revisionsVisible = b;
@@ -2514,9 +2525,14 @@ bool BaseTextEditorWidget::viewportEvent(QEvent *event)
         if (ce->reason() == QContextMenuEvent::Mouse && !textCursor().hasSelection())
             setTextCursor(cursorForPosition(ce->pos()));
     } else if (event->type() == QEvent::ToolTip) {
+        if (QApplication::keyboardModifiers() & Qt::ControlModifier
+                || (!(QApplication::keyboardModifiers() & Qt::ShiftModifier)
+                    && d->m_behaviorSettings.m_constrainTooltips)) {
+            // Tooltips should be eaten when either control is pressed (so they don't get in the
+            // way of code navigation) or if they are in constrained mode and shift is not pressed.
+            return true;
+        }
         const QHelpEvent *he = static_cast<QHelpEvent*>(event);
-        if (QApplication::keyboardModifiers() & Qt::ControlModifier)
-            return true; // eat tooltip event when control is pressed
         const QPoint &pos = he->pos();
 
         RefactorMarker refactorMarker = d->m_refactorOverlay->markerAt(pos);
@@ -4119,7 +4135,6 @@ void BaseTextEditorWidget::mousePressEvent(QMouseEvent *e)
 
         RefactorMarker refactorMarker = d->m_refactorOverlay->markerAt(e->pos());
         if (refactorMarker.isValid()) {
-            qDebug() << "refactorMarkerClicked" << refactorMarker.cursor.position();
             emit refactorMarkerClicked(refactorMarker);
         } else {
             updateLink(e);
@@ -4169,9 +4184,13 @@ void BaseTextEditorWidget::leaveEvent(QEvent *e)
 
 void BaseTextEditorWidget::keyReleaseEvent(QKeyEvent *e)
 {
-    // Clear link emulation when Ctrl is released
-    if (e->key() == Qt::Key_Control)
+    if (e->key() == Qt::Key_Control) {
         clearLink();
+    } else if (e->key() == Qt::Key_Shift
+             && d->m_behaviorSettings.m_constrainTooltips
+             && ToolTip::instance()->isVisible()) {
+        ToolTip::instance()->hide();
+    }
 
     QPlainTextEdit::keyReleaseEvent(e);
 }
@@ -4510,12 +4529,12 @@ void BaseTextEditorWidget::handleBackspaceKey()
         return;
 
     bool handled = false;
-    if (!tabSettings.m_smartBackspace) {
+    if (tabSettings.m_smartBackspaceBehavior == TabSettings::BackspaceNeverIndents) {
         if (cursorWithinSnippet)
             cursor.beginEditBlock();
         cursor.deletePreviousChar();
         handled = true;
-    } else {
+    } else if (tabSettings.m_smartBackspaceBehavior == TabSettings::BackspaceFollowsPreviousIndents) {
         QTextBlock currentBlock = cursor.block();
         int positionInBlock = pos - currentBlock.position();
         const QString blockText = currentBlock.text();
@@ -4525,9 +4544,12 @@ void BaseTextEditorWidget::handleBackspaceKey()
             cursor.deletePreviousChar();
             handled = true;
         } else {
+            if (cursorWithinSnippet) {
+                d->m_snippetOverlay->clear();
+                cursorWithinSnippet = false;
+            }
             int previousIndent = 0;
             const int indent = tabSettings.columnAt(blockText, positionInBlock);
-
             for (QTextBlock previousNonEmptyBlock = currentBlock.previous();
                  previousNonEmptyBlock.isValid();
                  previousNonEmptyBlock = previousNonEmptyBlock.previous()) {
@@ -4535,8 +4557,8 @@ void BaseTextEditorWidget::handleBackspaceKey()
                 if (previousNonEmptyBlockText.trimmed().isEmpty())
                     continue;
                 previousIndent =
-                    tabSettings.columnAt(previousNonEmptyBlockText,
-                                         tabSettings.firstNonSpace(previousNonEmptyBlockText));
+                        tabSettings.columnAt(previousNonEmptyBlockText,
+                                             tabSettings.firstNonSpace(previousNonEmptyBlockText));
                 if (previousIndent < indent) {
                     cursor.beginEditBlock();
                     cursor.setPosition(currentBlock.position(), QTextCursor::KeepAnchor);
@@ -4547,6 +4569,19 @@ void BaseTextEditorWidget::handleBackspaceKey()
                 }
             }
         }
+    } else if (tabSettings.m_smartBackspaceBehavior == TabSettings::BackspaceUnindents) {
+        if (!pos || !characterAt(pos - 1).isSpace()) {
+            if (cursorWithinSnippet)
+                cursor.beginEditBlock();
+            cursor.deletePreviousChar();
+        } else {
+            if (cursorWithinSnippet) {
+                d->m_snippetOverlay->clear();
+                cursorWithinSnippet = false;
+            }
+            indentOrUnindent(false);
+        }
+        handled = true;
     }
 
     if (!handled) {
@@ -4601,13 +4636,13 @@ void BaseTextEditorWidget::indentInsertedText(const QTextCursor &tc)
 void BaseTextEditorWidget::indent(QTextDocument *doc, const QTextCursor &cursor, QChar typedChar)
 {
     maybeClearSomeExtraSelections(cursor);
-    d->m_indenter->indent(doc, cursor, typedChar, this);
+    d->m_indenter->indent(doc, cursor, typedChar, tabSettings());
 }
 
 void BaseTextEditorWidget::reindent(QTextDocument *doc, const QTextCursor &cursor)
 {
     maybeClearSomeExtraSelections(cursor);
-    d->m_indenter->reindent(doc, cursor, this);
+    d->m_indenter->reindent(doc, cursor, tabSettings());
 }
 
 BaseTextEditorWidget::Link BaseTextEditorWidget::findLinkAt(const QTextCursor &, bool)
@@ -5490,8 +5525,7 @@ void BaseTextEditorWidget::setDisplaySettings(const DisplaySettings &ds)
 
 void BaseTextEditorWidget::setBehaviorSettings(const TextEditor::BehaviorSettings &bs)
 {
-    setMouseNavigationEnabled(bs.m_mouseNavigation);
-    setScrollWheelZoomingEnabled(bs.m_scrollWheelZooming);
+    d->m_behaviorSettings = bs;
 }
 
 void BaseTextEditorWidget::setStorageSettings(const StorageSettings &storageSettings)
@@ -5502,7 +5536,8 @@ void BaseTextEditorWidget::setStorageSettings(const StorageSettings &storageSett
 void BaseTextEditorWidget::setCompletionSettings(const TextEditor::CompletionSettings &completionSettings)
 {
     d->m_autoCompleter->setAutoParenthesesEnabled(completionSettings.m_autoInsertBrackets);
-    d->m_autoCompleter->setSurroundWithEnabled(completionSettings.m_autoInsertBrackets);
+    d->m_autoCompleter->setSurroundWithEnabled(completionSettings.m_autoInsertBrackets
+                                               && completionSettings.m_surroundingAutoBrackets);
 }
 
 void BaseTextEditorWidget::setExtraEncodingSettings(const ExtraEncodingSettings &extraEncodingSettings)
@@ -5581,7 +5616,8 @@ void BaseTextEditorWidget::setTextCodec(QTextCodec *codec)
 
 QTextCodec *BaseTextEditorWidget::textCodec() const
 {
-    return baseTextDocument()->codec();
+    // TODO: Fix all QTextCodec usages to be const *.
+    return const_cast<QTextCodec *>(baseTextDocument()->codec());
 }
 
 void BaseTextEditorWidget::setReadOnly(bool b)
@@ -6002,6 +6038,10 @@ QString BaseTextEditor::contextHelpId() const
     return m_contextHelpId;
 }
 
+Internal::RefactorMarkers BaseTextEditorWidget::refactorMarkers() const
+{
+    return d->m_refactorOverlay->markers();
+}
 
 void BaseTextEditorWidget::setRefactorMarkers(const Internal::RefactorMarkers &markers)
 {

@@ -47,7 +47,6 @@ class Model;
 class ItemLibraryWidget : public QFrame
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ItemLibraryWidget)
 
     enum FilterChangeFlag {
       QtBasic = 0x0,
@@ -97,7 +96,7 @@ signals:
     void symbianChecked(bool b);
 
 private:
-    ItemLibraryWidgetPrivate *m_d;
+    ItemLibraryWidgetPrivate *d;
     FilterChangeFlag m_filterFlag;
 };
 

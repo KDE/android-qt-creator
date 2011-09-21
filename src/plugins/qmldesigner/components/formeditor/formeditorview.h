@@ -40,6 +40,10 @@ class QGraphicsScene;
 class QGraphicsSceneMouseEvent;
 QT_END_NAMESPACE
 
+namespace Utils {
+class CrumblePath;
+}
+
 namespace QmlDesigner {
 
 class FormEditorWidget;
@@ -53,7 +57,6 @@ class SelectionTool;
 class ResizeTool;
 class AnchorTool;
 class DragTool;
-class ItemCreatorTool;
 class ItemLibraryEntry;
 class QmlItemNode;
 
@@ -94,7 +97,6 @@ public:
     bool changeToMoveTool(const QPointF &beginPoint);
     void changeToDragTool();
     void changeToSelectionTool();
-    void changeToItemCreatorTool();
     void changeToSelectionTool(QGraphicsSceneMouseEvent *event);
     void changeToResizeTool();
     void changeToAnchorTool();
@@ -120,11 +122,7 @@ public:
 
     void actualStateChanged(const ModelNode &node);
 
-public slots:
-    void activateItemCreator(const QString &name);
-
-signals:
-    void ItemCreatorDeActivated();
+    Utils::CrumblePath *crumblePath() const;
 
 protected:
     void reset();
@@ -149,7 +147,6 @@ private: //variables
     ResizeTool *m_resizeTool;
     AnchorTool *m_anchorTool;
     DragTool *m_dragTool;
-    ItemCreatorTool *m_itemCreatorTool;
     AbstractFormEditorTool *m_currentTool;
     int m_transactionCounter;
 };

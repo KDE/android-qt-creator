@@ -55,15 +55,15 @@ class ModelManager;
 
 class QmlJSToolsPlugin : public ExtensionSystem::IPlugin
 {
-    Q_DISABLE_COPY(QmlJSToolsPlugin)
     Q_OBJECT
+
 public:
     static QmlJSToolsPlugin *instance() { return m_instance; }
 
     QmlJSToolsPlugin();
     ~QmlJSToolsPlugin();
 
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
     ModelManager *modelManager() { return m_modelManager; }

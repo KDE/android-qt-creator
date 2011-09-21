@@ -34,17 +34,15 @@
 #define QMAKESTEP_H
 
 #include "qt4projectmanager_global.h"
-#include <QtCore/qglobal.h>
+#include <projectexplorer/abstractprocessstep.h>
+
+#include <QtCore/QStringList>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class QMakeStep; }
 QT_END_NAMESPACE
 
-#include <projectexplorer/abstractprocessstep.h>
-
-#include <QtCore/QStringList>
 #include <qt4projectmanager/qt4projectmanager_global.h>
-
 namespace ProjectExplorer {
 class BuildStep;
 class IBuildStepFactory;
@@ -117,9 +115,6 @@ signals:
     void userArgumentsChanged();
     void linkQmlDebuggingLibraryChanged();
 
-private slots:
-    void recompileMessageBoxFinished(int button);
-
 protected:
     QMakeStep(ProjectExplorer::BuildStepList *parent, QMakeStep *source);
     QMakeStep(ProjectExplorer::BuildStepList *parent, const QString &id);
@@ -149,6 +144,7 @@ public:
     QMakeStepConfigWidget(QMakeStep *step);
     ~QMakeStepConfigWidget();
     QString summaryText() const;
+    QString additionalSummaryText() const;
     QString displayName() const;
 private slots:
     // slots for handling buildconfiguration/step signals
@@ -166,13 +162,21 @@ private slots:
     // other
     void buildQmlDebuggingHelper();
 
+private slots:
+    void recompileMessageBoxFinished(int button);
+
 private:
     void updateSummaryLabel();
     void updateQmlDebuggingOption();
     void updateEffectiveQMakeCall();
+
+    void setSummaryText(const QString &);
+    void setAdditionalSummaryText(const QString &);
+
     Ui::QMakeStep *m_ui;
     QMakeStep *m_step;
     QString m_summaryText;
+    QString m_additionalSummaryText;
     bool m_ignoreChange;
 };
 

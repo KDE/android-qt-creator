@@ -291,6 +291,7 @@ CheckSymbols::Future CheckSymbols::go(Document::Ptr doc, const LookupContext &co
 
 CheckSymbols::CheckSymbols(Document::Ptr doc, const LookupContext &context)
     : ASTVisitor(doc->translationUnit()), _doc(doc), _context(context)
+    , _lineOfLastUsage(0)
 {
     CollectSymbols collectTypes(doc, context.snapshot());
 
@@ -299,8 +300,6 @@ CheckSymbols::CheckSymbols(Document::Ptr doc, const LookupContext &context)
     _potentialMembers = collectTypes.members();
     _potentialVirtualMethods = collectTypes.virtualMethods();
     _potentialStatics = collectTypes.statics();
-    _flushRequested = false;
-    _flushLine = 0;
 
     typeOfExpression.init(_doc, _context.snapshot(), _context.bindings());
 }
@@ -442,7 +441,7 @@ bool CheckSymbols::visit(NamespaceAST *ast)
         if (! tok.generated()) {
             unsigned line, column;
             getTokenStartPosition(ast->identifier_token, &line, &column);
-            Use use(line, column, tok.length());
+            Use use(line, column, tok.length(), SemanticInfo::TypeUse);
             addUse(use);
         }
     }
@@ -457,7 +456,7 @@ bool CheckSymbols::visit(UsingDirectiveAST *)
 
 bool CheckSymbols::visit(EnumeratorAST *ast)
 {
-    addUse(ast->identifier_token, Use::Static);
+    addUse(ast->identifier_token, SemanticInfo::StaticUse);
     return true;
 }
 
@@ -469,7 +468,7 @@ bool CheckSymbols::visit(SimpleDeclarationAST *ast)
             if (NameAST *declId = declaratorId(ast->declarator_list->value)) {
                 if (Function *funTy = decl->type()->asFunctionType()) {
                     if (funTy->isVirtual()) {
-                        addUse(declId, Use::VirtualMethod);
+                        addUse(declId, SemanticInfo::VirtualMethodUse);
                     } else if (maybeVirtualMethod(decl->name())) {
                         addVirtualMethod(_context.lookup(decl->name(), decl->enclosingScope()), declId, funTy->argumentCount());
                     }
@@ -490,7 +489,7 @@ bool CheckSymbols::visit(ElaboratedTypeSpecifierAST *ast)
 {
     accept(ast->attribute_list);
     accept(ast->name);
-    addUse(ast->name, Use::Type);
+    addUse(ast->name, SemanticInfo::TypeUse);
     return false;
 }
 
@@ -643,7 +642,7 @@ void CheckSymbols::checkName(NameAST *ast, Scope *scope)
         if (ast->asDestructorName() != 0) {
             Class *klass = scope->asClass();
             if (hasVirtualDestructor(_context.lookupType(klass)))
-                addUse(ast, Use::VirtualMethod);
+                addUse(ast, SemanticInfo::VirtualMethodUse);
         } else if (maybeType(ast->name) || maybeStatic(ast->name)) {
             const QList<LookupItem> candidates = _context.lookup(ast->name, scope);
             addTypeOrStatic(candidates, ast);
@@ -693,7 +692,7 @@ bool CheckSymbols::visit(QualifiedNameAST *ast)
                     if (NameAST *class_or_namespace_name = nested_name_specifier->class_or_namespace_name) {
                         if (TemplateIdAST *template_id = class_or_namespace_name->asTemplateId()) {
                             if (template_id->template_token) {
-                                addUse(template_id, Use::Type);
+                                addUse(template_id, SemanticInfo::TypeUse);
                                 binding = 0; // there's no way we can find a binding.
                             }
 
@@ -714,7 +713,7 @@ bool CheckSymbols::visit(QualifiedNameAST *ast)
         if (binding && ast->unqualified_name) {
             if (ast->unqualified_name->asDestructorName() != 0) {
                 if (hasVirtualDestructor(binding))
-                    addUse(ast->unqualified_name, Use::VirtualMethod);
+                    addUse(ast->unqualified_name, SemanticInfo::VirtualMethodUse);
             } else {
                 addTypeOrStatic(binding->find(ast->unqualified_name->name), ast->unqualified_name);
             }
@@ -729,7 +728,7 @@ bool CheckSymbols::visit(QualifiedNameAST *ast)
 
 bool CheckSymbols::visit(TypenameTypeParameterAST *ast)
 {
-    addUse(ast->name, Use::Type);
+    addUse(ast->name, SemanticInfo::TypeUse);
     accept(ast->type_id);
     return false;
 }
@@ -737,7 +736,7 @@ bool CheckSymbols::visit(TypenameTypeParameterAST *ast)
 bool CheckSymbols::visit(TemplateTypeParameterAST *ast)
 {
     accept(ast->template_parameter_list);
-    addUse(ast->name, Use::Type);
+    addUse(ast->name, SemanticInfo::TypeUse);
     accept(ast->type_id);
     return false;
 }
@@ -775,7 +774,7 @@ bool CheckSymbols::visit(FunctionDefinitionAST *ast)
                 declId = q->unqualified_name;
 
             if (fun->isVirtual()) {
-                addUse(declId, Use::VirtualMethod);
+                addUse(declId, SemanticInfo::VirtualMethodUse);
             } else if (maybeVirtualMethod(fun->name())) {
                 addVirtualMethod(_context.lookup(fun->name(), fun->enclosingScope()), declId, fun->argumentCount());
             }
@@ -798,7 +797,7 @@ bool CheckSymbols::visit(FunctionDefinitionAST *ast)
     return false;
 }
 
-void CheckSymbols::addUse(NameAST *ast, Use::Kind kind)
+void CheckSymbols::addUse(NameAST *ast, UseKind kind)
 {
     if (! ast)
         return;
@@ -822,7 +821,7 @@ void CheckSymbols::addUse(NameAST *ast, Use::Kind kind)
     addUse(startToken, kind);
 }
 
-void CheckSymbols::addUse(unsigned tokenIndex, Use::Kind kind)
+void CheckSymbols::addUse(unsigned tokenIndex, UseKind kind)
 {
     if (! tokenIndex)
         return;
@@ -839,19 +838,21 @@ void CheckSymbols::addUse(unsigned tokenIndex, Use::Kind kind)
     addUse(use);
 }
 
+static const int chunkSize = 50;
+
 void CheckSymbols::addUse(const Use &use)
 {
+    if (!use.line)
+        return;
+
     if (! enclosingFunctionDefinition()) {
-        if (_usages.size() >= 50) {
-            if (_flushRequested && use.line != _flushLine)
+        if (_usages.size() >= chunkSize) {
+            if (use.line > _lineOfLastUsage)
                 flush();
-            else if (! _flushRequested) {
-                _flushRequested = true;
-                _flushLine = use.line;
-            }
         }
     }
 
+    _lineOfLastUsage = qMax(_lineOfLastUsage, use.line);
     _usages.append(use);
 }
 
@@ -871,7 +872,7 @@ void CheckSymbols::addType(ClassOrNamespace *b, NameAST *ast)
     unsigned line, column;
     getTokenStartPosition(startToken, &line, &column);
     const unsigned length = tok.length();
-    const Use use(line, column, length, Use::Type);
+    const Use use(line, column, length, SemanticInfo::TypeUse);
     addUse(use);
     //qDebug() << "added use" << oo(ast->name) << line << column << length;
 }
@@ -913,10 +914,10 @@ void CheckSymbols::addTypeOrStatic(const QList<LookupItem> &candidates, NameAST 
             getTokenStartPosition(startToken, &line, &column);
             const unsigned length = tok.length();
 
-            Use::Kind kind = Use::Type;
+            UseKind kind = SemanticInfo::TypeUse;
 
             if (c->enclosingEnum() != 0)
-                kind = Use::Static;
+                kind = SemanticInfo::StaticUse;
 
             const Use use(line, column, length, kind);
             addUse(use);
@@ -951,7 +952,7 @@ void CheckSymbols::addClassMember(const QList<LookupItem> &candidates, NameAST *
         getTokenStartPosition(startToken, &line, &column);
         const unsigned length = tok.length();
 
-        const Use use(line, column, length, Use::Field);
+        const Use use(line, column, length, SemanticInfo::FieldUse);
         addUse(use);
         break;
     }
@@ -976,7 +977,7 @@ void CheckSymbols::addStatic(const QList<LookupItem> &candidates, NameAST *ast)
             getTokenStartPosition(startToken, &line, &column);
             const unsigned length = tok.length();
 
-            const Use use(line, column, length, Use::Static);
+            const Use use(line, column, length, SemanticInfo::StaticUse);
             addUse(use);
             //qDebug() << "added use" << oo(ast->name) << line << column << length;
             break;
@@ -1015,7 +1016,7 @@ void CheckSymbols::addVirtualMethod(const QList<LookupItem> &candidates, NameAST
         getTokenStartPosition(startToken, &line, &column);
         const unsigned length = tok.length();
 
-        const Use use(line, column, length, Use::VirtualMethod);
+        const Use use(line, column, length, SemanticInfo::VirtualMethodUse);
         addUse(use);
         break;
     }
@@ -1086,14 +1087,20 @@ bool CheckSymbols::maybeVirtualMethod(const Name *name) const
     return false;
 }
 
+static bool sortByLinePredicate(const CheckSymbols::Use &lhs, const CheckSymbols::Use &rhs)
+{
+    return lhs.line < rhs.line;
+}
+
 void CheckSymbols::flush()
 {
-    _flushRequested = false;
-    _flushLine = 0;
+    _lineOfLastUsage = 0;
 
     if (_usages.isEmpty())
         return;
 
+    qSort(_usages.begin(), _usages.end(), sortByLinePredicate);
     reportResults(_usages);
     _usages.clear();
+    _usages.reserve(chunkSize);
 }

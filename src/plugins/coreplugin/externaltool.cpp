@@ -31,10 +31,13 @@
 **************************************************************************/
 
 #include "externaltool.h"
+#include "externaltoolmanager.h"
 #include "actionmanager/actionmanager.h"
+#include "actionmanager/actioncontainer.h"
 #include "coreconstants.h"
 #include "variablemanager.h"
 
+#include <app/app_version.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
 #include <coreplugin/filemanager.h>
@@ -44,6 +47,7 @@
 #include <utils/stringutils.h>
 #include <utils/environment.h>
 #include <utils/fileutils.h>
+#include <utils/qtcprocess.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QXmlStreamReader>

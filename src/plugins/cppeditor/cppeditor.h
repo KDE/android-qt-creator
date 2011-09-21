@@ -35,6 +35,7 @@
 
 #include "cppeditorenums.h"
 #include "cppsemanticinfo.h"
+#include "cppfunctiondecldeflink.h"
 
 #include <cplusplus/ModelManagerInterface.h>
 #include <cplusplus/CppDocument.h>
@@ -62,6 +63,7 @@ class Symbol;
 namespace CppTools {
 class CppModelManagerInterface;
 class CppCodeStyleSettings;
+class CppRefactoringFile;
 }
 
 namespace TextEditor {
@@ -92,7 +94,7 @@ public:
         QString code;
         int line;
         int column;
-        int revision;
+        unsigned revision;
         bool force;
 
         Source()
@@ -103,7 +105,7 @@ public:
                const QString &fileName,
                const QString &code,
                int line, int column,
-               int revision)
+               unsigned revision)
             : snapshot(snapshot), fileName(fileName),
               code(code), line(line), column(column),
               revision(revision), force(false)
@@ -193,6 +195,9 @@ public:
     virtual TextEditor::IAssistInterface *createAssistInterface(TextEditor::AssistKind kind,
                                                                 TextEditor::AssistReason reason) const;
 
+    QSharedPointer<FunctionDeclDefLink> declDefLink() const;
+    void applyDeclDefLinkChanges(bool jumpToMatch);
+
 Q_SIGNALS:
     void outlineModelIndexChanged(const QModelIndex &index);
 
@@ -211,7 +216,7 @@ public Q_SLOTS:
 protected:
     bool event(QEvent *e);
     void contextMenuEvent(QContextMenuEvent *);
-    void keyPressEvent(QKeyEvent *);
+    void keyPressEvent(QKeyEvent *e);
 
     TextEditor::BaseTextEditor *createEditor();
 
@@ -229,6 +234,9 @@ private Q_SLOTS:
     void updateOutlineToolTip();
     void updateUses();
     void updateUsesNow();
+    void updateFunctionDeclDefLink();
+    void updateFunctionDeclDefLinkNow();
+    void onFunctionDeclDefLinkFound(QSharedPointer<FunctionDeclDefLink> link);
     void onDocumentUpdated(CPlusPlus::Document::Ptr doc);
     void onContentsChanged(int position, int charsRemoved, int charsAdded);
 
@@ -240,6 +248,8 @@ private Q_SLOTS:
     void markSymbolsNow();
 
     void performQuickFix(int index);
+
+    void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker);
 
 private:
     void markSymbols(const QTextCursor &tc, const SemanticInfo &info);
@@ -260,6 +270,8 @@ private:
     void startRename();
     void finishRename();
     void abortRename();
+
+    Q_SLOT void abortDeclDefLink();
 
     Link attemptFuncDeclDef(const QTextCursor &cursor,
                             const CPlusPlus::Document::Ptr &doc,
@@ -283,15 +295,12 @@ private:
     QTimer *m_updateOutlineTimer;
     QTimer *m_updateOutlineIndexTimer;
     QTimer *m_updateUsesTimer;
+    QTimer *m_updateFunctionDeclDefLinkTimer;
     QTextCharFormat m_occurrencesFormat;
     QTextCharFormat m_occurrencesUnusedFormat;
     QTextCharFormat m_occurrenceRenameFormat;
-    QTextCharFormat m_typeFormat;
-    QTextCharFormat m_localFormat;
-    QTextCharFormat m_fieldFormat;
-    QTextCharFormat m_staticFormat;
+    QHash<int, QTextCharFormat> m_semanticHighlightFormatMap;
     QTextCharFormat m_keywordFormat;
-    QTextCharFormat m_virtualMethodFormat;
 
     QList<QTextEdit::ExtraSelection> m_renameSelections;
     int m_currentRenameSelection;
@@ -309,12 +318,14 @@ private:
     QFuture<SemanticInfo::Use> m_highlighter;
     QFutureWatcher<SemanticInfo::Use> m_highlightWatcher;
     unsigned m_highlightRevision; // the editor revision that requested the highlight
-    int m_nextHighlightBlockNumber;
 
     QFuture<QList<int> > m_references;
     QFutureWatcher<QList<int> > m_referencesWatcher;
     unsigned m_referencesRevision;
     int m_referencesCursorPosition;
+
+    FunctionDeclDefLinkFinder *m_declDefLinkFinder;
+    QSharedPointer<FunctionDeclDefLink> m_declDefLink;
 };
 
 

@@ -35,8 +35,6 @@
 
 #include "core_global.h"
 
-#include <QtCore/QScopedPointer>
-
 #include <QtCore/QObject>
 #include <QtCore/QStringList>
 #include <QtCore/QVariant>
@@ -51,7 +49,6 @@ struct HelpManagerPrivate;
 class CORE_EXPORT HelpManager : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(HelpManager)
 
 public:
     typedef QHash<QString, QStringList> Filters;
@@ -100,8 +97,7 @@ private slots:
 
 private:
     void verifyDocumenation();
-
-    QScopedPointer<HelpManagerPrivate> d;
+    HelpManagerPrivate *d;
 };
 
 }   // Core

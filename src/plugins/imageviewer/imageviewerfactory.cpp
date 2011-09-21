@@ -51,9 +51,9 @@ struct ImageViewerFactoryPrivate
 
 ImageViewerFactory::ImageViewerFactory(QObject *parent) :
     Core::IEditorFactory(parent),
-    d_ptr(new ImageViewerFactoryPrivate)
+    d(new ImageViewerFactoryPrivate)
 {
-    d_ptr->actionHandler = new ImageViewerActionHandler(this);
+    d->actionHandler = new ImageViewerActionHandler(this);
 
     QMap<QByteArray, QString> possibleMimeTypes;
     possibleMimeTypes.insert("bmp", QLatin1String("image/bmp"));
@@ -76,12 +76,13 @@ ImageViewerFactory::ImageViewerFactory(QObject *parent) :
     foreach (const QByteArray &format, supportedFormats) {
         const QString &value = possibleMimeTypes.value(format);
         if (!value.isEmpty())
-            d_ptr->mimeTypes.append(value);
+            d->mimeTypes.append(value);
     }
 }
 
 ImageViewerFactory::~ImageViewerFactory()
 {
+    delete d;
 }
 
 Core::IEditor *ImageViewerFactory::createEditor(QWidget *parent)
@@ -91,12 +92,12 @@ Core::IEditor *ImageViewerFactory::createEditor(QWidget *parent)
 
 QStringList ImageViewerFactory::mimeTypes() const
 {
-    return d_ptr->mimeTypes;
+    return d->mimeTypes;
 }
 
-QString ImageViewerFactory::id() const
+Core::Id ImageViewerFactory::id() const
 {
-    return QLatin1String(Constants::IMAGEVIEWER_ID);
+    return Constants::IMAGEVIEWER_ID;
 }
 
 QString ImageViewerFactory::displayName() const
@@ -111,7 +112,7 @@ Core::IFile *ImageViewerFactory::open(const QString & /*fileName*/)
 
 void ImageViewerFactory::extensionsInitialized()
 {
-    d_ptr->actionHandler->createActions();
+    d->actionHandler->createActions();
 }
 
 } // namespace Internal

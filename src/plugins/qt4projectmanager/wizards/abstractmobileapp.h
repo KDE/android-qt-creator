@@ -57,10 +57,10 @@ struct
         AppProFile,
         DeploymentPriFile,
         SymbianSvgIconFile,
-        MaemoPngIconFile64,
-        MaemoPngIconFile80,
-        DesktopFileFremantle,
-        DesktopFileHarmattan,
+        PngIcon64File,
+        PngIcon80File,
+        DesktopFremantleFile,
+        DesktopHarmattanFile,
         ExtendedFile
     };
 
@@ -106,10 +106,10 @@ public:
         DeploymentPriOrigin,
         SymbianSvgIcon,
         SymbianSvgIconOrigin,
-        MaemoPngIcon64,
-        MaemoPngIconOrigin64,
-        MaemoPngIcon80,
-        MaemoPngIconOrigin80,
+        PngIcon64,
+        PngIconOrigin64,
+        PngIcon80,
+        PngIconOrigin80,
         ExtendedFile
     };
 
@@ -122,16 +122,20 @@ public:
     void setProjectPath(const QString &path);
     void setSymbianSvgIcon(const QString &icon);
     QString symbianSvgIcon() const;
-    void setMaemoPngIcon64(const QString &icon);
-    QString maemoPngIcon64() const;
-    void setMaemoPngIcon80(const QString &icon);
-    QString maemoPngIcon80() const;
+    void setPngIcon64(const QString &icon);
+    QString pngIcon64() const;
+    void setPngIcon80(const QString &icon);
+    QString pngIcon80() const;
     void setSymbianTargetUid(const QString &uid);
     QString symbianTargetUid() const;
     void setNetworkEnabled(bool enabled);
     bool networkEnabled() const;
     QString path(int fileType) const;
     QString error() const;
+
+    bool canSupportMeegoBooster() const;
+    bool supportsMeegoBooster() const;
+    void setSupportsMeegoBooster(bool supportBooster);
 
 #ifndef CREATORLESSTEST
     virtual Core::GeneratedFiles generateFiles(QString *errorMessage) const;
@@ -168,18 +172,20 @@ protected:
     static const int StubVersion;
 
     QString m_error;
+    bool m_canSupportMeegoBooster;
+
 private:
     QByteArray generateDesktopFile(QString *errorMessage, int fileType) const;
     QByteArray generateMainCpp(QString *errorMessage) const;
     QByteArray generateProFile(QString *errorMessage) const;
 
     virtual QByteArray generateFileExtended(int fileType,
-        bool *versionAndCheckSum, QString *comment, QString *errorMessage) const=0;
-    virtual QString pathExtended(int fileType) const=0;
-    virtual QString originsRoot() const=0;
-    virtual QString mainWindowClassName() const=0;
-    virtual int stubVersionMinor() const=0;
-    virtual bool adaptCurrentMainCppTemplateLine(QString &line) const=0;
+        bool *versionAndCheckSum, QString *comment, QString *errorMessage) const = 0;
+    virtual QString pathExtended(int fileType) const = 0;
+    virtual QString originsRoot() const = 0;
+    virtual QString mainWindowClassName() const = 0;
+    virtual int stubVersionMinor() const = 0;
+    virtual bool adaptCurrentMainCppTemplateLine(QString &line) const = 0;
     virtual void handleCurrentProFileTemplateLine(const QString &line,
         QTextStream &proFileTemplate, QTextStream &proFile,
         bool &commentOutNextLine) const = 0;
@@ -189,11 +195,12 @@ private:
     QString m_projectName;
     QFileInfo m_projectPath;
     QString m_symbianSvgIcon;
-    QString m_maemoPngIcon64;
-    QString m_maemoPngIcon80;
+    QString m_pngIcon64;
+    QString m_pngIcon80;
     QString m_symbianTargetUid;
     ScreenOrientation m_orientation;
     bool m_networkEnabled;
+    bool m_supportsMeegoBooster;
 };
 
 } // namespace Qt4ProjectManager

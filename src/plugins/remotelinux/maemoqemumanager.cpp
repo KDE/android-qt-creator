@@ -41,7 +41,7 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
@@ -50,7 +50,10 @@
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/session.h>
+#include <projectexplorer/buildconfiguration.h>
 #include <qtsupport/qtversionmanager.h>
+#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <remotelinux/linuxdeviceconfiguration.h>
 #include <utils/filesystemwatcher.h>
 
 #include <QtCore/QDebug>
@@ -99,8 +102,7 @@ MaemoQemuManager::MaemoQemuManager(QObject *parent)
     qemuCommand->setAttribute(Core::Command::CA_UpdateText);
     qemuCommand->setAttribute(Core::Command::CA_UpdateIcon);
 
-    Core::ModeManager *modeManager = core->modeManager();
-    modeManager->addAction(qemuCommand->action(), 1);
+    Core::ModeManager::instance()->addAction(qemuCommand->action(), 1);
     m_qemuAction->setEnabled(false);
     m_qemuAction->setVisible(false);
 
@@ -528,7 +530,7 @@ void MaemoQemuManager::toggleStarterButton(Target *target)
     int uniqueId = -1;
     if (target) {
         if (AbstractQt4MaemoTarget *qt4Target = qobject_cast<AbstractQt4MaemoTarget*>(target)) {
-            if (Qt4BuildConfiguration *bc = qt4Target->activeBuildConfiguration()) {
+            if (Qt4BuildConfiguration *bc = qt4Target->activeQt4BuildConfiguration()) {
                 if (QtSupport::BaseQtVersion *version = bc->qtVersion())
                     uniqueId = version->uniqueId();
             }
@@ -588,7 +590,7 @@ bool MaemoQemuManager::targetUsesMatchingRuntimeConfig(Target *target,
     if (qtVersion)
         *qtVersion = version;
     const LinuxDeviceConfiguration::ConstPtr &config = mrc->deviceConfig();
-    return config && config->type() == LinuxDeviceConfiguration::Emulator;
+    return config && config->deviceType() == LinuxDeviceConfiguration::Emulator;
 }
 
 void MaemoQemuManager::notify(const QList<int> uniqueIds)

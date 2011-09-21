@@ -40,6 +40,7 @@
 #include "ui_startexternaldialog.h"
 #include "ui_startremotedialog.h"
 #include "ui_startremoteenginedialog.h"
+#include "ui_attachtoqmlportdialog.h"
 
 #ifdef Q_OS_WIN
 #  include "shared/dbgwinutils.h"
@@ -655,7 +656,7 @@ void StartExternalDialog::changed()
 //
 ///////////////////////////////////////////////////////////////////////
 
-StartRemoteDialog::StartRemoteDialog(QWidget *parent)
+StartRemoteDialog::StartRemoteDialog(QWidget *parent, bool enableStartScript)
   : QDialog(parent),
     m_ui(new Ui::StartRemoteDialog)
 {
@@ -664,19 +665,24 @@ StartRemoteDialog::StartRemoteDialog(QWidget *parent)
     m_ui->buttonBox->button(QDialogButtonBox::Ok)->setDefault(true);
     m_ui->debuggerPathChooser->setExpectedKind(PathChooser::File);
     m_ui->debuggerPathChooser->setPromptDialogTitle(tr("Select Debugger"));
+    m_ui->debuginfoPathChooser->setExpectedKind(PathChooser::File);
+    m_ui->debuginfoPathChooser->setPromptDialogTitle(tr("Select Location of Debugging Information"));
     m_ui->executablePathChooser->setExpectedKind(PathChooser::File);
     m_ui->executablePathChooser->setPromptDialogTitle(tr("Select Executable"));
     m_ui->sysrootPathChooser->setPromptDialogTitle(tr("Select Sysroot"));
     m_ui->overrideStartScriptPathChooser->setExpectedKind(PathChooser::File);
     m_ui->overrideStartScriptPathChooser->setPromptDialogTitle(tr("Select GDB Start Script"));
-    m_ui->serverStartScript->setExpectedKind(PathChooser::File);
-    m_ui->serverStartScript->setPromptDialogTitle(tr("Select Server Start Script"));
+    m_ui->serverStartScriptPathChooser->setExpectedKind(PathChooser::File);
+    m_ui->serverStartScriptPathChooser->setPromptDialogTitle(tr("Select Server Start Script"));
+    m_ui->serverStartScriptPathChooser->setVisible(enableStartScript);
+    m_ui->serverStartScriptLabel->setVisible(enableStartScript);
+    m_ui->useServerStartScriptCheckBox->setVisible(enableStartScript);
+    m_ui->useServerStartScriptLabel->setVisible(enableStartScript);
 
     connect(m_ui->useServerStartScriptCheckBox, SIGNAL(toggled(bool)),
-        this, SLOT(updateState()));
-
-    connect(m_ui->buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
-    connect(m_ui->buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
+        SLOT(updateState()));
+    connect(m_ui->buttonBox, SIGNAL(accepted()), SLOT(accept()));
+    connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(reject()));
 
     updateState();
 }
@@ -714,6 +720,16 @@ void StartRemoteDialog::setDebugger(const QString &debugger)
 QString StartRemoteDialog::debugger() const
 {
     return m_ui->debuggerPathChooser->path();
+}
+
+void StartRemoteDialog::setDebugInfoLocation(const QString &location)
+{
+    m_ui->debuginfoPathChooser->setPath(location);
+}
+
+QString StartRemoteDialog::debugInfoLocation() const
+{
+    return m_ui->debuginfoPathChooser->path();
 }
 
 void StartRemoteDialog::setRemoteArchitectures(const QStringList &list)
@@ -770,12 +786,12 @@ void StartRemoteDialog::setOverrideStartScript(const QString &scriptName)
 
 void StartRemoteDialog::setServerStartScript(const QString &scriptName)
 {
-    m_ui->serverStartScript->setPath(scriptName);
+    m_ui->serverStartScriptPathChooser->setPath(scriptName);
 }
 
 QString StartRemoteDialog::serverStartScript() const
 {
-    return m_ui->serverStartScript->path();
+    return m_ui->serverStartScriptPathChooser->path();
 }
 
 void StartRemoteDialog::setUseServerStartScript(bool on)
@@ -802,7 +818,50 @@ void StartRemoteDialog::updateState()
 {
     bool enabled = m_ui->useServerStartScriptCheckBox->isChecked();
     m_ui->serverStartScriptLabel->setEnabled(enabled);
-    m_ui->serverStartScript->setEnabled(enabled);
+    m_ui->serverStartScriptPathChooser->setEnabled(enabled);
+}
+
+///////////////////////////////////////////////////////////////////////
+//
+// AttachToQmlPortDialog
+//
+///////////////////////////////////////////////////////////////////////
+
+AttachToQmlPortDialog::AttachToQmlPortDialog(QWidget *parent)
+  : QDialog(parent),
+    m_ui(new Ui::AttachToQmlPortDialog)
+{
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    m_ui->setupUi(this);
+    m_ui->buttonBox->button(QDialogButtonBox::Ok)->setDefault(true);
+
+    connect(m_ui->buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
+    connect(m_ui->buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
+}
+
+AttachToQmlPortDialog::~AttachToQmlPortDialog()
+{
+    delete m_ui;
+}
+
+void AttachToQmlPortDialog::setHost(const QString &host)
+{
+    m_ui->hostLineEdit->setText(host);
+}
+
+QString AttachToQmlPortDialog::host() const
+{
+    return m_ui->hostLineEdit->text();
+}
+
+void AttachToQmlPortDialog::setPort(const int port)
+{
+    m_ui->portSpinBox->setValue(port);
+}
+
+int AttachToQmlPortDialog::port() const
+{
+    return m_ui->portSpinBox->value();
 }
 
 // --------- StartRemoteCdbDialog

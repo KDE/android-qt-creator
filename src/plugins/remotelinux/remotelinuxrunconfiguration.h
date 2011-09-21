@@ -33,34 +33,24 @@
 #ifndef REMOTELINUXRUNCONFIGURATION_H
 #define REMOTELINUXRUNCONFIGURATION_H
 
-#include "maemoconstants.h"
-#include "portlist.h"
 #include "remotelinux_export.h"
 
-#include <utils/environment.h>
-
 #include <projectexplorer/runconfiguration.h>
-
-#include <QtCore/QDateTime>
-#include <QtCore/QStringList>
-
-QT_FORWARD_DECLARE_CLASS(QWidget)
+#include <utils/environment.h>
 
 namespace Qt4ProjectManager {
 class Qt4BuildConfiguration;
-class Qt4Project;
 class Qt4BaseTarget;
 class Qt4ProFileNode;
 } // namespace Qt4ProjectManager
 
 namespace RemoteLinux {
 class LinuxDeviceConfiguration;
+class PortList;
 class RemoteLinuxRunConfigurationWidget;
-class Qt4MaemoDeployConfiguration;
+class RemoteLinuxDeployConfiguration;
 
 namespace Internal {
-class AbstractLinuxDeviceDeployStep;
-class MaemoDeviceConfigListModel;
 class RemoteLinuxRunConfigurationPrivate;
 class RemoteLinuxRunConfigurationFactory;
 } // namespace Internal
@@ -68,6 +58,7 @@ class RemoteLinuxRunConfigurationFactory;
 class REMOTELINUX_EXPORT RemoteLinuxRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
+    Q_DISABLE_COPY(RemoteLinuxRunConfiguration)
     friend class Internal::RemoteLinuxRunConfigurationFactory;
     friend class RemoteLinuxRunConfigurationWidget;
 
@@ -90,8 +81,9 @@ public:
     Qt4ProjectManager::Qt4BaseTarget *qt4Target() const;
     Qt4ProjectManager::Qt4BuildConfiguration *activeQt4BuildConfiguration() const;
 
-    Qt4MaemoDeployConfiguration *deployConfig() const;
+    RemoteLinuxDeployConfiguration *deployConfig() const;
 
+    virtual QString environmentPreparationCommand() const;
     virtual QString commandPrefix() const;
     virtual PortList freePorts() const;
     virtual DebuggingType debuggingType() const;
@@ -148,7 +140,7 @@ private:
     void setUserEnvironmentChanges(const QList<Utils::EnvironmentItem> &diff);
     void setSystemEnvironment(const Utils::Environment &environment);
 
-    Internal::RemoteLinuxRunConfigurationPrivate * const m_d;
+    Internal::RemoteLinuxRunConfigurationPrivate * const d;
 };
 
 } // namespace RemoteLinux

@@ -34,16 +34,13 @@
 #define CPPQUICKFIX_H
 
 #include "cppeditor_global.h"
-#include "cppsemanticinfo.h"
-
-#include <ASTfwd.h>
-#include <cplusplus/CppDocument.h>
 #include <texteditor/quickfix.h>
 
 namespace CppTools {
     class CppModelManagerInterface;
     class CppRefactoringFile;
     class CppRefactoringChanges;
+    typedef QSharedPointer<CppRefactoringFile> CppRefactoringFilePtr;
 } // namespace CppTools
 
 namespace ExtensionSystem {
@@ -58,8 +55,6 @@ class CppQuickFixAssistInterface;
 
 class CPPEDITOR_EXPORT CppQuickFixOperation: public TextEditor::QuickFixOperation
 {
-    Q_DISABLE_COPY(CppQuickFixOperation)
-
 public:
     explicit CppQuickFixOperation(
         const QSharedPointer<const Internal::CppQuickFixAssistInterface> &interface,
@@ -69,8 +64,8 @@ public:
     virtual void perform();
 
 protected:
-    virtual void performChanges(CppTools::CppRefactoringFile *currentFile,
-                                CppTools::CppRefactoringChanges *refactoring) = 0;
+    virtual void performChanges(const CppTools::CppRefactoringFilePtr &currentFile,
+                                const CppTools::CppRefactoringChanges &refactoring) = 0;
 
     QString fileName() const;
 

@@ -7,32 +7,23 @@ include(remotelinux_dependencies.pri)
 HEADERS += \
     remotelinuxplugin.h \
     remotelinux_export.h \
-    maemoconfigtestdialog.h \
     maemoconstants.h \
     maemorunconfigurationwidget.h \
     maemoruncontrol.h \
     maemorunfactories.h \
     maemosettingspages.h \
-    maemodeviceconfigurationssettingswidget.h \
-    maemosshconfigdialog.h \
     maemotoolchain.h \
     maemopackagecreationstep.h \
     maemopackagecreationfactory.h \
     maemopackagecreationwidget.h \
     maemoqemumanager.h \
-    maemodeploystepwidget.h \
     maemodeploystepfactory.h \
     maemoglobal.h \
     maemosshrunner.h \
     maemodebugsupport.h \
     maemoremotemountsmodel.h \
-    maemodeviceenvreader.h \
     maemomountspecification.h \
     maemoremotemounter.h \
-    maemoprofilesupdatedialog.h \
-    maemousedportsgatherer.h \
-    maemoremoteprocesslist.h \
-    maemoremoteprocessesdialog.h \
     maemopublishingwizardfactories.h \
     maemopublishingbuildsettingspagefremantlefree.h \
     maemopublishingfileselectiondialog.h \
@@ -49,19 +40,11 @@ HEADERS += \
     qt4maemotarget.h \
     qt4maemodeployconfiguration.h \
     maemodeviceconfigwizard.h \
-    maemokeydeployer.h \
-    maemopertargetdeviceconfigurationlistmodel.h \
     maemodeployconfigurationwidget.h \
     maemoinstalltosysrootstep.h \
     maemodeploymentmounter.h \
-    maemopackageuploader.h \
     maemopackageinstaller.h \
     maemoremotecopyfacility.h \
-    abstractmaemodeploystep.h \
-    maemodeploybymountstep.h \
-    maemouploadandinstalldeploystep.h \
-    maemodirectdeviceuploadstep.h \
-    abstractlinuxdevicedeploystep.h \
     maemoqtversionfactory.h \
     maemoqtversion.h \
     linuxdeviceconfiguration.h \
@@ -83,35 +66,59 @@ HEADERS += \
     portlist.h \
     deployablefile.h \
     deployablefilesperprofile.h \
-    deploymentinfo.h
+    deploymentinfo.h \
+    abstractremotelinuxdeploystep.h \
+    genericdirectuploadstep.h \
+    maddeuploadandinstallpackagesteps.h \
+    uploadandinstalltarpackagestep.h \
+    maemodeploybymountsteps.h \
+    abstractremotelinuxdeployservice.h \
+    abstractuploadandinstallpackageservice.h \
+    genericdirectuploadservice.h \
+    remotelinuxdeployconfiguration.h \
+    remotelinuxdeployconfigurationfactory.h \
+    genericremotelinuxdeploystepfactory.h \
+    abstractpackagingstep.h \
+    tarpackagecreationstep.h \
+    remotelinuxpackageinstaller.h \
+    packageuploader.h \
+    linuxdevicetester.h \
+    maddedevicetester.h \
+    remotelinux_constants.h \
+    linuxdevicetestdialog.h \
+    remotelinuxprocesslist.h \
+    remotelinuxprocessesdialog.h \
+    remotelinuxdeploystepwidget.h \
+    linuxdeviceconfigurationssettingswidget.h \
+    remotelinuxenvironmentreader.h \
+    sshkeydeployer.h \
+    typespecificdeviceconfigurationlistmodel.h \
+    sshkeycreationdialog.h \
+    remotelinuxusedportsgatherer.h \
+    remotelinuxsettingspages.h \
+    remotelinuxutils.h \
+    deploymentsettingsassistant.h \
+    remotelinuxdeployconfigurationwidget.h \
+    profilesupdatedialog.h
 
 SOURCES += \
     remotelinuxplugin.cpp \
-    maemoconfigtestdialog.cpp \
     maemorunconfigurationwidget.cpp \
     maemoruncontrol.cpp \
     maemorunfactories.cpp \
     maemosettingspages.cpp \
-    maemodeviceconfigurationssettingswidget.cpp \
-    maemosshconfigdialog.cpp \
     maemotoolchain.cpp \
     maemopackagecreationstep.cpp \
     maemopackagecreationfactory.cpp \
     maemopackagecreationwidget.cpp \
     maemoqemumanager.cpp \
-    maemodeploystepwidget.cpp \
     maemodeploystepfactory.cpp \
     maemoglobal.cpp \
     maemosshrunner.cpp \
     maemodebugsupport.cpp \
     maemoremotemountsmodel.cpp \
-    maemodeviceenvreader.cpp \
     maemomountspecification.cpp \
     maemoremotemounter.cpp \
-    maemoprofilesupdatedialog.cpp \
-    maemousedportsgatherer.cpp \
-    maemoremoteprocesslist.cpp \
-    maemoremoteprocessesdialog.cpp \
     maemopublishingwizardfactories.cpp \
     maemopublishingbuildsettingspagefremantlefree.cpp \
     maemopublishingfileselectiondialog.cpp \
@@ -127,19 +134,11 @@ SOURCES += \
     qt4maemotarget.cpp \
     qt4maemodeployconfiguration.cpp \
     maemodeviceconfigwizard.cpp \
-    maemokeydeployer.cpp \
-    maemopertargetdeviceconfigurationlistmodel.cpp \
     maemodeployconfigurationwidget.cpp \
     maemoinstalltosysrootstep.cpp \
     maemodeploymentmounter.cpp \
-    maemopackageuploader.cpp \
     maemopackageinstaller.cpp \
     maemoremotecopyfacility.cpp \
-    abstractmaemodeploystep.cpp \
-    maemodeploybymountstep.cpp \
-    maemouploadandinstalldeploystep.cpp \
-    maemodirectdeviceuploadstep.cpp \
-    abstractlinuxdevicedeploystep.cpp \
     maemoqtversionfactory.cpp \
     maemoqtversion.cpp \
     linuxdeviceconfiguration.cpp \
@@ -160,15 +159,42 @@ SOURCES += \
     genericlinuxdeviceconfigurationwizardpages.cpp \
     portlist.cpp \
     deployablefilesperprofile.cpp \
-    deploymentinfo.cpp
+    deploymentinfo.cpp \
+    abstractremotelinuxdeploystep.cpp \
+    genericdirectuploadstep.cpp \
+    maddeuploadandinstallpackagesteps.cpp \
+    uploadandinstalltarpackagestep.cpp \
+    maemodeploybymountsteps.cpp \
+    abstractremotelinuxdeployservice.cpp \
+    abstractuploadandinstallpackageservice.cpp \
+    genericdirectuploadservice.cpp \
+    remotelinuxdeployconfiguration.cpp \
+    remotelinuxdeployconfigurationfactory.cpp \
+    genericremotelinuxdeploystepfactory.cpp \
+    abstractpackagingstep.cpp \
+    tarpackagecreationstep.cpp \
+    remotelinuxpackageinstaller.cpp \
+    packageuploader.cpp \
+    linuxdevicetester.cpp \
+    maddedevicetester.cpp \
+    linuxdevicetestdialog.cpp \
+    remotelinuxprocesslist.cpp \
+    remotelinuxprocessesdialog.cpp \
+    remotelinuxdeploystepwidget.cpp \
+    linuxdeviceconfigurationssettingswidget.cpp \
+    remotelinuxenvironmentreader.cpp \
+    sshkeydeployer.cpp \
+    typespecificdeviceconfigurationlistmodel.cpp \
+    sshkeycreationdialog.cpp \
+    remotelinuxusedportsgatherer.cpp \
+    remotelinuxsettingspages.cpp \
+    remotelinuxutils.cpp \
+    deploymentsettingsassistant.cpp \
+    remotelinuxdeployconfigurationwidget.cpp \
+    profilesupdatedialog.cpp
 
 FORMS += \
-    maemoconfigtestdialog.ui \
-    maemodeviceconfigurationssettingswidget.ui \
-    maemosshconfigdialog.ui \
     maemopackagecreationwidget.ui \
-    maemoprofilesupdatedialog.ui \
-    maemoremoteprocessesdialog.ui \
     maemopublishingbuildsettingspagefremantlefree.ui \
     maemopublishingfileselectiondialog.ui \
     maemopublishinguploadsettingspagefremantlefree.ui \
@@ -181,8 +207,16 @@ FORMS += \
     maemodeviceconfigwizardkeydeploymentpage.ui \
     maemodeployconfigurationwidget.ui \
     linuxdevicefactoryselectiondialog.ui \
-    genericlinuxdeviceconfigurationwizardsetuppage.ui
+    genericlinuxdeviceconfigurationwizardsetuppage.ui \
+    linuxdevicetestdialog.ui \
+    remotelinuxprocessesdialog.ui \
+    linuxdeviceconfigurationssettingswidget.ui \
+    sshkeycreationdialog.ui \
+    remotelinuxdeployconfigurationwidget.ui \
+    profilesupdatedialog.ui
 
 RESOURCES += qt-maemo.qrc
 DEFINES += QT_NO_CAST_TO_ASCII
 DEFINES += REMOTELINUX_LIBRARY
+
+

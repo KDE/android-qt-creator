@@ -35,8 +35,6 @@
 
 #include <extensionsystem/iplugin.h>
 
-#include <QtCore/QScopedPointer>
-
 namespace ClassView {
 namespace Internal {
 
@@ -48,24 +46,16 @@ namespace Internal {
 class Plugin : public ExtensionSystem::IPlugin
 {
     Q_OBJECT
-    Q_DISABLE_COPY(Plugin)
 
 public:
     //! Constructor
-    Plugin();
-
-    //! Destructor
-    virtual ~Plugin();
+    Plugin() {}
 
     //! \implements ExtensionSystem::IPlugin::initialize
-    bool initialize(const QStringList &arguments, QString *error_message = 0);
+    bool initialize(const QStringList &arguments, QString *errorMessage = 0);
 
     //! \implements ExtensionSystem::IPlugin::extensionsInitialized
-    void extensionsInitialized();
-
-private:
-    //! private class data pointer
-    QScopedPointer<struct PluginPrivate> d_ptr;
+    void extensionsInitialized() {}
 };
 
 } // namespace Internal

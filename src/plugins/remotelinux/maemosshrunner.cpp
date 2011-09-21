@@ -28,19 +28,17 @@
 ** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
-
 #include "maemosshrunner.h"
 
-#include "maemoglobal.h"
 #include "maemoqemumanager.h"
 #include "maemoremotemounter.h"
 #include "maemoremotemountsmodel.h"
-#include "remotelinuxrunconfiguration.h"
+#include "maemorunconfiguration.h"
 
 #include <qt4projectmanager/qt4buildconfiguration.h>
-#include <qtsupport/baseqtversion.h>
-
-#define ASSERT_STATE(state) ASSERT_STATE_GENERIC(MountState, state, m_mountState)
+#include <remotelinux/linuxdeviceconfiguration.h>
+#include <utils/qtcassert.h>
+#include <utils/ssh/sshconnection.h>
 
 using namespace Qt4ProjectManager;
 using namespace Utils;
@@ -49,7 +47,7 @@ namespace RemoteLinux {
 namespace Internal {
 
 MaemoSshRunner::MaemoSshRunner(QObject *parent, MaemoRunConfiguration *runConfig)
-    : RemoteLinuxApplicationRunner(parent, runConfig),
+    : AbstractRemoteLinuxApplicationRunner(runConfig, parent),
       m_mounter(new MaemoRemoteMounter(this)),
       m_mountSpecs(runConfig->remoteMounts()->mountSpecs()),
       m_mountState(InactiveMountState)
@@ -71,10 +69,10 @@ MaemoSshRunner::~MaemoSshRunner() {}
 
 bool MaemoSshRunner::canRun(QString &whyNot) const
 {
-    if (!RemoteLinuxApplicationRunner::canRun(whyNot))
+    if (!AbstractRemoteLinuxApplicationRunner::canRun(whyNot))
         return false;
 
-    if (devConfig()->type() == LinuxDeviceConfiguration::Emulator
+    if (devConfig()->deviceType() == LinuxDeviceConfiguration::Emulator
             && !MaemoQemuManager::instance().qemuIsRunning()) {
         MaemoQemuRuntime rt;
         if (MaemoQemuManager::instance().runtimeForQtVersion(m_qtId, &rt)) {
@@ -90,9 +88,16 @@ bool MaemoSshRunner::canRun(QString &whyNot) const
     return true;
 }
 
+void MaemoSshRunner::doDeviceSetup()
+{
+    QTC_ASSERT(m_mountState == InactiveMountState, return);
+
+    handleDeviceSetupDone(true);
+}
+
 void MaemoSshRunner::doAdditionalInitialCleanup()
 {
-    ASSERT_STATE(InactiveMountState);
+    QTC_ASSERT(m_mountState == InactiveMountState, return);
 
     m_mounter->setConnection(connection(), devConfig());
     m_mounter->resetMountSpecifications();
@@ -107,16 +112,17 @@ void MaemoSshRunner::doAdditionalInitializations()
     mount();
 }
 
-void MaemoSshRunner::doAdditionalPostRunCleanup()
+void MaemoSshRunner::doPostRunCleanup()
 {
-    ASSERT_STATE(Mounted);
+    QTC_ASSERT(m_mountState == Mounted, return);
+
     m_mountState = PostRunUnmounting;
     unmount();
 }
 
 void MaemoSshRunner::handleUnmounted()
 {
-    ASSERT_STATE(QList<MountState>() << InitialUnmounting << PostRunUnmounting);
+    QTC_ASSERT(m_mountState == InitialUnmounting || m_mountState == PostRunUnmounting, return);
 
     switch (m_mountState) {
     case InitialUnmounting:
@@ -140,7 +146,7 @@ void MaemoSshRunner::doAdditionalConnectionErrorHandling()
 
 void MaemoSshRunner::handleMounted()
 {
-    ASSERT_STATE(Mounting);
+    QTC_ASSERT(m_mountState == Mounting, return);
 
     if (m_mountState == Mounting) {
         m_mountState = Mounted;
@@ -150,7 +156,8 @@ void MaemoSshRunner::handleMounted()
 
 void MaemoSshRunner::handleMounterError(const QString &errorMsg)
 {
-    ASSERT_STATE(QList<MountState>() << InitialUnmounting << Mounting << PostRunUnmounting);
+    QTC_ASSERT(m_mountState == InitialUnmounting || m_mountState == Mounting
+        || m_mountState == PostRunUnmounting, return);
 
     const MountState oldMountState = m_mountState;
     m_mountState = InactiveMountState;
@@ -183,7 +190,8 @@ void MaemoSshRunner::mount()
 
 void MaemoSshRunner::unmount()
 {
-    ASSERT_STATE(QList<MountState>() << InitialUnmounting << PostRunUnmounting);
+    QTC_ASSERT(m_mountState == InitialUnmounting || m_mountState == PostRunUnmounting, return);
+
     if (m_mounter->hasValidMountSpecifications()) {
         QString message;
         switch (m_mountState) {
@@ -201,6 +209,24 @@ void MaemoSshRunner::unmount()
     } else {
         handleUnmounted();
     }
+}
+
+QString MaemoSshRunner::killApplicationCommandLine() const
+{
+    // Prevent pkill from matching our own pkill call.
+    QString pkillArg = remoteExecutable();
+    const int lastPos = pkillArg.count() - 1;
+    pkillArg.replace(lastPos, 1, QLatin1Char('[') + pkillArg.at(lastPos) + QLatin1Char(']'));
+
+    // Fremantle's busybox configuration is strange.
+    const char *killTemplate;
+    if (devConfig()->osType() == QLatin1String(Maemo5OsType))
+        killTemplate = "pkill -f -%2 %1";
+    else
+        killTemplate = "pkill -%2 -f %1";
+    const QString niceKill = QString::fromLocal8Bit(killTemplate).arg(pkillArg).arg("SIGTERM");
+    const QString brutalKill = QString::fromLocal8Bit(killTemplate).arg(pkillArg).arg("SIGKILL");
+    return niceKill + QLatin1String("; sleep 1; ") + brutalKill;
 }
 
 } // namespace Internal

@@ -41,8 +41,8 @@
     Mac OS X and Windows operating systems. For more information, see
     \l{Operating Systems and Supported Platforms}.
 
-    \note Please report bugs and suggestions to the
-    \l{http://bugreports.qt.nokia.com}{Qt Bug Tracker}.
+    \note To report bugs and suggestions to the Qt Bug Tracker, select
+    \gui {Help > Report Bug}.
     You can also join the Qt Creator mailing list at:
     \l{http://lists.qt.nokia.com}{http://lists.qt.nokia.com}.
 
@@ -67,8 +67,9 @@
                 \o \l{Creating a Project}
                 \o \l{Opening a Project}
                 \o \l{Adding Libraries to Projects}
-                \o \l{Connecting Maemo and MeeGo Harmattan Devices}
+                \o \l{Connecting MeeGo Harmattan Devices}
                 \o \l{Connecting Generic Linux Devices}
+                \o \l{Connecting Maemo Devices}
                 \o \l{Connecting Symbian Devices}
                 \o \l{Managing Sessions}
             \endlist
@@ -1303,7 +1304,7 @@
 
         \o \c  {import com.nokia.symbian 1.0} for Symbian
 
-        \o \c  {import com.meego 1.0} for MeeGo
+        \o \c  {import com.nokia.meego 1.0} for MeeGo
 
     \endlist
 
@@ -1419,55 +1420,59 @@
 
     \section2 Loading Placeholder Data
 
-    Often, QML applications are prototyped with fake data that is later
-    replaced by real data sources from C++ plugins. QML Viewer loads fake data
-    into the application context: it looks for a directory named \e dummydata
-    in the same directory as the target QML file, loads any .qml files in that
-    directory as QML objects, and binds them to the root context as properties.
-    For more information, see
-    \l{http://doc.qt.nokia.com/latest/qmlviewer.html}{QML Viewer}.
+    \QMLD supports views, models, and delegates, so that when you add a Grid
+    View, List View, or Path View element, the ListModel and the delegate
+    component are added automatically.
 
-    You can use dummydata files also to specify fake properties for QML
-    components that you open for editing in \QMLD.
-    A QML component provides a way of defining a new UI element that you can
-    re-use in other QML files. A component is generally defined in its own QML
-    file. You can use property binding to specify the properties of a component
-    to make it easily reusable.
+    However, the missing context of the application presents a challenge for
+    \QMLD. Specific models defined in C++ are the most obvious case. Often,
+    the context is missing simple properties, which are either defined in C++,
+    or in other QML files. A typical example is a component which uses the
+    properties of its parent, such as \c parent.width.
 
-    For example, you can create a button bar component (buttonbar.qml) that
-    inherits its width from the screen that is its parent:
+    \section3 Using Dummy Models
 
-    \code
+    If you open a file in \QMLD that references a C++ model, you see nothing on
+    the canvas. If the data in the model is fetched from the internet, you have
+    no control over it. To get reliable data, \e {dummy data} was introduced.
 
-    import QtQuick 1.0
+    For example, the following code snippet describes the file example.qml that
+    contains a ListView that in turn specifies a C++ model:
 
-    Item {
-        width: parent.width
-        }
+    \snippet snippets/qml/dummydata.qml 0
 
-    \endcode
-
-    However, when you open the QML file for editing in \QMLD, the button bar
-    component does not have a width, because it is specified outside the QML
-    file (in the QML file that specifies the screen). To specify a fake width
-    for the component, create a \c <component>_dummydata.qml file (here,
-    buttonbar_dummydata.qml) that specifies the component width and copy it to
-    the \c dummydata directory.
-
-    For example:
+    Create a directory named \e dummydata in the root directory of the project,
+    so that it is not deployed to the device. In the \c dummydata directory,
+    create a QML file that has the same name as the value of \c model:
 
     \code
-    import QtQuick 1.0
-    import QmlDesigner 1.0
-
-    DummyContextObject {
-        parent: QtObject {
-        property real width: 1000
-        }
-    }
+        qml/exampleapp/example.qml
+        dummydata/dataModel.qml
     \endcode
 
-    The file is reloaded if you change it.
+    Then create the dataModel.qml file that contains the dummy data:
+
+    \snippet snippets/qml/datamodel.qml 0
+
+    \section3 Creating Dummy Context
+
+    The following example presents a common pattern in QML:
+
+    \code
+        Item {
+            width: parent.width
+            height: parent.height
+        }
+    \endcode
+
+    This works nicely for applications but \QMLD displays a zero-sized item.
+    A parent for the opened file does not exist, because the context is
+    missing. To get around the missing context, the idea of a \e {dummy
+    context} is introduced. If you place a file with the same name as the
+    application (here, example.qml) in the \c {dummydata/context} directory,
+    you can fake a parent context:
+
+    \snippet snippets/qml/dummydatacontext.qml 0
 
     \section2 Setting Anchors and Margins
 
@@ -1744,7 +1749,6 @@
     \previouspage creator-coding.html
     \page creator-editor-using.html
     \nextpage creator-highlighting.html
-
 
     \title Using the Editor
 
@@ -2279,8 +2283,12 @@
     Text Editor > Fonts & Color}. In the \gui {Color Scheme} list, select
     \gui {Vim (dark)}.
 
-    To quit the FakeVim mode, click \gui {Quit FakeVim} or press
-    \key{Alt+V,Alt+V}.
+    To quit the FakeVim mode, unselect \gui{Tools} > \gui(Options...} >
+    \gui{FakeVim} > \gui {Use FakeVim} or press \key{Alt+V,Alt+V}.
+
+    You can temporarily escape FakeVim mode to access the normal Qt Creator
+    keyboard shortcuts like \key{Ctrl-R} for \gui{Run} by pressing
+    \key{,} first.
 
     */
 
@@ -2293,7 +2301,8 @@
 
     \title Using External Tools
 
-    You can use external tools directly from Qt Creator. Qt Linguist, the
+    You can use external tools directly from Qt Creator. Qt Linguist,
+    QML Viewer, the
     default text editor for your system, and the \c sort tool are preconfigured
     for use. You can change their default configurations and configure new
     tools.
@@ -2319,6 +2328,15 @@
 
     For more information about Qt Linguist, see
     \l{http://doc.qt.nokia.com/4.7/linguist-manual.html}{Qt Linguist Manual}.
+
+    \section1 Using QML Viewer
+
+    You can preview the current QML document in the QML Viewer. The QML Viewer
+    invokes the QML runtime to load QML documents and also includes additional
+    features useful for the development of QML-based applications.
+
+    To preview the currently active QML file, select \gui {Tools > External >
+    Qt Quick > Preview (qmlviewer)}.
 
     \section1 Using External Text Editors
 
@@ -2820,14 +2838,13 @@
 
     \section1 Renaming Symbols
 
-    The functions available for renaming symbols depend on whether you are
-    writing C++ or QML code. For QML, you can only rename IDs.
-
     To rename a specific symbol in a Qt project:
     \list 1
         \o In the editor, place the cursor on the symbol you would like to
            change and select \gui Tools > \gui C++ >
-           \gui{Rename Symbol Under Cursor} or press \key Ctrl+Shift+R.
+           \gui{Rename Symbol Under Cursor} or \gui Tools > \gui QML/JS >
+           \gui{Rename Symbol Under Cursor}. Alternatively press
+           \key Ctrl+Shift+R.
 
            The \gui{Search Results} pane opens and shows the location and
            number of instances of the symbol in the current project.
@@ -2846,17 +2863,6 @@
     \note Renaming local symbols does not open the \gui{Search Results} pane.
     The instances of the symbol are highlighted in code and you can edit the
     symbol. All instances of the local symbol are changed as you type.
-
-    To rename an ID in a Qt Quick project:
-
-    \list 1
-
-        \o Right-click an ID in the QML code and select
-        \gui {Rename id}.
-
-        \o In the \gui {Rename id} field, enter the new ID.
-
-    \endlist
 
     \section1 Applying Refactoring Actions
 
@@ -3303,7 +3309,8 @@
         \o \l{Creating a Project}
         \o \l{Opening a Project}
         \o \l{Adding Libraries to Projects}
-        \o \l{Connecting Maemo and MeeGo Harmattan Devices}
+        \o \l{Connecting Maemo Devices}
+        \o \l{Connecting MeeGo Harmattan Devices}
         \o \l{Connecting Generic Linux Devices}
         \o \l{Connecting Symbian Devices}
         \o \l{Managing Sessions}
@@ -4198,7 +4205,8 @@
             The other settings to specify depend on the tool chain.
 
         \o  For RVCT, select the ARM version to use in the \gui {ARM version}
-            field.
+            field. RVCT 2.2 is supported on Symbian^3 and earlier. RVCT 4.0 b902
+            or later is required for Symbian Belle.
 
     \endlist
 
@@ -4245,7 +4253,7 @@
     \contentspage index.html
     \previouspage creator-project-opening.html
     \page creator-project-qmake-libraries.html
-    \nextpage creator-developing-maemo.html
+    \nextpage creator-developing-meego.html
 
     \title Adding Libraries to Projects
 
@@ -4261,7 +4269,7 @@
     when you add it.
 
     For your own libraries and 3rd party libraries, you need to specify
-    the paths. Qt Creator tries to quess the include path for an external library,
+    the paths. Qt Creator tries to guess the include path for an external library,
     but you need to check it and modify it if necessary. Qt Creator automatically
     adds the include path for an internal library.
 
@@ -4573,7 +4581,8 @@
         \list 1
 
         \o  Configure the device and specify a connection to it. For more
-            information, see \l{Connecting Maemo and MeeGo Harmattan Devices}.
+            information, see \l{Connecting Maemo Devices} and
+            \l{Connecting MeeGo Harmattan Devices}.
 
         \o Connect the device to the development PC.
 
@@ -4843,7 +4852,8 @@
     \note The build configuration for the \gui{Symbian Device} target
     uses the GCCE tool chain by default. If you want to build
     for the device using RVCT, install the RVCT tool chain, and then
-    select it in the \gui {Tool chain} field.
+    select it in the \gui {Tool chain} field. RVCT 2.2 is supported on Symbian^3
+    and earlier. RVCT 4.0 b902 or later is required for Symbian Belle.
 
     \section1 Starting External Processes
 
@@ -5049,7 +5059,8 @@
     create connections
     from the development PC to the devices. Click \gui {Manage device
     configurations} to create connections. For more information, see
-    \l {Configuring Connections in Qt Creator}.
+    \l{Configuring Connections to Maemo Devices} and
+    \l{Configuring Connections to Harmattan Devices}.
 
     When you run the application on the \gui{Maemo5} or \gui Harmattan target,
     Qt Creator generates
@@ -5434,8 +5445,11 @@
 
     \section1 Creating Smart Installer for Symbian Packages
 
-    To deploy Qt applications on Symbian devices, you must install the software that Qt applications
-    require, typically Qt, QtWebkit, and Open C. Nokia Smart Installer for Symbian makes it easier
+    You can run Qt applications on Symbian devices if the software that Qt
+    applications require (typically Qt, Qt Mobility, QtWebkit, and Open C) is
+    installed on the device. On Symbian^3 and later devices, some version of Qt
+    is pre-installed. On earlier devices, you must install the modules that Qt
+    applications require. Nokia Smart Installer for Symbian makes it easier
     for users to install Qt applications to Symbian phones by checking whether the device contains
     the necessary software and by installing the missing pieces.
 
@@ -5695,7 +5709,8 @@
     \list 1
 
         \o Select \gui Projects to select the Qt version to build the
-        application. For more information, see \l{Supported Configurations}.
+        application. For more information, see
+        \l{Selecting Qt Versions in Qt Creator}.
 
         \o Select the \gui {Symbian Device} build target for your project.
 
@@ -5738,71 +5753,7 @@
     application access not granted.} For example, if you try to install a
     self-signed application that uses a system capability.
 
-    \section2 Supported Configurations
 
-    When you select the Qt version to build the application with, consider
-    which version provides the application with the widest support on different
-    Symbian platforms. The binary compatibility promise of Qt and Symbian means
-    that applications that are built against Qt 4.6.3 also run on Qt 4.7.3.
-    Similarly, applications that are supported on Symbian^1 are also supported
-    on Symbian^3. However, dependencies, such as QML or Qt Mobility API
-    versions might restrict the choice of Qt versions that you have.
-
-    In general, if you use only Qt widgets and APIs in the application, you
-    can use \gui {Qt 4.6.3 for Symbian^1} to build it.
-    The application is supported on both Symbian^1 and Symbian^3 devices.
-
-    If you use QML in the application, you can use \gui {Qt 4.7.3 for
-    Symbian^1} to build it. The application is supported on both Symbian^1 and
-    Symbian^3 devices.
-
-    If you use native Symbian APIs, you must check that they are available on
-    the target devices. For more information about the API differences between
-    Symbian^1 (S60 5th Edition) and Symbian^3, see the \bold {Symbian
-    Reference Documentation for Qt}, which is delivered together with \QSDK
-    and which you can view in the \gui Help mode.
-
-    The following table summarizes the supported configurations for each Qt
-    version available in Qt Creator build settings:
-
-    \table
-        \header
-            \i  Qt Version
-            \i  QML
-            \i  Qt Mobility Version
-            \i  Native Symbian C++ APIs
-            \i  Open GL
-        \row
-            \i  Qt 4.6.3 for S60 3rd Edition
-            \i  No
-            \i  1.0.2
-            \i  No
-            \i  No
-        \row
-            \i  Qt 4.6.3 for Symbian^1 (S60 5th Edition)
-            \i  No
-            \i  1.0.2
-            \i  No
-            \i  No
-        \row
-            \i  Qt 4.6.3 for Symbian^3
-            \i  No
-            \i  1.0.2
-            \i  Yes
-            \i  No
-        \row
-            \i  Qt 4.7.3 for Symbian^1
-            \i  Yes
-            \i  1.1.3
-            \i  No
-            \i  No
-        \row
-            \i  Qt 4.7.3 for Symbian^3
-            \i  Yes
-            \i  1.1.3
-            \i  Yes
-            \i  Yes
-    \endtable
 
     \section1 Publishing Qt Content for Maemo Devices
 
@@ -6196,8 +6147,9 @@
     button to build your program and run it in the Qt Simulator.
 
     In Qt Simulator, run the runOutOfBattery.qs example script
-    to see the value change in the Battery Indicator application.
-    Select \gui {Scripting > examples > runOutOfBattery.qs > Run}.
+    to see the value change in the Battery Status application.
+    Select \gui {Scripting > examples > runOutOfBattery.qs > Run Selected
+    Script}.
 
     \image qtcreator-symbian-components-example-simulated.png "Mobile example in Qt Simulator"
 
@@ -6502,7 +6454,8 @@
     \list 1
 
         \o On the \gui Welcome page, select the \gui {Show Examples and Demos}
-        check box, and then select \gui {Clocks} in the list of examples.
+        check box, and then search for \gui {Toys: Clocks Example} in the list
+        of examples.
 
         \image qtcreator-gs-build-example-open.png "Selecting an example"
 
@@ -6533,8 +6486,8 @@
         \image {qt-simulator.png} "Qt Simulator"
 
         \o Change the settings in the
-        \gui View pane. For example, rotate the device by clicking the
-        \gui {Orientation} buttons or choose from the various Symbian and Maemo
+        \gui Model view. For example, rotate the device by clicking the
+        \gui {Orientation} buttons or choose from the various mobile device
         configurations in the \gui {Device} field. You can also simulate various
         mobile functions and create your own scripts.
 
@@ -6571,16 +6524,19 @@
 
     \image qmldesigner-tutorial.png "States and transitions example"
 
+    For more information about using \QMLD, see
+    \l{Developing Qt Quick Applications}.
+
     \section1 Creating the Project
 
     \list 1
 
-        \o Select \gui{File > New File or Project > Qt Quick Project > Qt Quick UI >
-        Choose}.
+        \o Select \gui{File > New File or Project > Qt Quick Project > Qt Quick
+        Application > Choose}.
 
         \o Follow the instructions of the wizard to create a project called Transitions.
 
-        \o Press \key {Ctrl+R} to run the application in the QML Viewer.
+        \o Press \key {Ctrl+R} to run the application.
 
     \endlist
 
@@ -6602,7 +6558,7 @@
 
     \list 1
 
-        \o In the \gui Projects view, double-click the main .qml file (Transitions.qml)
+        \o In the \gui Projects view, double-click the main.qml file
         to open it in the code editor.
 
         \o Click \gui Design to open the file in \QMLD.
@@ -6620,7 +6576,7 @@
             \o In the \gui Id field, enter \e page, to be able to reference the rectangle
             from other places.
 
-            \o In the \gui Colors tab, \gui Rectangle field, set the color to #343434.
+            \o In the \gui Colors group, \gui Rectangle field, set the color to #343434.
 
         \endlist
 
@@ -6651,13 +6607,13 @@
             \o In the \gui Size field, set \gui W and \gui H to 64, for the rectangle size
             to match the image size.
 
-            \o In the \gui Colors tab, \gui Rectangle field, click the
+            \o In the \gui Colors group, \gui Rectangle field, click the
             \inlineimage qmldesigner-transparent-button.png
             button to make the rectangle transparent.
 
             \o In the \gui Border field, set the border color to #808080.
 
-            \o In the \gui Rectangle tab, \gui Border field, set the border width to
+            \o In the \gui Rectangle group, \gui Border field, set the border width to
             1.
 
             \note If the \gui Border field does not appear after you set the border
@@ -6755,7 +6711,7 @@
 
     \o Press \key {Ctrl+S} to save the changes.
 
-    \o Press \key {Ctrl+R} to run the application in the QML Viewer.
+    \o Press \key {Ctrl+R} to run the application.
 
     \endlist
 
@@ -6789,7 +6745,7 @@
         \note When you set the expressions, drag and drop is disabled for
         the icon in \QMLD.
 
-    \o Press \key {Ctrl+R} to run the application in the QML Viewer.
+    \o Press \key {Ctrl+R} to run the application.
 
     \endlist
 
@@ -6839,17 +6795,11 @@
 
         \snippet snippets/qml/list-of-transitions.qml default transition
 
-        \o Press \key {Ctrl+R} to run the application in the QML Viewer.
+        \o Press \key {Ctrl+R} to run the application.
 
     \endlist
 
     Click the rectangles to view the animated transitions.
-
-    \section1 Deploying the Application to Mobile Devices
-
-    To deploy the application to mobile devices, use the \gui {Qt Quick Application} wizard
-    to convert it into a Qt Quick application. For more information, see
-    \l{Importing QML Applications}.
 
 */
 
@@ -8438,7 +8388,7 @@
 
               \note The Mac OS X Snow Leopard (10.6) has a bug that might cause the
               application to crash. For a workaround, see:
-              \l{http://bugreports.qt.nokia.com/browse/QTBUG-4962}{QTBUG-4962}.
+              \l{https://bugreports.qt.nokia.com/browse/QTBUG-4962}{QTBUG-4962}.
 
     \endtable
 
@@ -8694,7 +8644,7 @@
     typically includes information about parameters of the function in that
     frame as well as the local variables.
 
-    \image qtcreator-watcher.png "Locals and Expressions view"
+    \image qtcreator-locals-expressions.png "Locals and Expressions view"
 
     Compound variables of struct or class type are displayed as
     expandable in the view. Expand entries to show
@@ -8878,17 +8828,13 @@
     This section uses the \l{Creating a Qt Widget Based Application}{TextFinder} example to
     illustrate how to debug Qt C++ applications in the \gui Debug mode.
 
-    TextFinder
-    reads a text file into
-    QString and then displays it with QTextEdit.
-    To look at the example QString, \c{line}, and see the
-    stored data, place a breakpoint and view the QString object
-    data in textfinder.cpp, as follows:
+    TextFinder reads a text file into QString and then displays it with
+    QTextEdit. To look at the TextFinder class and see the stored data, place
+    a breakpoint in textfinder.cpp, as follows:
 
     \list 1
         \o Click in between the line number and the window border on the line
-        where we invoke \l{http://doc.qt.nokia.com/4.7/qtextedit.html#plainText-prop}{setPlainText()}
-        to set a breakpoint.
+        where we change the cursor position to set a breakpoint.
 
         \image qtcreator-setting-breakpoint1.png
 
@@ -8902,8 +8848,8 @@
         \o To remove a breakpoint, right-click it and select \gui{Delete Breakpoint}.
 
 
-        \o To view the contents of \c{line}, go to the \gui{Locals and
-    Expressions} view.
+        \o To view the base classes and data members of the TextFinder class,
+        go to the \gui{Locals and Expressions} view.
 
         \image qtcreator-watcher.png
 
@@ -9040,7 +8986,7 @@
     parameters:
     \list
        \o  \c d of type \c Dumper
-       \o  \c item of type \c Item
+       \o  \c value of type \c gdb.Value
     \endlist
 
     The function has to feed the Dumper object with certain information
@@ -9051,66 +8997,43 @@
     Example:
 
     \code
-    def qdump__QVector(d, item):
-        d_ptr = item.value["d"]
-        p_ptr = item.value["p"]
+    def qdump__QVector(d, value):
+        d_ptr = value["d"]
+        p_ptr = value["p"]
         alloc = d_ptr["alloc"]
         size = d_ptr["size"]
 
         check(0 <= size and size <= alloc and alloc <= 1000 * 1000 * 1000)
-        check(d_ptr["ref"]["_q_value"] > 0)
+        checkRef(d_ptr["ref"])
 
-        innerType = item.value.type.template_argument(0)
+        innerType = templateArgument(value.type, 0)
         d.putItemCount(size)
         d.putNumChild(size)
-        if d.isExpanded(item):
+        if d.isExpanded():
             p = gdb.Value(p_ptr["array"]).cast(innerType.pointer())
-            with Children(d, [size, 2000], innerType)
+            charPtr = lookupType("char").pointer()
+            d.putField("size", size)
+            with Children(d, size, maxNumChild=2000, childType=innerType, addrBase=p,
+                    addrStep=(p+1).cast(charPtr) - p.cast(charPtr)):
                 for i in d.childRange():
-                    d.putSubItem(Item(p.dereference(), item.iname, i))
+                    d.putSubItem(i, p.dereference())
                     p += 1
     \endcode
-
-    \section2 Item Class
-
-    The Item Python class is a thin wrapper around values corresponding to one
-    line in the \gui{Locals and Expressions} view. The Item members are as follows :
-
-    \list
-
-    \o \gui{__init__(self, value, parentiname, iname, name = None)} - A
-       constructor. The object's internal name is created by concatenating
-       \c parentiname and \c iname. If \c None is passed as \c name, a
-       serial number is used.
-
-    \o \gui{value} - An object of type gdb.Value representing the value to
-        be displayed.
-
-    \o \gui{iname} - The internal name of the object, constituting a dot-separated
-    list of identifiers, corresponding to the position of the object's
-    representation in the view.
-
-    \o \gui{name} - An optional name. If given, is used in the
-    \gui{name} column of the view. If not, a simple number in brackets
-    is used instead.
-
-    \endlist
-
 
     \section2 Dumper Class
 
     For each line in the \gui{Locals and Expressions} view, a string like the
     following needs to be created and channeled to the debugger plugin.
     \code
-    "{iname='some internal name',
-      addr='object address in memory',
-      name='contents of the name column',
+    "{iname='some internal name',           # optional
+      addr='object address in memory',      # optional
+      name='contents of the name column',   # optional
       value='contents of the value column',
       type='contents of the type column',
-      numchild='number of children',        // zero/nonzero is sufficient
-      childtype='default type of children', // optional
-      childnumchild='default number of grandchildren', // optional
-      children=[              // only needed if item is expanded in view
+      numchild='number of children',        # zero/nonzero is sufficient
+      childtype='default type of children', # optional
+      childnumchild='default number of grandchildren', # optional
+      children=[              # only needed if item is expanded in view
          {iname='internal name of first child',
           ... },
          {iname='internal name of second child',
@@ -9119,6 +9042,16 @@
       ]}"
     \endcode
 
+    The value of the \gui{iname} field is the internal name of the object,
+    constituting a dot-separated list of identifiers, corresponding to the
+    position of the object's representation in the view. If it is not
+    present, is it generated by concatenating the parent object's iname,
+    a dot, and a sequential number.
+
+    The value of the\gui{name} field is displayed in the \gui{name} column
+    of the view. If it is not specified, a simple number in brackets
+    is used instead.
+
     While in theory, you can build up the entire string above manually, it is
     easier to employ the Dumper Python class for that purpose. The Dumper
     Python class contains a complete framework to take care of the \c iname and
@@ -9126,27 +9059,17 @@
     enums, known and unknown structs as well as some convenience methods to
     handle common situations.
 
-    The Dumper members are the following:
+    The member functions of the \gui{Dumper} class are the following:
 
     \list
 
     \o \gui{__init__(self)} - Initializes the output to an empty string and
-        empties the child stack.
+        empties the child stack. This should not be used in user code.
 
     \o \gui{put(self, value)} - Low level method to directly append to the
-        output string.
+        output string. That is also the fastest way to append output.
 
-    \o \gui{putCommaIfNeeded(self)} - Appends a comma if the current output
-        ends in '}', '"' or ']' .
-
-    \o \gui{putField(self, name, value)} - Appends a comma if needed, and a
-         name='value' field.
-
-    \o \gui{beginItem(self, name)} - Starts writing a field by writing \c {name='}.
-
-    \o \gui{endItem(self)} - Ends writing a field by writing \c {'}.
-
-    \o \gui{endChildren(self)} - Ends writing a list of children.
+    \o \gui{putField(self, name, value)} - Appends a name='value' field.
 
     \o \gui{childRange(self)} - Returns the range of children specified in
         the current \c Children scope.
@@ -9161,8 +9084,12 @@
 
     \o \gui{putName(self, name)} - Appends a \c {name='...'} field.
 
-    \o \gui{putType(self, type)} - Appends a field \c {type='...'} unless the
-        \a type coincides with the parent's default child type.
+    \o \gui{putType(self, type, priority=0)} - Appends a field \c {type='...'}
+       unless the \a type coincides with the parent's default child type or
+       \c putType was already called for the current item with a higher
+       value of \c priority.
+
+    \o \gui{putBetterType(self, type)} - Overrides the last recorded \c type.
 
     \o \gui{putNumChild(self, numchild)} - Appends a field \c {numchild='...'}
         unless the \c numchild coincides with the parent's default child numchild
@@ -9205,52 +9132,42 @@
     \o \gui{putByteArrayValue(self, value)} - Encodes a QByteArray and calls
         \c putValue with the correct \c encoding setting.
 
-    \o \gui{isExpanded(self, item)} - Checks whether the item with the
-        internal name \c item.iname is expanded in the view.
+    \o \gui{isExpanded()} - Checks whether the current item
+        is expanded in the view.
 
-    \o \gui{isExpandedIName(self, iname)} - Checks whether the item with the
-        internal name \c iname is expanded in the view.
-
-        \o \gui{putIntItem(self, name, value)} - Equivalent to:
+    \o \gui{putIntItem(self, name, value)} - Equivalent to:
         \code
-        self.beginHash()
-        self.putName(name)
-        self.putValue(value)
-        self.putType("int")
-        self.putNumChild(0)
-        self.endHash()
+        with SubItem(self, name):
+            self.putValue(value)
+            self.putAddress(value.address)
+            self.putType("int")
+            self.putNumChild(0)
         \endcode
 
-        \o \gui{putBoolItem(self, name, value)} - Equivalent to:
+     \o \gui{putBoolItem(self, name, value)} - Equivalent to:
         \code
-        self.beginHash()
-        self.putName(name)
-        self.putValue(value)
-        self.putType("bool")
-        self.putNumChild(0)
-        self.endHash()
+        with SubItem(self, name):
+            self.putValue(value)
+            self.putType("bool")
+            self.putNumChild(0)
         \endcode
 
-    \o \gui{pushOutput(self)} - Moves the output string to a safe location
-        from with it is sent to the debugger plugin even if further operations
-        raise an exception.
-
-    \o \gui{putCallItem(self, name, item, func)} -
+    \o \gui{putCallItem(self, name, value, func, *args)} -
         Uses GDB to call the function \c func on the value specified by
-        \a {item.value} and output the resulting item. This function is
+        \a {value} and output the resulting item. This function is
         not available when debugging core dumps and it is not available
         on the Symbian platform due to restrictions imposed by the on-device
         debugging agent.
 
-    \o \gui{putItem(self, item)} - The "master function", handling
+    \o \gui{putItem(self, value)} - The "master function", handling
         basic types, references, pointers and enums directly, iterates
         over base classes and class members of compound types and calls
         \c qdump__* functions whenever appropriate.
 
-    \o \gui{putSubItem(self, item)} - Equivalent to:
+    \o \gui{putSubItem(self, component, value)} - Equivalent to:
         \code
-        with SubItem(self):
-            self.putItem(item)
+        with SubItem(self, component):
+            self.putItem(value)
         \endcode
         Exceptions raised by nested function calls are caught and all
         output produced by \c putItem is replaced by the output of:
@@ -9270,27 +9187,40 @@
     use \c Children and \c SubItem \e{Context Managers} to create the nested items.
 
     The \c Children constructor \gui{__init__(self, dumper, numChild = 1,
-    childType = None, childNumChild = None)} uses one mandatory argument and three
+    childType = None, childNumChild = None, maxNumChild = None, addrBase = None,
+    addrStep = None)} uses one mandatory argument and several
     optional arguments.  The mandatory argument refers to the current \c Dumper
     object.  The optional arguments can be used to specify the number \c numChild
     of children, with type \c childType_ and \c childNumChild_ grandchildren each.
-    If \c numChild_ is a list of two integers, the first one specifies the actual
-    number of children and the second the maximum number of children to print.
-
-    Similarly, using the \c SubItem class helps to protect individual items.
+    If \c maxNumChild is specified, only that many children are displayed.
+    This should be used when dumping container contents that might take
+    overly long otherwise. The parameters \c addrBase and \c addrStep
+    can be used to reduce the amount of data produced by the child dumpers.
+    Address printing for the \e{n}th child item will be suppressed if its address
+    equals with \e{addrBase + n * addrStep}.
 
     Example:
     \code
-    d.putNumChild(2)
-    if d.isExpanded(item):
+    d.putNumChild(2)  # Annouce children to make the item expandable in the view.
+    if d.isExpanded():
         with Children(d):
             with SubItem(d):
                 d.putName("key")
-                d.putItem(Item(key, item.iname, "key"))
+                d.putItem(key)
             with SubItem(d):
                 d.putName("value")
-                d.putItem(Item(value, item.iname, "value"))
+                d.putItem(value)
     \endcode
+
+    Note that this can be written more conveniently as:
+    \code
+    d.putNumChild(2)
+    if d.isExpanded():
+        with Children(d):
+            d.putSubItem("key", key)
+            d.putSubItem("value", value)
+    \endcode
+
 
     \section1 Debugging Helpers for QML
 
@@ -12006,7 +11936,7 @@
     report them as bugs.
 
     For a list of fixed issues and added features, see the changelog file in
-    the \c{qtcreator\dist} folder or the \l{http://bugreports.qt.nokia.com}{Qt Bug Tracker}.
+    the \c{qtcreator\dist} folder or the \l{https://bugreports.qt.nokia.com}{Qt Bug Tracker}.
 
     \section1 General Issues
 
@@ -12031,7 +11961,7 @@
            \list
 
            \o  \l{https://bugs.launchpad.net/ubuntu/+source/kdeutils/+bug/662005}{Ubuntu bug 662005}
-           \o  \l{http://bugreports.qt.nokia.com/browse/QTBUG-12025}{QTBUG-12025}
+           \o  \l{https://bugreports.qt.nokia.com/browse/QTBUG-12025}{QTBUG-12025}
 
            \endlist
 
@@ -12085,7 +12015,7 @@
            might not be able to
            access memory when the operating system starts paging. This causes breakpoint
            handling and symbol resolution to fail. For more information, see
-           \l{http://bugreports.qt.nokia.com/browse/QTCREATORBUG-2158}{QTCREATORBUG-2158}.
+           \l{https://bugreports.qt.nokia.com/browse/QTCREATORBUG-2158}{QTCREATORBUG-2158}.
 
            As a workaround, add the following section to the application .pro file to
            disable paging:
@@ -12537,6 +12467,13 @@
     select \gui {Dereference Pointers Automatically} in the context menu in the
     \gui {Locals and Expressions} view.
 
+    \section1 Structure Members Are Not Sorted According to Structure Layout
+
+    By default, structure members are displayed in alphabetic order.
+    To inspect the real layout in memory, deselect \gui {Sort Members of
+    Classes and Structs Alphabetically} in the context menu in the
+    \gui {Locals and Expressions} view.
+
     \section1 Built-in Debugger Is Slow During Startup and Runtime
 
     The Qt Creator for Windows installation packages install GDB from MinGW.
@@ -12889,7 +12826,7 @@
     \gui Analyze mode, you can switch
     between tools by selecting them in the menu on the toolbar.
 
-    \image qtcreator-analyze-menu "Analyze mode menu"
+    \image qtcreator-analyze-menu.png "Analyze mode menu"
 
     By default, the views in the \gui Analyze mode are locked into place in the
     workspace. Select \gui {Window > Views > Locked} to unlock the views. Drag

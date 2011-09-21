@@ -32,18 +32,17 @@
 #ifndef MAEMODEVICECONFIGWIZARD_H
 #define MAEMODEVICECONFIGWIZARD_H
 
-#include "linuxdeviceconfiguration.h"
-
-#include <QtCore/QScopedPointer>
+#include <remotelinux/linuxdeviceconfiguration.h>
 
 namespace RemoteLinux {
 namespace Internal {
-class LinuxDeviceConfigurations;
+
 struct MaemoDeviceConfigWizardPrivate;
 
-class MaemoDeviceConfigWizard : public ILinuxDeviceConfigurationWizard
+class MaemoDeviceConfigWizard : public RemoteLinux::ILinuxDeviceConfigurationWizard
 {
     Q_OBJECT
+
 public:
     explicit MaemoDeviceConfigWizard(QWidget *parent = 0);
     ~MaemoDeviceConfigWizard();
@@ -53,7 +52,7 @@ public:
     virtual int nextId() const;
 
 private:
-    const QScopedPointer<MaemoDeviceConfigWizardPrivate> d;
+    MaemoDeviceConfigWizardPrivate *d;
 };
 
 } // namespace Internal

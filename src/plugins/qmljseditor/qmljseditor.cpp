@@ -37,17 +37,18 @@
 #include "qmljseditorplugin.h"
 #include "qmloutlinemodel.h"
 #include "qmljsfindreferences.h"
-#include "qmljssemantichighlighter.h"
+#include "qmljssemanticinfoupdater.h"
 #include "qmljsautocompleter.h"
 #include "qmljscompletionassist.h"
 #include "qmljsquickfixassist.h"
+#include "qmljssemantichighlighter.h"
 
 #include <qmljs/qmljsbind.h>
 #include <qmljs/qmljsevaluate.h>
 #include <qmljs/qmljsdocument.h>
 #include <qmljs/qmljsicontextpane.h>
-#include <qmljs/qmljslookupcontext.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
+#include <qmljs/qmljsscopebuilder.h>
 #include <qmljs/parser/qmljsastvisitor_p.h>
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/parser/qmljsengine_p.h>
@@ -57,7 +58,7 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
@@ -77,11 +78,13 @@
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/changeset.h>
 #include <utils/uncommentselection.h>
+#include <utils/qtcassert.h>
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QSignalMapper>
 #include <QtCore/QTimer>
 #include <QtCore/QScopedPointer>
+#include <QtCore/QTextCodec>
 
 #include <QtGui/QMenu>
 #include <QtGui/QComboBox>
@@ -123,8 +126,8 @@ protected:
     {
         QString text;
         for (; id; id = id->next) {
-            if (id->name)
-                text += id->name->asString();
+            if (!id->name.isEmpty())
+                text += id->name;
             else
                 text += QLatin1Char('?');
 
@@ -146,8 +149,8 @@ protected:
         if (asString(node->qualifiedId) == QLatin1String("id")) {
             if (AST::ExpressionStatement *stmt = AST::cast<AST::ExpressionStatement*>(node->statement)) {
                 if (AST::IdentifierExpression *idExpr = AST::cast<AST::IdentifierExpression *>(stmt->expression)) {
-                    if (idExpr->name) {
-                        const QString id = idExpr->name->asString();
+                    if (!idExpr->name.isEmpty()) {
+                        const QString &id = idExpr->name.toString();
                         QList<AST::SourceLocation> *locs = &_ids[id];
                         locs->append(idExpr->firstSourceLocation());
                         locs->append(_maybeIds.value(id));
@@ -165,8 +168,8 @@ protected:
 
     virtual bool visit(AST::IdentifierExpression *node)
     {
-        if (node->name) {
-            const QString name = node->name->asString();
+        if (!node->name.isEmpty()) {
+            const QString &name = node->name.toString();
 
             if (_ids.contains(name))
                 _ids[name].append(node->identifierToken);
@@ -203,8 +206,8 @@ protected:
     {
         QString text;
         for (; id; id = id->next) {
-            if (id->name)
-                text += id->name->asString();
+            if (!id->name.isEmpty())
+                text += id->name;
             else
                 text += QLatin1Char('?');
 
@@ -317,19 +320,19 @@ protected:
 
     virtual bool visit(AST::FunctionDeclaration *ast)
     {
-        if (! ast->name)
+        if (ast->name.isEmpty())
             return false;
 
         Declaration decl;
         init(&decl, ast);
 
         decl.text.fill(QLatin1Char(' '), _depth);
-        decl.text += ast->name->asString();
+        decl.text += ast->name;
 
         decl.text += QLatin1Char('(');
         for (FormalParameterList *it = ast->formals; it; it = it->next) {
-            if (it->name)
-                decl.text += it->name->asString();
+            if (!it->name.isEmpty())
+                decl.text += it->name;
 
             if (it->next)
                 decl.text += QLatin1String(", ");
@@ -344,12 +347,12 @@ protected:
 
     virtual bool visit(AST::VariableDeclaration *ast)
     {
-        if (! ast->name)
+        if (ast->name.isEmpty())
             return false;
 
         Declaration decl;
         decl.text.fill(QLatin1Char(' '), _depth);
-        decl.text += ast->name->asString();
+        decl.text += ast->name;
 
         const SourceLocation first = ast->identifierToken;
         decl.startLine = first.startLine;
@@ -407,44 +410,65 @@ protected:
         return true;
     }
 
+    virtual bool visit(AST::UiScriptBinding *ast)
+    {
+        if (AST::Block *block = AST::cast<AST::Block *>(ast->statement)) {
+            _ranges.append(createRange(ast, block));
+        }
+        return true;
+    }
+
     Range createRange(AST::UiObjectMember *member, AST::UiObjectInitializer *ast)
     {
-        Range range;
-
-        range.ast = member;
-
-        range.begin = QTextCursor(_textDocument);
-        range.begin.setPosition(member->firstSourceLocation().begin());
-
-        range.end = QTextCursor(_textDocument);
-        range.end.setPosition(ast->rbraceToken.end());
-        return range;
+        return createRange(member, member->firstSourceLocation(), ast->rbraceToken);
     }
 
     Range createRange(AST::FunctionExpression *ast)
+    {
+        return createRange(ast, ast->lbraceToken, ast->rbraceToken);
+    }
+
+    Range createRange(AST::UiScriptBinding *ast, AST::Block *block)
+    {
+        return createRange(ast, block->lbraceToken, block->rbraceToken);
+    }
+
+    Range createRange(AST::Node *ast, AST::SourceLocation start, AST::SourceLocation end)
     {
         Range range;
 
         range.ast = ast;
 
         range.begin = QTextCursor(_textDocument);
-        range.begin.setPosition(ast->lbraceToken.begin());
+        range.begin.setPosition(start.begin());
 
         range.end = QTextCursor(_textDocument);
-        range.end.setPosition(ast->rbraceToken.end());
+        range.end.setPosition(end.end());
 
         return range;
     }
 
 };
 
-
-class CollectASTNodes: protected AST::Visitor
+// ### does not necessarily give the full AST path!
+// intentionally does not contain lists like
+// UiImportList, SourceElements, UiObjectMemberList
+class AstPath: protected AST::Visitor
 {
+    QList<AST::Node *> _path;
+    unsigned _offset;
+
 public:
-    QList<AST::UiQualifiedId *> qualifiedIds;
-    QList<AST::IdentifierExpression *> identifiers;
-    QList<AST::FieldMemberExpression *> fieldMembers;
+    QList<AST::Node *> operator()(AST::Node *node, unsigned offset)
+    {
+        _offset = offset;
+        _path.clear();
+        accept(node);
+        return _path;
+    }
+
+protected:
+    using AST::Visitor::visit;
 
     void accept(AST::Node *node)
     {
@@ -452,32 +476,75 @@ public:
             node->accept(this);
     }
 
-protected:
-    using AST::Visitor::visit;
+    bool containsOffset(AST::SourceLocation start, AST::SourceLocation end)
+    {
+        return _offset >= start.begin() && _offset <= end.end();
+    }
+
+    bool handle(AST::Node *ast,
+                AST::SourceLocation start, AST::SourceLocation end,
+                bool addToPath = true)
+    {
+        if (containsOffset(start, end)) {
+            if (addToPath)
+                _path.append(ast);
+            return true;
+        }
+        return false;
+    }
+
+    template <class T>
+    bool handleLocationAst(T *ast, bool addToPath = true)
+    {
+        return handle(ast, ast->firstSourceLocation(), ast->lastSourceLocation(), addToPath);
+    }
+
+    virtual bool preVisit(AST::Node *node)
+    {
+        if (Statement *stmt = node->statementCast()) {
+            return handleLocationAst(stmt);
+        } else if (ExpressionNode *exp = node->expressionCast()) {
+            return handleLocationAst(exp);
+        } else if (UiObjectMember *ui = node->uiObjectMemberCast()) {
+            return handleLocationAst(ui);
+        }
+        return true;
+    }
 
     virtual bool visit(AST::UiQualifiedId *ast)
     {
-        qualifiedIds.append(ast);
+        AST::SourceLocation first = ast->identifierToken;
+        AST::SourceLocation last;
+        for (AST::UiQualifiedId *it = ast; it; it = it->next)
+            last = it->identifierToken;
+        if (containsOffset(first, last))
+            _path.append(ast);
         return false;
     }
 
-    virtual bool visit(AST::IdentifierExpression *ast)
+    virtual bool visit(AST::UiProgram *ast)
     {
-        identifiers.append(ast);
-        return false;
-    }
-
-    virtual bool visit(AST::FieldMemberExpression *ast)
-    {
-        fieldMembers.append(ast);
+        _path.append(ast);
         return true;
     }
+
+    virtual bool visit(AST::Program *ast)
+    {
+        _path.append(ast);
+        return true;
+    }
+
+    virtual bool visit(AST::UiImport *ast)
+    {
+        return handleLocationAst(ast);
+    }
+
 };
 
 } // end of anonymous namespace
 
 
-AST::Node *SemanticInfo::declaringMember(int cursorPosition) const
+AST::Node *SemanticInfo::rangeAt(int cursorPosition) const
 {
     AST::Node *declaringMember = 0;
 
@@ -495,25 +562,26 @@ AST::Node *SemanticInfo::declaringMember(int cursorPosition) const
     return declaringMember;
 }
 
+// ### the name and behavior of this function is dubious
 QmlJS::AST::Node *SemanticInfo::declaringMemberNoProperties(int cursorPosition) const
 {
-   AST::Node *node = declaringMember(cursorPosition);
+   AST::Node *node = rangeAt(cursorPosition);
 
    if (UiObjectDefinition *objectDefinition = cast<UiObjectDefinition*>(node)) {
-       QString name = objectDefinition->qualifiedTypeNameId->name->asString();
-       if (!name.isNull() && name.at(0).isLower()) {
-           QList<AST::Node *> path = astPath(cursorPosition);
+       const QString &name = objectDefinition->qualifiedTypeNameId->name.toString();
+       if (!name.isEmpty() && name.at(0).isLower()) {
+           QList<AST::Node *> path = rangePath(cursorPosition);
            if (path.size() > 1)
                return path.at(path.size() - 2);
        } else if (name.contains("GradientStop")) {
-           QList<AST::Node *> path = astPath(cursorPosition);
+           QList<AST::Node *> path = rangePath(cursorPosition);
            if (path.size() > 2)
                return path.at(path.size() - 3);
        }
    } else if (UiObjectBinding *objectBinding = cast<UiObjectBinding*>(node)) {
-       QString name = objectBinding->qualifiedTypeNameId->name->asString();
+       const QString &name = objectBinding->qualifiedTypeNameId->name.toString();
        if (name.contains("Gradient")) {
-           QList<AST::Node *> path = astPath(cursorPosition);
+           QList<AST::Node *> path = rangePath(cursorPosition);
            if (path.size() > 1)
                return path.at(path.size() - 2);
        }
@@ -522,7 +590,7 @@ QmlJS::AST::Node *SemanticInfo::declaringMemberNoProperties(int cursorPosition) 
    return node;
 }
 
-QList<AST::Node *> SemanticInfo::astPath(int cursorPosition) const
+QList<AST::Node *> SemanticInfo::rangePath(int cursorPosition) const
 {
     QList<AST::Node *> path;
 
@@ -537,62 +605,40 @@ QList<AST::Node *> SemanticInfo::astPath(int cursorPosition) const
     return path;
 }
 
-LookupContext::Ptr SemanticInfo::lookupContext(const QList<QmlJS::AST::Node *> &path) const
+ScopeChain SemanticInfo::scopeChain(const QList<QmlJS::AST::Node *> &path) const
 {
-    Q_ASSERT(! m_context.isNull());
+    Q_ASSERT(m_rootScopeChain);
 
-    if (m_context.isNull())
-        return LookupContext::create(document, snapshot, path);
+    if (path.isEmpty())
+        return *m_rootScopeChain;
 
-    return LookupContext::create(document, *m_context, path);
+    ScopeChain scope = *m_rootScopeChain;
+    ScopeBuilder builder(&scope);
+    builder.push(path);
+    return scope;
 }
 
-static bool importContainsCursor(UiImport *importAst, unsigned cursorPosition)
+QList<AST::Node *> SemanticInfo::astPath(int pos) const
 {
-    return cursorPosition >= importAst->firstSourceLocation().begin()
-           && cursorPosition <= importAst->lastSourceLocation().end();
-}
-
-AST::Node *SemanticInfo::nodeUnderCursor(int pos) const
-{
+    QList<AST::Node *> result;
     if (! document)
+        return result;
+
+    AstPath astPath;
+    return astPath(document->ast(), pos);
+}
+
+AST::Node *SemanticInfo::astNodeAt(int pos) const
+{
+    const QList<AST::Node *> path = astPath(pos);
+    if (path.isEmpty())
         return 0;
-
-    const unsigned cursorPosition = pos;
-
-    foreach (const Interpreter::ImportInfo &import, document->bind()->imports()) {
-        if (importContainsCursor(import.ast(), cursorPosition))
-            return import.ast();
-    }
-
-    CollectASTNodes nodes;
-    nodes.accept(document->ast());
-
-    foreach (AST::UiQualifiedId *q, nodes.qualifiedIds) {
-        if (cursorPosition >= q->identifierToken.begin()) {
-            for (AST::UiQualifiedId *tail = q; tail; tail = tail->next) {
-                if (! tail->next && cursorPosition <= tail->identifierToken.end())
-                    return q;
-            }
-        }
-    }
-
-    foreach (AST::IdentifierExpression *id, nodes.identifiers) {
-        if (cursorPosition >= id->identifierToken.begin() && cursorPosition <= id->identifierToken.end())
-            return id;
-    }
-
-    foreach (AST::FieldMemberExpression *mem, nodes.fieldMembers) {
-        if (mem->name && cursorPosition >= mem->identifierToken.begin() && cursorPosition <= mem->identifierToken.end())
-            return mem;
-    }
-
-    return 0;
+    return path.last();
 }
 
 bool SemanticInfo::isValid() const
 {
-    if (document && m_context)
+    if (document && context && m_rootScopeChain)
         return true;
 
     return false;
@@ -613,12 +659,13 @@ QmlJSTextEditorWidget::QmlJSTextEditorWidget(QWidget *parent) :
     m_modelManager(0),
     m_contextPane(0),
     m_updateSelectedElements(false),
-    m_findReferences(new FindReferences(this))
+    m_findReferences(new FindReferences(this)),
+    m_semanticHighlighter(new SemanticHighlighter(this))
 {
     qRegisterMetaType<QmlJSEditor::SemanticInfo>("QmlJSEditor::SemanticInfo");
 
-    m_semanticHighlighter = new SemanticHighlighter(this);
-    m_semanticHighlighter->start();
+    m_semanticInfoUpdater = new SemanticInfoUpdater(this);
+    m_semanticInfoUpdater->start();
 
     setParenthesesMatchingEnabled(true);
     setMarksVisible(true);
@@ -636,10 +683,10 @@ QmlJSTextEditorWidget::QmlJSTextEditorWidget(QWidget *parent) :
     m_updateUsesTimer->setSingleShot(true);
     connect(m_updateUsesTimer, SIGNAL(timeout()), this, SLOT(updateUsesNow()));
 
-    m_semanticRehighlightTimer = new QTimer(this);
-    m_semanticRehighlightTimer->setInterval(UPDATE_DOCUMENT_DEFAULT_INTERVAL);
-    m_semanticRehighlightTimer->setSingleShot(true);
-    connect(m_semanticRehighlightTimer, SIGNAL(timeout()), this, SLOT(forceSemanticRehighlightIfCurrentEditor()));
+    m_localReparseTimer = new QTimer(this);
+    m_localReparseTimer->setInterval(UPDATE_DOCUMENT_DEFAULT_INTERVAL);
+    m_localReparseTimer->setSingleShot(true);
+    connect(m_localReparseTimer, SIGNAL(timeout()), this, SLOT(forceReparseIfCurrentEditor()));
 
     connect(this, SIGNAL(textChanged()), this, SLOT(updateDocument()));
 
@@ -675,15 +722,15 @@ QmlJSTextEditorWidget::QmlJSTextEditorWidget(QWidget *parent) :
     m_oldCursorPosition = -1;
 
     if (m_modelManager) {
-        m_semanticHighlighter->setModelManager(m_modelManager);
+        m_semanticInfoUpdater->setModelManager(m_modelManager);
         connect(m_modelManager, SIGNAL(documentUpdated(QmlJS::Document::Ptr)),
                 this, SLOT(onDocumentUpdated(QmlJS::Document::Ptr)));
         connect(m_modelManager, SIGNAL(libraryInfoUpdated(QString,QmlJS::LibraryInfo)),
-                this, SLOT(forceSemanticRehighlightIfCurrentEditor()));
+                this, SLOT(forceReparseIfCurrentEditor()));
         connect(this->document(), SIGNAL(modificationChanged(bool)), this, SLOT(modificationChanged(bool)));
     }
 
-    connect(m_semanticHighlighter, SIGNAL(changed(QmlJSEditor::SemanticInfo)),
+    connect(m_semanticInfoUpdater, SIGNAL(updated(QmlJSEditor::SemanticInfo)),
             this, SLOT(updateSemanticInfo(QmlJSEditor::SemanticInfo)));
 
     connect(this, SIGNAL(refactorMarkerClicked(TextEditor::RefactorMarker)),
@@ -695,8 +742,8 @@ QmlJSTextEditorWidget::QmlJSTextEditorWidget(QWidget *parent) :
 QmlJSTextEditorWidget::~QmlJSTextEditorWidget()
 {
     hideContextPane();
-    m_semanticHighlighter->abort();
-    m_semanticHighlighter->wait();
+    m_semanticInfoUpdater->abort();
+    m_semanticInfoUpdater->wait();
 }
 
 SemanticInfo QmlJSTextEditorWidget::semanticInfo() const
@@ -809,15 +856,15 @@ void QmlJSTextEditorWidget::onDocumentUpdated(QmlJS::Document::Ptr doc)
             || doc->editorRevision() != document()->revision()) {
         // maybe a dependency changed: schedule a potential rehighlight
         // will not rehighlight if the current editor changes away from this file
-        m_semanticRehighlightTimer->start();
+        m_localReparseTimer->start();
         return;
     }
 
     if (doc->ast()) {
         // got a correctly parsed (or recovered) file.
 
-        const SemanticHighlighterSource source = currentSource(/*force = */ true);
-        m_semanticHighlighter->rehighlight(source);
+        const SemanticInfoUpdaterSource source = currentSource(/*force = */ true);
+        m_semanticInfoUpdater->update(source);
     } else {
         // show parsing errors
         QList<QTextEdit::ExtraSelection> selections;
@@ -906,6 +953,20 @@ static UiQualifiedId *qualifiedTypeNameId(Node *m)
     return 0;
 }
 
+class QtQuickToolbarMarker {};
+Q_DECLARE_METATYPE(QtQuickToolbarMarker)
+
+template <class T>
+static QList<TextEditor::RefactorMarker> removeMarkersOfType(const QList<TextEditor::RefactorMarker> &markers)
+{
+    QList<TextEditor::RefactorMarker> result;
+    foreach (const TextEditor::RefactorMarker &marker, markers) {
+        if (!marker.data.canConvert<T>())
+            result += marker;
+    }
+    return result;
+}
+
 void QmlJSTextEditorWidget::updateCursorPositionNow()
 {
     if (m_contextPane && document() && semanticInfo().isValid()
@@ -914,10 +975,11 @@ void QmlJSTextEditorWidget::updateCursorPositionNow()
         Node *oldNode = m_semanticInfo.declaringMemberNoProperties(m_oldCursorPosition);
         Node *newNode = m_semanticInfo.declaringMemberNoProperties(position());
         if (oldNode != newNode && m_oldCursorPosition != -1)
-            m_contextPane->apply(editor(), semanticInfo().document, LookupContext::Ptr(),newNode, false);
+            m_contextPane->apply(editor(), semanticInfo().document, 0, newNode, false);
+
         if (m_contextPane->isAvailable(editor(), semanticInfo().document, newNode) &&
             !m_contextPane->widget()->isVisible()) {
-            QList<TextEditor::RefactorMarker> markers;
+            QList<TextEditor::RefactorMarker> markers = removeMarkersOfType<QtQuickToolbarMarker>(refactorMarkers());
             if (UiObjectMember *m = newNode->uiObjectMemberCast()) {
                 const int start = qualifiedTypeNameId(m)->identifierToken.begin();
                 for (UiQualifiedId *q = qualifiedTypeNameId(m); q; q = q->next) {
@@ -929,18 +991,15 @@ void QmlJSTextEditorWidget::updateCursorPositionNow()
                             tc.setPosition(end);
                             marker.cursor = tc;
                             marker.tooltip = tr("Show Qt Quick ToolBar");
+                            marker.data = QVariant::fromValue(QtQuickToolbarMarker());
                             markers.append(marker);
-                        } else {
-                             QList<TextEditor::RefactorMarker> markers;
-                             setRefactorMarkers(markers);
                         }
                     }
                 }
             }
             setRefactorMarkers(markers);
         } else if (oldNode != newNode) {
-            QList<TextEditor::RefactorMarker> markers;
-            setRefactorMarkers(markers);
+            setRefactorMarkers(removeMarkersOfType<QtQuickToolbarMarker>(refactorMarkers()));
         }
         m_oldCursorPosition = position();
 
@@ -956,6 +1015,8 @@ void QmlJSTextEditorWidget::showTextMarker()
 
 void QmlJSTextEditorWidget::updateUses()
 {
+    if (m_semanticHighlighter->startRevision() != editorRevision())
+        m_semanticHighlighter->cancel();
     m_updateUsesTimer->start();
 }
 
@@ -967,18 +1028,6 @@ bool QmlJSTextEditorWidget::updateSelectedElements() const
 void QmlJSTextEditorWidget::setUpdateSelectedElements(bool value)
 {
     m_updateSelectedElements = value;
-}
-
-void QmlJSTextEditorWidget::renameId(const QString &oldId, const QString &newId)
-{
-    Utils::ChangeSet changeSet;
-
-    foreach (const AST::SourceLocation &loc, m_semanticInfo.idLocations.value(oldId)) {
-        changeSet.replace(loc.begin(), loc.end(), newId);
-    }
-
-    QTextCursor tc = textCursor();
-    changeSet.apply(&tc);
 }
 
 void QmlJSTextEditorWidget::updateUsesNow()
@@ -1011,19 +1060,17 @@ class SelectedElement: protected Visitor
     unsigned m_cursorPositionStart;
     unsigned m_cursorPositionEnd;
     QList<UiObjectMember *> m_selectedMembers;
-    LookupContext::Ptr m_lookupContext;
 
 public:
     SelectedElement()
         : m_cursorPositionStart(0), m_cursorPositionEnd(0) {}
 
-    QList<UiObjectMember *> operator()(LookupContext::Ptr lookupContext, unsigned startPosition, unsigned endPosition)
+    QList<UiObjectMember *> operator()(const Document::Ptr &doc, unsigned startPosition, unsigned endPosition)
     {
-        m_lookupContext = lookupContext;
         m_cursorPositionStart = startPosition;
         m_cursorPositionEnd = endPosition;
         m_selectedMembers.clear();
-        Node::accept(lookupContext->document()->qmlProgram(), this);
+        Node::accept(doc->qmlProgram(), this);
         return m_selectedMembers;
     }
 
@@ -1038,7 +1085,7 @@ protected:
             id = binding->qualifiedTypeNameId;
 
         if (id) {
-            QString name = id->name->asString();
+            const QStringRef &name = id->name;
             if (!name.isEmpty() && name.at(0).isUpper()) {
                 return true;
             }
@@ -1061,12 +1108,12 @@ protected:
         if (UiScriptBinding *script = cast<UiScriptBinding *>(member)) {
             if (! script->qualifiedId)
                 return false;
-            else if (! script->qualifiedId->name)
+            else if (script->qualifiedId->name.isEmpty())
                 return false;
             else if (script->qualifiedId->next)
                 return false;
 
-            const QString propertyName = script->qualifiedId->name->asString();
+            const QStringRef &propertyName = script->qualifiedId->name;
 
             if (propertyName == QLatin1String("id"))
                 return true;
@@ -1137,7 +1184,7 @@ void QmlJSTextEditorWidget::setSelectedElements()
 
     if (m_semanticInfo.isValid()) {
         SelectedElement selectedMembers;
-        QList<UiObjectMember *> members = selectedMembers(m_semanticInfo.lookupContext(),
+        QList<UiObjectMember *> members = selectedMembers(m_semanticInfo.document,
                                                           startPos, endPos);
         if (!members.isEmpty()) {
             foreach(UiObjectMember *m, members) {
@@ -1152,20 +1199,6 @@ void QmlJSTextEditorWidget::setSelectedElements()
 
 void QmlJSTextEditorWidget::updateFileName()
 {
-}
-
-void QmlJSTextEditorWidget::renameIdUnderCursor()
-{
-    const QString id = wordUnderCursor();
-    bool ok = false;
-    const QString newId = QInputDialog::getText(Core::ICore::instance()->mainWindow(),
-                                                tr("Rename..."),
-                                                tr("New id:"),
-                                                QLineEdit::Normal,
-                                                id, &ok);
-    if (ok) {
-        renameId(id, newId);
-    }
 }
 
 void QmlJSTextEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
@@ -1189,6 +1222,8 @@ void QmlJSTextEditorWidget::setFontSettings(const TextEditor::FontSettings &fs)
     // only set the background, we do not want to modify foreground properties set by the syntax highlighter or the link
     m_occurrencesFormat.clearForeground();
     m_occurrenceRenameFormat.clearForeground();
+
+    m_semanticHighlighter->updateFontSettings(fs);
 }
 
 
@@ -1260,12 +1295,13 @@ TextEditor::BaseTextEditorWidget::Link QmlJSTextEditorWidget::findLinkAt(const Q
 
     const unsigned cursorPosition = cursor.position();
 
-    AST::Node *node = semanticInfo.nodeUnderCursor(cursorPosition);
+    AST::Node *node = semanticInfo.astNodeAt(cursorPosition);
+    QTC_ASSERT(node, return Link());
 
     if (AST::UiImport *importAst = cast<AST::UiImport *>(node)) {
         // if it's a file import, link to the file
-        foreach (const Interpreter::ImportInfo &import, semanticInfo.document->bind()->imports()) {
-            if (import.ast() == importAst && import.type() == Interpreter::ImportInfo::FileImport) {
+        foreach (const ImportInfo &import, semanticInfo.document->bind()->imports()) {
+            if (import.ast() == importAst && import.type() == ImportInfo::FileImport) {
                 BaseTextEditorWidget::Link link(import.name());
                 link.begin = importAst->firstSourceLocation().begin();
                 link.end = importAst->lastSourceLocation().end();
@@ -1275,9 +1311,28 @@ TextEditor::BaseTextEditorWidget::Link QmlJSTextEditorWidget::findLinkAt(const Q
         return Link();
     }
 
-    LookupContext::Ptr lookupContext = semanticInfo.lookupContext(semanticInfo.astPath(cursorPosition));
-    Evaluate evaluator(lookupContext->context());
-    const Interpreter::Value *value = evaluator.reference(node);
+    // string literals that could refer to a file link to them
+    if (StringLiteral *literal = cast<StringLiteral *>(node)) {
+        const QString &text = literal->value.toString();
+        BaseTextEditorWidget::Link link;
+        link.begin = literal->literalToken.begin();
+        link.end = literal->literalToken.end();
+        if (semanticInfo.snapshot.document(text)) {
+            link.fileName = text;
+            return link;
+        }
+        const QString relative = QString("%1/%2").arg(
+                    semanticInfo.document->path(),
+                    text);
+        if (semanticInfo.snapshot.document(relative)) {
+            link.fileName = relative;
+            return link;
+        }
+    }
+
+    const ScopeChain scopeChain = semanticInfo.scopeChain(semanticInfo.rangePath(cursorPosition));
+    Evaluate evaluator(&scopeChain);
+    const Value *value = evaluator.reference(node);
 
     QString fileName;
     int line = 0, column = 0;
@@ -1323,14 +1378,21 @@ void QmlJSTextEditorWidget::findUsages()
     m_findReferences->findUsages(file()->fileName(), textCursor().position());
 }
 
+void QmlJSTextEditorWidget::renameUsages()
+{
+    m_findReferences->renameUsages(file()->fileName(), textCursor().position());
+}
+
 void QmlJSTextEditorWidget::showContextPane()
 {
     if (m_contextPane && m_semanticInfo.isValid()) {
         Node *newNode = m_semanticInfo.declaringMemberNoProperties(position());
-        m_contextPane->apply(editor(), m_semanticInfo.document, m_semanticInfo.lookupContext(), newNode, false, true);
+        ScopeChain scopeChain = m_semanticInfo.scopeChain(m_semanticInfo.rangePath(position()));
+        m_contextPane->apply(editor(), m_semanticInfo.document,
+                             &scopeChain,
+                             newNode, false, true);
         m_oldCursorPosition = position();
-        QList<TextEditor::RefactorMarker> markers;
-        setRefactorMarkers(markers);
+        setRefactorMarkers(removeMarkersOfType<QtQuickToolbarMarker>(refactorMarkers()));
     }
 }
 
@@ -1345,14 +1407,6 @@ void QmlJSTextEditorWidget::contextMenuEvent(QContextMenuEvent *e)
     QMenu *menu = new QMenu();
 
     QMenu *refactoringMenu = new QMenu(tr("Refactoring"), menu);
-
-    // Conditionally add the rename-id action:
-    const QString id = wordUnderCursor();
-    const QList<AST::SourceLocation> &locations = m_semanticInfo.idLocations.value(id);
-    if (! locations.isEmpty()) {
-        QAction *a = refactoringMenu->addAction(tr("Rename id '%1'...").arg(id));
-        connect(a, SIGNAL(triggered()), this, SLOT(renameIdUnderCursor()));
-    }
 
     QSignalMapper mapper;
     connect(&mapper, SIGNAL(mapped(int)), this, SLOT(performQuickFix(int)));
@@ -1431,10 +1485,7 @@ void QmlJSTextEditorWidget::wheelEvent(QWheelEvent *event)
     BaseTextEditorWidget::wheelEvent(event);
 
     if (visible) {
-        LookupContext::Ptr lookupContext;
-        if (m_semanticInfo.isValid())
-            lookupContext = m_semanticInfo.lookupContext();
-        m_contextPane->apply(editor(), semanticInfo().document, QmlJS::LookupContext::Ptr(), m_semanticInfo.declaringMemberNoProperties(m_oldCursorPosition), false, true);
+        m_contextPane->apply(editor(), semanticInfo().document, 0, m_semanticInfo.declaringMemberNoProperties(m_oldCursorPosition), false, true);
     }
 }
 
@@ -1463,28 +1514,28 @@ void QmlJSTextEditorWidget::setTabSettings(const TextEditor::TabSettings &ts)
     TextEditor::BaseTextEditorWidget::setTabSettings(ts);
 }
 
-void QmlJSTextEditorWidget::forceSemanticRehighlight()
+void QmlJSTextEditorWidget::forceReparse()
 {
-    m_semanticHighlighter->rehighlight(currentSource(/* force = */ true));
+    m_semanticInfoUpdater->update(currentSource(/* force = */ true));
 }
 
-void QmlJSEditor::QmlJSTextEditorWidget::forceSemanticRehighlightIfCurrentEditor()
+void QmlJSEditor::QmlJSTextEditorWidget::forceReparseIfCurrentEditor()
 {
     Core::EditorManager *editorManager = Core::EditorManager::instance();
     if (editorManager->currentEditor() == editor())
-        forceSemanticRehighlight();
+        forceReparse();
 }
 
-void QmlJSTextEditorWidget::semanticRehighlight()
+void QmlJSTextEditorWidget::reparse()
 {
-    m_semanticHighlighter->rehighlight(currentSource());
+    m_semanticInfoUpdater->update(currentSource());
 }
 
 void QmlJSTextEditorWidget::updateSemanticInfo(const SemanticInfo &semanticInfo)
 {
     if (semanticInfo.revision() != document()->revision()) {
         // got outdated semantic info
-        semanticRehighlight();
+        reparse();
         return;
     }
 
@@ -1499,13 +1550,10 @@ void QmlJSTextEditorWidget::updateSemanticInfo(const SemanticInfo &semanticInfo)
     FindIdDeclarations updateIds;
     m_semanticInfo.idLocations = updateIds(doc);
 
-    FindDeclarations findDeclarations;
-    m_semanticInfo.declarations = findDeclarations(doc->ast());
-
     if (m_contextPane) {
         Node *newNode = m_semanticInfo.declaringMemberNoProperties(position());
         if (newNode) {
-            m_contextPane->apply(editor(), semanticInfo.document, LookupContext::Ptr(), newNode, true);
+            m_contextPane->apply(editor(), semanticInfo.document, 0, newNode, true);
             m_cursorPositionTimer->start(); //update text marker
         }
     }
@@ -1518,11 +1566,16 @@ void QmlJSTextEditorWidget::updateSemanticInfo(const SemanticInfo &semanticInfo)
     appendExtraSelectionsForMessages(&selections, doc->diagnosticMessages(), document());
     appendExtraSelectionsForMessages(&selections, m_semanticInfo.semanticMessages, document());
     setExtraSelections(CodeWarningsSelection, selections);
+
+    Core::EditorManager *editorManager = Core::EditorManager::instance();
+    if (editorManager->currentEditor() == editor())
+        m_semanticHighlighter->rerun(m_semanticInfo.scopeChain());
 }
 
-void QmlJSTextEditorWidget::onRefactorMarkerClicked(const TextEditor::RefactorMarker &)
+void QmlJSTextEditorWidget::onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker)
 {
-    showContextPane();
+    if (marker.data.canConvert<QtQuickToolbarMarker>())
+        showContextPane();
 }
 
 void QmlJSTextEditorWidget::onCursorPositionChanged()
@@ -1558,7 +1611,7 @@ bool QmlJSTextEditorWidget::hideContextPane()
 {
     bool b = (m_contextPane) && m_contextPane->widget()->isVisible();
     if (b) {
-        m_contextPane->apply(editor(), semanticInfo().document, LookupContext::Ptr(), 0, false);
+        m_contextPane->apply(editor(), semanticInfo().document, 0, 0, false);
     }
     return b;
 }
@@ -1587,7 +1640,7 @@ QVector<QString> QmlJSTextEditorWidget::highlighterFormatCategories()
     return categories;
 }
 
-SemanticHighlighterSource QmlJSTextEditorWidget::currentSource(bool force)
+SemanticInfoUpdaterSource QmlJSTextEditorWidget::currentSource(bool force)
 {
     int line = 0, column = 0;
     convertPosition(position(), &line, &column);
@@ -1600,7 +1653,7 @@ SemanticHighlighterSource QmlJSTextEditorWidget::currentSource(bool force)
         code = toPlainText(); // get the source code only when needed.
 
     const unsigned revision = document()->revision();
-    SemanticHighlighterSource source(snapshot, fileName, code,
+    SemanticInfoUpdaterSource source(snapshot, fileName, code,
                                        line, column, revision);
     source.force = force;
     return source;

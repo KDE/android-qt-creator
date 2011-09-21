@@ -32,28 +32,21 @@
 
 #include "qmlprojectruncontrol.h"
 #include "qmlprojectrunconfiguration.h"
-#include "qmlprojectconstants.h"
 #include <coreplugin/icore.h>
-#include <coreplugin/modemanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/applicationlauncher.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/project.h>
-#include <qtsupport/qtversionmanager.h>
-#include <utils/environment.h>
+#include <projectexplorer/projectexplorer.h>
 #include <utils/qtcassert.h>
-#include <utils/qtcprocess.h>
 
 #include <debugger/debuggerrunner.h>
 #include <debugger/debuggerplugin.h>
 #include <debugger/debuggerconstants.h>
-#include <debugger/debuggerengine.h>
 #include <debugger/debuggerstartparameters.h>
-#include <qmljsinspector/qmljsinspectorconstants.h>
+#include <qtsupport/baseqtversion.h>
 #include <qtsupport/qmlobservertool.h>
 
 #include <qmlprojectmanager/qmlprojectplugin.h>
-
 
 using namespace ProjectExplorer;
 
@@ -73,6 +66,7 @@ QmlProjectRunControl::QmlProjectRunControl(QmlProjectRunConfiguration *runConfig
         m_executable = runConfiguration->observerPath();
     }
     m_commandLineArguments = runConfiguration->viewerArguments();
+    m_mainQmlFile = runConfiguration->mainScript();
 
     connect(&m_applicationLauncher, SIGNAL(appendMessage(QString,Utils::OutputFormat)),
             this, SLOT(slotAppendMessage(QString, Utils::OutputFormat)));
@@ -132,6 +126,11 @@ void QmlProjectRunControl::processExited(int exitCode)
     emit finished();
 }
 
+QString QmlProjectRunControl::mainQmlFile() const
+{
+    return m_mainQmlFile;
+}
+
 QmlProjectRunControlFactory::QmlProjectRunControlFactory(QObject *parent)
     : IRunControlFactory(parent)
 {
@@ -171,8 +170,19 @@ RunControl *QmlProjectRunControlFactory::create(RunConfiguration *runConfigurati
                                          const QString &mode)
 {
     QTC_ASSERT(canRun(runConfiguration, mode), return 0);
-
     QmlProjectRunConfiguration *config = qobject_cast<QmlProjectRunConfiguration *>(runConfiguration);
+
+    QList<ProjectExplorer::RunControl *> runcontrols =
+            ProjectExplorer::ProjectExplorerPlugin::instance()->runControls();
+    foreach (ProjectExplorer::RunControl *rc, runcontrols) {
+        if (QmlProjectRunControl *qrc = qobject_cast<QmlProjectRunControl *>(rc)) {
+            if (qrc->mainQmlFile() == config->mainScript())
+                // Asking the user defeats the purpose
+                // Making it configureable might be worth it
+                qrc->stop();
+        }
+    }
+
     RunControl *runControl = 0;
     if (mode == ProjectExplorer::Constants::RUNMODE)
         runControl = new QmlProjectRunControl(config, mode);
@@ -206,6 +216,8 @@ RunControl *QmlProjectRunControlFactory::createDebugRunControl(QmlProjectRunConf
     params.displayName = runConfig->displayName();
     params.projectSourceDirectory = runConfig->target()->project()->projectDirectory();
     params.projectSourceFiles = runConfig->target()->project()->files(Project::ExcludeGeneratedFiles);
+    if (!runConfig->qtVersion()->qtAbis().isEmpty())
+        params.toolChainAbi = runConfig->qtVersion()->qtAbis().first();
 
     // Makes sure that all bindings go through the JavaScript engine, so that
     // breakpoints are actually hit!

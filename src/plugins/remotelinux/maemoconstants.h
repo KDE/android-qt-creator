@@ -37,6 +37,10 @@
 namespace RemoteLinux {
 namespace Internal {
 
+const char Maemo5OsType[] = "Maemo5OsType";
+const char HarmattanOsType[] = "HarmattanOsType";
+const char MeeGoOsType[] = "MeeGoOsType";
+
 #define PREFIX "Qt4ProjectManager.MaemoRunConfiguration"
 
 #ifdef Q_OS_WIN32
@@ -48,26 +52,14 @@ namespace Internal {
 static const QLatin1String MAEMO_RC_ID(PREFIX);
 static const QLatin1String MAEMO_RC_ID_PREFIX(PREFIX ".");
 
-static const QLatin1String ArgumentsKey(PREFIX ".Arguments");
-static const QLatin1String DeviceIdKey(PREFIX ".DeviceId");
 static const QLatin1String LastDeployedHostsKey(PREFIX ".LastDeployedHosts");
 static const QLatin1String LastDeployedFilesKey(PREFIX ".LastDeployedFiles");
 static const QLatin1String LastDeployedRemotePathsKey(PREFIX ".LastDeployedRemotePaths");
 static const QLatin1String LastDeployedTimesKey(PREFIX ".LastDeployedTimes");
-static const QLatin1String ProFileKey(PREFIX ".ProFile");
 static const QLatin1String ExportedLocalDirsKey(PREFIX ".ExportedLocalDirs");
 static const QLatin1String RemoteMountPointsKey(PREFIX ".RemoteMountPoints");
-static const QLatin1String BaseEnvironmentBaseKey(PREFIX ".BaseEnvironmentBase");
-static const QLatin1String UserEnvironmentChangesKey(PREFIX ".UserEnvironmentChanges");
 
 } // namespace Internal
-
-namespace Constants {
-const char * const MAEMO_SETTINGS_CATEGORY = "X.Maemo";
-const char * const MAEMO_SETTINGS_TR_CATEGORY = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Linux Devices");
-const char * const MAEMO_SETTINGS_CATEGORY_ICON = ":/projectexplorer/images/MaemoDevice.png";
-}
-
 } // namespace RemoteLinux
 
 #endif  // MAEMOCONSTANTS_H

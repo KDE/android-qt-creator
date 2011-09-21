@@ -58,7 +58,7 @@ class Qt4BuildConfiguration;
 
 namespace Internal {
 
-class QT4PROJECTMANAGER_EXPORT MakeStepFactory : public ProjectExplorer::IBuildStepFactory
+class MakeStepFactory : public ProjectExplorer::IBuildStepFactory
 {
     Q_OBJECT
 

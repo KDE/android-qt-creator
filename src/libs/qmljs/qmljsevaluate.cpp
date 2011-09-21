@@ -31,17 +31,20 @@
 **************************************************************************/
 
 #include "qmljsevaluate.h"
-#include "qmljsinterpreter.h"
+#include "qmljscontext.h"
+#include "qmljsvalueowner.h"
+#include "qmljsscopechain.h"
 #include "parser/qmljsast_p.h"
 #include <QtCore/QDebug>
 
 using namespace QmlJS;
-using namespace QmlJS::Interpreter;
 
-Evaluate::Evaluate(const Context *context)
-    : _engine(context->engine()),
-      _context(context),
-      _scope(_engine->globalObject()),
+Evaluate::Evaluate(const ScopeChain *scopeChain, ReferenceContext *referenceContext)
+    : _valueOwner(scopeChain->context()->valueOwner()),
+      _context(scopeChain->context()),
+      _referenceContext(referenceContext),
+      _scopeChain(scopeChain),
+      _scope(_valueOwner->globalObject()),
       _result(0)
 {
 }
@@ -50,20 +53,29 @@ Evaluate::~Evaluate()
 {
 }
 
-const Interpreter::Value *Evaluate::operator()(AST::Node *ast)
+const Value *Evaluate::operator()(AST::Node *ast)
+{
+    return value(ast);
+}
+
+const Value *Evaluate::value(AST::Node *ast)
 {
     const Value *result = reference(ast);
 
-    if (const Reference *ref = value_cast<const Reference *>(result))
-        result = _context->lookupReference(ref);
+    if (const Reference *ref = value_cast<const Reference *>(result)) {
+        if (_referenceContext)
+            result = _referenceContext->lookupReference(ref);
+        else
+            result = _context->lookupReference(ref);
+    }
 
     if (! result)
-        result = _engine->undefinedValue();
+        result = _valueOwner->undefinedValue();
 
     return result;
 }
 
-const Interpreter::Value *Evaluate::reference(AST::Node *ast)
+const Value *Evaluate::reference(AST::Node *ast)
 {
     // save the result
     const Value *previousResult = switchResult(0);
@@ -75,23 +87,16 @@ const Interpreter::Value *Evaluate::reference(AST::Node *ast)
     return switchResult(previousResult);
 }
 
-Interpreter::Engine *Evaluate::switchEngine(Interpreter::Engine *engine)
+const Value *Evaluate::switchResult(const Value *result)
 {
-    Interpreter::Engine *previousEngine = _engine;
-    _engine = engine;
-    return previousEngine;
-}
-
-const Interpreter::Value *Evaluate::switchResult(const Interpreter::Value *result)
-{
-    const Interpreter::Value *previousResult = _result;
+    const Value *previousResult = _result;
     _result = result;
     return previousResult;
 }
 
-const Interpreter::ObjectValue *Evaluate::switchScope(const Interpreter::ObjectValue *scope)
+const ObjectValue *Evaluate::switchScope(const ObjectValue *scope)
 {
-    const Interpreter::ObjectValue *previousScope = _scope;
+    const ObjectValue *previousScope = _scope;
     _scope = scope;
     return previousScope;
 }
@@ -163,10 +168,10 @@ bool Evaluate::visit(AST::UiArrayMemberList *)
 
 bool Evaluate::visit(AST::UiQualifiedId *ast)
 {
-    if (! ast->name)
+    if (ast->name.isEmpty())
          return false;
 
-    const Value *value = _context->lookup(ast->name->asString());
+    const Value *value = _scopeChain->lookup(ast->name.toString());
     if (! ast->next) {
         _result = value;
 
@@ -174,11 +179,11 @@ bool Evaluate::visit(AST::UiQualifiedId *ast)
         const ObjectValue *base = value_cast<const ObjectValue *>(value);
 
         for (AST::UiQualifiedId *it = ast->next; base && it; it = it->next) {
-            NameId *name = it->name;
-            if (! name)
+            const QString &name = it->name.toString();
+            if (name.isEmpty())
                 break;
 
-            const Value *value = base->lookupMember(name->asString(), _context);
+            const Value *value = base->lookupMember(name, _context);
             if (! it->next)
                 _result = value;
             else
@@ -211,57 +216,59 @@ bool Evaluate::visit(AST::ThisExpression *)
 
 bool Evaluate::visit(AST::IdentifierExpression *ast)
 {
-    if (! ast->name)
+    if (ast->name.isEmpty())
         return false;
 
-    _result = _context->lookup(ast->name->asString());
+    _result = _scopeChain->lookup(ast->name.toString());
     return false;
 }
 
 bool Evaluate::visit(AST::NullExpression *)
 {
-    _result = _engine->nullValue();
+    _result = _valueOwner->nullValue();
     return false;
 }
 
 bool Evaluate::visit(AST::TrueLiteral *)
 {
-    _result = _engine->booleanValue();
+    _result = _valueOwner->booleanValue();
     return false;
 }
 
 bool Evaluate::visit(AST::FalseLiteral *)
 {
-    _result = _engine->booleanValue();
+    _result = _valueOwner->booleanValue();
     return false;
 }
 
 bool Evaluate::visit(AST::StringLiteral *)
 {
-    _result = _engine->stringValue();
+    _result = _valueOwner->stringValue();
     return false;
 }
 
 bool Evaluate::visit(AST::NumericLiteral *)
 {
-    _result = _engine->numberValue();
+    _result = _valueOwner->numberValue();
     return false;
 }
 
 bool Evaluate::visit(AST::RegExpLiteral *)
 {
-    _result = _engine->regexpCtor()->construct();
+    _result = _valueOwner->regexpCtor()->construct();
     return false;
 }
 
 bool Evaluate::visit(AST::ArrayLiteral *)
 {
-    _result = _engine->arrayCtor()->construct();
+    _result = _valueOwner->arrayCtor()->construct();
     return false;
 }
 
 bool Evaluate::visit(AST::ObjectLiteral *)
 {
+    // ### properties
+    _result = _valueOwner->newObject();
     return false;
 }
 
@@ -307,12 +314,12 @@ bool Evaluate::visit(AST::ArrayMemberExpression *)
 
 bool Evaluate::visit(AST::FieldMemberExpression *ast)
 {
-    if (! ast->name)
+    if (ast->name.isEmpty())
         return false;
 
-    if (const Interpreter::Value *base = _engine->convertToObject(reference(ast->base))) {
-        if (const Interpreter::ObjectValue *obj = base->asObjectValue()) {
-            _result = obj->lookupMember(ast->name->asString(), _context);
+    if (const Value *base = _valueOwner->convertToObject(value(ast->base))) {
+        if (const ObjectValue *obj = base->asObjectValue()) {
+            _result = obj->lookupMember(ast->name.toString(), _context);
         }
     }
 
@@ -321,7 +328,7 @@ bool Evaluate::visit(AST::FieldMemberExpression *ast)
 
 bool Evaluate::visit(AST::NewMemberExpression *ast)
 {
-    if (const FunctionValue *ctor = value_cast<const FunctionValue *>(reference(ast->base))) {
+    if (const FunctionValue *ctor = value_cast<const FunctionValue *>(value(ast->base))) {
         _result = ctor->construct();
     }
     return false;
@@ -329,7 +336,7 @@ bool Evaluate::visit(AST::NewMemberExpression *ast)
 
 bool Evaluate::visit(AST::NewExpression *ast)
 {
-    if (const FunctionValue *ctor = value_cast<const FunctionValue *>(reference(ast->expression))) {
+    if (const FunctionValue *ctor = value_cast<const FunctionValue *>(value(ast->expression))) {
         _result = ctor->construct();
     }
     return false;
@@ -337,8 +344,8 @@ bool Evaluate::visit(AST::NewExpression *ast)
 
 bool Evaluate::visit(AST::CallExpression *ast)
 {
-    if (const Interpreter::Value *base = reference(ast->base)) {
-        if (const Interpreter::FunctionValue *obj = base->asFunctionValue()) {
+    if (const Value *base = value(ast->base)) {
+        if (const FunctionValue *obj = base->asFunctionValue()) {
             _result = obj->returnValue();
         }
     }

@@ -102,10 +102,10 @@ namespace {
 
 SymbolsFindFilter::SymbolsFindFilter(CppModelManager *manager)
     : m_manager(manager),
-    m_isRunning(false),
-    m_enabled(true),
-    m_symbolsToSearch(SearchSymbols::AllTypes),
-    m_scope(SearchProjectsOnly)
+      m_isRunning(false),
+      m_enabled(true),
+      m_symbolsToSearch(SearchSymbols::AllTypes),
+      m_scope(SearchProjectsOnly)
 {
     // for disabling while parser is running
     connect(Core::ICore::instance()->progressManager(), SIGNAL(taskStarted(QString)),
@@ -134,11 +134,6 @@ bool SymbolsFindFilter::isEnabled() const
     return !m_isRunning && m_enabled;
 }
 
-bool SymbolsFindFilter::canCancel() const
-{
-    return m_isRunning;
-}
-
 void SymbolsFindFilter::cancel()
 {
     m_watcher.cancel();
@@ -154,8 +149,8 @@ void SymbolsFindFilter::findAll(const QString &txt, Find::FindFlags findFlags)
     m_isRunning = true;
     emit changed();
     Find::SearchResultWindow *window = Find::SearchResultWindow::instance();
-    Find::SearchResult *result = window->startNewSearch();
-    connect(result, SIGNAL(activated(Find::SearchResultItem)), this, SLOT(openEditor(Find::SearchResultItem)));
+    m_currentSearch = window->startNewSearch(label(), toolTip(findFlags), txt);
+    connect(m_currentSearch, SIGNAL(activated(Find::SearchResultItem)), this, SLOT(openEditor(Find::SearchResultItem)));
     window->popup(true);
 
     m_search.setSymbolsToSearchFor(m_symbolsToSearch);
@@ -172,6 +167,7 @@ void SymbolsFindFilter::findAll(const QString &txt, Find::FindFlags findFlags)
         Find::FindFlags, CPlusPlus::Snapshot,
         SearchSymbols *, QSet<QString> >(runSearch, txt, findFlags, m_manager->snapshot(),
                                     &m_search, projectFileNames));
+    connect(m_currentSearch, SIGNAL(cancelled()), this, SLOT(cancel()));
     Core::ICore::instance()->progressManager()->addTask(m_watcher.future(),
                                                         tr("Searching"),
                                                         Find::Constants::TASK_SEARCH);
@@ -179,17 +175,21 @@ void SymbolsFindFilter::findAll(const QString &txt, Find::FindFlags findFlags)
 
 void SymbolsFindFilter::addResults(int begin, int end)
 {
-    Find::SearchResultWindow *window = Find::SearchResultWindow::instance();
+    if (!m_currentSearch) {
+        m_watcher.cancel();
+        return;
+    }
     QList<Find::SearchResultItem> items;
     for (int i = begin; i < end; ++i)
         items << m_watcher.resultAt(i);
-    window->addResults(items, Find::SearchResultWindow::AddSorted);
+    m_currentSearch->addResults(items, Find::SearchResult::AddSorted);
 }
 
 void SymbolsFindFilter::finish()
 {
-    Find::SearchResultWindow *window = Find::SearchResultWindow::instance();
-    window->finishSearch();
+    if (m_currentSearch)
+        m_currentSearch->finishSearch();
+    m_currentSearch = 0;
     m_isRunning = false;
     emit changed();
 }
@@ -242,6 +242,28 @@ void SymbolsFindFilter::onAllTasksFinished(const QString &type)
         m_enabled = true;
         emit changed();
     }
+}
+
+QString SymbolsFindFilter::label() const
+{
+    return tr("C++ Symbols:");
+}
+
+QString SymbolsFindFilter::toolTip(Find::FindFlags findFlags) const
+{
+    QStringList types;
+    if (m_symbolsToSearch & SearchSymbols::Classes)
+        types.append(tr("Classes"));
+    if (m_symbolsToSearch & SearchSymbols::Functions)
+        types.append(tr("Methods"));
+    if (m_symbolsToSearch & SearchSymbols::Enums)
+        types.append(tr("Enums"));
+    if (m_symbolsToSearch & SearchSymbols::Declarations)
+        types.append(tr("Declarations"));
+    return tr("Scope: %1\nTypes: %2\nFlags: %3")
+            .arg(searchScope() == SearchGlobal ? tr("All") : tr("Projects"))
+            .arg(types.join(tr(", ")))
+            .arg(Find::IFindFilter::descriptionForFindFlags(findFlags));
 }
 
 // #pragma mark -- SymbolsFindFilterConfigWidget

@@ -18,7 +18,6 @@ HEADERS += \
     $$PWD/qmljslink.h \
     $$PWD/qmljscheck.h \
     $$PWD/qmljsscopebuilder.h \
-    $$PWD/qmljslookupcontext.h \
     $$PWD/qmljslineinfo.h \
     $$PWD/qmljscompletioncontextfinder.h \
     $$PWD/qmljsmodelmanagerinterface.h \
@@ -28,7 +27,10 @@ HEADERS += \
     $$PWD/qmljsicons.h \
     $$PWD/qmljsdelta.h \
     $$PWD/qmljstypedescriptionreader.h \
-    $$PWD/qmljsscopeastpath.h
+    $$PWD/qmljsscopeastpath.h \
+    $$PWD/qmljsvalueowner.h \
+    $$PWD/qmljscontext.h \
+    $$PWD/qmljsscopechain.h
 
 SOURCES += \
     $$PWD/qmljsbind.cpp \
@@ -39,7 +41,6 @@ SOURCES += \
     $$PWD/qmljslink.cpp \
     $$PWD/qmljscheck.cpp \
     $$PWD/qmljsscopebuilder.cpp \
-    $$PWD/qmljslookupcontext.cpp \
     $$PWD/qmljslineinfo.cpp \
     $$PWD/qmljscompletioncontextfinder.cpp \
     $$PWD/qmljsmodelmanagerinterface.cpp \
@@ -48,7 +49,10 @@ SOURCES += \
     $$PWD/qmljsicons.cpp \
     $$PWD/qmljsdelta.cpp \
     $$PWD/qmljstypedescriptionreader.cpp \
-    $$PWD/qmljsscopeastpath.cpp
+    $$PWD/qmljsscopeastpath.cpp \
+    $$PWD/qmljsvalueowner.cpp \
+    $$PWD/qmljscontext.cpp \
+    $$PWD/qmljsscopechain.cpp
 
 RESOURCES += \
     $$PWD/qmljs.qrc

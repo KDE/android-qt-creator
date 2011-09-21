@@ -35,7 +35,6 @@
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/parser/qmljslexer_p.h>
 #include <qmljs/parser/qmljsparser_p.h>
-#include <qmljs/parser/qmljsnodepool_p.h>
 #include <qmljs/parser/qmljsastfwd_p.h>
 #include <QtCore/QDir>
 
@@ -83,23 +82,19 @@ using namespace QmlJS::AST;
 */
 
 
-Document::Document(const QString &fileName)
+Document::Document(const QString &fileName, Language language)
     : _engine(0)
-    , _pool(0)
     , _ast(0)
     , _bind(0)
-    , _isQmlDocument(false)
-    , _editorRevision(0)
-    , _parsedCorrectly(false)
     , _fileName(QDir::cleanPath(fileName))
+    , _editorRevision(0)
+    , _language(language)
+    , _parsedCorrectly(false)
 {
     QFileInfo fileInfo(fileName);
     _path = QDir::cleanPath(fileInfo.absolutePath());
 
-    // ### Should use mime type
-    if (fileInfo.suffix() == QLatin1String("qml")
-            || fileInfo.suffix() == QLatin1String("qmlproject")) {
-        _isQmlDocument = true;
+    if (language == QmlLanguage) {
         _componentName = fileInfo.baseName();
 
         if (! _componentName.isEmpty()) {
@@ -118,14 +113,11 @@ Document::~Document()
 
     if (_engine)
         delete _engine;
-
-    if (_pool)
-        delete _pool;
 }
 
-Document::Ptr Document::create(const QString &fileName)
+Document::Ptr Document::create(const QString &fileName, Language language)
 {
-    Document::Ptr doc(new Document(fileName));
+    Document::Ptr doc(new Document(fileName, language));
     doc->_ptr = doc;
     return doc;
 }
@@ -137,12 +129,17 @@ Document::Ptr Document::ptr() const
 
 bool Document::isQmlDocument() const
 {
-    return _isQmlDocument;
+    return _language == QmlLanguage;
 }
 
 bool Document::isJSDocument() const
 {
-    return ! _isQmlDocument;
+    return _language == JavaScriptLanguage;
+}
+
+Document::Language Document::language() const
+{
+    return _language;
 }
 
 AST::UiProgram *Document::qmlProgram() const
@@ -217,21 +214,22 @@ QString Document::componentName() const
 bool Document::parse_helper(int startToken)
 {
     Q_ASSERT(! _engine);
-    Q_ASSERT(! _pool);
     Q_ASSERT(! _ast);
     Q_ASSERT(! _bind);
 
     _engine = new Engine();
-    _pool = new NodePool(_fileName, _engine);
 
     Lexer lexer(_engine);
     Parser parser(_engine);
 
     QString source = _source;
-    if (startToken == QmlJSGrammar::T_FEED_JS_PROGRAM)
-        extractPragmas(&source);
+    lexer.setCode(source, /*line = */ 1, /*qmlMode = */_language == QmlLanguage);
 
-    lexer.setCode(source, /*line = */ 1);
+    if (startToken == QmlJSGrammar::T_FEED_JS_PROGRAM) {
+        // ### use directives
+        Directives directives;
+        lexer.scanDirectives(&directives);
+    }
 
     switch (startToken) {
     case QmlJSGrammar::T_FEED_UI_PROGRAM:
@@ -283,86 +281,6 @@ Bind *Document::bind() const
     return _bind;
 }
 
-// this is essentially a copy of QDeclarativeScriptParser::extractPragmas
-void Document::extractPragmas(QString *source)
-{
-    const QChar forwardSlash(QLatin1Char('/'));
-    const QChar star(QLatin1Char('*'));
-    const QChar newline(QLatin1Char('\n'));
-    const QChar dot(QLatin1Char('.'));
-    const QChar semicolon(QLatin1Char(';'));
-    const QChar space(QLatin1Char(' '));
-    const QString pragma(QLatin1String(".pragma "));
-
-    const QChar *pragmaData = pragma.constData();
-
-    QString &script = *source;
-    const QChar *data = script.constData();
-    const int length = script.count();
-    for (int ii = 0; ii < length; ++ii) {
-        const QChar &c = data[ii];
-
-        if (c.isSpace())
-            continue;
-
-        if (c == forwardSlash) {
-            ++ii;
-            if (ii >= length)
-                return;
-
-            const QChar &c = data[ii];
-            if (c == forwardSlash) {
-                // Find next newline
-                while (ii < length && data[++ii] != newline) {};
-            } else if (c == star) {
-                // Find next star
-                while (true) {
-                    while (ii < length && data[++ii] != star) {};
-                    if (ii + 1 >= length)
-                        return;
-
-                    if (data[ii + 1] == forwardSlash) {
-                        ++ii;
-                        break;
-                    }
-                }
-            } else {
-                return;
-            }
-        } else if (c == dot) {
-            // Could be a pragma!
-            if (ii + pragma.length() >= length ||
-                0 != ::memcmp(data + ii, pragmaData, sizeof(QChar) * pragma.length()))
-                return;
-
-            int pragmaStatementIdx = ii;
-
-            ii += pragma.length();
-
-            while (ii < length && data[ii].isSpace()) { ++ii; }
-
-            int startIdx = ii;
-
-            while (ii < length && data[ii].isLetter()) { ++ii; }
-
-            int endIdx = ii;
-
-            if (ii != length && data[ii] != forwardSlash && !data[ii].isSpace() && data[ii] != semicolon)
-                return;
-
-            QString p(data + startIdx, endIdx - startIdx);
-
-            if (p != QLatin1String("library"))
-                return;
-
-            for (int jj = pragmaStatementIdx; jj < endIdx; ++jj) script[jj] = space;
-
-        } else {
-            return;
-        }
-    }
-}
-
 LibraryInfo::LibraryInfo(Status status)
     : _status(status)
     , _dumpStatus(NoTypeInfo)
@@ -373,6 +291,7 @@ LibraryInfo::LibraryInfo(const QmlDirParser &parser)
     : _status(Found)
     , _components(parser.components())
     , _plugins(parser.plugins())
+    , _typeinfos(parser.typeInfos())
     , _dumpStatus(NoTypeInfo)
 {
 }
@@ -389,9 +308,9 @@ Snapshot::~Snapshot()
 {
 }
 
-void Snapshot::insert(const Document::Ptr &document)
+void Snapshot::insert(const Document::Ptr &document, bool allowInvalid)
 {
-    if (document && (document->qmlProgram() || document->jsProgram())) {
+    if (document && (allowInvalid || document->qmlProgram() || document->jsProgram())) {
         const QString fileName = document->fileName();
         const QString path = document->path();
 
@@ -421,9 +340,10 @@ void Snapshot::remove(const QString &fileName)
 }
 
 Document::Ptr Snapshot::documentFromSource(const QString &code,
-                                           const QString &fileName) const
+                                           const QString &fileName,
+                                           Document::Language language) const
 {
-    Document::Ptr newDoc = Document::create(fileName);
+    Document::Ptr newDoc = Document::create(fileName, language);
 
     if (Document::Ptr thisDocument = document(fileName)) {
         newDoc->_editorRevision = thisDocument->_editorRevision;

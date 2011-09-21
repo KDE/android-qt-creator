@@ -119,7 +119,8 @@ FORMS += attachexternaldialog.ui \
     commonoptionspage.ui \
     startexternaldialog.ui \
     startremotedialog.ui \
-    startremoteenginedialog.ui
+    startremoteenginedialog.ui \
+    attachtoqmlportdialog.ui
 
 RESOURCES += debugger.qrc
 
@@ -127,6 +128,7 @@ false {
     include(../../shared/modeltest/modeltest.pri)
     #DEFINES += USE_WATCH_MODEL_TEST=1
     #DEFINES += USE_BREAK_MODEL_TEST=1
+    #DEFINES += USE_REGISTER_MODEL_TEST=1
 }
 win32 {
 include(../../shared/registryaccess/registryaccess.pri)

@@ -30,6 +30,7 @@
 **
 **************************************************************************/
 #include "qmldebuggerclient.h"
+#include "breakpoint.h"
 
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcassert.h>
@@ -37,13 +38,26 @@
 namespace Debugger {
 namespace Internal {
 
-QmlDebuggerClient::QmlDebuggerClient(QmlJsDebugClient::QDeclarativeDebugConnection* client)
-    : QDeclarativeDebugClient(QLatin1String("JSDebugger"), client)
+class QmlDebuggerClientPrivate
+{
+public:
+    QList<QByteArray> sendBuffer;
+};
+
+QmlDebuggerClient::QmlDebuggerClient(QmlJsDebugClient::QDeclarativeDebugConnection* client, QLatin1String clientName)
+    : QDeclarativeDebugClient(clientName, client),
+      d(new QmlDebuggerClientPrivate())
 {
 }
 
 QmlDebuggerClient::~QmlDebuggerClient()
 {
+    delete d;
+}
+
+bool QmlDebuggerClient::acceptsBreakpoint(const BreakpointModelId &/*id*/)
+{
+    return false;
 }
 
 void QmlDebuggerClient::statusChanged(Status status)
@@ -51,9 +65,21 @@ void QmlDebuggerClient::statusChanged(Status status)
     emit newStatus(status);
 }
 
-void QmlDebuggerClient::messageReceived(const QByteArray &data)
+void QmlDebuggerClient::sendMessage(const QByteArray &msg)
 {
-    emit messageWasReceived(data);
+    if (status() == Enabled) {
+        QDeclarativeDebugClient::sendMessage(msg);
+    } else {
+        d->sendBuffer.append(msg);
+    }
+}
+
+void QmlDebuggerClient::flushSendBuffer()
+{
+    QTC_ASSERT(status() == QDeclarativeDebugClient::Enabled, return);
+    foreach (const QByteArray &msg, d->sendBuffer)
+       QDeclarativeDebugClient::sendMessage(msg);
+    d->sendBuffer.clear();
 }
 
 } // Internal

@@ -62,8 +62,6 @@ class QmlJSQuickFixAssistInterface;
  */
 class QmlJSQuickFixOperation: public TextEditor::QuickFixOperation
 {
-    Q_DISABLE_COPY(QmlJSQuickFixOperation)
-
 public:
     /*!
         Creates a new QmlJSQuickFixOperation.
@@ -81,8 +79,8 @@ public:
 protected:
     typedef Utils::ChangeSet::Range Range;
 
-    virtual void performChanges(QmlJSTools::QmlJSRefactoringFile *currentFile,
-                                QmlJSTools::QmlJSRefactoringChanges *refactoring) = 0;
+    virtual void performChanges(QmlJSTools::QmlJSRefactoringFilePtr currentFile,
+                                const QmlJSTools::QmlJSRefactoringChanges &refactoring) = 0;
 
     const Internal::QmlJSQuickFixAssistInterface *assistInterface() const;
 

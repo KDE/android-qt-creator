@@ -99,7 +99,6 @@ public:
     virtual void updateWatchData(const WatchData &data,
                                  const WatchUpdateFlags & flags = WatchUpdateFlags());
     virtual unsigned debuggerCapabilities() const;
-    virtual bool canWatchWidgets() const;
     virtual void watchPoint(const QPoint &);
     virtual void setRegisterValue(int regnr, const QString &value);
 
@@ -283,6 +282,7 @@ private:
     bool m_ignoreCdbOutput;
     QVariantList m_customSpecialStopData;
     QList<SourcePathMapping> m_sourcePathMappings;
+    QScopedPointer<GdbMi> m_coreStopReason;
 };
 
 } // namespace Internal

@@ -37,7 +37,6 @@
 #include "codeassist/assistenums.h"
 
 #include <find/ifindsupport.h>
-
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <QtGui/QPlainTextEdit>
@@ -132,7 +131,7 @@ public:
     BaseTextEditorWidget(QWidget *parent);
     ~BaseTextEditorWidget();
 
-    static ITextEditor *openEditorAt(const QString &fileName, int line, int column = 0,
+    static Core::IEditor *openEditorAt(const QString &fileName, int line, int column = 0,
                                      const QString &editorId =  QString(),
                                      Core::EditorManager::OpenEditorFlags flags = Core::EditorManager::IgnoreNavigationHistory,
                                      bool *newEditor = 0);
@@ -202,6 +201,9 @@ public:
 
     void setScrollWheelZoomingEnabled(bool b);
     bool scrollWheelZoomingEnabled() const;
+
+    void setConstrainTooltips(bool b);
+    bool constrainTooltips() const;
 
     void setRevisionsVisible(bool b);
     bool revisionsVisible() const;
@@ -396,13 +398,14 @@ public:
         OtherSelection,
         SnippetPlaceholderSelection,
         ObjCSelection,
+        DebuggerExceptionSelection,
         NExtraSelectionKinds
     };
     void setExtraSelections(ExtraSelectionKind kind, const QList<QTextEdit::ExtraSelection> &selections);
     QList<QTextEdit::ExtraSelection> extraSelections(ExtraSelectionKind kind) const;
     QString extraSelectionTooltip(int pos) const;
 
-
+    Internal::RefactorMarkers refactorMarkers() const;
     void setRefactorMarkers(const Internal::RefactorMarkers &markers);
 signals:
     void refactorMarkerClicked(const TextEditor::RefactorMarker &marker);

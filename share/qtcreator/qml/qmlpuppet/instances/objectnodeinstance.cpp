@@ -40,6 +40,7 @@
 #include <QDeclarativeError>
 #include <QDeclarativeEngine>
 #include <QDeclarativeProperty>
+#include <QDeclarativeComponent>
 #include <QSharedPointer>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
@@ -55,8 +56,6 @@
 #include <private/qdeclarativebinding_p.h>
 #include <private/qdeclarativemetatype_p.h>
 #include <private/qdeclarativevaluetype_p.h>
-#include <private/qdeclarativetext_p.h>
-#include <private/qdeclarativetext_p_p.h>
 #include <private/qdeclarativetransition_p.h>
 #include <private/qdeclarativeanimation_p.h>
 #include <private/qdeclarativetimer_p.h>
@@ -290,7 +289,12 @@ static QVariant objectToVariant(QObject *object)
 
 static bool hasFullImplementedListInterface(const QDeclarativeListReference &list)
 {
+
+#if QT_VERSION<0x050000
     return list.isValid() && list.canCount() && list.canAt() && list.canAppend() && list.canClear();
+#else
+    return list.isChangeable();
+#endif
 }
 
 static void removeObjectFromList(const QDeclarativeProperty &property, QObject *objectToBeRemoved, QDeclarativeEngine * engine)
@@ -569,7 +573,7 @@ QVariant ObjectNodeInstance::property(const QString &name) const
 
     QDeclarativeProperty property(object(), name, context());
     if (property.property().isEnumType()) {
-        QVariant value = object()->property(name.toLatin1());
+        QVariant value = property.read();
         return property.property().enumerator().valueToKey(value.toInt());
     }
 
@@ -720,7 +724,11 @@ void allSubObject(QObject *object, QObjectList &objectList)
         if (metaProperty.isReadable()
                 && QDeclarativeMetaType::isList(metaProperty.userType())) {
             QDeclarativeListReference list(object, metaProperty.name());
+#if QT_VERSION<0x050000
             if (list.canCount() && list.canAt()) {
+#else
+            if (list.isReadable()) {
+#endif
                 for (int i = 0; i < list.count(); i++) {
                     QObject *propertyObject = list.at(i);
                     allSubObject(propertyObject, objectList);

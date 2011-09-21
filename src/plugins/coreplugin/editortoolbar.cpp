@@ -37,7 +37,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/minisplitter.h>
 #include <coreplugin/sidebar.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <coreplugin/editormanager/editorview.h>
 #include <coreplugin/editormanager/editormanager.h>
@@ -179,6 +179,7 @@ EditorToolBar::EditorToolBar(QWidget *parent) :
 
 EditorToolBar::~EditorToolBar()
 {
+    delete d;
 }
 
 void EditorToolBar::removeToolbarForEditor(IEditor *editor)
@@ -289,8 +290,13 @@ void EditorToolBar::listContextMenu(QPoint pos)
     if (fileName.isEmpty())
         return;
     QMenu menu;
-    menu.addAction(tr("Copy Full Path to Clipboard"));
-    if (menu.exec(d->m_editorList->mapToGlobal(pos))) {
+    QAction *copyPath = menu.addAction(tr("Copy Full Path to Clipboard"));
+    menu.addSeparator();
+    EditorManager::instance()->addCloseEditorActions(&menu, index);
+    menu.addSeparator();
+    EditorManager::instance()->addNativeDirActions(&menu, index);
+    QAction *result = menu.exec(d->m_editorList->mapToGlobal(pos));
+    if (result == copyPath) {
         QApplication::clipboard()->setText(QDir::toNativeSeparators(fileName));
     }
 }

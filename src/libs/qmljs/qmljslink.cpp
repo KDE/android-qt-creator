@@ -44,14 +44,13 @@
 
 using namespace LanguageUtils;
 using namespace QmlJS;
-using namespace QmlJS::Interpreter;
 using namespace QmlJS::AST;
 
 namespace {
 class ImportCacheKey
 {
 public:
-    explicit ImportCacheKey(const Interpreter::ImportInfo &info)
+    explicit ImportCacheKey(const ImportInfo &info)
         : type(info.type())
         , name(info.name())
         , majorVersion(info.version().majorVersion())
@@ -84,21 +83,50 @@ class QmlJS::LinkPrivate
 {
 public:
     Snapshot snapshot;
-    Interpreter::Context *context;
+    ValueOwner *valueOwner;
     QStringList importPaths;
+    LibraryInfo builtins;
 
     QHash<ImportCacheKey, Import> importCache;
 
-    Document::Ptr doc;
+    Document::Ptr document;
     QList<DiagnosticMessage> *diagnosticMessages;
 
     QHash<QString, QList<DiagnosticMessage> > *allDiagnosticMessages;
+
+    static AST::UiQualifiedId *qualifiedTypeNameId(AST::Node *node);
+
+    Context::ImportsPerDocument linkImports();
+
+    void populateImportedTypes(Imports *imports, Document::Ptr doc);
+    Import importFileOrDirectory(
+        Document::Ptr doc,
+        const ImportInfo &importInfo);
+    Import importNonFile(
+        Document::Ptr doc,
+        const ImportInfo &importInfo);
+    void importObject(Bind *bind, const QString &name, ObjectValue *object, NameId *targetNamespace);
+
+    bool importLibrary(Document::Ptr doc,
+                       const QString &libraryPath,
+                       Import *import,
+                       const QString &importPath = QString());
+    void loadQmldirComponents(ObjectValue *import,
+                              LanguageUtils::ComponentVersion version,
+                              const LibraryInfo &libraryInfo,
+                              const QString &libraryPath);
+    void loadImplicitDirectoryImports(Imports *imports, Document::Ptr doc);
+    void loadImplicitDefaultImports(Imports *imports);
+
+    void error(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message);
+    void warning(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message);
+    void appendDiagnostic(const Document::Ptr &doc, const DiagnosticMessage &message);
 };
 
 /*!
     \class QmlJS::Link
     \brief Initializes the Context for a Document.
-    \sa QmlJS::Document QmlJS::Interpreter::Context
+    \sa QmlJS::Document QmlJS::Context
 
     Initializes a context by resolving imports and building the root scope
     chain. Currently, this is a expensive operation.
@@ -108,76 +136,103 @@ public:
     \l{Context} with \l{Link}.
 */
 
-Link::Link(Context *context, const Snapshot &snapshot, const QStringList &importPaths)
-    : d_ptr(new LinkPrivate)
+Link::Link(const Snapshot &snapshot, const QStringList &importPaths, const LibraryInfo &builtins)
+    : d(new LinkPrivate)
 {
-    Q_D(Link);
-    d->context = context;
+    d->valueOwner = new ValueOwner;
     d->snapshot = snapshot;
     d->importPaths = importPaths;
+    d->builtins = builtins;
 
     d->diagnosticMessages = 0;
     d->allDiagnosticMessages = 0;
 
-    // populate engine with types from C++
     ModelManagerInterface *modelManager = ModelManagerInterface::instance();
     if (modelManager) {
-        foreach (const QList<FakeMetaObject::ConstPtr> &cppTypes, modelManager->cppQmlTypes()) {
-            engine()->cppQmlTypes().load(engine(), cppTypes);
+        ModelManagerInterface::CppDataHash cppDataHash = modelManager->cppData();
+
+        // populate engine with types from C++
+        foreach (const ModelManagerInterface::CppData &cppData, cppDataHash) {
+            d->valueOwner->cppQmlTypes().load(cppData.exportedTypes);
+        }
+
+        // populate global object with context properties from C++
+        ObjectValue *global = d->valueOwner->globalObject();
+        foreach (const ModelManagerInterface::CppData &cppData, cppDataHash) {
+            QHashIterator<QString, QString> it(cppData.contextProperties);
+            while (it.hasNext()) {
+                it.next();
+                const Value *value = 0;
+                const QString cppTypeName = it.value();
+                if (!cppTypeName.isEmpty())
+                    value = d->valueOwner->cppQmlTypes().objectByCppName(cppTypeName);
+                if (!value)
+                    value = d->valueOwner->undefinedValue();
+                global->setMember(it.key(), value);
+            }
         }
     }
 }
 
-void Link::operator()(QHash<QString, QList<DiagnosticMessage> > *messages)
+ContextPtr Link::operator()(QHash<QString, QList<DiagnosticMessage> > *messages)
 {
-    Q_D(Link);
     d->allDiagnosticMessages = messages;
-    linkImports();
+    return Context::create(d->snapshot, d->valueOwner, d->linkImports());
 }
 
-void Link::operator()(const Document::Ptr &doc, QList<DiagnosticMessage> *messages)
+ContextPtr Link::operator()(const Document::Ptr &doc, QList<DiagnosticMessage> *messages)
 {
-    Q_D(Link);
-    d->doc = doc;
+    d->document = doc;
     d->diagnosticMessages = messages;
-    linkImports();
+    return Context::create(d->snapshot, d->valueOwner, d->linkImports());
 }
 
 Link::~Link()
 {
+    delete d;
 }
 
-Interpreter::Engine *Link::engine()
+Context::ImportsPerDocument LinkPrivate::linkImports()
 {
-    Q_D(Link);
-    return d->context->engine();
-}
+    Context::ImportsPerDocument importsPerDocument;
 
-void Link::linkImports()
-{
-    Q_D(Link);
-
-    if (d->doc) {
-        // do it on d->doc first, to make sure import errors are shown
-        Imports *imports = new Imports(engine());
-        populateImportedTypes(imports, d->doc);
-        d->context->setImports(d->doc.data(), imports);
+    // load builtin objects
+    if (builtins.pluginTypeInfoStatus() == LibraryInfo::DumpDone
+            || builtins.pluginTypeInfoStatus() == LibraryInfo::TypeInfoFileDone) {
+        valueOwner->cppQmlTypes().load(builtins.metaObjects());
+    } else {
+        valueOwner->cppQmlTypes().load(CppQmlTypesLoader::defaultQtObjects);
     }
 
-    foreach (Document::Ptr doc, d->snapshot) {
-        if (doc == d->doc)
+    // load library objects shipped with Creator
+    valueOwner->cppQmlTypes().load(CppQmlTypesLoader::defaultLibraryObjects);
+
+    // the 'Qt' object is dumped even though it is not exported
+    // it contains useful information, in particular on enums - add the
+    // object as a prototype to our custom Qt object to offer these for completion
+    const_cast<ObjectValue *>(valueOwner->qtObject())->setPrototype(valueOwner->cppQmlTypes().objectByCppName(QLatin1String("Qt")));
+
+    if (document) {
+        // do it on document first, to make sure import errors are shown
+        Imports *imports = new Imports(valueOwner);
+        populateImportedTypes(imports, document);
+        importsPerDocument.insert(document.data(), QSharedPointer<Imports>(imports));
+    }
+
+    foreach (Document::Ptr doc, snapshot) {
+        if (doc == document)
             continue;
 
-        Imports *imports = new Imports(engine());
+        Imports *imports = new Imports(valueOwner);
         populateImportedTypes(imports, doc);
-        d->context->setImports(doc.data(), imports);
+        importsPerDocument.insert(doc.data(), QSharedPointer<Imports>(imports));
     }
+
+    return importsPerDocument;
 }
 
-void Link::populateImportedTypes(Imports *imports, Document::Ptr doc)
+void LinkPrivate::populateImportedTypes(Imports *imports, Document::Ptr doc)
 {
-    Q_D(Link);
-
     if (! doc->qmlProgram())
         return;
 
@@ -190,7 +245,7 @@ void Link::populateImportedTypes(Imports *imports, Document::Ptr doc)
 
     // explicit imports, whether directories, files or libraries
     foreach (const ImportInfo &info, doc->bind()->imports()) {
-        Import import = d->importCache.value(ImportCacheKey(info));
+        Import import = importCache.value(ImportCacheKey(info));
 
         // ensure usage of the right ImportInfo, the cached import
         // can have a different 'as' clause...
@@ -205,11 +260,15 @@ void Link::populateImportedTypes(Imports *imports, Document::Ptr doc)
             case ImportInfo::LibraryImport:
                 import = importNonFile(doc, info);
                 break;
+            case ImportInfo::UnknownFileImport:
+                error(doc, info.ast()->fileNameToken,
+                      Link::tr("file or directory not found"));
+                break;
             default:
                 break;
             }
             if (import.object)
-                d->importCache.insert(ImportCacheKey(info), import);
+                importCache.insert(ImportCacheKey(info), import);
         }
         if (import.object)
             imports->append(import);
@@ -226,10 +285,8 @@ void Link::populateImportedTypes(Imports *imports, Document::Ptr doc)
 
     import "file.js" as Foo
 */
-Import Link::importFileOrDirectory(Document::Ptr doc, const ImportInfo &importInfo)
+Import LinkPrivate::importFileOrDirectory(Document::Ptr doc, const ImportInfo &importInfo)
 {
-    Q_D(Link);
-
     Import import;
     import.info = importInfo;
     import.object = 0;
@@ -238,11 +295,11 @@ Import Link::importFileOrDirectory(Document::Ptr doc, const ImportInfo &importIn
 
     if (importInfo.type() == ImportInfo::DirectoryImport
             || importInfo.type() == ImportInfo::ImplicitDirectoryImport) {
-        import.object = new ObjectValue(engine());
+        import.object = new ObjectValue(valueOwner);
 
         importLibrary(doc, path, &import);
 
-        const QList<Document::Ptr> &documentsInDirectory = d->snapshot.documentsInDirectory(path);
+        const QList<Document::Ptr> &documentsInDirectory = snapshot.documentsInDirectory(path);
         foreach (Document::Ptr importedDoc, documentsInDirectory) {
             if (importedDoc->bind()->rootObjectValue()) {
                 const QString targetName = importedDoc->componentName();
@@ -250,7 +307,7 @@ Import Link::importFileOrDirectory(Document::Ptr doc, const ImportInfo &importIn
             }
         }
     } else if (importInfo.type() == ImportInfo::FileImport) {
-        Document::Ptr importedDoc = d->snapshot.document(path);
+        Document::Ptr importedDoc = snapshot.document(path);
         if (importedDoc)
             import.object = importedDoc->bind()->rootObjectValue();
     }
@@ -263,13 +320,11 @@ Import Link::importFileOrDirectory(Document::Ptr doc, const ImportInfo &importIn
   import Qt 4.6 as Xxx
   (import com.nokia.qt is the same as the ones above)
 */
-Import Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
+Import LinkPrivate::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
 {
-    Q_D(Link);
-
     Import import;
     import.info = importInfo;
-    import.object = new ObjectValue(engine());
+    import.object = new ObjectValue(valueOwner);
 
     const QString packageName = Bind::toString(importInfo.ast()->importUri, '.');
     const ComponentVersion version = importInfo.version();
@@ -278,7 +333,7 @@ Import Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
 
     const QString &packagePath = importInfo.name();
     // check the filesystem with full version
-    foreach (const QString &importPath, d->importPaths) {
+    foreach (const QString &importPath, importPaths) {
         QString libraryPath = QString("%1/%2.%3").arg(importPath, packagePath, version.toString());
         if (importLibrary(doc, libraryPath, &import, importPath)) {
             importFound = true;
@@ -287,7 +342,7 @@ Import Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
     }
     if (!importFound) {
         // check the filesystem with major version
-        foreach (const QString &importPath, d->importPaths) {
+        foreach (const QString &importPath, importPaths) {
             QString libraryPath = QString("%1/%2.%3").arg(importPath, packagePath,
                                                           QString::number(version.majorVersion()));
             if (importLibrary(doc, libraryPath, &import, importPath)) {
@@ -298,7 +353,7 @@ Import Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
     }
     if (!importFound) {
         // check the filesystem with no version
-        foreach (const QString &importPath, d->importPaths) {
+        foreach (const QString &importPath, importPaths) {
             QString libraryPath = QString("%1/%2").arg(importPath, packagePath);
             if (importLibrary(doc, libraryPath, &import, importPath)) {
                 importFound = true;
@@ -308,10 +363,10 @@ Import Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
     }
 
     // if there are cpp-based types for this package, use them too
-    if (engine()->cppQmlTypes().hasPackage(packageName)) {
+    if (valueOwner->cppQmlTypes().hasModule(packageName)) {
         importFound = true;
-        foreach (QmlObjectValue *object,
-                 engine()->cppQmlTypes().typesForImport(packageName, version)) {
+        foreach (const QmlObjectValue *object,
+                 valueOwner->cppQmlTypes().createObjectsForImport(packageName, version)) {
             import.object->setMember(object->className(), object);
         }
     }
@@ -319,22 +374,26 @@ Import Link::importNonFile(Document::Ptr doc, const ImportInfo &importInfo)
     if (!importFound && importInfo.ast()) {
         error(doc, locationFromRange(importInfo.ast()->firstSourceLocation(),
                                      importInfo.ast()->lastSourceLocation()),
-              tr("package not found"));
+              Link::tr(
+                  "QML module not found\n\n"
+                  "Import paths:\n"
+                  "%1\n\n"
+                  "For qmake projects, use the QML_IMPORT_PATH variable to add import paths.\n"
+                  "For qmlproject projects, use the importPaths property to add import paths.").arg(
+                  importPaths.join(QLatin1String("\n"))));
     }
 
     return import;
 }
 
-bool Link::importLibrary(Document::Ptr doc,
+bool LinkPrivate::importLibrary(Document::Ptr doc,
                          const QString &libraryPath,
                          Import *import,
                          const QString &importPath)
 {
-    Q_D(Link);
-
     const ImportInfo &importInfo = import->info;
 
-    const LibraryInfo libraryInfo = d->snapshot.libraryInfo(libraryPath);
+    const LibraryInfo libraryInfo = snapshot.libraryInfo(libraryPath);
     if (!libraryInfo.isValid())
         return false;
 
@@ -365,28 +424,22 @@ bool Link::importLibrary(Document::Ptr doc,
             }
             if (errorLoc.isValid()) {
                 warning(doc, errorLoc,
-                        tr("Library contains C++ plugins, type dump is in progress."));
+                        Link::tr("QML module contains C++ plugins, currently reading type information..."));
             }
         } else if (libraryInfo.pluginTypeInfoStatus() == LibraryInfo::DumpError
                    || libraryInfo.pluginTypeInfoStatus() == LibraryInfo::TypeInfoFileError) {
-            ModelManagerInterface *modelManager = ModelManagerInterface::instance();
-
-            // Only underline import if package/version isn't described in .qmltypes anyway
-            const QmlJS::ModelManagerInterface::BuiltinPackagesHash builtinPackages
-                    = modelManager->builtinPackages();
-            const QString packageName = importInfo.name().replace(QDir::separator(), QLatin1Char('.'));
-            if (!builtinPackages.value(packageName).contains(importInfo.version())) {
-                if (errorLoc.isValid()) {
-                    error(doc, errorLoc, libraryInfo.pluginTypeInfoError());
-                }
+            // Only underline import if package isn't described in .qmltypes anyway
+            QString packageName;
+            if (ast && ast->importUri)
+                packageName = Bind::toString(importInfo.ast()->importUri, '.');
+            if (errorLoc.isValid() && (packageName.isEmpty() || !valueOwner->cppQmlTypes().hasModule(packageName))) {
+                error(doc, errorLoc, libraryInfo.pluginTypeInfoError());
             }
-        } else {
-            QList<QmlObjectValue *> loadedObjects =
-                    engine()->cppQmlTypes().load(engine(), libraryInfo.metaObjects());
-            foreach (QmlObjectValue *object, loadedObjects) {
-                if (object->packageName().isEmpty()) {
-                    import->object->setMember(object->className(), object);
-                }
+        } else if (ast && ast->importUri) {
+            const QString packageName = Bind::toString(importInfo.ast()->importUri, '.');
+            valueOwner->cppQmlTypes().load(libraryInfo.metaObjects(), packageName);
+            foreach (const QmlObjectValue *object, valueOwner->cppQmlTypes().createObjectsForImport(packageName, version)) {
+                import->object->setMember(object->className(), object);
             }
         }
     }
@@ -396,7 +449,7 @@ bool Link::importLibrary(Document::Ptr doc,
     return true;
 }
 
-UiQualifiedId *Link::qualifiedTypeNameId(Node *node)
+UiQualifiedId *LinkPrivate::qualifiedTypeNameId(Node *node)
 {
     if (UiObjectBinding *binding = AST::cast<UiObjectBinding *>(node))
         return binding->qualifiedTypeNameId;
@@ -406,31 +459,27 @@ UiQualifiedId *Link::qualifiedTypeNameId(Node *node)
         return 0;
 }
 
-void Link::error(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message)
+void LinkPrivate::error(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message)
 {
     appendDiagnostic(doc, DiagnosticMessage(DiagnosticMessage::Error, loc, message));
 }
 
-void Link::warning(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message)
+void LinkPrivate::warning(const Document::Ptr &doc, const AST::SourceLocation &loc, const QString &message)
 {
     appendDiagnostic(doc, DiagnosticMessage(DiagnosticMessage::Warning, loc, message));
 }
 
-void Link::appendDiagnostic(const Document::Ptr &doc, const DiagnosticMessage &message)
+void LinkPrivate::appendDiagnostic(const Document::Ptr &doc, const DiagnosticMessage &message)
 {
-    Q_D(Link);
-
-    if (d->diagnosticMessages && doc->fileName() == d->doc->fileName())
-        d->diagnosticMessages->append(message);
-    if (d->allDiagnosticMessages)
-        (*d->allDiagnosticMessages)[doc->fileName()].append(message);
+    if (diagnosticMessages && doc->fileName() == document->fileName())
+        diagnosticMessages->append(message);
+    if (allDiagnosticMessages)
+        (*allDiagnosticMessages)[doc->fileName()].append(message);
 }
 
-void Link::loadQmldirComponents(Interpreter::ObjectValue *import, ComponentVersion version,
+void LinkPrivate::loadQmldirComponents(ObjectValue *import, ComponentVersion version,
                                 const LibraryInfo &libraryInfo, const QString &libraryPath)
 {
-    Q_D(Link);
-
     // if the version isn't valid, import the latest
     if (!version.isValid()) {
         version = ComponentVersion(ComponentVersion::MaxVersion, ComponentVersion::MaxVersion);
@@ -448,7 +497,7 @@ void Link::loadQmldirComponents(Interpreter::ObjectValue *import, ComponentVersi
             continue;
 
         importedTypes.insert(component.typeName);
-        if (Document::Ptr importedDoc = d->snapshot.document(
+        if (Document::Ptr importedDoc = snapshot.document(
                     libraryPath + QDir::separator() + component.fileName)) {
             if (ObjectValue *v = importedDoc->bind()->rootObjectValue())
                 import->setMember(component.typeName, v);
@@ -456,40 +505,38 @@ void Link::loadQmldirComponents(Interpreter::ObjectValue *import, ComponentVersi
     }
 }
 
-void Link::loadImplicitDirectoryImports(Imports *imports, Document::Ptr doc)
+void LinkPrivate::loadImplicitDirectoryImports(Imports *imports, Document::Ptr doc)
 {
-    Q_D(Link);
-
     ImportInfo implcitDirectoryImportInfo(
                 ImportInfo::ImplicitDirectoryImport, doc->path());
 
-    Import directoryImport = d->importCache.value(ImportCacheKey(implcitDirectoryImportInfo));
+    Import directoryImport = importCache.value(ImportCacheKey(implcitDirectoryImportInfo));
     if (!directoryImport.object) {
         directoryImport = importFileOrDirectory(doc, implcitDirectoryImportInfo);
         if (directoryImport.object)
-            d->importCache.insert(ImportCacheKey(implcitDirectoryImportInfo), directoryImport);
+            importCache.insert(ImportCacheKey(implcitDirectoryImportInfo), directoryImport);
     }
     if (directoryImport.object) {
         imports->append(directoryImport);
     }
 }
 
-void Link::loadImplicitDefaultImports(Imports *imports)
+void LinkPrivate::loadImplicitDefaultImports(Imports *imports)
 {
-    Q_D(Link);
-
     const QString defaultPackage = CppQmlTypes::defaultPackage;
-    if (engine()->cppQmlTypes().hasPackage(defaultPackage)) {
+    if (valueOwner->cppQmlTypes().hasModule(defaultPackage)) {
         ImportInfo info(ImportInfo::LibraryImport, defaultPackage);
-        Import import = d->importCache.value(ImportCacheKey(info));
+        Import import = importCache.value(ImportCacheKey(info));
         if (!import.object) {
             import.info = info;
-            import.object = new ObjectValue(engine());
-            foreach (QmlObjectValue *object,
-                     engine()->cppQmlTypes().typesForImport(defaultPackage, ComponentVersion())) {
+            import.object = new ObjectValue(valueOwner);
+            foreach (const QmlObjectValue *object,
+                     valueOwner->cppQmlTypes().createObjectsForImport(
+                         defaultPackage,
+                         ComponentVersion(ComponentVersion::MaxVersion, ComponentVersion::MaxVersion))) {
                 import.object->setMember(object->className(), object);
             }
-            d->importCache.insert(ImportCacheKey(info), import);
+            importCache.insert(ImportCacheKey(info), import);
         }
         imports->append(import);
     }

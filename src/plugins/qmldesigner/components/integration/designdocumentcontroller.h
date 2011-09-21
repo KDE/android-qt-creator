@@ -60,6 +60,7 @@ class ComponentView;
 class PropertyEditor;
 class StatesEditorView;
 class FormEditorView;
+struct CrumbleBarInfo;
 
 class DesignDocumentController: public QObject
 {
@@ -70,6 +71,8 @@ public:
     ~DesignDocumentController();
 
     QString displayName() const;
+    QString simplfiedDisplayName() const;
+
     QString fileName() const;
     void setFileName(const QString &fileName);
 
@@ -101,7 +104,8 @@ public:
     void setNodeInstanceView(NodeInstanceView *nodeInstanceView);
     void setComponentView(ComponentView *componentView);
 
-    static DesignDocumentController *instance();
+    void setCrumbleBarInfo(const CrumbleBarInfo &crumbleBarInfo);
+    static void setBlockCrumbleBar(bool);
 
 signals:
     void displayNameChanged(const QString &newFileName);
@@ -126,6 +130,8 @@ public slots:
     void redo();
     void activeQtVersionChanged();
     void changeCurrentModelTo(const ModelNode &node);
+    void changeToSubComponent(const ModelNode &node);
+    void changeToExternalSubComponent(const QString &fileName);
     void goIntoComponent();
 
 #ifdef ENABLE_TEXT_VIEW
@@ -140,15 +146,23 @@ private:
     void detachNodeInstanceView();
     void attachNodeInstanceView();
     void changeToMasterModel();
+    QVariant createCrumbleBarInfo();
 
     QWidget *centralWidget() const;
     QString pathToQt() const;
 
-    class DesignDocumentControllerPrivate *m_d;
 
-    static DesignDocumentController* m_this;
+    class DesignDocumentControllerPrivate *d;
+};
+
+
+struct CrumbleBarInfo {
+    ModelNode modelNode;
+    QString fileName;
 };
 
 } // namespace QmlDesigner
+
+Q_DECLARE_METATYPE(QmlDesigner::CrumbleBarInfo)
 
 #endif // DesignDocumentController_h

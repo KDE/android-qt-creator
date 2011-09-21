@@ -35,6 +35,11 @@
 
 #include <QtCore/QDir>
 #include <QtCore/QDebug>
+#include <QtCore/QCoreApplication>
+
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 using namespace Utils;
 
@@ -661,9 +666,14 @@ void QtcProcess::start()
     QString command;
 #ifdef Q_OS_WIN
     QString arguments;
+    QStringList argList;
     prepareCommand(m_command, m_arguments, &command, &arguments, &env, &workDir);
     setNativeArguments(arguments);
-    QProcess::start(command, QStringList());
+    if (m_useCtrlCStub) {
+        argList << command;
+        command = QCoreApplication::applicationDirPath() + QLatin1String("/qtcreator_ctrlc_stub.exe");
+    }
+    QProcess::start(command, argList);
 #else
     QStringList arguments;
     if (!prepareCommand(m_command, m_arguments, &command, &arguments, &env, &workDir)) {
@@ -675,6 +685,30 @@ void QtcProcess::start()
     }
     QProcess::start(command, arguments);
 #endif
+}
+
+#ifdef Q_OS_WIN
+BOOL CALLBACK sendShutDownMessageToAllWindowsOfProcess_enumWnd(HWND hwnd, LPARAM lParam)
+{
+    static UINT uiShutDownMessage = RegisterWindowMessage(L"qtcctrlcstub_shutdown");
+    DWORD dwProcessID;
+    GetWindowThreadProcessId(hwnd, &dwProcessID);
+    if ((DWORD)lParam == dwProcessID) {
+        SendNotifyMessage(hwnd, uiShutDownMessage, 0, 0);
+        return FALSE;
+    }
+    return TRUE;
+}
+#endif
+
+void QtcProcess::terminate()
+{
+#ifdef Q_OS_WIN
+    if (m_useCtrlCStub)
+        EnumWindows(sendShutDownMessageToAllWindowsOfProcess_enumWnd, pid()->dwProcessId);
+    else
+#endif
+    QProcess::terminate();
 }
 
 #ifdef Q_OS_WIN

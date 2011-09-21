@@ -35,6 +35,7 @@
 
 #include "mercurialsettings.h"
 
+#include <vcsbase/vcsbaseclient.h>
 #include <vcsbase/vcsbaseplugin.h>
 #include <coreplugin/icontext.h>
 
@@ -85,12 +86,10 @@ class MercurialPlugin : public VCSBase::VCSBasePlugin
 public:
     MercurialPlugin();
     virtual ~MercurialPlugin();
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
 
     static MercurialPlugin *instance() { return m_instance; }
     MercurialClient *client() const { return m_client; }
-
-    QStringList standardArguments() const;
 
     const MercurialSettings &settings() const;
     void setSettings(const MercurialSettings &settings);
@@ -118,7 +117,7 @@ private slots:
     void incoming();
     void outgoing();
     void commit();
-    void showCommitWidget(const QList<QPair<QString, QString> > &status);
+    void showCommitWidget(const QList<VCSBase::VCSBaseClient::StatusItem> &status);
     void commitFromEditor();
     void diffFromEditorSelected(const QStringList &files);
 

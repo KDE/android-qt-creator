@@ -16,3 +16,5 @@ HEADERS += \
 
 SOURCES += \
     proxyaction.cpp
+
+win32: LIBS += -lUser32

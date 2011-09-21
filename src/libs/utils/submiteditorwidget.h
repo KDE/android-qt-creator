@@ -55,7 +55,6 @@ struct SubmitEditorWidgetPrivate;
 class QTCREATOR_UTILS_EXPORT SubmitEditorWidget : public QWidget
 {
     Q_OBJECT
-    Q_DISABLE_COPY(SubmitEditorWidget)
     Q_PROPERTY(QString descriptionText READ descriptionText WRITE setDescriptionText DESIGNABLE true)
     Q_PROPERTY(int fileNameColumn READ fileNameColumn WRITE setFileNameColumn DESIGNABLE false)
     Q_PROPERTY(QAbstractItemView::SelectionMode fileListSelectionMode READ fileListSelectionMode WRITE setFileListSelectionMode DESIGNABLE true)
@@ -147,7 +146,7 @@ private:
     bool hasSelection() const;
     int checkedFilesCount() const;
 
-    SubmitEditorWidgetPrivate *m_d;
+    SubmitEditorWidgetPrivate *d;
 };
 
 } // namespace Utils

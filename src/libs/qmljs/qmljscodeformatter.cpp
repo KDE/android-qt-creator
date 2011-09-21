@@ -166,21 +166,6 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             default:            enter(expression); continue;
             } break;
 
-        // property inits don't take statements
-        case property_initializer:
-            switch (kind) {
-            case Semicolon:     leave(true); break;
-            case LeftBrace:     enter(objectliteral_open); break;
-            case On:
-            case As:
-            case List:
-            case Import:
-            case Signal:
-            case Property:
-            case Identifier:    enter(expression_or_objectdefinition); break;
-            default:            enter(expression); continue;
-            } break;
-
         case objectdefinition_open:
             switch (kind) {
             case RightBrace:    leave(true); break;
@@ -222,7 +207,7 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
 
         case property_maybe_initializer:
             switch (kind) {
-            case Colon:         enter(property_initializer); break;
+            case Colon:         turnInto(binding_assignment); break;
             default:            leave(true); continue;
             } break;
 
@@ -265,6 +250,12 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             case Identifier:    break; // need to become an objectdefinition_open in cases like "width: Qt.Foo {"
             case LeftBrace:     turnInto(objectdefinition_open); break;
             default:            enter(expression); continue; // really? identifier and more tokens might already be gone
+            } break;
+
+        case expression_or_label:
+            switch (kind) {
+            case Colon:         turnInto(labelled_statement); break;
+            default:            enter(expression); continue;
             } break;
 
         case expression:
@@ -361,6 +352,12 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             case RightBrace:        leave(true); break;
             } break;
 
+        case labelled_statement:
+            if (tryStatement())
+                break;
+            leave(true); // error recovery
+            break;
+
         case substatement:
             // prefer substatement_open over block_open
             if (kind != LeftBrace) {
@@ -441,7 +438,11 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
             case RightParenthesis:  leave(); leave(true); break;
             } break;
 
-            break;
+        case breakcontinue_statement:
+            switch (kind) {
+            case Identifier:        leave(true); break;
+            default:                leave(true); continue; // try again
+            } break;
 
         case case_start:
             switch (kind) {
@@ -481,11 +482,22 @@ void CodeFormatter::recalculateStateAfter(const QTextBlock &block)
 
     int topState = m_currentState.top().type;
 
+    // if there's no colon on the same line, it's not a label
+    if (topState == expression_or_label)
+        enter(expression);
+    // if not followed by an identifier on the same line, it's done
+    else if (topState == breakcontinue_statement)
+        leave(true);
+
+    topState = m_currentState.top().type;
+
+    // some states might be continued on the next line
     if (topState == expression
             || topState == expression_or_objectdefinition
             || topState == objectliteral_assignment) {
         enter(expression_maybe_continuation);
     }
+    // multi-line comment start?
     if (topState != multiline_comment_start
             && topState != multiline_comment_cont
             && (lexerState & Scanner::MultiLineMask) == Scanner::MultiLineComment) {
@@ -695,7 +707,6 @@ bool CodeFormatter::tryStatement()
     case Break:
     case Continue:
         enter(breakcontinue_statement);
-        leave(true);
         return true;
     case Throw:
         enter(throw_statement);
@@ -732,7 +743,10 @@ bool CodeFormatter::tryStatement()
         enter(jsblock_open);
         return true;
     case Identifier:
+        enter(expression_or_label);
+        return true;
     case Delimiter:
+    case Var:
     case PlusPlus:
     case MinusMinus:
     case Import:
@@ -770,7 +784,6 @@ bool CodeFormatter::isExpressionEndState(int type) const
             type == objectdefinition_open ||
             type == if_statement ||
             type == else_clause ||
-            type == do_statement ||
             type == jsblock_open ||
             type == substatement_open ||
             type == bracket_open ||

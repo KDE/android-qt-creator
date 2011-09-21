@@ -40,11 +40,13 @@
 #include <QtCore/QDateTime>
 #include <QtCore/QHash>
 #include <QtCore/QFileInfo>
+#include <QtCore/QAtomicInt>
 
 namespace CPlusPlus {
 
 class Macro;
 class MacroArgumentReference;
+class LookupContext;
 
 class CPLUSPLUS_EXPORT Document
 {
@@ -118,20 +120,16 @@ public:
     bool parse(ParseMode mode = ParseTranlationUnit);
 
     enum CheckMode {
+        Unchecked,
         FullCheck,
         FastCheck
     };
 
     void check(CheckMode mode = FullCheck);
 
-    void findExposedQmlTypes();
-
-    void releaseSource();
-    void releaseTranslationUnit();
-
     static Ptr create(const QString &fileName);
 
-    class DiagnosticMessage
+    class CPLUSPLUS_EXPORT DiagnosticMessage
     {
     public:
         enum Level {
@@ -179,6 +177,9 @@ public:
 
         QString text() const
         { return _text; }
+
+        bool operator==(const DiagnosticMessage &other) const;
+        bool operator!=(const DiagnosticMessage &other) const;
 
     private:
         int _level;
@@ -319,18 +320,11 @@ public:
     const MacroUse *findMacroUseAt(unsigned offset) const;
     const UndefinedMacroUse *findUndefinedMacroUseAt(unsigned offset) const;
 
-    class ExportedQmlType {
-    public:
-        QString packageName;
-        QString typeName;
-        int majorVersion;
-        int minorVersion;
-        Scope *scope;
-        QString typeExpression;
-    };
+    void keepSourceAndAST();
+    void releaseSourceAndAST();
 
-    QList<ExportedQmlType> exportedQmlTypes() const
-    { return _exportedQmlTypes; }
+    CheckMode checkMode() const
+    { return static_cast<CheckMode>(_checkMode); }
 
 private:
     QString _fileName;
@@ -343,11 +337,12 @@ private:
     QList<Block> _skippedBlocks;
     QList<MacroUse> _macroUses;
     QList<UndefinedMacroUse> _undefinedMacroUses;
-    QList<ExportedQmlType> _exportedQmlTypes;
     QByteArray _source;
     QDateTime _lastModified;
+    QAtomicInt _keepSourceAndASTCount;
     unsigned _revision;
     unsigned _editorRevision;
+    quint8 _checkMode;
 
     friend class Snapshot;
 };
@@ -386,7 +381,7 @@ public:
     Document::Ptr documentFromSource(const QByteArray &preprocessedCode,
                                      const QString &fileName) const;
 
-    Symbol *findMatchingDefinition(Symbol *symbol) const;
+    Symbol *findMatchingDefinition(Symbol *symbol, bool strict = false) const;
     Class *findMatchingClassDeclaration(Symbol *symbol) const;
 
 private:
@@ -395,6 +390,15 @@ private:
 private:
     _Base _documents;
 };
+
+void CPLUSPLUS_EXPORT findMatchingDeclaration(
+        const LookupContext &context,
+        Function *functionType,
+        QList<Declaration *> *typeMatch,
+        QList<Declaration *> *argumentCountMatch,
+        QList<Declaration *> *nameMatch);
+QList<Declaration *> CPLUSPLUS_EXPORT findMatchingDeclaration(
+        const LookupContext &context, Function *functionType);
 
 } // namespace CPlusPlus
 

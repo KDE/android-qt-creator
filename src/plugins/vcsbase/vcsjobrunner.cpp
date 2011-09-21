@@ -49,6 +49,30 @@
 #include <QtCore/QWaitCondition>
 #include <QtCore/QSharedPointer>
 
+namespace {
+
+//Helper class to automatically disconnect a signal from all its receivers.
+//The disconnect occurs on destruction of the helper object.
+class DisconnectSignalHelper
+{
+public:
+    DisconnectSignalHelper(QObject *sender, const char *signal) :
+        m_sender(sender), m_signal(signal)
+    {
+    }
+
+    ~DisconnectSignalHelper()
+    {
+        QObject::disconnect(m_sender, m_signal, 0, 0);
+    }
+
+private:
+    QObject *m_sender;
+    const char *m_signal;
+};
+
+} // Anonymous namespace
+
 /*!
     \class  VCSBase::VCSJob
 
@@ -158,12 +182,11 @@ public:
     QWaitCondition m_waiter;
     bool m_keepRunning;
     QString m_binary;
-    QStringList m_standardArguments;
-    int m_timeoutMS;
+    int m_timeoutMs;
 };
 
 VCSJobRunnerPrivate::VCSJobRunnerPrivate() :
-    m_keepRunning(true), m_timeoutMS(30000)
+    m_keepRunning(true), m_timeoutMs(30000)
 {
 }
 
@@ -179,6 +202,7 @@ VCSJobRunner::VCSJobRunner() : d(new VCSJobRunnerPrivate)
 VCSJobRunner::~VCSJobRunner()
 {
     stop();
+    delete d;
 }
 
 void VCSJobRunner::stop()
@@ -254,13 +278,24 @@ void VCSJobRunner::setProcessEnvironment(QProcess *p)
     p->setProcessEnvironment(env);
 }
 
-void VCSJobRunner::setSettings(const QString &bin,
-                               const QStringList &stdArgs,
-                               int timeoutMsec)
+const QString &VCSJobRunner::binary() const
+{
+    return d->m_binary;
+}
+
+void VCSJobRunner::setBinary(const QString &bin)
 {
     d->m_binary = bin;
-    d->m_standardArguments = stdArgs;
-    d->m_timeoutMS = timeoutMsec;
+}
+
+int VCSJobRunner::timeoutMs() const
+{
+    return d->m_timeoutMs;
+}
+
+void VCSJobRunner::setTimeoutMs(int msec)
+{
+    d->m_timeoutMs = msec;
 }
 
 void VCSJobRunner::task(const QSharedPointer<VCSJob> &job)
@@ -290,8 +325,19 @@ void VCSJobRunner::task(const QSharedPointer<VCSJob> &job)
         break;
     }
 
-    const QStringList args = d->m_standardArguments + taskData->arguments();
-    emit commandStarted(VCSBase::VCSBaseOutputWindow::msgExecutionLogEntry(taskData->workingDirectory(), d->m_binary, args));
+    //the signal connection is to last only for the duration of a job/task.  next time a new
+    //output signal connection must be made
+    DisconnectSignalHelper autoDisconnectOutputSig(this, SIGNAL(output(QByteArray)));
+    Q_UNUSED(autoDisconnectOutputSig);
+
+    // Check that the binary path is not empty
+    if (binary().trimmed().isEmpty()) {
+        emit error(tr("Unable to start process, binary is empty"));
+        return;
+    }
+
+    const QStringList args = taskData->arguments();
+    emit commandStarted(VCSBase::VCSBaseOutputWindow::msgExecutionLogEntry(taskData->workingDirectory(), binary(), args));
     //infom the user of what we are going to try and perform
 
     if (Constants::Internal::debug)
@@ -307,10 +353,10 @@ void VCSJobRunner::task(const QSharedPointer<VCSJob> &job)
     vcsProcess->setWorkingDirectory(taskData->workingDirectory());
     VCSJobRunner::setProcessEnvironment(vcsProcess.data());
 
-    vcsProcess->start(d->m_binary, args);
+    vcsProcess->start(binary(), args);
 
     if (!vcsProcess->waitForStarted()) {
-        emit error(msgStartFailed(d->m_binary, vcsProcess->errorString()));
+        emit error(msgStartFailed(binary(), vcsProcess->errorString()));
         return;
     }
 
@@ -319,9 +365,9 @@ void VCSJobRunner::task(const QSharedPointer<VCSJob> &job)
     QByteArray stdOutput;
     QByteArray stdErr;
 
-    if (!Utils::SynchronousProcess::readDataFromProcess(*vcsProcess, d->m_timeoutMS, &stdOutput, &stdErr, false)) {
+    if (!Utils::SynchronousProcess::readDataFromProcess(*vcsProcess, timeoutMs(), &stdOutput, &stdErr, false)) {
         Utils::SynchronousProcess::stopProcess(*vcsProcess);
-        emit error(msgTimeout(d->m_binary, d->m_timeoutMS / 1000));
+        emit error(msgTimeout(binary(), timeoutMs() / 1000));
         return;
     }
 
@@ -341,9 +387,6 @@ void VCSJobRunner::task(const QSharedPointer<VCSJob> &job)
     }
 
     vcsProcess->close();
-    //the signal connection is to last only for the duration of a job/task.  next time a new
-    //output signal connection must be made
-    disconnect(this, SIGNAL(output(QByteArray)), 0, 0);
 }
 
 } // namespace VCSBase

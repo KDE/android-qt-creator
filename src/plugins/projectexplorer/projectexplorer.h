@@ -33,11 +33,10 @@
 #ifndef PROJECTEXPLORER_H
 #define PROJECTEXPLORER_H
 
-#include <QtCore/QPair>
-
 #include "projectexplorer_export.h"
 
 #include <extensionsystem/iplugin.h>
+
 #include <QtCore/QPair>
 
 QT_BEGIN_NAMESPACE
@@ -48,10 +47,6 @@ QT_END_NAMESPACE
 
 namespace Core {
 class IMode;
-}
-
-namespace Utils {
-class ParameterAction;
 }
 
 namespace ProjectExplorer {
@@ -66,7 +61,6 @@ class BuildConfiguration;
 class ProjectNode;
 
 namespace Internal {
-class ProjectFileFactory;
 struct ProjectExplorerSettings;
 }
 
@@ -83,8 +77,9 @@ public:
 
     static ProjectExplorerPlugin *instance();
 
-    Q_SLOT bool openProject(const QString &fileName);
-    QList<Project *> openProjects(const QStringList &fileNames);
+    bool openProject(const QString &fileName, QString *error);
+    QList<Project *> openProjects(const QStringList &fileNames, QString *error);
+    Q_SLOT void openProjectWelcomePage(const QString &fileName);
 
     SessionManager *session() const;
 
@@ -100,12 +95,12 @@ public:
 
     bool saveModifiedFiles();
 
-    void showContextMenu(const QPoint &globalPos, Node *node);
+    void showContextMenu(QWidget *view, const QPoint &globalPos, Node *node);
     static void populateOpenWithMenu(QMenu *menu, const QString &fileName);
     static void openEditorFromAction(QAction *action, const QString &fileName);
 
     //PluginInterface
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
@@ -129,6 +124,8 @@ public:
     void addExistingFiles(const QStringList &filePaths);
 
     void buildProject(ProjectExplorer::Project *p);
+
+    QList<RunControl *> runControls() const;
 
 signals:
     void aboutToShowContextMenu(ProjectExplorer::Project *project,
@@ -192,6 +189,7 @@ private slots:
     void addNewSubproject();
     void removeProject();
     void openFile();
+    void searchOnFileSystem();
     void showInGraphicalShell();
     void removeFile();
     void deleteFile();

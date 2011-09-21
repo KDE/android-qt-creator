@@ -35,35 +35,36 @@
 
 #include "parser/qmljsastvisitor_p.h"
 #include "qmljsdocument.h"
+#include "qmljsscopechain.h"
 
 namespace QmlJS {
 
-namespace Interpreter {
-    class Engine;
-    class Context;
-    class Value;
-    class ObjectValue;
-    class FunctionValue;
-} // namespace Interpreter
+class ValueOwner;
+class Context;
+class Value;
+class ObjectValue;
+class FunctionValue;
 
 class QMLJS_EXPORT Evaluate: protected AST::Visitor
 {
 public:
-    Evaluate(const Interpreter::Context *context);
+    Evaluate(const ScopeChain *scopeChain, ReferenceContext *referenceContext = 0);
     virtual ~Evaluate();
 
-    // evaluate ast in the given context
-    const Interpreter::Value *operator()(AST::Node *ast);
+    // same as value()
+    const Value *operator()(AST::Node *ast);
+
+    // evaluate ast in the given context, resolving references
+    const Value *value(AST::Node *ast);
 
     // evaluate, but stop when encountering a Reference
-    const Interpreter::Value *reference(AST::Node *ast);
+    const Value *reference(AST::Node *ast);
 
 protected:
     void accept(AST::Node *node);
 
-    Interpreter::Engine *switchEngine(Interpreter::Engine *engine);
-    const Interpreter::Value *switchResult(const Interpreter::Value *result);
-    const Interpreter::ObjectValue *switchScope(const Interpreter::ObjectValue *scope);
+    const Value *switchResult(const Value *result);
+    const ObjectValue *switchScope(const ObjectValue *scope);
 
     // Ui
     virtual bool visit(AST::UiProgram *ast);
@@ -161,10 +162,12 @@ protected:
 
 private:
     QmlJS::Document::Ptr _doc;
-    Interpreter::Engine *_engine;
-    const Interpreter::Context *_context;
-    const Interpreter::ObjectValue *_scope;
-    const Interpreter::Value *_result;
+    ValueOwner *_valueOwner;
+    ContextPtr _context;
+    ReferenceContext *_referenceContext;
+    const ScopeChain *_scopeChain;
+    const ObjectValue *_scope;
+    const Value *_result;
 };
 
 } // namespace Qml

@@ -49,7 +49,7 @@ class AllProjectsFind : public TextEditor::BaseFileFind
     Q_OBJECT
 
 public:
-    AllProjectsFind(ProjectExplorerPlugin *plugin, Find::SearchResultWindow *resultWindow);
+    AllProjectsFind(ProjectExplorerPlugin *plugin);
 
     QString id() const;
     QString displayName() const;
@@ -63,6 +63,9 @@ public:
 protected:
     virtual QList<Project *> projects() const;
     Utils::FileIterator *files() const;
+    QString label() const;
+    QString toolTip() const;
+
 
 private:
     ProjectExplorerPlugin *m_plugin;

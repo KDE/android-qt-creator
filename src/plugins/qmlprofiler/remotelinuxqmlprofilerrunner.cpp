@@ -33,6 +33,7 @@
 #include "remotelinuxqmlprofilerrunner.h"
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <remotelinux/portlist.h>
 #include <remotelinux/remotelinuxapplicationrunner.h>
 #include <utils/qtcassert.h>
 
@@ -146,7 +147,7 @@ void RemoteLinuxQmlProfilerRunner::handleRemoteProcessStarted()
 
 void RemoteLinuxQmlProfilerRunner::handleRemoteProcessFinished(qint64 exitCode)
 {
-    if (exitCode != RemoteLinuxApplicationRunner::InvalidExitCode) {
+    if (exitCode != AbstractRemoteLinuxApplicationRunner::InvalidExitCode) {
         appendMessage(tr("Finished running remote process. Exit code was %1.\n")
                       .arg(exitCode), Utils::NormalMessageFormat);
     }
@@ -159,7 +160,7 @@ void RemoteLinuxQmlProfilerRunner::handleProgressReport(const QString &progressS
     appendMessage(progressString + QLatin1Char('\n'), Utils::NormalMessageFormat);
 }
 
-RemoteLinuxApplicationRunner *RemoteLinuxQmlProfilerRunner::runner() const
+AbstractRemoteLinuxApplicationRunner *RemoteLinuxQmlProfilerRunner::runner() const
 {
     if (!m_runControl)
         return 0;

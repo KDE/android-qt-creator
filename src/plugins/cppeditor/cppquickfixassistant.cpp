@@ -105,6 +105,7 @@ CppQuickFixAssistInterface::CppQuickFixAssistInterface(CPPEditorWidget *editor,
     , m_editor(editor)
     , m_semanticInfo(editor->semanticInfo())
     , m_snapshot(CPlusPlus::CppModelManagerInterface::instance()->snapshot())
+    , m_currentFile(CppRefactoringChanges::file(editor, m_semanticInfo.doc))
     , m_context(m_semanticInfo.doc, m_snapshot)
 {
     CPlusPlus::ASTPath astPath(m_semanticInfo.doc);
@@ -136,17 +137,17 @@ CPPEditorWidget *CppQuickFixAssistInterface::editor() const
     return m_editor;
 }
 
-const CppRefactoringFile CppQuickFixAssistInterface::currentFile() const
+CppRefactoringFilePtr CppQuickFixAssistInterface::currentFile() const
 {
-    return CppRefactoringFile(m_editor, m_semanticInfo.doc);
+    return m_currentFile;
 }
 
 bool CppQuickFixAssistInterface::isCursorOn(unsigned tokenIndex) const
 {
-    return currentFile().isCursorOn(tokenIndex);
+    return currentFile()->isCursorOn(tokenIndex);
 }
 
 bool CppQuickFixAssistInterface::isCursorOn(const CPlusPlus::AST *ast) const
 {
-    return currentFile().isCursorOn(ast);
+    return currentFile()->isCursorOn(ast);
 }

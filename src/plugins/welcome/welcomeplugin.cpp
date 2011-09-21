@@ -161,7 +161,7 @@ WelcomeMode::WelcomeMode() :
     PluginManager *pluginManager = PluginManager::instance();
     connect(pluginManager, SIGNAL(objectAdded(QObject*)), SLOT(welcomePluginAdded(QObject*)));
 
-    Core::ModeManager *modeManager = Core::ICore::instance()->modeManager();
+    Core::ModeManager *modeManager = Core::ModeManager::instance();
     connect(modeManager, SIGNAL(currentModeChanged(Core::IMode*)), SLOT(modeChanged(Core::IMode*)));
 
     setWidget(m_modeWidget);
@@ -174,7 +174,6 @@ bool WelcomeMode::eventFilter(QObject *, QEvent *e)
         return true;
     }
     return false;
-
 }
 
 WelcomeMode::~WelcomeMode()
@@ -320,10 +319,10 @@ WelcomePlugin::WelcomePlugin()
 /*! Initializes the plugin. Returns true on success.
     Plugins want to register objects with the plugin manager here.
 
-    \a error_message can be used to pass an error message to the plugin system,
+    \a errorMessage can be used to pass an error message to the plugin system,
        if there was any.
 */
-bool WelcomePlugin::initialize(const QStringList & /* arguments */, QString * /* error_message */)
+bool WelcomePlugin::initialize(const QStringList & /* arguments */, QString * /* errorMessage */)
 {
     m_welcomeMode = new WelcomeMode;
     addAutoReleasedObject(m_welcomeMode);

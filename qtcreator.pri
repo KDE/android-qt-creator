@@ -1,7 +1,7 @@
 !isEmpty(QTCREATOR_PRI_INCLUDED):error("qtcreator.pri already included")
 QTCREATOR_PRI_INCLUDED = 1
 
-QTCREATOR_VERSION = 2.2.85
+QTCREATOR_VERSION = 2.3.81
 
 defineReplace(cleanPath) {
     win32:1 ~= s|\\\\|/|g
@@ -123,6 +123,7 @@ macx {
 }
 
 INCLUDEPATH += \
+    $$IDE_BUILD_TREE/src \ # for <app/app_version.h>
     $$IDE_SOURCE_TREE/src/libs \
     $$IDE_SOURCE_TREE/tools \
     $$IDE_SOURCE_TREE/src/plugins

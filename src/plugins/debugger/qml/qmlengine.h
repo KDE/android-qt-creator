@@ -37,7 +37,6 @@
 
 #include <utils/outputformat.h>
 
-#include <QtCore/QScopedPointer>
 #include <QtNetwork/QAbstractSocket>
 
 namespace Debugger {
@@ -50,6 +49,11 @@ class QmlEngine : public DebuggerEngine
     Q_OBJECT
 
 public:
+    enum LogDirection {
+        LogSend,
+        LogReceive
+    };
+
     QmlEngine(const DebuggerStartParameters &startParameters,
         DebuggerEngine *masterEngine);
     ~QmlEngine();
@@ -62,10 +66,12 @@ public:
     void showMessage(const QString &msg, int channel = LogDebug,
                      int timeout = -1) const;
     void filterApplicationMessage(const QString &msg, int channel);
-    virtual bool acceptsWatchesWhileRunning() const;
+    QString toFileInProject(const QUrl &fileUrl);
+    void inferiorSpontaneousStop();
+
+    void logMessage(LogDirection direction, const QString &str);
 
 public slots:
-    void messageReceived(const QByteArray &message);
     void disconnected();
 
 private slots:
@@ -101,6 +107,9 @@ private:
     void selectThread(int index);
 
     void attemptBreakpointSynchronization();
+    void insertBreakpoint(BreakpointModelId id);
+    void removeBreakpoint(BreakpointModelId id);
+    void changeBreakpoint(BreakpointModelId id);
     bool acceptsBreakpoint(BreakpointModelId id) const;
 
     void assignValueInDebugger(const WatchData *data,
@@ -121,7 +130,6 @@ private:
     unsigned int debuggerCapabilities() const;
 
 signals:
-    void sendMessage(const QByteArray &msg);
     void tooltipRequested(const QPoint &mousePos,
         TextEditor::ITextEditor *editor, int cursorPos);
 
@@ -136,9 +144,6 @@ private slots:
     void synchronizeWatchers();
 
 private:
-    void expandObject(const QByteArray &iname, quint64 objectId);
-    void sendPing();
-
     void closeConnection();
     void startApplicationLauncher();
     void stopApplicationLauncher();
@@ -149,17 +154,9 @@ private:
         const QString &oldBasePath, const QString &newBasePath) const;
     QString qmlImportPath() const;
 
-    enum LogDirection {
-        LogSend,
-        LogReceive
-    };
-    void logMessage(LogDirection direction, const QString &str);
-    QString toFileInProject(const QUrl &fileUrl);
-
 private:
     friend class QmlCppEngine;
-
-    QScopedPointer<QmlEnginePrivate> d;
+    QmlEnginePrivate *d;
 };
 
 } // namespace Internal

@@ -82,6 +82,8 @@ public:
         QStringList importPaths;
         QString qmlDumpPath;
         Utils::Environment qmlDumpEnvironment;
+        QString qtImportsPath;
+        QString qtVersionString;
     };
 
     class WorkingCopy
@@ -108,8 +110,14 @@ public:
         Table _elements;
     };
 
-    typedef QHash<QString, QList<LanguageUtils::FakeMetaObject::ConstPtr> > CppQmlTypeHash;
-    typedef QHash<QString, QList<LanguageUtils::ComponentVersion> > BuiltinPackagesHash;
+    class CppData
+    {
+    public:
+        QList<LanguageUtils::FakeMetaObject::ConstPtr> exportedTypes;
+        QHash<QString, QString> contextProperties;
+    };
+
+    typedef QHash<QString, CppData> CppDataHash;
 
 public:
     ModelManagerInterface(QObject *parent = 0);
@@ -118,7 +126,9 @@ public:
     static ModelManagerInterface *instance();
 
     virtual WorkingCopy workingCopy() const = 0;
+
     virtual QmlJS::Snapshot snapshot() const = 0;
+    virtual QmlJS::Snapshot newestSnapshot() const = 0;
 
     virtual void updateSourceFiles(const QStringList &files,
                                    bool emitDocumentOnDiskChanged) = 0;
@@ -128,14 +138,19 @@ public:
     virtual QList<ProjectInfo> projectInfos() const = 0;
     virtual ProjectInfo projectInfo(ProjectExplorer::Project *project) const = 0;
     virtual void updateProjectInfo(const ProjectInfo &pinfo) = 0;
+    Q_SLOT virtual void removeProjectInfo(ProjectExplorer::Project *project) = 0;
 
     virtual QStringList importPaths() const = 0;
 
     virtual void loadPluginTypes(const QString &libraryPath, const QString &importPath,
                                  const QString &importUri, const QString &importVersion) = 0;
 
-    virtual CppQmlTypeHash cppQmlTypes() const = 0;
-    virtual BuiltinPackagesHash builtinPackages() const = 0;
+    virtual CppDataHash cppData() const = 0;
+
+    virtual LibraryInfo builtins(const Document::Ptr &doc) const = 0;
+
+    // Blocks until all parsing threads are done. Used for testing.
+    virtual void joinAllThreads() = 0;
 
 public slots:
     virtual void resetCodeModel() = 0;

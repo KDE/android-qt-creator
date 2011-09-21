@@ -33,6 +33,7 @@
 #ifndef COMMITEDITOR_H
 #define COMMITEDITOR_H
 
+#include <vcsbase/vcsbaseclient.h>
 #include <vcsbase/vcsbasesubmiteditor.h>
 
 namespace VCSBase {
@@ -48,13 +49,14 @@ class BazaarCommitWidget;
 class CommitEditor : public VCSBase::VCSBaseSubmitEditor
 {
     Q_OBJECT
+
 public:
     explicit CommitEditor(const VCSBase::VCSBaseSubmitEditorParameters *parameters,
                           QWidget *parent);
 
     void setFields(const BranchInfo &branch,
                    const QString &userName, const QString &email,
-                   const QList<QPair<QString, QString> > &repoStatus);
+                   const QList<VCSBase::VCSBaseClient::StatusItem> &repoStatus);
 
     const BazaarCommitWidget *commitWidget() const;
 

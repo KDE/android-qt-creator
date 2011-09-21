@@ -34,7 +34,7 @@
 
 #include "icore.h"
 #include "icontext.h"
-#include "uniqueidmanager.h"
+#include "id.h"
 
 #include <QtCore/QDebug>
 #include <QtCore/QTextStream>
@@ -435,7 +435,7 @@ void Action::updateActiveState()
     setActive(m_action->isEnabled() && m_action->isVisible() && !m_action->isSeparator());
 }
 
-static inline QString msgActionWarning(QAction *newAction, int k, QAction *oldAction)
+static QString msgActionWarning(QAction *newAction, int k, QAction *oldAction)
 {
     QString msg;
     QTextStream str(&msg);
@@ -444,7 +444,7 @@ static inline QString msgActionWarning(QAction *newAction, int k, QAction *oldAc
     if (oldAction)
         str << oldAction->objectName() << '/' << oldAction->text();
     str << " is already registered for context " << k << ' '
-        << Core::ICore::instance()->uniqueIDManager()->stringForUniqueIdentifier(k)
+        << Core::Id::fromUniqueIdentifier(k).toString()
         << '.';
     return msg;
 }

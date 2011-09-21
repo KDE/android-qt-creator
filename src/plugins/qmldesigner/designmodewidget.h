@@ -83,10 +83,10 @@ class DesignMode;
 class DocumentWidget;
 class DesignModeWidget;
 
-class DocumentWarningWidget : public  Utils::FakeToolTip
+class DocumentWarningWidget : public Utils::FakeToolTip
 {
     Q_OBJECT
-    Q_DISABLE_COPY(DocumentWarningWidget)
+
 public:
     explicit DocumentWarningWidget(DesignModeWidget *parent = 0);
 
@@ -105,7 +105,7 @@ private:
 class DesignModeWidget : public QWidget
 {
     Q_OBJECT
-    Q_DISABLE_COPY(DesignModeWidget)
+
 public:
     explicit DesignModeWidget(QWidget *parent = 0);
     ~DesignModeWidget();
@@ -132,6 +132,9 @@ public:
     void setAutoSynchronization(bool sync);
 
     TextEditor::ITextEditor *textEditor() const {return m_textEditor.data(); }
+
+    static DesignModeWidget *instance();
+    DesignDocumentController *currentDesignDocumentController() const {return m_currentDesignDocumentController.data(); }
 
 private slots:
     void undo();
@@ -162,13 +165,13 @@ private slots:
     void onGoBackClicked();
     void onGoForwardClicked();
 
+    void onCrumblePathElementClicked(const QVariant &data);
+
 protected:
     void resizeEvent(QResizeEvent *event);
 
 private:
-    DesignDocumentController *currentDesignDocumentController() const {return m_currentDesignDocumentController.data(); }
     void setCurrentDocument(DesignDocumentController *newDesignDocumentController);
-
     //QStackedWidget *m_documentWidgetStack;
     QHash<QPlainTextEdit*,QWeakPointer<DesignDocumentController> > m_documentHash;
     QWeakPointer<DesignDocumentController> m_currentDesignDocumentController;
@@ -222,6 +225,8 @@ private:
     QStringList m_navigatorHistory;
     int m_navigatorHistoryCounter;
     bool m_keepNavigatorHistory;
+
+    static DesignModeWidget *s_instance;
 };
 
 } // namespace Internal

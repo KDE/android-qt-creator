@@ -59,8 +59,9 @@ public:
     static IntegrationCore *instance();
 
 private:
-    CorePrivate *m_d;
+    CorePrivate *d;
 };
-}
+
+} // namspace QmlDesigner
 
 #endif // QMLDESIGNERCORE_H

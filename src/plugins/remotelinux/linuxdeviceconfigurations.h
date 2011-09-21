@@ -29,27 +29,27 @@
 ** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
-
-#ifndef MAEMODEVICECONFIGURATIONS_H
-#define MAEMODEVICECONFIGURATIONS_H
+#ifndef LINUXDEVICECONFIGURATIONS_H
+#define LINUXDEVICECONFIGURATIONS_H
 
 #include "linuxdeviceconfiguration.h"
+#include "remotelinux_export.h"
 
 #include <QtCore/QAbstractListModel>
-#include <QtCore/QList>
-#include <QtCore/QSharedPointer>
-#include <QtCore/QString>
 
+QT_FORWARD_DECLARE_CLASS(QString)
 
 namespace RemoteLinux {
 namespace Internal {
+class LinuxDeviceConfigurationsPrivate;
+} // namespace Internal
 
-class LinuxDeviceConfigurations : public QAbstractListModel
+class REMOTELINUX_EXPORT LinuxDeviceConfigurations : public QAbstractListModel
 {
     Q_OBJECT
-    Q_DISABLE_COPY(LinuxDeviceConfigurations)
-    friend class MaemoDeviceConfigurationsSettingsWidget;
 public:
+    ~LinuxDeviceConfigurations();
+
     static LinuxDeviceConfigurations *instance(QObject *parent = 0);
 
     static void replaceInstance(const LinuxDeviceConfigurations *other);
@@ -62,9 +62,10 @@ public:
     int indexForInternalId(LinuxDeviceConfiguration::Id internalId) const;
     LinuxDeviceConfiguration::Id internalId(LinuxDeviceConfiguration::ConstPtr devConf) const;
 
-    void setDefaultSshKeyFilePath(const QString &path) { m_defaultSshKeyFilePath = path; }
-    QString defaultSshKeyFilePath() const { return m_defaultSshKeyFilePath; }
+    void setDefaultSshKeyFilePath(const QString &path);
+    QString defaultSshKeyFilePath() const;
 
+    void addConfiguration(const LinuxDeviceConfiguration::Ptr &devConfig);
     void removeConfiguration(int index);
     void setConfigurationName(int i, const QString &name);
     void setSshParameters(int i, const Utils::SshConnectionParameters &params);
@@ -80,20 +81,16 @@ signals:
 
 private:
     LinuxDeviceConfigurations(QObject *parent);
+
     void load();
     void save();
     static void copy(const LinuxDeviceConfigurations *source,
         LinuxDeviceConfigurations *target, bool deep);
-    void addConfiguration(const LinuxDeviceConfiguration::Ptr &devConfig);
-    void ensureDefaultExists(const QString &osType);
+    void ensureOneDefaultConfigurationPerOsType();
 
-    static LinuxDeviceConfigurations *m_instance;
-    LinuxDeviceConfiguration::Id m_nextId;
-    QList<LinuxDeviceConfiguration::Ptr> m_devConfigs;
-    QString m_defaultSshKeyFilePath;
+    Internal::LinuxDeviceConfigurationsPrivate * const d;
 };
 
-} // namespace Internal
 } // namespace RemoteLinux
 
-#endif // MAEMODEVICECONFIGURATIONS_H
+#endif // LINUXDEVICECONFIGURATIONS_H

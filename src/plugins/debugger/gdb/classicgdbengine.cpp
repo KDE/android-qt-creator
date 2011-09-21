@@ -804,10 +804,6 @@ void GdbEngine::runDebuggingHelperClassic(const WatchData &data0, bool dumpChild
 void GdbEngine::createGdbVariableClassic(const WatchData &data)
 {
     PRECONDITION;
-    if (data.iname == "local.flist.0") {
-        int i = 1;
-        Q_UNUSED(i);
-    }
     postCommand("-var-delete \"" + data.iname + '"', WatchUpdate);
     QByteArray exp = data.exp;
     if (exp.isEmpty() && data.address)
@@ -1103,7 +1099,7 @@ void GdbEngine::tryLoadDebuggingHelpersClassic()
     m_debuggingHelperState = DebuggingHelperLoadTried;
     QByteArray dlopenLib;
     const DebuggerStartMode startMode = startParameters().startMode;
-    if (startMode == AttachToRemote || startMode == StartRemoteGdb)
+    if (startMode == AttachToRemoteServer || startMode == StartRemoteGdb)
         dlopenLib = startParameters().remoteDumperLib;
     else
         dlopenLib = qtDumperLibraryName().toLocal8Bit();

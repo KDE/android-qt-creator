@@ -36,8 +36,12 @@
 #include <analyzerbase/ianalyzertool.h>
 #include <analyzerbase/ianalyzerengine.h>
 
+#include <QtCore/QPoint>
+
 namespace QmlProfiler {
 namespace Internal {
+
+#define TraceFileExtension "*.qtd"
 
 class QmlProfilerTool : public Analyzer::IAnalyzerTool
 {
@@ -68,22 +72,31 @@ public slots:
     void stopRecording();
     void setRecording(bool recording);
 
+    void setAppIsRunning();
+    void setAppIsStopped();
+
     void gotoSourceLocation(const QString &fileUrl, int lineNumber);
     void updateTimer(qreal elapsedSeconds);
     void correctTimer();
 
     void clearDisplay();
 
+    void showContextMenu(const QPoint &position);
+
 signals:
     void setTimeLabel(const QString &);
     void fetchingData(bool);
     void connectionFailed();
+    void cancelRun();
 
 private slots:
     void updateProjectFileList();
-    void attach();
     void tryToConnect();
     void connectionStateChanged();
+    void showSaveDialog();
+    void showLoadDialog();
+    void showErrorDialog(const QString &error);
+    void retryMessageBoxFinished(int result);
 
 private:
     void connectToClient();

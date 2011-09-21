@@ -29,14 +29,15 @@
 ** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
-
 #include "maemoremotecopyfacility.h"
 
 #include "maemoglobal.h"
-#include <QtCore/QDir>
 
+#include <remotelinux/linuxdeviceconfiguration.h>
 #include <utils/ssh/sshconnection.h>
 #include <utils/ssh/sshremoteprocessrunner.h>
+
+#include <QtCore/QDir>
 
 using namespace Utils;
 
@@ -138,7 +139,7 @@ void MaemoRemoteCopyFacility::copyNextFile()
     sourceFilePath += d.localFilePath;
 #endif
 
-    QString command = QString::fromLatin1("%1 mkdir -p %3 && %1 cp -r %2 %3")
+    QString command = QString::fromLatin1("%1 mkdir -p %3 && %1 cp -a %2 %3")
         .arg(MaemoGlobal::remoteSudo(m_devConf->osType(),
             m_copyRunner->connection()->connectionParameters().userName),
             sourceFilePath, d.remoteDir);

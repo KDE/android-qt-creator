@@ -37,7 +37,6 @@
 #include "qmldebuggerclient.h"
 
 #include <QtCore/QObject>
-#include <QtCore/QScopedPointer>
 #include <QtNetwork/QAbstractSocket>
 
 namespace QmlJsDebugClient {
@@ -57,6 +56,7 @@ class QmlAdapterPrivate;
 class DEBUGGER_EXPORT QmlAdapter : public QObject
 {
     Q_OBJECT
+
 public:
     explicit QmlAdapter(DebuggerEngine *engine, QObject *parent = 0);
     virtual ~QmlAdapter();
@@ -70,6 +70,9 @@ public:
 
     bool disableJsDebugging(bool block);
 
+    Internal::QmlDebuggerClient *activeDebuggerClient();
+    QHash<QString, Internal::QmlDebuggerClient*> debuggerClients();
+
 public slots:
     void logServiceStatusChange(const QString &service, QDeclarativeDebugClient::Status newStatus);    
     void logServiceActivity(const QString &service, const QString &logMessage);
@@ -82,21 +85,18 @@ signals:
     void serviceConnectionError(const QString serviceName);
 
 private slots:
-    void sendMessage(const QByteArray &msg);
     void connectionErrorOccurred(QAbstractSocket::SocketError socketError);
     void clientStatusChanged(QDeclarativeDebugClient::Status status);
     void connectionStateChanged();
-    void pollInferior();
+    void checkConnectionState();
 
 private:
-    void connectToViewer();
-    void createDebuggerClient();
+    void createDebuggerClients();
     void showConnectionStatusMessage(const QString &message);
     void showConnectionErrorMessage(const QString &message);
-    void flushSendBuffer();
 
 private:
-    QScopedPointer<Internal::QmlAdapterPrivate> d;
+    Internal::QmlAdapterPrivate *d;
 };
 
 } // namespace Debugger

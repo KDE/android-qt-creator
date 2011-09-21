@@ -33,19 +33,16 @@
 #ifndef QT4NODES_H
 #define QT4NODES_H
 
-#include "qt4buildconfiguration.h"
+#include "qt4projectmanager_global.h"
 
 #include <coreplugin/ifile.h>
 #include <projectexplorer/projectnodes.h>
-#include <projectexplorer/project.h>
-#include <projectexplorer/runconfiguration.h>
 
 #include <QtCore/QHash>
 #include <QtCore/QStringList>
 #include <QtCore/QDateTime>
 #include <QtCore/QMap>
 #include <QtCore/QFutureWatcher>
-#include <QtCore/QFileSystemWatcher>
 
 // defined in proitems.h
 QT_BEGIN_NAMESPACE
@@ -60,8 +57,13 @@ namespace QtSupport {
 class ProFileReader;
 }
 
-namespace Qt4ProjectManager {
+namespace ProjectExplorer {
+class RunConfiguration;
+class Project;
+}
 
+namespace Qt4ProjectManager {
+class Qt4BuildConfiguration;
 class Qt4ProFileNode;
 class Qt4Project;
 
@@ -90,8 +92,6 @@ enum Qt4Variable {
     SymbianCapabilities
 };
 
-namespace Internal {
-
 // Import base classes into namespace
 using ProjectExplorer::Node;
 using ProjectExplorer::FileNode;
@@ -110,15 +110,18 @@ using ProjectExplorer::ProjectFileType;
 
 using ProjectExplorer::FileType;
 
+namespace Internal {
 class Qt4UiCodeModelSupport;
 class ProFileReader;
 class Qt4PriFile;
+struct InternalNode;
+}
 
 // Implements ProjectNode for qt4 pro files
-class Qt4PriFileNode : public ProjectExplorer::ProjectNode
+class QT4PROJECTMANAGER_EXPORT Qt4PriFileNode : public ProjectExplorer::ProjectNode
 {
     Q_OBJECT
-    Q_DISABLE_COPY(Qt4PriFileNode)
+
 public:
     Qt4PriFileNode(Qt4Project *project, Qt4ProFileNode* qt4ProFileNode, const QString &filePath);
 
@@ -149,7 +152,13 @@ public:
     bool deploysFolder(const QString &folder) const;
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsFor(Node *node);
 
+    QList<Qt4PriFileNode*> subProjectNodesExact() const;
+
+    // Set by parent
+    bool includedInExactParse() const;
+
 protected:
+    void setIncludedInExactParse(bool b);
     void clear();
     static QStringList varNames(FileType type);
     static QStringList dynamicVarNames(QtSupport::ProFileReader *readerExact, QtSupport::ProFileReader *readerCumulative);
@@ -187,7 +196,7 @@ private:
     QString m_projectFilePath;
     QString m_projectDir;
 
-    QMap<QString, Qt4UiCodeModelSupport *> m_uiCodeModelSupport;
+    QMap<QString, Internal::Qt4UiCodeModelSupport *> m_uiCodeModelSupport;
     Internal::Qt4PriFile *m_qt4PriFile;
 
     // Memory is cheap...
@@ -195,14 +204,16 @@ private:
     QMap<ProjectExplorer::FileType, QSet<QString> > m_files;
     QSet<QString> m_recursiveEnumerateFiles;
     QSet<QString> m_watchedFolders;
+    bool m_includedInExactParse;
 
     // managed by Qt4ProFileNode
     friend class Qt4ProjectManager::Qt4ProFileNode;
-    friend class Qt4PriFile; // for scheduling updates on modified
+    friend class Internal::Qt4PriFile; // for scheduling updates on modified
     // internal temporary subtree representation
-    friend struct InternalNode;
+    friend struct Internal::InternalNode;
 };
 
+namespace Internal {
 class Qt4PriFile : public Core::IFile
 {
     Q_OBJECT
@@ -230,7 +241,7 @@ private:
 class Qt4NodesWatcher : public ProjectExplorer::NodesWatcher
 {
     Q_OBJECT
-    Q_DISABLE_COPY(Qt4NodesWatcher)
+
 public:
     Qt4NodesWatcher(QObject *parent = 0);
 
@@ -307,10 +318,10 @@ struct QT4PROJECTMANAGER_EXPORT ProjectVersion {
 };
 
 // Implements ProjectNode for qt4 pro files
-class QT4PROJECTMANAGER_EXPORT Qt4ProFileNode : public Internal::Qt4PriFileNode
+class QT4PROJECTMANAGER_EXPORT Qt4ProFileNode : public Qt4PriFileNode
 {
     Q_OBJECT
-    Q_DISABLE_COPY(Qt4ProFileNode)
+
 public:
     Qt4ProFileNode(Qt4Project *project,
                    const QString &filePath,
@@ -347,14 +358,14 @@ public:
     void update();
     void scheduleUpdate();
 
-    void emitProFileUpdated();
-
     bool validParse() const;
     bool parseInProgress() const;
 
     bool hasBuildTargets(Qt4ProjectType projectType) const;
 
-    void setParseInProgressRecursive();
+    void setParseInProgress(bool b);
+    void setParseInProgressRecursive(bool b);
+    void emitProFileUpdatedRecursive();
 public slots:
     void asyncUpdate();
 

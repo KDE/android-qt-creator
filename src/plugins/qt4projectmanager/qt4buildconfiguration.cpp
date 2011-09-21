@@ -49,7 +49,7 @@
 #include <projectexplorer/toolchainmanager.h>
 #include <qtsupport/qtversionfactory.h>
 #include <qtsupport/baseqtversion.h>
-
+#include <qtsupport/qtversionmanager.h>
 #include <QtCore/QDebug>
 
 #include <QtGui/QInputDialog>
@@ -164,7 +164,7 @@ bool Qt4BuildConfiguration::fromMap(const QVariantMap &map)
         if (tc && !qt4Target()->possibleToolChains(this).contains(tc))
             setToolChain(0);
         if (!toolChain())
-            tc = qt4Target()->preferredToolChain(this);
+            setToolChain(qt4Target()->preferredToolChain(this));
         m_shadowBuild = (m_shadowBuild && version->supportsShadowBuilds());
     }
 
@@ -327,7 +327,7 @@ QString Qt4BuildConfiguration::defaultMakeTarget() const
 
 QString Qt4BuildConfiguration::makefile() const
 {
-    return qt4Target()->qt4Project()->rootProjectNode()->makefile();
+    return qt4Target()->qt4Project()->rootQt4ProjectNode()->makefile();
 }
 
 QtSupport::BaseQtVersion *Qt4BuildConfiguration::qtVersion() const
@@ -531,11 +531,17 @@ bool Qt4BuildConfiguration::compareToImportFrom(const QString &makefile)
     return false;
 }
 
-void Qt4BuildConfiguration::removeQMLInspectorFromArguments(QString *args)
+bool Qt4BuildConfiguration::removeQMLInspectorFromArguments(QString *args)
 {
-    for (Utils::QtcProcess::ArgIterator ait(args); ait.next(); )
-        if (ait.value().contains(QLatin1String(Constants::QMAKEVAR_QMLJSDEBUGGER_PATH)))
-            ait.deleteArg();
+    bool removedArgument = false;
+    for (Utils::QtcProcess::ArgIterator ait(args); ait.next(); ) {
+        const QString arg = ait.value();
+        if (arg.contains(QLatin1String(Constants::QMAKEVAR_QMLJSDEBUGGER_PATH))
+                || arg.contains(Constants::QMAKEVAR_DECLARATIVE_DEBUG)) {
+            removedArgument = true;
+        }
+    }
+    return removedArgument;
 }
 
 QString Qt4BuildConfiguration::extractSpecFromArguments(QString *args,
@@ -745,7 +751,7 @@ BuildConfiguration *Qt4BuildConfigurationFactory::create(ProjectExplorer::Target
     BuildConfiguration *bc = qt4Target->addQt4BuildConfiguration(defaultDebugName, customDebugName,
                                         version,
                                         (version->defaultBuildConfig() | QtSupport::BaseQtVersion::DebugBuild),
-                                        QString(), QString());
+                                        QString(), QString(), false);
 
     if (qt4Target->id() != Constants::S60_EMULATOR_TARGET_ID) {
         //: Release build configuration. We recommend not translating it.
@@ -757,7 +763,7 @@ BuildConfiguration *Qt4BuildConfigurationFactory::create(ProjectExplorer::Target
         bc = qt4Target->addQt4BuildConfiguration(defaultReleaseName, customReleaseName,
                                                  version,
                                                  (version->defaultBuildConfig() & ~QtSupport::BaseQtVersion::DebugBuild),
-                                                 QString(), QString());
+                                                 QString(), QString(), false);
     }
     return bc;
 }
@@ -832,13 +838,15 @@ void Qt4BuildConfiguration::importFromBuildDirectory()
 
             QString additionalArguments = result.second;
             QString parsedSpec = Qt4BuildConfiguration::extractSpecFromArguments(&additionalArguments, directory, version);
-            Qt4BuildConfiguration::removeQMLInspectorFromArguments(&additionalArguments);
+            const bool enableQmlDebugger =
+                    Qt4BuildConfiguration::removeQMLInspectorFromArguments(&additionalArguments);
 
             // So we got all the information now apply it...
             setQtVersion(version);
 
             QMakeStep *qs = qmakeStep();
             qs->setUserArguments(additionalArguments);
+            qs->setLinkQmlDebuggingLibrary(enableQmlDebugger);
             if (!parsedSpec.isEmpty() && parsedSpec != QLatin1String("default") && qs->mkspec() != parsedSpec) {
                 Utils::QtcProcess::addArgs(&additionalArguments, (QStringList() << "-spec" << parsedSpec));
                 qs->setUserArguments(additionalArguments);

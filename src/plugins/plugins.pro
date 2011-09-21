@@ -44,8 +44,10 @@ SUBDIRS   = plugin_coreplugin \
             debugger/dumper.pro \
             plugin_qmlprofiler \
             plugin_remotelinux \
+            plugin_qttest \
             plugin_android \
-            plugin_valgrind
+            plugin_valgrind \
+            plugin_updateinfo
 
 linux-* {
      SUBDIRS += debugger/ptracepreload.pro
@@ -79,6 +81,9 @@ contains(QT_CONFIG, declarative) {
 include (debugger/lldb/guest/qtcreator-lldb.pri)
 
 plugin_coreplugin.subdir = coreplugin
+
+plugin_updateinfo.subdir = updateinfo
+plugin_updateinfo.depends = plugin_coreplugin
 
 plugin_welcome.subdir = welcome
 plugin_welcome.depends = plugin_coreplugin
@@ -179,6 +184,7 @@ plugin_bookmarks.depends += plugin_texteditor
 plugin_debugger.subdir = debugger
 plugin_debugger.depends = plugin_projectexplorer
 plugin_debugger.depends += plugin_coreplugin
+plugin_debugger.depends += plugin_cpptools
 
 plugin_fakevim.subdir = fakevim
 plugin_fakevim.depends = plugin_coreplugin
@@ -187,6 +193,14 @@ plugin_fakevim.depends += plugin_texteditor
 plugin_qtestlib.subdir = qtestlib
 plugin_qtestlib.depends = plugin_projectexplorer
 plugin_qtestlib.depends += plugin_coreplugin
+
+plugin_qttest.subdir = qttest
+plugin_qttest.depends = plugin_projectexplorer
+plugin_qttest.depends += plugin_coreplugin
+plugin_qttest.depends += plugin_debugger
+plugin_qttest.depends += plugin_qt4projectmanager
+plugin_qttest.depends += plugin_qtsupport
+plugin_qttest.depends += plugin_remotelinux
 
 plugin_helloworld.subdir = helloworld
 plugin_helloworld.depends = plugin_coreplugin
@@ -288,6 +302,7 @@ plugin_qmljstools.subdir = qmljstools
 plugin_qmljstools.depends = plugin_projectexplorer
 plugin_qmljstools.depends += plugin_coreplugin
 plugin_qmljstools.depends += plugin_texteditor
+plugin_qmljstools.depends += plugin_qtsupport
 
 plugin_macros.subdir = macros
 plugin_macros.depends = plugin_texteditor

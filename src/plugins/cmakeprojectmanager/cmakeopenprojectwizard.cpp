@@ -44,6 +44,8 @@
 
 #include <utils/pathchooser.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
+#include <projectexplorer/abi.h>
 #include <texteditor/fontsettings.h>
 
 #include <QtGui/QVBoxLayout>
@@ -141,6 +143,7 @@ void CMakeOpenProjectWizard::init()
 {
     setOption(QWizard::NoBackButtonOnStartPage);
     setWindowTitle(tr("CMake Wizard"));
+    setMinimumSize(800, 600);
 }
 
 CMakeManager *CMakeOpenProjectWizard::cmakeManager() const
@@ -423,7 +426,7 @@ void CMakeRunPage::initializePage()
     bool hasCodeBlocksGenerator = m_cmakeWizard->cmakeManager()->hasCodeBlocksMsvcGenerator();
     ProjectExplorer::Abi abi = ProjectExplorer::Abi::hostAbi();
     abi = ProjectExplorer::Abi(abi.architecture(), abi.os(), ProjectExplorer::Abi::UnknownFlavor,
-                               abi.binaryFormat(), abi.wordWidth() == 32 ? 32 : 0);
+                               abi.binaryFormat(), 0);
     QList<ProjectExplorer::ToolChain *> tcs =
             ProjectExplorer::ToolChainManager::instance()->findToolChains(abi);
 
@@ -450,11 +453,20 @@ void CMakeRunPage::initializePage()
 
 void CMakeRunPage::runCMake()
 {
+    if (m_cmakeExecutable) {
+        // We asked the user for the cmake executable
+        m_cmakeWizard->cmakeManager()->setCMakeExecutable(m_cmakeExecutable->path());
+    }
+
     int index = m_generatorComboBox->currentIndex();
 
     ProjectExplorer::ToolChain *tc = 0;
     if (index >= 0)
         tc = static_cast<ProjectExplorer::ToolChain *>(m_generatorComboBox->itemData(index).value<void *>());
+    if (!tc) {
+        m_output->appendPlainText(tr("No generator selected."));
+        return;
+    }
 
     m_cmakeWizard->setToolChain(tc);
 
@@ -475,10 +487,7 @@ void CMakeRunPage::runCMake()
     Utils::Environment env = m_cmakeWizard->environment();
     tc->addToEnvironment(env);
 
-    if (m_cmakeExecutable) {
-        // We asked the user for the cmake executable
-        m_cmakeWizard->cmakeManager()->setCMakeExecutable(m_cmakeExecutable->path());
-    }
+
 
     m_output->clear();
 

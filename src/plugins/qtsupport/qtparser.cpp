@@ -32,22 +32,21 @@
 
 #include "qtparser.h"
 
-#include <projectexplorer/taskwindow.h>
+#include <projectexplorer/task.h>
 #include <projectexplorer/projectexplorerconstants.h>
+
 #include <utils/qtcassert.h>
 
 using namespace QtSupport;
 using ProjectExplorer::Task;
 
-namespace {
-    // opt. drive letter + filename: (2 brackets)
-    const char * const FILE_PATTERN = "^(([A-Za-z]:)?[^:]+\\.[^:]+)";
-}
+// opt. drive letter + filename: (2 brackets)
+#define FILE_PATTERN "^(([A-Za-z]:)?[^:]+\\.[^:]+)"
 
-QtParser::QtParser()
+QtParser::QtParser() :
+    m_mocRegExp(QLatin1String(FILE_PATTERN"[:\\(](\\d+)\\)?:\\s(Warning|Error):\\s(.+)$"))
 {
     setObjectName(QLatin1String("QtParser"));
-    m_mocRegExp.setPattern(QString::fromLatin1(FILE_PATTERN) + "[:\\(](\\d+)\\)?:\\s(Warning|Error):\\s(.+)$");
     m_mocRegExp.setMinimal(true);
 }
 

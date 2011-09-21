@@ -47,22 +47,16 @@ public:
     ~SimulatorQtVersion();
     SimulatorQtVersion *clone() const;
 
-    virtual QString type() const;
+    QString type() const;
 
-    virtual bool isValid() const;
-    virtual QString invalidReason() const;
-    virtual QString warningReason() const;
+    QString warningReason() const;
 
-    virtual QList<ProjectExplorer::Abi> qtAbis() const;
+    QList<ProjectExplorer::Abi> detectQtAbis() const;
 
-    virtual bool supportsTargetId(const QString &id) const;
-    virtual QSet<QString> supportedTargetIds() const;
+    bool supportsTargetId(const QString &id) const;
+    QSet<QString> supportedTargetIds() const;
 
     QString description() const;
-
-private:
-    mutable bool m_qtAbisUpToDate;
-    mutable QList<ProjectExplorer::Abi> m_qtAbis;
 };
 
 }

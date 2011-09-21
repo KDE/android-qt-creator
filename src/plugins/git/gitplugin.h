@@ -74,8 +74,8 @@ class GitVersionControl;
 class GitClient;
 class ChangeSelectionDialog;
 class GitSubmitEditor;
-struct CommitData;
-struct GitSettings;
+class CommitData;
+class GitSettings;
 class StashDialog;
 class BranchDialog;
 class RemoteDialog;
@@ -95,7 +95,7 @@ public:
 
     static GitPlugin *instance();
 
-    virtual bool initialize(const QStringList &arguments, QString *error_message);
+    virtual bool initialize(const QStringList &arguments, QString *errorMessage);
 
     GitVersionControl *gitVersionControl() const;
 

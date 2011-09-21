@@ -59,6 +59,7 @@
 
 #include <QtDebug>
 #include <algorithm>
+#include <QtCore/QList>
 
 namespace CPlusPlus {
 
@@ -461,7 +462,8 @@ Preprocessor::Preprocessor(Client *client, Environment *env)
       _dot(_tokens.end()),
       _result(0),
       _markGeneratedTokens(false),
-      _expandMacros(true)
+      _expandMacros(true),
+      _keepComments(false)
 {
     resetIfLevel ();
 }
@@ -558,12 +560,24 @@ void Preprocessor::setExpandMacros(bool expandMacros)
     _expandMacros = expandMacros;
 }
 
+bool Preprocessor::keepComments() const
+{
+    return _keepComments;
+}
+
+void Preprocessor::setKeepComments(bool keepComments)
+{
+    _keepComments = keepComments;
+}
+
 Preprocessor::State Preprocessor::createStateFromSource(const QByteArray &source) const
 {
     State state;
     state.source = source;
     Lexer lex(state.source.constBegin(), state.source.constEnd());
     lex.setScanKeywords(false);
+    if (_keepComments)
+        lex.setScanCommentTokens(true);
     Token tok;
     do {
         lex(&tok);
@@ -578,7 +592,9 @@ void Preprocessor::processNewline(bool force)
     if (_dot != _tokens.constBegin()) {
         TokenIterator prevTok = _dot - 1;
 
-        if (prevTok->isLiteral()) {
+        // Line changes due to multi-line tokens that we assume got printed
+        // to the preprocessed source. See interaction with skipToNextLine.
+        if (maybeMultilineToken(prevTok)) {
             const char *ptr = _source.constBegin() + prevTok->begin();
             const char *end = ptr + prevTok->length();
 
@@ -694,6 +710,41 @@ bool Preprocessor::maybeAfterComment() const
     return false;
 }
 
+bool Preprocessor::maybeMultilineToken(Preprocessor::TokenIterator tok)
+{
+    return tok->isLiteral()
+            || (_keepComments
+                && (tok->kind() == T_COMMENT
+                    || tok->kind() == T_DOXY_COMMENT));
+}
+
+void Preprocessor::skipToNextLine()
+{
+    do {
+        if (maybeMultilineToken(_dot)) {
+            const char *ptr = _source.constBegin() + _dot->begin();
+            const char *end = ptr + _dot->length();
+
+            int newlines = 0;
+            for (; ptr != end; ++ptr) {
+                if (*ptr == '\n')
+                    ++newlines;
+            }
+            if (newlines) {
+                // This function does not output tokens it skips. We need to offset
+                // the currentLine so it gets correctly adjusted by processNewline.
+                env->currentLine -= newlines;
+                ++_dot;
+                return;
+            }
+        }
+
+        ++_dot;
+
+    } while (_dot->isNot(T_EOF_SYMBOL)
+             && (_dot->f.joined || !_dot->f.newline));
+}
+
 void Preprocessor::preprocess(const QString &fileName, const QByteArray &source,
                               QByteArray *result)
 {
@@ -724,9 +775,7 @@ void Preprocessor::preprocess(const QString &fileName, const QByteArray &source,
             // handle the preprocessor directive
 
             TokenIterator start = _dot;
-            do {
-                ++_dot;
-            } while (_dot->isNot(T_EOF_SYMBOL) && (_dot->f.joined || ! _dot->f.newline));
+            skipToNextLine();
 
             const bool skippingBlocks = _skipping[iflevel];
 
@@ -735,10 +784,7 @@ void Preprocessor::preprocess(const QString &fileName, const QByteArray &source,
 
         } else if (skipping()) {
             // skip the current line
-
-            do {
-                ++_dot;
-            } while (_dot->isNot(T_EOF_SYMBOL) && (_dot->f.joined || ! _dot->f.newline));
+            skipToNextLine();
 
         } else {
 
@@ -1182,11 +1228,33 @@ void Preprocessor::processDefine(TokenIterator firstToken, TokenIterator lastTok
         // ### make me fast!
         const char *startOfDefinition = startOfToken(*tk);
         const char *endOfDefinition = endOfToken(lastToken[- 1]);
-        QByteArray definition(startOfDefinition,
-                              endOfDefinition - startOfDefinition);
-        definition.replace("\\\n", " ");
-        definition.replace('\n', ' ');
-        macro.setDefinition(definition.trimmed());
+        // It could be that the start is not really before that end, so the check...
+        if (startOfDefinition < endOfDefinition) {
+            QList<unsigned> lineBreaks;
+            lineBreaks.reserve(4); // A reasonable guess...?
+            QByteArray definition;
+            definition.reserve(endOfDefinition - startOfDefinition);
+            while (startOfDefinition != endOfDefinition) {
+                bool replace = false;
+                if (*startOfDefinition == '\n'
+                        || (startOfDefinition + 1 != endOfDefinition
+                            && *startOfDefinition == '\\'
+                            && *(startOfDefinition + 1) == '\n')) {
+                    replace = true;
+                    if (*startOfDefinition != '\n')
+                        ++startOfDefinition;
+                }
+                if (replace) {
+                    definition.append(' ');
+                    lineBreaks.append(definition.length() - 1);
+                } else {
+                    definition.append(*startOfDefinition);
+                }
+                ++startOfDefinition;
+            }
+            macro.setDefinition(definition.trimmed());
+            macro.setLineBreaks(lineBreaks);
+        }
     }
 
     env->bind(macro);
@@ -1307,8 +1375,9 @@ void Preprocessor::processIfdef(bool checkUndefined,
 
             } else if (env->isBuiltinMacro(macroName)) {
                 value = true;
+            } else if (macroName == "Q_CREATOR_RUN") {
+                value = true;
             }
-
 
             if (checkUndefined)
                 value = ! value;

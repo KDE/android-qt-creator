@@ -63,14 +63,8 @@ public:
 
     bool autoSynchronization() const;
 
-
-    // Helpers for common directory browser options.
-    static void showInGraphicalShell(QWidget *parent, const QString &path);
-    static void openTerminal(const QString &path);
-    // Platform-dependent action descriptions
-    static QString msgGraphicalShellAction();
-    static QString msgTerminalAction();
-
+    static void findOnFileSystem(const QString &pathIn);
+    static QString msgFindOnFileSystem();
 public slots:
     void setAutoSynchronization(bool sync);
     void toggleAutoSynchronization();

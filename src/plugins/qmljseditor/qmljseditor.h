@@ -37,7 +37,7 @@
 
 #include <qmljs/qmljsdocument.h>
 #include <qmljs/qmljsscanner.h>
-#include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljsscopechain.h>
 #include <texteditor/basetexteditor.h>
 #include <texteditor/quickfix.h>
 
@@ -68,8 +68,9 @@ class FindReferences;
 
 namespace Internal {
 class QmlOutlineModel;
+class SemanticInfoUpdater;
+struct SemanticInfoUpdaterSource;
 class SemanticHighlighter;
-struct SemanticHighlighterSource;
 } // namespace Internal
 
 struct QMLJSEDITOR_EXPORT Declaration
@@ -107,33 +108,39 @@ public:
     bool isValid() const;
     int revision() const;
 
-    // Returns the declaring member
-    QmlJS::AST::Node *declaringMember(int cursorPosition) const;
-    QmlJS::AST::Node *declaringMemberNoProperties(int cursorPosition) const;
-
-    // Returns the AST node under cursor
-    QmlJS::AST::Node *nodeUnderCursor(int cursorPosition) const;
-
-    // Returns the list of nodes that enclose the given position.
+    // Returns the AST path
     QList<QmlJS::AST::Node *> astPath(int cursorPosition) const;
 
-    // Returns a context for the given path
-    QSharedPointer<QmlJS::LookupContext> lookupContext(const QList<QmlJS::AST::Node *> &path = QList<QmlJS::AST::Node *>()) const;
+    // Returns the AST node at the offset (the last member of the astPath)
+    QmlJS::AST::Node *astNodeAt(int cursorPosition) const;
+
+    // Returns the list of declaration-type nodes that enclose the given position.
+    // It is more robust than astPath because it tracks ranges with text cursors
+    // and will thus be correct even if the document was changed and not yet
+    // reparsed. It does not return the full path of AST nodes.
+    QList<QmlJS::AST::Node *> rangePath(int cursorPosition) const;
+
+    // Returns the declaring member
+    QmlJS::AST::Node *rangeAt(int cursorPosition) const;
+    QmlJS::AST::Node *declaringMemberNoProperties(int cursorPosition) const;
+
+    // Returns a scopeChain for the given path
+    QmlJS::ScopeChain scopeChain(const QList<QmlJS::AST::Node *> &path = QList<QmlJS::AST::Node *>()) const;
 
 public: // attributes
     QmlJS::Document::Ptr document;
     QmlJS::Snapshot snapshot;
+    QmlJS::ContextPtr context;
     QList<Range> ranges;
     QHash<QString, QList<QmlJS::AST::SourceLocation> > idLocations;
-    QList<Declaration> declarations;
 
     // these are in addition to the parser messages in the document
     QList<QmlJS::DiagnosticMessage> semanticMessages;
 
 private:
-    QSharedPointer<const QmlJS::Interpreter::Context> m_context;
+    QSharedPointer<const QmlJS::ScopeChain> m_rootScopeChain;
 
-    friend class Internal::SemanticHighlighter;
+    friend class Internal::SemanticInfoUpdater;
 };
 
 class QMLJSEDITOR_EXPORT QmlJSTextEditorWidget : public TextEditor::BaseTextEditorWidget
@@ -156,8 +163,6 @@ public:
     bool updateSelectedElements() const;
     void setUpdateSelectedElements(bool value);
 
-    void renameId(const QString &oldId, const QString &newId);
-
     static QVector<QString> highlighterFormatCategories();
 
     TextEditor::IAssistInterface *createAssistInterface(TextEditor::AssistKind assistKind,
@@ -165,9 +170,10 @@ public:
 
 public slots:
     virtual void setTabSettings(const TextEditor::TabSettings &ts);
-    void forceSemanticRehighlight();
+    void forceReparse();
     void followSymbolUnderCursor();
     void findUsages();
+    void renameUsages();
     void showContextPane();
     virtual void setFontSettings(const TextEditor::FontSettings &);
 
@@ -191,11 +197,8 @@ private slots:
     void updateUses();
     void updateUsesNow();
 
-    // refactoring ops
-    void renameIdUnderCursor();
-
-    void semanticRehighlight();
-    void forceSemanticRehighlightIfCurrentEditor();
+    void reparse();
+    void forceReparseIfCurrentEditor();
     void updateSemanticInfo(const QmlJSEditor::SemanticInfo &semanticInfo);
     void onCursorPositionChanged();
     void onRefactorMarkerClicked(const TextEditor::RefactorMarker &marker);
@@ -218,7 +221,7 @@ private:
     void setSelectedElements();
     QString wordUnderCursor() const;
 
-    Internal::SemanticHighlighterSource currentSource(bool force = false);
+    Internal::SemanticInfoUpdaterSource currentSource(bool force = false);
     QModelIndex indexForPosition(unsigned cursorPosition, const QModelIndex &rootIndex = QModelIndex()) const;
     bool hideContextPane();
 
@@ -226,7 +229,7 @@ private:
 
     QTimer *m_updateDocumentTimer;
     QTimer *m_updateUsesTimer;
-    QTimer *m_semanticRehighlightTimer;
+    QTimer *m_localReparseTimer;
     QTimer *m_updateOutlineTimer;
     QTimer *m_updateOutlineIndexTimer;
     QTimer *m_cursorPositionTimer;
@@ -238,7 +241,7 @@ private:
     QTextCharFormat m_occurrencesUnusedFormat;
     QTextCharFormat m_occurrenceRenameFormat;
 
-    Internal::SemanticHighlighter *m_semanticHighlighter;
+    Internal::SemanticInfoUpdater *m_semanticInfoUpdater;
     SemanticInfo m_semanticInfo;
 
     QList<TextEditor::QuickFixOperation::Ptr> m_quickFixes;
@@ -248,6 +251,9 @@ private:
     bool m_updateSelectedElements;
 
     FindReferences *m_findReferences;
+    Internal::SemanticHighlighter *m_semanticHighlighter;
+
+    friend class Internal::SemanticHighlighter;
 };
 
 } // namespace QmlJSEditor

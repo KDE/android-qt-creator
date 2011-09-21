@@ -731,7 +731,7 @@ void BinEditor::paintEvent(QPaintEvent *e)
     QString itemString(m_bytesPerLine*3, QLatin1Char(' '));
     QChar *itemStringData = itemString.data();
     char changedString[160] = { false };
-    QTC_ASSERT(m_bytesPerLine < sizeof(changedString), return);
+    QTC_ASSERT((size_t)m_bytesPerLine < sizeof(changedString), return);
     const char *hex = "0123456789abcdef";
 
     painter.setPen(palette().text().color());
@@ -945,8 +945,8 @@ void BinEditor::setCursorPosition(int pos, MoveMode moveMode)
     hasSelection = m_anchorPosition != m_cursorPosition;
     updateLines(hasSelection ? oldCursorPosition : m_cursorPosition, m_cursorPosition);
     ensureCursorVisible();
-    if (hasSelection != (m_anchorPosition != m_anchorPosition))
-        emit copyAvailable(m_anchorPosition != m_cursorPosition);
+    if (hasSelection)
+        emit copyAvailable(hasSelection);
     emit cursorPositionChanged(m_cursorPosition);
 }
 

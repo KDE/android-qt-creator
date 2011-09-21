@@ -44,7 +44,6 @@
 using namespace LanguageUtils;
 using namespace QmlJS;
 using namespace QmlJS::AST;
-using namespace QmlJS::Interpreter;
 
 /*!
     \class QmlJS::Bind
@@ -54,7 +53,7 @@ using namespace QmlJS::Interpreter;
     Each QmlJS::Document owns a instance of Bind. It provides access to data
     that can be derived by looking at the document in isolation. If you need
     information that goes beyond that, you need to create a
-    \l{QmlJS::Interpreter::Context} using \l{QmlJS::Link}.
+    \l{QmlJS::Context} using \l{QmlJS::Link}.
 
     The document's imports are classified and available through imports().
 
@@ -81,23 +80,23 @@ QList<ImportInfo> Bind::imports() const
     return _imports;
 }
 
-Interpreter::ObjectValue *Bind::idEnvironment() const
+ObjectValue *Bind::idEnvironment() const
 {
     return _idEnvironment;
 }
 
-Interpreter::ObjectValue *Bind::rootObjectValue() const
+ObjectValue *Bind::rootObjectValue() const
 {
     return _rootObjectValue;
 }
 
-Interpreter::ObjectValue *Bind::findQmlObject(AST::Node *node) const
+ObjectValue *Bind::findQmlObject(AST::Node *node) const
 {
     return _qmlObjects.value(node);
 }
 
 bool Bind::usesQmlPrototype(ObjectValue *prototype,
-                            const Context *context) const
+                            const ContextPtr &context) const
 {
     if (!prototype)
         return false;
@@ -108,61 +107,8 @@ bool Bind::usesQmlPrototype(ObjectValue *prototype,
     if (componentName.isEmpty())
         return false;
 
-    // get a list of all the names that may refer to this component
-    // this can only happen for file imports with an 'as' clause
-    // if there aren't any, possibleNames will be left empty
-    QSet<QString> possibleNames;
-    foreach (const ImportInfo &import, imports()) {
-        if (import.type() == ImportInfo::FileImport
-                && !import.id().isEmpty()
-                && import.name().contains(componentName)) {
-            possibleNames.insert(import.id());
-        }
-    }
-    if (!possibleNames.isEmpty())
-        possibleNames.insert(componentName);
-
-    // if there are no renamed imports and the document does not use
-    // the className string anywhere, it's out
-    if (possibleNames.isEmpty()) {
-        NameId nameId(componentName.data(), componentName.size());
-        if (!_doc->engine()->literals().contains(nameId))
-            return false;
-    }
-
-    QHashIterator<Node *, ObjectValue *> it(_qmlObjects);
-    while (it.hasNext()) {
-        it.next();
-
-        // if the type id does not contain one of the possible names, skip
-        Node *node = it.key();
-        UiQualifiedId *id = 0;
-        if (UiObjectDefinition *n = cast<UiObjectDefinition *>(node)) {
-            id = n->qualifiedTypeNameId;
-        } else if (UiObjectBinding *n = cast<UiObjectBinding *>(node)) {
-            id = n->qualifiedTypeNameId;
-        }
-        if (!id)
-            continue;
-
-        bool skip = false;
-        // optimize the common case of no renamed imports
-        if (possibleNames.isEmpty()) {
-            for (UiQualifiedId *idIt = id; idIt; idIt = idIt->next) {
-                if (!idIt->next && idIt->name->asString() != componentName)
-                    skip = true;
-            }
-        } else {
-            for (UiQualifiedId *idIt = id; idIt; idIt = idIt->next) {
-                if (!idIt->next && !possibleNames.contains(idIt->name->asString()))
-                    skip = true;
-            }
-        }
-        if (skip)
-            continue;
-
+    foreach (const ObjectValue *object, _qmlObjectsByPrototypeName.values(componentName)) {
         // resolve and check the prototype
-        const ObjectValue *object = it.value();
         const ObjectValue *resolvedPrototype = object->prototype(context);
         if (resolvedPrototype == prototype)
             return true;
@@ -171,7 +117,7 @@ bool Bind::usesQmlPrototype(ObjectValue *prototype,
     return false;
 }
 
-Interpreter::ObjectValue *Bind::findAttachedJSScope(AST::Node *node) const
+ObjectValue *Bind::findAttachedJSScope(AST::Node *node) const
 {
     return _attachedJSScopes.value(node);
 }
@@ -196,8 +142,7 @@ QString Bind::toString(UiQualifiedId *qualifiedId, QChar delimiter)
         if (iter != qualifiedId)
             result += delimiter;
 
-        if (iter->name)
-            result += iter->name->asString();
+        result += iter->name;
     }
 
     return result;
@@ -208,10 +153,16 @@ ObjectValue *Bind::bindObject(UiQualifiedId *qualifiedTypeNameId, UiObjectInitia
     ObjectValue *parentObjectValue = 0;
 
     // normal component instance
-    ASTObjectValue *objectValue = new ASTObjectValue(qualifiedTypeNameId, initializer, _doc, &_engine);
+    ASTObjectValue *objectValue = new ASTObjectValue(qualifiedTypeNameId, initializer, _doc, &_valueOwner);
     QmlPrototypeReference *prototypeReference =
-            new QmlPrototypeReference(qualifiedTypeNameId, _doc, &_engine);
+            new QmlPrototypeReference(qualifiedTypeNameId, _doc, &_valueOwner);
     objectValue->setPrototype(prototypeReference);
+
+    // add the prototype name to the prototypes hash
+    for (UiQualifiedId *it = qualifiedTypeNameId; it; it = it->next) {
+        if (!it->next && !it->name.isEmpty())
+            _qmlObjectsByPrototypeName.insert(it->name.toString(), objectValue);
+    }
 
     parentObjectValue = switchObjectValue(objectValue);
 
@@ -234,13 +185,13 @@ void Bind::accept(Node *node)
 
 bool Bind::visit(AST::UiProgram *)
 {
-    _idEnvironment = _engine.newObject(/*prototype =*/ 0);
+    _idEnvironment = _valueOwner.newObject(/*prototype =*/ 0);
     return true;
 }
 
 bool Bind::visit(AST::Program *)
 {
-    _currentObjectValue = _engine.newObject(/*prototype =*/ 0);
+    _currentObjectValue = _valueOwner.newObject(/*prototype =*/ 0);
     _rootObjectValue = _currentObjectValue;
     return true;
 }
@@ -268,10 +219,11 @@ bool Bind::visit(UiImport *ast)
             _diagnosticMessages->append(
                         errorMessage(ast, tr("package import requires a version number")));
         }
-    } else if (ast->fileName) {
-        QFileInfo importFileInfo(ast->fileName->asString());
+    } else if (!ast->fileName.isEmpty()) {
+        const QString &fileName = ast->fileName.toString();
+        QFileInfo importFileInfo(fileName);
         if (!importFileInfo.isAbsolute()) {
-            importFileInfo=QFileInfo(_doc->path() + QDir::separator() + ast->fileName->asString());
+            importFileInfo=QFileInfo(_doc->path() + QDir::separator() + fileName);
         }
         name = importFileInfo.absoluteFilePath();
         if (importFileInfo.isFile())
@@ -279,8 +231,6 @@ bool Bind::visit(UiImport *ast)
         else if (importFileInfo.isDir())
             type = ImportInfo::DirectoryImport;
         else {
-            _diagnosticMessages->append(
-                        errorMessage(ast, tr("file or directory not found")));
             type = ImportInfo::UnknownFileImport;
         }
     }
@@ -294,7 +244,7 @@ bool Bind::visit(UiPublicMember *ast)
     const Block *block = AST::cast<const Block*>(ast->statement);
     if (block) {
         // build block scope
-        ObjectValue *blockScope = _engine.newObject(/*prototype=*/0);
+        ObjectValue *blockScope = _valueOwner.newObject(/*prototype=*/0);
         _attachedJSScopes.insert(ast, blockScope); // associated with the UiPublicMember, not with the block
         ObjectValue *parent = switchObjectValue(blockScope);
         accept(ast->statement);
@@ -309,15 +259,15 @@ bool Bind::visit(UiObjectDefinition *ast)
     // an UiObjectDefinition may be used to group property bindings
     // think anchors { ... }
     bool isGroupedBinding = ast->qualifiedTypeNameId
-            && ast->qualifiedTypeNameId->name
-            && ast->qualifiedTypeNameId->name->asString().at(0).isLower();
+            && !ast->qualifiedTypeNameId->name.isEmpty()
+            && ast->qualifiedTypeNameId->name.at(0).isLower();
 
     if (!isGroupedBinding) {
         ObjectValue *value = bindObject(ast->qualifiedTypeNameId, ast->initializer);
         _qmlObjects.insert(ast, value);
     } else {
         _groupedPropertyBindings.insert(ast);
-        Interpreter::ObjectValue *oldObjectValue = switchObjectValue(0);
+        ObjectValue *oldObjectValue = switchObjectValue(0);
         accept(ast->initializer);
         switchObjectValue(oldObjectValue);
     }
@@ -341,13 +291,13 @@ bool Bind::visit(UiScriptBinding *ast)
     if (_currentObjectValue && toString(ast->qualifiedId) == QLatin1String("id")) {
         if (ExpressionStatement *e = cast<ExpressionStatement*>(ast->statement))
             if (IdentifierExpression *i = cast<IdentifierExpression*>(e->expression))
-                if (i->name)
-                    _idEnvironment->setMember(i->name->asString(), _currentObjectValue);
+                if (!i->name.isEmpty())
+                    _idEnvironment->setMember(i->name.toString(), _currentObjectValue);
     }
     const Block *block = AST::cast<const Block*>(ast->statement);
     if (block) {
         // build block scope
-        ObjectValue *blockScope = _engine.newObject(/*prototype=*/0);
+        ObjectValue *blockScope = _valueOwner.newObject(/*prototype=*/0);
         _attachedJSScopes.insert(ast, blockScope); // associated with the UiScriptBinding, not with the block
         ObjectValue *parent = switchObjectValue(blockScope);
         accept(ast->statement);
@@ -366,12 +316,12 @@ bool Bind::visit(UiArrayBinding *)
 
 bool Bind::visit(VariableDeclaration *ast)
 {
-    if (! ast->name)
+    if (ast->name.isEmpty())
         return false;
 
-    ASTVariableReference *ref = new ASTVariableReference(ast, &_engine);
+    ASTVariableReference *ref = new ASTVariableReference(ast, _doc, &_valueOwner);
     if (_currentObjectValue)
-        _currentObjectValue->setMember(ast->name->asString(), ref);
+        _currentObjectValue->setMember(ast->name.toString(), ref);
     return true;
 }
 
@@ -381,12 +331,12 @@ bool Bind::visit(FunctionExpression *ast)
     //if (_currentObjectValue->property(ast->name->asString(), 0))
     //    return false;
 
-    ASTFunctionValue *function = new ASTFunctionValue(ast, _doc, &_engine);
-    if (_currentObjectValue && ast->name && cast<FunctionDeclaration *>(ast))
-        _currentObjectValue->setMember(ast->name->asString(), function);
+    ASTFunctionValue *function = new ASTFunctionValue(ast, _doc, &_valueOwner);
+    if (_currentObjectValue && !ast->name.isEmpty() && cast<FunctionDeclaration *>(ast))
+        _currentObjectValue->setMember(ast->name.toString(), function);
 
     // build function scope
-    ObjectValue *functionScope = _engine.newObject(/*prototype=*/0);
+    ObjectValue *functionScope = _valueOwner.newObject(/*prototype=*/0);
     _attachedJSScopes.insert(ast, functionScope);
     ObjectValue *parent = switchObjectValue(functionScope);
 
@@ -395,17 +345,17 @@ bool Bind::visit(FunctionExpression *ast)
 
     // 1. Function formal arguments
     for (FormalParameterList *it = ast->formals; it; it = it->next) {
-        if (it->name)
-            functionScope->setMember(it->name->asString(), _engine.undefinedValue());
+        if (!it->name.isEmpty())
+            functionScope->setMember(it->name.toString(), _valueOwner.undefinedValue());
     }
 
     // 2. Functions defined inside the function body
     // ### TODO, currently covered by the accept(body)
 
     // 3. Arguments object
-    ObjectValue *arguments = _engine.newObject(/*prototype=*/0);
+    ObjectValue *arguments = _valueOwner.newObject(/*prototype=*/0);
     arguments->setMember(QLatin1String("callee"), function);
-    arguments->setMember(QLatin1String("length"), _engine.numberValue());
+    arguments->setMember(QLatin1String("length"), _valueOwner.numberValue());
     functionScope->setMember(QLatin1String("arguments"), arguments);
 
     // 4. Variables defined inside the function body

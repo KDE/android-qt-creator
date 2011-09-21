@@ -40,8 +40,10 @@
 #include <QtCore/QScopedPointer>
 #include <QtCore/QStringList>
 
-QT_FORWARD_DECLARE_CLASS(QAbstractButton)
-QT_FORWARD_DECLARE_CLASS(QAction)
+QT_BEGIN_NAMESPACE
+class QAbstractButton;
+class QAction;
+QT_END_NAMESPACE
 
 namespace ImageViewer {
 namespace Internal {
@@ -50,7 +52,7 @@ class ImageViewerFile;
 class ImageViewer : public Core::IEditor
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ImageViewer)
+
 public:
     explicit ImageViewer(QWidget *parent = 0);
     ~ImageViewer();
@@ -95,7 +97,7 @@ private:
     bool updateButtonIconByTheme(QAbstractButton *button, const QString &name);
 
 private:
-    QScopedPointer<struct ImageViewerPrivate> d_ptr;
+    struct ImageViewerPrivate *d;
 };
 
 } // namespace Internal

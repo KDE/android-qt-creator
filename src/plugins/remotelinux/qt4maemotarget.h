@@ -41,7 +41,10 @@
 
 QT_FORWARD_DECLARE_CLASS(QFile)
 
-namespace Qt4ProjectManager { class Qt4Project; }
+namespace Qt4ProjectManager {
+class Qt4Project;
+class Qt4BuildConfigurationFactory;
+}
 namespace Utils { class FileSystemWatcher; }
 
 namespace RemoteLinux {
@@ -58,19 +61,19 @@ public:
         const QString &id);
     virtual ~AbstractQt4MaemoTarget();
 
-    Qt4ProjectManager::Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
+    ProjectExplorer::IBuildConfigurationFactory *buildConfigurationFactory() const;
     void createApplicationProFiles();
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);
     QList<ProjectExplorer::ToolChain *> possibleToolChains(ProjectExplorer::BuildConfiguration *bc) const;
 
-    virtual bool allowsRemoteMounts() const=0;
-    virtual bool allowsPackagingDisabling() const=0;
-    virtual bool allowsQmlDebugging() const=0;
+    virtual bool allowsRemoteMounts() const = 0;
+    virtual bool allowsPackagingDisabling() const = 0;
+    virtual bool allowsQmlDebugging() const = 0;
 
-    virtual QString projectVersion(QString *error = 0) const=0;
-    virtual QString packageName() const=0;
-    virtual QString shortDescription() const=0;
-    virtual QString packageFileName() const=0;
+    virtual QString projectVersion(QString *error = 0) const = 0;
+    virtual QString packageName() const = 0;
+    virtual QString shortDescription() const = 0;
+    virtual QString packageFileName() const = 0;
 
     bool setProjectVersion(const QString &version, QString *error = 0);
     bool setPackageName(const QString &packageName);
@@ -92,18 +95,18 @@ private slots:
 
 private:
     virtual bool setProjectVersionInternal(const QString &version,
-        QString *error = 0)=0;
-    virtual bool setPackageNameInternal(const QString &packageName)=0;
-    virtual bool setShortDescriptionInternal(const QString &description)=0;
-    virtual ActionStatus createSpecialTemplates()=0;
-    virtual void handleTargetAddedSpecial()=0;
-    virtual bool targetCanBeRemoved() const=0;
-    virtual void removeTarget()=0;
-    virtual QStringList packagingFilePaths() const=0;
+        QString *error = 0) = 0;
+    virtual bool setPackageNameInternal(const QString &packageName) = 0;
+    virtual bool setShortDescriptionInternal(const QString &description) = 0;
+    virtual ActionStatus createSpecialTemplates() = 0;
+    virtual void handleTargetAddedSpecial() = 0;
+    virtual bool targetCanBeRemoved() const = 0;
+    virtual void removeTarget() = 0;
+    virtual QStringList packagingFilePaths() const = 0;
 
     ActionStatus createTemplates();
     bool initPackagingSettingsFromOtherTarget();
-    virtual bool initAdditionalPackagingSettingsFromOtherTarget()=0;
+    virtual bool initAdditionalPackagingSettingsFromOtherTarget() = 0;
 
     Qt4ProjectManager::Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
     bool m_isInitialized;
@@ -121,7 +124,7 @@ public:
     QString debianDirPath() const;
     QStringList debianFiles() const;
 
-    virtual QString debianDirName() const=0;
+    virtual QString debianDirName() const = 0;
     virtual QString projectVersion(QString *error = 0) const;
     virtual QString packageName() const;
     virtual QString shortDescription() const;
@@ -132,7 +135,7 @@ public:
     bool setPackageManagerName(const QString &name, QString *error = 0);
     QString packageManagerName() const;
 
-    virtual QSize packageManagerIconSize() const=0;
+    virtual QSize packageManagerIconSize() const = 0;
 
 signals:
     void debianDirContentsChanged();
@@ -159,9 +162,9 @@ private:
     virtual bool initAdditionalPackagingSettingsFromOtherTarget();
     virtual QStringList packagingFilePaths() const;
 
-    virtual void addAdditionalControlFileFields(QByteArray &controlContents)=0;
-    virtual QByteArray packageManagerNameFieldName() const=0;
-    virtual QByteArray defaultSection() const=0;
+    virtual void addAdditionalControlFileFields(QByteArray &controlContents) = 0;
+    virtual QByteArray packageManagerNameFieldName() const = 0;
+    virtual QByteArray defaultSection() const = 0;
 
     QString changeLogFilePath() const;
     QString controlFilePath() const;
@@ -215,7 +218,7 @@ private:
     virtual bool initAdditionalPackagingSettingsFromOtherTarget();
     virtual QStringList packagingFilePaths() const { return QStringList(specFilePath()); }
 
-    virtual QString specFileName() const=0;
+    virtual QString specFileName() const = 0;
 
     QByteArray getValueForTag(const QByteArray &tag, QString *error) const;
     bool setValueForTag(const QByteArray &tag, const QByteArray &value,

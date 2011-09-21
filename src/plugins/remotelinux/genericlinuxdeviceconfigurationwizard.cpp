@@ -31,7 +31,10 @@
 #include "genericlinuxdeviceconfigurationwizard.h"
 
 #include "genericlinuxdeviceconfigurationwizardpages.h"
-#include "maemoconfigtestdialog.h"
+#include "linuxdevicetestdialog.h"
+#include "linuxdevicetester.h"
+#include "portlist.h"
+#include "remotelinux_constants.h"
 
 using namespace Utils;
 
@@ -56,35 +59,35 @@ public:
 
 GenericLinuxDeviceConfigurationWizard::GenericLinuxDeviceConfigurationWizard(QWidget *parent)
     : ILinuxDeviceConfigurationWizard(parent),
-      m_d(new Internal::GenericLinuxDeviceConfigurationWizardPrivate(this))
+      d(new Internal::GenericLinuxDeviceConfigurationWizardPrivate(this))
 {
     setWindowTitle(tr("New Generic Linux Device Configuration Setup"));
-    setPage(Internal::SetupPageId, &m_d->setupPage);
-    setPage(Internal::FinalPageId, &m_d->finalPage);
-    m_d->finalPage.setCommitPage(true);
+    setPage(Internal::SetupPageId, &d->setupPage);
+    setPage(Internal::FinalPageId, &d->finalPage);
+    d->finalPage.setCommitPage(true);
 }
 
 GenericLinuxDeviceConfigurationWizard::~GenericLinuxDeviceConfigurationWizard()
 {
-    delete m_d;
+    delete d;
 }
 
 LinuxDeviceConfiguration::Ptr GenericLinuxDeviceConfigurationWizard::deviceConfiguration()
 {
     Utils::SshConnectionParameters sshParams(SshConnectionParameters::NoProxy);
-    sshParams.host = m_d->setupPage.hostName();
-    sshParams.userName = m_d->setupPage.userName();
+    sshParams.host = d->setupPage.hostName();
+    sshParams.userName = d->setupPage.userName();
     sshParams.port = 22;
     sshParams.timeout = 10;
-    sshParams.authenticationType = m_d->setupPage.authenticationType();
+    sshParams.authenticationType = d->setupPage.authenticationType();
     if (sshParams.authenticationType == SshConnectionParameters::AuthenticationByPassword)
-        sshParams.password = m_d->setupPage.password();
+        sshParams.password = d->setupPage.password();
     else
-        sshParams.privateKeyFile = m_d->setupPage.privateKeyFilePath();
-    LinuxDeviceConfiguration::Ptr devConf = LinuxDeviceConfiguration::create(m_d->setupPage.configurationName(),
-        LinuxDeviceConfiguration::GenericLinuxOsType, LinuxDeviceConfiguration::Physical,
+        sshParams.privateKeyFile = d->setupPage.privateKeyFilePath();
+    LinuxDeviceConfiguration::Ptr devConf = LinuxDeviceConfiguration::create(d->setupPage.configurationName(),
+        QLatin1String(Constants::GenericLinuxOsType), LinuxDeviceConfiguration::Hardware,
         PortList::fromString(QLatin1String("10000-10100")), sshParams);
-    Internal::MaemoConfigTestDialog dlg(devConf, this);
+    LinuxDeviceTestDialog dlg(devConf, new GenericLinuxDeviceTester(this), this);
     dlg.exec();
     return devConf;
 }

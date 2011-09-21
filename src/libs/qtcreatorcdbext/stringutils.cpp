@@ -35,6 +35,7 @@
 #include <cctype>
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 
 static const char whiteSpace[] = " \t\r\n";
 
@@ -206,6 +207,31 @@ inline char toHexDigit(unsigned v)
     return char(v - 10) + 'a';
 }
 
+// Strings from raw data.
+std::wstring quotedWStringFromCharData(const unsigned char *data, size_t size)
+{
+    std::wstring rc;
+    rc.reserve(size + 2);
+    rc.push_back(L'"');
+    const unsigned char *end = data + size;
+    for ( ; data < end; data++)
+        rc.push_back(wchar_t(*data));
+    rc.push_back(L'"');
+    return rc;
+}
+
+std::wstring quotedWStringFromWCharData(const unsigned char *dataIn, size_t sizeIn)
+{
+    std::wstring rc;
+    const wchar_t *data = reinterpret_cast<const wchar_t *>(dataIn);
+    const size_t size = sizeIn / sizeof(wchar_t);
+    rc.reserve(size + 2);
+    rc.push_back(L'"');
+    rc.append(data, data + size);
+    rc.push_back(L'"');
+    return rc;
+}
+
 // String from hex "414A" -> "AJ".
 std::string stringFromHex(const char *p, const char *end)
 {
@@ -214,7 +240,7 @@ std::string stringFromHex(const char *p, const char *end)
 
     std::string rc;
     rc.reserve((end - p) / 2);
-    for ( ; p < end; p++) {
+    for ( ; p < end; ++p) {
         unsigned c = 16 * hexDigit(*p);
         c += hexDigit(*++p);
         rc.push_back(char(c));
@@ -222,9 +248,40 @@ std::string stringFromHex(const char *p, const char *end)
     return rc;
 }
 
+// Helper for dumping memory
+std::string dumpMemory(const unsigned char *p, size_t size,
+                       bool wantQuotes)
+{
+    std::ostringstream str;
+    str << std::oct << std::setfill('0');
+    if (wantQuotes)
+        str << '"';
+    const unsigned char *end = p + size;
+    for ( ; p < end; ++p) {
+        const unsigned char u = *p;
+        switch (u) {
+        case '\t':
+            str << "\\t";
+        case '\r':
+            str << "\\r";
+        case '\n':
+            str << "\\n";
+        default:
+            if (u >= 32 && u < 128) {
+                str << (char(u));
+            } else {
+                str  << '\\' << std::setw(3) << unsigned(u);
+            }
+        }
+    }
+    if (wantQuotes)
+        str << '"';
+    return str.str();
+}
+
 void decodeHex(const char *p, const char *end, unsigned char *target)
 {
-    for ( ; p < end; p++) {
+    for ( ; p < end; ++p) {
         unsigned c = 16 * hexDigit(*p);
         c += hexDigit(*++p);
         *target++ = c;
@@ -238,7 +295,7 @@ std::wstring dataToHexW(const unsigned char *p, const unsigned char *end)
 
     std::wstring rc;
     rc.reserve(2 * (end - p));
-    for ( ; p < end ; p++) {
+    for ( ; p < end ; ++p) {
         const unsigned c = *p;
         rc.push_back(toHexDigit(c / 16));
         rc.push_back(toHexDigit(c &0xF));
@@ -254,7 +311,7 @@ std::wstring dataToReadableHexW(const unsigned char *begin, const unsigned char 
 
     std::wstring rc;
     rc.reserve(5 * (end - begin));
-    for (const unsigned char *p = begin; p < end ; p++) {
+    for (const unsigned char *p = begin; p < end ; ++p) {
         rc.append(p == begin ? L"0x" : L" 0x");
         const unsigned c = *p;
         rc.push_back(toHexDigit(c / 16));

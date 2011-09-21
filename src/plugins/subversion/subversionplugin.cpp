@@ -57,7 +57,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <locator/commandlocator.h>
@@ -637,7 +637,7 @@ void SubversionPlugin::svnDiff(const Subversion::Internal::SubversionDiffParamet
 SubversionSubmitEditor *SubversionPlugin::openSubversionSubmitEditor(const QString &fileName)
 {
     Core::IEditor *editor = Core::EditorManager::instance()->openEditor(fileName,
-                                                                        QLatin1String(Constants::SUBVERSIONCOMMITEDITOR_ID),
+                                                                        Constants::SUBVERSIONCOMMITEDITOR_ID,
                                                                         Core::EditorManager::ModeSwitch);
     SubversionSubmitEditor *submitEditor = qobject_cast<SubversionSubmitEditor*>(editor);
     QTC_CHECK(submitEditor);
@@ -1298,8 +1298,7 @@ bool SubversionPlugin::vcsCheckout(const QString &directory, const QByteArray &u
     QStringList args = QStringList(QLatin1String("checkout"));
     args << QLatin1String(nonInteractiveOptionC) ;
 
-    if(!username.isEmpty() && !password.isEmpty())
-    {
+    if (!username.isEmpty() && !password.isEmpty()) {
         // If url contains username and password we have to use separate username and password
         // arguments instead of passing those in the url. Otherwise the subversion 'non-interactive'
         // authentication will always fail (if the username and password data are not stored locally),

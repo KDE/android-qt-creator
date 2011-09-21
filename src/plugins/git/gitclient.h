@@ -68,7 +68,7 @@ namespace Internal {
 class GitPlugin;
 class GitOutputWindow;
 class GitCommand;
-struct CommitData;
+class CommitData;
 struct GitSubmitEditorPanelData;
 class Stash;
 
@@ -228,6 +228,7 @@ public:
     static QString msgNoChangedFiles();
 
     static const char *noColorOption;
+    static const char *decorateOption;
 
 public slots:
     void show(const QString &source, const QString &id, const QStringList &args = QStringList());

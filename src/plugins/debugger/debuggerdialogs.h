@@ -47,6 +47,7 @@ class AttachCoreDialog;
 class AttachExternalDialog;
 class StartExternalDialog;
 class StartRemoteDialog;
+class AttachToQmlPortDialog;
 class StartRemoteEngineDialog;
 } // namespace Ui
 
@@ -178,7 +179,7 @@ class StartRemoteDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit StartRemoteDialog(QWidget *parent);
+    explicit StartRemoteDialog(QWidget *parent, bool enableStartScript);
     ~StartRemoteDialog();
 
     QString localExecutable() const;
@@ -209,11 +210,32 @@ public:
     QString debugger() const;
     void setDebugger(const QString &debugger);
 
+    void setDebugInfoLocation(const QString &location);
+    QString debugInfoLocation() const;
+
 private slots:
     void updateState();
 
 private:
     Ui::StartRemoteDialog *m_ui;
+};
+
+class AttachToQmlPortDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit AttachToQmlPortDialog(QWidget *parent);
+    ~AttachToQmlPortDialog();
+
+    QString host() const;
+    void setHost(const QString &host);
+
+    int port() const;
+    void setPort(const int port);
+
+private:
+    Ui::AttachToQmlPortDialog *m_ui;
 };
 
 class StartRemoteCdbDialog : public QDialog

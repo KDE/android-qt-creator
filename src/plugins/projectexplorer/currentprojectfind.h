@@ -51,7 +51,7 @@ class CurrentProjectFind : public AllProjectsFind
     Q_OBJECT
 
 public:
-    CurrentProjectFind(ProjectExplorerPlugin *plugin, Find::SearchResultWindow *resultWindow);
+    CurrentProjectFind(ProjectExplorerPlugin *plugin);
 
     QString id() const;
     QString displayName() const;
@@ -63,6 +63,7 @@ public:
 
 protected:
     QList<Project *> projects() const;
+    QString label() const;
 
 private:
     ProjectExplorerPlugin *m_plugin;

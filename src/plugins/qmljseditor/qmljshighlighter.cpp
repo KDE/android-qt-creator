@@ -65,21 +65,6 @@ void Highlighter::setQmlEnabled(bool qmlEnabled)
     m_qmlEnabled = qmlEnabled;
 }
 
-static bool checkStartOfBinding(const Token &token)
-{
-    switch (token.kind) {
-    case Token::Semicolon:
-    case Token::LeftBrace:
-    case Token::RightBrace:
-    case Token::LeftBracket:
-    case Token::RightBracket:
-        return true;
-
-    default:
-        return false;
-    } // end of switch
-}
-
 void Highlighter::setFormats(const QVector<QTextCharFormat> &formats)
 {
     QTC_ASSERT(formats.size() == NumFormats, return);
@@ -166,54 +151,6 @@ void Highlighter::highlightBlock(const QString &text)
                         break;
                     }
                 }
-
-                if (!spell.isEmpty() && spell.at(0).isUpper())
-                    setFormat(token.offset, token.length, m_formats[TypeFormat]);
-
-                if (index + 1 < tokens.size()) {
-                    bool maybeBinding = (index == 0 || checkStartOfBinding(tokens.at(index - 1)));
-                    bool maybeOnBinding = false;
-                    if (index > 0) {
-                        const Token &previousToken = tokens.at(index - 1);
-                        if (text.midRef(previousToken.offset, previousToken.length) == QLatin1String("on")) {
-                            maybeOnBinding = true;
-                            maybeBinding = false;
-                        }
-                    }
-
-                    if (maybeBinding || maybeOnBinding) {
-                        Token::Kind expectedTerminator = Token::Colon;
-                        if (maybeOnBinding)
-                            expectedTerminator = Token::LeftBrace;
-
-                        const int start = index;
-
-                        // put index on last identifier not followed by .identifier
-                        while (index + 2 < tokens.size() &&
-                               tokens.at(index + 1).is(Token::Dot) &&
-                               tokens.at(index + 2).is(Token::Identifier)) {
-                            index += 2;
-                        }
-
-                        if (index + 1 < tokens.size() && tokens.at(index + 1).is(expectedTerminator)) {
-                            // it's a binding.
-                            for (int i = start; i <= index; ++i) {
-                                const Token &tok = tokens.at(i);
-                                if (tok.kind == Token::Dot)
-                                    continue;
-                                const QStringRef tokSpell = text.midRef(tok.offset, tok.length);
-                                if (!tokSpell.isEmpty() && tokSpell.at(0).isUpper()) {
-                                    setFormat(tok.offset, tok.length, m_formats[TypeFormat]);
-                                } else {
-                                    setFormat(tok.offset, tok.length, m_formats[FieldFormat]);
-                                }
-                            }
-                            break;
-                        } else {
-                            index = start;
-                        }
-                    }
-                }
             }   break;
 
             case Token::Delimiter:
@@ -295,25 +232,41 @@ bool Highlighter::maybeQmlBuiltinType(const QStringRef &text) const
 
     const QChar ch = text.at(0);
 
-    if (ch == QLatin1Char('i') && text == QLatin1String("int")) {
-        return true;
+    if (ch == QLatin1Char('a') && text == QLatin1String("action")) {
+            return true;
     } else if (ch == QLatin1Char('b') && text == QLatin1String("bool")) {
-        return true;
-    } else if (ch == QLatin1Char('d') && text == QLatin1String("double")) {
-        return true;
-    } else if (ch == QLatin1Char('r') && text == QLatin1String("real")) {
-        return true;
-    } else if (ch == QLatin1Char('s') && text == QLatin1String("string")) {
-        return true;
-    } else if (ch == QLatin1Char('u') && text == QLatin1String("url")) {
         return true;
     } else if (ch == QLatin1Char('c') && text == QLatin1String("color")) {
         return true;
     } else if (ch == QLatin1Char('d') && text == QLatin1String("date")) {
         return true;
-    } else if (ch == QLatin1Char('v') && text == QLatin1String("var")) {
+    } else if (ch == QLatin1Char('d') && text == QLatin1String("double")) {
+        return true;
+    } else if (ch == QLatin1Char('e') && text == QLatin1String("enumeration")) {
+        return true;
+    } else if (ch == QLatin1Char('f') && text == QLatin1String("font")) {
+        return true;
+    } else if (ch == QLatin1Char('i') && text == QLatin1String("int")) {
+        return true;
+    } else if (ch == QLatin1Char('l') && text == QLatin1String("list")) {
+        return true;
+    } else if (ch == QLatin1Char('p') && text == QLatin1String("point")) {
+        return true;
+    } else if (ch == QLatin1Char('r') && text == QLatin1String("real")) {
+        return true;
+    } else if (ch == QLatin1Char('r') && text == QLatin1String("rect")) {
+        return true;
+    } else if (ch == QLatin1Char('s') && text == QLatin1String("size")) {
+        return true;
+    } else if (ch == QLatin1Char('s') && text == QLatin1String("string")) {
+        return true;
+    } else if (ch == QLatin1Char('t') && text == QLatin1String("time")) {
+        return true;
+    } else if (ch == QLatin1Char('u') && text == QLatin1String("url")) {
         return true;
     } else if (ch == QLatin1Char('v') && text == QLatin1String("variant")) {
+        return true;
+    } else if (ch == QLatin1Char('v') && text == QLatin1String("vector3d")) {
         return true;
     } else {
         return false;

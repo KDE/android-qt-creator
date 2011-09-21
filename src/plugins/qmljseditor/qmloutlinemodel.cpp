@@ -34,8 +34,8 @@
 #include "qmljseditor.h"
 
 #include <qmljs/parser/qmljsastvisitor_p.h>
-#include <qmljs/qmljsinterpreter.h>
-#include <qmljs/qmljslookupcontext.h>
+#include <qmljs/qmljscontext.h>
+#include <qmljs/qmljsscopechain.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <qmljs/qmljsrewriter.h>
 #include <qmljstools/qmljsrefactoringchanges.h>
@@ -71,11 +71,11 @@ QVariant QmlOutlineItem::data(int role) const
         if (!uiQualifiedId || !location.isValid() || !m_outlineModel->m_semanticInfo.isValid())
             return QVariant();
 
-        QList<AST::Node *> astPath = m_outlineModel->m_semanticInfo.astPath(location.begin());
-        LookupContext::Ptr lookupContext = m_outlineModel->m_semanticInfo.lookupContext(astPath);
-        const Interpreter::Value *value = lookupContext->evaluate(uiQualifiedId);
+        QList<AST::Node *> astPath = m_outlineModel->m_semanticInfo.rangePath(location.begin());
+        ScopeChain scopeChain = m_outlineModel->m_semanticInfo.scopeChain(astPath);
+        const Value *value = scopeChain.evaluate(uiQualifiedId);
 
-        return prettyPrint(value, lookupContext->context());
+        return prettyPrint(value, scopeChain.context());
     }
 
     if (role == Qt::DecorationRole) {
@@ -99,19 +99,19 @@ void QmlOutlineItem::setItemData(const QMap<int, QVariant> &roles)
     }
 }
 
-QString QmlOutlineItem::prettyPrint(const Interpreter::Value *value, const Interpreter::Context *context) const
+QString QmlOutlineItem::prettyPrint(const Value *value, const ContextPtr &context) const
 {
     if (! value)
         return QString();
 
-    if (const Interpreter::ObjectValue *objectValue = value->asObjectValue()) {
+    if (const ObjectValue *objectValue = value->asObjectValue()) {
         const QString className = objectValue->className();
         if (!className.isEmpty()) {
             return className;
         }
     }
 
-    const QString typeId = context->engine()->typeId(value);
+    const QString typeId = context->valueOwner()->typeId(value);
     if (typeId == QLatin1String("undefined")) {
         return QString();
     }
@@ -264,6 +264,38 @@ private:
     void endVisit(AST::FunctionDeclaration * /*functionDeclaration*/)
     {
         m_model->leaveFunctionDeclaration();
+    }
+
+    bool visit(AST::BinaryExpression *binExp)
+    {
+        AST::IdentifierExpression *lhsIdent = AST::cast<AST::IdentifierExpression *>(binExp->left);
+        AST::ObjectLiteral *rhsObjLit = AST::cast<AST::ObjectLiteral *>(binExp->right);
+
+        if (lhsIdent && rhsObjLit && (lhsIdent->name == "testcase")
+            && (binExp->op == QSOperator::Assign)) {
+            QModelIndex index = m_model->enterTestCase(rhsObjLit);
+            m_nodeToIndex.insert(rhsObjLit, index);
+
+            if (AST::PropertyNameAndValueList *properties = rhsObjLit->properties)
+                visitProperties(properties);
+
+            m_model->leaveTestCase();
+        }
+        return true;
+    }
+
+    void visitProperties(AST::PropertyNameAndValueList *properties)
+    {
+        while (properties) {
+            QModelIndex index = m_model->enterTestCaseProperties(properties);
+            m_nodeToIndex.insert(properties, index);
+
+            if (AST::ObjectLiteral *objLiteral = AST::cast<AST::ObjectLiteral *>(properties->value))
+                visitProperties(objLiteral->properties);
+
+            m_model->leaveTestCaseProperties();
+            properties = properties->next;
+        }
     }
 
     QmlOutlineModel *m_model;
@@ -521,8 +553,8 @@ QModelIndex QmlOutlineModel::enterPublicMember(AST::UiPublicMember *publicMember
 {
     QMap<int, QVariant> objectData;
 
-    if (publicMember->name)
-        objectData.insert(Qt::DisplayRole, publicMember->name->asString());
+    if (!publicMember->name.isEmpty())
+        objectData.insert(Qt::DisplayRole, publicMember->name.toString());
     objectData.insert(AnnotationRole, getAnnotation(publicMember->statement));
     objectData.insert(ItemTypeRole, NonElementBindingType);
 
@@ -540,7 +572,8 @@ QModelIndex QmlOutlineModel::enterFunctionDeclaration(AST::FunctionDeclaration *
 {
     QMap<int, QVariant> objectData;
 
-    objectData.insert(Qt::DisplayRole, functionDeclaration->name->asString());
+    if (!functionDeclaration->name.isEmpty())
+        objectData.insert(Qt::DisplayRole, functionDeclaration->name.toString());
     objectData.insert(ItemTypeRole, ElementBindingType);
 
     QmlOutlineItem *item = enterNode(objectData, functionDeclaration, 0, m_icons->functionDeclarationIcon());
@@ -549,6 +582,49 @@ QModelIndex QmlOutlineModel::enterFunctionDeclaration(AST::FunctionDeclaration *
 }
 
 void QmlOutlineModel::leaveFunctionDeclaration()
+{
+    leaveNode();
+}
+
+QModelIndex QmlOutlineModel::enterTestCase(AST::ObjectLiteral *objectLiteral)
+{
+    QMap<int, QVariant> objectData;
+
+    objectData.insert(Qt::DisplayRole, "testcase");
+    objectData.insert(ItemTypeRole, ElementBindingType);
+
+    QmlOutlineItem *item = enterNode(objectData, objectLiteral, 0, m_icons->objectDefinitionIcon());
+
+    return item->index();
+}
+
+void QmlOutlineModel::leaveTestCase()
+{
+    leaveNode();
+}
+
+QModelIndex QmlOutlineModel::enterTestCaseProperties(AST::PropertyNameAndValueList *propertyNameAndValueList)
+{
+    QMap<int, QVariant> objectData;
+    if (AST::IdentifierPropertyName *propertyName = AST::cast<AST::IdentifierPropertyName *>(propertyNameAndValueList->name)) {
+        objectData.insert(Qt::DisplayRole, propertyName->id.toString());
+        objectData.insert(ItemTypeRole, ElementBindingType);
+        QmlOutlineItem *item;
+        if (propertyNameAndValueList->value->kind == AST::Node::Kind_FunctionExpression) {
+            item = enterNode(objectData, propertyNameAndValueList, 0, m_icons->functionDeclarationIcon());
+        } else if (propertyNameAndValueList->value->kind == AST::Node::Kind_ObjectLiteral) {
+            item = enterNode(objectData, propertyNameAndValueList, 0, m_icons->objectDefinitionIcon());
+        } else {
+            item = enterNode(objectData, propertyNameAndValueList, 0, m_icons->scriptBindingIcon());
+        }
+
+        return item->index();
+    } else {
+        return QModelIndex();
+    }
+}
+
+void QmlOutlineModel::leaveTestCaseProperties()
 {
     leaveNode();
 }
@@ -575,6 +651,8 @@ AST::SourceLocation QmlOutlineModel::sourceLocation(const QModelIndex &index) co
             location = getLocation(member);
         } else if (AST::ExpressionNode *expression = node->expressionCast()) {
             location = getLocation(expression);
+        } else if (AST::PropertyNameAndValueList *propertyNameAndValueList = AST::cast<AST::PropertyNameAndValueList *>(node)) {
+            location = getLocation(propertyNameAndValueList);
         }
     }
     return location;
@@ -698,11 +776,12 @@ void QmlOutlineModel::reparentNodes(QmlOutlineItem *targetItem, int row, QList<Q
     }
 
     QmlJSRefactoringChanges refactoring(ModelManagerInterface::instance(), m_semanticInfo.snapshot);
-    TextEditor::RefactoringFile file = refactoring.file(m_semanticInfo.document->fileName());
-    file.change(changeSet);
+    TextEditor::RefactoringFilePtr file = refactoring.file(m_semanticInfo.document->fileName());
+    file->setChangeSet(changeSet);
     foreach (const Utils::ChangeSet::Range &range, changedRanges) {
-        file.indent(range);
+        file->appendIndentRange(range);
     }
+    file->apply();
 }
 
 void QmlOutlineModel::moveObjectMember(AST::UiObjectMember *toMove,
@@ -817,8 +896,8 @@ QString QmlOutlineModel::asString(AST::UiQualifiedId *id)
 {
     QString text;
     for (; id; id = id->next) {
-        if (id->name)
-            text += id->name->asString();
+        if (!id->name.isEmpty())
+            text += id->name;
         else
             text += QLatin1Char('?');
 
@@ -844,6 +923,14 @@ AST::SourceLocation QmlOutlineModel::getLocation(AST::ExpressionNode *exprNode) 
     location.length = exprNode->lastSourceLocation().offset
             - exprNode->firstSourceLocation().offset
             + exprNode->lastSourceLocation().length;
+    return location;
+}
+
+AST::SourceLocation QmlOutlineModel::getLocation(AST::PropertyNameAndValueList *propertyNode) {
+    AST::SourceLocation location;
+    location.offset = propertyNode->name->propertyNameToken.offset;
+    location.length = propertyNode->value->lastSourceLocation().end() - location.offset;
+
     return location;
 }
 

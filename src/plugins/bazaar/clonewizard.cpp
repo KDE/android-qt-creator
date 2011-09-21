@@ -68,9 +68,9 @@ QString CloneWizard::displayName() const
     return tr("Bazaar Clone (Or Branch)");
 }
 
-QList<QWizardPage*> CloneWizard::createParameterPages(const QString &path)
+QList<QWizardPage *> CloneWizard::createParameterPages(const QString &path)
 {
-    QList<QWizardPage*> wizardPageList;
+    QList<QWizardPage *> wizardPageList;
     const Core::IVersionControl *vc = BazaarPlugin::instance()->versionControl();
     if (!vc->isConfigured())
         wizardPageList.append(new VCSBase::VcsConfigurationPage(vc));
@@ -89,7 +89,6 @@ QSharedPointer<VCSBase::AbstractCheckoutJob> CloneWizard::createJob(const QList<
         return QSharedPointer<VCSBase::AbstractCheckoutJob>();
 
     const BazaarSettings &settings = BazaarPlugin::instance()->settings();
-    QStringList args = settings.standardArguments();
     *checkoutPath = page->path() + QLatin1Char('/') + page->directory();
 
     const CloneOptionsPanel *panel = page->cloneOptionsPanel();
@@ -111,10 +110,11 @@ QSharedPointer<VCSBase::AbstractCheckoutJob> CloneWizard::createJob(const QList<
     if (!panel->revision().isEmpty())
         extraOptions << QLatin1String("-r") << panel->revision();
     const BazaarClient *client = BazaarPlugin::instance()->client();
+    QStringList args;
     args << client->vcsCommandString(BazaarClient::CloneCommand)
-         << client->cloneArguments(page->repository(), page->directory(), extraOptions);
+         << extraOptions << page->repository() << page->directory();
 
     VCSBase::ProcessCheckoutJob *job = new VCSBase::ProcessCheckoutJob;
-    job->addStep(settings.binary(), args, page->path());
+    job->addStep(settings.stringValue(BazaarSettings::binaryPathKey), args, page->path());
     return QSharedPointer<VCSBase::AbstractCheckoutJob>(job);
 }

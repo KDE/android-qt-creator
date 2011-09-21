@@ -63,9 +63,10 @@ typedef QHash<int, QmlDumpBuildTask *> QmlDumpByVersion;
 Q_GLOBAL_STATIC(QmlDumpByVersion, qmlDumpBuilds)
 
 // A task suitable to be run by QtConcurrent to build qmldump.
-class QmlDumpBuildTask : public QObject {
-    Q_DISABLE_COPY(QmlDumpBuildTask)
+class QmlDumpBuildTask : public QObject
+{
     Q_OBJECT
+
 public:
     explicit QmlDumpBuildTask(BaseQtVersion *version, ToolChain *toolChain)
         : m_buildTask(new DebuggingHelperBuildTask(version, toolChain,

@@ -67,7 +67,6 @@ private:
 
 class QTCREATOR_UTILS_EXPORT FancyLineEdit : public QLineEdit
 {
-    Q_DISABLE_COPY(FancyLineEdit)
     Q_OBJECT
     Q_ENUMS(Side)
 
@@ -114,7 +113,7 @@ private:
     void updateButtonPositions();
     friend class Utils::FancyLineEditPrivate;
 
-    FancyLineEditPrivate *m_d;
+    FancyLineEditPrivate *d;
     QString m_oldText;
 };
 

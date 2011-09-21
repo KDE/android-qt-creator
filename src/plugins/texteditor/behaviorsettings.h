@@ -35,7 +35,7 @@
 
 #include "texteditor_global.h"
 
-#include <QtCore/QVariant>
+#include <QtCore/QVariantMap>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -62,6 +62,7 @@ public:
 
     bool m_mouseNavigation;
     bool m_scrollWheelZooming;
+    bool m_constrainTooltips;
 };
 
 inline bool operator==(const BehaviorSettings &t1, const BehaviorSettings &t2) { return t1.equals(t2); }

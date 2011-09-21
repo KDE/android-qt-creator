@@ -33,6 +33,7 @@
 #include "qt4projectmanagerplugin.h"
 
 #include "qt4projectmanager.h"
+#include "qt4nodes.h"
 #include "qmakestep.h"
 #include "makestep.h"
 #include "wizards/consoleappwizard.h"
@@ -51,7 +52,6 @@
 #include "profileeditor.h"
 #include "externaleditors.h"
 #include "profilecompletionassist.h"
-
 #include "qt-s60/s60manager.h"
 #include "qt-desktop/qt4desktoptargetfactory.h"
 #include "qt-desktop/qt4simulatortargetfactory.h"
@@ -60,7 +60,7 @@
 #include "qt-desktop/simulatorqtversionfactory.h"
 #include "winceqtversionfactory.h"
 
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/buildmanager.h>
@@ -325,19 +325,5 @@ void Qt4ProjectManagerPlugin::jumpToFile()
     if (editor)
         editor->jumpToFile();
 }
-
-#ifdef WITH_TESTS
-void Qt4ProjectManagerPlugin::testBasicProjectLoading()
-{
-    QString testDirectory = ExtensionSystem::PluginManager::instance()->testDataDirectory() + "/qt4projectmanager/";
-    QString test1 = testDirectory + "test1/test1.pro";
-    m_projectExplorer->openProject(test1);
-    QVERIFY(!m_projectExplorer->session()->projects().isEmpty());
-    Qt4Project *qt4project = qobject_cast<Qt4Project *>(m_projectExplorer->session()->projects().first());
-    QVERIFY(qt4project);
-    QVERIFY(qt4project->rootProjectNode()->projectType() == ApplicationTemplate);
-    QVERIFY(m_projectExplorer->currentProject() != 0);
-}
-#endif
 
 Q_EXPORT_PLUGIN(Qt4ProjectManagerPlugin)

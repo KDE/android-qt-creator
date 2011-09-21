@@ -42,7 +42,6 @@ namespace Internal {
 class Html5AppWizardOptionsPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(Html5AppWizardOptionsPage)
 
 public:
     explicit Html5AppWizardOptionsPage(QWidget *parent = 0);
@@ -58,7 +57,7 @@ private slots:
     void setLineEditsEnabled();
 
 private:
-    class Html5AppWizardOptionsPagePrivate *m_d;
+    class Html5AppWizardOptionsPagePrivate *d;
 };
 
 } // namespace Internal

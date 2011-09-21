@@ -46,16 +46,16 @@
 
 #include <QtGui/QGridLayout>
 #include <QtGui/QLabel>
+#include <QtGui/QHBoxLayout>
 
 using namespace Find;
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 using namespace TextEditor;
 
-AllProjectsFind::AllProjectsFind(ProjectExplorerPlugin *plugin, SearchResultWindow *resultWindow)
-    : BaseFileFind(resultWindow),
-    m_plugin(plugin),
-    m_configWidget(0)
+AllProjectsFind::AllProjectsFind(ProjectExplorerPlugin *plugin)
+    : m_plugin(plugin),
+      m_configWidget(0)
 {
     connect(m_plugin, SIGNAL(fileListChanged()), this, SIGNAL(changed()));
 }
@@ -115,6 +115,17 @@ Utils::FileIterator *AllProjectsFind::files() const
         }
     }
     return new Utils::FileIterator(encodings.keys(), encodings.values());
+}
+
+QString AllProjectsFind::label() const
+{
+    return tr("All Projects:");
+}
+
+QString AllProjectsFind::toolTip() const
+{
+    // %2 is filled by BaseFileFind::runNewSearch
+    return tr("Filter: %1\n%2").arg(fileNameFilters().join(QLatin1String(",")));
 }
 
 QWidget *AllProjectsFind::createConfigWidget()

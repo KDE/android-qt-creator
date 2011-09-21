@@ -33,9 +33,9 @@
 #include "tracewindow.h"
 
 #include "qmlprofilerplugin.h"
-#include "qmlprofilertraceclient.h"
 
-#include <qmljsdebugclient/qdeclarativedebugclient_p.h>
+#include <qmljsdebugclient/qmlprofilereventlist.h>
+#include <qmljsdebugclient/qmlprofilertraceclient.h>
 #include <utils/styledbar.h>
 
 #include <QtDeclarative/QDeclarativeView>
@@ -43,6 +43,9 @@
 #include <QtGui/QVBoxLayout>
 #include <QtGui/QToolButton>
 #include <QtGui/QGraphicsObject>
+#include <QtGui/QContextMenuEvent>
+
+using namespace QmlJsDebugClient;
 
 namespace QmlProfiler {
 namespace Internal {
@@ -95,13 +98,16 @@ TraceWindow::TraceWindow(QWidget *parent)
     toolBarLayout->addWidget(buttonZoomIn);
     toolBarLayout->addWidget(buttonZoomOut);
 
-
-
     m_view->setResizeMode(QDeclarativeView::SizeRootObjectToView);
     m_view->setFocus();
     groupLayout->addWidget(m_view);
 
     setLayout(groupLayout);
+
+    m_eventList = new QmlProfilerEventList(this);
+    connect(this,SIGNAL(range(int,qint64,qint64,QStringList,QString,int)), m_eventList, SLOT(addRangedEvent(int,qint64,qint64,QStringList,QString,int)));
+    connect(this,SIGNAL(viewUpdated()), m_eventList, SLOT(complete()));
+    m_view->rootContext()->setContextProperty("qmlEventList", m_eventList);
 
     // Minimum height: 5 rows of 20 pixels + scrollbar of 50 pixels + 20 pixels margin
     setMinimumHeight(170);
@@ -112,15 +118,15 @@ TraceWindow::~TraceWindow()
     delete m_plugin.data();
 }
 
-void TraceWindow::reset(QmlJsDebugClient::QDeclarativeDebugConnection *conn)
+void TraceWindow::reset(QDeclarativeDebugConnection *conn)
 {
     if (m_plugin)
         disconnect(m_plugin.data(), SIGNAL(complete()), this, SIGNAL(viewUpdated()));
     delete m_plugin.data();
     m_plugin = new QmlProfilerTraceClient(conn);
     connect(m_plugin.data(), SIGNAL(complete()), this, SIGNAL(viewUpdated()));
-    connect(m_plugin.data(), SIGNAL(range(int,int,int,qint64,qint64,QStringList,QString,int)),
-            this, SIGNAL(range(int,int,int,qint64,qint64,QStringList,QString,int)));
+    connect(m_plugin.data(), SIGNAL(range(int,qint64,qint64,QStringList,QString,int)),
+            this, SIGNAL(range(int,qint64,qint64,QStringList,QString,int)));
 
     m_view->rootContext()->setContextProperty("connection", m_plugin.data());
     m_view->setSource(QUrl("qrc:/qmlprofiler/MainView.qml"));
@@ -129,13 +135,23 @@ void TraceWindow::reset(QmlJsDebugClient::QDeclarativeDebugConnection *conn)
 
     connect(m_view->rootObject(), SIGNAL(updateCursorPosition()), this, SLOT(updateCursorPosition()));
     connect(m_view->rootObject(), SIGNAL(updateTimer()), this, SLOT(updateTimer()));
-    connect(m_view->rootObject(), SIGNAL(dataAvailableChanged()), this, SLOT(updateToolbar()));
+    connect(m_eventList, SIGNAL(countChanged()), this, SLOT(updateToolbar()));
     connect(this, SIGNAL(jumpToPrev()), m_view->rootObject(), SLOT(prevEvent()));
     connect(this, SIGNAL(jumpToNext()), m_view->rootObject(), SLOT(nextEvent()));
     connect(this, SIGNAL(zoomIn()), m_view->rootObject(), SLOT(zoomIn()));
     connect(this, SIGNAL(zoomOut()), m_view->rootObject(), SLOT(zoomOut()));
 
     connect(this, SIGNAL(internalClearDisplay()), m_view->rootObject(), SLOT(clearAll()));
+}
+
+QmlProfilerEventList *TraceWindow::getEventList() const
+{
+    return m_eventList;
+}
+
+void TraceWindow::contextMenuEvent(QContextMenuEvent *ev)
+{
+    emit contextMenuRequested(ev->globalPos());
 }
 
 void TraceWindow::updateCursorPosition()
@@ -151,17 +167,17 @@ void TraceWindow::updateTimer()
 
 void TraceWindow::clearDisplay()
 {
+    m_eventList->clear();
+
     if (m_plugin)
-        m_plugin.data()->clearView();
-    else
-        emit internalClearDisplay();
+        m_plugin.data()->clearData();
+
+    emit internalClearDisplay();
 }
 
 void TraceWindow::updateToolbar()
 {
-    bool dataAvailable = m_view->rootObject()->property("dataAvailable").toBool() &&
-            m_view->rootObject()->property("eventCount").toInt() > 0;
-    emit enableToolbar(dataAvailable);
+    emit enableToolbar(m_eventList && m_eventList->count()>0);
 }
 
 void TraceWindow::setRecording(bool recording)

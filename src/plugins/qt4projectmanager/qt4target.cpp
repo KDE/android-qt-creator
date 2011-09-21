@@ -39,6 +39,7 @@
 #include "qt4basetargetfactory.h"
 #include "qt4projectconfigwidget.h"
 #include "qt4projectmanagerconstants.h"
+#include "qt4buildconfiguration.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -46,12 +47,15 @@
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/task.h>
 #include <qtsupport/qtversionfactory.h>
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/pathchooser.h>
 #include <utils/detailswidget.h>
+#include <utils/qtcprocess.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtGui/QPushButton>
@@ -122,7 +126,7 @@ QList<BuildConfigurationInfo> Qt4BaseTargetFactory::availableBuildConfigurations
         if (!version->isValid() || !version->toolChainAvailable(id))
             continue;
         QtSupport::BaseQtVersion::QmakeBuildConfigs config = version->defaultBuildConfig();
-        BuildConfigurationInfo info = BuildConfigurationInfo(version, config, QString(), QString());
+        BuildConfigurationInfo info = BuildConfigurationInfo(version, config, QString(), QString(), false, false);
         info.directory = shadowBuildDirectory(proFilePath, id, msgBuildConfigurationName(info));
         infoList.append(info);
 
@@ -243,7 +247,7 @@ ProjectExplorer::BuildConfigWidget *Qt4BaseTarget::createConfigWidget()
     return new Qt4ProjectConfigWidget(this);
 }
 
-Qt4BuildConfiguration *Qt4BaseTarget::activeBuildConfiguration() const
+Qt4BuildConfiguration *Qt4BaseTarget::activeQt4BuildConfiguration() const
 {
     return static_cast<Qt4BuildConfiguration *>(Target::activeBuildConfiguration());
 }
@@ -295,7 +299,8 @@ Qt4BuildConfiguration *Qt4BaseTarget::addQt4BuildConfiguration(QString defaultDi
                                                            QString displayName, QtSupport::BaseQtVersion *qtversion,
                                                            QtSupport::BaseQtVersion::QmakeBuildConfigs qmakeBuildConfiguration,
                                                            QString additionalArguments,
-                                                           QString directory)
+                                                           QString directory,
+                                                           bool importing)
 {
     Q_ASSERT(qtversion);
     bool debug = qmakeBuildConfiguration & QtSupport::BaseQtVersion::DebugBuild;
@@ -320,8 +325,13 @@ Qt4BuildConfiguration *Qt4BaseTarget::addQt4BuildConfiguration(QString defaultDi
     cleanStep->setClean(true);
     cleanStep->setUserArguments("clean");
     cleanSteps->insertStep(0, cleanStep);
+
+    bool enableQmlDebugger
+            = Qt4BuildConfiguration::removeQMLInspectorFromArguments(&additionalArguments);
     if (!additionalArguments.isEmpty())
         qmakeStep->setUserArguments(additionalArguments);
+    if (importing)
+        qmakeStep->setLinkQmlDebuggingLibrary(enableQmlDebugger);
 
     // set some options for qmake and make
     if (qmakeBuildConfiguration & QtSupport::BaseQtVersion::BuildAll) // debug_and_release => explicit targets
@@ -471,14 +481,14 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
     m_importLineButton->setVisible(m_showImport);
 
     m_buildConfigurationLabel = new QLabel;
-    m_buildConfigurationLabel->setText("Create Build Configurations:");
+    m_buildConfigurationLabel->setText(tr("Create Build Configurations:"));
     m_buildConfigurationLabel->setVisible(false);
 
     m_buildConfigurationComboBox = new QComboBox;
-    m_buildConfigurationComboBox->addItem("per Qt Version a Debug and Release", PERQT);
-    m_buildConfigurationComboBox->addItem("for one Qt Version a Debug and Release", ONEQT);
-    m_buildConfigurationComboBox->addItem("manually", MANUALLY);
-    m_buildConfigurationComboBox->addItem("none", NONE);
+    m_buildConfigurationComboBox->addItem(tr("For Each Qt Version One Debug And One Release"), PERQT);
+    m_buildConfigurationComboBox->addItem(tr("For One Qt Version One Debug And One Release"), ONEQT);
+    m_buildConfigurationComboBox->addItem(tr("Manually"), MANUALLY);
+    m_buildConfigurationComboBox->addItem(tr("None"), NONE);
 
     if (m_importInfos.isEmpty())
         m_buildConfigurationComboBox->setCurrentIndex(s->value("Qt4ProjectManager.TargetSetupPage.BuildTemplate", 0).toInt());
@@ -501,7 +511,7 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
     m_shadowBuildEnabled->setVisible(m_shadowBuildCheckBoxVisible);
 
     m_versionLabel = new QLabel;
-    m_versionLabel->setText("Qt Version:");
+    m_versionLabel->setText(tr("Qt Version:"));
     m_versionLabel->setVisible(false);
     m_versionComboBox = new QComboBox;
     m_versionComboBox->setVisible(false);
@@ -1140,7 +1150,6 @@ BuildConfigurationInfo BuildConfigurationInfo::checkForBuild(const QString &dire
         specArgument = "-spec " + Utils::QtcProcess::quoteArg(parsedSpec);
     }
     Utils::QtcProcess::addArgs(&specArgument, additionalArguments);
-    Qt4BuildConfiguration::removeQMLInspectorFromArguments(&specArgument);
 
     BuildConfigurationInfo info = BuildConfigurationInfo(version,
                                                          makefileBuildConfig.first,

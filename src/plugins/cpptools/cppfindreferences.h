@@ -33,21 +33,22 @@
 #ifndef CPPFINDREFERENCES_H
 #define CPPFINDREFERENCES_H
 
-#include <QtCore/QMutex>
-#include <QtCore/QObject>
-#include <QtCore/QPointer>
-#include <QtCore/QFuture>
-#include <QtCore/QFutureWatcher>
 #include <utils/filesearch.h>
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/DependencyTable.h>
 #include <cplusplus/FindUsages.h>
 
+#include <QtCore/QMutex>
+#include <QtCore/QObject>
+#include <QtCore/QPointer>
+#include <QtCore/QFuture>
+#include <QtCore/QFutureWatcher>
+
 QT_FORWARD_DECLARE_CLASS(QTimer)
 
 namespace Find {
-    class SearchResultWindow;
     struct SearchResultItem;
+    class SearchResult;
 } // namespace Find
 
 namespace CPlusPlus {
@@ -82,6 +83,7 @@ public:
 private Q_SLOTS:
     void displayResults(int first, int last);
     void searchFinished();
+    void cancel();
     void openEditor(const Find::SearchResultItem &item);
     void onReplaceButtonClicked(const QString &text, const QList<Find::SearchResultItem> &items);
 
@@ -92,7 +94,7 @@ private:
 
 private:
     QPointer<CPlusPlus::CppModelManagerInterface> _modelManager;
-    Find::SearchResultWindow *_resultWindow;
+    QPointer<Find::SearchResult> m_currentSearch;
     QFutureWatcher<CPlusPlus::Usage> m_watcher;
 
     mutable QMutex m_depsLock;

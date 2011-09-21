@@ -33,32 +33,26 @@
 #ifndef MAEMOGLOBAL_H
 #define MAEMOGLOBAL_H
 
-#include "linuxdeviceconfiguration.h"
+#include "portlist.h"
 
 #include <coreplugin/ifile.h>
 #include <utils/environment.h>
 
-#include <projectexplorer/buildstep.h>
-#include <projectexplorer/buildsteplist.h>
-#include <projectexplorer/deployconfiguration.h>
-
-#include <QtCore/QList>
-#include <QtCore/QSharedPointer>
 #include <QtCore/QCoreApplication>
-
-#define ASSERT_STATE_GENERIC(State, expected, actual)                         \
-    MaemoGlobal::assertState<State>(expected, actual, Q_FUNC_INFO)
+#include <QtCore/QSharedPointer>
 
 QT_BEGIN_NAMESPACE
-class QDateTime;
 class QProcess;
 class QString;
 QT_END_NAMESPACE
 
-namespace QtSupport { class BaseQtVersion; }
-namespace Utils { class SshConnection; }
+namespace QtSupport {
+class BaseQtVersion;
+}
 
 namespace RemoteLinux {
+class LinuxDeviceConfiguration;
+
 namespace Internal {
 
 class WatchableFile : public Core::IFile
@@ -101,18 +95,11 @@ public:
     static bool isValidHarmattanQtVersion(const QString &qmakePath);
     static bool isValidMeegoQtVersion(const QString &qmakePath);
 
-    static bool isLinuxQt(const QtSupport::BaseQtVersion *qtVersion);
-    static bool hasLinuxQt(const ProjectExplorer::Target *target);
-
     static QString homeDirOnDevice(const QString &uname);
     static QString devrootshPath();
     static int applicationIconSize(const QString &osType);
     static QString remoteSudo(const QString &osType, const QString &uname);
-    static QString remoteCommandPrefix(const QString &osType);
     static QString remoteSourceProfilesCommand();
-    static QString failedToConnectToServerMessage(const QSharedPointer<Utils::SshConnection> &connection,
-        const QSharedPointer<const LinuxDeviceConfiguration> &deviceConfig);
-    static QString deviceConfigurationName(const QSharedPointer<const LinuxDeviceConfiguration> &devConf);
     static PortList freePorts(const QSharedPointer<const LinuxDeviceConfiguration> &devConf,
         const QtSupport::BaseQtVersion *qtVersion);
 
@@ -132,41 +119,6 @@ public:
         const QString &qmakePath, bool useTarget);
     static bool callMadAdmin(QProcess &proc, const QStringList &args,
         const QString &qmakePath, bool useTarget);
-
-    static QString osTypeToString(const QString &osType);
-
-    static PackagingSystem packagingSystem(const QString &osType);
-
-    template<class T> static T *earlierBuildStep(const ProjectExplorer::DeployConfiguration *dc,
-        const ProjectExplorer::BuildStep *laterBuildStep)
-    {
-        if (!dc)
-            return 0;
-        const ProjectExplorer::BuildStepList * const bsl = dc->stepList();
-        const QList<ProjectExplorer::BuildStep *> &buildSteps = bsl->steps();
-        for (int i = 0; i < buildSteps.count(); ++i) {
-            if (buildSteps.at(i) == laterBuildStep)
-                return 0;
-            if (T * const step = dynamic_cast<T *>(buildSteps.at(i)))
-                return step;
-        }
-        return 0;
-    }
-
-    template<typename State> static void assertState(State expected,
-        State actual, const char *func)
-    {
-        assertState(QList<State>() << expected, actual, func);
-    }
-
-    template<typename State> static void assertState(const QList<State> &expected,
-        State actual, const char *func)
-    {
-        if (!expected.contains(actual)) {
-            qWarning("Warning: Unexpected state %d in function %s.",
-                actual, func);
-        }
-    }
 
     static bool isValidMaemoQtVersion(const QString &qmakePath, const QString &osType);
 private:

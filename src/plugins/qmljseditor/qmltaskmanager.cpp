@@ -37,7 +37,7 @@
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/taskhub.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
-#include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljscontext.h>
 #include <qmljs/qmljslink.h>
 #include <qmljs/qmljscheck.h>
 #include <qmljseditor/qmljseditor.h>
@@ -53,48 +53,77 @@ namespace QmlJSEditor {
 namespace Internal {
 
 QmlTaskManager::QmlTaskManager(QObject *parent) :
-        QObject(parent),
-        m_taskHub(0)
+    QObject(parent),
+    m_taskHub(0),
+    m_updatingSemantic(false)
 {
     m_taskHub = ExtensionSystem::PluginManager::instance()->getObject<ProjectExplorer::TaskHub>();
+
     // displaying results incrementally leads to flickering
 //    connect(&m_messageCollector, SIGNAL(resultsReadyAt(int,int)),
 //            SLOT(displayResults(int,int)));
     connect(&m_messageCollector, SIGNAL(finished()),
             SLOT(displayAllResults()));
 
-    m_updateDelay.setInterval(100);
+    m_updateDelay.setInterval(500);
     m_updateDelay.setSingleShot(true);
     connect(&m_updateDelay, SIGNAL(timeout()),
             SLOT(updateMessagesNow()));
 }
 
-void QmlTaskManager::collectMessages(QFutureInterface<FileErrorMessages> &future,
-    Snapshot snapshot, QStringList files, QStringList /*importPaths*/)
+static QList<ProjectExplorer::Task> convertToTasks(const QList<DiagnosticMessage> &messages, const QString &fileName, const QString &category)
 {
-    // ### link and check error messages are disabled for now: too many false-positives!
-    //Interpreter::Context ctx(snapshot);
-    //QHash<QString, QList<DiagnosticMessage> > linkMessages;
-    //Link link(&ctx, snapshot, importPaths);
-    //link(&linkMessages);
+    QList<ProjectExplorer::Task> result;
+    foreach (const DiagnosticMessage &msg, messages) {
+        ProjectExplorer::Task::TaskType type
+                = msg.isError() ? ProjectExplorer::Task::Error
+                                : ProjectExplorer::Task::Warning;
 
-    foreach (const QString &fileName, files) {
-        Document::Ptr document = snapshot.document(fileName);
-        if (!document)
-            continue;
+        ProjectExplorer::Task task(type, msg.message, fileName, msg.loc.startLine,
+                                   category);
 
-        FileErrorMessages result;
-        result.fileName = fileName;
-        result.messages = document->diagnosticMessages();
+        result += task;
+    }
+    return result;
+}
 
-        //result.messages += linkMessages.value(fileName);
+void QmlTaskManager::collectMessages(
+        QFutureInterface<FileErrorMessages> &future,
+        Snapshot snapshot, QList<ModelManagerInterface::ProjectInfo> projectInfos,
+        QStringList importPaths, bool updateSemantic)
+{
+    foreach (const ModelManagerInterface::ProjectInfo &info, projectInfos) {
+        QHash<QString, QList<DiagnosticMessage> > linkMessages;
+        ContextPtr context;
+        if (updateSemantic) {
+            Link link(snapshot, importPaths, snapshot.libraryInfo(info.qtImportsPath));
+            context = link(&linkMessages);
+        }
 
-        //Check checker(document, &ctx);
-        //result.messages.append(checker());
+        foreach (const QString &fileName, info.sourceFiles) {
+            Document::Ptr document = snapshot.document(fileName);
+            if (!document)
+                continue;
 
-        future.reportResult(result);
-        if (future.isCanceled())
-            break;
+            FileErrorMessages result;
+            result.fileName = fileName;
+            result.tasks = convertToTasks(document->diagnosticMessages(),
+                                          fileName, Constants::TASK_CATEGORY_QML);
+
+            if (updateSemantic) {
+                result.tasks += convertToTasks(linkMessages.value(fileName),
+                                               fileName, Constants::TASK_CATEGORY_QML_ANALYSIS);
+
+                Check checker(document, context);
+                result.tasks += convertToTasks(checker(),
+                                               fileName, Constants::TASK_CATEGORY_QML_ANALYSIS);
+            }
+
+            if (!result.tasks.isEmpty())
+                future.reportResult(result);
+            if (future.isCanceled())
+                break;
+        }
     }
 }
 
@@ -103,24 +132,29 @@ void QmlTaskManager::updateMessages()
     m_updateDelay.start();
 }
 
-void QmlTaskManager::updateMessagesNow()
+void QmlTaskManager::updateSemanticMessagesNow()
 {
+    updateMessagesNow(true);
+}
+
+void QmlTaskManager::updateMessagesNow(bool updateSemantic)
+{
+    // don't restart a small update if a big one is running
+    if (!updateSemantic && m_updatingSemantic)
+        return;
+    m_updatingSemantic = updateSemantic;
+
     // abort any update that's going on already
     m_messageCollector.cancel();
-    removeAllTasks();
+    removeAllTasks(updateSemantic);
 
-    // collect all the source files in open projects
     ModelManagerInterface *modelManager = ModelManagerInterface::instance();
-    QStringList sourceFiles;
-    foreach (const ModelManagerInterface::ProjectInfo &info, modelManager->projectInfos()) {
-        sourceFiles += info.sourceFiles;
-    }
 
     // process them
     QFuture<FileErrorMessages> future =
             QtConcurrent::run<FileErrorMessages>(
-                &collectMessages, modelManager->snapshot(), sourceFiles,
-                modelManager->importPaths());
+                &collectMessages, modelManager->newestSnapshot(), modelManager->projectInfos(),
+                modelManager->importPaths(), updateSemantic);
     m_messageCollector.setFuture(future);
 }
 
@@ -134,14 +168,7 @@ void QmlTaskManager::displayResults(int begin, int end)
 {
     for (int i = begin; i < end; ++i) {
         FileErrorMessages result = m_messageCollector.resultAt(i);
-        foreach (const DiagnosticMessage &msg, result.messages) {
-            ProjectExplorer::Task::TaskType type
-                    = msg.isError() ? ProjectExplorer::Task::Error
-                                    : ProjectExplorer::Task::Warning;
-
-            ProjectExplorer::Task task(type, msg.message, result.fileName, msg.loc.startLine,
-                                       Constants::TASK_CATEGORY_QML);
-
+        foreach (const ProjectExplorer::Task &task, result.tasks) {
             insertTask(task);
         }
     }
@@ -150,6 +177,7 @@ void QmlTaskManager::displayResults(int begin, int end)
 void QmlTaskManager::displayAllResults()
 {
     displayResults(0, m_messageCollector.future().resultCount());
+    m_updatingSemantic = false;
 }
 
 void QmlTaskManager::insertTask(const ProjectExplorer::Task &task)
@@ -170,14 +198,11 @@ void QmlTaskManager::removeTasksForFile(const QString &fileName)
     }
 }
 
-void QmlTaskManager::removeAllTasks()
+void QmlTaskManager::removeAllTasks(bool clearSemantic)
 {
-    QMapIterator<QString, QList<ProjectExplorer::Task> > it(m_docsWithTasks);
-    while (it.hasNext()) {
-        it.next();
-        foreach (const ProjectExplorer::Task &task, it.value())
-            m_taskHub->removeTask(task);
-    }
+    m_taskHub->clearTasks(Constants::TASK_CATEGORY_QML);
+    if (clearSemantic)
+        m_taskHub->clearTasks(Constants::TASK_CATEGORY_QML_ANALYSIS);
     m_docsWithTasks.clear();
 }
 

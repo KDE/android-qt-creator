@@ -40,8 +40,7 @@
 #include <qmljs/qmljspropertyreader.h>
 #include <qmljs/qmljsrewriter.h>
 #include <qmljs/qmljsindenter.h>
-#include <qmljs/qmljslookupcontext.h>
-#include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljscontext.h>
 #include <qmljs/qmljsbind.h>
 #include <qmljs/qmljsscopebuilder.h>
 #include <qmljs/qmljsevaluate.h>
@@ -65,7 +64,7 @@ static inline QString textAt(const Document* doc,
     return doc->source().mid(from.offset, to.end() - from.begin());
 }
 
-static inline const Interpreter::ObjectValue * getPropertyChangesTarget(Node *node, LookupContext::Ptr lookupContext)
+static inline const ObjectValue * getPropertyChangesTarget(Node *node, const ScopeChain &scopeChain)
 {
     UiObjectInitializer *initializer = 0;
     if (UiObjectDefinition *definition = cast<UiObjectDefinition *>(node))
@@ -76,11 +75,11 @@ static inline const Interpreter::ObjectValue * getPropertyChangesTarget(Node *no
         for (UiObjectMemberList *members = initializer->members; members; members = members->next) {
             if (UiScriptBinding *scriptBinding = cast<UiScriptBinding *>(members->member)) {
                 if (scriptBinding->qualifiedId
-                        && scriptBinding->qualifiedId->name->asString() == QLatin1String("target")
+                        && scriptBinding->qualifiedId->name == QLatin1String("target")
                         && ! scriptBinding->qualifiedId->next) {
-                    Evaluate evaluator(lookupContext->context());
-                    const Interpreter::Value *targetValue = evaluator(scriptBinding->statement);
-                    if (const Interpreter::ObjectValue *targetObject = Interpreter::value_cast<const Interpreter::ObjectValue *>(targetValue)) {
+                    Evaluate evaluator(&scopeChain);
+                    const Value *targetValue = evaluator(scriptBinding->statement);
+                    if (const ObjectValue *targetObject = value_cast<const ObjectValue *>(targetValue)) {
                         return targetObject;
                     } else {
                         return 0;
@@ -132,7 +131,7 @@ QuickToolBar::~QuickToolBar()
         m_widget.clear();
 }
 
-void QuickToolBar::apply(TextEditor::BaseTextEditor *editor, Document::Ptr document, LookupContext::Ptr lookupContext, AST::Node *node, bool update, bool force)
+void QuickToolBar::apply(TextEditor::BaseTextEditor *editor, Document::Ptr document, const ScopeChain *scopeChain, AST::Node *node, bool update, bool force)
 {
     if (!QuickToolBarSettings::get().enableContextPane && !force && !update) {
         contextWidget()->hide();
@@ -147,24 +146,24 @@ void QuickToolBar::apply(TextEditor::BaseTextEditor *editor, Document::Ptr docum
 
     m_blockWriting = true;
 
-    const Interpreter::ObjectValue *scopeObject = document->bind()->findQmlObject(node);
+    const ObjectValue *scopeObject = document->bind()->findQmlObject(node);
 
     bool isPropertyChanges = false;
 
-    if (!lookupContext.isNull() && scopeObject) {
+    if (scopeChain && scopeObject) {
         m_prototypes.clear();
-        foreach (const Interpreter::ObjectValue *object,
-                 Interpreter::PrototypeIterator(scopeObject, lookupContext->context()).all()) {
+        foreach (const ObjectValue *object,
+                 PrototypeIterator(scopeObject, scopeChain->context()).all()) {
             m_prototypes.append(object->className());
         }
 
         if (m_prototypes.contains("PropertyChanges")) {
             isPropertyChanges = true;
-            const Interpreter::ObjectValue *targetObject = getPropertyChangesTarget(node, lookupContext);
+            const ObjectValue *targetObject = getPropertyChangesTarget(node, *scopeChain);
             m_prototypes.clear();
             if (targetObject) {
-                foreach (const Interpreter::ObjectValue *object,
-                         Interpreter::PrototypeIterator(targetObject, lookupContext->context()).all()) {
+                foreach (const ObjectValue *object,
+                         PrototypeIterator(targetObject, scopeChain->context()).all()) {
                     m_prototypes.append(object->className());
                 }
             }
@@ -185,18 +184,18 @@ void QuickToolBar::apply(TextEditor::BaseTextEditor *editor, Document::Ptr docum
         quint32 end = 0;
         UiObjectInitializer *initializer = 0;
         if (objectDefinition) {
-            name = objectDefinition->qualifiedTypeNameId->name->asString();
+            name = objectDefinition->qualifiedTypeNameId->name.toString();
             initializer = objectDefinition->initializer;
             offset = objectDefinition->firstSourceLocation().offset;
             end = objectDefinition->lastSourceLocation().end();
         } else if (objectBinding) {
-            name = objectBinding->qualifiedTypeNameId->name->asString();
+            name = objectBinding->qualifiedTypeNameId->name.toString();
             initializer = objectBinding->initializer;
             offset = objectBinding->firstSourceLocation().offset;
             end = objectBinding->lastSourceLocation().end();
         }
 
-        if (lookupContext.isNull()) {
+        if (!scopeChain) {
             if (name != m_oldType)
                 m_prototypes.clear();
         }
@@ -275,10 +274,10 @@ bool QuickToolBar::isAvailable(TextEditor::BaseTextEditor *, Document::Ptr docum
     UiObjectDefinition *objectDefinition = cast<UiObjectDefinition*>(node);
     UiObjectBinding *objectBinding = cast<UiObjectBinding*>(node);
     if (objectDefinition) {
-        name = objectDefinition->qualifiedTypeNameId->name->asString();
+        name = objectDefinition->qualifiedTypeNameId->name.toString();
 
     } else if (objectBinding) {
-        name = objectBinding->qualifiedTypeNameId->name->asString();
+        name = objectBinding->qualifiedTypeNameId->name.toString();
     }
 
     QStringList prototypes;

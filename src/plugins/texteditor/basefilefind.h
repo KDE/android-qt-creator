@@ -36,21 +36,25 @@
 #include "texteditor_global.h"
 
 #include <find/ifindfilter.h>
+#include <find/searchresultwindow.h>
 #include <utils/filesearch.h>
+
+#include <QtGui/QStringListModel>
 
 #include <QtCore/QFutureWatcher>
 #include <QtCore/QPointer>
-
-#include <QtGui/QStringListModel>
 
 QT_BEGIN_NAMESPACE
 class QLabel;
 class QComboBox;
 QT_END_NAMESPACE
 
+namespace Utils {
+class FileIterator;
+}
 namespace Find {
-class SearchResultWindow;
 struct SearchResultItem;
+class IFindSupport;
 }
 
 namespace TextEditor {
@@ -60,11 +64,10 @@ class TEXTEDITOR_EXPORT BaseFileFind : public Find::IFindFilter
     Q_OBJECT
 
 public:
-    explicit BaseFileFind(Find::SearchResultWindow *resultWindow);
+    BaseFileFind();
+    ~BaseFileFind();
 
     bool isEnabled() const;
-    bool canCancel() const;
-    void cancel();
     bool isReplaceSupported() const { return true; }
     void findAll(const QString &txt, Find::FindFlags findFlags);
     void replaceAll(const QString &txt, Find::FindFlags findFlags);
@@ -75,6 +78,10 @@ public:
 
 protected:
     virtual Utils::FileIterator *files() const = 0;
+    virtual QString label() const = 0; // see Find::SearchResultWindow::startNewSearch
+    virtual QString toolTip() const = 0; // see Find::SearchResultWindow::startNewSearch,
+                                         // add %1 placeholder where the find flags should be put
+
     void writeCommonSettings(QSettings *settings);
     void readCommonSettings(QSettings *settings, const QString &defaultFilter);
     QWidget *createPatternWidget();
@@ -85,16 +92,24 @@ protected:
 private slots:
     void displayResult(int index);
     void searchFinished();
+    void cancel();
     void openEditor(const Find::SearchResultItem &item);
     void doReplace(const QString &txt,
                     const QList<Find::SearchResultItem> &items);
+    void hideHighlightAll(bool visible);
 
 private:
     QWidget *createProgressWidget();
+    void runNewSearch(const QString &txt, Find::FindFlags findFlags,
+                      Find::SearchResultWindow::SearchMode searchMode);
 
-    Find::SearchResultWindow *m_resultWindow;
-    QFutureWatcher<Utils::FileSearchResultList> m_watcher;
+    QPointer<Find::SearchResult> m_currentSearch;
+    int m_currentSearchCount;
+
+    QFutureWatcher<Utils::FileSearchResultList> *m_watcher;
     bool m_isSearching;
+    QPointer<Find::IFindSupport> m_currentFindSupport;
+
     QLabel *m_resultLabel;
     QStringListModel m_filterStrings;
     QString m_filterSetting;

@@ -159,7 +159,8 @@ QString CommonOptionsPage::id() const
 
 QString CommonOptionsPage::displayName() const
 {
-    return QCoreApplication::translate("Debugger", DEBUGGER_COMMON_SETTINGS_NAME);}
+    return QCoreApplication::translate("Debugger", "General");
+}
 
 QString CommonOptionsPage::category() const
 {

@@ -32,6 +32,7 @@
 
 #include "target.h"
 
+#include "toolchain.h"
 #include "buildconfiguration.h"
 #include "deployconfiguration.h"
 #include "project.h"
@@ -109,6 +110,7 @@ Target::~Target()
 {
     qDeleteAll(d->m_buildConfigurations);
     qDeleteAll(d->m_runConfigurations);
+    delete d;
 }
 
 void Target::changeEnvironment()
@@ -550,6 +552,9 @@ bool Target::fromMap(const QVariantMap &map)
 
 ITargetFactory::ITargetFactory(QObject *parent) :
     QObject(parent)
-{ }
+{
+    connect(ToolChainManager::instance(), SIGNAL(toolChainsChanged()),
+            this, SIGNAL(supportedTargetIdsChanged()));
+}
 
 } // namespace ProjectExplorer

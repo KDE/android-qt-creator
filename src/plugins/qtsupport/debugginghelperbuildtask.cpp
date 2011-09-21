@@ -39,6 +39,7 @@
 #include <coreplugin/messagemanager.h>
 #include <projectexplorer/abi.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
 #include <projectexplorer/debugginghelper.h>
 #include <projectexplorer/abi.h>
 #include <utils/qtcassert.h>
@@ -165,8 +166,8 @@ void DebuggingHelperBuildTask::run(QFutureInterface<void> &future)
         log(result, QString());
     }
 
-    emit updateQtVersions(m_qmakeCommand);
     emit finished(m_qtId, m_log, m_tools);
+    emit updateQtVersions(m_qmakeCommand);
     deleteLater();
 }
 

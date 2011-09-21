@@ -48,6 +48,7 @@ namespace Internal {
 class MobileAppWizardGenericOptionsPage;
 class MobileAppWizardSymbianOptionsPage;
 class MobileAppWizardMaemoOptionsPage;
+class MobileAppWizardHarmattanOptionsPage;
 }
 
 /// \internal
@@ -65,7 +66,6 @@ public:
 protected:
     int addPageWithTitle(QWizardPage *page, const QString &title);
     virtual void initializePage(int id);
-    virtual void cleanupPage(int id);
     virtual void setIgnoreGenericOptionsPage(bool);
     virtual int nextId() const;
 
@@ -82,7 +82,7 @@ private:
     Internal::MobileAppWizardGenericOptionsPage *m_genericOptionsPage;
     Internal::MobileAppWizardSymbianOptionsPage *m_symbianOptionsPage;
     Internal::MobileAppWizardMaemoOptionsPage *m_maemoOptionsPage;
-    Internal::MobileAppWizardMaemoOptionsPage *m_harmattanOptionsPage;
+    Internal::MobileAppWizardHarmattanOptionsPage *m_harmattanOptionsPage;
     TargetSetupPage *m_targetsPage;
 
     int m_genericOptionsPageId;
@@ -122,12 +122,12 @@ private:
     virtual bool postGenerateFiles(const QWizard *w,
         const Core::GeneratedFiles &l, QString *errorMessage);
 
-    virtual AbstractMobileApp *app() const=0;
-    virtual AbstractMobileAppWizardDialog *wizardDialog() const=0;
-    virtual AbstractMobileAppWizardDialog *createWizardDialogInternal(QWidget *parent) const=0;
-    virtual void projectPathChanged(const QString &path) const=0;
+    virtual AbstractMobileApp *app() const = 0;
+    virtual AbstractMobileAppWizardDialog *wizardDialog() const = 0;
+    virtual AbstractMobileAppWizardDialog *createWizardDialogInternal(QWidget *parent) const = 0;
+    virtual void projectPathChanged(const QString &path) const = 0;
     virtual void prepareGenerateFiles(const QWizard *wizard,
-        QString *errorMessage) const=0;
+        QString *errorMessage) const = 0;
 };
 
 } // namespace Qt4ProjectManager

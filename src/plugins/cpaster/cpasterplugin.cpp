@@ -45,7 +45,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/mimedatabase.h>
@@ -119,10 +119,10 @@ CodepasterPlugin::~CodepasterPlugin()
     CodepasterPlugin::m_instance = 0;
 }
 
-bool CodepasterPlugin::initialize(const QStringList &arguments, QString *error_message)
+bool CodepasterPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments)
-    Q_UNUSED(error_message)
+    Q_UNUSED(errorMessage)
 
     // Create the globalcontext list to register actions accordingly
     Core::Context globalcontext(Core::Constants::C_GLOBAL);

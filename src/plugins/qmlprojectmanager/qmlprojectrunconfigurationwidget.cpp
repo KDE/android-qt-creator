@@ -264,13 +264,11 @@ void QmlProjectRunConfigurationWidget::onViewerArgsChanged()
 void QmlProjectRunConfigurationWidget::useCppDebuggerToggled(bool toggled)
 {
     m_runConfiguration->setUseCppDebugger(toggled);
-    m_runConfiguration->updateEnabled();
 }
 
 void QmlProjectRunConfigurationWidget::useQmlDebuggerToggled(bool toggled)
 {
     m_runConfiguration->setUseQmlDebugger(toggled);
-    m_runConfiguration->updateEnabled();
 }
 
 void QmlProjectRunConfigurationWidget::qmlDebugServerPortChanged(uint port)

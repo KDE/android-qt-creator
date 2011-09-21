@@ -261,6 +261,7 @@ CrumblePath::~CrumblePath()
 {
     qDeleteAll(d->m_buttons);
     d->m_buttons.clear();
+    delete d;
 }
 
 void CrumblePath::selectIndex(int index)
@@ -274,6 +275,13 @@ QVariant CrumblePath::dataForIndex(int index) const
     if (index > -1 && index < d->m_buttons.length())
         return d->m_buttons[index]->data();
     return QVariant();
+}
+
+QVariant CrumblePath::dataForLastIndex() const
+{
+    if (d->m_buttons.isEmpty())
+        return QVariant();
+    return d->m_buttons.last()->data();
 }
 
 void CrumblePath::pushElement(const QString &title, const QVariant &data)
