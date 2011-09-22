@@ -15,9 +15,10 @@ are required by law.
 #include "androidpackagecreationwidget.h"
 #include "androidtarget.h"
 
+#include <coreplugin/fileutils.h>
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/foldernavigationwidget.h>
+#include <projectexplorer/runconfiguration.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4nodes.h>
@@ -263,9 +264,9 @@ bool AndroidPackageCreationStep::createPackage()
     const QString androidDir(target->androidDirPath());
 
     QString androidLibPath;
-    if (bc->qt4Target()->qt4Project()->rootProjectNode()->variableValue(Qt4ProjectManager::ConfigVar).contains("x86"))
+    if (bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->variableValue(Qt4ProjectManager::ConfigVar).contains("x86"))
         androidLibPath = androidDir+QLatin1String("/libs/x86");
-    else if (bc->qt4Target()->qt4Project()->rootProjectNode()
+    else if (bc->qt4Target()->qt4Project()->rootQt4ProjectNode()
              ->variableValue(Qt4ProjectManager::ConfigVar).contains("armeabi-v7a"))
         androidLibPath = androidDir+QLatin1String("/libs/armeabi-v7a");
     else
@@ -348,7 +349,7 @@ bool AndroidPackageCreationStep::createPackage()
                            , MessageOutput);
 
             if (m_openPackageLocation)
-                FolderNavigationWidget::showInGraphicalShell(0,
+                Core::FileUtils::showInGraphicalShell(0,
                                                                               target->apkPath(AndroidTarget::ReleaseBuildSigned));
         }
     }

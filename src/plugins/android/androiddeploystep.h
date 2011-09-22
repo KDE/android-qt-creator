@@ -79,8 +79,6 @@ private:
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const { return true; }
 
-    virtual QVariantMap toMap() const;
-    virtual bool fromMap(const QVariantMap &map);
     void copyLibs(const QString &srcPath, const QString &destPath, QStringList &copiedLibs, const QStringList &filter = QStringList());
     void ctor();
     void raiseError(const QString &error);

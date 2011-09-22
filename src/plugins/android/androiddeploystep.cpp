@@ -21,6 +21,7 @@ are required by law.
 #include <projectexplorer/target.h>
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4target.h>
+#include <qt4projectmanager/qt4nodes.h>
 
 #include <qt4projectmanager/qt4buildconfiguration.h>
 
@@ -103,26 +104,6 @@ void AndroidDeployStep::setDeployQASIPackagePath(const QString & package)
 void AndroidDeployStep::setUseLocalQtLibs(bool useLocal)
 {
     m_useLocalQtLibs = useLocal;
-}
-
-QVariantMap AndroidDeployStep::toMap() const
-{
-    QVariantMap map(BuildStep::toMap());
-
-    map.insert(AndroidDeployActionKey, m_deployAction);
-    map.insert(AndroidUseLocalQtLibsKey, m_useLocalQtLibs);
-    map.insert(AndroidQASIPackagePath, m_QASIPackagePath);
-    return map;
-}
-
-bool AndroidDeployStep::fromMap(const QVariantMap &map)
-{
-    if (!BuildStep::fromMap(map))
-        return false;
-    m_deployAction = AndroidDeployAction(map.value(AndroidDeployActionKey, NoDeploy).toInt());
-    m_useLocalQtLibs = map.value(AndroidUseLocalQtLibsKey, false).toBool();
-    m_QASIPackagePath = map.value(AndroidQASIPackagePath).toString();
-    return true;
 }
 
 bool AndroidDeployStep::runCommand(QProcess *buildProc,
@@ -282,10 +263,10 @@ bool AndroidDeployStep::deployPackage()
     writeOutput(tr("Pulling files necessary for debugging"));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList() << "-s" << m_deviceSerialNumber << "pull" << "/system/bin/app_process" << QString("%1/app_process")
-                                        .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+                                        .arg(bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->buildDir()));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList() << "-s" << m_deviceSerialNumber << "pull"<<"/system/lib/libc.so" << QString("%1/libc.so")
-                                        .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+                                        .arg(bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->buildDir()));
     disconnect(deployProc, 0, this, 0);
     deployProc->deleteLater();
     return true;

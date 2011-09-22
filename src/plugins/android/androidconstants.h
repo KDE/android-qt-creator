@@ -46,11 +46,6 @@ static const QLatin1String AndroidBaseEnvironmentBaseKey(ANDROID_PREFIX ".BaseEn
 static const QLatin1String AndroidUserEnvironmentChangesKey(ANDROID_PREFIX ".UserEnvironmentChanges");
 static const QLatin1String AndroidUseRemoteGdbKey(ANDROID_PREFIX ".UseRemoteGdb");
 
-// deploy keys
-static const QLatin1String AndroidDeployActionKey(ANDROID_PREFIX ".DeployAction");
-static const QLatin1String AndroidUseLocalQtLibsKey(ANDROID_PREFIX ".UseLocalQt");
-static const QLatin1String AndroidQASIPackagePath(ANDROID_PREFIX ".QASIPackagePath");
-
 } // namespace Internal
 
 namespace Constants {

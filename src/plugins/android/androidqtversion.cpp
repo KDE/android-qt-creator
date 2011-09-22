@@ -77,6 +77,15 @@ QList<ProjectExplorer::Abi> AndroidQtVersion::qtAbis() const
     return m_qtAbis;
 }
 
+QList<ProjectExplorer::Abi> AndroidQtVersion::detectQtAbis() const
+{
+    return QList<ProjectExplorer::Abi>()
+            << ProjectExplorer::Abi(ProjectExplorer::Abi::ArmArchitecture, ProjectExplorer::Abi::LinuxOS,
+                                    ProjectExplorer::Abi::AndroidLinuxFlavor,
+                                    ProjectExplorer::Abi::ElfFormat,
+                                    32);
+}
+
 bool AndroidQtVersion::supportsTargetId(const QString &id) const
 {
     return id == QLatin1String(Qt4ProjectManager::Constants::ANDROID_DEVICE_TARGET_ID);

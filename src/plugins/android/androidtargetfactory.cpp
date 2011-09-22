@@ -21,6 +21,7 @@ are required by law.
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <qt4projectmanager/buildconfigurationinfo.h>
+#include <qtsupport/qtversionmanager.h>
 
 #include <QtGui/QApplication>
 
@@ -146,7 +147,8 @@ Qt4BaseTarget *AndroidTargetFactory::create(ProjectExplorer::Project *parent,
                                     info.version,
                                     info.buildConfig,
                                     info.additionalArguments,
-                                    info.directory);
+                                    info.directory,
+                                    info.importing);
     }
 
     target->addDeployConfiguration(target->createDeployConfiguration(Android::Internal::ANDROID_DEPLOY_ID));

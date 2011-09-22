@@ -21,6 +21,7 @@ are required by law.
 
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qt4target.h>
+#include <qt4projectmanager/qt4nodes.h>
 #include <qt4projectmanager/qt4project.h>
 
 
@@ -48,8 +49,8 @@ RunControl *AndroidDebugSupport::createDebugRunControl(AndroidRunConfiguration *
     DebuggerStartParameters params;
     params.toolChainAbi = runConfig->abi();
     params.dumperLibrary = runConfig->dumperLib();
-    params.startMode = AttachToRemote;
-    params.executable = runConfig->androidTarget()->qt4Project()->rootProjectNode()->buildDir() + "/app_process";
+    params.startMode = AttachToRemoteServer;
+    params.executable = runConfig->androidTarget()->qt4Project()->rootQt4ProjectNode()->buildDir() + "/app_process";
     params.debuggerCommand = runConfig->gdbCmd();
     params.remoteChannel = runConfig->remoteChannel();
     params.displayName = runConfig->androidTarget()->packageName();

@@ -309,7 +309,7 @@ void AndroidPackageCreationWidget::setApplicationName()
 void AndroidPackageCreationWidget::setTargetSDK(const QString & target)
 {
     m_step->androidTarget()->setTargetSDK(target);
-    Qt4BuildConfiguration *bc = m_step->androidTarget()->activeBuildConfiguration();
+    Qt4BuildConfiguration *bc = m_step->androidTarget()->activeQt4BuildConfiguration();
     ProjectExplorer::BuildManager * bm = ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
     QMakeStep *qs = bc->qmakeStep();
 

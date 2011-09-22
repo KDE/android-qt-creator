@@ -176,7 +176,7 @@ void RemoteGdbServerAdapter::setupInferior()
     const QByteArray debugInfoLocation = sp.debugInfoLocation.toLocal8Bit();
     const QByteArray remoteArch = sp.remoteArchitecture.toLatin1();
     const QByteArray gnuTarget = sp.gnuTarget.toLatin1();
-    const QByteArray solibPath = QFileInfo(sp.dumperLibrary).path().toLocal8Bit();
+    QByteArray solibPath = QFileInfo(sp.dumperLibrary).path().toLocal8Bit();
     const QString args = sp.processArgs;
 
     if (!solibPath.isEmpty() && !startParameters().solibSearchPath.isEmpty())

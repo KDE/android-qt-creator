@@ -10,6 +10,7 @@ are required by law.
 #include "javaparser.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/task.h>
 
 using namespace Android::Internal;
 using namespace ProjectExplorer;

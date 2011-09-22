@@ -71,7 +71,7 @@ public:
     explicit AndroidTarget(Qt4ProjectManager::Qt4Project *parent, const QString &id);
     virtual ~AndroidTarget();
 
-    Qt4ProjectManager::Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
+    ProjectExplorer::IBuildConfigurationFactory *buildConfigurationFactory() const;
     void createApplicationProFiles();
 
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);
@@ -165,7 +165,7 @@ private:
 
     QFileSystemWatcher *const m_androidFilesWatcher;
 
-    Qt4ProjectManager::Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
+    ProjectExplorer::IBuildConfigurationFactory *m_buildConfigurationFactory;
 
 };
 
