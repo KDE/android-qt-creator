@@ -1,22 +1,14 @@
 source("../../shared/qtcreator.py")
 
-refreshFinishedCount = 0
-
-def handleRefreshFinished(object, fileList):
-    global refreshFinishedCount
-    refreshFinishedCount += 1
-
 def main():
-    test.verify(os.path.exists(SDKPath + "/creator/tests/manual/cplusplus-tools/cplusplus-tools.pro"))
+    if not neededFilePresent(srcPath + "/creator/tests/manual/cplusplus-tools/cplusplus-tools.pro"):
+        return
 
     startApplication("qtcreator" + SettingsPath)
 
-    ## leave this one like this, it's too fast for delayed installation of signal handler
-    installLazySignalHandler("{type='CppTools::Internal::CppModelManager'}", "sourceFilesRefreshed(QStringList)", "handleRefreshFinished")
-    openQmakeProject(SDKPath + "/creator/tests/manual/cplusplus-tools/cplusplus-tools.pro")
-
-    waitFor("refreshFinishedCount == 1", 20000)
-    test.compare(refreshFinishedCount, 1)
+    prepareForSignal("{type='CppTools::Internal::CppModelManager' unnamed='1'}", "sourceFilesRefreshed(QStringList)")
+    openQmakeProject(srcPath + "/creator/tests/manual/cplusplus-tools/cplusplus-tools.pro")
+    waitForSignal("{type='CppTools::Internal::CppModelManager' unnamed='1'}", "sourceFilesRefreshed(QStringList)", 20000)
 
     mouseClick(waitForObject(":*Qt Creator_Utils::FilterLineEdit", 20000), 5, 5, 0, Qt.LeftButton)
     type(waitForObject(":*Qt Creator_Utils::FilterLineEdit"), "dummy.cpp")
@@ -82,19 +74,17 @@ def main():
     test.compare(lineUnderCursor(findObject(":Qt Creator_CppEditor::Internal::CPPEditorWidget")), "Dummy::Dummy(int)")
 
     invokeMenuItem("File", "Exit")
-
+    waitForCleanShutdown()
 
 def init():
     cleanup()
 
 def cleanup():
     # Make sure the .user files are gone
+    cleanUpUserFiles(srcPath + "/creator/tests/manual/cplusplus-tools/cplusplus-tools.pro")
 
-    if os.access(SDKPath + "/creator/tests/manual/cplusplus-tools/cplusplus-tools.pro.user", os.F_OK):
-        os.remove(SDKPath + "/creator/tests/manual/cplusplus-tools/cplusplus-tools.pro.user")
-
-    BuildPath = glob.glob(SDKPath + "/qtcreator-build-*")
-    BuildPath += glob.glob(SDKPath + "/projects-build-*")
+    BuildPath = glob.glob(srcPath + "/qtcreator-build-*")
+    BuildPath += glob.glob(srcPath + "/projects-build-*")
 
     for dir in BuildPath:
         if os.access(dir, os.F_OK):

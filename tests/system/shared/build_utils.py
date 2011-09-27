@@ -16,11 +16,11 @@ def overrideInstallLazySignalHandler():
         return
     overridenInstallLazySignalHandlers = True
     global installLazySignalHandler
-    installLazySignalHandler = addSignalHandlerDict(installLazySignalHandler)
+    installLazySignalHandler = __addSignalHandlerDict__(installLazySignalHandler)
 
 # avoids adding a handler to a signal twice or more often
 # do not call this function directly - use overrideInstallLazySignalHandler() instead
-def addSignalHandlerDict(lazySignalHandlerFunction):
+def __addSignalHandlerDict__(lazySignalHandlerFunction):
     global installedSignalHandlers
     def wrappedFunction(name, signalSignature, handlerFunctionName):
         handlers = installedSignalHandlers.get("%s____%s" % (name,signalSignature))
@@ -65,12 +65,10 @@ def checkLastBuild(expectedToFail=False):
     if warnings == "":
         warnings = "none"
     gotErrors = errors != "none" and errors != "0"
-    if (gotErrors and expectedToFail) or (not expectedToFail and not gotErrors):
-        test.passes("Errors: %s" % errors)
-        test.passes("Warnings: %s" % warnings)
+    if not (gotErrors ^ expectedToFail):
+        test.passes("Errors: %s | Warnings: %s" % (errors, warnings))
     else:
-        test.fail("Errors: %s" % errors)
-        test.fail("Warnings: %s" % warnings)
+        test.fail("Errors: %s | Warnings: %s" % (errors, warnings))
     # additional stuff - could be removed... or improved :)
     toggleBuildIssues = waitForObject("{type='Core::Internal::OutputPaneToggleButton' unnamed='1' "
                                       "visible='1' window=':Qt Creator_Core::Internal::MainWindow'}", 20000)

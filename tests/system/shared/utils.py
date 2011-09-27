@@ -1,4 +1,10 @@
-import tempfile, shutil, os
+import tempfile
+
+def neededFilePresent(path):
+    found = os.path.exists(path)
+    if not found:
+        test.fatal("Missing file or directory: " + path)
+    return found
 
 def tempDir():
     Result = os.path.abspath(os.getcwd()+"/../../testing")
@@ -65,36 +71,51 @@ def which(program):
 
     return None
 
-def replaceLineEditorContent(lineEditor, newcontent):
-    type(lineEditor, "<Ctrl+A>")
-    type(lineEditor, "<Delete>")
-    type(lineEditor, newcontent)
-
 signalObjects = {}
 
-def callbackFunction(object, *args):
+def __callbackFunction__(object, *args):
     global signalObjects
-#    test.log("callbackFunction: "+objectMap.realName(object))
+#    test.log("__callbackFunction__: "+objectMap.realName(object))
     signalObjects[objectMap.realName(object)] += 1
 
 def waitForSignal(object, signal, timeout=30000):
+    global signalObjects
+    realName = prepareForSignal(object, signal)
+    beforeCount = signalObjects[realName]
+    waitFor("signalObjects[realName] > beforeCount", timeout)
+
+def prepareForSignal(object, signal):
     global signalObjects
     overrideInstallLazySignalHandler()
     realName = objectMap.realName(object)
 #    test.log("waitForSignal: "+realName)
     if not (realName in signalObjects):
         signalObjects[realName] = 0
-    beforeCount = signalObjects[realName]
-    installLazySignalHandler(object, signal, "callbackFunction")
-    waitFor("signalObjects[realName] > beforeCount", timeout)
+    installLazySignalHandler(object, signal, "__callbackFunction__")
+    return realName
 
-def markText(editor, startPosition, endPosition):
-    cursor = editor.textCursor()
-    cursor.setPosition(startPosition)
-    cursor.movePosition(QTextCursor.StartOfLine)
-    editor.setTextCursor(cursor)
-    cursor.movePosition(QTextCursor.Right, QTextCursor.KeepAnchor, endPosition-startPosition)
-    cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
-    cursor.setPosition(endPosition, QTextCursor.KeepAnchor)
-    editor.setTextCursor(cursor)
+# this function removes the user files of given pro file(s)
+# can be called with a single string object or a list of strings holding path(s) to
+# the pro file(s) returns False if it could not remove all user files or has been
+# called with an unsupported object
+def cleanUpUserFiles(pathsToProFiles=None):
+    if pathsToProFiles==None:
+        return False
+    if className(pathsToProFiles) in ("str", "unicode"):
+        filelist = glob.glob(pathsToProFiles+".user*")
+    elif className(pathsToProFiles)=="list":
+        filelist = []
+        for p in pathsToProFiles:
+            filelist.extend(glob.glob(p+".user*"))
+    else:
+        test.fatal("Got an unsupported object.")
+        return False
+    doneWithoutErrors = True
+    for file in filelist:
+        try:
+            file = os.path.abspath(file)
+            os.remove(file)
+        except:
+            doneWithoutErrors = False
+    return doneWithoutErrors
 

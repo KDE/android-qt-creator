@@ -58,7 +58,7 @@ public:
     DeployableFilesPerProFile *currentModel() const;
 
 signals:
-    void currentModelChanged(const DeployableFilesPerProFile *proFileInfo);
+    void currentModelChanged(const RemoteLinux::DeployableFilesPerProFile *proFileInfo);
 
 private slots:
     void handleModelListToBeReset();

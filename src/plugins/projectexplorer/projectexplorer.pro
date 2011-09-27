@@ -30,7 +30,6 @@ HEADERS += projectexplorer.h \
     showoutputtaskhandler.h \
     vcsannotatetaskhandler.h \
     taskwindow.h \
-    persistentsettings.h \
     projectfilewizardextension.h \
     session.h \
     dependenciespanel.h \
@@ -74,7 +73,6 @@ HEADERS += projectexplorer.h \
     toolchainconfigwidget.h \
     toolchainmanager.h \
     toolchainoptionspage.h \
-    userfileaccessor.h \
     cesdkhandler.h \
     gccparser.h \
     debugginghelper.h \
@@ -102,7 +100,8 @@ HEADERS += projectexplorer.h \
     headerpath.h \
     gcctoolchainfactories.h \
     appoutputpane.h \
-    codestylesettingspropertiespage.h
+    codestylesettingspropertiespage.h \
+    settingsaccessor.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
@@ -127,7 +126,6 @@ SOURCES += projectexplorer.cpp \
     showoutputtaskhandler.cpp \
     vcsannotatetaskhandler.cpp \
     taskwindow.cpp \
-    persistentsettings.cpp \
     projectfilewizardextension.cpp \
     session.cpp \
     dependenciespanel.cpp \
@@ -165,7 +163,6 @@ SOURCES += projectexplorer.cpp \
     toolchainmanager.cpp \
     toolchainoptionspage.cpp \
     cesdkhandler.cpp \
-    userfileaccessor.cpp \
     gccparser.cpp \
     debugginghelper.cpp \
     projectexplorersettingspage.cpp \
@@ -188,7 +185,8 @@ SOURCES += projectexplorer.cpp \
     sessionnodeimpl.cpp \
     publishing/publishingwizardselectiondialog.cpp \
     appoutputpane.cpp \
-    codestylesettingspropertiespage.cpp
+    codestylesettingspropertiespage.cpp \
+    settingsaccessor.cpp
 
 FORMS += processstep.ui \
     toolchainoptionspage.ui \

@@ -80,6 +80,7 @@ const char * const QMAKE_QMLDEBUGLIB_KEY("QtProjectManager.QMakeBuildStep.LinkQm
 QMakeStep::QMakeStep(BuildStepList *bsl) :
     AbstractProcessStep(bsl, QLatin1String(QMAKE_BS_ID)),
     m_forced(false),
+    m_needToRunQMake(false),
     m_linkQmlDebuggingLibrary(DebugLink)
 {
     ctor();
@@ -241,8 +242,6 @@ bool QMakeStep::init()
 
     QString program = qtVersion->qmakeCommand();
 
-    // Check whether we need to run qmake
-    m_needToRunQMake = true;
     QString makefile = workingDirectory;
 
     if (qt4bc->subNodeBuild()) {
@@ -258,17 +257,18 @@ bool QMakeStep::init()
         makefile.append("/Makefile");
     }
 
+    // Check whether we need to run qmake
+    bool makefileOutDated = true;
     if (QFileInfo(makefile).exists()) {
         QString qmakePath = QtSupport::QtVersionManager::findQMakeBinaryFromMakefile(makefile);
         if (qtVersion->qmakeCommand() == qmakePath) {
-            m_needToRunQMake = !qt4bc->compareToImportFrom(makefile);
+            makefileOutDated = !qt4bc->compareToImportFrom(makefile);
         }
     }
 
-    if (m_forced) {
-        m_forced = false;
+    if (m_forced || makefileOutDated)
         m_needToRunQMake = true;
-    }
+    m_forced = false;
 
     setEnabled(m_needToRunQMake);
     ProcessParameters *pp = processParameters();
@@ -323,6 +323,7 @@ void QMakeStep::run(QFutureInterface<bool> &fi)
         return;
     }
 
+    m_needToRunQMake = false;
     AbstractProcessStep::run(fi);
 }
 
@@ -348,7 +349,7 @@ bool QMakeStep::immutable() const
 
 void QMakeStep::processStartupFailed()
 {
-    m_forced = true;
+    m_needToRunQMake = true;
     AbstractProcessStep::processStartupFailed();
 }
 
@@ -356,7 +357,7 @@ bool QMakeStep::processSucceeded(int exitCode, QProcess::ExitStatus status)
 {
     bool result = AbstractProcessStep::processSucceeded(exitCode, status);
     if (!result)
-        m_forced = true;
+        m_needToRunQMake = true;
     qt4BuildConfiguration()->emitBuildDirectoryInitialized();
     return result;
 }

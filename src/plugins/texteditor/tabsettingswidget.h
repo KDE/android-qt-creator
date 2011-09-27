@@ -53,13 +53,13 @@ public:
     explicit TabSettingsWidget(QWidget *parent = 0);
     ~TabSettingsWidget();
 
-    TabSettings settings() const;
+    TabSettings tabSettings() const;
 
     void setFlat(bool on);
     QString searchKeywords() const;
 
 public slots:
-    void setSettings(const TextEditor::TabSettings& s);
+    void setTabSettings(const TextEditor::TabSettings& s);
 
 signals:
     void settingsChanged(const TextEditor::TabSettings &);
@@ -69,7 +69,6 @@ protected:
 
 private slots:
     void slotSettingsChanged();
-    void updateWidget();
 
 private:
     Ui::TabSettingsWidget *ui;

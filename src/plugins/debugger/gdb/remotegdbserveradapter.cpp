@@ -173,7 +173,6 @@ void RemoteGdbServerAdapter::setupInferior()
         fileName = fi.absoluteFilePath();
     }
     const QByteArray sysroot = sp.sysroot.toLocal8Bit();
-    const QByteArray debugInfoLocation = sp.debugInfoLocation.toLocal8Bit();
     const QByteArray remoteArch = sp.remoteArchitecture.toLatin1();
     const QByteArray gnuTarget = sp.gnuTarget.toLatin1();
     QByteArray solibPath = QFileInfo(sp.dumperLibrary).path().toLocal8Bit();
@@ -190,12 +189,6 @@ void RemoteGdbServerAdapter::setupInferior()
         m_engine->postCommand("set gnutarget " + gnuTarget);
     if (!sysroot.isEmpty())
         m_engine->postCommand("set sysroot " + sysroot);
-    if (!debugInfoLocation.isEmpty())
-        m_engine->postCommand("set debug-file-directory " + debugInfoLocation);
-    foreach (const QString &src, sp.debugSourceLocation)
-        m_engine->postCommand("directory " + src.toLocal8Bit());
-    if (!solibPath.isEmpty())
-        m_engine->postCommand("set solib-search-path " + solibPath);
     if (!args.isEmpty())
         m_engine->postCommand("-exec-arguments " + args.toLocal8Bit());
 
@@ -213,7 +206,12 @@ void RemoteGdbServerAdapter::setupInferior()
     // Some external comment: '[but] "set target-async on" with a native
     // windows gdb will work, but then fail when you actually do
     // "run"/"attach", I think..
-    m_engine->postCommand("set target-async on", CB(handleSetTargetAsync));
+
+
+    // ~"/build/buildd/gdb-7.2/gdb/mi/mi-main.c:1958: internal-error:
+    // mi_execute_async_cli_command: Assertion `is_running (inferior_ptid)'
+    // failed.\nA problem internal to GDB has been detected,[...]
+    //m_engine->postCommand("set target-async on", CB(handleSetTargetAsync));
 
     if (fileName.isEmpty()) {
         showMessage(tr("No symbol file given."), StatusBar);

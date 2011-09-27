@@ -4,7 +4,8 @@ import re;
 SpeedCrunchPath = ""
 
 def main():
-    test.verify(os.path.exists(SpeedCrunchPath))
+    if not neededFilePresent(SpeedCrunchPath):
+        return
     startApplication("qtcreator" + SettingsPath)
     openQmakeProject(SpeedCrunchPath)
     waitForSignal("{type='CppTools::Internal::CppModelManager' unnamed='1'}", "sourceFilesRefreshed(QStringList)", 30000)
@@ -39,19 +40,19 @@ def main():
     # Add a new run configuration
 
     invokeMenuItem("File", "Exit")
+    waitForCleanShutdown()
 
 def init():
     global SpeedCrunchPath
-    SpeedCrunchPath = SDKPath + "/creator-test-data/speedcrunch/src/speedcrunch.pro"
+    SpeedCrunchPath = srcPath + "/creator-test-data/speedcrunch/src/speedcrunch.pro"
     cleanup()
 
 def cleanup():
     # Make sure the .user files are gone
-    if os.access(SpeedCrunchPath + ".user", os.F_OK):
-        os.remove(SpeedCrunchPath + ".user")
+    cleanUpUserFiles(SpeedCrunchPath)
 
-    BuildPath = glob.glob(SDKPath + "/creator-test-data/speedcrunch/speedcrunch-build-*")
-    BuildPath += glob.glob(SDKPath + "/creator-test-data/speedcrunch/qtcreator-build-*")
+    BuildPath = glob.glob(srcPath + "/creator-test-data/speedcrunch/speedcrunch-build-*")
+    BuildPath += glob.glob(srcPath + "/creator-test-data/speedcrunch/qtcreator-build-*")
 
     if BuildPath:
         for dir in BuildPath:

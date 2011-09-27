@@ -6,8 +6,8 @@ def main():
     if(which("cmake") == None):
         test.fatal("cmake not found")
         return
-
-    test.verify(os.path.exists(SpeedCrunchPath))
+    if not neededFilePresent(SpeedCrunchPath):
+        return
 
     startApplication("qtcreator" + SettingsPath)
 
@@ -30,23 +30,23 @@ def main():
     checkLastBuild()
 
     invokeMenuItem("File", "Exit")
+    waitForCleanShutdown()
 
 def init():
     global SpeedCrunchPath
-    SpeedCrunchPath = SDKPath + "/creator-test-data/speedcrunch/src/CMakeLists.txt"
+    SpeedCrunchPath = srcPath + "/creator-test-data/speedcrunch/src/CMakeLists.txt"
     cleanup()
 
 def cleanup():
     # Make sure the .user files are gone
-    if os.access(SpeedCrunchPath + ".user", os.F_OK):
-        os.remove(SpeedCrunchPath + ".user")
+    cleanUpUserFiles(SpeedCrunchPath)
 
-    BuildPath = SDKPath + "/creator-test-data/speedcrunch/src/qtcreator-build"
+    BuildPath = srcPath + "/creator-test-data/speedcrunch/src/qtcreator-build"
 
     if os.access(BuildPath, os.F_OK):
         shutil.rmtree(BuildPath)
     # added because creator uses this one for me
-    BuildPath = SDKPath + "/creator-test-data/speedcrunch/qtcreator-build"
+    BuildPath = srcPath + "/creator-test-data/speedcrunch/qtcreator-build"
 
     if os.access(BuildPath, os.F_OK):
         shutil.rmtree(BuildPath)
