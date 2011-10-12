@@ -239,6 +239,7 @@ bool AndroidDeployStep::deployPackage()
         copyLibs(bc->qtVersion()->sourcePath() +"/lib", tempPath + "/lib", stripFiles, QStringList() << "*.so");
         copyLibs(bc->qtVersion()->sourcePath() + "/plugins", tempPath + "/plugins", stripFiles);
         copyLibs(bc->qtVersion()->sourcePath() + "/imports", tempPath + "/imports", stripFiles);
+        copyLibs(bc->qtVersion()->sourcePath() + "/jar", tempPath + "/jar", stripFiles);
         AndroidPackageCreationStep::stripAndroidLibs(stripFiles, target()->activeRunConfiguration()->abi().architecture());
         runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                    QStringList() << "-s" << m_deviceSerialNumber
