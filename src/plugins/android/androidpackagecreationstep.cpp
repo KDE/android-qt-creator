@@ -260,8 +260,9 @@ bool AndroidPackageCreationStep::createPackage()
     checkRequiredLibraries();
     emit addOutput(tr("Copy Qt app & libs to Android package ..."), MessageOutput);
 
-    const QString androidDir(target->androidDirPath());
+    m_outputParser.setProjectFileList(bc->qt4Target()->qt4Project()->files(Project::AllFiles));
 
+    const QString androidDir(target->androidDirPath());
     QString androidLibPath;
     if (bc->qt4Target()->qt4Project()->rootProjectNode()->variableValue(Qt4ProjectManager::ConfigVar).contains("x86"))
         androidLibPath = androidDir+QLatin1String("/libs/x86");
