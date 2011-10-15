@@ -59,7 +59,7 @@ enum { debug = 0 };
 
 static const char titleC[] = "Qt Creator Debugger";
 // For some reason NQTC_SETTINGS_ORG is undefined even though it's -D
-static const char organizationC[] = "eu.licentia.necessitas";
+static const char organizationC[] = "org.kde.necessitas";
 
 // Optional
 static const WCHAR debuggerWow32RegistryKeyC[] = L"Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AeDebug";
