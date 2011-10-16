@@ -16,6 +16,7 @@ are required by law.
 #include <projectexplorer/persistentsettings.h>
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QDateTime>
 #include <QtCore/QSettings>
 #include <QtCore/QStringBuilder>
 #include <QtCore/QStringList>
@@ -61,6 +62,7 @@ namespace {
     const QLatin1String keytoolName("keytool");
     const QLatin1String jarsignerName("jarsigner");
     const QLatin1String androidFilename("/android.xml");
+    const QLatin1String changeTimeStamp("ChangeTimeStamp");
 
     static QString settingsFileName()
     {
@@ -102,43 +104,56 @@ QLatin1String AndroidConfigurations::toolsPrefix(ProjectExplorer::Abi::Architect
 
 AndroidConfig::AndroidConfig(const QSettings &settings)
 {
-    PersistentSettingsReader reader;
-    reader.load(settingsFileName());
-
-    // persisten settings
-    SDKLocation = reader.restoreValue(SDKLocationKey).toString();
-    NDKLocation = reader.restoreValue(NDKLocationKey).toString();
-    AntLocation = reader.restoreValue(AntLocationKey).toString();
-    OpenJDKLocation = reader.restoreValue(OpenJDKLocationKey).toString();
-    KeystoreLocation = reader.restoreValue(KeystoreLocationKey).toString();
-
-    QRegExp versionRegExp(NDKGccVersionRegExp);
-    const QString & value=reader.restoreValue(NDKToolchainVersionKey).toString();
-    if (versionRegExp.exactMatch(value))
-        NDKToolchainVersion = value;
-    else
-        NDKToolchainVersion = value.mid(versionRegExp.indexIn(value));
-    // persisten settings
-
     // user settings
     ArmGdbLocation = settings.value(ArmGdbLocationKey).toString();
     ArmGdbserverLocation = settings.value(ArmGdbserverLocationKey).toString();
     X86GdbLocation = settings.value(X86GdbLocationKey).toString();
     X86GdbserverLocation = settings.value(X86GdbserverLocationKey).toString();
     PartitionSize = settings.value(PartitionSizeKey, 1024).toInt();
+    SDKLocation = settings.value(SDKLocationKey).toString();
+    NDKLocation = settings.value(NDKLocationKey).toString();
+    AntLocation = settings.value(AntLocationKey).toString();
+    OpenJDKLocation = settings.value(OpenJDKLocationKey).toString();
+    KeystoreLocation = settings.value(KeystoreLocationKey).toString();
 
-    if (!ArmGdbLocation.length())
-        ArmGdbLocation = reader.restoreValue(ArmGdbLocationKey).toString();
-
-    if (!ArmGdbserverLocation.length())
-        ArmGdbserverLocation = reader.restoreValue(ArmGdbserverLocationKey).toString();
-
-    if (!X86GdbLocation.length())
-        X86GdbLocation = reader.restoreValue(X86GdbLocationKey).toString();
-
-    if (!X86GdbserverLocation.length())
-        X86GdbserverLocation = reader.restoreValue(X86GdbserverLocationKey).toString();
+    QRegExp versionRegExp(NDKGccVersionRegExp);
+    const QString & value=settings.value(NDKToolchainVersionKey).toString();
+    if (versionRegExp.exactMatch(value))
+        NDKToolchainVersion = value;
+    else
+        NDKToolchainVersion = value.mid(versionRegExp.indexIn(value));
     // user settings
+
+    PersistentSettingsReader reader;
+    if (reader.load(settingsFileName()) && settings.value(changeTimeStamp).toInt() != QFileInfo(settingsFileName()).lastModified().toMSecsSinceEpoch()/1000)
+    {
+        // persisten settings
+        SDKLocation = reader.restoreValue(SDKLocationKey).toString();
+        NDKLocation = reader.restoreValue(NDKLocationKey).toString();
+        AntLocation = reader.restoreValue(AntLocationKey).toString();
+        OpenJDKLocation = reader.restoreValue(OpenJDKLocationKey).toString();
+        KeystoreLocation = reader.restoreValue(KeystoreLocationKey).toString();
+
+        QRegExp versionRegExp(NDKGccVersionRegExp);
+        const QString & value=reader.restoreValue(NDKToolchainVersionKey).toString();
+        if (versionRegExp.exactMatch(value))
+            NDKToolchainVersion = value;
+        else
+            NDKToolchainVersion = value.mid(versionRegExp.indexIn(value));
+
+        if (!ArmGdbLocation.length())
+            ArmGdbLocation = reader.restoreValue(ArmGdbLocationKey).toString();
+
+        if (!ArmGdbserverLocation.length())
+            ArmGdbserverLocation = reader.restoreValue(ArmGdbserverLocationKey).toString();
+
+        if (!X86GdbLocation.length())
+            X86GdbLocation = reader.restoreValue(X86GdbLocationKey).toString();
+
+        if (!X86GdbserverLocation.length())
+            X86GdbserverLocation = reader.restoreValue(X86GdbserverLocationKey).toString();
+        // persisten settings
+    }
 
 }
 
@@ -149,18 +164,17 @@ AndroidConfig::AndroidConfig()
 
 void AndroidConfig::save(QSettings &settings) const
 {
-    // persisten settings
-    PersistentSettingsWriter writer;
-    writer.saveValue(SDKLocationKey, SDKLocation);
-    writer.saveValue(NDKLocationKey, NDKLocation);
-    writer.saveValue(NDKToolchainVersionKey, NDKToolchainVersion);
-    writer.saveValue(AntLocationKey, AntLocation);
-    writer.saveValue(OpenJDKLocationKey, OpenJDKLocation);
-    writer.saveValue(KeystoreLocationKey, KeystoreLocation);
-    writer.save(settingsFileName(),"AndroidConfigurations", Core::ICore::instance()->mainWindow());
-    // persisten settings
+    QFileInfo fileInfo(settingsFileName());
+    if (fileInfo.exists())
+        settings.setValue(changeTimeStamp, fileInfo.lastModified().toMSecsSinceEpoch()/1000);
 
     // user settings
+    settings.setValue(SDKLocationKey, SDKLocation);
+    settings.setValue(NDKLocationKey, NDKLocation);
+    settings.setValue(NDKToolchainVersionKey, NDKToolchainVersion);
+    settings.setValue(AntLocationKey, AntLocation);
+    settings.setValue(OpenJDKLocationKey, OpenJDKLocation);
+    settings.setValue(KeystoreLocationKey, KeystoreLocation);
     settings.setValue(ArmGdbLocationKey, ArmGdbLocation);
     settings.setValue(ArmGdbserverLocationKey, ArmGdbserverLocation);
     settings.setValue(X86GdbLocationKey, X86GdbLocation);

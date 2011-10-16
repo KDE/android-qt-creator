@@ -35,15 +35,21 @@
 #include "registerpostmortemaction.h"
 #endif
 
+#include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/persistentsettings.h>
 #include <utils/savedaction.h>
 #include <utils/qtcassert.h>
 #include <utils/pathchooser.h>
 
+#include <QtCore/QDateTime>
 #include <QtCore/QDebug>
 #include <QtCore/QVariant>
 #include <QtCore/QSettings>
+#include <QtCore/QFileInfo>
+
 
 using namespace Utils;
+using namespace ProjectExplorer;
 
 static const char debugModeSettingsGroupC[] = "DebugMode";
 static const char sourcePathMappingArrayNameC[] = "SourcePathMappings";
@@ -53,8 +59,22 @@ static const char sourcePathMappingTargetKeyC[] = "Target";
 namespace Debugger {
 namespace Internal {
 
+namespace {
+    const QLatin1String sourcePathMappingFilename("/source_mapping.xml");
+    const char * const changeTimeStamp ="ChangeTimeStamp";
+    static QString settingsFileName()
+    {
+        ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
+        QFileInfo settingsLocation(pm->settings()->fileName());
+        return settingsLocation.absolutePath() + sourcePathMappingFilename;
+    }
+}
 void GlobalDebuggerOptions::toSettings(QSettings *s) const
 {
+    QFileInfo fileInfo(settingsFileName());
+    if (fileInfo.exists())
+        s->setValue(changeTimeStamp, fileInfo.lastModified().toMSecsSinceEpoch()/1000);
+
     s->beginWriteArray(QLatin1String(sourcePathMappingArrayNameC));
     if (!sourcePathMap.isEmpty()) {
         const QString sourcePathMappingSourceKey = QLatin1String(sourcePathMappingSourceKeyC);
@@ -83,6 +103,14 @@ void GlobalDebuggerOptions::fromSettings(QSettings *s)
         }
     }
     s->endArray();
+    PersistentSettingsReader reader;
+    if (reader.load(settingsFileName()) && s->value(changeTimeStamp).toInt() != QFileInfo(settingsFileName()).lastModified().toMSecsSinceEpoch()/1000)
+    {
+        const QVariantMap map=reader.restoreValues();
+        foreach(QString key, map.keys())
+            if (key!=changeTimeStamp)
+                sourcePathMap.insert(key, map[key].toString());
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////
