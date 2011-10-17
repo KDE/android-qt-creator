@@ -66,9 +66,8 @@ namespace {
 
     static QString settingsFileName()
     {
-        ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
-        QFileInfo settingsLocation(pm->settings()->fileName());
-        return settingsLocation.absolutePath() + androidFilename;
+        return Core::ICore::instance()->resourcePath()
+                + QLatin1String("/Nokia") + androidFilename;
     }
 
     bool androidDevicesLessThan(const AndroidDevice &dev1, const AndroidDevice &dev2)
