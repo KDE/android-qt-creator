@@ -137,9 +137,9 @@ bool UpdateInfoPlugin::initialize(const QStringList & /* arguments */, QString *
     PersistentSettingsReader reader;
     if (reader.load(settingsFileName()))
     {
-        d->updaterProgram = reader.restoreValue(QLatin1String("Updater/Application")).toString();
-        d->updaterCheckOnlyArgument = reader.restoreValue(QLatin1String("Updater/CheckOnlyArgument")).toString();
-        d->updaterRunUiArgument = reader.restoreValue(QLatin1String("Updater/RunUiArgument")).toString();
+        d->updaterProgram = reader.restoreValue(QLatin1String("Application")).toString();
+        d->updaterCheckOnlyArgument = reader.restoreValue(QLatin1String("CheckOnlyArgument")).toString();
+        d->updaterRunUiArgument = reader.restoreValue(QLatin1String("RunUiArgument")).toString();
 
         Core::ICore* const core = Core::ICore::instance();
         Core::ActionManager* const actionManager = core->actionManager();
