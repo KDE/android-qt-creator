@@ -48,7 +48,9 @@ QVariant AVDModel::data(const QModelIndex &index, int role) const
         case 0:
             return m_list[index.row()].serialNumber;
         case 1:
-            return QString("android-%1").arg(m_list[index.row()].sdk);
+            return QString("API %1").arg(m_list[index.row()].sdk);
+        case 2:
+            return m_list[index.row()].cpuABI;
     }
     return QVariant();
 }
@@ -61,6 +63,8 @@ QVariant AVDModel::headerData(int section, Qt::Orientation orientation, int role
                 return tr("AVD Name");
             case 1:
                 return tr("AVD Target");
+            case 2:
+                return tr("CPU/ABI");
         }
     }
     return  QAbstractItemModel::headerData(section, orientation, role );
@@ -73,7 +77,7 @@ int AVDModel::rowCount(const QModelIndex & /*parent*/) const
 
 int AVDModel::columnCount(const QModelIndex & /*parent*/) const
 {
-    return 2;
+    return 3;
 }
 
 

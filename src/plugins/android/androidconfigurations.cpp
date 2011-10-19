@@ -464,12 +464,13 @@ QVector<AndroidDevice> AndroidConfigurations::androidVirtualDevices()
         ++i;
         for (; i < avds.size(); ++i) {
             line = avds[i];
-            if (!line.contains("Target:"))
-                continue;
-            dev.sdk = line.mid(line.lastIndexOf(' ')).remove(')').toInt();
-            break;
+            if (line.contains("---------"))
+                break;
+            if (line.contains("Target:"))
+                dev.sdk = line.mid(line.lastIndexOf(' ')).remove(')').toInt();
+            if (line.contains("ABI:"))
+                dev.cpuABI = line.mid(line.lastIndexOf(' ')).trimmed();
         }
-        ++i;
         devices.push_back(dev);
     }
     qSort(devices.begin(), devices.end(), androidDevicesLessThan);
