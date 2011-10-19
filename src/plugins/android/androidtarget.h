@@ -134,6 +134,7 @@ public:
     QString apkPath(BuildType buildType);
     QString localLibsRulesFilePath();
     QString loadLocalLibs(int apiLevel);
+    QString loadLocalJars(int apiLevel);
 
 public slots:
     bool createAndroidTemplatesIfNecessary(bool forceJava = false);
@@ -147,6 +148,13 @@ private slots:
     void handleTargetToBeRemoved(ProjectExplorer::Target *target);
 
 private:
+    enum ItemType
+    {
+        Lib,
+        Jar
+    };
+
+    QString loadLocal(int apiLevel, ItemType item);
     void raiseError(const QString &reason);
     bool openXmlFile(QDomDocument &doc, const QString &fileName);
     bool saveXmlFile(QDomDocument &doc, const QString &fileName);

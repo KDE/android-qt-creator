@@ -142,7 +142,9 @@ void AndroidRunner::start()
 
     if (m_runConfig->deployStep()->useLocalQtLibs()) {
         extraParams+=" -e use_local_qt_libs true";
+        extraParams+=" -e libs_prefix /data/local/qt/";
         extraParams+=" -e load_local_libs " + m_runConfig->androidTarget()->loadLocalLibs(m_runConfig->deployStep()->deviceAPILevel());
+        extraParams+=" -e load_local_jars " + m_runConfig->androidTarget()->loadLocalJars(m_runConfig->deployStep()->deviceAPILevel());
     }
     QStringList arguments;
     arguments << "-s" << m_deviceSerialNumber

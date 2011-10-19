@@ -215,8 +215,14 @@ QString AndroidTarget::localLibsRulesFilePath()
     return qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"] + "/rules.xml";
 }
 
-QString AndroidTarget::loadLocalLibs(int apiLevel)
+QString AndroidTarget::loadLocal(int apiLevel, ItemType item)
 {
+    QString itemType;
+    if (item==Lib)
+        itemType="lib";
+    else
+        itemType="jar";
+
     QString localLibs;
 
     QDomDocument doc;
@@ -225,7 +231,7 @@ QString AndroidTarget::loadLocalLibs(int apiLevel)
 
     QStringList libs;
     libs << qtLibs() << prebundledLibs();
-    QDomElement element = doc.documentElement().firstChildElement("platforms").firstChildElement("version");
+    QDomElement element = doc.documentElement().firstChildElement("platforms").firstChildElement(itemType+"s").firstChildElement("version");
     while (!element.isNull()) {
         if (element.attribute("value").toInt() == apiLevel) {
             if (element.hasAttribute("symlink"))
@@ -238,16 +244,16 @@ QString AndroidTarget::loadLocalLibs(int apiLevel)
     element = doc.documentElement().firstChildElement("dependencies").firstChildElement("lib");
     while (!element.isNull()) {
         if (libs.contains(element.attribute("name"))) {
-            QDomElement libElement = element.firstChildElement("depends").firstChildElement("lib");
+            QDomElement libElement = element.firstChildElement("depends").firstChildElement(itemType);
             while (!libElement.isNull()) {
-                localLibs += libElement.attribute("file").arg(apiLevel)+";";
-                libElement = libElement.nextSiblingElement("lib");
+                localLibs += libElement.attribute("file").arg(apiLevel)+":";
+                libElement = libElement.nextSiblingElement(itemType);
             }
 
-            libElement = element.firstChildElement("replaces").firstChildElement("lib");
+            libElement = element.firstChildElement("replaces").firstChildElement(itemType);
             while (!libElement.isNull()) {
-                localLibs.replace(libElement.attribute("file").arg(apiLevel) + ";","");
-                libElement = libElement.nextSiblingElement("lib");
+                localLibs.replace(libElement.attribute("file").arg(apiLevel) + ":","");
+                libElement = libElement.nextSiblingElement(itemType);
             }
         }
         element = element.nextSiblingElement("lib");
@@ -255,6 +261,15 @@ QString AndroidTarget::loadLocalLibs(int apiLevel)
     return localLibs;
 }
 
+QString AndroidTarget::loadLocalLibs(int apiLevel)
+{
+    return loadLocal(apiLevel, Lib);
+}
+
+QString AndroidTarget::loadLocalJars(int apiLevel)
+{
+    return loadLocal(apiLevel, Jar);
+}
 
 void AndroidTarget::updateProject(const QString &targetSDK, const QString &name)
 {
