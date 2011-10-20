@@ -35,7 +35,7 @@
 #include "registerpostmortemaction.h"
 #endif
 
-#include <extensionsystem/pluginmanager.h>
+#include <coreplugin/icore.h>
 #include <projectexplorer/persistentsettings.h>
 #include <utils/savedaction.h>
 #include <utils/qtcassert.h>
@@ -64,9 +64,8 @@ namespace {
     const char * const changeTimeStamp ="ChangeTimeStamp";
     static QString settingsFileName()
     {
-        ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
-        QFileInfo settingsLocation(pm->settings()->fileName());
-        return settingsLocation.absolutePath() + sourcePathMappingFilename;
+        return Core::ICore::instance()->resourcePath()
+                + QLatin1String("/Nokia") + sourcePathMappingFilename;
     }
 }
 void GlobalDebuggerOptions::toSettings(QSettings *s) const
@@ -108,8 +107,7 @@ void GlobalDebuggerOptions::fromSettings(QSettings *s)
     {
         const QVariantMap map=reader.restoreValues();
         foreach(QString key, map.keys())
-            if (key!=changeTimeStamp)
-                sourcePathMap.insert(key, map[key].toString());
+            sourcePathMap.insert(key, map[key].toString());
     }
 }
 

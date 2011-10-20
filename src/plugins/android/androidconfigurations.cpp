@@ -12,7 +12,6 @@ are required by law.
 #include "ui_addnewavddialog.h"
 
 #include <coreplugin/icore.h>
-#include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/persistentsettings.h>
 
 #include <QtCore/QCoreApplication>
