@@ -907,16 +907,16 @@ bool AndroidTarget::setLowDpiIcon(const QString &iconFilePath)
 QString AndroidTarget::targetSDK()
 {
     if (!createAndroidTemplatesIfNecessary())
-        return "android-4";
+        return AndroidConfigurations::instance().bestMatch("android-8");
     QFile file(androidDefaultPropertiesPath());
     if (!file.open(QIODevice::ReadOnly))
-        return "android-4";
+        return AndroidConfigurations::instance().bestMatch("android-8");
     while (!file.atEnd()) {
         QByteArray line = file.readLine();
         if (line.startsWith("target="))
             return line.trimmed().mid(7);
     }
-    return "android-4";
+    return AndroidConfigurations::instance().bestMatch("android-8");
 }
 
 bool AndroidTarget::setTargetSDK(const QString & target)

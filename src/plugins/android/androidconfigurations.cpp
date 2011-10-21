@@ -560,7 +560,7 @@ QString AndroidConfigurations::bestMatch(const QString &targetAPI)
         if (apiLevel <= target)
             return QString("android-%1").arg(apiLevel);
     }
-    return "android-4";
+    return "android-8";
 }
 
 AndroidConfigurations &AndroidConfigurations::instance(QObject *parent)
