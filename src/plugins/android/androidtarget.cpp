@@ -45,7 +45,7 @@ namespace {
     const QLatin1String AndroidManifestName("AndroidManifest.xml");
     const QLatin1String AndroidLibsFileName("/res/values/libs.xml");
     const QLatin1String AndroidStringsFileName("/res/values/strings.xml");
-    const QLatin1String AndroidDefaultPropertiesName("default.properties");
+    const QLatin1String AndroidDefaultPropertiesName("project.properties");
 } // anonymous namespace
 
 namespace Android {
