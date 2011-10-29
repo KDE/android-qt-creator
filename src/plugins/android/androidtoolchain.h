@@ -42,6 +42,7 @@ public:
     QVariantMap toMap() const;
     bool fromMap(const QVariantMap &data);
     virtual QString mkspec() const;
+    virtual QString makeCommand() const;
 
     void setQtVersionId(int);
     int qtVersionId() const;

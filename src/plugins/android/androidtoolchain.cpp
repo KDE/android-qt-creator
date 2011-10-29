@@ -175,6 +175,15 @@ QString AndroidToolChain::mkspec() const
     return "android-g++";
 }
 
+QString AndroidToolChain::makeCommand() const
+{
+#if defined(Q_OS_WIN)
+    return QLatin1String("ma-make.exe");
+#else
+    return QLatin1String("make");
+#endif
+}
+
 void AndroidToolChain::setQtVersionId(int id)
 {
     if (id < 0) {
