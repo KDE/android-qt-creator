@@ -141,8 +141,8 @@ void AndroidPackageCreationStep::checkRequiredLibraries()
     if (!QFile::exists(appPath)) {
         raiseError(tr("Can't find read elf information"),
                    tr("Can't find '%1'.\n"
-                      "Please make sure your appication  "
-                      " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
+                      "Please make sure your application  "
+                      "built successfully and is selected in Application tab ('Run option') ").arg(appPath) );
         return;
     }
     readelfProc.start(AndroidConfigurations::instance().readelfPath(androidTarget()->activeRunConfiguration()->abi().architecture()),
