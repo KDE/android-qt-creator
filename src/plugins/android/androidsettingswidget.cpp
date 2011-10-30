@@ -19,6 +19,7 @@ are required by law.
 #include <QtCore/QFileInfo>
 #include <QtCore/QRegExp>
 #include <QtCore/QTextStream>
+#include <QtCore/QProcess>
 
 #include <QtGui/QFileDialog>
 #include <QtGui/QMessageBox>
@@ -407,6 +408,15 @@ void AndroidSettingsWidget::DataPartitionSizeEditingFinished()
 {
     m_androidConfig.PartitionSize=m_ui->DataPartitionSizeSpinBox->value();
 }
+
+void AndroidSettingsWidget::manageAVD()
+{
+    QProcess *avdProcess = new QProcess();
+    connect(this, SIGNAL(destroyed()), avdProcess, SLOT(deleteLater()));
+    connect(avdProcess, SIGNAL(finished(int)), avdProcess, SLOT(deleteLater()));
+    avdProcess->start(AndroidConfigurations::instance().androidToolPath(), QStringList() << "avd");
+}
+
 
 } // namespace Internal
 } // namespace Android
