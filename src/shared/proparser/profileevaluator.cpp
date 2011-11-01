@@ -719,7 +719,7 @@ QString ProFileEvaluator::Private::fixPathToLocalOS(const QString &str) const
     if (string.length() > 2 && string.at(0).isLetter() && string.at(1) == QLatin1Char(':'))
         string[0] = string[0].toUpper();
 
-#if defined(Q_OS_WIN32) && !defined(__MINGW32__)
+#if defined(Q_OS_WIN32)
     string.replace(QLatin1Char('/'), QLatin1Char('\\'));
 #else
     string.replace(QLatin1Char('\\'), QLatin1Char('/'));
