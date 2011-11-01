@@ -46,6 +46,17 @@ namespace {
     const QLatin1String AndroidLibsFileName("/res/values/libs.xml");
     const QLatin1String AndroidStringsFileName("/res/values/strings.xml");
     const QLatin1String AndroidDefaultPropertiesName("project.properties");
+
+    QString cleanPackageName(QString packageName)
+    {
+        const QRegExp legalChars(QLatin1String("[a-zA-Z0-9_\\.]"));
+
+        for (int i = 0; i < packageName.length(); ++i)
+            if (!legalChars.exactMatch(packageName.mid(i, 1)))
+                packageName[i] = QLatin1Char('_');
+
+        return packageName;
+    }
 } // anonymous namespace
 
 namespace Android {
@@ -382,6 +393,14 @@ bool AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
     updateProject(AndroidConfigurations::instance().sdkTargets().at(0));
     if (availableTargetApplications().length())
         setTargetApplication(availableTargetApplications()[0]);
+
+    QString applicationName = project()->displayName();
+    if (applicationName.length())
+    {
+        setPackageName(packageName()+"."+applicationName);
+        applicationName[0]=applicationName[0].toUpper();
+        setApplicationName(applicationName);
+    }
     return true;
 }
 
@@ -463,7 +482,7 @@ bool AndroidTarget::setPackageName(const QString & name)
     if (!openAndroidManifest(doc))
         return false;
     QDomElement manifestElem = doc.documentElement();
-    manifestElem.setAttribute(QLatin1String("package"), name);
+    manifestElem.setAttribute(QLatin1String("package"), cleanPackageName(name));
     return saveAndroidManifest(doc);
 }
 
