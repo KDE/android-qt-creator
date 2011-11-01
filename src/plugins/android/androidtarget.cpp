@@ -380,6 +380,8 @@ bool AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
         return false;
     }
     updateProject(AndroidConfigurations::instance().sdkTargets().at(0));
+    if (availableTargetApplications().length())
+	    setTargetApplication(availableTargetApplications()[0]);
     return true;
 }
 
