@@ -185,30 +185,40 @@ static inline QStringList getPluginPaths()
 #  define SHARE_PATH "/../share/qtcreator"
 #endif
 
-#if defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)
+#if (defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)) || defined(Q_OS_MAC)
+#if defined(Q_OS_WIN)
 #include <windows.h>
+#endif
 static void myMessageOutput(QtMsgType type, const char *msg)
 {
     std::wstring wmsg = QString(msg).toStdWString();
     switch (type) {
     case QtDebugMsg:
+#if defined(Q_OS_WIN)
         OutputDebugStringW(L"Debug:");
         OutputDebugStringW(wmsg.c_str());
+#endif
         fprintf(stderr, "Debug: %s\n", msg);
         break;
     case QtWarningMsg:
+#if defined(Q_OS_WIN)
         OutputDebugStringW(L"Warning:");
         OutputDebugStringW(wmsg.c_str());
+#endif
         fprintf(stderr, "Warning: %s\n", msg);
         break;
     case QtCriticalMsg:
+#if defined(Q_OS_WIN)
         OutputDebugStringW(L"Critical:");
         OutputDebugStringW(wmsg.c_str());
+#endif
         fprintf(stderr, "Critical: %s\n", msg);
         break;
     case QtFatalMsg:
+#if defined(Q_OS_WIN)
         OutputDebugStringW(L"Fatal:");
         OutputDebugStringW(wmsg.c_str());
+#endif
         fprintf(stderr, "Fatal: %s\n", msg);
 //      abort();
     }
@@ -217,7 +227,7 @@ static void myMessageOutput(QtMsgType type, const char *msg)
 
 int main(int argc, char **argv)
 {
-#if defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)
+#if (defined(Q_OS_WIN) && !defined(QT_NO_DEBUG)) || defined(Q_OS_MAC)
     // debugging these hasn't worked. So instead, I install
     // a handler.
     qInstallMsgHandler(myMessageOutput);

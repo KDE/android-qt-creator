@@ -475,8 +475,8 @@ void deployPlugins(const QString &appBundlePath, DeploymentInfo deploymentInfo)
     qDebug() << "";
     qDebug() << "recursively copying plugins from" << deploymentInfo.pluginPath << "to" << pluginDestinationPath;
     deployPlugins(applicationBundle, deploymentInfo.pluginPath, pluginDestinationPath, deploymentInfo);
-    qDebug() << "recursively copying plugins from /usr/necessitas/android-qt-creator/bin/NecessitasQtCreator.app/Contents/PlugIns" << "to" << pluginDestinationPath;
-    deployPlugins(applicationBundle, "/usr/necessitas/android-qt-creator/bin/NecessitasQtCreator.app/Contents/PlugIns", pluginDestinationPath, deploymentInfo);
+    qDebug() << "recursively copying plugins from /usr/nec/android-qt-creator/bin/NecessitasQtCreator.app/Contents/PlugIns" << "to" << pluginDestinationPath;
+    deployPlugins(applicationBundle, "/usr/nec/android-qt-creator/bin/NecessitasQtCreator.app/Contents/PlugIns", pluginDestinationPath, deploymentInfo);
 }
 
 
