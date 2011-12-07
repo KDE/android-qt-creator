@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,8 @@ QT_END_NAMESPACE
 namespace TextEditor {
     class FontSettings;
     class TabSettings;
-    class TabPreferences;
+    class CodeStyleEditor;
+    class ICodeStylePreferences;
 }
 
 namespace QmlJSTools {
@@ -62,19 +63,19 @@ public:
     explicit QmlJSCodeStylePreferencesWidget(QWidget *parent = 0);
     virtual ~QmlJSCodeStylePreferencesWidget();
 
-    void setTabPreferences(TextEditor::TabPreferences *tabPreferences);
+    void setPreferences(TextEditor::ICodeStylePreferences *preferences);
 
     QString searchKeywords() const;
 
 private slots:
-    void setFontSettings(const TextEditor::FontSettings &fontSettings);
+    void decorateEditor(const TextEditor::FontSettings &fontSettings);
     void setVisualizeWhitespace(bool on);
     void slotSettingsChanged();
     void updatePreview();
 
 private:
 
-    TextEditor::TabPreferences *m_tabPreferences;
+    TextEditor::ICodeStylePreferences *m_preferences;
     Ui::QmlJSCodeStyleSettingsPage *m_ui;
 };
 
@@ -101,8 +102,8 @@ public:
 
 private:
     QString m_searchKeywords;
-    TextEditor::TabPreferences *m_pageTabPreferences;
-    QPointer<QmlJSCodeStylePreferencesWidget> m_widget;
+    TextEditor::ICodeStylePreferences *m_pageTabPreferences;
+    QPointer<TextEditor::CodeStyleEditor> m_widget;
 };
 
 } // namespace Internal

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,11 +49,11 @@ namespace TextEditor {
 class TEXTEDITOR_EXPORT TabSettings
 {
 public:
-    // This enum must match the indexes of tabKeyBehavior widget
-    enum TabKeyBehavior {
-        TabNeverIndents = 0,
-        TabAlwaysIndents = 1,
-        TabLeadingWhitespaceIndents = 2
+
+    enum TabPolicy {
+        SpacesOnlyTabPolicy = 0,
+        TabsOnlyTabPolicy = 1,
+        MixedTabPolicy = 2
     };
 
     // This enum must match the indexes of continuationAlignBehavior widget
@@ -90,16 +90,11 @@ public:
 
     int trailingWhitespaces(const QString &text) const;
     bool isIndentationClean(const QTextBlock &block) const;
-    bool tabShouldIndent(const QTextDocument *document, QTextCursor cursor, int *suggestedPosition = 0) const;
     bool guessSpacesForTabs(const QTextBlock &block) const;
 
-    bool m_spacesForTabs;
-    bool m_autoSpacesForTabs;
-    bool m_autoIndent;
-    bool m_smartBackspace;
+    TabPolicy m_tabPolicy;
     int m_tabSize;
     int m_indentSize;
-    TabKeyBehavior m_tabKeyBehavior;
     ContinuationAlignBehavior m_continuationAlignBehavior;
 
     bool equals(const TabSettings &ts) const;

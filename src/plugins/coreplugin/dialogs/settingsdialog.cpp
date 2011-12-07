@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -393,7 +393,7 @@ void SettingsDialog::createGui()
     mainGridLayout->addWidget(buttonBox,        2, 0, 1, 2);
     mainGridLayout->setColumnStretch(1, 4);
     setLayout(mainGridLayout);
-    setMinimumSize(1070, 680);
+    setMinimumSize(1000, 550);
 }
 
 SettingsDialog::~SettingsDialog()

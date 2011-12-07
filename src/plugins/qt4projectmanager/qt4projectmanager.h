@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef QT4PROJECTMANAGER_H
 #define QT4PROJECTMANAGER_H
+
+#include "qt4projectmanager_global.h"
 
 #include <projectexplorer/iprojectmanager.h>
 #include <projectexplorer/projectnodes.h>
@@ -64,7 +66,7 @@ class Qt4ProjectManagerPlugin;
 
 class Qt4Project;
 
-class Qt4Manager : public ProjectExplorer::IProjectManager
+class QT4PROJECTMANAGER_EXPORT Qt4Manager : public ProjectExplorer::IProjectManager
 {
     Q_OBJECT
 
@@ -81,7 +83,7 @@ public:
     ProjectExplorer::ProjectExplorerPlugin *projectExplorer() const;
 
     virtual QString mimeType() const;
-    ProjectExplorer::Project *openProject(const QString &fileName);
+    ProjectExplorer::Project *openProject(const QString &fileName, QString *errorString);
 
     // Context information used in the slot implementations
     ProjectExplorer::Node *contextNode() const;

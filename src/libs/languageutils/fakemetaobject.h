@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,6 +62,7 @@ public:
     QString key(int index) const;
     int keyCount() const;
     QStringList keys() const;
+    bool hasKey(const QString &key) const;
 };
 
 class LANGUAGEUTILS_EXPORT FakeMetaMethod {
@@ -138,10 +139,12 @@ public:
 
     class LANGUAGEUTILS_EXPORT Export {
     public:
+        Export();
+
         QString package;
         QString type;
         ComponentVersion version;
-        QString packageNameVersion;
+        int metaObjectRevision;
 
         bool isValid() const;
     };
@@ -165,6 +168,7 @@ public:
     void setClassName(const QString &name);
 
     void addExport(const QString &name, const QString &package, ComponentVersion version);
+    void setExportMetaObjectRevision(int exportIndex, int metaObjectRevision);
     QList<Export> exports() const;
     Export exportInPackage(const QString &package) const;
 

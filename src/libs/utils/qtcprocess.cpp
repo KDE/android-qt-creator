@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,11 @@
 
 #include <QtCore/QDir>
 #include <QtCore/QDebug>
+#include <QtCore/QCoreApplication>
+
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 using namespace Utils;
 
@@ -652,6 +657,19 @@ void QtcProcess::start()
         if (m_environment.size() == 0)
             qWarning("QtcProcess::start: Empty environment set when running '%s'.", qPrintable(m_command));
         env = m_environment;
+
+        // If the process environemnt has no libraryPath,
+        // Qt will copy creator's libraryPath into the process environment.
+        // That's brain dead, and we work around it
+#if defined(Q_OS_UNIX)
+#  if defined(Q_OS_MAC)
+        static const char libraryPath[] = "DYLD_LIBRARY_PATH";
+#  else
+        static const char libraryPath[] = "LD_LIBRARY_PATH";
+#  endif
+        if (env.constFind(libraryPath) == env.constEnd())
+            env.set(libraryPath, QLatin1String(""));
+#endif
         QProcess::setEnvironment(env.toStringList());
     } else {
         env = Environment::systemEnvironment();
@@ -661,9 +679,14 @@ void QtcProcess::start()
     QString command;
 #ifdef Q_OS_WIN
     QString arguments;
+    QStringList argList;
     prepareCommand(m_command, m_arguments, &command, &arguments, &env, &workDir);
     setNativeArguments(arguments);
-    QProcess::start(command, QStringList());
+    if (m_useCtrlCStub) {
+        argList << command;
+        command = QCoreApplication::applicationDirPath() + QLatin1String("/qtcreator_ctrlc_stub.exe");
+    }
+    QProcess::start(command, argList);
 #else
     QStringList arguments;
     if (!prepareCommand(m_command, m_arguments, &command, &arguments, &env, &workDir)) {
@@ -675,6 +698,30 @@ void QtcProcess::start()
     }
     QProcess::start(command, arguments);
 #endif
+}
+
+#ifdef Q_OS_WIN
+BOOL CALLBACK sendShutDownMessageToAllWindowsOfProcess_enumWnd(HWND hwnd, LPARAM lParam)
+{
+    static UINT uiShutDownMessage = RegisterWindowMessage(L"qtcctrlcstub_shutdown");
+    DWORD dwProcessID;
+    GetWindowThreadProcessId(hwnd, &dwProcessID);
+    if ((DWORD)lParam == dwProcessID) {
+        SendNotifyMessage(hwnd, uiShutDownMessage, 0, 0);
+        return FALSE;
+    }
+    return TRUE;
+}
+#endif
+
+void QtcProcess::terminate()
+{
+#ifdef Q_OS_WIN
+    if (m_useCtrlCStub)
+        EnumWindows(sendShutDownMessageToAllWindowsOfProcess_enumWnd, pid()->dwProcessId);
+    else
+#endif
+    QProcess::terminate();
 }
 
 #ifdef Q_OS_WIN

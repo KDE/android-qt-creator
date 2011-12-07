@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,8 +47,8 @@
 using namespace Bazaar::Internal;
 
 CloneWizard::CloneWizard(QObject *parent)
-        :   VCSBase::BaseCheckoutWizard(parent),
-        m_icon(QIcon(QLatin1String(":/bazaar/images/bazaar.png")))
+    : VCSBase::BaseCheckoutWizard(parent),
+      m_icon(QIcon(QLatin1String(":/bazaar/images/bazaar.png")))
 {
     setId(QLatin1String(VCSBase::Constants::VCS_ID_BAZAAR));
 }
@@ -68,9 +68,9 @@ QString CloneWizard::displayName() const
     return tr("Bazaar Clone (Or Branch)");
 }
 
-QList<QWizardPage*> CloneWizard::createParameterPages(const QString &path)
+QList<QWizardPage *> CloneWizard::createParameterPages(const QString &path)
 {
-    QList<QWizardPage*> wizardPageList;
+    QList<QWizardPage *> wizardPageList;
     const Core::IVersionControl *vc = BazaarPlugin::instance()->versionControl();
     if (!vc->isConfigured())
         wizardPageList.append(new VCSBase::VcsConfigurationPage(vc));
@@ -89,7 +89,6 @@ QSharedPointer<VCSBase::AbstractCheckoutJob> CloneWizard::createJob(const QList<
         return QSharedPointer<VCSBase::AbstractCheckoutJob>();
 
     const BazaarSettings &settings = BazaarPlugin::instance()->settings();
-    QStringList args = settings.standardArguments();
     *checkoutPath = page->path() + QLatin1Char('/') + page->directory();
 
     const CloneOptionsPanel *panel = page->cloneOptionsPanel();
@@ -111,10 +110,11 @@ QSharedPointer<VCSBase::AbstractCheckoutJob> CloneWizard::createJob(const QList<
     if (!panel->revision().isEmpty())
         extraOptions << QLatin1String("-r") << panel->revision();
     const BazaarClient *client = BazaarPlugin::instance()->client();
+    QStringList args;
     args << client->vcsCommandString(BazaarClient::CloneCommand)
-         << client->cloneArguments(page->repository(), page->directory(), extraOptions);
+         << extraOptions << page->repository() << page->directory();
 
     VCSBase::ProcessCheckoutJob *job = new VCSBase::ProcessCheckoutJob;
-    job->addStep(settings.binary(), args, page->path());
+    job->addStep(settings.stringValue(BazaarSettings::binaryPathKey), args, page->path());
     return QSharedPointer<VCSBase::AbstractCheckoutJob>(job);
 }

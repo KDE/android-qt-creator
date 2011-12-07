@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,20 +26,25 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef QTVERSIONFACTORY_H
 #define QTVERSIONFACTORY_H
 
-#include "baseqtversion.h"
 #include "qtsupport_global.h"
 
+#include <utils/fileutils.h>
 #include <QtCore/QObject>
 #include <QtCore/QVariantMap>
 
+QT_FORWARD_DECLARE_CLASS(QSettings)
+QT_FORWARD_DECLARE_CLASS(ProFileEvaluator)
+
 namespace QtSupport {
+
+class BaseQtVersion;
 
 class QTSUPPORT_EXPORT QtVersionFactory : public QObject
 {
@@ -55,10 +60,10 @@ public:
     /// a qtversion, the priority of the desktop factory is 0 and
     /// the desktop factory claims to handle all paths
     virtual int priority() const = 0;
-    virtual BaseQtVersion *create(const QString &qmakePath, ProFileEvaluator *evaluator, bool isAutoDetected = false, const QString &autoDetectionSource = QString()) = 0;
+    virtual BaseQtVersion *create(const Utils::FileName &qmakePath, ProFileEvaluator *evaluator, bool isAutoDetected = false, const QString &autoDetectionSource = QString()) = 0;
 
-    static BaseQtVersion *createQtVersionFromQMakePath(const QString &qmakePath, bool isAutoDetected = false, const QString &autoDetectionSource = QString());
-    static BaseQtVersion *createQtVersionFromLegacySettings(const QString &qmakePath, int id, QSettings *s);
+    static BaseQtVersion *createQtVersionFromQMakePath(const Utils::FileName &qmakePath, bool isAutoDetected = false, const QString &autoDetectionSource = QString());
+    static BaseQtVersion *createQtVersionFromLegacySettings(const Utils::FileName &qmakePath, int id, QSettings *s);
 };
 
 }

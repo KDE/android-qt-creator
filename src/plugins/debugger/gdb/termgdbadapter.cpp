@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,16 +38,12 @@
 #include "procinterrupt.h"
 #include "debuggerstringutils.h"
 #include "debuggercore.h"
+#include "shared/hostutils.h"
 
 #include <utils/qtcassert.h>
 #include <coreplugin/icore.h>
 
 #include <QtGui/QMessageBox>
-
-#ifdef Q_OS_WIN
-#    include "dbgwinutils.h"
-#    include "dbgwinutils.h"
-#endif
 
 namespace Debugger {
 namespace Internal {
@@ -101,10 +97,8 @@ void TermGdbAdapter::startAdapter()
 //    m_stubProc.stop();
 //    m_stubProc.blockSignals(false);
 
-#ifdef Q_OS_WIN
     if (!prepareCommand())
         return;
-#endif
 
     m_stubProc.setWorkingDirectory(startParameters().workingDirectory);
     // Set environment + dumper preload.

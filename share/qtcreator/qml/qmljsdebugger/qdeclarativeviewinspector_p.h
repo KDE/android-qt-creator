@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,7 +48,6 @@ class ZoomTool;
 class ColorPickerTool;
 class LiveLayerItem;
 class BoundingRectHighlighter;
-class ToolBox;
 class CrumblePath;
 class AbstractLiveEditTool;
 
@@ -83,12 +82,9 @@ public:
     bool animationPaused;
     qreal slowDownFactor;
 
-    ToolBox *toolBox;
-
     void setViewport(QWidget *widget);
 
     void clearEditorItems();
-    void createToolBox();
     void changeToSelectTool();
     QList<QGraphicsItem*> filterForSelection(QList<QGraphicsItem*> &itemlist) const;
 
@@ -111,8 +107,6 @@ public:
     bool isEditorItem(QGraphicsItem *item) const;
 
 public slots:
-    void _q_setToolBoxVisible(bool visible);
-
     void _q_reloadView();
     void _q_onStatusChanged(QDeclarativeView::Status status);
     void _q_onCurrentObjectsChanged(QList<QObject*> objects);

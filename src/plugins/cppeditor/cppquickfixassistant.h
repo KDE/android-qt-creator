@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,7 @@
 
 namespace CppTools {
 class CppRefactoringFile;
+typedef QSharedPointer<CppRefactoringFile> CppRefactoringFilePtr;
 }
 
 namespace CppEditor {
@@ -62,7 +63,7 @@ public:
     const CPlusPlus::LookupContext &context() const;
     CPPEditorWidget *editor() const;
 
-    const CppTools::CppRefactoringFile currentFile() const;
+    CppTools::CppRefactoringFilePtr currentFile() const;
 
     bool isCursorOn(unsigned tokenIndex) const;
     bool isCursorOn(const CPlusPlus::AST *ast) const;
@@ -71,6 +72,7 @@ private:
     CPPEditorWidget *m_editor;
     CppEditor::Internal::SemanticInfo m_semanticInfo;
     CPlusPlus::Snapshot m_snapshot;
+    CppTools::CppRefactoringFilePtr m_currentFile;
     CPlusPlus::LookupContext m_context;
     QList<CPlusPlus::AST *> m_path;
 };
@@ -89,7 +91,7 @@ private:
 class CppQuickFixAssistProvider : public TextEditor::QuickFixAssistProvider
 {
 public:
-    virtual bool supportsEditor(const QString &editorId) const;
+    virtual bool supportsEditor(const Core::Id &editorId) const;
     virtual TextEditor::IAssistProcessor *createProcessor() const;
 
     virtual QList<TextEditor::QuickFixFactory *> quickFixFactories() const;

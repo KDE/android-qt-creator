@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,17 +36,17 @@
 #include "buildstep.h"
 #include "processparameters.h"
 
-#include <utils/environment.h>
-
-#include <utils/qtcprocess.h>
-
 #include <QtCore/QString>
+#include <QtCore/QProcess>
 
 QT_BEGIN_NAMESPACE
 class QEventLoop;
 class QTimer;
 QT_END_NAMESPACE
 
+namespace Utils {
+class QtcProcess;
+}
 namespace ProjectExplorer {
 
 class IOutputParser;
@@ -68,12 +68,12 @@ public:
 
     ProcessParameters *processParameters() { return &m_param; }
 
+    bool ignoreReturnValue();
     void setIgnoreReturnValue(bool b);
 
     void setOutputParser(ProjectExplorer::IOutputParser *parser);
     void appendOutputParser(ProjectExplorer::IOutputParser *parser);
     ProjectExplorer::IOutputParser *outputParser() const;
-
 protected:
     AbstractProcessStep(BuildStepList *bsl, const QString &id);
     AbstractProcessStep(BuildStepList *bsl, AbstractProcessStep *bs);

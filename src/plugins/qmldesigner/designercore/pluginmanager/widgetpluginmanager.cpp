@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,13 +62,13 @@ public:
 };
 
 WidgetPluginManager::WidgetPluginManager() :
-        m_d(new WidgetPluginManagerPrivate)
+        d(new WidgetPluginManagerPrivate)
 {
 }
 
 WidgetPluginManager::~WidgetPluginManager()
 {
-    delete m_d;
+    delete d;
 }
 
 WidgetPluginManager::IWidgetPluginList WidgetPluginManager::instances()
@@ -76,8 +76,8 @@ WidgetPluginManager::IWidgetPluginList WidgetPluginManager::instances()
     if (debug)
         qDebug() << '>' << Q_FUNC_INFO << QLibraryInfo::buildKey();
     IWidgetPluginList rc;
-    const WidgetPluginManagerPrivate::PluginPathList::iterator end = m_d->m_paths.end();
-    for (WidgetPluginManagerPrivate::PluginPathList::iterator it = m_d->m_paths.begin(); it != end; ++it)
+    const WidgetPluginManagerPrivate::PluginPathList::iterator end = d->m_paths.end();
+    for (WidgetPluginManagerPrivate::PluginPathList::iterator it = d->m_paths.begin(); it != end; ++it)
         it->getInstances(&rc);
     if (debug)
         qDebug() << '<' << Q_FUNC_INFO << rc.size();
@@ -89,15 +89,15 @@ bool WidgetPluginManager::addPath(const QString &path)
     const QDir dir(path);
     if (!dir.exists())
         return false;
-    m_d->m_paths.push_back(WidgetPluginPath(dir));
+    d->m_paths.push_back(WidgetPluginPath(dir));
     return true;
 }
 
 QAbstractItemModel *WidgetPluginManager::createModel(QObject *parent)
 {
     QStandardItemModel *model = new QStandardItemModel(parent);
-    const WidgetPluginManagerPrivate::PluginPathList::iterator end = m_d->m_paths.end();
-    for (WidgetPluginManagerPrivate::PluginPathList::iterator it = m_d->m_paths.begin(); it != end; ++it)
+    const WidgetPluginManagerPrivate::PluginPathList::iterator end = d->m_paths.end();
+    for (WidgetPluginManagerPrivate::PluginPathList::iterator it = d->m_paths.begin(); it != end; ++it)
         model->appendRow(it->createModelItem());
     return model;
 }

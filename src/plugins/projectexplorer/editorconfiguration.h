@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,14 +37,13 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QVariantMap>
-#include <QtCore/QScopedPointer>
 
 namespace TextEditor {
 class ITextEditor;
 class BaseTextEditorWidget;
 class TabSettings;
-class TabPreferences;
-class IFallbackPreferences;
+class ICodeStylePreferences;
+class TypingSettings;
 class StorageSettings;
 class BehaviorSettings;
 class ExtraEncodingSettings;
@@ -69,15 +68,14 @@ public:
     // The default codec is returned in the case the project doesn't override it.
     QTextCodec *textCodec() const;
 
-    TextEditor::TabPreferences *tabPreferences() const;
+    const TextEditor::TypingSettings &typingSettings() const;
     const TextEditor::StorageSettings &storageSettings() const;
     const TextEditor::BehaviorSettings &behaviorSettings() const;
     const TextEditor::ExtraEncodingSettings &extraEncodingSettings() const;
 
-    TextEditor::TabPreferences *tabPreferences(const QString &languageId) const;
-    QMap<QString, TextEditor::TabPreferences *> languageTabPreferences() const;
-    TextEditor::IFallbackPreferences *codeStylePreferences(const QString &languageId) const;
-    QMap<QString, TextEditor::IFallbackPreferences *> languageCodeStylePreferences() const;
+    TextEditor::ICodeStylePreferences *codeStyle() const;
+    TextEditor::ICodeStylePreferences *codeStyle(const QString &languageId) const;
+    QMap<QString, TextEditor::ICodeStylePreferences *> codeStyles() const;
 
     void configureEditor(TextEditor::ITextEditor *textEditor) const;
 
@@ -85,12 +83,14 @@ public:
     void fromMap(const QVariantMap &map);
 
 signals:
+    void typingSettingsChanged(const TextEditor::TypingSettings &);
     void storageSettingsChanged(const TextEditor::StorageSettings &);
     void behaviorSettingsChanged(const TextEditor::BehaviorSettings &);
     void extraEncodingSettingsChanged(const TextEditor::ExtraEncodingSettings &);
 
 private slots:
 
+    void setTypingSettings(const TextEditor::TypingSettings &settings);
     void setStorageSettings(const TextEditor::StorageSettings &settings);
     void setBehaviorSettings(const TextEditor::BehaviorSettings &settings);
     void setExtraEncodingSettings(const TextEditor::ExtraEncodingSettings &settings);
@@ -104,7 +104,7 @@ private:
                                const OldSenderT *oldSender,
                                TextEditor::BaseTextEditorWidget *baseTextEditor) const;
 
-    QScopedPointer<EditorConfigurationPrivate> m_d;
+    EditorConfigurationPrivate *d;
 };
 
 // Return the editor settings in the case it's not null. Otherwise, try to find the project

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,13 +34,12 @@
 #define DEBUGGER_BREAKWINDOW_H
 
 #include "breakpoint.h"
-
-#include <QtGui/QTreeView>
+#include "basewindow.h"
 
 namespace Debugger {
 namespace Internal {
 
-class BreakWindow : public QTreeView
+class BreakWindow : public BaseWindow
 {
     Q_OBJECT
 
@@ -51,15 +50,10 @@ public:
     void setModel(QAbstractItemModel *model);
 
 private slots:
-    void resizeColumnsToContents();
-    void setAlwaysResizeColumnsToContents(bool on);
-
-    void rowActivated(const QModelIndex &index);
-    void setAlternatingRowColorsHelper(bool on) { setAlternatingRowColors(on); }
     void showAddressColumn(bool on);
 
 private:
-    void resizeEvent(QResizeEvent *ev);
+    void rowActivated(const QModelIndex &index);
     void contextMenuEvent(QContextMenuEvent *ev);
     void keyPressEvent(QKeyEvent *ev);
     void mouseDoubleClickEvent(QMouseEvent *ev);

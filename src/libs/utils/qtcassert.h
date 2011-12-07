@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,10 +42,10 @@
 // 'break' and 'continue' as 'actions'.
 
 #define QTC_ASSERT(cond, action) \
-    if(cond){}else{qDebug()<<"ASSERTION " #cond " FAILED AT " __FILE__ ":" QTC_ASSERT_STRINGIFY(__LINE__);action;}
+    if(cond){}else{qDebug()<<"SOFT ASSERT: \""#cond"\" in file " __FILE__ ", line " QTC_ASSERT_STRINGIFY(__LINE__);action;}
 
 #define QTC_CHECK(cond) \
-    if(cond){}else{qDebug()<<"ASSERTION " #cond " FAILED AT " __FILE__ ":" QTC_ASSERT_STRINGIFY(__LINE__);}
+    if(cond){}else{qDebug()<<"SOFT ASSERT: \""#cond"\" in file " __FILE__ ", line " QTC_ASSERT_STRINGIFY(__LINE__);}
 
 #endif // QTC_ASSERT_H
 

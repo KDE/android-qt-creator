@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,59 +26,129 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-import QtQuick 1.0
+import QtQuick 1.1
 import qtcomponents 1.0 as Components
 
-Row {
+Item {
     id: tabBar
-    height: 25
+
+    height: 60
+    width: parent.width
 
     property alias model: tabs.model
-    property int tabWidth: Math.floor(tabBar.width/tabs.count)
-    Repeater {
-        id: tabs
-        height: tabBar.height
-        model: parent.model
-        delegate: Item {
-            Components.QStyleItem { cursor: "pointinghandcursor"; anchors.fill: parent }
-            height: tabBar.height
 
-            width: tabs.count-1 === index ? tabWidth : tabWidth + tabBar.width%tabs.count
-            BorderImage {
-                id: tabBackground
-                anchors.fill: parent
-                border { top: 1; bottom: 1}
-                source: "qrc:welcome/images/tab_inactive.png"
+    Rectangle {
+        id: row
+        width: 100
+        height: 26
+        anchors.top: parent.top
+        anchors.left: parent.left
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#f7f7f7" }
+            GradientStop { position: 1; color: "#e4e4e4" }
+        }
+        Text {
+            id: text
+            horizontalAlignment: Qt.AlignHCenter; verticalAlignment: Qt.AlignVCenter
+            anchors.fill: parent
+            text: qsTr("Qt Creator")
+        }
+    }
+
+    Item {
+        anchors.top: parent.top
+        anchors.left: row.right
+        anchors.right: parent.right
+        anchors.bottom: row.bottom
+
+        Rectangle {
+            id: left1
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            width: 1
+            gradient: Gradient {
+                GradientStop { position: 0; color: "#fcfcfc" }
+                GradientStop { position: 1; color: "#f7f7f7" }
             }
-            Text {
-                id: text
-                horizontalAlignment: Qt.AlignHCenter; verticalAlignment: Qt.AlignVCenter
-                anchors.fill: parent
-                text: model.modelData.title
-                elide: Text.ElideRight
-                color: "black"
-            }
-            MouseArea {
-                id: mouseArea
-                hoverEnabled: true
-                anchors.fill: parent
-                onClicked: tabBar.current = index
-            }
-            states: [
-                State {
-                    id: hoverState; when: mouseArea.containsMouse && tabBar.current != index
-                    PropertyChanges { target: tabBackground; source:"qrc:welcome/images/tab_hover.png" }
-                },
-                State {
-                    id: activeState; when: tabBar.current == index
-                    PropertyChanges { target: tabBackground; source:"qrc:welcome/images/tab_active.png" }
-                    PropertyChanges { target: text; color: "white" }
-                }
-            ]
+        }
+
+        Rectangle {
+            id: left2
+            anchors.top: parent.top
+            anchors.left: left1.right
+            anchors.bottom: parent.bottom
+            width: 1
+            color: "#313131"
+        }
+
+        Rectangle {
+            id: bottom1
+            height: 1
+            anchors.left: left1.right
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            color: "#fbfbfb"
+        }
+
+        Rectangle {
+            id: bottom2
+            height: 1
+            anchors.left: left2.right
+            anchors.right: parent.right
+            anchors.bottom: bottom1.top
+            width: 1
+            color: "#313131"
+        }
+
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: left2.right
+            anchors.right: parent.right
+            anchors.bottom: bottom2.top
+            gradient: Gradient {
+                GradientStop { position: 0.00; color: "#8e8e8e" }
+                GradientStop { position: 0.07; color: "#8e8e8e" }
+                GradientStop { position: 0.08; color: "#757575" }
+                GradientStop { position: 0.40; color: "#666666" }
+                GradientStop { position: 0.41; color: "#585858" }
+                GradientStop { position: 1.00; color: "#404040" }
+             }
+        }
+    }
+
+    Rectangle {
+        id: background
+        anchors.bottom: parent.bottom
+        width: parent.width
+        anchors.top: row.bottom
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#e4e4e4" }
+            GradientStop { position: 1; color: "#cecece" }
+        }
+        Rectangle {
+            color: "black"
+            height: 1
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+        }
+    }
+
+    Row {
+        height: background.height
+        anchors.top: row.bottom
+        anchors.topMargin: 6
+        width: parent.width
+        Repeater {
+            id: tabs
+            height: parent.height
+            model: tabBar.model
+            delegate: SingleTab { }
         }
     }
 }

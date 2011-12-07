@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef QMLDOCUMENT_H
 #define QMLDOCUMENT_H
 
 #include <QtCore/QList>
-#include <QtCore/QMap>
 #include <QtCore/QPair>
 #include <QtCore/QSharedPointer>
 #include <QtCore/QString>
@@ -44,8 +43,6 @@
 #include "parser/qmljsengine_p.h"
 #include "qmljs_global.h"
 
-QT_QML_BEGIN_NAMESPACE
-
 namespace QmlJS {
 
 class Bind;
@@ -54,20 +51,31 @@ class Snapshot;
 class QMLJS_EXPORT Document
 {
 public:
-    typedef QSharedPointer<Document> Ptr;
+    typedef QSharedPointer<const Document> Ptr;
+    typedef QSharedPointer<Document> MutablePtr;
+
+    // used in a 3-bit bitfield
+    enum Language
+    {
+        QmlLanguage = 0,
+        JavaScriptLanguage = 1,
+        JsonLanguage = 2,
+        UnknownLanguage = 3
+    };
 
 protected:
-    Document(const QString &fileName);
+    Document(const QString &fileName, Language language);
 
 public:
     ~Document();
 
-    static Document::Ptr create(const QString &fileName);
+    static MutablePtr create(const QString &fileName, Language language);
+    static Language guessLanguageFromSuffix(const QString &fileName);
 
     Document::Ptr ptr() const;
 
     bool isQmlDocument() const;
-    bool isJSDocument() const;
+    Language language() const;
 
     AST::UiProgram *qmlProgram() const;
     AST::Program *jsProgram() const;
@@ -100,25 +108,31 @@ public:
 
 private:
     bool parse_helper(int kind);
-    static void extractPragmas(QString *source);
 
 private:
     QmlJS::Engine *_engine;
-    NodePool *_pool;
     AST::Node *_ast;
     Bind *_bind;
-    bool _isQmlDocument;
-    int _editorRevision;
-    bool _parsedCorrectly;
     QList<QmlJS::DiagnosticMessage> _diagnosticMessages;
     QString _fileName;
     QString _path;
     QString _componentName;
     QString _source;
     QWeakPointer<Document> _ptr;
+    int _editorRevision;
+    Language _language : 3;
+    bool _parsedCorrectly : 1;
 
     // for documentFromSource
     friend class Snapshot;
+};
+
+class QMLJS_EXPORT ModuleApiInfo
+{
+public:
+    QString uri;
+    LanguageUtils::ComponentVersion version;
+    QString cppName;
 };
 
 class QMLJS_EXPORT LibraryInfo
@@ -142,8 +156,10 @@ private:
     Status _status;
     QList<QmlDirParser::Component> _components;
     QList<QmlDirParser::Plugin> _plugins;
+    QList<QmlDirParser::TypeInfo> _typeinfos;
     typedef QList<LanguageUtils::FakeMetaObject::ConstPtr> FakeMetaObjectList;
     FakeMetaObjectList _metaObjects;
+    QList<ModuleApiInfo> _moduleApis;
 
     PluginTypeInfoStatus _dumpStatus;
     QString _dumpError;
@@ -159,11 +175,20 @@ public:
     QList<QmlDirParser::Plugin> plugins() const
     { return _plugins; }
 
+    QList<QmlDirParser::TypeInfo> typeInfos() const
+    { return _typeinfos; }
+
     FakeMetaObjectList metaObjects() const
     { return _metaObjects; }
 
     void setMetaObjects(const FakeMetaObjectList &objects)
     { _metaObjects = objects; }
+
+    QList<ModuleApiInfo> moduleApis() const
+    { return _moduleApis; }
+
+    void setModuleApis(const QList<ModuleApiInfo> &apis)
+    { _moduleApis = apis; }
 
     bool isValid() const
     { return _status == Found; }
@@ -198,7 +223,7 @@ public:
     const_iterator begin() const { return _documents.begin(); }
     const_iterator end() const { return _documents.end(); }
 
-    void insert(const Document::Ptr &document);
+    void insert(const Document::Ptr &document, bool allowInvalid = false);
     void insertLibraryInfo(const QString &path, const LibraryInfo &info);
     void remove(const QString &fileName);
 
@@ -206,12 +231,11 @@ public:
     QList<Document::Ptr> documentsInDirectory(const QString &path) const;
     LibraryInfo libraryInfo(const QString &path) const;
 
-    Document::Ptr documentFromSource(const QString &code,
-                                     const QString &fileName) const;
+    Document::MutablePtr documentFromSource(const QString &code,
+                                     const QString &fileName,
+                                     Document::Language language) const;
 };
 
 } // namespace QmlJS
-
-QT_QML_END_NAMESPACE
 
 #endif // QMLDOCUMENT_H

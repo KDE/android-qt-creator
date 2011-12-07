@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -624,12 +624,12 @@ bool RewriterView::renameId(const QString& oldId, const QString& newId)
     return false;
 }
 
-QmlJS::LookupContext *RewriterView::lookupContext() const
+const QmlJS::ScopeChain *RewriterView::scopeChain() const
 {
-    return textToModelMerger()->lookupContext();
+    return textToModelMerger()->scopeChain();
 }
 
-QmlJS::Document *RewriterView::document() const
+const QmlJS::Document *RewriterView::document() const
 {
     return textToModelMerger()->document();
 }

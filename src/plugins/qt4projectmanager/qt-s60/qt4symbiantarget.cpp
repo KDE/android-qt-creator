@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qt4symbiantarget.h"
 #include "qt4projectmanagerconstants.h"
 #include "qt4project.h"
+#include "qt4nodes.h"
+#include "qt4buildconfiguration.h"
+
 #include "qt-s60/s60deployconfiguration.h"
 #include "qt-s60/s60emulatorrunconfiguration.h"
 #include "qt-s60/s60devicerunconfiguration.h"
@@ -41,6 +44,7 @@
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
 #include <symbianutils/symbiandevicemanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <QtGui/QPainter>
@@ -86,7 +90,7 @@ QIcon Qt4SymbianTarget::iconForId(const QString &id)
     return QIcon();
 }
 
-Qt4BuildConfigurationFactory *Qt4SymbianTarget::buildConfigurationFactory() const
+ProjectExplorer::IBuildConfigurationFactory *Qt4SymbianTarget::buildConfigurationFactory() const
 {
     return m_buildConfigurationFactory;
 }

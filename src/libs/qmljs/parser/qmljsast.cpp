@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -796,31 +796,6 @@ void UiProgram::accept0(Visitor *visitor)
         accept(members, visitor);
     }
 
-    visitor->endVisit(this);
-}
-
-void UiSignature::accept0(Visitor *visitor)
-{
-    if (visitor->visit(this)) {
-        accept(formals, visitor);
-    }
-    visitor->endVisit(this);
-}
-
-void UiFormalList::accept0(Visitor *visitor)
-{
-    if (visitor->visit(this)) {
-        for (UiFormalList *it = this; it; it = it->next) {
-            accept(it->formal, visitor);
-        }
-    }
-    visitor->endVisit(this);
-}
-
-void UiFormal::accept0(Visitor *visitor)
-{
-    if (visitor->visit(this)) {
-    }
     visitor->endVisit(this);
 }
 

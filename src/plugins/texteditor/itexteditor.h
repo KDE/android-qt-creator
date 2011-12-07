@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -153,10 +153,15 @@ public:
     static QMap<QString, QString> openedTextEditorsContents();
     static QMap<QString, QTextCodec *> openedTextEditorsEncodings();
 
+    enum MarkRequestKind {
+        BreakpointRequest,
+        BookmarkRequest
+    };
+
 signals:
     void contentsChanged();
     void contentsChangedBecauseOfUndo();
-    void markRequested(TextEditor::ITextEditor *editor, int line);
+    void markRequested(TextEditor::ITextEditor *editor, int line, TextEditor::ITextEditor::MarkRequestKind kind);
     void markContextMenuRequested(TextEditor::ITextEditor *editor, int line, QMenu *menu);
     void tooltipOverrideRequested(TextEditor::ITextEditor *editor, const QPoint &globalPos, int position, bool *handled);
     void tooltipRequested(TextEditor::ITextEditor *editor, const QPoint &globalPos, int position);

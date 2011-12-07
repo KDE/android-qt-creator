@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -136,9 +136,11 @@ QmlJS::AST::ExpressionNode *QmlExpressionUnderCursor::operator()(const QTextCurs
     ExpressionUnderCursor expressionUnderCursor;
     _text = expressionUnderCursor(cursor);
 
-    exprDoc = Document::create(QLatin1String("<expression>"));
-    exprDoc->setSource(_text);
-    exprDoc->parseExpression();
+    Document::MutablePtr newDoc = Document::create(
+                QLatin1String("<expression>"), Document::JavaScriptLanguage);
+    newDoc->setSource(_text);
+    newDoc->parseExpression();
+    exprDoc = newDoc;
 
     _expressionNode = exprDoc->expression();
 

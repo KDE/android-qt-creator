@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "protocol.h"
@@ -34,7 +34,7 @@
 #include <utils/networkaccessmanager.h>
 
 #include <cpptools/cpptoolsconstants.h>
-#include <qmljseditor/qmljseditorconstants.h>
+#include <qmljstools/qmljstoolsconstants.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/dialogs/ioptionspage.h>
 
@@ -89,8 +89,9 @@ Protocol::ContentType Protocol::contentType(const QString &mt)
         || mt == QLatin1String(CppTools::Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE)
         || mt == QLatin1String(CppTools::Constants::CPP_HEADER_MIMETYPE))
         return C;
-    if (mt == QLatin1String(QmlJSEditor::Constants::QML_MIMETYPE)
-        || mt == QLatin1String(QmlJSEditor::Constants::JS_MIMETYPE))
+    if (mt == QLatin1String(QmlJSTools::Constants::QML_MIMETYPE)
+        || mt == QLatin1String(QmlJSTools::Constants::JS_MIMETYPE)
+        || mt == QLatin1String(QmlJSTools::Constants::JSON_MIMETYPE))
         return JavaScript;
     if (mt == QLatin1String("text/x-patch"))
         return Diff;

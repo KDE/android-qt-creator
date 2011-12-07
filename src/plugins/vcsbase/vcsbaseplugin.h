@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -173,22 +173,28 @@ public:
                                         // triggered by file watchers).
     };
 
-    static Utils::SynchronousProcessResponse
-            runVCS(const QString &workingDir,
-                   const QString &binary,
-                   const QStringList &arguments,
-                   int timeOutMS,
-                   QProcessEnvironment env,
-                   unsigned flags = 0,
-                   QTextCodec *outputCodec = 0);
+    static Utils::SynchronousProcessResponse runVCS(const QString &workingDir,
+                                                    const QString &binary,
+                                                    const QStringList &arguments,
+                                                    int timeOutMS,
+                                                    QProcessEnvironment env,
+                                                    unsigned flags = 0,
+                                                    QTextCodec *outputCodec = 0);
 
-    static Utils::SynchronousProcessResponse
-            runVCS(const QString &workingDir,
-                   const QString &binary,
-                   const QStringList &arguments,
-                   int timeOutMS,
-                   unsigned flags = 0,
-                   QTextCodec *outputCodec = 0);
+    static Utils::SynchronousProcessResponse runVCS(const QString &workingDir,
+                                                    const QString &binary,
+                                                    const QStringList &arguments,
+                                                    int timeOutMS,
+                                                    unsigned flags = 0,
+                                                    QTextCodec *outputCodec = 0);
+
+    // Make sure to not pass through the event loop at all:
+    static bool runFullySynchronous(const QString &workingDirectory,
+                                    const QString &binary,
+                                    const QStringList &arguments,
+                                    const QProcessEnvironment &env,
+                                    QByteArray* outputText,
+                                    QByteArray *errorText, int timeoutMS, bool logCommandToWindow);
 
     // Utility to run the 'patch' command
     static bool runPatch(const QByteArray &input, const QString &workingDirectory = QString(),

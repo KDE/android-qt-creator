@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -125,6 +125,7 @@ private Q_SLOTS:
     void caseBody6();
     void blockBraces1();
     void functionDefaultArgument();
+    void attributeInAccessSpecifier();
 };
 
 struct Line {
@@ -1985,6 +1986,20 @@ void tst_CodeFormatter::functionDefaultArgument()
          << Line("    if (a)")
          << Line("        int a;")
          << Line("}")
+         << Line("int b;")
+         ;
+    checkIndent(data);
+}
+
+void tst_CodeFormatter::attributeInAccessSpecifier()
+{
+    QList<Line> data;
+    data << Line("class C {")
+         << Line("public __attribute__((annotate(\"foo\"))):")
+         << Line("    int a;")
+         << Line("private __attribute__((annotate(\"foo\"))):")
+         << Line("    int a;")
+         << Line("};")
          << Line("int b;")
          ;
     checkIndent(data);

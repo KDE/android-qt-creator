@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,17 +39,18 @@
 
 namespace Core {
 
+class Id;
+
 class CORE_EXPORT IExternalEditor : public QObject
 {
     Q_OBJECT
+
 public:
     explicit IExternalEditor(QObject *parent = 0) : QObject(parent) {}
-    virtual ~IExternalEditor() {}
 
     virtual QStringList mimeTypes() const = 0;
-    virtual QString id() const = 0;
+    virtual Id id() const = 0;
     virtual QString displayName() const = 0;
-
     virtual bool startEditor(const QString &fileName, QString *errorMessage) = 0;
 };
 

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,7 +62,9 @@ bool BazaarClient::synchronousSetUserId()
 {
     QStringList args;
     args << QLatin1String("whoami")
-         << QString("%1 <%2>").arg(settings()->userName()).arg(settings()->email());
+         << QString("%1 <%2>")
+            .arg(settings()->stringValue(BazaarSettings::userNameKey))
+            .arg(settings()->stringValue(BazaarSettings::userEmailKey));
     QByteArray stdOut;
     return vcsFullySynchronousExec(QDir::currentPath(), args, &stdOut);
 }
@@ -92,6 +94,21 @@ BranchInfo BazaarClient::synchronousBranchQuery(const QString &repositoryRoot) c
     return BranchInfo(repositoryRoot, false);
 }
 
+void BazaarClient::commit(const QString &repositoryRoot, const QStringList &files,
+                          const QString &commitMessageFile, const QStringList &extraOptions)
+{
+    VCSBaseClient::commit(repositoryRoot, files, commitMessageFile,
+                          QStringList(extraOptions) << QLatin1String("-F") << commitMessageFile);
+}
+
+void BazaarClient::annotate(const QString &workingDir, const QString &file,
+                            const QString revision, int lineNumber,
+                            const QStringList &extraOptions)
+{
+    VCSBaseClient::annotate(workingDir, file, revision, lineNumber,
+                            QStringList(extraOptions) << QLatin1String("--long"));
+}
+
 QString BazaarClient::findTopLevelForFile(const QFileInfo &file) const
 {
     const QString repositoryCheckFile =
@@ -101,6 +118,13 @@ QString BazaarClient::findTopLevelForFile(const QFileInfo &file) const
                                                                    repositoryCheckFile) :
                 VCSBase::VCSBasePlugin::findRepositoryForDirectory(file.absolutePath(),
                                                                    repositoryCheckFile);
+}
+
+void BazaarClient::view(const QString &source, const QString &id, const QStringList &extraOptions)
+{
+    QStringList args(QLatin1String("log"));
+    args << QLatin1String("-p") << QLatin1String("-v") << extraOptions;
+    VCSBaseClient::view(source, id, args);
 }
 
 QString BazaarClient::vcsEditorKind(VCSCommand cmd) const
@@ -117,54 +141,7 @@ QString BazaarClient::vcsEditorKind(VCSCommand cmd) const
     }
 }
 
-QStringList BazaarClient::cloneArguments(const QString &srcLocation,
-                                         const QString &dstLocation,
-                                         const QStringList &extraOptions) const
-{
-    QStringList args(extraOptions);
-    args << srcLocation;
-    if (!dstLocation.isEmpty())
-        args << dstLocation;
-    return args;
-}
-
-QStringList BazaarClient::pullArguments(const QString &srcLocation,
-                                        const QStringList &extraOptions) const
-{
-    QStringList args(extraOptions);
-    if (!srcLocation.isEmpty())
-        args << srcLocation;
-    return args;
-}
-
-QStringList BazaarClient::pushArguments(const QString &dstLocation,
-                                        const QStringList &extraOptions) const
-{
-    QStringList args(extraOptions);
-    if (!dstLocation.isEmpty())
-        args << dstLocation;
-    return args;
-}
-
-QStringList BazaarClient::commitArguments(const QStringList &files,
-                                          const QString &commitMessageFile,
-                                          const QStringList &extraOptions) const
-{
-    QStringList args(extraOptions);
-    args << QLatin1String("-F") << commitMessageFile;
-    args << files;
-    return args;
-}
-
-QStringList BazaarClient::importArguments(const QStringList &files) const
-{
-    QStringList args;
-    if (!files.isEmpty())
-        args.append(files);
-    return args;
-}
-
-QStringList BazaarClient::updateArguments(const QString &revision) const
+QStringList BazaarClient::revisionSpec(const QString &revision) const
 {
     QStringList args;
     if (!revision.isEmpty())
@@ -172,110 +149,48 @@ QStringList BazaarClient::updateArguments(const QString &revision) const
     return args;
 }
 
-QStringList BazaarClient::revertArguments(const QString &file,
-                                          const QString &revision) const
+BazaarClient::StatusItem BazaarClient::parseStatusLine(const QString &line) const
 {
-    QStringList args;
-    if (!revision.isEmpty())
-        args << QLatin1String("-r") << revision;
-    if (!file.isEmpty())
-        args << file;
-    return args;
-}
-
-QStringList BazaarClient::revertAllArguments(const QString &revision) const
-{
-    QStringList args;
-    if (!revision.isEmpty())
-        args << QLatin1String("-r") << revision;
-    return args;
-}
-
-QStringList BazaarClient::annotateArguments(const QString &file,
-                                            const QString &revision,
-                                            int lineNumber) const
-{
-    Q_UNUSED(lineNumber);
-    QStringList args(QLatin1String("--long"));
-    if (!revision.isEmpty())
-        args << QLatin1String("-r") << revision;
-    return args << file;
-}
-
-QStringList BazaarClient::diffArguments(const QStringList &files,
-                                        const QStringList &extraOptions) const
-{
-    QStringList args(extraOptions);
-    if (!files.isEmpty())
-        args.append(files);
-    return args;
-}
-
-QStringList BazaarClient::logArguments(const QStringList &files,
-                                       const QStringList &extraOptions) const
-{
-    return diffArguments(files, extraOptions);
-}
-
-QStringList BazaarClient::statusArguments(const QString &file) const
-{
-    QStringList args;
-    args.append(QLatin1String("--short"));
-    if (!file.isEmpty())
-        args.append(file);
-    return args;
-}
-
-QStringList BazaarClient::viewArguments(const QString &revision) const
-{
-    QStringList args(QLatin1String("log"));
-    args << QLatin1String("-p") << QLatin1String("-v")
-         << QLatin1String("-r") << revision;
-    return args;
-}
-
-QPair<QString, QString> BazaarClient::parseStatusLine(const QString &line) const
-{
-    QPair<QString, QString> status;
+    StatusItem item;
     if (!line.isEmpty()) {
         const QChar flagVersion = line[0];
         if (flagVersion == QLatin1Char('+'))
-            status.first = QLatin1String("Versioned");
+            item.flags = QLatin1String("Versioned");
         else if (flagVersion == QLatin1Char('-'))
-            status.first = QLatin1String("Unversioned");
+            item.flags = QLatin1String("Unversioned");
         else if (flagVersion == QLatin1Char('R'))
-            status.first = QLatin1String("Renamed");
+            item.flags = QLatin1String("Renamed");
         else if (flagVersion == QLatin1Char('?'))
-            status.first = QLatin1String("Unknown");
+            item.flags = QLatin1String("Unknown");
         else if (flagVersion == QLatin1Char('X'))
-            status.first = QLatin1String("Nonexistent");
+            item.flags = QLatin1String("Nonexistent");
         else if (flagVersion == QLatin1Char('C'))
-            status.first = QLatin1String("Conflict");
+            item.flags = QLatin1String("Conflict");
         else if (flagVersion == QLatin1Char('P'))
-            status.first = QLatin1String("PendingMerge");
+            item.flags = QLatin1String("PendingMerge");
 
         const int lineLength = line.length();
         if (lineLength >= 2) {
             const QChar flagContents = line[1];
             if (flagContents == QLatin1Char('N'))
-                status.first = QLatin1String("Created");
+                item.flags = QLatin1String("Created");
             else if (flagContents == QLatin1Char('D'))
-                status.first = QLatin1String("Deleted");
+                item.flags = QLatin1String("Deleted");
             else if (flagContents == QLatin1Char('K'))
-                status.first = QLatin1String("KindChanged");
+                item.flags = QLatin1String("KindChanged");
             else if (flagContents == QLatin1Char('M'))
-                status.first = QLatin1String("Modified");
+                item.flags = QLatin1String("Modified");
         }
         if (lineLength >= 3) {
             const QChar flagExec = line[2];
             if (flagExec == QLatin1Char('*'))
-                status.first = QLatin1String("ExecuteBitChanged");
+                item.flags = QLatin1String("ExecuteBitChanged");
         }
         // The status string should be similar to "xxx file_with_changes"
         // so just should take the file name part and store it
-        status.second = line.mid(4);
+        item.file = line.mid(4);
     }
-    return status;
+    return item;
 }
 
 // Collect all parameters required for a diff or log to be able to associate
@@ -304,9 +219,9 @@ public:
         VCSBase::VCSBaseEditorParameterWidget(parent), m_client(client), m_params(p)
     {
         mapSetting(addToggleButton(QLatin1String("-w"), tr("Ignore whitespace")),
-                   &client->settings()->diffIgnoreWhiteSpace);
+                   client->settings()->boolPointer(BazaarSettings::diffIgnoreWhiteSpaceKey));
         mapSetting(addToggleButton(QLatin1String("-B"), tr("Ignore blank lines")),
-                   &client->settings()->diffIgnoreBlankLines);
+                   client->settings()->boolPointer(BazaarSettings::diffIgnoreBlankLinesKey));
     }
 
     QStringList arguments() const
@@ -316,7 +231,7 @@ public:
         const QStringList formatArguments = VCSBaseEditorParameterWidget::arguments();
         if (!formatArguments.isEmpty()) {
             const QString a = QLatin1String("--diff-options=")
-                              + formatArguments.join(QString(QLatin1Char(' ')));
+                    + formatArguments.join(QString(QLatin1Char(' ')));
             args.append(a);
         }
         return args;
@@ -333,13 +248,57 @@ private:
 };
 
 VCSBase::VCSBaseEditorParameterWidget *BazaarClient::createDiffEditor(
-    const QString &workingDir, const QStringList &files, const QStringList &extraOptions)
+        const QString &workingDir, const QStringList &files, const QStringList &extraOptions)
 {
     const BazaarCommandParameters parameters(workingDir, files, extraOptions);
     return new BazaarDiffParameterWidget(this, parameters);
 }
 
-} //namespace Internal
+class BazaarLogParameterWidget : public VCSBase::VCSBaseEditorParameterWidget
+{
+    Q_OBJECT
+public:
+    BazaarLogParameterWidget(BazaarClient *client,
+                             const BazaarCommandParameters &p, QWidget *parent = 0) :
+        VCSBase::VCSBaseEditorParameterWidget(parent), m_client(client), m_params(p)
+    {
+        mapSetting(addToggleButton(QLatin1String("--verbose"), tr("Verbose"),
+                                   tr("Show files changed in each revision")),
+                   m_client->settings()->boolPointer(BazaarSettings::logVerboseKey));
+        mapSetting(addToggleButton(QLatin1String("--forward"), tr("Forward"),
+                                   tr("Show from oldest to newest")),
+                   m_client->settings()->boolPointer(BazaarSettings::logForwardKey));
+        mapSetting(addToggleButton(QLatin1String("--include-merges"), tr("Include merges"),
+                                   tr("Show merged revisions")),
+                   m_client->settings()->boolPointer(BazaarSettings::logIncludeMergesKey));
+
+        QList<ComboBoxItem> logChoices;
+        logChoices << ComboBoxItem(tr("Detailed"), QLatin1String("long"))
+                   << ComboBoxItem(tr("Moderately short"), QLatin1String("short"))
+                   << ComboBoxItem(tr("One line"), QLatin1String("line"))
+                   << ComboBoxItem(tr("GNU ChangeLog"), QLatin1String("gnu-changelog"));
+        mapSetting(addComboBox(QLatin1String("--log-format"), logChoices),
+                   m_client->settings()->stringPointer(BazaarSettings::logFormatKey));
+    }
+
+    void executeCommand()
+    {
+        m_client->log(m_params.workingDir, m_params.files, m_params.extraOptions);
+    }
+
+private:
+    BazaarClient *m_client;
+    const BazaarCommandParameters m_params;
+};
+
+VCSBase::VCSBaseEditorParameterWidget *BazaarClient::createLogEditor(
+        const QString &workingDir, const QStringList &files, const QStringList &extraOptions)
+{
+    const BazaarCommandParameters parameters(workingDir, files, extraOptions);
+    return new BazaarLogParameterWidget(this, parameters);
+}
+
+} // namespace Internal
 } // namespace Bazaar
 
 #include "bazaarclient.moc"

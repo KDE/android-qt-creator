@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,6 +41,7 @@
 #include <coreplugin/iversioncontrol.h>
 
 namespace VCSBase {
+namespace Internal {
 
 class VcsConfigurationPagePrivate
 {
@@ -58,39 +59,41 @@ public:
     const Core::IVersionControl *m_versionControl;
 };
 
+} // namespace Internal
+
 VcsConfigurationPage::VcsConfigurationPage(const Core::IVersionControl *vc, QWidget *parent) :
     QWizardPage(parent),
-    m_d(new VcsConfigurationPagePrivate)
+    d(new Internal::VcsConfigurationPagePrivate)
 {
     Q_ASSERT(vc);
     setTitle(tr("Configuration"));
     setSubTitle(tr("Please configure <b>%1</b> now.").arg(vc->displayName()));
 
-    m_d->m_versionControl = vc;
+    d->m_versionControl = vc;
 
-    connect(m_d->m_versionControl, SIGNAL(configurationChanged()),
+    connect(d->m_versionControl, SIGNAL(configurationChanged()),
             this, SIGNAL(completeChanged()));
 
-    m_d->m_ui->setupUi(this);
+    d->m_ui->setupUi(this);
 
-    connect(m_d->m_ui->configureButton, SIGNAL(clicked()),
+    connect(d->m_ui->configureButton, SIGNAL(clicked()),
             this, SLOT(openConfiguration()));
 }
 
 VcsConfigurationPage::~VcsConfigurationPage()
 {
-    delete m_d->m_ui;
+    delete d->m_ui;
 }
 
 bool VcsConfigurationPage::isComplete() const
 {
-    return m_d->m_versionControl->isConfigured();
+    return d->m_versionControl->isConfigured();
 }
 
 void VcsConfigurationPage::openConfiguration()
 {
     Core::ICore *core = Core::ICore::instance();
-    core->showOptionsDialog(VCSBase::Constants::VCS_SETTINGS_CATEGORY, m_d->m_versionControl->id());
+    core->showOptionsDialog(VCSBase::Constants::VCS_SETTINGS_CATEGORY, d->m_versionControl->id());
 }
 
 } // namespace VCSBase

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -83,7 +83,7 @@ public:
 
     // Target:
     void addTarget(Target *target);
-    void removeTarget(Target *target);
+    bool removeTarget(Target *target);
 
     QList<Target *> targets() const;
     // Note: activeTarget can be 0 (if no targets are defined).
@@ -114,6 +114,9 @@ public:
     virtual Core::Context projectContext() const;
     virtual Core::Context projectLanguage() const;
 
+    QVariant namedSettings(const QString &name) const;
+    void setNamedSettings(const QString &name, QVariant &value);
+
 signals:
     void fileListChanged();
 
@@ -127,10 +130,10 @@ signals:
     void environmentChanged();
     void buildConfigurationEnabledChanged();
 
+    void settingsLoaded();
+    void aboutToSaveSettings();
+
 protected:
-    // restore all data from the map.
-    //
-    // Note: Do not forget to call your base class' fromMap method!
     virtual bool fromMap(const QVariantMap &map);
 
     virtual void setProjectContext(Core::Context context);
@@ -141,7 +144,7 @@ private slots:
     void changeBuildConfigurationEnabled();
 
 private:
-    QScopedPointer<ProjectPrivate> d;
+    ProjectPrivate *d;
 };
 
 } // namespace ProjectExplorer

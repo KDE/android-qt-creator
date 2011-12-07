@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,13 +25,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-#include "qpacketprotocol_p.h"
+#include "qpacketprotocol.h"
 
-#include <QtCore/QBuffer>
+#include <QtCore/qbuffer.h>
+#include <QtCore/qelapsedtimer.h>
 
 namespace QmlJsDebugClient {
 
@@ -44,7 +45,7 @@ static const unsigned int MAX_PACKET_SIZE = 0x7FFFFFFF;
   \brief The QPacketProtocol class encapsulates communicating discrete packets
   across fragmented IO channels, such as TCP sockets.
 
-  QPacketProtocol makes it simple to send arbitrary sized data "packets" across 
+  QPacketProtocol makes it simple to send arbitrary sized data "packets" across
   fragmented transports such as TCP and UDP.
 
   As transmission boundaries are not respected, sending packets over protocols
@@ -104,8 +105,8 @@ class QPacketProtocolPrivate : public QObject
 
 public:
     QPacketProtocolPrivate(QPacketProtocol *parent, QIODevice *_dev)
-    : QObject(parent), inProgressSize(-1), maxPacketSize(MAX_PACKET_SIZE),
-      dev(_dev)
+        : QObject(parent), inProgressSize(-1), maxPacketSize(MAX_PACKET_SIZE),
+          waitingForPacket(false), dev(_dev)
     {
         Q_ASSERT(4 == sizeof(qint32));
 
@@ -189,6 +190,7 @@ public Q_SLOTS:
                     inProgressSize = -1;
                     inProgress.clear();
 
+                    waitingForPacket = false;
                     emit readyRead();
                 } else
                     return;
@@ -202,15 +204,16 @@ public:
     QByteArray inProgress;
     qint32 inProgressSize;
     qint32 maxPacketSize;
-    QIODevice * dev;
+    bool waitingForPacket;
+    QIODevice *dev;
 };
 
 /*!
   Construct a QPacketProtocol instance that works on \a dev with the
   specified \a parent.
  */
-QPacketProtocol::QPacketProtocol(QIODevice * dev, QObject * parent)
-: QObject(parent), d(new QPacketProtocolPrivate(this, dev))
+QPacketProtocol::QPacketProtocol(QIODevice *dev, QObject *parent)
+    : QObject(parent), d(new QPacketProtocolPrivate(this, dev))
 {
     Q_ASSERT(dev);
 }
@@ -224,7 +227,7 @@ QPacketProtocol::~QPacketProtocol()
 
 /*!
   Returns the maximum packet size allowed.  By default this is
-  2,147,483,647 bytes.  
+  2,147,483,647 bytes.
   
   If a packet claiming to be larger than the maximum packet size is received,
   the QPacketProtocol::invalidPacket() signal is emitted.
@@ -255,7 +258,7 @@ qint32 QPacketProtocol::setMaximumPacketSize(qint32 max)
   protocol.send() << "Hello world" << 123;
   \endcode
 
-  will send a packet containing "Hello world" and 123.  To construct more 
+  will send a packet containing "Hello world" and 123.  To construct more
   complex packets, explicitly construct a QPacket instance.
  */
 QPacketAutoSend QPacketProtocol::send()
@@ -313,10 +316,53 @@ QPacket QPacketProtocol::read()
     return rv;
 }
 
+
+/*
+   Returns the difference between msecs and elapsed. If msecs is -1,
+   however, -1 is returned.
+*/
+static int qt_timeout_value(int msecs, int elapsed)
+{
+    if (msecs == -1)
+        return -1;
+
+    int timeout = msecs - elapsed;
+    return timeout < 0 ? 0 : timeout;
+}
+
+/*!
+  This function locks until a new packet is available for reading and the
+  \l{QIODevice::}{readyRead()} signal has been emitted. The function
+  will timeout after \a msecs milliseconds; the default timeout is
+  30000 milliseconds.
+
+  The function returns true if the readyRead() signal is emitted and
+  there is new data available for reading; otherwise it returns false
+  (if an error occurred or the operation timed out).
+  */
+
+bool QPacketProtocol::waitForReadyRead(int msecs)
+{
+    if (!d->packets.isEmpty())
+        return true;
+
+    QElapsedTimer stopWatch;
+    stopWatch.start();
+
+    d->waitingForPacket = true;
+    do {
+        if (!d->dev->waitForReadyRead(msecs))
+            return false;
+        if (!d->waitingForPacket)
+            return true;
+        msecs = qt_timeout_value(msecs, stopWatch.elapsed());
+    } while (true);
+}
+
 /*!
   Return the QIODevice passed to the QPacketProtocol constructor.
 */
-QIODevice * QPacketProtocol::device()
+QIODevice *QPacketProtocol::device()
 {
     return d->dev;
 }
@@ -379,8 +425,8 @@ QIODevice * QPacketProtocol::device()
   \endcode
 
   Only packets returned from QPacketProtocol::read() may be read from.  QPacket
-  instances constructed by directly by applications are for transmission only 
-  and are considered "write only".  Attempting to read data from them will 
+  instances constructed by directly by applications are for transmission only
+  and are considered "write only".  Attempting to read data from them will
   result in undefined behavior.
 
   \ingroup io
@@ -391,11 +437,12 @@ QIODevice * QPacketProtocol::device()
   Constructs an empty write-only packet.
   */
 QPacket::QPacket()
-: QDataStream(), buf(0)
+    : QDataStream(), buf(0)
 {
     buf = new QBuffer(&b);
     buf->open(QIODevice::WriteOnly);
     setDevice(buf);
+    setVersion(QDataStream::Qt_4_7);
 }
 
 /*!
@@ -414,7 +461,7 @@ QPacket::~QPacket()
   two packets are otherwise independent.
  */
 QPacket::QPacket(const QPacket & other)
-: QDataStream(), b(other.b), buf(0)
+    : QDataStream(), b(other.b), buf(0)
 {
     buf = new QBuffer(&b);
     buf->open(other.buf->openMode());
@@ -425,7 +472,7 @@ QPacket::QPacket(const QPacket & other)
   \internal
   */
 QPacket::QPacket(const QByteArray & ba)
-: QDataStream(), b(ba), buf(0)
+    : QDataStream(), b(ba), buf(0)
 {
     buf = new QBuffer(&b);
     buf->open(QIODevice::ReadOnly);
@@ -438,6 +485,14 @@ QPacket::QPacket(const QByteArray & ba)
 bool QPacket::isEmpty() const
 {
     return b.isEmpty();
+}
+
+/*!
+  Returns raw packet data.
+  */
+QByteArray QPacket::data() const
+{
+    return b;
 }
 
 /*!
@@ -471,8 +526,8 @@ void QPacket::clear()
 
   \internal
   */
-QPacketAutoSend::QPacketAutoSend(QPacketProtocol * _p)
-: QPacket(), p(_p)
+QPacketAutoSend::QPacketAutoSend(QPacketProtocol *_p)
+    : QPacket(), p(_p)
 {
 }
 

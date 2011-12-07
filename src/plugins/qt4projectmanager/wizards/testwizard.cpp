@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,9 +48,8 @@ namespace Internal {
 
 TestWizard::TestWizard() :
     QtWizard(QLatin1String("L.Qt4Test"),
-             QLatin1String(ProjectExplorer::Constants::PROJECT_WIZARD_CATEGORY),
-             QLatin1String(ProjectExplorer::Constants::PROJECT_WIZARD_TR_SCOPE),
-             QLatin1String(ProjectExplorer::Constants::PROJECT_WIZARD_TR_CATEGORY),
+             QLatin1String(ProjectExplorer::Constants::QT_PROJECT_WIZARD_CATEGORY),
+             QLatin1String(ProjectExplorer::Constants::QT_PROJECT_WIZARD_CATEGORY_DISPLAY),
              tr("Qt Unit Test"),
              tr("Creates a QTestLib-based unit test for a feature or a class. "
                 "Unit tests allow you to verify that the code is fit for use "
@@ -146,7 +145,7 @@ static QString generateTestCode(const TestWizardParameters &testParams,
     }
     // Main & moc include
     str << (testParams.requiresQApplication ? "QTEST_MAIN" : "QTEST_APPLESS_MAIN")
-        << '(' << testParams.className << ");\n\n"
+        << '(' << testParams.className << ")\n\n"
         << "#include \"" << sourceBaseName << ".moc\"\n";
     return rc;
 }

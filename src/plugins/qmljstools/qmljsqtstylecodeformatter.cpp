@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,23 +40,17 @@ using namespace QmlJS;
 using namespace QmlJSTools;
 using namespace TextEditor;
 
-QtStyleCodeFormatter::QtStyleCodeFormatter()
-    : m_indentSize(4)
+CreatorCodeFormatter::CreatorCodeFormatter()
 {
 }
 
-QtStyleCodeFormatter::QtStyleCodeFormatter(const TextEditor::TabSettings &tabSettings)
-    : m_indentSize(tabSettings.m_indentSize)
+CreatorCodeFormatter::CreatorCodeFormatter(const TextEditor::TabSettings &tabSettings)
 {
     setTabSize(tabSettings.m_tabSize);
+    setIndentSize(tabSettings.m_indentSize);
 }
 
-void QtStyleCodeFormatter::setIndentSize(int size)
-{
-    m_indentSize = size;
-}
-
-void QtStyleCodeFormatter::saveBlockData(QTextBlock *block, const BlockData &data) const
+void CreatorCodeFormatter::saveBlockData(QTextBlock *block, const BlockData &data) const
 {
     TextBlockUserData *userData = BaseTextDocumentLayout::userData(*block);
     QmlJSCodeFormatterData *cppData = static_cast<QmlJSCodeFormatterData *>(userData->codeFormatterData());
@@ -67,7 +61,7 @@ void QtStyleCodeFormatter::saveBlockData(QTextBlock *block, const BlockData &dat
     cppData->m_data = data;
 }
 
-bool QtStyleCodeFormatter::loadBlockData(const QTextBlock &block, BlockData *data) const
+bool CreatorCodeFormatter::loadBlockData(const QTextBlock &block, BlockData *data) const
 {
     TextBlockUserData *userData = BaseTextDocumentLayout::testUserData(block);
     if (!userData)
@@ -80,301 +74,12 @@ bool QtStyleCodeFormatter::loadBlockData(const QTextBlock &block, BlockData *dat
     return true;
 }
 
-void QtStyleCodeFormatter::saveLexerState(QTextBlock *block, int state) const
+void CreatorCodeFormatter::saveLexerState(QTextBlock *block, int state) const
 {
     BaseTextDocumentLayout::setLexerState(*block, state);
 }
 
-int QtStyleCodeFormatter::loadLexerState(const QTextBlock &block) const
+int CreatorCodeFormatter::loadLexerState(const QTextBlock &block) const
 {
     return BaseTextDocumentLayout::lexerState(block);
-}
-
-void QtStyleCodeFormatter::onEnter(int newState, int *indentDepth, int *savedIndentDepth) const
-{
-    const State &parentState = state();
-    const Token &tk = currentToken();
-    const int tokenPosition = column(tk.begin());
-    const bool firstToken = (tokenIndex() == 0);
-    const bool lastToken = (tokenIndex() == tokenCount() - 1);
-
-    switch (newState) {
-    case objectdefinition_open: {
-        // special case for things like "gradient: Gradient {"
-        if (parentState.type == binding_assignment || parentState.type == property_initializer)
-            *savedIndentDepth = state(1).savedIndentDepth;
-
-        if (firstToken)
-            *savedIndentDepth = tokenPosition;
-
-        *indentDepth = *savedIndentDepth + m_indentSize;
-        break;
-    }
-
-    case binding_or_objectdefinition:
-        if (firstToken)
-            *indentDepth = *savedIndentDepth = tokenPosition;
-        break;
-
-    case binding_assignment:
-    case property_initializer:
-    case objectliteral_assignment:
-        if (lastToken)
-            *indentDepth = *savedIndentDepth + 4;
-        else
-            *indentDepth = column(tokenAt(tokenIndex() + 1).begin());
-        break;
-
-    case expression_or_objectdefinition:
-        *indentDepth = tokenPosition;
-        break;
-
-    case expression:
-        // expression_or_objectdefinition has already consumed the first token
-        // ternary already adjusts indents nicely
-        if (parentState.type != expression_or_objectdefinition
-                && parentState.type != binding_assignment
-                && parentState.type != property_initializer
-                && parentState.type != ternary_op) {
-            *indentDepth += 2 * m_indentSize;
-        }
-        if (!firstToken && parentState.type != expression_or_objectdefinition) {
-            *indentDepth = tokenPosition;
-        }
-        break;
-
-    case expression_maybe_continuation:
-        // set indent depth to indent we'd get if the expression ended here
-        for (int i = 1; state(i).type != topmost_intro; ++i) {
-            const int type = state(i).type;
-            if (isExpressionEndState(type) && !isBracelessState(type)) {
-                *indentDepth = state(i - 1).savedIndentDepth;
-                break;
-            }
-        }
-        break;
-
-    case bracket_open:
-        if (parentState.type == expression && (state(1).type == binding_assignment
-                                               || state(1).type == property_initializer)) {
-            *savedIndentDepth = state(2).savedIndentDepth;
-            *indentDepth = *savedIndentDepth + m_indentSize;
-        } else if (!lastToken) {
-            *indentDepth = tokenPosition + 1;
-        } else {
-            *indentDepth = *savedIndentDepth + m_indentSize;
-        }
-        break;
-
-    case function_start:
-        if (parentState.type == expression) {
-            // undo the continuation indent of the expression
-            *indentDepth = parentState.savedIndentDepth;
-            *savedIndentDepth = *indentDepth;
-        }
-        break;
-
-    case do_statement_while_paren_open:
-    case statement_with_condition_paren_open:
-    case signal_arglist_open:
-    case function_arglist_open:
-    case paren_open:
-    case condition_paren_open:
-        if (!lastToken)
-            *indentDepth = tokenPosition + 1;
-        else
-            *indentDepth += m_indentSize;
-        break;
-
-    case ternary_op:
-        if (!lastToken)
-            *indentDepth = tokenPosition + tk.length + 1;
-        else
-            *indentDepth += m_indentSize;
-        break;
-
-    case jsblock_open:
-        // closing brace should be aligned to case
-        if (parentState.type == case_cont) {
-            *savedIndentDepth = parentState.savedIndentDepth;
-            break;
-        }
-        // fallthrough
-    case substatement_open:
-        // special case for foo: {
-        if (parentState.type == binding_assignment && state(1).type == binding_or_objectdefinition)
-            *savedIndentDepth = state(1).savedIndentDepth;
-        *indentDepth = *savedIndentDepth + m_indentSize;
-        break;
-
-    case objectliteral_open:
-        if (parentState.type == expression
-                || parentState.type == objectliteral_assignment
-                || parentState.type == property_initializer) {
-            // undo the continuation indent of the expression
-            *indentDepth = parentState.savedIndentDepth;
-            *savedIndentDepth = *indentDepth;
-        }
-        *indentDepth += m_indentSize;
-        break;
-
-
-    case statement_with_condition:
-    case statement_with_block:
-    case if_statement:
-    case do_statement:
-    case switch_statement:
-        if (firstToken || parentState.type == binding_assignment)
-            *savedIndentDepth = tokenPosition;
-        // ### continuation
-        *indentDepth = *savedIndentDepth; // + 2*m_indentSize;
-        break;
-
-    case maybe_else: {
-        // set indent to outermost braceless savedIndent
-        int outermostBraceless = 0;
-        while (isBracelessState(state(outermostBraceless + 1).type))
-            ++outermostBraceless;
-        *indentDepth = state(outermostBraceless).savedIndentDepth;
-        // this is where the else should go, if one appears - aligned to if_statement
-        *savedIndentDepth = state().savedIndentDepth;
-        break;
-    }
-
-    case condition_open:
-        // fixed extra indent when continuing 'if (', but not for 'else if ('
-        if (tokenPosition <= *indentDepth + m_indentSize)
-            *indentDepth += 2*m_indentSize;
-        else
-            *indentDepth = tokenPosition + 1;
-        break;
-
-    case case_start:
-        *savedIndentDepth = tokenPosition;
-        break;
-
-    case case_cont:
-        *indentDepth += m_indentSize;
-        break;
-
-    case multiline_comment_start:
-        *indentDepth = tokenPosition + 2;
-        break;
-
-    case multiline_comment_cont:
-        *indentDepth = tokenPosition;
-        break;
-    }
-}
-
-void QtStyleCodeFormatter::adjustIndent(const QList<Token> &tokens, int lexerState, int *indentDepth) const
-{
-    Q_UNUSED(lexerState)
-
-    State topState = state();
-    State previousState = state(1);
-
-    // adjusting the indentDepth here instead of in enter() gives 'else if' the correct indentation
-    // ### could be moved?
-    if (topState.type == substatement)
-        *indentDepth += m_indentSize;
-
-    // keep user-adjusted indent in multiline comments
-    if (topState.type == multiline_comment_start
-            || topState.type == multiline_comment_cont) {
-        if (!tokens.isEmpty()) {
-            *indentDepth = column(tokens.at(0).begin());
-            return;
-        }
-    }
-
-    const int kind = extendedTokenKind(tokenAt(0));
-    switch (kind) {
-    case LeftBrace:
-        if (topState.type == substatement
-                || topState.type == binding_assignment
-                || topState.type == property_initializer
-                || topState.type == case_cont) {
-            *indentDepth = topState.savedIndentDepth;
-        }
-        break;
-    case RightBrace: {
-        if (topState.type == jsblock_open && previousState.type == case_cont) {
-            *indentDepth = previousState.savedIndentDepth;
-            break;
-        }
-        for (int i = 0; state(i).type != topmost_intro; ++i) {
-            const int type = state(i).type;
-            if (type == objectdefinition_open
-                    || type == jsblock_open
-                    || type == substatement_open
-                    || type == objectliteral_open) {
-                *indentDepth = state(i).savedIndentDepth;
-                break;
-            }
-        }
-        break;
-    }
-    case RightBracket:
-        for (int i = 0; state(i).type != topmost_intro; ++i) {
-            const int type = state(i).type;
-            if (type == bracket_open) {
-                *indentDepth = state(i).savedIndentDepth;
-                break;
-            }
-        }
-        break;
-
-    case LeftBracket:
-    case LeftParenthesis:
-    case Delimiter:
-        if (topState.type == expression_maybe_continuation)
-            *indentDepth = topState.savedIndentDepth;
-        break;
-
-    case Else:
-        if (topState.type == maybe_else) {
-            *indentDepth = topState.savedIndentDepth;
-        } else if (topState.type == expression_maybe_continuation) {
-            bool hasElse = false;
-            for (int i = 1; state(i).type != topmost_intro; ++i) {
-                const int type = state(i).type;
-                if (type == else_clause)
-                    hasElse = true;
-                if (type == if_statement) {
-                    if (hasElse) {
-                        hasElse = false;
-                    } else {
-                        *indentDepth = state(i).savedIndentDepth;
-                        break;
-                    }
-                }
-            }
-        }
-        break;
-
-    case Colon:
-        if (topState.type == ternary_op) {
-            *indentDepth -= 2;
-        }
-        break;
-
-    case Question:
-        if (topState.type == expression_maybe_continuation)
-            *indentDepth = topState.savedIndentDepth;
-        break;
-
-    case Default:
-    case Case:
-        for (int i = 0; state(i).type != topmost_intro; ++i) {
-            const int type = state(i).type;
-            if (type == switch_statement || type == case_cont) {
-                *indentDepth = state(i).savedIndentDepth;
-                break;
-            } else if (type == topmost_intro) {
-                break;
-            }
-        }
-        break;
-    }
 }

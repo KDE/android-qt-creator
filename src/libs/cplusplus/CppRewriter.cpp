@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "CppRewriter.h"
@@ -151,6 +151,9 @@ public:
                 newArg->setName(rewrite->rewriteName(arg->name()));
                 newArg->setType(rewrite->rewriteType(arg->type()));
 
+                // the copy() call above set the scope to 'type'
+                // reset it to 0 before adding addMember to avoid assert
+                newArg->resetScope();
                 funTy->addMember(newArg);
             }
 
@@ -373,22 +376,23 @@ FullySpecifiedType SubstitutionMap::apply(const Name *name, Rewrite *) const
 }
 
 
-UseQualifiedNames::UseQualifiedNames()
+UseMinimalNames::UseMinimalNames(ClassOrNamespace *target)
+    : _target(target)
 {
 
 }
 
-UseQualifiedNames::~UseQualifiedNames()
+UseMinimalNames::~UseMinimalNames()
 {
 
 }
 
-FullySpecifiedType UseQualifiedNames::apply(const Name *name, Rewrite *rewrite) const
+FullySpecifiedType UseMinimalNames::apply(const Name *name, Rewrite *rewrite) const
 {
     SubstitutionEnvironment *env = rewrite->env;
     Scope *scope = env->scope();
 
-    if (name->isQualifiedNameId() || name->isTemplateNameId())
+    if (name->isTemplateNameId())
         return FullySpecifiedType();
 
     if (! scope)
@@ -400,21 +404,25 @@ FullySpecifiedType UseQualifiedNames::apply(const Name *name, Rewrite *rewrite) 
     const QList<LookupItem> results = context.lookup(name, scope);
     foreach (const LookupItem &r, results) {
         if (Symbol *d = r.declaration()) {
-            const Name *n = 0;
-            foreach (const Name *c,  LookupContext::fullyQualifiedName(d)) {
-                if (! n)
-                    n = c;
-                else
-                    n = control->qualifiedNameId(n, c);
-            }
-
-            return control->namedType(n);
+            return control->namedType(LookupContext::minimalName(d, _target, control));
         }
 
         return r.type();
     }
 
     return FullySpecifiedType();
+}
+
+
+UseQualifiedNames::UseQualifiedNames()
+    : UseMinimalNames(0)
+{
+
+}
+
+UseQualifiedNames::~UseQualifiedNames()
+{
+
 }
 
 

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,57 +38,30 @@
 namespace Bazaar {
 namespace Internal {
 
-const QLatin1String diffIgnoreWhiteSpaceKey("diffIgnoreWhiteSpace");
-const QLatin1String diffIgnoreBlankLinesKey("diffIgnoreBlankLines");
+const QLatin1String BazaarSettings::diffIgnoreWhiteSpaceKey("diffIgnoreWhiteSpace");
+const QLatin1String BazaarSettings::diffIgnoreBlankLinesKey("diffIgnoreBlankLines");
+const QLatin1String BazaarSettings::logVerboseKey("logVerbose");
+const QLatin1String BazaarSettings::logForwardKey("logForward");
+const QLatin1String BazaarSettings::logIncludeMergesKey("logIncludeMerges");
+const QLatin1String BazaarSettings::logFormatKey("logFormat");
 
-BazaarSettings::BazaarSettings() :
-    diffIgnoreWhiteSpace(false),
-    diffIgnoreBlankLines(false)
+BazaarSettings::BazaarSettings()
 {
     setSettingsGroup(QLatin1String(Constants::BAZAAR));
-    setBinary(QLatin1String(Constants::BAZAARDEFAULT));
+    // Override default binary path
+    declareKey(binaryPathKey, QLatin1String(Constants::BAZAARDEFAULT));
+    declareKey(diffIgnoreWhiteSpaceKey, false);
+    declareKey(diffIgnoreBlankLinesKey, false);
+    declareKey(logVerboseKey, false);
+    declareKey(logForwardKey, false);
+    declareKey(logIncludeMergesKey, false);
+    declareKey(logFormatKey, QLatin1String("long"));
 }
 
-BazaarSettings& BazaarSettings::operator=(const BazaarSettings& other)
+bool BazaarSettings::sameUserId(const BazaarSettings &other) const
 {
-    VCSBase::VCSBaseClientSettings::operator=(other);
-    if (this != &other) {
-        diffIgnoreWhiteSpace = other.diffIgnoreWhiteSpace;
-        diffIgnoreBlankLines = other.diffIgnoreBlankLines;
-    }
-    return *this;
-}
-
-bool BazaarSettings::sameUserId(const BazaarSettings& other) const
-{
-    return userName() == other.userName() && email() == other.email();
-}
-
-void BazaarSettings::writeSettings(QSettings *settings) const
-{
-    VCSBaseClientSettings::writeSettings(settings);
-    settings->beginGroup(settingsGroup());
-    settings->setValue(diffIgnoreWhiteSpaceKey, diffIgnoreWhiteSpace);
-    settings->setValue(diffIgnoreBlankLinesKey, diffIgnoreBlankLines);
-    settings->endGroup();
-}
-
-void BazaarSettings::readSettings(const QSettings *settings)
-{
-    VCSBaseClientSettings::readSettings(settings);
-    const QString keyRoot = settingsGroup() + QLatin1Char('/');
-    diffIgnoreWhiteSpace = settings->value(keyRoot + diffIgnoreWhiteSpaceKey, false).toBool();
-    diffIgnoreBlankLines = settings->value(keyRoot + diffIgnoreBlankLinesKey, false).toBool();
-}
-
-bool BazaarSettings::equals(const VCSBaseClientSettings &rhs) const
-{
-    const BazaarSettings *bzrRhs = dynamic_cast<const BazaarSettings *>(&rhs);
-    if (bzrRhs == 0)
-        return false;
-    return VCSBaseClientSettings::equals(rhs)
-            && diffIgnoreWhiteSpace == bzrRhs->diffIgnoreWhiteSpace
-            && diffIgnoreBlankLines == bzrRhs->diffIgnoreBlankLines;
+    return stringValue(userNameKey) == other.stringValue(userNameKey)
+            && stringValue(userEmailKey) == other.stringValue(userEmailKey);
 }
 
 } // namespace Internal

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,8 +46,6 @@ namespace ProjectExplorer {
     class Project;
 }
 
-QT_QML_BEGIN_NAMESPACE
-
 namespace QmlJS {
 
 class Snapshot;
@@ -61,6 +59,7 @@ public:
     {
     public:
         ProjectInfo()
+            : tryQmlDump(false)
         { }
 
         ProjectInfo(QPointer<ProjectExplorer::Project> project)
@@ -80,8 +79,14 @@ public:
         QPointer<ProjectExplorer::Project> project;
         QStringList sourceFiles;
         QStringList importPaths;
+
+        // whether trying to run qmldump makes sense
+        bool tryQmlDump;
         QString qmlDumpPath;
-        Utils::Environment qmlDumpEnvironment;
+        ::Utils::Environment qmlDumpEnvironment;
+
+        QString qtImportsPath;
+        QString qtVersionString;
     };
 
     class WorkingCopy
@@ -108,8 +113,14 @@ public:
         Table _elements;
     };
 
-    typedef QHash<QString, QList<LanguageUtils::FakeMetaObject::ConstPtr> > CppQmlTypeHash;
-    typedef QHash<QString, QList<LanguageUtils::ComponentVersion> > BuiltinPackagesHash;
+    class CppData
+    {
+    public:
+        QList<LanguageUtils::FakeMetaObject::ConstPtr> exportedTypes;
+        QHash<QString, QString> contextProperties;
+    };
+
+    typedef QHash<QString, CppData> CppDataHash;
 
 public:
     ModelManagerInterface(QObject *parent = 0);
@@ -118,7 +129,9 @@ public:
     static ModelManagerInterface *instance();
 
     virtual WorkingCopy workingCopy() const = 0;
+
     virtual QmlJS::Snapshot snapshot() const = 0;
+    virtual QmlJS::Snapshot newestSnapshot() const = 0;
 
     virtual void updateSourceFiles(const QStringList &files,
                                    bool emitDocumentOnDiskChanged) = 0;
@@ -128,14 +141,19 @@ public:
     virtual QList<ProjectInfo> projectInfos() const = 0;
     virtual ProjectInfo projectInfo(ProjectExplorer::Project *project) const = 0;
     virtual void updateProjectInfo(const ProjectInfo &pinfo) = 0;
+    Q_SLOT virtual void removeProjectInfo(ProjectExplorer::Project *project) = 0;
 
     virtual QStringList importPaths() const = 0;
 
     virtual void loadPluginTypes(const QString &libraryPath, const QString &importPath,
                                  const QString &importUri, const QString &importVersion) = 0;
 
-    virtual CppQmlTypeHash cppQmlTypes() const = 0;
-    virtual BuiltinPackagesHash builtinPackages() const = 0;
+    virtual CppDataHash cppData() const = 0;
+
+    virtual LibraryInfo builtins(const Document::Ptr &doc) const = 0;
+
+    // Blocks until all parsing threads are done. Used for testing.
+    virtual void joinAllThreads() = 0;
 
 public slots:
     virtual void resetCodeModel() = 0;
@@ -149,7 +167,5 @@ signals:
 };
 
 } // namespace QmlJS
-
-QT_QML_END_NAMESPACE
 
 #endif // QMLJSMODELMANAGERINTERFACE_H

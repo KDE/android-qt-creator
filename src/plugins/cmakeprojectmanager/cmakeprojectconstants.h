@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,16 +36,16 @@
 namespace CMakeProjectManager {
 namespace Constants {
 
-const char * const PROJECTCONTEXT = "CMakeProject.ProjectContext";
-const char * const CMAKEMIMETYPE  = "text/x-cmake"; // TOOD check that this is correct
-const char * const CMAKE_EDITOR_ID = "CMakeProject.CMakeEditor";
-const char * const CMAKE_EDITOR_DISPLAY_NAME = "CMake Editor";
-const char * const C_CMAKEEDITOR = "CMakeProject.Context.CMakeEditor";
-const char * const RUNCMAKE            = "CMakeProject.RunCMake";
-const char * const RUNCMAKECONTEXTMENU = "CMakeProject.RunCMakeContextMenu";
+const char PROJECTCONTEXT[] = "CMakeProject.ProjectContext";
+const char CMAKEMIMETYPE[]  = "text/x-cmake"; // TODO check that this is correct
+const char CMAKE_EDITOR_ID[] = "CMakeProject.CMakeEditor";
+const char CMAKE_EDITOR_DISPLAY_NAME[] = "CMake Editor";
+const char C_CMAKEEDITOR[] = "CMakeProject.Context.CMakeEditor";
+const char RUNCMAKE[] = "CMakeProject.RunCMake";
+const char RUNCMAKECONTEXTMENU[] = "CMakeProject.RunCMakeContextMenu";
 
 // Project
-const char * const CMAKEPROJECT_ID = "CMakeProjectManager.CMakeProject";
+const char CMAKEPROJECT_ID[] = "CMakeProjectManager.CMakeProject";
 
 } // namespace Constants
 } // namespace CMakeProjectManager

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -58,7 +58,7 @@ PerforceSubmitEditorWidget *PerforceSubmitEditor::submitEditorWidget()
     return static_cast<PerforceSubmitEditorWidget *>(widget());
 }
 
-QString PerforceSubmitEditor::fileContents() const
+QByteArray PerforceSubmitEditor::fileContents() const
 {
     const_cast<PerforceSubmitEditor*>(this)->updateEntries();
     QString text;
@@ -70,7 +70,7 @@ QString PerforceSubmitEditor::fileContents() const
     }
     if (Perforce::Constants::debug)
         qDebug() << Q_FUNC_INFO << text;
-    return text;
+    return text.toLocal8Bit();
 }
 
 bool PerforceSubmitEditor::setFileContents(const QString &contents)

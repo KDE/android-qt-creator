@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,9 @@
 #include "nodeinstanceclientinterface.h"
 #include "statepreviewimagechangedcommand.h"
 #include "createscenecommand.h"
+
+#include <QSGItem>
+#include <designersupport.h>
 
 namespace QmlDesigner {
 
@@ -87,14 +90,31 @@ void Qt5PreviewNodeInstanceServer::changeState(const ChangeStateCommand &/*comma
 
 }
 
+static void updateDirtyNodeRecursive(QSGItem *parentItem)
+{
+    foreach (QSGItem *childItem, parentItem->childItems())
+        updateDirtyNodeRecursive(childItem);
+
+    DesignerSupport::updateDirtyNode(parentItem);
+}
+
 QImage Qt5PreviewNodeInstanceServer::renderPreviewImage()
 {
-    QSize size = rootNodeInstance().boundingRect().size().toSize();
-    size.scale(100, 100, Qt::KeepAspectRatio);
+    updateDirtyNodeRecursive(rootNodeInstance().internalSGItem());
 
-    QImage image(size, QImage::Format_ARGB32);
+    QRectF boundingRect = rootNodeInstance().boundingRect();
 
-    return image;
+    QSize previewImageSize = boundingRect.size().toSize();
+    previewImageSize.scale(QSize(100, 100), Qt::KeepAspectRatio);
+
+    QImage previewImage;
+
+    if (boundingRect.isValid() && rootNodeInstance().internalSGItem())
+        previewImage = designerSupport()->renderImageForItem(rootNodeInstance().internalSGItem(), boundingRect, previewImageSize);
+
+    previewImage = previewImage.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+
+    return previewImage;
 }
 
 } // namespace QmlDesigner

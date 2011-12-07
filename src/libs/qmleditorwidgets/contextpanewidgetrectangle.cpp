@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,7 +34,7 @@
 #include "ui_contextpanewidgetrectangle.h"
 #include "contextpanewidget.h"
 #include <qmljs/qmljspropertyreader.h>
-#include <qmljs/qmljscheck.h>
+#include <qmljs/qmljsutils.h>
 #include <customcolordialog.h>
 #include <QtCore/QDebug>
 
@@ -196,7 +196,6 @@ void ContextPaneWidgetRectangle::onGradientClicked()
         m_hasGradient = true;
         QLinearGradient gradient;
         QGradientStops stops;
-        QColor color = ui->colorColorButton->convertedColor();
         stops.append(QGradientStop(0, ui->colorColorButton->convertedColor()));
         stops.append(QGradientStop(1, Qt::white));
         gradient.setStops(stops);

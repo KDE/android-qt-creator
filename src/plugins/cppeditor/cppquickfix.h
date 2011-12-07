@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,16 +34,16 @@
 #define CPPQUICKFIX_H
 
 #include "cppeditor_global.h"
-#include "cppsemanticinfo.h"
-
-#include <ASTfwd.h>
-#include <cplusplus/CppDocument.h>
 #include <texteditor/quickfix.h>
 
+namespace CPlusPlus {
+class CppModelManagerInterface;
+}
+
 namespace CppTools {
-    class CppModelManagerInterface;
     class CppRefactoringFile;
     class CppRefactoringChanges;
+    typedef QSharedPointer<CppRefactoringFile> CppRefactoringFilePtr;
 } // namespace CppTools
 
 namespace ExtensionSystem {
@@ -58,8 +58,6 @@ class CppQuickFixAssistInterface;
 
 class CPPEDITOR_EXPORT CppQuickFixOperation: public TextEditor::QuickFixOperation
 {
-    Q_DISABLE_COPY(CppQuickFixOperation)
-
 public:
     explicit CppQuickFixOperation(
         const QSharedPointer<const Internal::CppQuickFixAssistInterface> &interface,
@@ -69,8 +67,8 @@ public:
     virtual void perform();
 
 protected:
-    virtual void performChanges(CppTools::CppRefactoringFile *currentFile,
-                                CppTools::CppRefactoringChanges *refactoring) = 0;
+    virtual void performChanges(const CppTools::CppRefactoringFilePtr &currentFile,
+                                const CppTools::CppRefactoringChanges &refactoring) = 0;
 
     QString fileName() const;
 

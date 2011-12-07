@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -110,7 +110,7 @@ void NodeListProperty::slide(int from, int to) const
     if (to > toModelNodeList().count() - 1)
         throw InvalidPropertyException(__LINE__, __FUNCTION__, __FILE__, "<invalid node list sliding>");
 
-     model()->m_d->changeNodeOrder(internalNode(), name(), from, to);
+     model()->d->changeNodeOrder(internalNode(), name(), from, to);
 }
 
 void NodeListProperty::reparentHere(const ModelNode &modelNode)

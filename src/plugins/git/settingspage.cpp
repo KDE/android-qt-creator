@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,7 @@
 #include <vcsbase/vcsbaseconstants.h>
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 #include <QtCore/QDebug>
 #include <QtCore/QTextStream>
@@ -58,8 +59,8 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
             = tr("Set the environment variable HOME to '%1'\n(%2).\n"
                  "This causes msysgit to look for the SSH-keys in that location\n"
                  "instead of its installation directory when run outside git bash.").
-            arg(GitClient::fakeWinHome(QProcessEnvironment::systemEnvironment()),
-                currentHome.isEmpty() ? tr("not currently set") :
+              arg(QDir::homePath(),
+                  currentHome.isEmpty() ? tr("not currently set") :
                                         tr("currently set to '%1'").arg(QString::fromLocal8Bit(currentHome)));
     m_ui.winHomeCheckBox->setToolTip(toolTip);
 #else
@@ -70,27 +71,28 @@ SettingsPageWidget::SettingsPageWidget(QWidget *parent) :
 GitSettings SettingsPageWidget::settings() const
 {
     GitSettings rc;
-    rc.path = m_ui.pathLineEdit->text();
-    rc.adoptPath = m_ui.environmentGroupBox->isChecked() && !rc.path.isEmpty();
-    rc.logCount = m_ui.logCountSpinBox->value();
-    rc.timeoutSeconds = m_ui.timeoutSpinBox->value();
-    rc.pullRebase = m_ui.pullRebaseCheckBox->isChecked();
-    rc.promptToSubmit = m_ui.promptToSubmitCheckBox->isChecked();
-    rc.winSetHomeEnvironment = m_ui.winHomeCheckBox->isChecked();
-    rc.gitkOptions = m_ui.gitkOptionsLineEdit->text().trimmed();
+    rc.setValue(GitSettings::pathKey, m_ui.pathLineEdit->text());
+    rc.setValue(GitSettings::adoptPathKey, m_ui.environmentGroupBox->isChecked()
+                                           && !rc.stringValue(GitSettings::pathKey).isEmpty());
+    rc.setValue(GitSettings::logCountKey, m_ui.logCountSpinBox->value());
+    rc.setValue(GitSettings::timeoutKey, m_ui.timeoutSpinBox->value());
+    rc.setValue(GitSettings::pullRebaseKey, m_ui.pullRebaseCheckBox->isChecked());
+    rc.setValue(GitSettings::promptOnSubmitKey, m_ui.promptToSubmitCheckBox->isChecked());
+    rc.setValue(GitSettings::winSetHomeEnvironmentKey, m_ui.winHomeCheckBox->isChecked());
+    rc.setValue(GitSettings::gitkOptionsKey, m_ui.gitkOptionsLineEdit->text().trimmed());
     return rc;
 }
 
 void SettingsPageWidget::setSettings(const GitSettings &s)
 {
-    m_ui.environmentGroupBox->setChecked(s.adoptPath);
-    m_ui.pathLineEdit->setText(s.path);
-    m_ui.logCountSpinBox->setValue(s.logCount);
-    m_ui.timeoutSpinBox->setValue(s.timeoutSeconds);
-    m_ui.pullRebaseCheckBox->setChecked(s.pullRebase);
-    m_ui.promptToSubmitCheckBox->setChecked(s.promptToSubmit);
-    m_ui.winHomeCheckBox->setChecked(s.winSetHomeEnvironment);
-    m_ui.gitkOptionsLineEdit->setText(s.gitkOptions);
+    m_ui.environmentGroupBox->setChecked(s.boolValue(GitSettings::adoptPathKey));
+    m_ui.pathLineEdit->setText(s.stringValue(GitSettings::pathKey));
+    m_ui.logCountSpinBox->setValue(s.intValue(GitSettings::logCountKey));
+    m_ui.timeoutSpinBox->setValue(s.intValue(GitSettings::timeoutKey));
+    m_ui.pullRebaseCheckBox->setChecked(s.boolValue(GitSettings::pullRebaseKey));
+    m_ui.promptToSubmitCheckBox->setChecked(s.boolValue(GitSettings::promptOnSubmitKey));
+    m_ui.winHomeCheckBox->setChecked(s.boolValue(GitSettings::winSetHomeEnvironmentKey));
+    m_ui.gitkOptionsLineEdit->setText(s.stringValue(GitSettings::gitkOptionsKey));
 }
 
 void SettingsPageWidget::setSystemPath()

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -152,7 +152,7 @@ Qt::ItemFlags StackHandler::flags(const QModelIndex &index) const
     if (index.row() == m_stackFrames.size())
         return QAbstractTableModel::flags(index);
     const StackFrame &frame = m_stackFrames.at(index.row());
-    const bool isValid = (frame.isUsable() && !frame.function.isEmpty())
+    const bool isValid = frame.isUsable()
         || debuggerCore()->boolSetting(OperateByInstruction);
     return isValid && m_contentsValid
         ? QAbstractTableModel::flags(index) : Qt::ItemFlags(0);
@@ -197,6 +197,7 @@ void StackHandler::setFrames(const StackFrames &frames, bool canExpand)
     if (m_currentIndex >= m_stackFrames.size())
         m_currentIndex = m_stackFrames.size() - 1;
     reset();
+    emit stackChanged();
 }
 
 const StackFrames &StackHandler::frames() const

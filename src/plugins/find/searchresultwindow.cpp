@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,38 +26,30 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "searchresultwindow.h"
-#include "searchresulttreemodel.h"
-#include "searchresulttreeitems.h"
-#include "searchresulttreeview.h"
-#include "ifindsupport.h"
+#include "searchresultwidget.h"
+#include "findtoolwindow.h"
 
-#include <aggregation/aggregate.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/infobar.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icontext.h>
-#include <coreplugin/uniqueidmanager.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QFile>
-#include <QtCore/QTextStream>
 #include <QtCore/QSettings>
 #include <QtCore/QDebug>
-#include <QtCore/QDir>
-#include <QtGui/QListWidget>
-#include <QtGui/QToolButton>
-#include <QtGui/QLineEdit>
 #include <QtGui/QVBoxLayout>
-#include <QtGui/QLabel>
 #include <QtGui/QFont>
 #include <QtGui/QAction>
+#include <QtGui/QComboBox>
+#include <QtGui/QScrollArea>
+#include <QtGui/QStackedWidget>
 
 static const char SETTINGSKEYSECTIONNAME[] = "SearchResults";
 static const char SETTINGSKEYEXPANDRESULTS[] = "ExpandResults";
@@ -66,184 +58,81 @@ namespace Find {
 
 namespace Internal {
 
-    class WideEnoughLineEdit : public QLineEdit {
-        Q_OBJECT
-    public:
-        WideEnoughLineEdit(QWidget *parent):QLineEdit(parent){
-            connect(this, SIGNAL(textChanged(QString)),
-                    this, SLOT(updateGeometry()));
-        }
-        ~WideEnoughLineEdit(){}
-        QSize sizeHint() const {
-            QSize sh = QLineEdit::minimumSizeHint();
-            sh.rwidth() += qMax(25 * fontMetrics().width(QLatin1Char('x')),
-                                fontMetrics().width(text()));
-            return sh;
-        }
-    public slots:
-        void updateGeometry() { QLineEdit::updateGeometry(); }
-    };
-
-    class SearchResultFindSupport : public IFindSupport
+    class InternalScrollArea : public QScrollArea
     {
         Q_OBJECT
     public:
-        SearchResultFindSupport(SearchResultTreeView *view)
-            : m_view(view),
-              m_incrementalWrappedState(false)
+        explicit InternalScrollArea(QWidget *parent)
+            : QScrollArea(parent)
         {
+            setFrameStyle(QFrame::NoFrame);
+            setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         }
 
-        bool supportsReplace() const { return false; }
-
-        Find::FindFlags supportedFindFlags() const
+        QSize sizeHint() const
         {
-            return Find::FindBackward | Find::FindCaseSensitively
-                    | Find::FindRegularExpression | Find::FindWholeWords;
+            if (widget())
+                return widget()->size();
+            return QScrollArea::sizeHint();
         }
-
-        void resetIncrementalSearch()
-        {
-            m_incrementalFindStart = QModelIndex();
-            m_incrementalWrappedState = false;
-        }
-
-        void clearResults() { }
-
-        QString currentFindString() const
-        {
-            return QString();
-        }
-
-        QString completedFindString() const
-        {
-            return QString();
-        }
-
-        void highlightAll(const QString &txt, Find::FindFlags findFlags)
-        {
-            Q_UNUSED(txt)
-            Q_UNUSED(findFlags)
-            return;
-        }
-
-        IFindSupport::Result findIncremental(const QString &txt, Find::FindFlags findFlags)
-        {
-            if (!m_incrementalFindStart.isValid()) {
-                m_incrementalFindStart = m_view->currentIndex();
-                m_incrementalWrappedState = false;
-            }
-            m_view->setCurrentIndex(m_incrementalFindStart);
-            bool wrapped = false;
-            IFindSupport::Result result = find(txt, findFlags, &wrapped);
-            if (wrapped != m_incrementalWrappedState) {
-                m_incrementalWrappedState = wrapped;
-                showWrapIndicator(m_view);
-            }
-            return result;
-        }
-
-        IFindSupport::Result findStep(const QString &txt, Find::FindFlags findFlags)
-        {
-            bool wrapped = false;
-            IFindSupport::Result result = find(txt, findFlags, &wrapped);
-            if (wrapped)
-                showWrapIndicator(m_view);
-            if (result == IFindSupport::Found) {
-                m_incrementalFindStart = m_view->currentIndex();
-                m_incrementalWrappedState = false;
-            }
-            return result;
-        }
-
-        IFindSupport::Result find(const QString &txt, Find::FindFlags findFlags, bool *wrapped)
-        {
-            if (wrapped)
-                *wrapped = false;
-            if (txt.isEmpty())
-                return IFindSupport::NotFound;
-            QModelIndex index;
-            if (findFlags & Find::FindRegularExpression) {
-                bool sensitive = (findFlags & Find::FindCaseSensitively);
-                index = m_view->model()->find(QRegExp(txt, (sensitive ? Qt::CaseSensitive : Qt::CaseInsensitive)),
-                                              m_view->currentIndex(),
-                                              Find::textDocumentFlagsForFindFlags(findFlags),
-                                              wrapped);
-            } else {
-                index = m_view->model()->find(txt,
-                                              m_view->currentIndex(),
-                                              Find::textDocumentFlagsForFindFlags(findFlags),
-                                              wrapped);
-            }
-            if (index.isValid()) {
-                m_view->setCurrentIndex(index);
-                m_view->scrollTo(index);
-                if (index.parent().isValid())
-                    m_view->expand(index.parent());
-                return IFindSupport::Found;
-            }
-            return IFindSupport::NotFound;
-        }
-
-        void replace(const QString &before, const QString &after,
-            Find::FindFlags findFlags)
-        {
-            Q_UNUSED(before)
-            Q_UNUSED(after)
-            Q_UNUSED(findFlags)
-        }
-
-        bool replaceStep(const QString &before, const QString &after,
-            Find::FindFlags findFlags)
-        {
-            Q_UNUSED(before)
-            Q_UNUSED(after)
-            Q_UNUSED(findFlags)
-            return false;
-        }
-
-        int replaceAll(const QString &before, const QString &after,
-            Find::FindFlags findFlags)
-        {
-            Q_UNUSED(before)
-            Q_UNUSED(after)
-            Q_UNUSED(findFlags)
-            return 0;
-        }
-
-    private:
-        SearchResultTreeView *m_view;
-        QModelIndex m_incrementalFindStart;
-        bool m_incrementalWrappedState;
     };
 
-    struct SearchResultWindowPrivate {
-        SearchResultWindowPrivate();
+    class SearchResultWindowPrivate : public QObject
+    {
+        Q_OBJECT
+    public:
+        SearchResultWindowPrivate(SearchResultWindow *window);
+        bool isSearchVisible() const;
+        int visibleSearchIndex() const;
 
-        Internal::SearchResultTreeView *m_searchResultTreeView;
-        QListWidget *m_noMatchesFoundDisplay;
+        SearchResultWindow *q;
+        QList<Internal::SearchResultWidget *> m_searchResultWidgets;
         QToolButton *m_expandCollapseButton;
         QAction *m_expandCollapseAction;
-        QLabel *m_replaceLabel;
-        QLineEdit *m_replaceTextEdit;
-        QToolButton *m_replaceButton;
         static const bool m_initiallyExpand = false;
-        QWidget *m_widget;
-        SearchResult *m_currentSearch;
-        int m_itemCount;
-        bool m_isShowingReplaceUI;
-        bool m_focusReplaceEdit;
-        QString m_dontAskAgainGroup;
-        Core::InfoBar m_infoBar;
-        Core::InfoBarDisplay m_infoBarDisplay;
+        QWidget *m_spacer;
+        QComboBox *m_recentSearchesBox;
+        QStackedWidget *m_widget;
+        QList<SearchResult *> m_searchResults;
+        int m_currentIndex;
+        QFont m_font;
+
+    public slots:
+        void setCurrentIndex(int index);
     };
 
-    SearchResultWindowPrivate::SearchResultWindowPrivate()
-        : m_currentSearch(0),
-        m_itemCount(0),
-        m_isShowingReplaceUI(false),
-        m_focusReplaceEdit(false)
+    SearchResultWindowPrivate::SearchResultWindowPrivate(SearchResultWindow *window)
+        : q(window)
     {
+    }
+
+    bool SearchResultWindowPrivate::isSearchVisible() const
+    {
+        return m_currentIndex > 0;
+    }
+
+    int SearchResultWindowPrivate::visibleSearchIndex() const
+    {
+        return m_currentIndex - 1;
+    }
+
+    void SearchResultWindowPrivate::setCurrentIndex(int index)
+    {
+        if (isSearchVisible())
+            m_searchResultWidgets.at(visibleSearchIndex())->notifyVisibilityChanged(false);
+        m_currentIndex = index;
+        m_widget->setCurrentIndex(index);
+        m_recentSearchesBox->setCurrentIndex(index);
+        if (!isSearchVisible()) {
+            m_widget->currentWidget()->setFocus();
+            m_expandCollapseButton->setEnabled(false);
+        } else {
+            m_searchResultWidgets.at(visibleSearchIndex())->setFocusInternally();
+            m_searchResultWidgets.at(visibleSearchIndex())->notifyVisibilityChanged(true);
+            m_expandCollapseButton->setEnabled(true);
+        }
+        q->navigateStateChanged();
     }
 }
 
@@ -311,7 +200,7 @@ using namespace Find::Internal;
     After the search has finished call finishSearch to inform the search
     result window about it.
 
-    After that you get activated signals via your SearchResult instance when
+    You will get activated signals via your SearchResult instance when
     the user selects a search result item, and, if you started the search
     with the SearchAndReplace option, the replaceButtonClicked signal
     when the user requests a replace.
@@ -328,33 +217,25 @@ SearchResultWindow *SearchResultWindow::m_instance = 0;
     \fn SearchResultWindow::SearchResultWindow()
     \internal
 */
-SearchResultWindow::SearchResultWindow() : d(new SearchResultWindowPrivate)
+SearchResultWindow::SearchResultWindow(QWidget *newSearchPanel)
+    : d(new SearchResultWindowPrivate(this))
 {
     m_instance = this;
-    d->m_widget = new QWidget;
+    d->m_spacer = new QWidget;
+    d->m_spacer->setMinimumWidth(30);
+    d->m_recentSearchesBox = new QComboBox;
+    d->m_recentSearchesBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    d->m_recentSearchesBox->addItem(tr("New Search"));
+    connect(d->m_recentSearchesBox, SIGNAL(activated(int)), d, SLOT(setCurrentIndex(int)));
+
+    d->m_widget = new QStackedWidget;
     d->m_widget->setWindowTitle(displayName());
 
-    d->m_searchResultTreeView = new Internal::SearchResultTreeView(d->m_widget);
-    d->m_searchResultTreeView->setFrameStyle(QFrame::NoFrame);
-    d->m_searchResultTreeView->setAttribute(Qt::WA_MacShowFocusRect, false);
-    Aggregation::Aggregate * agg = new Aggregation::Aggregate;
-    agg->add(d->m_searchResultTreeView);
-    agg->add(new SearchResultFindSupport(d->m_searchResultTreeView));
-
-    d->m_noMatchesFoundDisplay = new QListWidget(d->m_widget);
-    d->m_noMatchesFoundDisplay->addItem(tr("No matches found!"));
-    d->m_noMatchesFoundDisplay->setFrameStyle(QFrame::NoFrame);
-    d->m_noMatchesFoundDisplay->hide();
-
-    QVBoxLayout *vlay = new QVBoxLayout;
-    d->m_widget->setLayout(vlay);
-    vlay->setMargin(0);
-    vlay->setSpacing(0);
-    vlay->addWidget(d->m_noMatchesFoundDisplay);
-    vlay->addWidget(d->m_searchResultTreeView);
-
-    d->m_infoBarDisplay.setTarget(vlay, 0);
-    d->m_infoBarDisplay.setInfoBar(&d->m_infoBar);
+    InternalScrollArea *newSearchArea = new InternalScrollArea(d->m_widget);
+    newSearchArea->setWidget(newSearchPanel);
+    newSearchArea->setFocusProxy(newSearchPanel);
+    d->m_widget->addWidget(newSearchArea);
+    d->m_currentIndex = 0;
 
     d->m_expandCollapseButton = new QToolButton(d->m_widget);
     d->m_expandCollapseButton->setAutoRaise(true);
@@ -368,24 +249,8 @@ SearchResultWindow::SearchResultWindow() : d(new SearchResultWindowPrivate)
     cmd->setAttribute(Core::Command::CA_UpdateText);
     d->m_expandCollapseButton->setDefaultAction(cmd->action());
 
-    d->m_replaceLabel = new QLabel(tr("Replace with:"), d->m_widget);
-    d->m_replaceLabel->setContentsMargins(12, 0, 5, 0);
-    d->m_replaceTextEdit = new WideEnoughLineEdit(d->m_widget);
-    d->m_replaceButton = new QToolButton(d->m_widget);
-    d->m_replaceButton->setToolTip(tr("Replace all occurrences"));
-    d->m_replaceButton->setText(tr("Replace"));
-    d->m_replaceButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    d->m_replaceButton->setAutoRaise(true);
-    d->m_replaceTextEdit->setTabOrder(d->m_replaceTextEdit, d->m_searchResultTreeView);
-
-    connect(d->m_searchResultTreeView, SIGNAL(jumpToSearchResult(SearchResultItem)),
-            this, SLOT(handleJumpToSearchResult(SearchResultItem)));
     connect(d->m_expandCollapseAction, SIGNAL(toggled(bool)), this, SLOT(handleExpandCollapseToolButton(bool)));
-    connect(d->m_replaceTextEdit, SIGNAL(returnPressed()), this, SLOT(handleReplaceButton()));
-    connect(d->m_replaceButton, SIGNAL(clicked()), this, SLOT(handleReplaceButton()));
-
     readSettings();
-    setShowReplaceUI(false);
 }
 
 /*!
@@ -395,11 +260,9 @@ SearchResultWindow::SearchResultWindow() : d(new SearchResultWindowPrivate)
 SearchResultWindow::~SearchResultWindow()
 {
     writeSettings();
-    delete d->m_currentSearch;
-    d->m_currentSearch = 0;
+    qDeleteAll(d->m_searchResults);
     delete d->m_widget;
     d->m_widget = 0;
-    d->m_itemCount = 0;
     delete d;
 }
 
@@ -413,81 +276,13 @@ SearchResultWindow *SearchResultWindow::instance()
 }
 
 /*!
-    \fn void SearchResultWindow::setTextToReplace(const QString &textToReplace)
-    \brief Sets the value in the UI element that allows the user to type
-    the text that should replace text in search results to \a textToReplace.
-*/
-void SearchResultWindow::setTextToReplace(const QString &textToReplace)
-{
-    d->m_replaceTextEdit->setText(textToReplace);
-}
-
-/*!
-    \fn QString SearchResultWindow::textToReplace() const
-    \brief Returns the text that should replace the text in search results.
-*/
-QString SearchResultWindow::textToReplace() const
-{
-    return d->m_replaceTextEdit->text();
-}
-
-/*!
-    \fn void SearchResultWindow::setShowReplaceUI(bool show)
-    \internal
-*/
-void SearchResultWindow::setShowReplaceUI(bool show)
-{
-    d->m_searchResultTreeView->model()->setShowReplaceUI(show);
-    d->m_replaceLabel->setVisible(show);
-    d->m_replaceTextEdit->setVisible(show);
-    d->m_replaceButton->setVisible(show);
-    d->m_isShowingReplaceUI = show;
-}
-
-/*!
-    \fn void SearchResultWindow::handleReplaceButton()
-    \internal
-*/
-void SearchResultWindow::handleReplaceButton()
-{
-    QTC_ASSERT(d->m_currentSearch, return);
-    // check if button is actually enabled, because this is also triggered
-    // by pressing return in replace line edit
-    if (d->m_replaceButton->isEnabled()) {
-        d->m_infoBar.clear();
-        d->m_currentSearch->replaceButtonClicked(d->m_replaceTextEdit->text(), checkedItems());
-    }
-}
-
-/*!
-    \fn QList<SearchResultItem> SearchResultWindow::checkedItems() const
-    \internal
-*/
-QList<SearchResultItem> SearchResultWindow::checkedItems() const
-{
-    QList<SearchResultItem> result;
-    Internal::SearchResultTreeModel *model = d->m_searchResultTreeView->model();
-    const int fileCount = model->rowCount(QModelIndex());
-    for (int i = 0; i < fileCount; ++i) {
-        QModelIndex fileIndex = model->index(i, 0, QModelIndex());
-        Internal::SearchResultTreeItem *fileItem = static_cast<Internal::SearchResultTreeItem *>(fileIndex.internalPointer());
-        Q_ASSERT(fileItem != 0);
-        for (int rowIndex = 0; rowIndex < fileItem->childrenCount(); ++rowIndex) {
-            QModelIndex textIndex = model->index(rowIndex, 0, fileIndex);
-            Internal::SearchResultTreeItem *rowItem = static_cast<Internal::SearchResultTreeItem *>(textIndex.internalPointer());
-            if (rowItem->checkState())
-                result << rowItem->item;
-        }
-    }
-    return result;
-}
-
-/*!
     \fn void SearchResultWindow::visibilityChanged(bool)
     \internal
 */
-void SearchResultWindow::visibilityChanged(bool /*visible*/)
+void SearchResultWindow::visibilityChanged(bool visible)
 {
+    if (d->isSearchVisible())
+        d->m_searchResultWidgets.at(d->visibleSearchIndex())->notifyVisibilityChanged(visible);
 }
 
 /*!
@@ -505,43 +300,62 @@ QWidget *SearchResultWindow::outputWidget(QWidget *)
 */
 QList<QWidget*> SearchResultWindow::toolBarWidgets() const
 {
-    return QList<QWidget*>() << d->m_expandCollapseButton << d->m_replaceLabel << d->m_replaceTextEdit << d->m_replaceButton;
+    return QList<QWidget*>() << d->m_expandCollapseButton << d->m_spacer << d->m_recentSearchesBox;
 }
 
 /*!
     \brief Tells the search results window to start a new search.
 
-    This will clear the contents of the previous search and initialize the UI
-    with regard to showing the replace UI or not (depending on the search mode
-    in \a searchOrSearchAndReplace).
+    The \a label should be a string that shortly describes the type of
+    search, i.e. search filter and possibly a most relevant search option, followed by a colon ':'.
+    E.g. \code{Project 'myproject':}
+    The \a searchTerm will be shown behind the colon.
+    The \a toolTip should elaborate on the search parameters, like file patterns that are searched and
+    find flags.
     If \a cfgGroup is not empty, it will be used for storing the "do not ask again"
     setting of a "this change cannot be undone" warning (which is implicitly requested
     by passing a non-empty group).
     Returns a SearchResult object that is used for signaling user interaction
     with the results of this search.
-*/
-SearchResult *SearchResultWindow::startNewSearch(SearchMode searchOrSearchAndReplace, const QString &cfgGroup)
-{
-    clearContents();
-    setShowReplaceUI(searchOrSearchAndReplace != SearchOnly);
-    d->m_dontAskAgainGroup = cfgGroup;
-    delete d->m_currentSearch;
-    d->m_currentSearch = new SearchResult;
-    return d->m_currentSearch;
-}
+    The search result window owns the returned SearchResult
+    and might delete it any time, even while the search is running
+    (e.g. when the user clears the search result pane, or if the user opens so many other searches
+    that this search falls out of the history).
 
-/*!
-    \fn void SearchResultWindow::finishSearch()
-    \brief Notifies the search result window that the current search
-    has finished, and the UI should reflect that.
 */
-void SearchResultWindow::finishSearch()
+SearchResult *SearchResultWindow::startNewSearch(const QString &label,
+                                                 const QString &toolTip,
+                                                 const QString &searchTerm,
+                                                 SearchMode searchOrSearchAndReplace,
+                                                 const QString &cfgGroup)
 {
-    if (d->m_itemCount > 0) {
-        d->m_replaceButton->setEnabled(true);
-    } else {
-        showNoMatchesFound();
+    if (d->m_searchResults.size() >= 5) {
+        d->m_searchResultWidgets.last()->notifyVisibilityChanged(false);
+        delete d->m_searchResults.takeLast();
+        delete d->m_searchResultWidgets.takeLast();
+        d->m_recentSearchesBox->removeItem(d->m_recentSearchesBox->count()-1);
+        if (d->m_currentIndex >= d->m_recentSearchesBox->count()) {
+            // temporarily set the index to the last existing
+            d->m_currentIndex = d->m_recentSearchesBox->count() - 1;
+        }
     }
+    Internal::SearchResultWidget *widget = new Internal::SearchResultWidget;
+    d->m_searchResultWidgets.prepend(widget);
+    d->m_widget->insertWidget(1, widget);
+    connect(widget, SIGNAL(navigateStateChanged()), this, SLOT(navigateStateChanged()));
+    widget->setTextEditorFont(d->m_font);
+    widget->setShowReplaceUI(searchOrSearchAndReplace != SearchOnly);
+    widget->setAutoExpandResults(d->m_expandCollapseAction->isChecked());
+    widget->setInfo(label, toolTip, searchTerm);
+    if (searchOrSearchAndReplace == SearchAndReplace)
+        widget->setDontAskAgainGroup(cfgGroup);
+    SearchResult *result = new SearchResult(widget);
+    d->m_searchResults.prepend(result);
+    d->m_recentSearchesBox->insertItem(1, tr("%1 %2").arg(label, searchTerm));
+    if (d->m_currentIndex > 0)
+        ++d->m_currentIndex; // so setCurrentIndex still knows about the right "currentIndex" and its widget
+    d->setCurrentIndex(1);
+    return result;
 }
 
 /*!
@@ -550,62 +364,39 @@ void SearchResultWindow::finishSearch()
 */
 void SearchResultWindow::clearContents()
 {
-    d->m_replaceTextEdit->setEnabled(false);
-    d->m_replaceButton->setEnabled(false);
-    d->m_replaceTextEdit->clear();
-    d->m_searchResultTreeView->clear();
-    d->m_itemCount = 0;
-    d->m_noMatchesFoundDisplay->hide();
-    d->m_infoBar.clear();
+    for (int i = d->m_recentSearchesBox->count() - 1; i > 0 /* don't want i==0 */; --i)
+        d->m_recentSearchesBox->removeItem(i);
+    foreach (Internal::SearchResultWidget *widget, d->m_searchResultWidgets)
+        widget->notifyVisibilityChanged(false);
+    qDeleteAll(d->m_searchResultWidgets);
+    d->m_searchResultWidgets.clear();
+    qDeleteAll(d->m_searchResults);
+    d->m_searchResults.clear();
+
+    d->m_currentIndex = 0;
+    d->m_widget->currentWidget()->setFocus();
+    d->m_expandCollapseButton->setEnabled(false);
     navigateStateChanged();
-}
-
-/*!
-    \fn void SearchResultWindow::showNoMatchesFound()
-    \internal
-*/
-void SearchResultWindow::showNoMatchesFound()
-{
-    d->m_replaceTextEdit->setEnabled(false);
-    d->m_replaceButton->setEnabled(false);
-    d->m_noMatchesFoundDisplay->show();
-}
-
-/*!
-    \fn bool SearchResultWindow::isEmpty() const
-    Returns if the search result window currently doesn't show any results.
-*/
-bool SearchResultWindow::isEmpty() const
-{
-    return (d->m_searchResultTreeView->model()->rowCount() < 1);
-}
-
-/*!
-    \fn int SearchResultWindow::numberOfResults() const
-    Returns the number of search results currently shown in the search
-    results window.
-*/
-int SearchResultWindow::numberOfResults() const
-{
-    return d->m_itemCount;
 }
 
 /*!
     \fn bool SearchResultWindow::hasFocus()
     \internal
 */
-bool SearchResultWindow::hasFocus()
+bool SearchResultWindow::hasFocus() const
 {
-    return d->m_searchResultTreeView->hasFocus() || (d->m_isShowingReplaceUI && d->m_replaceTextEdit->hasFocus());
+    return d->m_widget->focusWidget() && d->m_widget->focusWidget()->hasFocus();
 }
 
 /*!
     \fn bool SearchResultWindow::canFocus()
     \internal
 */
-bool SearchResultWindow::canFocus()
+bool SearchResultWindow::canFocus() const
 {
-    return d->m_itemCount > 0;
+    if (d->isSearchVisible())
+        return d->m_searchResultWidgets.at(d->visibleSearchIndex())->canFocusInternally();
+    return true;
 }
 
 /*!
@@ -614,20 +405,10 @@ bool SearchResultWindow::canFocus()
 */
 void SearchResultWindow::setFocus()
 {
-    if (d->m_itemCount > 0) {
-        if (!d->m_isShowingReplaceUI) {
-            d->m_searchResultTreeView->setFocus();
-        } else {
-            if (!d->m_widget->focusWidget()
-                    || d->m_widget->focusWidget() == d->m_replaceTextEdit
-                    || d->m_focusReplaceEdit) {
-                d->m_replaceTextEdit->setFocus();
-                d->m_replaceTextEdit->selectAll();
-            } else {
-                d->m_searchResultTreeView->setFocus();
-            }
-        }
-    }
+    if (!d->isSearchVisible())
+        d->m_widget->currentWidget()->setFocus();
+    else
+        d->m_searchResultWidgets.at(d->visibleSearchIndex())->setFocusInternally();
 }
 
 /*!
@@ -636,101 +417,15 @@ void SearchResultWindow::setFocus()
 */
 void SearchResultWindow::setTextEditorFont(const QFont &font)
 {
-    d->m_searchResultTreeView->setTextEditorFont(font);
+    d->m_font = font;
+    foreach (Internal::SearchResultWidget *widget, d->m_searchResultWidgets)
+        widget->setTextEditorFont(font);
 }
 
-/*!
-    \fn void SearchResultWindow::handleJumpToSearchResult(const SearchResultItem &item)
-    \internal
-*/
-void SearchResultWindow::handleJumpToSearchResult(const SearchResultItem &item)
+void SearchResultWindow::openNewSearchPanel()
 {
-    QTC_ASSERT(d->m_currentSearch, return);
-    d->m_currentSearch->activated(item);
-}
-
-/*!
-    \fn void SearchResultWindow::addResult(const QString &fileName, int lineNumber, const QString &rowText, int searchTermStart, int searchTermLength, const QVariant &userData)
-    \brief Adds a single result line to the search results.
-
-    The \a fileName, \a lineNumber and \a rowText are shown in the result line.
-    \a searchTermStart and \a searchTermLength specify the region that
-    should be visually marked (string position and length in \a rowText).
-    You can attach arbitrary \a userData to the search result, which can
-    be used e.g. when reacting to the signals of the SearchResult for your search.
-
-    \sa addResults()
-*/
-void SearchResultWindow::addResult(const QString &fileName, int lineNumber, const QString &rowText,
-    int searchTermStart, int searchTermLength, const QVariant &userData)
-{
-    SearchResultItem item;
-    item.path = QStringList() << QDir::toNativeSeparators(fileName);
-    item.lineNumber = lineNumber;
-    item.text = rowText;
-    item.textMarkPos = searchTermStart;
-    item.textMarkLength = searchTermLength;
-    item.useTextEditorFont = true;
-    item.userData = userData;
-    addResults(QList<SearchResultItem>() << item, AddOrdered);
-}
-
-/*!
-    \fn void SearchResultWindow::addResults(QList<SearchResultItem> &items, AddMode mode)
-    \brief Adds all of the given search result \a items to the search
-    results window.
-
-    \sa addResult()
-*/
-void SearchResultWindow::addResults(QList<SearchResultItem> &items, AddMode mode)
-{
-    bool firstItems = (d->m_itemCount == 0);
-    d->m_itemCount += items.size();
-    d->m_searchResultTreeView->addResults(items, mode);
-    if (firstItems) {
-        if (!d->m_dontAskAgainGroup.isEmpty() && showWarningMessage()) {
-            Core::InfoBarEntry info("warninglabel", tr("This change cannot be undone."));
-            info.setCustomButtonInfo(tr("Do not warn again"), this, SLOT(hideNoUndoWarning()));
-            d->m_infoBar.addInfo(info);
-        }
-
-        d->m_replaceTextEdit->setEnabled(true);
-        // We didn't have an item before, set the focus to the search widget
-        d->m_focusReplaceEdit = true;
-        setFocus();
-        d->m_focusReplaceEdit = false;
-        d->m_searchResultTreeView->selectionModel()->select(d->m_searchResultTreeView->model()->index(0, 0, QModelIndex()), QItemSelectionModel::Select);
-        emit navigateStateChanged();
-    }
-}
-
-bool SearchResultWindow::showWarningMessage() const
-{
-    // Restore settings
-    QSettings *settings = Core::ICore::instance()->settings();
-    settings->beginGroup(d->m_dontAskAgainGroup);
-    settings->beginGroup(QLatin1String("Rename"));
-    const bool showWarningMessage = settings->value(QLatin1String("ShowWarningMessage"), true).toBool();
-    settings->endGroup();
-    settings->endGroup();
-    return showWarningMessage;
-}
-
-void SearchResultWindow::setShowWarningMessage(bool showWarningMessage)
-{
-    // Restore settings
-    QSettings *settings = Core::ICore::instance()->settings();
-    settings->beginGroup(d->m_dontAskAgainGroup);
-    settings->beginGroup(QLatin1String("Rename"));
-    settings->setValue(QLatin1String("ShowWarningMessage"), showWarningMessage);
-    settings->endGroup();
-    settings->endGroup();
-}
-
-void SearchResultWindow::hideNoUndoWarning()
-{
-    setShowWarningMessage(false);
-    d->m_infoBar.clear();
+    d->setCurrentIndex(0);
+    popup(true/*focus*/, true/*sizeHint*/);
 }
 
 /*!
@@ -739,13 +434,15 @@ void SearchResultWindow::hideNoUndoWarning()
 */
 void SearchResultWindow::handleExpandCollapseToolButton(bool checked)
 {
-    d->m_searchResultTreeView->setAutoExpandResults(checked);
+    if (!d->isSearchVisible())
+        return;
+    d->m_searchResultWidgets.at(d->visibleSearchIndex())->setAutoExpandResults(checked);
     if (checked) {
         d->m_expandCollapseAction->setText(tr("Collapse All"));
-        d->m_searchResultTreeView->expandAll();
+        d->m_searchResultWidgets.at(d->visibleSearchIndex())->expandAll();
     } else {
         d->m_expandCollapseAction->setText(tr("Expand All"));
-        d->m_searchResultTreeView->collapseAll();
+        d->m_searchResultWidgets.at(d->visibleSearchIndex())->collapseAll();
     }
 }
 
@@ -790,18 +487,20 @@ int SearchResultWindow::priorityInStatusBar() const
     \fn bool SearchResultWindow::canNext()
     \internal
 */
-bool SearchResultWindow::canNext()
+bool SearchResultWindow::canNext() const
 {
-    return d->m_itemCount > 0;
+    if (d->isSearchVisible())
+        return d->m_searchResultWidgets.at(d->visibleSearchIndex())->count() > 0;
+    return false;
 }
 
 /*!
     \fn bool SearchResultWindow::canPrevious()
     \internal
 */
-bool SearchResultWindow::canPrevious()
+bool SearchResultWindow::canPrevious() const
 {
-    return d->m_itemCount > 0;
+    return canNext();
 }
 
 /*!
@@ -810,13 +509,9 @@ bool SearchResultWindow::canPrevious()
 */
 void SearchResultWindow::goToNext()
 {
-    if (d->m_itemCount == 0)
-        return;
-    QModelIndex idx = d->m_searchResultTreeView->model()->next(d->m_searchResultTreeView->currentIndex());
-    if (idx.isValid()) {
-        d->m_searchResultTreeView->setCurrentIndex(idx);
-        d->m_searchResultTreeView->emitJumpToSearchResult(idx);
-    }
+    int index = d->m_widget->currentIndex();
+    if (index != 0)
+        d->m_searchResultWidgets.at(index-1)->goToNext();
 }
 
 /*!
@@ -825,25 +520,119 @@ void SearchResultWindow::goToNext()
 */
 void SearchResultWindow::goToPrev()
 {
-    if (!d->m_searchResultTreeView->model()->rowCount())
-        return;
-    QModelIndex idx = d->m_searchResultTreeView->model()->prev(d->m_searchResultTreeView->currentIndex());
-    if (idx.isValid()) {
-        d->m_searchResultTreeView->setCurrentIndex(idx);
-        d->m_searchResultTreeView->emitJumpToSearchResult(idx);
-    }
+    int index = d->m_widget->currentIndex();
+    if (index != 0)
+        d->m_searchResultWidgets.at(index-1)->goToPrevious();
 }
 
 /*!
     \fn bool SearchResultWindow::canNavigate()
     \internal
 */
-bool SearchResultWindow::canNavigate()
+bool SearchResultWindow::canNavigate() const
 {
     return true;
 }
 
-} // namespace Find
+/*!
+    \fn SearchResult::SearchResult(SearchResultWidget *widget)
+    \internal
+*/
+SearchResult::SearchResult(SearchResultWidget *widget)
+    : m_widget(widget)
+{
+    connect(widget, SIGNAL(activated(Find::SearchResultItem)),
+            this, SIGNAL(activated(Find::SearchResultItem)));
+    connect(widget, SIGNAL(replaceButtonClicked(QString,QList<Find::SearchResultItem>)),
+            this, SIGNAL(replaceButtonClicked(QString,QList<Find::SearchResultItem>)));
+    connect(widget, SIGNAL(cancelled()),
+            this, SIGNAL(cancelled()));
+    connect(widget, SIGNAL(visibilityChanged(bool)),
+            this, SIGNAL(visibilityChanged(bool)));
+}
 
+/*!
+    \fn void SearchResult::setUserData(const QVariant &data)
+    \brief Attach some random \a data to this search, that you can use later.
+
+    \sa userData()
+*/
+void SearchResult::setUserData(const QVariant &data)
+{
+    m_userData = data;
+}
+
+/*!
+    \fn void SearchResult::userData()
+    \brief Return the data that was attached to this search by calling setUserData().
+
+    \sa setUserData()
+*/
+QVariant SearchResult::userData() const
+{
+    return m_userData;
+}
+
+/*!
+    \fn QString SearchResult::textToReplace() const
+    \brief Returns the text that should replace the text in search results.
+*/
+QString SearchResult::textToReplace() const
+{
+    return m_widget->textToReplace();
+}
+
+/*!
+    \fn void SearchResult::addResult(const QString &fileName, int lineNumber, const QString &rowText, int searchTermStart, int searchTermLength, const QVariant &userData)
+    \brief Adds a single result line to the search results.
+
+    The \a fileName, \a lineNumber and \a rowText are shown in the result line.
+    \a searchTermStart and \a searchTermLength specify the region that
+    should be visually marked (string position and length in \a rowText).
+    You can attach arbitrary \a userData to the search result, which can
+    be used e.g. when reacting to the signals of the SearchResult for your search.
+
+    \sa addResults()
+*/
+void SearchResult::addResult(const QString &fileName, int lineNumber, const QString &lineText,
+                             int searchTermStart, int searchTermLength, const QVariant &userData)
+{
+    m_widget->addResult(fileName, lineNumber, lineText,
+                        searchTermStart, searchTermLength, userData);
+}
+
+/*!
+    \fn void SearchResult::addResults(const QList<SearchResultItem> &items, SearchResult::AddMode mode)
+    \brief Adds all of the given search result \a items to the search
+    results window.
+
+    \sa addResult()
+*/
+void SearchResult::addResults(const QList<SearchResultItem> &items, AddMode mode)
+{
+    m_widget->addResults(items, mode);
+}
+
+/*!
+    \fn void SearchResult::finishSearch()
+    \brief Notifies the search result window that the current search
+    has finished, and the UI should reflect that.
+*/
+void SearchResult::finishSearch()
+{
+    m_widget->finishSearch();
+}
+
+/*!
+    \fn void SearchResult::setTextToReplace(const QString &textToReplace)
+    \brief Sets the value in the UI element that allows the user to type
+    the text that should replace text in search results to \a textToReplace.
+*/
+void SearchResult::setTextToReplace(const QString &textToReplace)
+{
+    m_widget->setTextToReplace(textToReplace);
+}
+
+} // namespace Find
 
 #include "searchresultwindow.moc"

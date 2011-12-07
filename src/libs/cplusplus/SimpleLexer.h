@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef CPLUSPLUS_SIMPLELEXER_H
@@ -57,6 +57,9 @@ public:
     bool objCEnabled() const;
     void setObjCEnabled(bool onoff);
 
+    bool cxx0xEnabled() const;
+    void setCxx0xEnabled(bool enabled);
+
     bool endedJoined() const;
 
     QList<Token> operator()(const QString &text, int state = 0);
@@ -78,6 +81,7 @@ private:
     bool _qtMocRunEnabled: 1;
     bool _objCEnabled: 1;
     bool _endedJoined: 1;
+    bool _cxx0xEnabled: 1;
 };
 
 } // namespace CPlusPlus

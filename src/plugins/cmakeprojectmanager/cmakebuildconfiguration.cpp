@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,7 @@
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
 #include <projectexplorer/buildsteplist.h>
 #include <utils/qtcassert.h>
 
@@ -47,10 +48,9 @@ using namespace CMakeProjectManager;
 using namespace Internal;
 
 namespace {
-const char * const CMAKE_BC_ID("CMakeProjectManager.CMakeBuildConfiguration");
-
-const char * const TOOLCHAIN_KEY("CMakeProjectManager.CMakeBuildConfiguration.ToolChain");
-const char * const BUILD_DIRECTORY_KEY("CMakeProjectManager.CMakeBuildConfiguration.BuildDirectory");
+const char CMAKE_BC_ID[] = "CMakeProjectManager.CMakeBuildConfiguration";
+const char TOOLCHAIN_KEY[] = "CMakeProjectManager.CMakeBuildConfiguration.ToolChain";
+const char BUILD_DIRECTORY_KEY[] = "CMakeProjectManager.CMakeBuildConfiguration.BuildDirectory";
 } // namespace
 
 CMakeBuildConfiguration::CMakeBuildConfiguration(CMakeTarget *parent) :

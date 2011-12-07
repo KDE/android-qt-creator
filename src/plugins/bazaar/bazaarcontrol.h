@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,6 +49,7 @@ class BazaarClient;
 class BazaarControl: public Core::IVersionControl
 {
     Q_OBJECT
+
 public:
     explicit BazaarControl(BazaarClient *bazaarClient);
 
@@ -75,14 +76,14 @@ public slots:
     // To be connected to the VCSTask's success signal to emit the repository/
     // files changed signals according to the variant's type:
     // String -> repository, StringList -> files
-    void changed(const QVariant&);
+    void changed(const QVariant &);
     void emitConfigurationChanged();
 
 private:
     BazaarClient *m_bazaarClient;
 };
 
-} //namespace Internal
-} //namespace Bazaar
+} // namespace Internal
+} // namespace Bazaar
 
 #endif // BAZAARCONTROL_H

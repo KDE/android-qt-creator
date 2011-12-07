@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -71,7 +71,7 @@ IntegrationCore *CorePrivate::m_instance = 0;
 */
 
 IntegrationCore::IntegrationCore() :
-   m_d(new CorePrivate)
+   d(new CorePrivate)
 {
     Q_ASSERT(CorePrivate::m_instance == 0);
     CorePrivate::m_instance = this;
@@ -80,7 +80,7 @@ IntegrationCore::IntegrationCore() :
 IntegrationCore::~IntegrationCore()
 {
     CorePrivate::m_instance = 0;
-    delete m_d;
+    delete d;
 }
 
 IntegrationCore *IntegrationCore::instance()
@@ -91,7 +91,7 @@ IntegrationCore *IntegrationCore::instance()
 
 PluginManager *IntegrationCore::pluginManager() const
 {
-    return &m_d->m_pluginManager;
+    return &d->m_pluginManager;
 }
 
 }

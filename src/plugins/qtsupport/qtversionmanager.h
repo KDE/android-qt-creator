@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,14 +36,8 @@
 #include "qtsupport_global.h"
 #include "baseqtversion.h"
 
-#include <projectexplorer/abi.h>
-
-#include <QtCore/QHash>
 #include <QtCore/QSet>
-#include <QtCore/QSharedPointer>
-#include <QtCore/QFutureInterface>
 #include <QtCore/QStringList>
-#include <QtCore/QVariantMap>
 
 namespace Utils {
 class Environment;
@@ -56,8 +50,6 @@ class Task;
 }
 
 namespace QtSupport {
-class BaseQtVersion;
-
 namespace Internal {
 class QtOptionsPageWidget;
 class QtOptionsPage;
@@ -92,7 +84,7 @@ public:
     //       need to get a new pointer by calling this method again!
     BaseQtVersion *version(int id) const;
 
-    BaseQtVersion *qtVersionForQMakeBinary(const QString &qmakePath);
+    BaseQtVersion *qtVersionForQMakeBinary(const Utils::FileName &qmakePath);
 
     // Used by the projectloadwizard
     void addVersion(BaseQtVersion *version);
@@ -103,7 +95,9 @@ public:
     // This returns a list of versions that support the target with the given id.
     // @return A list of QtVersions that supports a target. This list may be empty!
 
-    QList<BaseQtVersion *> versionsForTargetId(const QString &id, const QtVersionNumber &minimumQtVersion = QtVersionNumber()) const;
+    QList<BaseQtVersion *> versionsForTargetId(const QString &id,
+                                               const QtVersionNumber &minimumQtVersion = QtVersionNumber(),
+                                               const QtVersionNumber &maximumQtVersion = QtVersionNumber(INT_MAX, INT_MAX, INT_MAX)) const;
     QSet<QString> supportedTargetIds() const;
 
     // Static Methods
@@ -111,7 +105,7 @@ public:
     static MakefileCompatible makefileIsFor(const QString &makefile, const QString &proFile);
     static QPair<BaseQtVersion::QmakeBuildConfigs, QString> scanMakeFile(const QString &makefile,
                                                                      BaseQtVersion::QmakeBuildConfigs defaultBuildConfig);
-    static QString findQMakeBinaryFromMakefile(const QString &directory);
+    static Utils::FileName findQMakeBinaryFromMakefile(const QString &directory);
     bool isValidId(int id) const;
 
     // Compatibility with pre-2.2:
@@ -119,12 +113,12 @@ public:
     QString popPendingGcceUpdate();
 signals:
     // content of BaseQtVersion objects with qmake path might have changed
-    void dumpUpdatedFor(const QString &qmakeCommand);
+    void dumpUpdatedFor(const Utils::FileName &qmakeCommand);
     void qtVersionsChanged(const QList<int> &uniqueIds);
     void updateExamples(QString, QString, QString);
 
 public slots:
-    void updateDumpFor(const QString &qmakeCommand);
+    void updateDumpFor(const Utils::FileName &qmakeCommand);
 
 private slots:
     void updateSettings();

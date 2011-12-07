@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,21 +42,28 @@ class WinCeQtVersion : public QtSupport::BaseQtVersion
 {
 public:
     WinCeQtVersion();
-    WinCeQtVersion(const QString &path, bool isAutodetected = false, const QString &autodetectionSource = QString());
+    WinCeQtVersion(const Utils::FileName &path, const QString &archType,
+        bool isAutodetected = false, const QString &autodetectionSource = QString());
     ~WinCeQtVersion();
     WinCeQtVersion *clone() const;
 
     QString type() const;
 
-    virtual QList<ProjectExplorer::Abi> qtAbis() const;
+    QList<ProjectExplorer::Abi> detectQtAbis() const;
 
-    virtual bool supportsTargetId(const QString &id) const;
-    virtual QSet<QString> supportedTargetIds() const;
+    bool supportsTargetId(const QString &id) const;
+    QSet<QString> supportedTargetIds() const;
 
     QString description() const;
+
+    virtual QVariantMap toMap() const;
+    virtual void fromMap(const QVariantMap &data);
+
+private:
+    ProjectExplorer::Abi::Architecture m_archType;
 };
 
-}
-}
+} // namespace Internal
+} // namespace Qt4ProjectManager
 
 #endif // WINCEQTVERSION_H

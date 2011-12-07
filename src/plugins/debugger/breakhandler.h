@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -79,6 +79,7 @@ public:
     BreakpointModelIds engineBreakpointIds(DebuggerEngine *engine) const;
     BreakpointModelIds unclaimedBreakpointIds() const;
     int size() const { return m_storage.size(); }
+    QStringList engineBreakpointPaths(DebuggerEngine *engine) const;
 
     // Find a breakpoint matching approximately the data in needle.
     BreakpointModelId findSimilarBreakpoint(const BreakpointResponse &needle) const;
@@ -114,7 +115,7 @@ public:
     int ignoreCount(BreakpointModelId id) const;
     void setIgnoreCount(BreakpointModelId, const int &count);
     int threadSpec(BreakpointModelId id) const;
-    void setThreadSpec(BreakpointModelId, const int&spec);
+    void setThreadSpec(BreakpointModelId, const int &spec);
     QString fileName(BreakpointModelId id) const;
     void setFileName(BreakpointModelId, const QString &fileName);
     QString functionName(BreakpointModelId id) const;

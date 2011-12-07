@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -64,7 +64,7 @@
 
 #include "dummycontextobject.h"
 
-#include "designersupportfunctions.h"
+#include <designersupport.h>
 
 namespace QmlDesigner {
 
@@ -103,14 +103,15 @@ void Qt5InformationNodeInstanceServer::collectItemChangesAndSendChangeCommands()
                     ServerNodeInstance instance = instanceForObject(item);
 
                     DesignerSupport::DirtyType informationsDirty = DesignerSupport::DirtyType(DesignerSupport::TransformUpdateMask
+                                                                                              | DesignerSupport::ContentUpdateMask
                                                                                               | DesignerSupport::Visible
                                                                                               | DesignerSupport::ZValue
                                                                                               | DesignerSupport::OpacityValue);
-                    if (DesignerSupport::dirty(item, informationsDirty))
+                    if (DesignerSupport::isDirty(item, informationsDirty))
                         informationChangedInstanceSet.insert(instance);
 
 
-                    if (DesignerSupport::dirty(item, DesignerSupport::ParentChanged)) {
+                    if (DesignerSupport::isDirty(item, DesignerSupport::ParentChanged)) {
                         m_parentChangedSet.insert(instance);
                         informationChangedInstanceSet.insert(instance);
                     }

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,6 @@ namespace Internal {
 class RemoteLinuxQmlProfilerRunner : public AbstractQmlProfilerRunner
 {
     Q_OBJECT
-    Q_DISABLE_COPY(RemoteLinuxQmlProfilerRunner)
 
     using AbstractQmlProfilerRunner::appendMessage; // don't hide signal
 public:
@@ -66,7 +65,7 @@ private slots:
     void handleProgressReport(const QString &progressString);
 
 private:
-    RemoteLinux::RemoteLinuxApplicationRunner *runner() const;
+    RemoteLinux::AbstractRemoteLinuxApplicationRunner *runner() const;
 
     int m_port;
     RemoteLinux::AbstractRemoteLinuxRunControl *m_runControl;

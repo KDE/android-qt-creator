@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qt4simulatortarget.h"
 #include "qt4project.h"
+#include "qt4nodes.h"
 #include "qt4runconfiguration.h"
+#include "qt4buildconfiguration.h"
 
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/deployconfiguration.h>
@@ -63,7 +65,7 @@ QString Qt4SimulatorTarget::defaultDisplayName()
     return QApplication::translate("Qt4ProjectManager::Qt4Target", "Qt Simulator", "Qt4 Simulator target display name");
 }
 
-Qt4BuildConfigurationFactory *Qt4SimulatorTarget::buildConfigurationFactory() const
+ProjectExplorer::IBuildConfigurationFactory *Qt4SimulatorTarget::buildConfigurationFactory() const
 {
     return m_buildConfigurationFactory;
 }

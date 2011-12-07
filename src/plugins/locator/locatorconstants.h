@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,11 +38,8 @@
 namespace Locator {
 namespace Constants {
 
-const char * const FILTER_OPTIONS_PAGE = QT_TRANSLATE_NOOP("Locator", "Filters");
-const char * const LOCATOR_CATEGORY = "G.Locator";
-const char * const LOCATOR_TR_CATEGORY = QT_TRANSLATE_NOOP("Locator", "Locator");
-const char * const SETTINGS_CATEGORY_LOCATOR_ICON = ":/core/images/category_locator.png";
-const char * const TASK_INDEX = "Locator.Task.Index";
+const char FILTER_OPTIONS_PAGE[] = QT_TRANSLATE_NOOP("Locator", "Locator");
+const char TASK_INDEX[] = "Locator.Task.Index";
 
 } // namespace Constants
 } // namespace Locator

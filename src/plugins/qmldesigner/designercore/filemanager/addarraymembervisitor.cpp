@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,10 +56,10 @@ void AddArrayMemberVisitor::findArrayBindingAndInsert(const QString &m_propertyN
 {
     for (UiObjectMemberList *iter = ast; iter; iter = iter->next) {
         if (UiArrayBinding *arrayBinding = cast<UiArrayBinding*>(iter->member)) {
-            if (flatten(arrayBinding->qualifiedId) == m_propertyName)
+            if (toString(arrayBinding->qualifiedId) == m_propertyName)
                 insertInto(arrayBinding);
         } else if (UiObjectBinding *objectBinding = cast<UiObjectBinding*>(iter->member)) {
-            if (flatten(objectBinding->qualifiedId) == m_propertyName && willConvertObjectBindingIntoArrayBinding())
+            if (toString(objectBinding->qualifiedId) == m_propertyName && willConvertObjectBindingIntoArrayBinding())
                 convertAndAdd(objectBinding);
         }
     }

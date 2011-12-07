@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,6 +47,7 @@
 #include <SymbolVisitor.h>
 #include <Scope.h>
 #include <TranslationUnit.h>
+#include <CppRewriter.h>
 
 #include <cplusplus/ResolveExpression.h>
 #include <cplusplus/MatchingText.h>
@@ -391,9 +392,20 @@ void CppAssistProposalItem::applyContextualContent(TextEditor::BaseTextEditor *e
     }
 
     // Avoid inserting characters that are already there
+    const int endsPosition = editor->position(TextEditor::ITextEditor::EndOfLine);
+    const QString text = editor->textAt(editor->position(), endsPosition - editor->position());
+    int existLength = 0;
+    if (!text.isEmpty()) {
+        // Calculate the exist length in front of the extra chars
+        existLength = toInsert.length() - (editor->position() - basePosition);
+        while (!text.startsWith(toInsert.right(existLength))) {
+            if (--existLength == 0)
+                break;
+        }
+    }
     for (int i = 0; i < extraChars.length(); ++i) {
         const QChar a = extraChars.at(i);
-        const QChar b = editor->characterAt(editor->position() + i);
+        const QChar b = editor->characterAt(editor->position() + i + existLength);
         if (a == b)
             ++extraLength;
         else
@@ -403,7 +415,7 @@ void CppAssistProposalItem::applyContextualContent(TextEditor::BaseTextEditor *e
     toInsert += extraChars;
 
     // Insert the remainder of the name
-    int length = editor->position() - basePosition + extraLength;
+    const int length = editor->position() - basePosition + existLength + extraLength;
     editor->setCursorPosition(basePosition);
     editor->replace(length, toInsert);
     if (cursorOffset)
@@ -483,9 +495,9 @@ int CppFunctionHintModel::activeArgument(const QString &prefix) const
 // ---------------------------
 // CppCompletionAssistProvider
 // ---------------------------
-bool CppCompletionAssistProvider::supportsEditor(const QString &editorId) const
+bool CppCompletionAssistProvider::supportsEditor(const Core::Id &editorId) const
 {
-    return editorId == QLatin1String(CppEditor::Constants::CPPEDITOR_ID);
+    return editorId == Core::Id(CppEditor::Constants::CPPEDITOR_ID);
 }
 
 int CppCompletionAssistProvider::activationCharSequenceLength() const
@@ -1856,14 +1868,29 @@ bool CppCompletionAssistProcessor::completeConstructorOrFunction(const QList<CPl
             }
 
             if (autocompleteSignature && !isDestructor) {
+                // set up for rewriting function types with minimally qualified names
+                // to do it correctly we'd need the declaration's context and scope, but
+                // that'd be too expensive to get here. instead, we just minimize locally
+                SubstitutionEnvironment env;
+                env.setContext(context);
+                env.switchScope(sc);
+                ClassOrNamespace *targetCoN = context.lookupType(sc);
+                if (!targetCoN)
+                    targetCoN = context.globalNamespace();
+                UseMinimalNames q(targetCoN);
+                env.enter(&q);
+                Control *control = context.control().data();
+
                 // set up signature autocompletion
                 foreach (Function *f, functions) {
                     Overview overview;
                     overview.setShowArgumentNames(true);
                     overview.setShowDefaultArguments(false);
 
+                    const FullySpecifiedType localTy = rewriteType(f->type(), &env, control);
+
                     // gets: "parameter list) cv-spec",
-                    QString completion = overview(f->type()).mid(1);
+                    QString completion = overview(localTy).mid(1);
 
                     addCompletionItem(completion, QIcon(), 0,
                                       QVariant::fromValue(CompleteFunctionDeclaration(f)));

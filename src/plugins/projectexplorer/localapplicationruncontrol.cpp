@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 #include <utils/environment.h>
 
 #include <QtGui/QLabel>
+#include <QtGui/QIcon>
 #include <QtCore/QDir>
 
 namespace ProjectExplorer {
@@ -91,6 +92,8 @@ LocalApplicationRunControl::LocalApplicationRunControl(LocalApplicationRunConfig
 
     connect(&m_applicationLauncher, SIGNAL(appendMessage(QString,Utils::OutputFormat)),
             this, SLOT(slotAppendMessage(QString,Utils::OutputFormat)));
+    connect(&m_applicationLauncher, SIGNAL(processStarted()),
+            this, SLOT(processStarted()));
     connect(&m_applicationLauncher, SIGNAL(processExited(int)),
             this, SLOT(processExited(int)));
     connect(&m_applicationLauncher, SIGNAL(bringToForegroundRequested(qint64)),
@@ -135,6 +138,12 @@ void LocalApplicationRunControl::slotAppendMessage(const QString &err,
                                                    Utils::OutputFormat format)
 {
     appendMessage(err, format);
+}
+
+void LocalApplicationRunControl::processStarted()
+{
+    // Console processes only know their pid after being started
+    setApplicationProcessHandle(ProcessHandle(m_applicationLauncher.applicationPID()));
 }
 
 void LocalApplicationRunControl::processExited(int exitCode)

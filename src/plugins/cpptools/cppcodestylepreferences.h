@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,35 +35,34 @@
 
 #include "cpptools_global.h"
 #include "cppcodestylesettings.h"
-#include <texteditor/ifallbackpreferences.h>
+#include <texteditor/icodestylepreferences.h>
 
 namespace CppTools {
 
-class CPPTOOLS_EXPORT CppCodeStylePreferences : public TextEditor::IFallbackPreferences
+class CPPTOOLS_EXPORT CppCodeStylePreferences : public TextEditor::ICodeStylePreferences
 {
     Q_OBJECT
 public:
     explicit CppCodeStylePreferences(
-        const QList<TextEditor::IFallbackPreferences *> &fallbacks,
         QObject *parent = 0);
 
     virtual QVariant value() const;
     virtual void setValue(const QVariant &);
 
-    CppCodeStyleSettings settings() const;
+    CppCodeStyleSettings codeStyleSettings() const;
 
     // tracks parent hierarchy until currentParentSettings is null
-    CppCodeStyleSettings currentSettings() const;
+    CppCodeStyleSettings currentCodeStyleSettings() const;
 
     virtual void toMap(const QString &prefix, QVariantMap *map) const;
     virtual void fromMap(const QString &prefix, const QVariantMap &map);
 
 public slots:
-    void setSettings(const CppTools::CppCodeStyleSettings &data);
+    void setCodeStyleSettings(const CppTools::CppCodeStyleSettings &data);
 
 signals:
-    void settingsChanged(const CppTools::CppCodeStyleSettings &);
-    void currentSettingsChanged(const CppTools::CppCodeStyleSettings &);
+    void codeStyleSettingsChanged(const CppTools::CppCodeStyleSettings &);
+    void currentCodeStyleSettingsChanged(const CppTools::CppCodeStyleSettings &);
 
 protected:
     virtual QString settingsSuffix() const;

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef EDITORVIEW_H
 #define EDITORVIEW_H
+
+#include "coreplugin/id.h"
 
 #include <QtCore/QMap>
 #include <QtCore/QList>
@@ -64,7 +66,7 @@ namespace Internal {
 struct EditLocation {
     QPointer<IFile> file;
     QString fileName;
-    QString id;
+    Id id;
     QVariant state;
 };
 
@@ -91,10 +93,14 @@ public:
                            const QString &buttonText,
                            QObject *object, const char *member);
     void hideEditorStatusBar(const QString &id);
+    void setCloseSplitEnabled(bool enable);
 
 private slots:
     void closeView();
     void listSelectionActivated(int index);
+    void splitHorizontally();
+    void splitVertically();
+    void closeSplit();
 
 private:
     void updateNavigatorActions();

@@ -37,6 +37,7 @@
 
 #define CPLUSPLUS_NO_DEBUG_RULE
 #define MAX_EXPRESSION_DEPTH 100
+#define MAX_STATEMENT_DEPTH 100
 
 using namespace CPlusPlus;
 
@@ -181,7 +182,8 @@ Parser::Parser(TranslationUnit *unit)
       _inFunctionBody(false),
       _inObjCImplementationContext(false),
       _inExpressionStatement(false),
-      _expressionDepth(0)
+      _expressionDepth(0),
+      _statementDepth(0)
 { }
 
 Parser::~Parser()
@@ -380,8 +382,14 @@ bool Parser::parseClassOrNamespaceName(NameAST *&node)
     if (LA() == T_IDENTIFIER && (LA(2) == T_COLON_COLON || LA(2) == T_LESS)) {
         unsigned identifier_token = cursor();
 
-        if (LA(2) == T_LESS && parseTemplateId(node) && LA() == T_COLON_COLON)
-            return true;
+        if (LA(2) == T_LESS) {
+            bool blocked = blockErrors(true);
+            if (parseTemplateId(node) && LA() == T_COLON_COLON) {
+                blockErrors(blocked);
+                return true;
+            }
+            blockErrors(blocked);
+        }
 
         rewind(identifier_token);
 
@@ -1991,6 +1999,7 @@ bool Parser::parseQtPropertyDeclaration(DeclarationAST *&node)
                 case Token_WRITE:
                 case Token_RESET:
                 case Token_NOTIFY:
+                case Token_REVISION:
                 case Token_DESIGNABLE:
                 case Token_SCRIPTABLE:
                 case Token_STORED:
@@ -2695,19 +2704,24 @@ bool Parser::parseUnqualifiedName(NameAST *&node, bool acceptTemplateId)
         rewind(operator_token);
         return parseConversionFunctionId(node);
      } else if (LA() == T_IDENTIFIER) {
-         unsigned identifier_token = cursor();
-         if (acceptTemplateId && LA(2) == T_LESS && parseTemplateId(node)) {
-             if (! _templateArguments || (LA() == T_COMMA  || LA() == T_GREATER ||
-                                          LA() == T_LPAREN || LA() == T_RPAREN  ||
-                                          LA() == T_STAR || LA() == T_AMPER || // ptr-operators
-                                          LA() == T_COLON_COLON))
-                 return true;
-         }
-         rewind(identifier_token);
-         SimpleNameAST *ast = new (_pool) SimpleNameAST;
-         ast->identifier_token = consumeToken();
-         node = ast;
-         return true;
+        unsigned identifier_token = cursor();
+        if (acceptTemplateId && LA(2) == T_LESS) {
+            bool blocked = blockErrors(true);
+            if (parseTemplateId(node)
+                    && (! _templateArguments || (LA() == T_COMMA  || LA() == T_GREATER ||
+                                                 LA() == T_LPAREN || LA() == T_RPAREN  ||
+                                                 LA() == T_STAR || LA() == T_AMPER || // ptr-operators
+                                                 LA() == T_COLON_COLON))) {
+                blockErrors(blocked);
+                return true;
+            }
+            blockErrors(blocked);
+        }
+        rewind(identifier_token);
+        SimpleNameAST *ast = new (_pool) SimpleNameAST;
+        ast->identifier_token = consumeToken();
+        node = ast;
+        return true;
     } else if (LA() == T_TEMPLATE) {
         unsigned template_token = consumeToken();
         if (parseTemplateId(node, template_token))
@@ -3198,6 +3212,10 @@ bool Parser::parseCompoundStatement(StatementAST *&node)
 {
     DEBUG_THIS_RULE();
     if (LA() == T_LBRACE) {
+        if (_statementDepth > MAX_STATEMENT_DEPTH)
+            return false;
+        ++_statementDepth;
+
         CompoundStatementAST *ast = new (_pool) CompoundStatementAST;
         ast->lbrace_token = consumeToken();
 
@@ -3222,6 +3240,7 @@ bool Parser::parseCompoundStatement(StatementAST *&node)
         }
         match(T_RBRACE, &ast->rbrace_token);
         node = ast;
+        --_statementDepth;
         return true;
     }
     return false;
@@ -3394,6 +3413,10 @@ bool Parser::lookAtStorageClassSpecifier() const
     case T_MUTABLE:
     case T_TYPEDEF:
         return true;
+    case T_CONSTEXPR:
+        if (_cxx0xEnabled)
+            return true;
+        // fall-through
     default:
         return false;
     }
@@ -3842,6 +3865,18 @@ bool Parser::parseNumericLiteral(ExpressionAST *&node)
     return false;
 }
 
+bool Parser::parsePointerLiteral(ExpressionAST *&node)
+{
+    DEBUG_THIS_RULE();
+    if (LA() == T_NULLPTR) {
+        PointerLiteralAST *ast = new (_pool) PointerLiteralAST;
+        ast->literal_token = consumeToken();
+        node = ast;
+        return true;
+    }
+    return false;
+}
+
 bool Parser::parseThisExpression(ExpressionAST *&node)
 {
     DEBUG_THIS_RULE();
@@ -3861,6 +3896,11 @@ bool Parser::parsePrimaryExpression(ExpressionAST *&node)
     case T_STRING_LITERAL:
     case T_WIDE_STRING_LITERAL:
         return parseStringLiteral(node);
+
+    case T_NULLPTR:
+        if (_cxx0xEnabled)
+            return parsePointerLiteral(node);
+        // fall-through
 
     case T_CHAR_LITERAL: // ### FIXME don't use NumericLiteral for chars
     case T_WIDE_CHAR_LITERAL:

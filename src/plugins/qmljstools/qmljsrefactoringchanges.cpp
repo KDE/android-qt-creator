@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmljsrefactoringchanges.h"
 #include "qmljsqtstylecodeformatter.h"
 #include "qmljstoolsconstants.h"
+#include "qmljsmodelmanager.h"
 
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
@@ -43,65 +44,88 @@
 using namespace QmlJS;
 using namespace QmlJSTools;
 
+class QmlJSTools::QmlJSRefactoringChangesData : public TextEditor::RefactoringChangesData
+{
+public:
+    QmlJSRefactoringChangesData(ModelManagerInterface *modelManager,
+                                const Snapshot &snapshot)
+        : m_modelManager(modelManager)
+        , m_snapshot(snapshot)
+    {}
+
+    virtual void indentSelection(const QTextCursor &selection,
+                                 const QString &fileName,
+                                 const TextEditor::BaseTextEditorWidget *textEditor) const
+    {
+        // ### shares code with QmlJSTextEditor::indent
+        QTextDocument *doc = selection.document();
+
+        QTextBlock block = doc->findBlock(selection.selectionStart());
+        const QTextBlock end = doc->findBlock(selection.selectionEnd()).next();
+
+        const TextEditor::TabSettings &tabSettings =
+            ProjectExplorer::actualTabSettings(fileName, textEditor);
+        CreatorCodeFormatter codeFormatter(tabSettings);
+        codeFormatter.updateStateUntil(block);
+
+        do {
+            const int depth = codeFormatter.indentFor(block);
+            if (depth != -1)
+                tabSettings.indentLine(block, depth);
+            codeFormatter.updateLineStateChange(block);
+            block = block.next();
+        } while (block.isValid() && block != end);
+    }
+
+    virtual void fileChanged(const QString &fileName)
+    {
+        m_modelManager->updateSourceFiles(QStringList(fileName), true);
+    }
+
+    QmlJS::ModelManagerInterface *m_modelManager;
+    QmlJS::Snapshot m_snapshot;
+};
+
 QmlJSRefactoringChanges::QmlJSRefactoringChanges(ModelManagerInterface *modelManager,
                                                  const Snapshot &snapshot)
-    : m_modelManager(modelManager)
-    , m_snapshot(snapshot)
+    : RefactoringChanges(new QmlJSRefactoringChangesData(modelManager, snapshot))
 {
-    Q_ASSERT(modelManager);
+}
+
+QmlJSRefactoringFilePtr QmlJSRefactoringChanges::file(const QString &fileName) const
+{
+    return QmlJSRefactoringFilePtr(new QmlJSRefactoringFile(fileName, m_data));
+}
+
+QmlJSRefactoringFilePtr QmlJSRefactoringChanges::file(
+        TextEditor::BaseTextEditorWidget *editor, const Document::Ptr &document)
+{
+    return QmlJSRefactoringFilePtr(new QmlJSRefactoringFile(editor, document));
 }
 
 const Snapshot &QmlJSRefactoringChanges::snapshot() const
 {
-    return m_snapshot;
+    return data()->m_snapshot;
 }
 
-QmlJSRefactoringFile QmlJSRefactoringChanges::file(const QString &fileName)
+QmlJSRefactoringChangesData *QmlJSRefactoringChanges::data() const
 {
-    return QmlJSRefactoringFile(fileName, this);
+    return static_cast<QmlJSRefactoringChangesData *>(m_data.data());
 }
 
-void QmlJSRefactoringChanges::indentSelection(const QTextCursor &selection,
-                                              const QString &fileName,
-                                              const TextEditor::BaseTextEditorWidget *textEditor) const
+QmlJSRefactoringFile::QmlJSRefactoringFile(const QString &fileName, const QSharedPointer<TextEditor::RefactoringChangesData> &data)
+    : RefactoringFile(fileName, data)
 {
-    // ### shares code with QmlJSTextEditor::indent
-    QTextDocument *doc = selection.document();
-
-    QTextBlock block = doc->findBlock(selection.selectionStart());
-    const QTextBlock end = doc->findBlock(selection.selectionEnd()).next();
-
-    const TextEditor::TabSettings &tabSettings =
-        ProjectExplorer::actualTabSettings(fileName, textEditor);
-    QtStyleCodeFormatter codeFormatter(tabSettings);
-    codeFormatter.updateStateUntil(block);
-
-    do {
-        tabSettings.indentLine(block, codeFormatter.indentFor(block));
-        codeFormatter.updateLineStateChange(block);
-        block = block.next();
-    } while (block.isValid() && block != end);
+    // the RefactoringFile is invalid if its not for a file with qml or js code
+    if (languageOfFile(fileName) == Document::UnknownLanguage)
+        m_fileName.clear();
 }
-
-void QmlJSRefactoringChanges::fileChanged(const QString &fileName)
-{
-    m_modelManager->updateSourceFiles(QStringList(fileName), true);
-}
-
-
-QmlJSRefactoringFile::QmlJSRefactoringFile()
-{ }
-
-QmlJSRefactoringFile::QmlJSRefactoringFile(const QString &fileName, QmlJSRefactoringChanges *refactoringChanges)
-    : RefactoringFile(fileName, refactoringChanges)
-{ }
 
 QmlJSRefactoringFile::QmlJSRefactoringFile(TextEditor::BaseTextEditorWidget *editor, QmlJS::Document::Ptr document)
-    : RefactoringFile()
+    : RefactoringFile(editor)
     , m_qmljsDocument(document)
 {
     m_fileName = document->fileName();
-    m_editor = editor;
 }
 
 Document::Ptr QmlJSRefactoringFile::qmljsDocument() const
@@ -109,10 +133,11 @@ Document::Ptr QmlJSRefactoringFile::qmljsDocument() const
     if (!m_qmljsDocument) {
         const QString source = document()->toPlainText();
         const QString name = fileName();
-        const Snapshot &snapshot = refactoringChanges()->snapshot();
+        const Snapshot &snapshot = data()->m_snapshot;
 
-        m_qmljsDocument = snapshot.documentFromSource(source, name);
-        m_qmljsDocument->parse();
+        Document::MutablePtr newDoc = snapshot.documentFromSource(source, name, languageOfFile(name));
+        newDoc->parse();
+        m_qmljsDocument = newDoc;
     }
 
     return m_qmljsDocument;
@@ -145,7 +170,19 @@ bool QmlJSRefactoringFile::isCursorOn(AST::UiQualifiedId *ast) const
     return pos <= ast->identifierToken.end();
 }
 
-QmlJSRefactoringChanges *QmlJSRefactoringFile::refactoringChanges() const
+bool QmlJSRefactoringFile::isCursorOn(AST::SourceLocation loc) const
 {
-    return static_cast<QmlJSRefactoringChanges *>(m_refactoringChanges);
+    const unsigned pos = cursor().position();
+    return pos >= loc.begin() && pos <= loc.end();
+}
+
+QmlJSRefactoringChangesData *QmlJSRefactoringFile::data() const
+{
+    return static_cast<QmlJSRefactoringChangesData *>(m_data.data());
+}
+
+void QmlJSRefactoringFile::fileChanged()
+{
+    m_qmljsDocument.clear();
+    RefactoringFile::fileChanged();
 }

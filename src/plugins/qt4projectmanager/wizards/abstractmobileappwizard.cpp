@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,9 @@
 
 namespace Qt4ProjectManager {
 
-AbstractMobileAppWizardDialog::AbstractMobileAppWizardDialog(QWidget *parent, const QtSupport::QtVersionNumber &minimumQtVersionNumber)
+AbstractMobileAppWizardDialog::AbstractMobileAppWizardDialog(QWidget *parent,
+                                                             const QtSupport::QtVersionNumber &minimumQtVersionNumber,
+                                                             const QtSupport::QtVersionNumber &maximumQtVersionNumber)
     : ProjectExplorer::BaseProjectWizardDialog(parent)
     , m_genericOptionsPageId(-1)
     , m_symbianOptionsPageId(-1)
@@ -66,6 +68,7 @@ AbstractMobileAppWizardDialog::AbstractMobileAppWizardDialog(QWidget *parent, co
     m_targetsPage = new TargetSetupPage;
     m_targetsPage->setPreferredFeatures(QSet<QString>() << Constants::MOBILE_TARGETFEATURE_ID);
     m_targetsPage->setMinimumQtVersion(minimumQtVersionNumber);
+    m_targetsPage->setMaximumQtVersion(maximumQtVersionNumber);
     resize(900, 450);
 
     m_genericOptionsPage = new Internal::MobileAppWizardGenericOptionsPage;
@@ -83,7 +86,7 @@ void AbstractMobileAppWizardDialog::addMobilePages()
     m_symbianOptionsPageId = addPageWithTitle(m_symbianOptionsPage,
         QLatin1String("    ") + tr("Symbian Specific"));
     m_maemoOptionsPageId = addPageWithTitle(m_maemoOptionsPage,
-        QLatin1String("    ") + tr("Maemo5 And Meego Specific"));
+        QLatin1String("    ") + tr("Maemo5 And MeeGo Specific"));
     m_harmattanOptionsPageId = addPageWithTitle(m_harmattanOptionsPage,
         QLatin1String("    ") + tr("Harmattan Specific"));
 
@@ -93,8 +96,7 @@ void AbstractMobileAppWizardDialog::addMobilePages()
     m_maemoItem = wizardProgress()->item(m_maemoOptionsPageId);
     m_harmattanItem = wizardProgress()->item(m_harmattanOptionsPageId);
 
-    m_genericItem->setNextShownItem(0);
-    m_symbianItem->setNextShownItem(0);
+    m_targetItem->setNextShownItem(0);
 }
 
 TargetSetupPage *AbstractMobileAppWizardDialog::targetsPage() const
@@ -151,12 +153,16 @@ void AbstractMobileAppWizardDialog::initializePage(int id)
 {
     if (id == startId()) {
         m_targetItem->setNextItems(QList<Utils::WizardProgressItem *>()
-            << m_genericItem << m_maemoItem << m_harmattanItem << itemOfNextGenericPage());
+            << m_genericItem << m_symbianItem << m_maemoItem << m_harmattanItem << itemOfNextGenericPage());
         m_genericItem->setNextItems(QList<Utils::WizardProgressItem *>()
             << m_symbianItem << m_maemoItem);
         m_symbianItem->setNextItems(QList<Utils::WizardProgressItem *>()
             << m_maemoItem << m_harmattanItem << itemOfNextGenericPage());
-    } else if (id == m_genericOptionsPageId) {
+        m_maemoItem->setNextItems(QList<Utils::WizardProgressItem *>()
+            << m_harmattanItem << itemOfNextGenericPage());
+    } else if (id == m_genericOptionsPageId
+               || id == m_symbianOptionsPageId
+               || id == m_maemoOptionsPageId) {
         QList<Utils::WizardProgressItem *> order;
         order << m_genericItem;
         if (isSymbianTargetSelected())
@@ -171,15 +177,6 @@ void AbstractMobileAppWizardDialog::initializePage(int id)
             order.at(i)->setNextShownItem(order.at(i + 1));
     }
     BaseProjectWizardDialog::initializePage(id);
-}
-
-void AbstractMobileAppWizardDialog::cleanupPage(int id)
-{
-    if (id == m_genericOptionsPageId) {
-        m_genericItem->setNextShownItem(0);
-        m_symbianItem->setNextShownItem(0);
-    }
-    BaseProjectWizardDialog::cleanupPage(id);
 }
 
 void AbstractMobileAppWizardDialog::setIgnoreGenericOptionsPage(bool ignore)
@@ -239,8 +236,8 @@ QWizard *AbstractMobileAppWizard::createWizardDialog(QWidget *parent,
     wdlg->m_genericOptionsPage->setOrientation(app()->orientation());
     wdlg->m_symbianOptionsPage->setSvgIcon(app()->symbianSvgIcon());
     wdlg->m_symbianOptionsPage->setNetworkEnabled(app()->networkEnabled());
-    wdlg->m_maemoOptionsPage->setPngIcon(app()->maemoPngIcon64());
-    wdlg->m_harmattanOptionsPage->setPngIcon(app()->maemoPngIcon80());
+    wdlg->m_maemoOptionsPage->setPngIcon(app()->pngIcon64());
+    wdlg->m_harmattanOptionsPage->setPngIcon(app()->pngIcon80());
     wdlg->m_harmattanOptionsPage->setBoosterOptionEnabled(app()->canSupportMeegoBooster());
     connect(wdlg, SIGNAL(projectParametersChanged(QString, QString)),
         SLOT(useProjectPath(QString, QString)));
@@ -258,8 +255,8 @@ Core::GeneratedFiles AbstractMobileAppWizard::generateFiles(const QWizard *wizar
     app()->setSymbianTargetUid(wdlg->m_symbianOptionsPage->symbianUid());
     app()->setSymbianSvgIcon(wdlg->m_symbianOptionsPage->svgIcon());
     app()->setNetworkEnabled(wdlg->m_symbianOptionsPage->networkEnabled());
-    app()->setMaemoPngIcon64(wdlg->m_maemoOptionsPage->pngIcon());
-    app()->setMaemoPngIcon80(wdlg->m_harmattanOptionsPage->pngIcon());
+    app()->setPngIcon64(wdlg->m_maemoOptionsPage->pngIcon());
+    app()->setPngIcon80(wdlg->m_harmattanOptionsPage->pngIcon());
     if (wdlg->isHarmattanTargetSelected())
         app()->setSupportsMeegoBooster(wdlg->isHarmattanTargetSelected()
                                        && wdlg->m_harmattanOptionsPage->supportsBooster());
@@ -284,7 +281,7 @@ bool AbstractMobileAppWizard::postGenerateFiles(const QWizard *w,
         if (success) {
             const QString fileToOpen = fileToOpenPostGeneration();
             if (!fileToOpen.isEmpty()) {
-                Core::EditorManager::instance()->openEditor(fileToOpen, QString(), Core::EditorManager::ModeSwitch);
+                Core::EditorManager::instance()->openEditor(fileToOpen, Core::Id(), Core::EditorManager::ModeSwitch);
                 ProjectExplorer::ProjectExplorerPlugin::instance()->setCurrentFile(0, fileToOpen);
             }
         }

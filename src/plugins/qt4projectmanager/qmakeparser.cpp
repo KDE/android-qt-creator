@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmakeparser.h"
 #include "qt4projectmanagerconstants.h"
 
-#include <projectexplorer/taskwindow.h>
+#include <projectexplorer/task.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
 
@@ -41,11 +41,9 @@ using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
 using ProjectExplorer::Task;
 
-QMakeParser::QMakeParser()
+QMakeParser::QMakeParser() : m_error(QLatin1String("^(.+):(\\d+):\\s(.+)$"))
 {
     setObjectName(QLatin1String("QMakeParser"));
-
-    m_error.setPattern("^(.+):(\\d+):\\s(.+)$");
     m_error.setMinimal(true);
 }
 

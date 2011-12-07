@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -88,15 +88,24 @@ private:
     QList<QPair<const Name *, FullySpecifiedType> > _map;
 };
 
-class CPLUSPLUS_EXPORT UseQualifiedNames: public Substitution
+class CPLUSPLUS_EXPORT UseMinimalNames: public Substitution
+{
+public:
+    UseMinimalNames(ClassOrNamespace *target);
+    virtual ~UseMinimalNames();
+
+    virtual FullySpecifiedType apply(const Name *name, Rewrite *rewrite) const;
+
+private:
+    ClassOrNamespace *_target;
+};
+
+class CPLUSPLUS_EXPORT UseQualifiedNames: public UseMinimalNames
 {
 public:
     UseQualifiedNames();
     virtual ~UseQualifiedNames();
-
-    virtual FullySpecifiedType apply(const Name *name, Rewrite *rewrite) const;
 };
-
 
 
 CPLUSPLUS_EXPORT FullySpecifiedType rewriteType(const FullySpecifiedType &type,

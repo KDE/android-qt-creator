@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/infobar.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <debugger/debuggerconstants.h>
@@ -498,9 +498,9 @@ protected:
         if (unsyncronizableChanges == QmlJSLiveTextPreview::NoUnsyncronizableChanges) {
             UiObjectDefinition *parentDefinition = cast<UiObjectDefinition *>(parent);
             if (parentDefinition && parentDefinition->qualifiedTypeNameId
-                       && parentDefinition->qualifiedTypeNameId->name)
+                       && !parentDefinition->qualifiedTypeNameId->name.isEmpty())
             {
-                unsyncronizableElementName = parentDefinition->qualifiedTypeNameId->name->asString();
+                unsyncronizableElementName = parentDefinition->qualifiedTypeNameId->name.toString();
                 unsyncronizableChanges = QmlJSLiveTextPreview::ElementChangeWarning;
                 unsyncronizableChangeLine = parentDefinition->firstSourceLocation().startLine;
                 unsyncronizableChangeColumn = parentDefinition->firstSourceLocation().startColumn;

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,6 +36,7 @@
 #include "checkoutjobs.h"
 
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QFileInfo>
@@ -100,12 +101,12 @@ Core::IWizard::WizardKind BaseCheckoutWizard::kind() const
 
 QString BaseCheckoutWizard::category() const
 {
-    return QLatin1String(VCSBase::Constants::VCS_WIZARD_CATEGORY);
+    return QLatin1String(ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY);
 }
 
 QString BaseCheckoutWizard::displayCategory() const
 {
-    return QCoreApplication::translate("VCSBase", VCSBase::Constants::VCS_WIZARD_TR_CATEGORY);
+    return QCoreApplication::translate("ProjectExplorer", ProjectExplorer::Constants::IMPORT_WIZARD_CATEGORY_DISPLAY);
 }
 
 QString BaseCheckoutWizard::id() const
@@ -189,9 +190,7 @@ QString BaseCheckoutWizard::openProject(const QString &path, QString *errorMessa
         return QString();
     // Open. Do not use a busy cursor here as additional wizards might pop up
     const QString projectFile = projectFiles.front().absoluteFilePath();
-    if (!pe->openProject(projectFile)) {
-        *errorMessage = tr("Unable to open the project '%1'.").
-                        arg(QDir::toNativeSeparators(projectFile));
+    if (!pe->openProject(projectFile, errorMessage)) {
         return QString();
     }
     return projectFile;

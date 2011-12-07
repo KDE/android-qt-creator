@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,6 +36,7 @@
 #include "genericprojectconstants.h"
 #include "generictarget.h"
 
+#include <projectexplorer/abi.h>
 #include <projectexplorer/buildenvironmentwidget.h>
 #include <projectexplorer/headerpath.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
@@ -48,6 +49,7 @@
 #include <utils/fileutils.h>
 #include <coreplugin/icore.h>
 #include <coreplugin/icontext.h>
+#include <coreplugin/filemanager.h>
 
 #include <QtCore/QDir>
 #include <QtCore/QProcessEnvironment>
@@ -84,8 +86,18 @@ GenericProject::GenericProject(Manager *manager, const QString &fileName)
     m_includesFileName = QFileInfo(dir, m_projectName + QLatin1String(".includes")).absoluteFilePath();
     m_configFileName   = QFileInfo(dir, m_projectName + QLatin1String(".config")).absoluteFilePath();
 
-    m_file = new GenericProjectFile(this, fileName);
-    m_rootNode = new GenericProjectNode(this, m_file);
+    m_creatorIFile  = new GenericProjectFile(this, m_fileName, GenericProject::Everything);
+    m_filesIFile    = new GenericProjectFile(this, m_filesFileName, GenericProject::Files);
+    m_includesIFile = new GenericProjectFile(this, m_includesFileName, GenericProject::Configuration);
+    m_configIFile   = new GenericProjectFile(this, m_configFileName, GenericProject::Configuration);
+
+    Core::FileManager *fm = Core::FileManager::instance();
+    fm->addFile(m_creatorIFile);
+    fm->addFile(m_filesIFile);
+    fm->addFile(m_includesIFile);
+    fm->addFile(m_configIFile);
+
+    m_rootNode = new GenericProjectNode(this, m_creatorIFile);
 
     m_manager->registerProject(this);
 }
@@ -185,6 +197,22 @@ bool GenericProject::setFiles(const QStringList &filePaths)
     QDir baseDir(QFileInfo(m_fileName).dir());
     foreach (const QString &filePath, filePaths)
         newList.append(baseDir.relativeFilePath(filePath));
+
+    return saveRawFileList(newList);
+}
+
+bool GenericProject::renameFile(const QString &filePath, const QString &newFilePath)
+{
+    QStringList newList = m_rawFileList;
+
+    QHash<QString, QString>::iterator i = m_rawListEntries.find(filePath);
+    if (i != m_rawListEntries.end()) {
+        int index = newList.indexOf(i.value());
+        if (index != -1) {
+            QDir baseDir(QFileInfo(m_fileName).dir());
+            newList.replace(index, baseDir.relativeFilePath(newFilePath));
+        }
+    }
 
     return saveRawFileList(newList);
 }
@@ -390,7 +418,7 @@ QString GenericProject::id() const
 
 Core::IFile *GenericProject::file() const
 {
-    return m_file;
+    return m_creatorIFile;
 }
 
 IProjectManager *GenericProject::projectManager() const
@@ -572,10 +600,11 @@ void GenericBuildSettingsWidget::updateToolChainList()
 // GenericProjectFile
 ////////////////////////////////////////////////////////////////////////////////////
 
-GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName)
+GenericProjectFile::GenericProjectFile(GenericProject *parent, QString fileName, GenericProject::RefreshOptions options)
     : Core::IFile(parent),
       m_project(parent),
-      m_fileName(fileName)
+      m_fileName(fileName),
+      m_options(options)
 { }
 
 GenericProjectFile::~GenericProjectFile()
@@ -639,6 +668,8 @@ bool GenericProjectFile::reload(QString *errorString, ReloadFlag flag, ChangeTyp
 {
     Q_UNUSED(errorString)
     Q_UNUSED(flag)
-    Q_UNUSED(type)
+    if (type == TypePermissions)
+        return true;
+    m_project->refresh(m_options);
     return true;
 }

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,12 +51,13 @@ public:
     virtual ~QmlJSQuickFixAssistInterface();
 
     const SemanticInfo &semanticInfo() const;
-    const QmlJSTools::QmlJSRefactoringFile currentFile() const;
-    QWidget *widget() const;
+    QmlJSTools::QmlJSRefactoringFilePtr currentFile() const;
+    QmlJSTextEditorWidget *editor() const;
 
 private:
     QmlJSTextEditorWidget *m_editor;
     SemanticInfo m_semanticInfo;
+    QmlJSTools::QmlJSRefactoringFilePtr m_currentFile;
 };
 
 
@@ -79,7 +80,7 @@ public:
     QmlJSQuickFixAssistProvider();
     virtual ~QmlJSQuickFixAssistProvider();
 
-    virtual bool supportsEditor(const QString &editorId) const;
+    virtual bool supportsEditor(const Core::Id &editorId) const;
     virtual TextEditor::IAssistProcessor *createProcessor() const;
 
     virtual QList<TextEditor::QuickFixFactory *> quickFixFactories() const;

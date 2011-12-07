@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,9 @@
 #include "shortcutsettings.h"
 #include "command_p.h"
 
-#include <coreplugin/uniqueidmanager.h>
-#include <coreplugin/coreconstants.h>
+#include <app/app_version.h>
+
+#include <coreplugin/id.h>
 
 #include <utils/qtcassert.h>
 
@@ -134,8 +135,6 @@ QMap<QString, QKeySequence> CommandsFile::importCommands() const
 
 bool CommandsFile::exportCommands(const QList<ShortcutItem *> &items)
 {
-    const UniqueIDManager *idmanager = UniqueIDManager::instance();
-
     Utils::FileSaver saver(m_filename, QIODevice::Text);
     if (!saver.hasError()) {
         const Context ctx;
@@ -149,13 +148,13 @@ bool CommandsFile::exportCommands(const QList<ShortcutItem *> &items)
                            QDateTime::currentDateTime().toString(Qt::ISODate)));
         w.writeStartElement(ctx.mappingElement);
         foreach (const ShortcutItem *item, items) {
-            const QString id = idmanager->stringForUniqueIdentifier(item->m_cmd->id());
+            const Id id = item->m_cmd->id();
             if (item->m_key.isEmpty()) {
                 w.writeEmptyElement(ctx.shortCutElement);
-                w.writeAttribute(ctx.idAttribute, id);
+                w.writeAttribute(ctx.idAttribute, id.toString());
             } else {
                 w.writeStartElement(ctx.shortCutElement);
-                w.writeAttribute(ctx.idAttribute, id);
+                w.writeAttribute(ctx.idAttribute, id.toString());
                 w.writeEmptyElement(ctx.keyElement);
                 w.writeAttribute(ctx.valueAttribute, item->m_key.toString());
                 w.writeEndElement(); // Shortcut

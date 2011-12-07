@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,8 +36,6 @@
 #include "core_global.h"
 
 #include <QtGui/QWidget>
-
-#include <QtCore/QScopedPointer>
 
 QT_BEGIN_NAMESPACE
 class QSplitter;
@@ -54,8 +52,9 @@ struct OutputPanePlaceHolderPrivate;
 
 class CORE_EXPORT OutputPanePlaceHolder : public QWidget
 {
-    friend class Core::Internal::OutputPaneManager; // needs to set m_visible and thus access m_current
     Q_OBJECT
+    friend class Core::Internal::OutputPaneManager; // needs to set m_visible and thus access m_current
+
 public:
     explicit OutputPanePlaceHolder(Core::IMode *mode, QSplitter *parent = 0);
     ~OutputPanePlaceHolder();
@@ -65,6 +64,7 @@ public:
 
     void unmaximize();
     bool isMaximized() const;
+    void ensureSizeHintAsMinimum();
 
 private slots:
     void currentModeChanged(Core::IMode *);
@@ -73,7 +73,7 @@ private:
     bool canMaximizeOrMinimize() const;
     void maximizeOrMinimize(bool maximize);
 
-    QScopedPointer<OutputPanePlaceHolderPrivate> d;
+    OutputPanePlaceHolderPrivate *d;
 };
 
 } // namespace Core

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -137,7 +137,7 @@ void S60DeployStep::ctor()
     //: Qt4 Deploystep display name
     setDefaultDisplayName(tr("Deploy"));
     m_timeoutTimer->setSingleShot(true);
-    m_timeoutTimer->setInterval(2000);
+    m_timeoutTimer->setInterval(10000);
     connect(m_timeoutTimer, SIGNAL(timeout()), this, SLOT(timeout()));
 }
 
@@ -150,7 +150,7 @@ S60DeployStep::~S60DeployStep()
 
 bool S60DeployStep::init()
 {
-    Qt4BuildConfiguration *bc = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
+    Qt4BuildConfiguration *bc = static_cast<Qt4BuildConfiguration *>(target()->activeBuildConfiguration());
     S60DeployConfiguration *deployConfiguration = static_cast<S60DeployConfiguration *>(bc->target()->activeDeployConfiguration());
     if (!deployConfiguration)
         return false;
@@ -499,7 +499,7 @@ void S60DeployStep::handleSymbianInstall(const Coda::CodaCommandResult &result)
         reportError(tr("Installation failed: %1; "
                        "see %2 for descriptions of the error codes")
                     .arg(result.errorString(),
-                         QLatin1String("http://wiki.forum.nokia.com/index.php/Symbian_OS_Error_Codes")));
+                         QLatin1String("http://www.developer.nokia.com/Community/Wiki/Symbian_OS_Error_Codes")));
     }
 }
 

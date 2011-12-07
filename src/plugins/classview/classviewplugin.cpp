@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,31 +39,7 @@
 namespace ClassView {
 namespace Internal {
 
-///////////////////////////////// PluginPrivate //////////////////////////////////
-/*!
-   \struct PluginPrivate
-   \brief Private class data for \a Plugin
-   \sa Plugin
- */
-struct PluginPrivate
-{
-    //! Pointer to Navi Widget Factory
-    QPointer<NavigationWidgetFactory> navigationWidgetFactory;
-
-    //! Pointer to Manager
-    QPointer<Manager> manager;
-};
-
 ///////////////////////////////// Plugin //////////////////////////////////
-
-Plugin::Plugin()
-    : d_ptr(new PluginPrivate())
-{
-}
-
-Plugin::~Plugin()
-{
-}
 
 bool Plugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
@@ -71,19 +47,15 @@ bool Plugin::initialize(const QStringList &arguments, QString *errorMessage)
     Q_UNUSED(errorMessage)
 
     // create a navigation widget factory
-    d_ptr->navigationWidgetFactory = NavigationWidgetFactory::instance();
+    (void) new NavigationWidgetFactory;
 
     // add to ExtensionSystem
-    addAutoReleasedObject(d_ptr->navigationWidgetFactory);
+    addAutoReleasedObject(NavigationWidgetFactory::instance());
 
     // create manager
-    d_ptr->manager = Manager::instance(this);
+    (void) new Manager(this);
 
     return true;
-}
-
-void Plugin::extensionsInitialized()
-{
 }
 
 } // namespace Internal

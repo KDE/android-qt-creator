@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -116,15 +116,17 @@ public:
     }
 
 
-    virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+    virtual void performChanges(const CppRefactoringFilePtr &currentFile,
+                                const CppRefactoringChanges &)
     {
         ChangeSet changes;
         int start = currentFile->endOf(compoundStatement->lbrace_token);
         changes.insert(start, QLatin1String("\ncase ")
                        + values.join(QLatin1String(":\nbreak;\ncase "))
                        + QLatin1String(":\nbreak;"));
-        currentFile->change(changes);
-        currentFile->indent(currentFile->range(compoundStatement));
+        currentFile->setChangeSet(changes);
+        currentFile->appendIndentRange(currentFile->range(compoundStatement));
+        currentFile->apply();
     }
 
     CompoundStatementAST *compoundStatement;

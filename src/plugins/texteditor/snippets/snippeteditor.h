@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,10 +35,6 @@
 
 #include <texteditor/texteditor_global.h>
 #include <texteditor/basetexteditor.h>
-
-#include <QtCore/QScopedPointer>
-
-QT_FORWARD_DECLARE_CLASS(QFocusEvent)
 
 namespace TextEditor {
 
@@ -58,7 +54,7 @@ public:
     bool duplicateSupported() const { return false; }
     Core::IEditor *duplicate(QWidget * /* parent */ ) { return 0; }
     bool isTemporary() const { return false; }
-    virtual QString id() const;
+    Core::Id id() const;
 };
 
 class TEXTEDITOR_EXPORT SnippetEditorWidget : public BaseTextEditorWidget

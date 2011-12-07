@@ -4,7 +4,7 @@
 ** All rights reserved.
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** This file is part of Qt Creator.
 **
@@ -46,10 +46,6 @@
 #include <QtGui/QGraphicsView>
 #include <QtCore/QScopedPointer>
 
-QT_BEGIN_NAMESPACE
-class QWheelEvent;
-QT_END_NAMESPACE
-
 namespace ImageViewer {
 namespace Internal {
 
@@ -83,7 +79,7 @@ protected:
     void wheelEvent(QWheelEvent *event);
 
 private:
-    QScopedPointer<struct ImageViewPrivate> d_ptr;
+    struct ImageViewPrivate *d;
 };
 
 } // namespace Internal

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -271,7 +271,7 @@ void ManhattanStyle::polish(QWidget *widget)
     QProxyStyle::polish(widget);
 
     // OxygenStyle forces a rounded widget mask on toolbars and dock widgets
-    if (baseStyle()->inherits("OxygenStyle")) {
+    if (baseStyle()->inherits("OxygenStyle") || baseStyle()->inherits("Oxygen::Style")) {
         if (qobject_cast<QToolBar*>(widget) || qobject_cast<QDockWidget*>(widget)) {
             widget->removeEventFilter(baseStyle());
             widget->setContentsMargins(0, 0, 0, 0);
@@ -843,6 +843,12 @@ void ManhattanStyle::drawComplexControl(ComplexControl control, const QStyleOpti
     switch (control) {
     case CC_ToolButton:
         if (const QStyleOptionToolButton *toolbutton = qstyleoption_cast<const QStyleOptionToolButton *>(option)) {
+            bool reverse = option->direction == Qt::RightToLeft;
+            bool drawborder = (widget && widget->property("showborder").toBool());
+
+            if (drawborder)
+                drawButtonSeparator(painter, rect, reverse);
+
             QRect button, menuarea;
             button = subControlRect(control, toolbutton, SC_ToolButton, widget);
             menuarea = subControlRect(control, toolbutton, SC_ToolButtonMenu, widget);
@@ -918,25 +924,9 @@ void ManhattanStyle::drawComplexControl(ComplexControl control, const QStyleOpti
             bool drawborder = !(widget && widget->property("hideborder").toBool());
             bool alignarrow = !(widget && widget->property("alignarrow").toBool());
 
-            // Draw tool button
-            if (drawborder) {
-                QLinearGradient grad(option->rect.topRight(), option->rect.bottomRight());
-                grad.setColorAt(0, QColor(255, 255, 255, 20));
-                grad.setColorAt(0.4, QColor(255, 255, 255, 60));
-                grad.setColorAt(0.7, QColor(255, 255, 255, 50));
-                grad.setColorAt(1, QColor(255, 255, 255, 40));
-                painter->setPen(QPen(grad, 0));
-                painter->drawLine(rect.topRight(), rect.bottomRight());
-                grad.setColorAt(0, QColor(0, 0, 0, 30));
-                grad.setColorAt(0.4, QColor(0, 0, 0, 70));
-                grad.setColorAt(0.7, QColor(0, 0, 0, 70));
-                grad.setColorAt(1, QColor(0, 0, 0, 40));
-                painter->setPen(QPen(grad, 0));
-                if (!reverse)
-                    painter->drawLine(rect.topRight() - QPoint(1,0), rect.bottomRight() - QPoint(1,0));
-                else
-                    painter->drawLine(rect.topLeft(), rect.bottomLeft());
-            }
+            if (drawborder)
+                drawButtonSeparator(painter, rect, reverse);
+
             QStyleOption toolbutton = *option;
             if (isEmpty)
                 toolbutton.state &= ~(State_Enabled | State_Sunken);
@@ -985,3 +975,23 @@ void ManhattanStyle::drawComplexControl(ComplexControl control, const QStyleOpti
         break;
     }
 }
+
+void ManhattanStyle::drawButtonSeparator(QPainter *painter, const QRect &rect, bool reverse) const
+{
+    QLinearGradient grad(rect.topRight(), rect.bottomRight());
+    grad.setColorAt(0, QColor(255, 255, 255, 20));
+    grad.setColorAt(0.4, QColor(255, 255, 255, 60));
+    grad.setColorAt(0.7, QColor(255, 255, 255, 50));
+    grad.setColorAt(1, QColor(255, 255, 255, 40));
+    painter->setPen(QPen(grad, 0));
+    painter->drawLine(rect.topRight(), rect.bottomRight());
+    grad.setColorAt(0, QColor(0, 0, 0, 30));
+    grad.setColorAt(0.4, QColor(0, 0, 0, 70));
+    grad.setColorAt(0.7, QColor(0, 0, 0, 70));
+    grad.setColorAt(1, QColor(0, 0, 0, 40));
+    painter->setPen(QPen(grad, 0));
+    if (!reverse)
+       painter->drawLine(rect.topRight() - QPoint(1,0), rect.bottomRight() - QPoint(1,0));
+    else
+       painter->drawLine(rect.topLeft(), rect.bottomLeft());
+ }

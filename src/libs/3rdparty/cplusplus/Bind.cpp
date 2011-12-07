@@ -1594,6 +1594,13 @@ bool Bind::visit(SizeofExpressionAST *ast)
     return false;
 }
 
+bool Bind::visit(PointerLiteralAST *ast)
+{
+    (void) ast;
+    // unsigned literal_token = ast->literal_token;
+    return false;
+}
+
 bool Bind::visit(NumericLiteralAST *ast)
 {
     (void) ast;
@@ -1778,6 +1785,7 @@ bool Bind::visit(SimpleDeclarationAST *ast)
 
         if (Function *fun = decl->type()->asFunctionType()) {
             fun->setScope(_scope);
+            fun->setSourceLocation(sourceLocation, translationUnit());
 
             setDeclSpecifiers(fun, type);
             if (declaratorId && declaratorId->name)
@@ -1908,6 +1916,8 @@ bool Bind::visit(QtPropertyDeclarationAST *ast)
             flags |= QtPropertyDeclaration::ResetFunction;
         } else if (name == "NOTIFY") {
             flags |= QtPropertyDeclaration::NotifyFunction;
+        } else if (name == "REVISION") {
+            // ### handle REVISION property
         } else if (name == "DESIGNABLE") {
             qtPropertyAttribute(translationUnit(), it->value->expression, &flags,
                                 QtPropertyDeclaration::DesignableFlag, QtPropertyDeclaration::DesignableFunction);
@@ -2007,6 +2017,7 @@ bool Bind::visit(FunctionDefinitionAST *ast)
 
     if (fun) {
         setDeclSpecifiers(fun, declSpecifiers);
+        fun->setEndOffset(tokenAt(ast->lastToken() - 1).end());
 
         if (_scope->isClass()) {
             fun->setVisibility(_visibility);
@@ -2028,12 +2039,6 @@ bool Bind::visit(FunctionDefinitionAST *ast)
         Scope *previousScope = switchScope(fun);
         this->statement(ast->function_body);
         (void) switchScope(previousScope);
-
-        if (CompoundStatementAST *c = ast->function_body->asCompoundStatement()) {
-            if (c->symbol) {
-                fun->setEndOffset(c->symbol->endOffset());
-            }
-        }
     }
 
     return false;
@@ -2110,10 +2115,6 @@ bool Bind::visit(ParameterDeclarationAST *ast)
     type = this->declarator(ast->declarator, type, &declaratorId);
     // unsigned equal_token = ast->equal_token;
     ExpressionTy expression = this->expression(ast->expression);
-
-    unsigned sourceLocation = ast->firstToken();
-    if (declaratorId)
-        sourceLocation = declaratorId->firstToken();
 
     const Name *argName = 0;
     if (declaratorId && declaratorId->name)
@@ -2296,7 +2297,7 @@ bool Bind::visit(ObjCClassDeclarationAST *ast)
     _scope->addMember(klass);
 
     klass->setStartOffset(calculateScopeStart(ast));
-    klass->setEndOffset(tokenAt(ast->lastToken() - 1).begin());
+    klass->setEndOffset(tokenAt(ast->lastToken() - 1).end());
 
     if (ast->interface_token)
         klass->setInterface(true);

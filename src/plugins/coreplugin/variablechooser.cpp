@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,13 +35,19 @@
 #include "variablemanager.h"
 #include "coreconstants.h"
 
+#include <utils/fancylineedit.h> // IconButton
+
 #include <QtCore/QTimer>
+#include <QtGui/QLineEdit>
+#include <QtGui/QTextEdit>
+#include <QtGui/QPlainTextEdit>
+#include <QtGui/QListWidgetItem>
 
 using namespace Core;
 
 VariableChooser::VariableChooser(QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::VariableChooser),
+    ui(new Internal::Ui::VariableChooser),
     m_lineEdit(0),
     m_textEdit(0),
     m_plainTextEdit(0)

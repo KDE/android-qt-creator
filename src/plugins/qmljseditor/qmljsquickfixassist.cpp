@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,6 +51,7 @@ QmlJSQuickFixAssistInterface::QmlJSQuickFixAssistInterface(QmlJSTextEditorWidget
     : DefaultAssistInterface(editor->document(), editor->position(), editor->file(), reason)
     , m_editor(editor)
     , m_semanticInfo(editor->semanticInfo())
+    , m_currentFile(QmlJSRefactoringChanges::file(m_editor, m_semanticInfo.document))
 {}
 
 QmlJSQuickFixAssistInterface::~QmlJSQuickFixAssistInterface()
@@ -61,12 +62,12 @@ const SemanticInfo &QmlJSQuickFixAssistInterface::semanticInfo() const
     return m_semanticInfo;
 }
 
-const QmlJSTools::QmlJSRefactoringFile QmlJSQuickFixAssistInterface::currentFile() const
+QmlJSRefactoringFilePtr QmlJSQuickFixAssistInterface::currentFile() const
 {
-    return QmlJSRefactoringFile(m_editor, m_semanticInfo.document);
+    return m_currentFile;
 }
 
-QWidget *QmlJSQuickFixAssistInterface::widget() const
+QmlJSTextEditorWidget *QmlJSQuickFixAssistInterface::editor() const
 {
     return m_editor;
 }
@@ -95,9 +96,9 @@ QmlJSQuickFixAssistProvider::QmlJSQuickFixAssistProvider()
 QmlJSQuickFixAssistProvider::~QmlJSQuickFixAssistProvider()
 {}
 
-bool QmlJSQuickFixAssistProvider::supportsEditor(const QString &editorId) const
+bool QmlJSQuickFixAssistProvider::supportsEditor(const Core::Id &editorId) const
 {
-    return editorId == QLatin1String(Constants::C_QMLJSEDITOR_ID);
+    return editorId == Core::Id(Constants::C_QMLJSEDITOR_ID);
 }
 
 IAssistProcessor *QmlJSQuickFixAssistProvider::createProcessor() const

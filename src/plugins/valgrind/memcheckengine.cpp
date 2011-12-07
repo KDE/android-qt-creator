@@ -6,7 +6,7 @@
 **
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,7 +62,7 @@ MemcheckEngine::MemcheckEngine(IAnalyzerTool *tool, const AnalyzerStartParameter
     connect(&m_parser, SIGNAL(status(Valgrind::XmlProtocol::Status)),
             SLOT(status(Valgrind::XmlProtocol::Status)));
 
-    m_progress->setProgressRange(0, Valgrind::XmlProtocol::Status::Finished + 1);
+    m_progress->setProgressRange(0, XmlProtocol::Status::Finished + 1);
 }
 
 QString MemcheckEngine::progressTitle() const

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -731,7 +731,7 @@ void BinEditor::paintEvent(QPaintEvent *e)
     QString itemString(m_bytesPerLine*3, QLatin1Char(' '));
     QChar *itemStringData = itemString.data();
     char changedString[160] = { false };
-    QTC_ASSERT(m_bytesPerLine < sizeof(changedString), return);
+    QTC_ASSERT((size_t)m_bytesPerLine < sizeof(changedString), return);
     const char *hex = "0123456789abcdef";
 
     painter.setPen(palette().text().color());
@@ -1075,7 +1075,6 @@ QString BinEditor::toolTip(const QHelpEvent *helpEvent) const
     int selEnd = selectionEnd();
     int byteCount = selEnd - selStart;
     if (byteCount <= 0) {
-        selStart = m_cursorPosition;
         selStart = posAt(helpEvent->pos());
         selEnd = selStart + 1;
         byteCount = 1;

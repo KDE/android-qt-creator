@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "remotelinuxrunconfigurationfactory.h"
 
-#include "maemoglobal.h"
+#include "remotelinuxdeployconfigurationfactory.h"
 #include "remotelinuxrunconfiguration.h"
+#include "remotelinuxutils.h"
 
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4target.h>
@@ -91,10 +92,12 @@ bool RemoteLinuxRunConfigurationFactory::canClone(Target *parent, RunConfigurati
 
 QStringList RemoteLinuxRunConfigurationFactory::availableCreationIds(Target *parent) const
 {
-    if (Qt4BaseTarget *t = qobject_cast<Qt4BaseTarget *>(parent)) {
-        if (t && MaemoGlobal::hasLinuxQt(t)) {
-            return t->qt4Project()->applicationProFilePathes(RemoteLinuxRunConfiguration::Id);
-        }
+    const QList<DeployConfiguration *> &depConfs = parent->deployConfigurations();
+    foreach (const DeployConfiguration * const dc, depConfs) {
+        if (dc->id() == RemoteLinuxDeployConfigurationFactory::genericDeployConfigurationId()) {
+            return qobject_cast<Qt4BaseTarget *>(parent)->qt4Project()
+                ->applicationProFilePathes(RemoteLinuxRunConfiguration::Id);
+    }
     }
     return QStringList();
 }

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,15 +55,15 @@ class ModelManager;
 
 class QmlJSToolsPlugin : public ExtensionSystem::IPlugin
 {
-    Q_DISABLE_COPY(QmlJSToolsPlugin)
     Q_OBJECT
+
 public:
     static QmlJSToolsPlugin *instance() { return m_instance; }
 
     QmlJSToolsPlugin();
     ~QmlJSToolsPlugin();
 
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
     ModelManager *modelManager() { return m_modelManager; }
@@ -71,6 +71,10 @@ public:
 private slots:
     void onTaskStarted(const QString &type);
     void onAllTasksFinished(const QString &type);
+
+#ifdef WITH_TESTS
+    void test_basic();
+#endif
 
 private:
     ModelManager *m_modelManager;

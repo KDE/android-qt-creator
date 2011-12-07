@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,6 +55,8 @@ public:
     virtual bool isRunning() const;
     virtual QIcon icon() const;
 
+    QString mainQmlFile() const;
+
 private slots:
     void processExited(int exitCode);
     void slotBringApplicationToForeground(qint64 pid);
@@ -65,6 +67,7 @@ private:
 
     QString m_executable;
     QString m_commandLineArguments;
+    QString m_mainQmlFile;
 };
 
 class QmlProjectRunControlFactory : public ProjectExplorer::IRunControlFactory {

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef ACTIONCONTAINER_H
 #define ACTIONCONTAINER_H
+
+#include "coreplugin/id.h"
 
 #include <QtCore/QObject>
 
@@ -59,21 +61,20 @@ public:
     virtual void setOnAllDisabledBehavior(OnAllDisabledBehavior behavior) = 0;
     virtual ActionContainer::OnAllDisabledBehavior onAllDisabledBehavior() const = 0;
 
-    virtual int id() const = 0;
+    virtual Id id() const = 0;
 
     virtual QMenu *menu() const = 0;
     virtual QMenuBar *menuBar() const = 0;
 
-    virtual QAction *insertLocation(const QString &group) const = 0;
-    virtual void appendGroup(const QString &group) = 0;
-    virtual void addAction(Core::Command *action, const QString &group = QString()) = 0;
-    virtual void addMenu(Core::ActionContainer *menu, const QString &group = QString()) = 0;
-    virtual void addMenu(Core::ActionContainer *before, Core::ActionContainer *menu, const QString &group = QString()) = 0;
+    virtual QAction *insertLocation(const Id &group) const = 0;
+    virtual void appendGroup(const Id &group) = 0;
+    virtual void addAction(Command *action, const Id &group = Id()) = 0;
+    virtual void addMenu(ActionContainer *menu, const Id &group = Id()) = 0;
+    virtual void addMenu(ActionContainer *before, ActionContainer *menu, const Id &group = Id()) = 0;
 
-    // clears this menu and submenus from all actions and submenus
-    // doesn't destroy the submenus and commands, just removes them from their parents
+    // This clears this menu and submenus from all actions and submenus.
+    // It does not destroy the submenus and commands, just removes them from their parents.
     virtual void clear() = 0;
-    virtual ~ActionContainer() {}
 };
 
 } // namespace Core

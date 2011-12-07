@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,7 @@ class GeneratedFile;
 
 /*!
   Hook to add generic wizard pages to implementations of IWizard.
-  Used e.g. to add "Add to Project File/Add to version control" page
+  Used e.g. to add "Add to Project File/Add to Version Control" page
   */
 class CORE_EXPORT IFileWizardExtension : public QObject
 {
@@ -60,9 +60,14 @@ public:
     virtual QList<QWizardPage *> extensionPages(const IWizard *wizard) = 0;
 
     /* Process the files using the extension parameters */
-    virtual bool process(const QList<GeneratedFile> &files,
+    virtual bool processFiles(const QList<GeneratedFile> &files,
                          bool *removeOpenProjectAttribute,
                          QString *errorMessage) = 0;
+    /* Applies code style settings which may depend on the project to which
+     * the files will be added.
+     * This function is called before the files are actually written out,
+     * before processFiles() is called*/
+    virtual void applyCodeStyle(GeneratedFile *file) const = 0;
 
 public slots:
     /* Notification about the first extension page being shown. */

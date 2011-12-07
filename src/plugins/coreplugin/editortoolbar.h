@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,12 +35,10 @@
 
 #include "core_global.h"
 
-#include <QtCore/QScopedPointer>
-
 #include <utils/styledbar.h>
 
 namespace Core {
-    class IEditor;
+class IEditor;
 
 struct EditorToolBarPrivate;
 
@@ -51,7 +49,7 @@ struct EditorToolBarPrivate;
 class CORE_EXPORT EditorToolBar : public Utils::StyledBar
 {
     Q_OBJECT
-    Q_DISABLE_COPY(EditorToolBar)
+
 public:
     explicit EditorToolBar(QWidget *parent = 0);
     virtual ~EditorToolBar();
@@ -80,6 +78,7 @@ public:
     void setCanGoBack(bool canGoBack);
     void setCanGoForward(bool canGoForward);
     void removeToolbarForEditor(IEditor *editor);
+    void setCloseSplitEnabled(bool enable);
 
 public slots:
     void updateEditorStatus(IEditor *editor);
@@ -88,6 +87,9 @@ signals:
     void closeClicked();
     void goBackClicked();
     void goForwardClicked();
+    void horizontalSplitClicked();
+    void verticalSplitClicked();
+    void closeSplitClicked();
     void listSelectionActivated(int row);
 
 private slots:
@@ -97,14 +99,14 @@ private slots:
     void makeEditorWritable();
 
     void checkEditorStatus();
-    void closeView();
+    void closeEditor();
     void updateActionShortcuts();
 
 private:
     void updateToolBar(QWidget *toolBar);
     IEditor *currentEditor() const;
 
-    QScopedPointer<EditorToolBarPrivate> d;
+    EditorToolBarPrivate *d;
 };
 
 } // namespace Core

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,10 +55,9 @@
 using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
 
-static inline Core::BaseFileWizardParameters
+static Core::BaseFileWizardParameters
     wizardParameters(const QString &id,
                      const QString &category,
-                     const QString &categoryTranslationScope,
                      const QString &displayCategory,
                      const QString &name,
                      const QString &description,
@@ -66,7 +65,7 @@ static inline Core::BaseFileWizardParameters
 {
     Core::BaseFileWizardParameters rc(Core::IWizard::ProjectWizard);
     rc.setCategory(category);
-    rc.setDisplayCategory(QCoreApplication::translate(categoryTranslationScope.toLatin1(),
+    rc.setDisplayCategory(QCoreApplication::translate("ProjectExplorer",
                                                       displayCategory.toLatin1()));
     rc.setIcon(icon);
     rc.setDisplayName(name);
@@ -78,13 +77,11 @@ static inline Core::BaseFileWizardParameters
 // -------------------- QtWizard
 QtWizard::QtWizard(const QString &id,
                    const QString &category,
-                   const QString &categoryTranslationScope,
                    const QString &displayCategory,
                    const QString &name,
                    const QString &description, const QIcon &icon) :
     Core::BaseFileWizard(wizardParameters(id,
                                           category,
-                                          categoryTranslationScope,
                                           displayCategory,
                                           name,
                                           description,

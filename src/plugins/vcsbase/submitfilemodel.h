@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,14 +46,21 @@ public:
     explicit SubmitFileModel(QObject *parent = 0);
 
     // Convenience to create and add rows containing a file plus status text.
-    static QList<QStandardItem *> createFileRow(const QString &fileName, const QString &status = QString(), bool checked = true);
-    QList<QStandardItem *> addFile(const QString &fileName, const QString &status = QString(), bool checked = true);
+    QList<QStandardItem *> addFile(const QString &fileName, const QString &status = QString(),
+                                   bool checked = true, const QVariant &data = QVariant());
 
     // Find convenience that returns the whole row (as opposed to QStandardItemModel::find).
     QList<QStandardItem *> findRow(const QString &text, int column = 0) const;
 
     // Convenience to obtain a row
     QList<QStandardItem *> rowAt(int row) const;
+
+    QString state(int row) const;
+    QString file(int row) const;
+    bool checked(int row) const;
+    QVariant data(int row) const;
+
+    bool hasCheckedFiles() const;
 
     // Filter for entries contained in the filter list. Returns the
     // number of deleted entries.

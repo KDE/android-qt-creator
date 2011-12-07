@@ -33,8 +33,9 @@ HEADERS += completionsettingspage.h \
     cppcodestylesettingspage.h \
     cpptoolssettings.h \
     cppcodestylesettings.h \
-    cppcodestylesettingsfactory.h \
-    cppcodestylepreferences.h
+    cppcodestylepreferencesfactory.h \
+    cppcodestylepreferences.h \
+    cpptoolsreuse.h
 
 SOURCES += completionsettingspage.cpp \
     cppclassesfilter.cpp \
@@ -59,9 +60,15 @@ SOURCES += completionsettingspage.cpp \
     cppcodestylesettingspage.cpp \
     cpptoolssettings.cpp \
     cppcodestylesettings.cpp \
-    cppcodestylesettingsfactory.cpp \
-    cppcodestylepreferences.cpp
+    cppcodestylepreferencesfactory.cpp \
+    cppcodestylepreferences.cpp \
+    cpptoolsreuse.cpp
 
 FORMS += completionsettingspage.ui \
     cppfilesettingspage.ui \
     cppcodestylesettingspage.ui
+
+equals(TEST, 1) {
+    SOURCES += \
+        cppcodegen_test.cpp
+}

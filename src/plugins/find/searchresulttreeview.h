@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,7 +53,7 @@ public:
     void setTextEditorFont(const QFont &font);
 
     SearchResultTreeModel *model() const;
-    void addResults(const QList<Find::SearchResultItem> &items, SearchResultWindow::AddMode mode);
+    void addResults(const QList<Find::SearchResultItem> &items, SearchResult::AddMode mode);
 
 signals:
     void jumpToSearchResult(const SearchResultItem &item);

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,28 +26,29 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
+
 #ifndef QMLJSINSPECTORCONSTANTS_H
 #define QMLJSINSPECTORCONSTANTS_H
 
 namespace QmlJSInspector {
 namespace Constants {
 
-const char * const INFO_EXPERIMENTAL = "QmlInspector.Experimental";
-const char * const INFO_OUT_OF_SYNC = "QmlInspector.OutOfSyncWarning";
+const char INFO_EXPERIMENTAL[] = "QmlInspector.Experimental";
+const char INFO_OUT_OF_SYNC[] = "QmlInspector.OutOfSyncWarning";
 
-const char * const PLAY_ACTION = "QmlInspector.Play";
-const char * const SELECT_ACTION = "QmlInspector.Select";
-const char * const ZOOM_ACTION = "QmlInspector.Zoom";
-const char * const COLOR_PICKER_ACTION = "QmlInspector.ColorPicker";
-const char * const FROM_QML_ACTION = "QmlInspector.FromQml";
-const char * const SHOW_APP_ON_TOP_ACTION = "QmlInspector.ShowAppOnTop";
+const char PLAY_ACTION[] = "QmlInspector.Play";
+const char SELECT_ACTION[] = "QmlInspector.Select";
+const char ZOOM_ACTION[] = "QmlInspector.Zoom";
+const char COLOR_PICKER_ACTION[] = "QmlInspector.ColorPicker";
+const char FROM_QML_ACTION[] = "QmlInspector.FromQml";
+const char SHOW_APP_ON_TOP_ACTION[] = "QmlInspector.ShowAppOnTop";
 
-// settings
-const char * const S_QML_INSPECTOR    = "QML.Inspector";
-const char * const S_LIVE_PREVIEW_WARNING_KEY = "ShowLivePreview";
+// Settings
+const char S_QML_INSPECTOR   [] = "QML.Inspector";
+const char S_LIVE_PREVIEW_WARNING_KEY[] = "ShowLivePreview";
 
 enum DesignTool {
     NoTool = 0,
@@ -60,6 +61,6 @@ enum DesignTool {
 };
 
 } // namespace Constants
-} // namespace Qml
+} // namespace QmlJSInspector
 
-#endif
+#endif // QMLJSINSPECTORCONSTANTS_H

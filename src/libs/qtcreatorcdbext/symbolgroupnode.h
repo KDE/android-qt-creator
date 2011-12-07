@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,6 +49,17 @@ class SymbolGroup;
 struct SymbolGroupValueContext;
 class SymbolGroupNode;
 
+// Helper struct used for check results when recoding CDB char pointer output.
+struct DumpParameterRecodeResult
+{
+    DumpParameterRecodeResult() : buffer(0), size(0), recommendedFormat(0),isWide(false) {}
+
+    unsigned char *buffer;
+    size_t size;
+    int recommendedFormat;
+    bool isWide;
+};
+
 struct DumpParameters
 {
     typedef std::map<std::string, int> FormatMap; // type or iname to format
@@ -61,10 +72,18 @@ struct DumpParameters
     DumpParameters();
     bool humanReadable() const {  return dumpFlags & DumpHumanReadable; }
     // Helper to decode format option arguments.
-    static FormatMap decodeFormatArgument(const std::string &f);
+    static FormatMap decodeFormatArgument(const std::string &f, bool isHex);
+
+    static DumpParameterRecodeResult
+        checkRecode(const std::string &type, const std::string &iname,
+                    const std::wstring &value,
+                    const SymbolGroupValueContext &ctx,
+                    ULONG64 address,
+                    const DumpParameters *dp =0);
 
     bool recode(const std::string &type, const std::string &iname,
                 const SymbolGroupValueContext &ctx,
+                ULONG64 address,
                 std::wstring *value, int *encoding) const;
     int format(const std::string &type, const std::string &iname) const;
 
@@ -158,7 +177,7 @@ protected:
 
     void reserveChildren(AbstractSymbolGroupNodePtrVector::size_type s) { m_children.reserve(s); }
 
-private:
+protected:
     AbstractSymbolGroupNodePtrVector m_children;
     void removeChildren();
 };
@@ -244,6 +263,7 @@ public:
     bool expandRunComplexDumpers(const SymbolGroupValueContext &ctx, std::string *errorMessage);
     bool isExpanded() const { return !children().empty(); }
     bool canExpand() const { return m_parameters.SubElements > 0; }
+    bool collapse(std::string *errorMessage);
     void runComplexDumpers(const SymbolGroupValueContext &ctx);
     // Cast to a different type. Works only on unexpanded nodes
     bool typeCast(const std::string &desiredType, std::string *errorMessage);

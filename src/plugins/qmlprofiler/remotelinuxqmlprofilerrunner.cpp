@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "remotelinuxqmlprofilerrunner.h"
 #include <extensionsystem/pluginmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <remotelinux/portlist.h>
 #include <remotelinux/remotelinuxapplicationrunner.h>
 #include <utils/qtcassert.h>
 
@@ -146,7 +147,7 @@ void RemoteLinuxQmlProfilerRunner::handleRemoteProcessStarted()
 
 void RemoteLinuxQmlProfilerRunner::handleRemoteProcessFinished(qint64 exitCode)
 {
-    if (exitCode != RemoteLinuxApplicationRunner::InvalidExitCode) {
+    if (exitCode != AbstractRemoteLinuxApplicationRunner::InvalidExitCode) {
         appendMessage(tr("Finished running remote process. Exit code was %1.\n")
                       .arg(exitCode), Utils::NormalMessageFormat);
     }
@@ -159,7 +160,7 @@ void RemoteLinuxQmlProfilerRunner::handleProgressReport(const QString &progressS
     appendMessage(progressString + QLatin1Char('\n'), Utils::NormalMessageFormat);
 }
 
-RemoteLinuxApplicationRunner *RemoteLinuxQmlProfilerRunner::runner() const
+AbstractRemoteLinuxApplicationRunner *RemoteLinuxQmlProfilerRunner::runner() const
 {
     if (!m_runControl)
         return 0;

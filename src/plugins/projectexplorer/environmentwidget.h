@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -50,6 +50,7 @@ class EnvironmentWidgetPrivate;
 class PROJECTEXPLORER_EXPORT EnvironmentWidget : public QWidget
 {
     Q_OBJECT
+
 public:
     explicit EnvironmentWidget(QWidget *parent, QWidget *additionalDetailsWidget = 0);
     virtual ~EnvironmentWidget();
@@ -69,6 +70,7 @@ private slots:
     void addEnvironmentButtonClicked();
     void removeEnvironmentButtonClicked();
     void unsetEnvironmentButtonClicked();
+    void batchEditEnvironmentButtonClicked();
     void environmentCurrentIndexChanged(const QModelIndex &current);
     void invalidateCurrentIndex();
     void updateSummaryText();
@@ -77,7 +79,7 @@ private slots:
     void linkActivated(const QString &link);
 
 private:
-    QScopedPointer<EnvironmentWidgetPrivate> d;
+    EnvironmentWidgetPrivate *d;
 };
 
 } // namespace ProjectExplorer

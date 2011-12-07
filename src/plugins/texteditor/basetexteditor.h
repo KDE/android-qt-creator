@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,6 @@
 #include "codeassist/assistenums.h"
 
 #include <find/ifindsupport.h>
-
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <QtGui/QPlainTextEdit>
@@ -45,6 +44,7 @@
 QT_BEGIN_NAMESPACE
 class QToolBar;
 class QTimeLine;
+class QPrinter;
 QT_END_NAMESPACE
 
 namespace Utils {
@@ -54,13 +54,12 @@ namespace Utils {
 
 namespace TextEditor {
 class TabSettings;
-class TabPreferences;
 class RefactorOverlay;
 struct RefactorMarker;
 class IAssistMonitorInterface;
 class IAssistInterface;
 class IAssistProvider;
-class IFallbackPreferences;
+class ICodeStylePreferences;
 
 namespace Internal {
     class BaseTextEditorPrivate;
@@ -77,6 +76,7 @@ class FontSettings;
 class BehaviorSettings;
 class CompletionSettings;
 class DisplaySettings;
+class TypingSettings;
 class StorageSettings;
 class Indenter;
 class AutoCompleter;
@@ -132,8 +132,8 @@ public:
     BaseTextEditorWidget(QWidget *parent);
     ~BaseTextEditorWidget();
 
-    static ITextEditor *openEditorAt(const QString &fileName, int line, int column = 0,
-                                     const QString &editorId =  QString(),
+    static Core::IEditor *openEditorAt(const QString &fileName, int line, int column = 0,
+                                     const Core::Id &editorId =  Core::Id(),
                                      Core::EditorManager::OpenEditorFlags flags = Core::EditorManager::IgnoreNavigationHistory,
                                      bool *newEditor = 0);
 
@@ -203,6 +203,12 @@ public:
     void setScrollWheelZoomingEnabled(bool b);
     bool scrollWheelZoomingEnabled() const;
 
+    void setConstrainTooltips(bool b);
+    bool constrainTooltips() const;
+
+    void setCamelCaseNavigationEnabled(bool b);
+    bool camelCaseNavigationEnabled() const;
+
     void setRevisionsVisible(bool b);
     bool revisionsVisible() const;
 
@@ -258,6 +264,10 @@ public slots:
     void cutLine();
     void copyLine();
     void deleteLine();
+    void deleteEndOfWord();
+    void deleteEndOfWordCamelCase();
+    void deleteStartOfWord();
+    void deleteStartOfWordCamelCase();
     void unfoldAll();
     void fold();
     void unfold();
@@ -289,8 +299,8 @@ public slots:
     void gotoNextWordCamelCase();
     void gotoNextWordCamelCaseWithSelection();
 
-    void selectBlockUp();
-    void selectBlockDown();
+    bool selectBlockUp();
+    bool selectBlockDown();
 
     void moveLineUp();
     void moveLineDown();
@@ -355,7 +365,6 @@ private slots:
     bool inFindScope(const QTextCursor &cursor);
     bool inFindScope(int selectionStart, int selectionEnd);
     void inSnippetMode(bool *active);
-    void onTabPreferencesDestroyed();
     void onCodeStylePreferencesDestroyed();
 
 private:
@@ -376,8 +385,7 @@ public:
     void setLanguageSettingsId(const QString &settingsId);
     QString languageSettingsId() const;
 
-    void setTabPreferences(TabPreferences *preferences);
-    void setCodeStylePreferences(IFallbackPreferences *settings);
+    void setCodeStyle(ICodeStylePreferences *settings);
 
     const DisplaySettings &displaySettings() const;
 
@@ -396,13 +404,14 @@ public:
         OtherSelection,
         SnippetPlaceholderSelection,
         ObjCSelection,
+        DebuggerExceptionSelection,
         NExtraSelectionKinds
     };
     void setExtraSelections(ExtraSelectionKind kind, const QList<QTextEdit::ExtraSelection> &selections);
     QList<QTextEdit::ExtraSelection> extraSelections(ExtraSelectionKind kind) const;
     QString extraSelectionTooltip(int pos) const;
 
-
+    Internal::RefactorMarkers refactorMarkers() const;
     void setRefactorMarkers(const Internal::RefactorMarkers &markers);
 signals:
     void refactorMarkerClicked(const TextEditor::RefactorMarker &marker);
@@ -432,6 +441,7 @@ public slots:
     virtual void setTabSettings(const TextEditor::TabSettings &);
     virtual void setDisplaySettings(const TextEditor::DisplaySettings &);
     virtual void setBehaviorSettings(const TextEditor::BehaviorSettings &);
+    virtual void setTypingSettings(const TextEditor::TypingSettings &);
     virtual void setStorageSettings(const TextEditor::StorageSettings &);
     virtual void setCompletionSettings(const TextEditor::CompletionSettings &);
     virtual void setExtraEncodingSettings(const TextEditor::ExtraEncodingSettings &);
@@ -445,6 +455,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *);
     void mousePressEvent(QMouseEvent *);
     void mouseReleaseEvent(QMouseEvent *);
+    void mouseDoubleClickEvent(QMouseEvent *);
     void leaveEvent(QEvent *);
     void keyReleaseEvent(QKeyEvent *);
 
@@ -497,6 +508,11 @@ protected:
     virtual bool openLink(const Link &link);
 
     void maybeClearSomeExtraSelections(const QTextCursor &cursor);
+
+    /*!
+      Reimplement this function to change the default replacement text.
+      */
+    virtual QString foldReplacementText(const QTextBlock &block) const;
 
 protected slots:
     virtual void slotUpdateExtraAreaWidth();

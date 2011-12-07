@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,6 +53,41 @@ namespace ProjectExplorer {
 // --------------------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------------------
+
+static quint8 getUint8(const QByteArray &data, int pos)
+{
+    return static_cast<quint8>(data.at(pos));
+}
+
+static quint32 getLEUint32(const QByteArray &ba, int pos)
+{
+    Q_ASSERT(ba.size() >= pos + 3);
+    return (static_cast<quint32>(static_cast<quint8>(ba.at(pos + 3))) << 24)
+            + (static_cast<quint32>(static_cast<quint8>(ba.at(pos + 2)) << 16))
+            + (static_cast<quint32>(static_cast<quint8>(ba.at(pos + 1))) << 8)
+            + static_cast<quint8>(ba.at(pos));
+}
+
+static quint32 getBEUint32(const QByteArray &ba, int pos)
+{
+    Q_ASSERT(ba.size() >= pos + 3);
+    return (static_cast<quint32>(static_cast<quint8>(ba.at(pos))) << 24)
+            + (static_cast<quint32>(static_cast<quint8>(ba.at(pos + 1))) << 16)
+            + (static_cast<quint32>(static_cast<quint8>(ba.at(pos + 2))) << 8)
+            + static_cast<quint8>(ba.at(pos + 3));
+}
+
+static quint32 getLEUint16(const QByteArray &ba, int pos)
+{
+    Q_ASSERT(ba.size() >= pos + 1);
+    return (static_cast<quint16>(static_cast<quint8>(ba.at(pos + 1))) << 8) + static_cast<quint8>(ba.at(pos));
+}
+
+static quint32 getBEUint16(const QByteArray &ba, int pos)
+{
+    Q_ASSERT(ba.size() >= pos + 1);
+    return (static_cast<quint16>(static_cast<quint8>(ba.at(pos))) << 8) + static_cast<quint8>(ba.at(pos + 1));
+}
 
 static Abi macAbiForCpu(quint32 type) {
     switch (type) {
@@ -82,7 +117,7 @@ static QList<Abi> parseCoffHeader(const QByteArray &data)
     int width = 0;
 
     // Get machine field from COFF file header
-    quint16 machine = (data.at(1) << 8) + data.at(0);
+    quint16 machine = getLEUint16(data, 0);
     switch (machine) {
     case 0x8664: // x86_64
         arch = Abi::X86Architecture;
@@ -93,7 +128,7 @@ static QList<Abi> parseCoffHeader(const QByteArray &data)
         width = 32;
         break;
     case 0x0166: // MIPS, little endian
-        arch = Abi::MipsArcitecture;
+        arch = Abi::MipsArchitecture;
         width = 32;
         break;
     case 0x0200: // ia64
@@ -104,7 +139,7 @@ static QList<Abi> parseCoffHeader(const QByteArray &data)
 
     if (data.size() >= 68) {
         // Get Major and Minor Image Version from optional header fields
-        quint32 image = (data.at(67) << 24) + (data.at(66) << 16) + (data.at(65) << 8) + data.at(64);
+        quint32 image = getLEUint32(data, 64);
         if (image == 1) { // Image is 1 for mingw and higher for MSVC (4.something in some encoding)
             flavor = Abi::WindowsMSysFlavor;
         } else {
@@ -134,16 +169,16 @@ static QList<Abi> parseCoffHeader(const QByteArray &data)
 static QList<Abi> abiOf(const QByteArray &data)
 {
     QList<Abi> result;
+    if (data.size() <= 8)
+        return result;
 
     if (data.size() >= 20
-            && static_cast<unsigned char>(data.at(0)) == 0x7f && static_cast<unsigned char>(data.at(1)) == 'E'
-            && static_cast<unsigned char>(data.at(2)) == 'L' && static_cast<unsigned char>(data.at(3)) == 'F') {
+            && getUint8(data, 0) == 0x7f && getUint8(data, 1) == 'E' && getUint8(data, 2) == 'L'
+            && getUint8(data, 3) == 'F') {
         // ELF format:
-        bool isLsbEncoded = (static_cast<quint8>(data.at(5)) == 1);
-        quint16 machine = (data.at(19) << 8) + data.at(18);
-        if (!isLsbEncoded)
-            machine = qFromBigEndian(machine);
-        quint8 osAbi = static_cast<quint8>(data.at(7));
+        bool isLE = (getUint8(data, 5) == 1);
+        quint16 machine = isLE ? getLEUint16(data, 18) : getBEUint16(data, 18);
+        quint8 osAbi = getUint8(data, 7);
 
         Abi::OS os = Abi::UnixOS;
         Abi::OSFlavor flavor = Abi::GenericUnixFlavor;
@@ -176,7 +211,7 @@ static QList<Abi> abiOf(const QByteArray &data)
             result.append(Abi(Abi::X86Architecture, os, flavor, Abi::ElfFormat, 32));
             break;
         case 8: // EM_MIPS
-            result.append(Abi(Abi::MipsArcitecture, os, flavor, Abi::ElfFormat, 32));
+            result.append(Abi(Abi::MipsArchitecture, os, flavor, Abi::ElfFormat, 32));
             break;
         case 20: // EM_PPC
             result.append(Abi(Abi::PowerPCArchitecture, os, flavor, Abi::ElfFormat, 32));
@@ -190,42 +225,63 @@ static QList<Abi> abiOf(const QByteArray &data)
         case 62: // EM_X86_64
             result.append(Abi(Abi::X86Architecture, os, flavor, Abi::ElfFormat, 64));
             break;
+        case 42: // EM_SH
+            result.append(Abi(Abi::ShArchitecture, os, flavor, Abi::ElfFormat, 32));
+            break;
         case 50: // EM_IA_64
             result.append(Abi(Abi::ItaniumArchitecture, os, flavor, Abi::ElfFormat, 64));
             break;
         default:
             ;;
         }
-    } else if (data.size() >= 8
-               && (static_cast<unsigned char>(data.at(0)) == 0xce || static_cast<unsigned char>(data.at(0)) == 0xcf)
-               && static_cast<unsigned char>(data.at(1)) == 0xfa
-               && static_cast<unsigned char>(data.at(2)) == 0xed && static_cast<unsigned char>(data.at(3)) == 0xfe) {
-        // Mach-O format (Mac non-fat binary, 32 and 64bit magic)
-        quint32 type = (data.at(7) << 24) + (data.at(6) << 16) + (data.at(5) << 8) + data.at(4);
-        result.append(macAbiForCpu(type));
-    } else if (data.size() >= 8
-               && static_cast<unsigned char>(data.at(0)) == 0xca && static_cast<unsigned char>(data.at(1)) == 0xfe
-               && static_cast<unsigned char>(data.at(2)) == 0xba && static_cast<unsigned char>(data.at(3)) == 0xbe) {
-        // Mac fat binary:
-        quint32 count = (data.at(4) << 24) + (data.at(5) << 16) + (data.at(6) << 8) + data.at(7);
+    } else if (((getUint8(data, 0) == 0xce || getUint8(data, 0) == 0xcf)
+             && getUint8(data, 1) == 0xfa && getUint8(data, 2) == 0xed && getUint8(data, 3) == 0xfe
+            )
+            ||
+            (getUint8(data, 0) == 0xfe && getUint8(data, 1) == 0xed && getUint8(data, 2) == 0xfa
+             && (getUint8(data, 3) == 0xce || getUint8(data, 3) == 0xcf)
+            )
+           ) {
+            // Mach-O format (Mac non-fat binary, 32 and 64bit magic):
+            quint32 type = (getUint8(data, 1) ==  0xfa) ? getLEUint32(data, 4) : getBEUint32(data, 4);
+            result.append(macAbiForCpu(type));
+    } else if ((getUint8(data, 0) == 0xbe && getUint8(data, 1) == 0xba
+                && getUint8(data, 2) == 0xfe && getUint8(data, 3) == 0xca)
+               ||
+               (getUint8(data, 0) == 0xca && getUint8(data, 1) == 0xfe
+                && getUint8(data, 2) == 0xba && getUint8(data, 3) == 0xbe)
+              ) {
+        // Mach-0 format Fat binary header:
+        bool isLE = (getUint8(data, 0) == 0xbe);
+        quint32 count = isLE ? getLEUint32(data, 4) : getBEUint32(data, 4);
         int pos = 8;
         for (quint32 i = 0; i < count; ++i) {
             if (data.size() <= pos + 4)
                 break;
 
-            quint32 type = (data.at(pos) << 24) + (data.at(pos + 1) << 16) + (data.at(pos + 2) << 8) + data.at(pos + 3);
+            quint32 type = isLE ? getLEUint32(data, pos) : getBEUint32(data, pos);
             result.append(macAbiForCpu(type));
             pos += 20;
         }
     } else if (data.size() >= 20
-               && static_cast<unsigned char>(data.at(16)) == 'E' && static_cast<unsigned char>(data.at(17)) == 'P'
-               && static_cast<unsigned char>(data.at(18)) == 'O' && static_cast<unsigned char>(data.at(19)) == 'C') {
+               && getUint8(data, 16) == 'E' && getUint8(data, 17) == 'P'
+               && getUint8(data, 18) == 'O' && getUint8(data, 19) == 'C') {
         result.append(Abi(Abi::ArmArchitecture, Abi::SymbianOS, Abi::SymbianDeviceFlavor, Abi::ElfFormat, 32));
-    } else {
-        // Windows PE
-        // Windows can have its magic bytes everywhere...
-        int pePos = data.indexOf(QByteArray("PE\0\0", 4));
-        if (pePos >= 0)
+    } else if (data.size() >= 64){
+        // Windows PE: values are LE (except for a few exceptions which we will not use here).
+
+        // MZ header first (ZM is also allowed, but rarely used)
+        const quint8 firstChar = getUint8(data, 0);
+        const quint8 secondChar = getUint8(data, 1);
+        if ((firstChar != 'M' || secondChar != 'Z') && (firstChar != 'Z' || secondChar != 'M'))
+            return result;
+
+        // Get PE/COFF header position from MZ header:
+        qint32 pePos = getLEUint32(data, 60);
+        if (pePos <= 0 || data.size() < pePos + 4 + 20) // PE magic bytes plus COFF header
+            return result;
+        if (getUint8(data, pePos) == 'P' && getUint8(data, pePos + 1) == 'E'
+            && getUint8(data, pePos + 2) == 0 && getUint8(data, pePos + 3) == 0)
             result = parseCoffHeader(data.mid(pePos + 4));
     }
     return result;
@@ -282,11 +338,13 @@ Abi::Abi(const QString &abiString) :
         else if (abiParts.at(0) == QLatin1String("x86"))
             m_architecture = X86Architecture;
         else if (abiParts.at(0) == QLatin1String("mips"))
-            m_architecture = MipsArcitecture;
+            m_architecture = MipsArchitecture;
         else if (abiParts.at(0) == QLatin1String("ppc"))
             m_architecture = PowerPCArchitecture;
         else if (abiParts.at(0) == QLatin1String("itanium"))
             m_architecture = ItaniumArchitecture;
+        else if (abiParts.at(0) == QLatin1String("sh"))
+            m_architecture = ShArchitecture;
         else
             return;
     }
@@ -415,13 +473,16 @@ bool Abi::isCompatibleWith(const Abi &other) const
                      && (osFlavor() == other.osFlavor() || other.osFlavor() == Abi::UnknownFlavor)
                      && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == Abi::UnknownFormat)
                      && ((wordWidth() == other.wordWidth() && wordWidth() != 0) || other.wordWidth() == 0);
-    // *-linux-generic-* is compatible with *-linux-*:
-    if (!isCompat && architecture() == other.architecture()
-                 && os() == other.os()
-                 && osFlavor() == GenericLinuxFlavor
-                 && other.os() == LinuxOS
-                 && binaryFormat() == other.binaryFormat()
-                 && wordWidth() == other.wordWidth())
+    // *-linux-generic-* is compatible with *-linux-* (both ways): This is for the benefit of
+    // people building Qt themselves using e.g. a meego toolchain.
+    //
+    // We leave it to the specific targets to catch filter out the tool chains that do not
+    // work for them.
+    if (!isCompat && (architecture() == other.architecture() || other.architecture() == Abi::UnknownArchitecture)
+                  && ((os() == other.os()) && (os() == LinuxOS))
+                  && (osFlavor() == GenericLinuxFlavor || other.osFlavor() == GenericLinuxFlavor)
+                  && (binaryFormat() == other.binaryFormat() || other.binaryFormat() == Abi::UnknownFormat)
+                  && ((wordWidth() == other.wordWidth() && wordWidth() != 0) || other.wordWidth() == 0))
         isCompat = true;
     if (osFlavor() == AndroidLinuxFlavor || other.osFlavor()==AndroidLinuxFlavor)
         isCompat = (osFlavor() == other.osFlavor() && architecture() == other.architecture());
@@ -437,6 +498,15 @@ bool Abi::isValid() const
             && m_wordWidth != 0;
 }
 
+bool Abi::isNull() const
+{
+    return m_architecture == UnknownArchitecture
+            && m_os == UnknownOS
+            && m_osFlavor == UnknownFlavor
+            && m_binaryFormat == UnknownFormat
+            && m_wordWidth == 0;
+}
+
 QString Abi::toString(const Architecture &a)
 {
     switch (a) {
@@ -444,12 +514,14 @@ QString Abi::toString(const Architecture &a)
         return QLatin1String("arm");
     case X86Architecture:
         return QLatin1String("x86");
-    case MipsArcitecture:
+    case MipsArchitecture:
         return QLatin1String("mips");
     case PowerPCArchitecture:
         return QLatin1String("ppc");
     case ItaniumArchitecture:
         return QLatin1String("itanium");
+    case ShArchitecture:
+        return QLatin1String("sh");
     case UnknownArchitecture: // fall through!
     default:
         return QLatin1String("unknown");
@@ -616,17 +688,16 @@ QList<Abi> Abi::abisOfBinary(const QString &path)
     f.open(QFile::ReadOnly);
     QByteArray data = f.read(1024);
     if (data.size() >= 67
-            && static_cast<unsigned char>(data.at(0)) == '!' && static_cast<unsigned char>(data.at(1)) == '<'
-            && static_cast<unsigned char>(data.at(2)) == 'a' && static_cast<unsigned char>(data.at(3)) == 'r'
-            && static_cast<unsigned char>(data.at(4)) == 'c' && static_cast<unsigned char>(data.at(5)) == 'h'
-            && static_cast<unsigned char>(data.at(6)) == '>' && static_cast<unsigned char>(data.at(7)) == 0x0a) {
+            && getUint8(data, 0) == '!' && getUint8(data, 1) == '<' && getUint8(data, 2) == 'a'
+            && getUint8(data, 3) == 'r' && getUint8(data, 4) == 'c' && getUint8(data, 5) == 'h'
+            && getUint8(data, 6) == '>' && getUint8(data, 7) == 0x0a) {
         // We got an ar file: possibly a static lib for ELF, PE or Mach-O
 
         data = data.mid(8); // Cut of ar file magic
         quint64 offset = 8;
 
         while (!data.isEmpty()) {
-            if ((data.at(58) != 0x60 || data.at(59) != 0x0a)) {
+            if ((getUint8(data, 58) != 0x60 || getUint8(data, 59) != 0x0a)) {
                 qWarning() << path << ": Thought it was an ar-file, but it is not!";
                 break;
             }
@@ -757,6 +828,12 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary_data()
     QTest::newRow("dynamic QtCore: arm linux 32bit")
             << QString::fromLatin1("%1/dynamic/arm-linux.so").arg(prefix)
             << (QStringList() << QString::fromLatin1("arm-linux-generic-elf-32bit"));
+    QTest::newRow("dynamic QtCore: arm linux 32bit (angstrom)")
+            << QString::fromLatin1("%1/dynamic/arm-angstrom-linux.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("arm-linux-generic-elf-32bit"));
+    QTest::newRow("dynamic QtCore: sh4 linux 32bit")
+            << QString::fromLatin1("%1/dynamic/sh4-linux.so").arg(prefix)
+            << (QStringList() << QString::fromLatin1("sh-linux-generic-elf-32bit"));
     QTest::newRow("dynamic QtCore: mips linux 32bit")
             << QString::fromLatin1("%1/dynamic/mips-linux.so").arg(prefix)
             << (QStringList() << QString::fromLatin1("mips-linux-generic-elf-32bit"));
@@ -772,6 +849,13 @@ void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary_data()
     QTest::newRow("dynamic QtCore: x86 freebsd 32bit")
             << QString::fromLatin1("%1/dynamic/freebsd-elf-32bit.so").arg(prefix)
             << (QStringList() << QString::fromLatin1("x86-bsd-freebsd-elf-32bit"));
+
+    QTest::newRow("executable: x86 win 32bit cygwin executable")
+            << QString::fromLatin1("%1/executable/cygwin-32bit.exe").arg(prefix)
+            << (QStringList() << QString::fromLatin1("x86-windows-msys-pe-32bit"));
+    QTest::newRow("executable: x86 win 32bit mingw executable")
+            << QString::fromLatin1("%1/executable/mingw-32bit.exe").arg(prefix)
+            << (QStringList() << QString::fromLatin1("x86-windows-msys-pe-32bit"));
 }
 
 void ProjectExplorer::ProjectExplorerPlugin::testAbiOfBinary()

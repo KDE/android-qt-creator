@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,9 @@
 #define NAVIGATIONWIDGET_H
 
 #include <coreplugin/minisplitter.h>
+#include <coreplugin/id.h>
 
 #include <QtCore/QHash>
-#include <QtCore/QScopedPointer>
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -57,8 +57,9 @@ class NavigationSubWidget;
 
 class CORE_EXPORT NavigationWidgetPlaceHolder : public QWidget
 {
-    friend class Core::NavigationWidget;
     Q_OBJECT
+    friend class Core::NavigationWidget;
+
 public:
     explicit NavigationWidgetPlaceHolder(Core::IMode *mode, QWidget *parent = 0);
     virtual ~NavigationWidgetPlaceHolder();
@@ -76,6 +77,7 @@ private:
 class CORE_EXPORT NavigationWidget : public MiniSplitter
 {
     Q_OBJECT
+
 public:
     enum FactoryModelRoles {
         FactoryObjectRole = Qt::UserRole,
@@ -91,7 +93,7 @@ public:
     void saveSettings(QSettings *settings);
     void restoreSettings(QSettings *settings);
 
-    void activateSubWidget(const QString &factoryId);
+    void activateSubWidget(const Id &factoryId);
     void closeSubWidgets();
 
     bool isShown() const;
@@ -107,7 +109,7 @@ public:
     // Called from the place holders
     void placeHolderChanged(NavigationWidgetPlaceHolder *holder);
 
-    QHash<QString, Core::Command*> commandMap() const;
+    QHash<Id, Core::Command *> commandMap() const;
     QAbstractItemModel *factoryModel() const;
 
 protected:
@@ -121,9 +123,9 @@ private slots:
 private:
     void updateToggleText();
     Internal::NavigationSubWidget *insertSubItem(int position, int index);
-    int factoryIndex(const QString &id);
+    int factoryIndex(const Id &id);
 
-    QScopedPointer<NavigationWidgetPrivate> d;
+    NavigationWidgetPrivate *d;
 };
 
 } // namespace Core

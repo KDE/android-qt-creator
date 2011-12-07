@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,28 +36,27 @@
 namespace QtSupport {
 namespace Constants {
 
-//Qt4 settings pages
-const char * const QT_SETTINGS_CATEGORY       = "L.Qt4";
-const char * const QT_SETTINGS_CATEGORY_ICON  = ":/core/images/category_qt.png";
-const char * const QT_SETTINGS_TR_CATEGORY    = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Qt4");
-const char * const QTVERSION_SETTINGS_PAGE_ID = "Qt Versions";
-const char * const QTVERSION_SETTINGS_PAGE_NAME = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Qt Versions");
+// Qt4 settings pages
+const char QT_SETTINGS_TR_CATEGORY[]    = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Qt4");
+const char QTVERSION_SETTINGS_PAGE_ID[] = "B.Qt Versions";
+const char QTVERSION_SETTINGS_PAGE_NAME[] = QT_TRANSLATE_NOOP("Qt4ProjectManager", "Qt Versions");
 
 // QtVersions
-const char * const SYMBIANQT   = "Qt4ProjectManager.QtVersion.Symbian";
-const char * const MAEMOQT     = "Qt4ProjectManager.QtVersion.Maemo";
-const char * const DESKTOPQT   = "Qt4ProjectManager.QtVersion.Desktop";
-const char * const SIMULATORQT = "Qt4ProjectManager.QtVersion.Simulator";
-const char * const WINCEQT     = "Qt4ProjectManager.QtVersion.WinCE";
+const char SYMBIANQT[]   = "Qt4ProjectManager.QtVersion.Symbian";
+const char MAEMOQT[]     = "Qt4ProjectManager.QtVersion.Maemo";
+const char DESKTOPQT[]   = "Qt4ProjectManager.QtVersion.Desktop";
+const char SIMULATORQT[] = "Qt4ProjectManager.QtVersion.Simulator";
+const char WINCEQT[]     = "Qt4ProjectManager.QtVersion.WinCE";
 
 // QML wizard categories
 // both the qt4projectmanager and the qmlprojectmanager do have qt quick wizards
 // so we define the category here
-const char * const QML_WIZARD_CATEGORY = "C.Projects"; // (before Qt)
-const char * const QML_WIZARD_TR_SCOPE = "QmlProjectManager";
-const char * const QML_WIZARD_TR_CATEGORY = QT_TRANSLATE_NOOP("QmlProjectManager", "Qt Quick Project");
-const char * const QML_WIZARD_ICON = ":/qmlproject/images/qml_wizard.png";
+const char QML_WIZARD_CATEGORY[] = "C.Projects"; // (before Qt)
+const char QML_WIZARD_TR_SCOPE[] = "QmlProjectManager";
+const char QML_WIZARD_TR_CATEGORY[] = QT_TRANSLATE_NOOP("QmlProjectManager", "Qt Quick Project");
+const char QML_WIZARD_ICON[] = ":/qmlproject/images/qml_wizard.png";
 
-}
-}
+} // namepsace Constants
+} // namepsace QtSupport
+
 #endif // QTSUPPORTCONSTANTS_H

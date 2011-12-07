@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -183,9 +183,9 @@ void WinscwToolChain::addToEnvironment(Utils::Environment &env) const
 }
 
 
-QString WinscwToolChain::mkspec() const
+Utils::FileName WinscwToolChain::mkspec() const
 {
-    return QString(); // Always use default from Qt version
+    return Utils::FileName(); // Always use default from Qt version
 }
 
 QString WinscwToolChain::makeCommand() const
@@ -317,6 +317,11 @@ WinscwToolChainConfigWidget::WinscwToolChainConfigWidget(WinscwToolChain *tc) :
     connect(m_ui->libraryEdit, SIGNAL(textChanged(QString)), this, SLOT(makeDirty()));
 
     discard();
+}
+
+WinscwToolChainConfigWidget::~WinscwToolChainConfigWidget()
+{
+    delete m_ui;
 }
 
 void WinscwToolChainConfigWidget::apply()

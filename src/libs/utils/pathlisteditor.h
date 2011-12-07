@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,17 +38,12 @@
 #include <QtGui/QWidget>
 #include <QtCore/QStringList>
 
-QT_BEGIN_NAMESPACE
-class QAction;
-QT_END_NAMESPACE
-
 namespace Utils {
 
 struct PathListEditorPrivate;
 
 class QTCREATOR_UTILS_EXPORT PathListEditor : public QWidget
 {
-    Q_DISABLE_COPY(PathListEditor)
     Q_OBJECT
     Q_PROPERTY(QStringList pathList READ pathList WRITE setPathList DESIGNABLE true)
     Q_PROPERTY(QString fileDialogTitle READ fileDialogTitle WRITE setFileDialogTitle DESIGNABLE true)
@@ -92,7 +87,7 @@ private slots:
     void slotInsert();
 
 private:
-    PathListEditorPrivate *m_d;
+    PathListEditorPrivate *d;
 };
 
 } // namespace Utils

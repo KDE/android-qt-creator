@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "windebuginterface.h"
 
+#ifdef Q_OS_WIN
+
 #include <windows.h>
+
 
 /*!
     \class ProjectExplorer::Internal::WinDebugInterface
@@ -140,3 +143,25 @@ bool WinDebugInterface::runLoop()
 
 } // namespace Internal
 } // namespace ProjectExplorer
+
+#else
+
+namespace ProjectExplorer {
+namespace Internal {
+
+WinDebugInterface *WinDebugInterface::m_instance = 0;
+
+WinDebugInterface *WinDebugInterface::instance() { return 0; }
+
+WinDebugInterface::WinDebugInterface(QObject *) {}
+
+WinDebugInterface::~WinDebugInterface() {}
+
+void WinDebugInterface::run() {}
+
+bool WinDebugInterface::runLoop() { return false; }
+
+} // namespace Internal
+} // namespace ProjectExplorer
+
+#endif

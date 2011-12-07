@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,7 +48,7 @@ struct FileShareProtocolSettings;
 class FileShareProtocol : public Protocol
 {
     Q_OBJECT
-    Q_DISABLE_COPY(FileShareProtocol)
+
 public:
     FileShareProtocol();
     virtual ~FileShareProtocol();
@@ -66,10 +66,12 @@ public:
                        const QString &username = QString(),
                        const QString &comment = QString(),
                        const QString &description = QString());
+
 private:
     const QSharedPointer<FileShareProtocolSettings> m_settings;
     FileShareProtocolSettingsPage *m_settingsPage;
 };
+
 } // namespace CodePaster
 
 #endif // FILESHAREPROTOCOL_H

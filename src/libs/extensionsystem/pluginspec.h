@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -94,6 +94,7 @@ public:
     QString url() const;
     QString category() const;
     bool isExperimental() const;
+    bool isDisabledByDefault() const;
     bool isEnabled() const;
     bool isDisabledIndirectly() const;
     QList<PluginDependency> dependencies() const;
@@ -106,6 +107,7 @@ public:
     QString filePath() const;
 
     void setEnabled(bool value);
+    void setDisabledByDefault(bool value);
     void setDisabledIndirectly(bool value);
 
     QStringList arguments() const;

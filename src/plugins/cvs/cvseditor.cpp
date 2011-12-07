@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,13 +48,13 @@ namespace Internal {
 
 // Match a CVS revision ("1.1.1.1")
 #define CVS_REVISION_PATTERN "[\\d\\.]+"
-#define CVS_REVISION_AT_START_PATTERN "^("CVS_REVISION_PATTERN") "
+#define CVS_REVISION_AT_START_PATTERN "^(" CVS_REVISION_PATTERN ") "
 
 CVSEditor::CVSEditor(const VCSBase::VCSBaseEditorParameters *type,
                                    QWidget *parent) :
     VCSBase::VCSBaseEditorWidget(type, parent),
     m_revisionAnnotationPattern(QLatin1String(CVS_REVISION_AT_START_PATTERN".*$")),
-    m_revisionLogPattern(QLatin1String("^revision  *("CVS_REVISION_PATTERN")$"))
+    m_revisionLogPattern(QLatin1String("^revision  *(" CVS_REVISION_PATTERN ")$"))
 {
     QTC_ASSERT(m_revisionAnnotationPattern.isValid(), return);
     QTC_ASSERT(m_revisionLogPattern.isValid(), return);
@@ -72,7 +72,7 @@ QSet<QString> CVSEditor::annotationChanges() const
     QTC_ASSERT(r.isValid(), return changes);
     if (r.indexIn(txt) != -1) {
         changes.insert(r.cap(1));
-        r.setPattern(QLatin1String("\n("CVS_REVISION_PATTERN") "));
+        r.setPattern(QLatin1String("\n(" CVS_REVISION_PATTERN ") "));
         QTC_ASSERT(r.isValid(), return changes);
         int pos = 0;
         while ((pos = r.indexIn(txt, pos)) != -1) {

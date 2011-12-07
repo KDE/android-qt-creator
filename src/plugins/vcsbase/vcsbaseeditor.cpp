@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -122,6 +122,26 @@ QByteArray DiffChunk::asPatch() const
     return rc;
 }
 
+namespace Internal {
+
+// Data to be passed to apply/revert diff chunk actions.
+class DiffChunkAction
+{
+public:
+    DiffChunkAction(const DiffChunk &dc = DiffChunk(), bool revertIn = false) :
+        chunk(dc), revert(revertIn) {}
+
+    DiffChunk chunk;
+    bool revert;
+};
+
+} // namespace Internal
+} // VCSBase
+
+Q_DECLARE_METATYPE(VCSBase::Internal::DiffChunkAction)
+
+namespace VCSBase {
+
 /*!
     \class VCSBase::VCSBaseEditor
 
@@ -140,7 +160,7 @@ public:
 
     bool duplicateSupported() const { return false; }
     Core::IEditor *duplicate(QWidget * /*parent*/) { return 0; }
-    QString id() const { return m_id; }
+    Core::Id id() const { return m_id; }
 
     bool isTemporary() const { return m_temporary; }
     void setTemporary(bool t) { m_temporary = t; }
@@ -150,7 +170,7 @@ signals:
     void annotateRevisionRequested(const QString &source, const QString &change, int line);
 
 private:
-    QString m_id;
+    Core::Id m_id;
     bool m_temporary;
 };
 
@@ -367,7 +387,7 @@ void VCSBaseEditorWidget::setDiffBaseDirectory(const QString &bd)
 
 QTextCodec *VCSBaseEditorWidget::codec() const
 {
-    return baseTextDocument()->codec();
+    return const_cast<QTextCodec *>(baseTextDocument()->codec());
 }
 
 void VCSBaseEditorWidget::setCodec(QTextCodec *c)
@@ -554,11 +574,23 @@ void VCSBaseEditorWidget::contextMenuEvent(QContextMenuEvent *e)
         connect(menu->addAction(tr("Send to CodePaster...")), SIGNAL(triggered()),
                 this, SLOT(slotPaste()));
         menu->addSeparator();
-        QAction *revertAction = menu->addAction(tr("Revert Chunk..."));
+        // Apply/revert diff chunk.
         const DiffChunk chunk = diffChunk(cursorForPosition(e->pos()));
-        revertAction->setEnabled(canRevertDiffChunk(chunk));
-        revertAction->setData(qVariantFromValue(chunk));
-        connect(revertAction, SIGNAL(triggered()), this, SLOT(slotRevertDiffChunk()));
+        const bool canApply = canApplyDiffChunk(chunk);
+        // Apply a chunk from a diff loaded into the editor. This typically will
+        // not have the 'source' property set and thus will only work if the working
+        // directory matches that of the patch (see findDiffFile()). In addition,
+        // the user has "Open With" and choose the right diff editor so that
+        // fileNameFromDiffSpecification() works.
+        QAction *applyAction = menu->addAction(tr("Apply Chunk..."));
+        applyAction->setEnabled(canApply);
+        applyAction->setData(qVariantFromValue(Internal::DiffChunkAction(chunk, false)));
+        connect(applyAction, SIGNAL(triggered()), this, SLOT(slotApplyDiffChunk()));
+        // Revert a chunk from a VCS diff, which might be linked to reloading the diff.
+        QAction *revertAction = menu->addAction(tr("Revert Chunk..."));
+        revertAction->setEnabled(isRevertDiffChunkEnabled() && canApply);
+        revertAction->setData(qVariantFromValue(Internal::DiffChunkAction(chunk, true)));
+        connect(revertAction, SIGNAL(triggered()), this, SLOT(slotApplyDiffChunk()));
     }
         break;
     default:
@@ -675,19 +707,23 @@ void VCSBaseEditorWidget::slotActivateAnnotation()
     }
 }
 
-// Check for a change chunk "@@ -91,7 +95,7 @@" and return
-// the modified line number (95).
-// Note that git appends stuff after "  @@" (function names, etc.).
-static inline bool checkChunkLine(const QString &line, int *modifiedLineNumber)
+// Check for a chunk of
+//       - changes          :  "@@ -91,7 +95,7 @@"
+//       - merged conflicts : "@@@ -91,7 +95,7 @@@"
+// and return the modified line number (here 95).
+// Note that git appends stuff after "  @@"/" @@@" (function names, etc.).
+static inline bool checkChunkLine(const QString &line, int *modifiedLineNumber, int numberOfAts)
 {
-    if (!line.startsWith(QLatin1String("@@ ")))
+    const QString ats(numberOfAts, QLatin1Char('@'));
+    if (!line.startsWith(ats + QLatin1Char(' ')))
         return false;
-    const int endPos = line.indexOf(QLatin1String(" @@"), 3);
+    const int len = ats.size() + 1;
+    const int endPos = line.indexOf(QLatin1Char(' ') + ats, len);
     if (endPos == -1)
         return false;
     // the first chunk range applies to the original file, the second one to
     // the modified file, the one we're interested int
-    const int plusPos = line.indexOf(QLatin1Char('+'), 3);
+    const int plusPos = line.indexOf(QLatin1Char('+'), len);
     if (plusPos == -1 || plusPos > endPos)
         return false;
     const int lineNumberPos = plusPos + 1;
@@ -698,6 +734,13 @@ static inline bool checkChunkLine(const QString &line, int *modifiedLineNumber)
     bool ok;
     *modifiedLineNumber = lineNumberStr.toInt(&ok);
     return ok;
+}
+
+static inline bool checkChunkLine(const QString &line, int *modifiedLineNumber)
+{
+    if (checkChunkLine(line, modifiedLineNumber, 2))
+        return true;
+    return checkChunkLine(line, modifiedLineNumber, 3);
 }
 
 void VCSBaseEditorWidget::jumpToChangeFromDiff(QTextCursor cursor)
@@ -741,7 +784,7 @@ void VCSBaseEditorWidget::jumpToChangeFromDiff(QTextCursor cursor)
         return;
 
     Core::EditorManager *em = Core::EditorManager::instance();
-    Core::IEditor *ed = em->openEditor(fileName, QString(), Core::EditorManager::ModeSwitch);
+    Core::IEditor *ed = em->openEditor(fileName, Core::Id(), Core::EditorManager::ModeSwitch);
     if (TextEditor::ITextEditor *editor = qobject_cast<TextEditor::ITextEditor *>(ed))
         editor->gotoLine(chunkStart + lineCount);
 }
@@ -753,8 +796,7 @@ DiffChunk VCSBaseEditorWidget::diffChunk(QTextCursor cursor) const
     DiffChunk rc;
     // Search back for start of chunk.
     QTextBlock block = cursor.block();
-    QTextBlock next = block.next();
-    if (next.isValid() && TextEditor::BaseTextDocumentLayout::foldingIndent(next) <= 1)
+    if (block.isValid() && TextEditor::BaseTextDocumentLayout::foldingIndent(block) <= 1)
         /* We are in a diff header, not in a chunk! DiffHighlighter sets the foldingIndent for us. */
         return rc;
 
@@ -1073,34 +1115,40 @@ void VCSBaseEditorWidget::setRevertDiffChunkEnabled(bool e)
     d->m_revertChunkEnabled = e;
 }
 
-bool VCSBaseEditorWidget::canRevertDiffChunk(const DiffChunk &dc) const
+bool VCSBaseEditorWidget::canApplyDiffChunk(const DiffChunk &dc) const
 {
-    if (!isRevertDiffChunkEnabled() || !dc.isValid())
+    if (!dc.isValid())
         return false;
     const QFileInfo fi(dc.fileName);
     // Default implementation using patch.exe relies on absolute paths.
     return fi.isFile() && fi.isAbsolute() && fi.isWritable();
 }
 
-// Default implementation of revert: Revert a chunk by piping it into patch
-// with '-R', assuming we got absolute paths from the VCS plugins.
-bool VCSBaseEditorWidget::revertDiffChunk(const DiffChunk &dc) const
+// Default implementation of revert: Apply a chunk by piping it into patch,
+// (passing '-R' for revert), assuming we got absolute paths from the VCS plugins.
+bool VCSBaseEditorWidget::applyDiffChunk(const DiffChunk &dc, bool revert) const
 {
-    return VCSBasePlugin::runPatch(dc.asPatch(), QString(), 0, true);
+    return VCSBasePlugin::runPatch(dc.asPatch(), QString(), 0, revert);
 }
 
-void VCSBaseEditorWidget::slotRevertDiffChunk()
+void VCSBaseEditorWidget::slotApplyDiffChunk()
 {
     const QAction *a = qobject_cast<QAction *>(sender());
     QTC_ASSERT(a, return ; )
-    const DiffChunk chunk = qvariant_cast<DiffChunk>(a->data());
-    if (QMessageBox::No == QMessageBox::question(this, tr("Revert Chunk"),
-                                                  tr("Would you like to revert the chunk?"),
-                                                  QMessageBox::Yes|QMessageBox::No))
+    const Internal::DiffChunkAction chunkAction = qvariant_cast<Internal::DiffChunkAction>(a->data());
+    const QString title = chunkAction.revert ? tr("Revert Chunk") : tr("Apply Chunk");
+    const QString question = chunkAction.revert ?
+        tr("Would you like to revert the chunk?") : tr("Would you like to apply the chunk?");
+    if (QMessageBox::No == QMessageBox::question(this, title, question, QMessageBox::Yes|QMessageBox::No))
         return;
 
-    if (revertDiffChunk(chunk))
-        emit diffChunkReverted(chunk);
+    if (applyDiffChunk(chunkAction.chunk, chunkAction.revert)) {
+        if (chunkAction.revert) {
+            emit diffChunkReverted(chunkAction.chunk);
+        } else {
+            emit diffChunkApplied(chunkAction.chunk);
+        }
+    }
 }
 
 // Tagging of editors for re-use.

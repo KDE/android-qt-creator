@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -1348,6 +1348,13 @@ bool FindUsages::visit(SizeofExpressionAST *ast)
     // unsigned lparen_token = ast->lparen_token;
     this->expression(ast->expression);
     // unsigned rparen_token = ast->rparen_token;
+    return false;
+}
+
+bool FindUsages::visit(PointerLiteralAST *ast)
+{
+    (void) ast;
+    // unsigned literal_token = ast->literal_token;
     return false;
 }
 

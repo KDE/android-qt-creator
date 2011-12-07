@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,17 +45,18 @@
 #ifndef QMLJSGRAMMAR_P_H
 #define QMLJSGRAMMAR_P_H
 
+#include "qmljsglobal_p.h"
 #include <QtCore/qglobal.h>
 
 QT_BEGIN_NAMESPACE
 
-class QmlJSGrammar
+class QML_PARSER_EXPORT QmlJSGrammar
 {
 public:
   enum VariousConstants {
     EOF_SYMBOL = 0,
-    REDUCE_HERE = 100,
-    SHIFT_THERE = 99,
+    REDUCE_HERE = 101,
+    SHIFT_THERE = 100,
     T_AND = 1,
     T_AND_AND = 2,
     T_AND_EQ = 3,
@@ -80,13 +81,14 @@ public:
     T_EQ = 17,
     T_EQ_EQ = 18,
     T_EQ_EQ_EQ = 19,
+    T_ERROR = 93,
     T_FALSE = 83,
-    T_FEED_JS_EXPRESSION = 96,
-    T_FEED_JS_PROGRAM = 98,
-    T_FEED_JS_SOURCE_ELEMENT = 97,
-    T_FEED_JS_STATEMENT = 95,
-    T_FEED_UI_OBJECT_MEMBER = 94,
-    T_FEED_UI_PROGRAM = 93,
+    T_FEED_JS_EXPRESSION = 97,
+    T_FEED_JS_PROGRAM = 99,
+    T_FEED_JS_SOURCE_ELEMENT = 98,
+    T_FEED_JS_STATEMENT = 96,
+    T_FEED_UI_OBJECT_MEMBER = 95,
+    T_FEED_UI_PROGRAM = 94,
     T_FINALLY = 20,
     T_FOR = 21,
     T_FUNCTION = 22,
@@ -155,15 +157,15 @@ public:
     T_XOR = 79,
     T_XOR_EQ = 80,
 
-    ACCEPT_STATE = 640,
-    RULE_COUNT = 345,
-    STATE_COUNT = 641,
-    TERMINAL_COUNT = 101,
+    ACCEPT_STATE = 644,
+    RULE_COUNT = 349,
+    STATE_COUNT = 645,
+    TERMINAL_COUNT = 102,
     NON_TERMINAL_COUNT = 107,
 
-    GOTO_INDEX_OFFSET = 641,
-    GOTO_INFO_OFFSET = 2787,
-    GOTO_CHECK_OFFSET = 2787
+    GOTO_INDEX_OFFSET = 645,
+    GOTO_INFO_OFFSET = 2807,
+    GOTO_CHECK_OFFSET = 2807
   };
 
   static const char  *const    spell [];

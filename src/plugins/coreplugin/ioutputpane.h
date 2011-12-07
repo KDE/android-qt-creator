@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,12 +48,12 @@ namespace Core {
 class CORE_EXPORT IOutputPane : public QObject
 {
     Q_OBJECT
+
 public:
     IOutputPane(QObject *parent = 0) : QObject(parent) {}
-    virtual ~IOutputPane() {}
 
     virtual QWidget *outputWidget(QWidget *parent) = 0;
-    virtual QList<QWidget*> toolBarWidgets() const = 0;
+    virtual QList<QWidget *> toolBarWidgets() const = 0;
     virtual QString displayName() const = 0;
 
     // -1 don't show in statusBar
@@ -66,48 +66,28 @@ public:
     // This function is called to give the outputwindow focus
     virtual void setFocus() = 0;
     // Whether the outputpane has focus
-    virtual bool hasFocus() = 0;
+    virtual bool hasFocus() const = 0;
     // Whether the outputpane can be focused at the moment.
     // (E.g. the search result window does not want to be focused if the are no results.)
-    virtual bool canFocus() = 0;
+    virtual bool canFocus() const = 0;
 
-    virtual bool canNavigate() = 0;
-    virtual bool canNext() = 0;
-    virtual bool canPrevious() = 0;
+    virtual bool canNavigate() const = 0;
+    virtual bool canNext() const = 0;
+    virtual bool canPrevious() const = 0;
     virtual void goToNext() = 0;
     virtual void goToPrev() = 0;
+
 public slots:
-    void popup()
-    {
-        popup(true);
-    }
-    void popup(bool withFocus)
-    {
-        emit showPage(withFocus);
-    }
-
-    void hide()
-    {
-        emit hidePage();
-    }
-
-    void toggle()
-    {
-        toggle(true);
-    }
-
-    void toggle(bool withFocusIfShown)
-    {
-        emit togglePage(withFocusIfShown);
-    }
-
-    void navigateStateChanged()
-    {
-        emit navigateStateUpdate();
-    }
+    void popup() { popup(true, false); }
+    void popup(bool withFocus) { popup(withFocus, false); }
+    void popup(bool withFocus, bool ensureSizeHint) { emit showPage(withFocus, ensureSizeHint); }
+    void hide() { emit hidePage(); }
+    void toggle() { toggle(true); }
+    void toggle(bool withFocusIfShown) { emit togglePage(withFocusIfShown); }
+    void navigateStateChanged() { emit navigateStateUpdate(); }
 
 signals:
-    void showPage(bool withFocus);
+    void showPage(bool withFocus, bool ensureSizeHint);
     void hidePage();
     void togglePage(bool withFocusIfShown);
     void navigateStateUpdate();

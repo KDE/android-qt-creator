@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -276,6 +276,16 @@ bool PluginSpec::isExperimental() const
 }
 
 /*!
+    Returns if the plugin is disabled by default.
+    This might be because the plugin is experimental, or because
+    the plugin manager's settings define it as disabled by default.
+*/
+bool PluginSpec::isDisabledByDefault() const
+{
+    return d->disabledByDefault;
+}
+
+/*!
     \fn bool PluginSpec::isEnabled() const
     Returns if the plugin is loaded at startup. True by default - the user can change it from the Plugin settings.
 */
@@ -429,28 +439,28 @@ QHash<PluginDependency, PluginSpec *> PluginSpec::dependencySpecs() const
 //==========PluginSpecPrivate==================
 
 namespace {
-    const char * const PLUGIN = "plugin";
-    const char * const PLUGIN_NAME = "name";
-    const char * const PLUGIN_VERSION = "version";
-    const char * const PLUGIN_COMPATVERSION = "compatVersion";
-    const char * const PLUGIN_EXPERIMENTAL = "experimental";
-    const char * const VENDOR = "vendor";
-    const char * const COPYRIGHT = "copyright";
-    const char * const LICENSE = "license";
-    const char * const DESCRIPTION = "description";
-    const char * const URL = "url";
-    const char * const CATEGORY = "category";
-    const char * const DEPENDENCYLIST = "dependencyList";
-    const char * const DEPENDENCY = "dependency";
-    const char * const DEPENDENCY_NAME = "name";
-    const char * const DEPENDENCY_VERSION = "version";
-    const char * const DEPENDENCY_TYPE = "type";
-    const char * const DEPENDENCY_TYPE_SOFT = "optional";
-    const char * const DEPENDENCY_TYPE_HARD = "required";
-    const char * const ARGUMENTLIST = "argumentList";
-    const char * const ARGUMENT = "argument";
-    const char * const ARGUMENT_NAME = "name";
-    const char * const ARGUMENT_PARAMETER = "parameter";
+    const char PLUGIN[] = "plugin";
+    const char PLUGIN_NAME[] = "name";
+    const char PLUGIN_VERSION[] = "version";
+    const char PLUGIN_COMPATVERSION[] = "compatVersion";
+    const char PLUGIN_EXPERIMENTAL[] = "experimental";
+    const char VENDOR[] = "vendor";
+    const char COPYRIGHT[] = "copyright";
+    const char LICENSE[] = "license";
+    const char DESCRIPTION[] = "description";
+    const char URL[] = "url";
+    const char CATEGORY[] = "category";
+    const char DEPENDENCYLIST[] = "dependencyList";
+    const char DEPENDENCY[] = "dependency";
+    const char DEPENDENCY_NAME[] = "name";
+    const char DEPENDENCY_VERSION[] = "version";
+    const char DEPENDENCY_TYPE[] = "type";
+    const char DEPENDENCY_TYPE_SOFT[] = "optional";
+    const char DEPENDENCY_TYPE_HARD[] = "required";
+    const char ARGUMENTLIST[] = "argumentList";
+    const char ARGUMENT[] = "argument";
+    const char ARGUMENT_NAME[] = "name";
+    const char ARGUMENT_PARAMETER[] = "parameter";
 }
 /*!
     \fn PluginSpecPrivate::PluginSpecPrivate(PluginSpec *spec)
@@ -458,6 +468,8 @@ namespace {
 */
 PluginSpecPrivate::PluginSpecPrivate(PluginSpec *spec)
     :
+    experimental(false),
+    disabledByDefault(false),
     enabled(true),
     disabledIndirectly(false),
     plugin(0),
@@ -519,6 +531,11 @@ bool PluginSpecPrivate::read(const QString &fileName)
 void PluginSpec::setEnabled(bool value)
 {
     d->enabled = value;
+}
+
+void PluginSpec::setDisabledByDefault(bool value)
+{
+    d->disabledByDefault = value;
 }
 
 void PluginSpec::setDisabledIndirectly(bool value)
@@ -601,6 +618,7 @@ void PluginSpecPrivate::readPluginSpec(QXmlStreamReader &reader)
         reader.raiseError(msgInvalidFormat(PLUGIN_EXPERIMENTAL));
         return;
     }
+    disabledByDefault = experimental;
     enabled = !experimental;
     while (!reader.atEnd()) {
         reader.readNext();

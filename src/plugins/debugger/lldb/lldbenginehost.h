@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,8 @@ class SshIODevice : public QIODevice
 {
 Q_OBJECT
 public:
-    SshIODevice(Utils::SshRemoteProcessRunner::Ptr r);
+    SshIODevice(Utils::SshRemoteProcessRunner *r);
+    ~SshIODevice();
     virtual qint64 bytesAvailable () const;
     virtual qint64 writeData (const char * data, qint64 maxSize);
     virtual qint64 readData (char * data, qint64 maxSize);
@@ -58,7 +59,7 @@ private slots:
     void outputAvailable(const QByteArray &output);
     void errorOutputAvailable(const QByteArray &output);
 private:
-    Utils::SshRemoteProcessRunner::Ptr runner;
+    Utils::SshRemoteProcessRunner *runner;
     Utils::SshRemoteProcess::Ptr proc;
     int buckethead;
     QQueue<QByteArray> buckets;
@@ -75,7 +76,7 @@ public:
 
 private:
     QProcess *m_guestProcess;
-    Utils::SshRemoteProcessRunner::Ptr m_ssh;
+    Utils::SshRemoteProcessRunner *m_ssh;
 protected:
     void nuke();
 private slots:

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,16 +53,19 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QByteArray>
 #include <QtCore/QDebug>
+#include <QtCore/QTextCodec>
 
 namespace Designer {
 namespace Internal {
 
 FormWindowFile::FormWindowFile(QDesignerFormWindowInterface *form, QObject *parent)
-  : Core::IFile(parent),
+  : Core::TextFile(parent),
     m_mimeType(QLatin1String(Designer::Constants::FORM_MIMETYPE)),
     m_shouldAutoSave(false),
     m_formWindow(form)
 {
+    // Designer needs UTF-8 regardless of settings.
+    setCodec(QTextCodec::codecForName("UTF-8"));
     connect(m_formWindow->core()->formWindowManager(), SIGNAL(formWindowRemoved(QDesignerFormWindowInterface*)),
             this, SLOT(slotFormWindowRemoved(QDesignerFormWindowInterface*)));
     connect(m_formWindow->commandHistory(), SIGNAL(indexChanged(int)),
@@ -190,10 +193,7 @@ bool FormWindowFile::writeFile(const QString &fileName, QString *errorString) co
 {
     if (Designer::Constants::Internal::debug)
         qDebug() << Q_FUNC_INFO << m_fileName << fileName;
-
-    Utils::FileSaver saver(fileName, QIODevice::Text);
-    saver.write(m_formWindow->contents().toUtf8());
-    return saver.finalize(errorString);
+    return write(fileName, format(), m_formWindow->contents(), errorString);
 }
 
 void FormWindowFile::setFileName(const QString &fname)

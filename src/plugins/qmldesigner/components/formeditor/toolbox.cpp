@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,18 +26,20 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "toolbox.h"
 #include "utils/styledbar.h"
+#include "utils/crumblepath.h"
 
 #include <QToolBar>
 #include <QHBoxLayout>
 #include <QPainter>
 #include <QtDebug>
 #include <QFile>
+#include <QFrame>
 #include <QVariant>
 
 namespace QmlDesigner {
@@ -47,9 +49,28 @@ ToolBox::ToolBox(QWidget *parentWidget)
   m_leftToolBar(new QToolBar("LeftSidebar", this)),
   m_rightToolBar(new QToolBar("RightSidebar", this))
 {
-    QHBoxLayout *fillLayout = new QHBoxLayout(this);
-    fillLayout->setMargin(0);
-    fillLayout->setSpacing(0);
+    setMaximumHeight(44);
+    setSingleRow(false);
+    QFrame *frame = new QFrame(this);
+    m_crumblePath = new Utils::CrumblePath(frame);
+    frame->setStyleSheet("background-color: #4e4e4e;");
+    frame->setFrameShape(QFrame::NoFrame);
+    QHBoxLayout *layout = new QHBoxLayout(frame);
+    layout->setMargin(0);
+    layout->setSpacing(0);
+    frame->setLayout(layout);
+    layout->addWidget(m_crumblePath);
+    frame->setProperty("panelwidget", true);
+    frame->setProperty("panelwidget_singlerow", false);
+    QVBoxLayout *verticalLayout = new QVBoxLayout(this);
+    verticalLayout->setMargin(0);
+    verticalLayout->setSpacing(0);
+
+    QHBoxLayout *horizontalLayout = new QHBoxLayout();
+    verticalLayout->addLayout(horizontalLayout);
+    verticalLayout->addWidget(frame);
+    horizontalLayout->setMargin(0);
+    horizontalLayout->setSpacing(0);
 
     m_leftToolBar->setFloatable(true);
     m_leftToolBar->setMovable(true);
@@ -58,24 +79,24 @@ ToolBox::ToolBox(QWidget *parentWidget)
 
     QToolBar *stretchToolbar = new QToolBar(this);
 
+    setSingleRow(false);
+
     m_leftToolBar->setProperty("panelwidget", true);
-    m_leftToolBar->setProperty("panelwidget_singlerow", true);
+    m_leftToolBar->setProperty("panelwidget_singlerow", false);
 
     m_rightToolBar->setProperty("panelwidget", true);
-    m_rightToolBar->setProperty("panelwidget_singlerow", true);
+    m_rightToolBar->setProperty("panelwidget_singlerow", false);
 
     stretchToolbar->setProperty("panelwidget", true);
-    stretchToolbar->setProperty("panelwidget_singlerow", true);
+    stretchToolbar->setProperty("panelwidget_singlerow", false);
 
     stretchToolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
     m_rightToolBar->setOrientation(Qt::Horizontal);
     m_rightToolBar->setIconSize(QSize(24, 24));
-    fillLayout->addWidget(m_leftToolBar);
-    fillLayout->addWidget(stretchToolbar);
-    fillLayout->addWidget(m_rightToolBar);
-
-    setLayout(fillLayout);
+    horizontalLayout->addWidget(m_leftToolBar);
+    horizontalLayout->addWidget(stretchToolbar);
+    horizontalLayout->addWidget(m_rightToolBar);
 }
 
 void ToolBox::setLeftSideActions(const QList<QAction*> &actions)
@@ -106,6 +127,11 @@ void ToolBox::addRightSideAction(QAction *action)
 QList<QAction*> ToolBox::actions() const
 {
     return QList<QAction*>() << m_leftToolBar->actions() << m_rightToolBar->actions();
+}
+
+Utils::CrumblePath *ToolBox::crumblePath() const
+{
+    return m_crumblePath;
 }
 
 } // namespace QmlDesigner

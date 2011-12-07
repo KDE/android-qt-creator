@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,20 +35,21 @@
 
 #include "core_global.h"
 
-#include <utils/fancylineedit.h>
-
 #include <QtCore/QPointer>
 #include <QtGui/QWidget>
-#include <QtGui/QLineEdit>
-#include <QtGui/QTextEdit>
-#include <QtGui/QPlainTextEdit>
-#include <QtGui/QListWidgetItem>
+
+QT_BEGIN_NAMESPACE
+class QLineEdit;
+class QTextEdit;
+class QPlainTextEdit;
+class QListWidgetItem;
+QT_END_NAMESPACE
+
+namespace Utils { class IconButton; }
 
 namespace Core {
 
-namespace Ui {
-    class VariableChooser;
-}
+namespace Internal { namespace Ui { class VariableChooser; } }
 
 class CORE_EXPORT VariableChooser : public QWidget
 {
@@ -71,7 +72,7 @@ private slots:
 private:
     void createIconButton();
 
-    Ui::VariableChooser *ui;
+    Internal::Ui::VariableChooser *ui;
     QString m_defaultDescription;
     QPointer<QLineEdit> m_lineEdit;
     QPointer<QTextEdit> m_textEdit;
@@ -79,6 +80,6 @@ private:
     QPointer<Utils::IconButton> m_iconButton;
 };
 
-
 } // namespace Core
+
 #endif // VARIABLECHOOSER_H

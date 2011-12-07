@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,82 +26,37 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-import QtQuick 1.1
-import qtcomponents 1.0 as Components
+import QtQuick 1.0
+import qtcomponents 1.0
 
-HeaderItemView {
-    header: qsTr("Recently Edited Projects")
-    model: projectList
-    delegate: Rectangle {
-        Components.QStyleItem { id: styleItem; cursor: "pointinghandcursor"; anchors.fill: parent }
-        height: 60
-        width: dataSection.width
+ScrollArea {
+    //id: projectList
+    property alias model: repeater.model
 
-        Rectangle {
-            height: 1
-            color: "#eee"
-            anchors.bottom: parent.bottom
-            width: parent.width
+    Behavior on verticalScrollBar.opacity  {
+        PropertyAnimation {
+
         }
-        color: mousearea.containsMouse ? "#f9f9f9" : "white"
+    }
 
-        Image {
-            id: arrowImage;
-            source: "qrc:welcome/images/list_bullet_arrow.png";
-            anchors.verticalCenter: parent.verticalCenter;
-            anchors.left: parent.left
-            anchors.leftMargin: 10
-        }
+    frame: false
+    horizontalScrollBar.visible: false
+    clip: true
 
-        Column {
-            spacing: 4
-            anchors.left: arrowImage.right
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            Text {
-                id: nameText
-                text: displayName
-                font.bold: true
-                width: parent.width
-                anchors.left: parent.left
-                anchors.leftMargin: 10
-                anchors.rightMargin: arrowImage.width + 10
-                anchors.right: parent.right
-                elide: Text.ElideRight
+    Column {
+        id: column
+        spacing: 2
+
+        Repeater {
+            id: repeater
+            ProjectItem {
+                projectName: displayName
+                projectPath: prettyFilePath
             }
-
-            Text {
-                id: filepath
-                text: prettyFilePath
-                elide: Text.ElideMiddle
-                color: "grey"
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: 10
-                anchors.rightMargin: arrowImage.width + 14
-            }
-        }
-
-        Timer {
-            id: timer
-            interval: 1000
-            onTriggered: {
-                if (filepath.truncated)
-                    styleItem.showToolTip(filePath)
-            }
-        }
-
-        MouseArea {
-            id: mousearea
-            anchors.fill: parent
-            onClicked: projectWelcomePage.requestProject(filePath)
-            hoverEnabled: true
-            onEntered:timer.start()
-            onExited: timer.stop()
         }
     }
 }

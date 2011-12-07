@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,12 +40,6 @@
 #include <projectexplorer/task.h>
 #include <qt4projectmanager/qt4projectmanager_global.h>
 
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class MakeStep;
-}
-QT_END_NAMESPACE
-
 namespace ProjectExplorer {
 class BuildStep;
 class GnuMakeParser;
@@ -54,11 +48,14 @@ class Project;
 }
 
 namespace Qt4ProjectManager {
+
 class Qt4BuildConfiguration;
 
 namespace Internal {
 
-class QT4PROJECTMANAGER_EXPORT MakeStepFactory : public ProjectExplorer::IBuildStepFactory
+namespace Ui { class MakeStep; }
+
+class MakeStepFactory : public ProjectExplorer::IBuildStepFactory
 {
     Q_OBJECT
 
@@ -142,7 +139,7 @@ private slots:
     void userArgumentsChanged();
     void qtVersionChanged();
 private:
-    Ui::MakeStep *m_ui;
+    Internal::Ui::MakeStep *m_ui;
     MakeStep *m_makeStep;
     QString m_summaryText;
     bool m_ignoreChange;

@@ -5,7 +5,7 @@
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -27,21 +27,20 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef IMAGEVIEWERACTIONHANDLER_H
 #define IMAGEVIEWERACTIONHANDLER_H
 
-#include "coreplugin/icontext.h"
+#include "coreplugin/id.h"
 
 #include <QtCore/QObject>
-#include <QtCore/QScopedPointer>
 
 QT_BEGIN_NAMESPACE
-class QAction;
 class QKeySequence;
+class QSignalMapper;
 QT_END_NAMESPACE
 
 namespace ImageViewer {
@@ -50,13 +49,10 @@ namespace Internal {
 class ImageViewerActionHandler : public QObject
 {
     Q_OBJECT
+
 public:
     explicit ImageViewerActionHandler(QObject *parent = 0);
-    ~ImageViewerActionHandler();
-
     void createActions();
-
-signals:
 
 public slots:
     void actionTriggered(int supportedAction);
@@ -71,15 +67,14 @@ protected:
       \param key Key sequence for the command
       \return Created and registered action, 0 if something goes wrong
      */
-    QAction *registerNewAction(int actionId, const QString &id, const QString &title,
-                               const Core::Context &context, const QKeySequence &key);
+    void registerNewAction(int actionId, const Core::Id &id, const QString &title,
+                           const QKeySequence &key);
 
 private:
-    QScopedPointer<struct ImageViewerActionHandlerPrivate> d_ptr;
+    QSignalMapper *m_signalMapper;
 };
 
 } // namespace Internal
 } // namespace ImageViewer
-
 
 #endif // IMAGEVIEWERACTIONHANDLER_H

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,16 +34,23 @@
 #define TEXTEDITORACTIONHANDLER_H
 
 #include "texteditor_global.h"
-#include "basetexteditor.h"
 
-#include "coreplugin/icontext.h"
+#include <coreplugin/icontext.h>
+#include <coreplugin/id.h>
 
-#include <QtCore/QList>
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
 #include <QtCore/QList>
 
+QT_FORWARD_DECLARE_CLASS(QAction)
+
+namespace Core {
+class ICore;
+class IEditor;
+}
+
 namespace TextEditor {
+class BaseTextEditorWidget;
 
 // Redirects slots from global actions to the respective editor.
 
@@ -60,6 +67,8 @@ public:
     };
 
     explicit TextEditorActionHandler(const char *context, uint optionalActions = None);
+    ~TextEditorActionHandler();
+
     void setupActions(BaseTextEditorWidget *editor);
 
     void initializeActions();
@@ -72,15 +81,15 @@ public slots:
 
 protected:
     const QPointer<BaseTextEditorWidget> &currentEditor() const;
-    QAction *registerNewAction(const QString &id, bool scriptable=false, const QString &title = QString());
-    QAction *registerNewAction(const QString &id, QObject *receiver, const char *slot, bool scriptable = false,
+    QAction *registerNewAction(const Core::Id &id, bool scriptable = false, const QString &title = QString());
+    QAction *registerNewAction(const Core::Id &id, QObject *receiver, const char *slot, bool scriptable = false,
                                const QString &title = QString());
 
     enum UpdateMode { ReadOnlyMode, WriteMode };
     UpdateMode updateMode() const;
 
     virtual void createActions();
-    virtual bool supportsAction(const QString &id) const;
+    virtual bool supportsAction(const Core::Id &id) const;
     virtual void updateActions(UpdateMode um);
 
 private slots:
@@ -104,6 +113,10 @@ private slots:
     void cutLine();
     void copyLine();
     void deleteLine();
+    void deleteEndOfWord();
+    void deleteEndOfWordCamelCase();
+    void deleteStartOfWord();
+    void deleteStartOfWordCamelCase();
     void selectEncoding();
     void increaseFontSize();
     void decreaseFontSize();
@@ -168,6 +181,10 @@ private:
     QAction *m_cutLineAction;
     QAction *m_copyLineAction;
     QAction *m_deleteLineAction;
+    QAction *m_deleteEndOfWordAction;
+    QAction *m_deleteEndOfWordCamelCaseAction;
+    QAction *m_deleteStartOfWordAction;
+    QAction *m_deleteStartOfWordCamelCaseAction;
     QAction *m_selectEncodingAction;
     QAction *m_increaseFontSizeAction;
     QAction *m_decreaseFontSizeAction;

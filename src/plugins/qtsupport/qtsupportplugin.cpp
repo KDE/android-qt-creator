@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,12 +47,6 @@
 using namespace QtSupport;
 using namespace QtSupport::Internal;
 
-QtSupportPlugin::~QtSupportPlugin()
-{
-    removeObject(m_welcomePage);
-    delete m_welcomePage;
-}
-
 bool QtSupportPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments);
@@ -65,8 +59,16 @@ bool QtSupportPlugin::initialize(const QStringList &arguments, QString *errorMes
     addAutoReleasedObject(mgr);
     addAutoReleasedObject(new QtOptionsPage);
 
-    m_welcomePage = new GettingStartedWelcomePage;
-    addObject(m_welcomePage);
+    ExamplesWelcomePage *welcomePage;
+    welcomePage = new ExamplesWelcomePage;
+    addAutoReleasedObject(welcomePage);
+
+    welcomePage = new ExamplesWelcomePage;
+    welcomePage->setShowExamples(true);
+    addAutoReleasedObject(welcomePage);
+
+    GettingStartedWelcomePage *gettingStartedWelcomePage = new GettingStartedWelcomePage;
+    addAutoReleasedObject(gettingStartedWelcomePage);
 
     return true;
 }

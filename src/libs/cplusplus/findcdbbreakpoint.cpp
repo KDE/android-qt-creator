@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -102,12 +102,6 @@ bool FindCdbBreakpoint::visit(FunctionDefinitionAST *ast)
 }
 
 bool FindCdbBreakpoint::visit(QtMemberDeclarationAST *ast)
-{
-    foundLine(ast->lastToken() - 1);
-    return false;
-}
-
-bool FindCdbBreakpoint::visit(CaseStatementAST *ast)
 {
     foundLine(ast->lastToken() - 1);
     return false;

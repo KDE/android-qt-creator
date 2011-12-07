@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -61,32 +61,42 @@ struct CppFileSettings;
 
 class CppToolsPlugin : public ExtensionSystem::IPlugin
 {
-    Q_DISABLE_COPY(CppToolsPlugin)
     Q_OBJECT
-public:
-    static CppToolsPlugin *instance() { return m_instance; }
 
+public:
     CppToolsPlugin();
     ~CppToolsPlugin();
 
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
     CppModelManager *cppModelManager() { return m_modelManager; }
-    QString correspondingHeaderOrSource(const QString &fileName) const;
+    static QString correspondingHeaderOrSource(const QString &fileName);
 
 private slots:
     void switchHeaderSource();
 
+#ifdef WITH_TESTS
+    // codegen tests
+    void test_codegen_public_in_empty_class();
+    void test_codegen_public_in_nonempty_class();
+    void test_codegen_public_before_protected();
+    void test_codegen_private_after_protected();
+    void test_codegen_protected_in_nonempty_class();
+    void test_codegen_protected_between_public_and_private();
+    void test_codegen_qtdesigner_integration();
+    void test_codegen_definition_empty_class();
+    void test_codegen_definition_first_member();
+    void test_codegen_definition_last_member();
+    void test_codegen_definition_middle_member();
+#endif
+
 private:
     QString correspondingHeaderOrSourceI(const QString &fileName) const;
-    QFileInfo findFile(const QDir &dir, const QString &name, const ProjectExplorer::Project *project) const;
 
     CppModelManager *m_modelManager;
     QSharedPointer<CppFileSettings> m_fileSettings;
     CppToolsSettings *m_settings;
-
-    static CppToolsPlugin *m_instance;
 };
 
 } // namespace Internal

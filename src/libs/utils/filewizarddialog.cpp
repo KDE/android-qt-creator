@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,6 +51,15 @@ FileWizardDialog::FileWizardDialog(QWidget *parent) :
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     setOption(QWizard::NoCancelButton, false);
     setOption(QWizard::NoDefaultButton, false);
+#ifdef Q_OS_MAC
+    setButtonLayout(QList<QWizard::WizardButton>()
+                    << QWizard::CancelButton
+                    << QWizard::Stretch
+                    << QWizard::BackButton
+                    << QWizard::NextButton
+                    << QWizard::CommitButton
+                    << QWizard::FinishButton);
+#endif
     const int filePageId = addPage(m_filePage);
     wizardProgress()->item(filePageId)->setTitle(tr("Location"));
     connect(m_filePage, SIGNAL(activated()), button(QWizard::FinishButton), SLOT(animateClick()));

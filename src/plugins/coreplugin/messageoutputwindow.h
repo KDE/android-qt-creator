@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,13 +34,10 @@
 #define MESSAGEOUTPUTWINDOW_H
 
 #include "ioutputpane.h"
-#include "outputwindow.h"
-
-#include <QtGui/QShowEvent>
-#include <QtGui/QResizeEvent>
-#include <QtGui/QTextEdit>
 
 namespace Core {
+class OutputWindow;
+
 namespace Internal {
 
 class MessageOutputWindow : public Core::IOutputPane
@@ -60,15 +57,15 @@ public:
     void visibilityChanged(bool visible);
 
     void append(const QString &text);
-    bool canFocus();
-    bool hasFocus();
+    bool canFocus() const;
+    bool hasFocus() const;
     void setFocus();
 
-    virtual bool canNext();
-    virtual bool canPrevious();
+    virtual bool canNext() const;
+    virtual bool canPrevious() const;
     virtual void goToNext();
     virtual void goToPrev();
-    bool canNavigate();
+    bool canNavigate() const;
 
 private:
     OutputWindow *m_widget;

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,10 +51,11 @@
 #include "remotehelpfilter.h"
 #include "searchwidget.h"
 
+#include <app/app_version.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
@@ -95,15 +96,14 @@
 #include <QtWebKit/QWebHistory>
 #endif
 
-using namespace Core::Constants;
 using namespace Help::Internal;
 
-const char * const SB_INDEX = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Index");
-const char * const SB_CONTENTS = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Contents");
-const char * const SB_BOOKMARKS = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Bookmarks");
-const char * const SB_SEARCH = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Search");
+const char SB_INDEX[] = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Index");
+const char SB_CONTENTS[] = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Contents");
+const char SB_BOOKMARKS[] = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Bookmarks");
+const char SB_SEARCH[] = QT_TRANSLATE_NOOP("Help::Internal::HelpPlugin", "Search");
 
-const char * const SB_OPENPAGES = "OpenPages";
+const char SB_OPENPAGES[] = "OpenPages";
 
 #define IMAGEPATH ":/help/images/"
 #if defined(Q_OS_MAC)
@@ -112,14 +112,14 @@ const char * const SB_OPENPAGES = "OpenPages";
 #   define DOCPATH "/../share/doc/qtcreator/"
 #endif
 
-namespace {
-    QToolButton* toolButton(QAction *action)
-    {
-        QToolButton *button = new QToolButton;
-        button->setDefaultAction(action);
-        button->setPopupMode(QToolButton::DelayedPopup);
-        return button;
-    }
+using namespace Core;
+
+static QToolButton *toolButton(QAction *action)
+{
+    QToolButton *button = new QToolButton;
+    button->setDefaultAction(action);
+    button->setPopupMode(QToolButton::DelayedPopup);
+    return button;
 }
 
 HelpPlugin::HelpPlugin()
@@ -203,12 +203,12 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     QAction *action = new QAction(QIcon(QLatin1String(IMAGEPATH "home.png")),
         tr("Home"), this);
     Core::ActionManager *am = m_core->actionManager();
-    Core::Command *cmd = am->registerAction(action, "Help.Home", globalcontext);
+    am->registerAction(action, "Help.Home", globalcontext);
     connect(action, SIGNAL(triggered()), m_centralWidget, SLOT(home()));
 
     action = new QAction(QIcon(QLatin1String(IMAGEPATH "previous.png")),
         tr("Previous Page"), this);
-    cmd = am->registerAction(action, Core::Id("Help.Previous"), modecontext);
+    Core::Command *cmd = am->registerAction(action, Core::Id("Help.Previous"), modecontext);
     cmd->setDefaultKeySequence(QKeySequence::Back);
     action->setEnabled(m_centralWidget->isBackwardAvailable());
     connect(action, SIGNAL(triggered()), m_centralWidget, SLOT(backward()));
@@ -235,17 +235,17 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     action = new QAction(QIcon::fromTheme(QLatin1String("help-contents")),
         tr(SB_CONTENTS), this);
     cmd = am->registerAction(action, Core::Id("Help.Contents"), globalcontext);
-    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    am->actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
     connect(action, SIGNAL(triggered()), this, SLOT(activateContents()));
 
     action = new QAction(tr(SB_INDEX), this);
     cmd = am->registerAction(action, Core::Id("Help.Index"), globalcontext);
-    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    am->actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
     connect(action, SIGNAL(triggered()), this, SLOT(activateIndex()));
 
     action = new QAction(tr("Context Help"), this);
     cmd = am->registerAction(action, Core::Id("Help.Context"), globalcontext);
-    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    am->actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
     cmd->setDefaultKeySequence(QKeySequence(Qt::Key_F1));
     connect(action, SIGNAL(triggered()), this, SLOT(activateContext()));
 
@@ -253,24 +253,24 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     action = new QAction(this);
     action->setSeparator(true);
     cmd = am->registerAction(action, Core::Id("Help.Separator"), globalcontext);
-    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    am->actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
 #endif
 
     action = new QAction(tr("Technical Support"), this);
     cmd = am->registerAction(action, Core::Id("Help.TechSupport"), globalcontext);
-    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    am->actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
     connect(action, SIGNAL(triggered()), this, SLOT(slotOpenSupportPage()));
 
     action = new QAction(tr("Report Bug..."), this);
     cmd = am->registerAction(action, Core::Id("Help.ReportBug"), globalcontext);
-    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    am->actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
     connect(action, SIGNAL(triggered()), this, SLOT(slotReportBug()));
 
 #ifndef Q_WS_MAC
     action = new QAction(this);
     action->setSeparator(true);
     cmd = am->registerAction(action, Core::Id("Help.Separator2"), globalcontext);
-    am->actionContainer(M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
+    am->actionContainer(Core::Constants::M_HELP)->addAction(cmd, Core::Constants::G_HELP_HELP);
 #endif
 
     action = new QAction(this);
@@ -283,7 +283,7 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
     action->setText(cmd->action()->text());
     action->setIcon(cmd->action()->icon());
 
-    if (Core::ActionContainer *advancedMenu = am->actionContainer(M_EDIT_ADVANCED)) {
+    if (Core::ActionContainer *advancedMenu = am->actionContainer(Core::Constants::M_EDIT_ADVANCED)) {
         // reuse TextEditor constants to avoid a second pair of menu actions
         action = new QAction(tr("Increase Font Size"), this);
         cmd = am->registerAction(action, TextEditor::Constants::INCREASE_FONT_SIZE,
@@ -304,11 +304,11 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
         advancedMenu->addAction(cmd, Core::Constants::G_EDIT_FONT);
     }
 
-    if (Core::ActionContainer *windowMenu = am->actionContainer(M_WINDOW)) {
+    if (Core::ActionContainer *windowMenu = am->actionContainer(Core::Constants::M_WINDOW)) {
         // reuse EditorManager constants to avoid a second pair of menu actions
         action = new QAction(QApplication::translate("EditorManager",
             "Next Open Document in History"), this);
-        Core::Command *ctrlTab = am->registerAction(action, GOTOPREVINHISTORY,
+        Core::Command *ctrlTab = am->registerAction(action, Core::Constants::GOTOPREVINHISTORY,
             modecontext);   // Goto Previous In History Action
         windowMenu->addAction(ctrlTab, Core::Constants::G_WINDOW_NAVIGATE);
         connect(action, SIGNAL(triggered()), &OpenPagesManager::instance(),
@@ -316,7 +316,7 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
 
         action = new QAction(QApplication::translate("EditorManager",
             "Previous Open Document in History"), this);
-        Core::Command *ctrlShiftTab = am->registerAction(action, GOTONEXTINHISTORY,
+        Core::Command *ctrlShiftTab = am->registerAction(action, Core::Constants::GOTONEXTINHISTORY,
             modecontext);   // Goto Next In History Action
         windowMenu->addAction(ctrlShiftTab, Core::Constants::G_WINDOW_NAVIGATE);
         connect(action, SIGNAL(triggered()), &OpenPagesManager::instance(),
@@ -361,7 +361,7 @@ bool HelpPlugin::initialize(const QStringList &arguments, QString *error)
         SLOT(switchToHelpMode(QUrl)));
 
     QDesktopServices::setUrlHandler("qthelp", this, "handleHelpRequest");
-    connect(m_core->modeManager(), SIGNAL(currentModeChanged(Core::IMode*,
+    connect(Core::ModeManager::instance(), SIGNAL(currentModeChanged(Core::IMode*,
         Core::IMode*)), this, SLOT(modeChanged(Core::IMode*, Core::IMode*)));
 
     m_externalWindow = new ExternalHelpWindow;
@@ -442,7 +442,7 @@ void HelpPlugin::setupUi()
 
     ContentWindow *contentWindow = new ContentWindow();
     contentWindow->setWindowTitle(tr(SB_CONTENTS));
-    m_contentItem = new Core::SideBarItem(contentWindow, Core::Id(SB_CONTENTS));
+    m_contentItem = new Core::SideBarItem(contentWindow, SB_CONTENTS);
     connect(contentWindow, SIGNAL(linkActivated(QUrl)), m_centralWidget,
         SLOT(setSource(QUrl)));
 
@@ -618,7 +618,7 @@ void HelpPlugin::createRightPaneContextViewer()
         SLOT(setEnabled(bool)));
 
     Core::ActionManager *am = m_core->actionManager();
-    if (Core::ActionContainer *advancedMenu = am->actionContainer(M_EDIT_ADVANCED)) {
+    if (Core::ActionContainer *advancedMenu = am->actionContainer(Core::Constants::M_EDIT_ADVANCED)) {
         // reuse TextEditor constants to avoid a second pair of menu actions
         QAction *action = new QAction(tr("Increase Font Size"), this);
         cmd = am->registerAction(action, TextEditor::Constants::INCREASE_FONT_SIZE,
@@ -665,7 +665,7 @@ void HelpPlugin::resetRightPaneScale()
 void HelpPlugin::activateHelpMode()
 {
     if (contextHelpOption() != Help::Constants::ExternalHelpAlways)
-        m_core->modeManager()->activateMode(QLatin1String(Constants::ID_MODE_HELP));
+        Core::ModeManager::instance()->activateMode(QLatin1String(Constants::ID_MODE_HELP));
     else
         showExternalWindow();
 }
@@ -787,8 +787,8 @@ void HelpPlugin::contextHelpOptionChanged()
                 m_externalWindow->show();
                 connectExternalHelpWindow();
 
-                if (m_oldMode && m_mode == m_core->modeManager()->currentMode())
-                    m_core->modeManager()->activateMode(m_oldMode->id());
+                if (m_oldMode && m_mode == ModeManager::instance()->currentMode())
+                    ModeManager::instance()->activateMode(m_oldMode->id());
             }
         }
     } else if (modeWidget != m_splitter
@@ -822,12 +822,10 @@ void HelpPlugin::setupHelpEngineIfNeeded()
         m_helpManager->setupGuiHelpEngine();
 }
 
-HelpViewer* HelpPlugin::viewerForContextMode()
+HelpViewer *HelpPlugin::viewerForContextMode()
 {
-    using namespace Core;
-
-    if (m_core->modeManager()->currentMode()->id() == Core::Constants::MODE_WELCOME)
-        m_core->modeManager()->activateMode(Core::Constants::MODE_EDIT);
+    if (ModeManager::instance()->currentMode()->id() == Core::Constants::MODE_WELCOME)
+        ModeManager::instance()->activateMode(Core::Constants::MODE_EDIT);
 
     bool showSideBySide = false;
     RightPanePlaceHolder *placeHolder = RightPanePlaceHolder::current();
@@ -870,14 +868,14 @@ HelpViewer* HelpPlugin::viewerForContextMode()
 
 void HelpPlugin::activateContext()
 {
-    using namespace Core;
     createRightPaneContextViewer();
 
-    RightPanePlaceHolder* placeHolder = RightPanePlaceHolder::current();
+    RightPanePlaceHolder *placeHolder = RightPanePlaceHolder::current();
     if (placeHolder && m_helpViewerForSideBar->hasFocus()) {
         switchToHelpMode();
         return;
-    } else if (m_core->modeManager()->currentMode() == m_mode)
+    }
+    if (ModeManager::instance()->currentMode() == m_mode)
         return;
 
     // Find out what to show
@@ -885,6 +883,12 @@ void HelpPlugin::activateContext()
     if (IContext *context = m_core->currentContextObject()) {
         m_idFromContext = context->contextHelpId();
         links = Core::HelpManager::instance()->linksForIdentifier(m_idFromContext);
+        if (links.isEmpty()) {
+            // Maybe this is already an URL...
+            QUrl url(m_idFromContext);
+            if (url.isValid())
+                links.insert(m_idFromContext, m_idFromContext);
+        }
     }
 
     if (HelpViewer* viewer = viewerForContextMode()) {
@@ -1216,7 +1220,7 @@ void HelpPlugin::slotOpenSupportPage()
 
 void HelpPlugin::slotReportBug()
 {
-    QDesktopServices::openUrl(QUrl("http://bugreports.qt.nokia.com"));
+    QDesktopServices::openUrl(QUrl("https://bugreports.qt.nokia.com"));
 }
 
 void HelpPlugin::openFindToolBar()

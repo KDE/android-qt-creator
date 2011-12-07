@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "target.h"
 
+#include "toolchain.h"
 #include "buildconfiguration.h"
 #include "deployconfiguration.h"
 #include "project.h"
@@ -41,22 +42,24 @@
 
 #include <limits>
 #include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/buildmanager.h>
+#include <projectexplorer/projectexplorer.h>
 #include <utils/qtcassert.h>
 
 #include <QtGui/QIcon>
 
 namespace {
-const char * const ACTIVE_BC_KEY = "ProjectExplorer.Target.ActiveBuildConfiguration";
-const char * const BC_KEY_PREFIX = "ProjectExplorer.Target.BuildConfiguration.";
-const char * const BC_COUNT_KEY = "ProjectExplorer.Target.BuildConfigurationCount";
+const char ACTIVE_BC_KEY[] = "ProjectExplorer.Target.ActiveBuildConfiguration";
+const char BC_KEY_PREFIX[] = "ProjectExplorer.Target.BuildConfiguration.";
+const char BC_COUNT_KEY[] = "ProjectExplorer.Target.BuildConfigurationCount";
 
-const char * const ACTIVE_DC_KEY = "ProjectExplorer.Target.ActiveDeployConfiguration";
-const char * const DC_KEY_PREFIX = "ProjectExplorer.Target.DeployConfiguration.";
-const char * const DC_COUNT_KEY = "ProjectExplorer.Target.DeployConfigurationCount";
+const char ACTIVE_DC_KEY[] = "ProjectExplorer.Target.ActiveDeployConfiguration";
+const char DC_KEY_PREFIX[] = "ProjectExplorer.Target.DeployConfiguration.";
+const char DC_COUNT_KEY[] = "ProjectExplorer.Target.DeployConfigurationCount";
 
-const char * const ACTIVE_RC_KEY = "ProjectExplorer.Target.ActiveRunConfiguration";
-const char * const RC_KEY_PREFIX = "ProjectExplorer.Target.RunConfiguration.";
-const char * const RC_COUNT_KEY = "ProjectExplorer.Target.RunConfigurationCount";
+const char ACTIVE_RC_KEY[] = "ProjectExplorer.Target.ActiveRunConfiguration";
+const char RC_KEY_PREFIX[] = "ProjectExplorer.Target.RunConfiguration.";
+const char RC_COUNT_KEY[] = "ProjectExplorer.Target.RunConfigurationCount";
 
 } // namespace
 
@@ -109,6 +112,7 @@ Target::~Target()
 {
     qDeleteAll(d->m_buildConfigurations);
     qDeleteAll(d->m_runConfigurations);
+    delete d;
 }
 
 void Target::changeEnvironment()
@@ -172,11 +176,16 @@ void Target::addBuildConfiguration(BuildConfiguration *configuration)
         setActiveBuildConfiguration(configuration);
 }
 
-void Target::removeBuildConfiguration(BuildConfiguration *configuration)
+bool Target::removeBuildConfiguration(BuildConfiguration *configuration)
 {
     //todo: this might be error prone
     if (!d->m_buildConfigurations.contains(configuration))
-        return;
+        return false;
+
+    ProjectExplorer::BuildManager *bm =
+            ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
+    if (bm->isBuilding(configuration))
+        return false;
 
     d->m_buildConfigurations.removeOne(configuration);
 
@@ -190,6 +199,7 @@ void Target::removeBuildConfiguration(BuildConfiguration *configuration)
     }
 
     delete configuration;
+    return true;
 }
 
 QList<BuildConfiguration *> Target::buildConfigurations() const
@@ -240,11 +250,16 @@ void Target::addDeployConfiguration(DeployConfiguration *dc)
     Q_ASSERT(activeDeployConfiguration());
 }
 
-void Target::removeDeployConfiguration(DeployConfiguration *dc)
+bool Target::removeDeployConfiguration(DeployConfiguration *dc)
 {
     //todo: this might be error prone
     if (!d->m_deployConfigurations.contains(dc))
-        return;
+        return false;
+
+    ProjectExplorer::BuildManager *bm =
+            ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
+    if (bm->isBuilding(dc))
+        return false;
 
     d->m_deployConfigurations.removeOne(dc);
 
@@ -258,6 +273,7 @@ void Target::removeDeployConfiguration(DeployConfiguration *dc)
     }
 
     delete dc;
+    return true;
 }
 
 QList<DeployConfiguration *> Target::deployConfigurations() const
@@ -550,6 +566,9 @@ bool Target::fromMap(const QVariantMap &map)
 
 ITargetFactory::ITargetFactory(QObject *parent) :
     QObject(parent)
-{ }
+{
+    connect(ToolChainManager::instance(), SIGNAL(toolChainsChanged()),
+            this, SIGNAL(supportedTargetIdsChanged()));
+}
 
 } // namespace ProjectExplorer

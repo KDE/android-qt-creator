@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,9 +44,7 @@
 #include <QtGui/QApplication>
 #include <QtGui/QStyle>
 
-namespace {
-const char * const GENERIC_DESKTOP_TARGET_DISPLAY_NAME("Desktop");
-}
+const char GENERIC_DESKTOP_TARGET_DISPLAY_NAME[] = "Desktop";
 
 using namespace GenericProjectManager;
 using namespace GenericProjectManager::Internal;
@@ -86,10 +84,7 @@ GenericBuildConfiguration *GenericTarget::activeBuildConfiguration() const
 
 bool GenericTarget::fromMap(const QVariantMap &map)
 {
-    if (!Target::fromMap(map))
-        return false;
-
-    return true;
+    return Target::fromMap(map);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -141,10 +136,16 @@ GenericTarget *GenericTargetFactory::create(ProjectExplorer::Project *parent, co
     bc->setDisplayName("all");
 
     ProjectExplorer::BuildStepList *buildSteps = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+    ProjectExplorer::BuildStepList *cleanSteps = bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN);
+
     GenericMakeStep *makeStep = new GenericMakeStep(buildSteps);
     buildSteps->insertStep(0, makeStep);
-
     makeStep->setBuildTarget("all", /* on = */ true);
+
+    GenericMakeStep *cleanMakeStep = new GenericMakeStep(cleanSteps);
+    cleanSteps->insertStep(0, cleanMakeStep);
+    cleanMakeStep->setBuildTarget("clean", /* on = */ true);
+    cleanMakeStep->setClean(true);
 
     bc->setBuildDirectory(genericproject->projectDirectory());
 

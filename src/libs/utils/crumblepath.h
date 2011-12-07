@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,8 +38,6 @@
 #include <QtGui/QWidget>
 #include <QtCore/QVariant>
 
-QT_FORWARD_DECLARE_CLASS(QResizeEvent)
-
 namespace Utils {
 
 struct CrumblePathPrivate;
@@ -47,12 +45,14 @@ struct CrumblePathPrivate;
 class QTCREATOR_UTILS_EXPORT CrumblePath : public QWidget
 {
     Q_OBJECT
+
 public:
     explicit CrumblePath(QWidget *parent = 0);
     ~CrumblePath();
 
     void selectIndex(int index);
     QVariant dataForIndex(int index) const;
+    QVariant dataForLastIndex() const;
 
 public slots:
     void pushElement(const QString &title, const QVariant &data = QVariant());
@@ -74,7 +74,7 @@ private:
     void setBackgroundStyle();
 
 private:
-    QScopedPointer<CrumblePathPrivate> d;
+    CrumblePathPrivate *d;
 };
 
 } // namespace Utils

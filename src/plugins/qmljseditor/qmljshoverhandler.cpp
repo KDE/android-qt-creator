@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,11 +38,14 @@
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/helpmanager.h>
+#include <utils/qtcassert.h>
 #include <extensionsystem/pluginmanager.h>
+#include <qmljs/qmljscontext.h>
+#include <qmljs/qmljsscopechain.h>
 #include <qmljs/qmljsinterpreter.h>
 #include <qmljs/parser/qmljsast_p.h>
 #include <qmljs/parser/qmljsastfwd_p.h>
-#include <qmljs/qmljscheck.h>
+#include <qmljs/qmljsutils.h>
 #include <texteditor/itexteditor.h>
 #include <texteditor/basetexteditor.h>
 #include <texteditor/helpitem.h>
@@ -116,26 +119,36 @@ void HoverHandler::identifyMatch(TextEditor::ITextEditor *editor, int pos)
         return;
 
     const QmlJSEditor::SemanticInfo &semanticInfo = qmlEditor->semanticInfo();
-    if (! semanticInfo.isValid() || semanticInfo.revision() != qmlEditor->editorRevision())
+    if (! semanticInfo.isValid() || qmlEditor->isSemanticInfoOutdated())
         return;
 
-    QList<AST::Node *> astPath = semanticInfo.astPath(pos);
+    QList<AST::Node *> rangePath = semanticInfo.rangePath(pos);
 
     const Document::Ptr qmlDocument = semanticInfo.document;
-    LookupContext::Ptr lookupContext = semanticInfo.lookupContext(astPath);
+    ScopeChain scopeChain = semanticInfo.scopeChain(rangePath);
 
-    AST::Node *node = semanticInfo.nodeUnderCursor(pos);
-    if (astPath.isEmpty()) {
-        if (AST::UiImport *import = AST::cast<AST::UiImport *>(node))
-            handleImport(lookupContext, import);
+    QList<AST::Node *> astPath = semanticInfo.astPath(pos);
+    QTC_ASSERT(!astPath.isEmpty(), return);
+    AST::Node *node = astPath.last();
+
+    if (rangePath.isEmpty()) {
+        // Is the cursor on an import? The ast path will have an UiImport
+        // member in the last or second to last position!
+        AST::UiImport *import = 0;
+        if (astPath.size() >= 1)
+            import = AST::cast<AST::UiImport *>(astPath.last());
+        if (!import && astPath.size() >= 2)
+            import = AST::cast<AST::UiImport *>(astPath.at(astPath.size() - 2));
+        if (import)
+            handleImport(scopeChain, import);
         return;
     }
-    if (matchColorItem(lookupContext, qmlDocument, astPath, pos))
+    if (matchColorItem(scopeChain, qmlDocument, rangePath, pos))
         return;
 
-    handleOrdinaryMatch(lookupContext, node);
+    handleOrdinaryMatch(scopeChain, node);
 
-    TextEditor::HelpItem helpItem = qmlHelpItem(lookupContext, node);
+    TextEditor::HelpItem helpItem = qmlHelpItem(scopeChain, node);
     if (!helpItem.helpId().isEmpty())
         setLastHelpItemIdentified(helpItem);
 }
@@ -152,7 +165,7 @@ bool HoverHandler::matchDiagnosticMessage(QmlJSEditor::QmlJSTextEditorWidget *qm
     return false;
 }
 
-bool HoverHandler::matchColorItem(const LookupContext::Ptr &lookupContext,
+bool HoverHandler::matchColorItem(const ScopeChain &scopeChain,
                                   const Document::Ptr &qmlDocument,
                                   const QList<AST::Node *> &astPath,
                                   unsigned pos)
@@ -172,10 +185,10 @@ bool HoverHandler::matchColorItem(const LookupContext::Ptr &lookupContext,
         return false;
 
     QString color;
-    const Interpreter::Value *value = 0;
+    const Value *value = 0;
     if (const AST::UiScriptBinding *binding = AST::cast<const AST::UiScriptBinding *>(member)) {
         if (binding->qualifiedId && posIsInSource(pos, binding->statement)) {
-            value = lookupContext->evaluate(binding->qualifiedId);
+            value = scopeChain.evaluate(binding->qualifiedId);
             if (value && value->asColorValue()) {
                 color = textAt(qmlDocument,
                                binding->statement->firstSourceLocation(),
@@ -184,13 +197,15 @@ bool HoverHandler::matchColorItem(const LookupContext::Ptr &lookupContext,
         }
     } else if (const AST::UiPublicMember *publicMember =
                AST::cast<const AST::UiPublicMember *>(member)) {
-        if (publicMember->name && posIsInSource(pos, publicMember->statement)) {
-            value = lookupContext->context()->lookup(publicMember->name->asString());
-            if (const Interpreter::Reference *ref = value->asReference())
-                value = lookupContext->context()->lookupReference(ref);
+        if (!publicMember->name.isEmpty() && posIsInSource(pos, publicMember->statement)) {
+            value = scopeChain.lookup(publicMember->name.toString());
+            if (const Reference *ref = value->asReference())
+                value = scopeChain.context()->lookupReference(ref);
+            if (value && value->asColorValue()) {
                 color = textAt(qmlDocument,
                                publicMember->statement->firstSourceLocation(),
                                publicMember->statement->lastSourceLocation());
+            }
         }
     }
 
@@ -208,27 +223,27 @@ bool HoverHandler::matchColorItem(const LookupContext::Ptr &lookupContext,
     return false;
 }
 
-void HoverHandler::handleOrdinaryMatch(const LookupContext::Ptr &lookupContext, AST::Node *node)
+void HoverHandler::handleOrdinaryMatch(const ScopeChain &scopeChain, AST::Node *node)
 {
     if (node && !(AST::cast<AST::StringLiteral *>(node) != 0 ||
                   AST::cast<AST::NumericLiteral *>(node) != 0)) {
-        const Interpreter::Value *value = lookupContext->evaluate(node);
-        prettyPrintTooltip(value, lookupContext->context());
+        const Value *value = scopeChain.evaluate(node);
+        prettyPrintTooltip(value, scopeChain.context());
     }
 }
 
-void HoverHandler::handleImport(const LookupContext::Ptr &lookupContext, AST::UiImport *node)
+void HoverHandler::handleImport(const ScopeChain &scopeChain, AST::UiImport *node)
 {
-    const Interpreter::Imports *imports = lookupContext->context()->imports(lookupContext->document().data());
+    const Imports *imports = scopeChain.context()->imports(scopeChain.document().data());
     if (!imports)
         return;
 
-    foreach (const Interpreter::Import &import, imports->all()) {
+    foreach (const Import &import, imports->all()) {
         if (import.info.ast() == node) {
-            if (import.info.type() == Interpreter::ImportInfo::LibraryImport
+            if (import.info.type() == ImportInfo::LibraryImport
                     && !import.libraryPath.isEmpty()) {
                 QString msg = tr("Library at %1").arg(import.libraryPath);
-                const LibraryInfo &libraryInfo = lookupContext->snapshot().libraryInfo(import.libraryPath);
+                const LibraryInfo &libraryInfo = scopeChain.context()->snapshot().libraryInfo(import.libraryPath);
                 if (libraryInfo.pluginTypeInfoStatus() == LibraryInfo::DumpDone) {
                     msg += QLatin1Char('\n');
                     msg += tr("Dumped plugins successfully.");
@@ -238,7 +253,7 @@ void HoverHandler::handleImport(const LookupContext::Ptr &lookupContext, AST::Ui
                 }
                 setToolTip(msg);
             } else {
-                setToolTip(import.info.name());
+                setToolTip(import.info.path());
             }
             break;
         }
@@ -267,16 +282,16 @@ void HoverHandler::operateTooltip(TextEditor::ITextEditor *editor, const QPoint 
     }
 }
 
-void HoverHandler::prettyPrintTooltip(const QmlJS::Interpreter::Value *value,
-                                      const QmlJS::Interpreter::Context *context)
+void HoverHandler::prettyPrintTooltip(const QmlJS::Value *value,
+                                      const QmlJS::ContextPtr &context)
 {
     if (! value)
         return;
 
-    if (const Interpreter::ObjectValue *objectValue = value->asObjectValue()) {
-        Interpreter::PrototypeIterator iter(objectValue, context);
+    if (const ObjectValue *objectValue = value->asObjectValue()) {
+        PrototypeIterator iter(objectValue, context);
         while (iter.hasNext()) {
-            const Interpreter::ObjectValue *prototype = iter.next();
+            const ObjectValue *prototype = iter.next();
             const QString className = prototype->className();
 
             if (! className.isEmpty()) {
@@ -284,61 +299,62 @@ void HoverHandler::prettyPrintTooltip(const QmlJS::Interpreter::Value *value,
                 break;
             }
         }
-    } else if (const Interpreter::QmlEnumValue *enumValue =
-               dynamic_cast<const Interpreter::QmlEnumValue *>(value)) {
+    } else if (const QmlEnumValue *enumValue =
+               value_cast<QmlEnumValue>(value)) {
         setToolTip(enumValue->name());
     }
 
     if (toolTip().isEmpty()) {
-        QString typeId = context->engine()->typeId(value);
-        if (typeId != QLatin1String("undefined"))
+        if (!value->asUndefinedValue() && !value->asUnknownValue()) {
+            const QString typeId = context->valueOwner()->typeId(value);
             setToolTip(typeId);
+        }
     }
 }
 
 // if node refers to a property, its name and defining object are returned - otherwise zero
-static const Interpreter::ObjectValue *isMember(const LookupContext::Ptr &lookupContext,
+static const ObjectValue *isMember(const ScopeChain &scopeChain,
                                                 AST::Node *node, QString *name)
 {
-    const Interpreter::ObjectValue *owningObject = 0;
+    const ObjectValue *owningObject = 0;
     if (AST::IdentifierExpression *identExp = AST::cast<AST::IdentifierExpression *>(node)) {
-        if (!identExp->name)
+        if (identExp->name.isEmpty())
             return 0;
-        *name = identExp->name->asString();
-        lookupContext->context()->lookup(*name, &owningObject);
+        *name = identExp->name.toString();
+        scopeChain.lookup(*name, &owningObject);
     } else if (AST::FieldMemberExpression *fme = AST::cast<AST::FieldMemberExpression *>(node)) {
-        if (!fme->base || !fme->name)
+        if (!fme->base || fme->name.isEmpty())
             return 0;
-        *name = fme->name->asString();
-        const Interpreter::Value *base = lookupContext->evaluate(fme->base);
+        *name = fme->name.toString();
+        const Value *base = scopeChain.evaluate(fme->base);
         if (!base)
             return 0;
         owningObject = base->asObjectValue();
         if (owningObject)
-            owningObject->lookupMember(*name, lookupContext->context(), &owningObject);
+            owningObject->lookupMember(*name, scopeChain.context(), &owningObject);
     } else if (AST::UiQualifiedId *qid = AST::cast<AST::UiQualifiedId *>(node)) {
-        if (!qid->name)
+        if (qid->name.isEmpty())
             return 0;
-        *name = qid->name->asString();
-        const Interpreter::Value *value = lookupContext->context()->lookup(*name, &owningObject);
+        *name = qid->name.toString();
+        const Value *value = scopeChain.lookup(*name, &owningObject);
         for (AST::UiQualifiedId *it = qid->next; it; it = it->next) {
             if (!value)
                 return 0;
-            const Interpreter::ObjectValue *next = value->asObjectValue();
-            if (!next || !it->name)
+            const ObjectValue *next = value->asObjectValue();
+            if (!next || it->name.isEmpty())
                 return 0;
-            *name = it->name->asString();
-            value = next->lookupMember(*name, lookupContext->context(), &owningObject);
+            *name = it->name.toString();
+            value = next->lookupMember(*name, scopeChain.context(), &owningObject);
         }
     }
     return owningObject;
 }
 
-TextEditor::HelpItem HoverHandler::qmlHelpItem(const LookupContext::Ptr &lookupContext,
+TextEditor::HelpItem HoverHandler::qmlHelpItem(const ScopeChain &scopeChain,
                                                AST::Node *node) const
 {
     QString name;
-    if (const Interpreter::ObjectValue *scope = isMember(lookupContext, node, &name)) {
+    if (const ObjectValue *scope = isMember(scopeChain, node, &name)) {
         // maybe it's a type?
         if (!name.isEmpty() && name.at(0).isUpper()) {
             const QString maybeHelpId(QLatin1String("QML.") + name);
@@ -347,11 +363,11 @@ TextEditor::HelpItem HoverHandler::qmlHelpItem(const LookupContext::Ptr &lookupC
         }
 
         // otherwise, it's probably a property
-        const Interpreter::ObjectValue *lastScope;
-        scope->lookupMember(name, lookupContext->context(), &lastScope);
-        Interpreter::PrototypeIterator iter(scope, lookupContext->context());
+        const ObjectValue *lastScope;
+        scope->lookupMember(name, scopeChain.context(), &lastScope);
+        PrototypeIterator iter(scope, scopeChain.context());
         while (iter.hasNext()) {
-            const Interpreter::ObjectValue *cur = iter.next();
+            const ObjectValue *cur = iter.next();
 
             const QString className = cur->className();
             if (!className.isEmpty()) {

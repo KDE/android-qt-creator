@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -93,6 +93,7 @@ public:
     bool isLocal()   const { return iname.startsWith("local."); }
     bool isWatcher() const { return iname.startsWith("watch."); }
     bool isValid()   const { return !iname.isEmpty(); }
+    bool isVTablePointer() const;
 
     bool isEqual(const WatchData &other) const;
 
@@ -113,6 +114,7 @@ public:
     quint64    coreAddress() const;
     QByteArray hexAddress()  const;
     QByteArray hexReferencingAddress()  const;
+    bool hasChanged(const WatchData &old) const;
 
 public:
     quint64    id;           // Token for the engine for internal mapping

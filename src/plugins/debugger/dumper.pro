@@ -4,7 +4,6 @@ include(../../qtcreatorlibrary.pri)
 
 TEMPLATE = lib
 TARGET = DebuggingHelper
-CONFIG += shared
 DESTDIR = $$IDE_LIBRARY_PATH # /tmp would be better in some respect ...
 
 linux-* {
@@ -15,7 +14,6 @@ QMAKE_CXXFLAGS *= -O2
 }
 
 true {
-    DEFINES += USE_QT_GUI=0
     QT = core
 } else {
     DEFINES += USE_QT_GUI=1

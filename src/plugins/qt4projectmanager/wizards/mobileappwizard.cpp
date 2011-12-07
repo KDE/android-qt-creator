@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,9 +35,9 @@
 #include "mobileappwizardpages.h"
 #include "mobileapp.h"
 #include "targetsetuppage.h"
-
 #include "qt4projectmanagerconstants.h"
 
+#include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/task.h>
 
 #include <QtCore/QCoreApplication>
@@ -60,7 +60,7 @@ class MobileAppWizardDialog : public AbstractMobileAppWizardDialog
     Q_OBJECT
 public:
     explicit MobileAppWizardDialog(QWidget *parent = 0)
-        : AbstractMobileAppWizardDialog(parent, QtSupport::QtVersionNumber())
+        : AbstractMobileAppWizardDialog(parent, QtSupport::QtVersionNumber(), QtSupport::QtVersionNumber(4, INT_MAX, INT_MAX))
     {
         setWindowTitle(DisplayName);
         setIntroDescription(Description);
@@ -77,16 +77,16 @@ class MobileAppWizardPrivate
 
 MobileAppWizard::MobileAppWizard()
     : AbstractMobileAppWizard(parameters())
-    , m_d(new MobileAppWizardPrivate)
+    , d(new MobileAppWizardPrivate)
 {
-    m_d->mobileApp = new MobileApp;
-    m_d->wizardDialog = 0;
+    d->mobileApp = new MobileApp;
+    d->wizardDialog = 0;
 }
 
 MobileAppWizard::~MobileAppWizard()
 {
-    delete m_d->mobileApp;
-    delete m_d;
+    delete d->mobileApp;
+    delete d;
 }
 
 Core::BaseFileWizardParameters MobileAppWizard::parameters()
@@ -96,21 +96,20 @@ Core::BaseFileWizardParameters MobileAppWizard::parameters()
     parameters.setDisplayName(DisplayName);
     parameters.setId(QLatin1String("C.Qt4GuiMobile"));
     parameters.setDescription(Description);
-    parameters.setCategory(QLatin1String(Constants::QT_APP_WIZARD_CATEGORY));
-    parameters.setDisplayCategory(QCoreApplication::translate(Constants::QT_APP_WIZARD_TR_SCOPE,
-                                                              Constants::QT_APP_WIZARD_TR_CATEGORY));
+    parameters.setCategory(QLatin1String(ProjectExplorer::Constants::QT_PROJECT_WIZARD_CATEGORY));
+    parameters.setDisplayCategory(QLatin1String(ProjectExplorer::Constants::QT_PROJECT_WIZARD_CATEGORY_DISPLAY));
     return parameters;
 }
 
 AbstractMobileAppWizardDialog *MobileAppWizard::createWizardDialogInternal(QWidget *parent) const
 {
-    m_d->wizardDialog = new MobileAppWizardDialog(parent);
-    return m_d->wizardDialog;
+    d->wizardDialog = new MobileAppWizardDialog(parent);
+    return d->wizardDialog;
 }
 
 void MobileAppWizard::projectPathChanged(const QString &path) const
 {
-    m_d->wizardDialog->targetsPage()->setProFilePath(path);
+    d->wizardDialog->targetsPage()->setProFilePath(path);
 }
 
 void MobileAppWizard::prepareGenerateFiles(const QWizard *w,
@@ -127,12 +126,12 @@ QString MobileAppWizard::fileToOpenPostGeneration() const
 
 AbstractMobileApp *MobileAppWizard::app() const
 {
-    return m_d->mobileApp;
+    return d->mobileApp;
 }
 
 AbstractMobileAppWizardDialog *MobileAppWizard::wizardDialog() const
 {
-    return m_d->wizardDialog;
+    return d->wizardDialog;
 }
 
 } // namespace Internal

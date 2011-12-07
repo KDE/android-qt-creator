@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -486,8 +486,10 @@ Bookmark *BookmarkManager::bookmarkForIndex(const QModelIndex &index)
 bool BookmarkManager::gotoBookmark(Bookmark *bookmark)
 {
     using namespace TextEditor;
-    if (ITextEditor *editor = BaseTextEditorWidget::openEditorAt(bookmark->filePath(), bookmark->lineNumber()))
+    if (ITextEditor *editor = qobject_cast<ITextEditor *>(BaseTextEditorWidget::openEditorAt(bookmark->filePath(),
+                                                                                             bookmark->lineNumber()))) {
         return (editor->currentLine() == bookmark->lineNumber());
+    }
     return false;
 }
 
@@ -758,6 +760,14 @@ void BookmarkManager::loadBookmarks()
     updateActionStatus();
 }
 
+void BookmarkManager::handleBookmarkRequest(TextEditor::ITextEditor *textEditor,
+                                            int line,
+                                            TextEditor::ITextEditor::MarkRequestKind kind)
+{
+    if (kind == TextEditor::ITextEditor::BookmarkRequest && textEditor->file())
+        toggleBookmark(textEditor->file()->fileName(), line);
+}
+
 // BookmarkViewFactory
 
 BookmarkViewFactory::BookmarkViewFactory(BookmarkManager *bm)
@@ -775,9 +785,9 @@ int BookmarkViewFactory::priority() const
     return 300;
 }
 
-QString BookmarkViewFactory::id() const
+Id BookmarkViewFactory::id() const
 {
-    return QLatin1String("Bookmarks");
+    return Id("Bookmarks");
 }
 
 QKeySequence BookmarkViewFactory::activationSequence() const

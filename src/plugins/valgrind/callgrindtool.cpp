@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -513,7 +513,7 @@ CallgrindTool::~CallgrindTool()
     delete d;
 }
 
-QByteArray CallgrindTool::id() const
+Core::Id CallgrindTool::id() const
 {
     return "Callgrind";
 }
@@ -821,7 +821,7 @@ QWidget *CallgrindToolPrivate::createWidgets()
     m_filterProjectCosts = action;
 
     // filter
-    ///FIXME: find workaround for http://bugreports.qt.nokia.com/browse/QTCREATORBUG-3247
+    ///FIXME: find workaround for https://bugreports.qt.nokia.com/browse/QTCREATORBUG-3247
     QLineEdit *filter = new QLineEdit;
     filter->setPlaceholderText(tr("Filter..."));
     connect(filter, SIGNAL(textChanged(QString)), m_updateTimer, SLOT(start()));

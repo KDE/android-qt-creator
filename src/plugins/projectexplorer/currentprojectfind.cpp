@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,26 +26,29 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "currentprojectfind.h"
 
 #include "projectexplorer.h"
+#include "project.h"
 
 #include <utils/qtcassert.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QSettings>
+#include <QtGui/QLabel>
+#include <QtGui/QHBoxLayout>
 
 using namespace Find;
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 using namespace TextEditor;
 
-CurrentProjectFind::CurrentProjectFind(ProjectExplorerPlugin *plugin, SearchResultWindow *resultWindow)
-  : AllProjectsFind(plugin, resultWindow),
+CurrentProjectFind::CurrentProjectFind(ProjectExplorerPlugin *plugin)
+  : AllProjectsFind(plugin),
     m_plugin(plugin)
 {
     connect(m_plugin, SIGNAL(currentProjectChanged(ProjectExplorer::Project*)),
@@ -70,6 +73,11 @@ bool CurrentProjectFind::isEnabled() const
 QList<Project *> CurrentProjectFind::projects() const
 {
     return QList<Project *>() << m_plugin->currentProject();
+}
+
+QString CurrentProjectFind::label() const
+{
+    return tr("Project '%1':").arg(projects().first()->displayName());
 }
 
 void CurrentProjectFind::writeSettings(QSettings *settings)

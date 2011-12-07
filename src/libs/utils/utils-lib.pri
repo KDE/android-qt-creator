@@ -7,7 +7,6 @@ dll {
 INCLUDEPATH += $$PWD
 QT += network
 
-
 win32-msvc* {
     # disable warnings caused by botan headers
     QMAKE_CXXFLAGS += -wd4250 -wd4290
@@ -17,6 +16,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/environmentmodel.cpp \
     $$PWD/qtcprocess.cpp \
     $$PWD/reloadpromptutils.cpp \
+    $$PWD/settingsselector.cpp \
     $$PWD/stringutils.cpp \
     $$PWD/filesearch.cpp \
     $$PWD/pathchooser.cpp \
@@ -40,6 +40,7 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/synchronousprocess.cpp \
     $$PWD/savefile.cpp \
     $$PWD/fileutils.cpp \
+    $$PWD/textfileformat.cpp \
     $$PWD/submitfieldwidget.cpp \
     $$PWD/consoleprocess.cpp \
     $$PWD/uncommentselection.cpp \
@@ -86,9 +87,11 @@ SOURCES += $$PWD/environment.cpp \
     $$PWD/ssh/sftpchannel.cpp \
     $$PWD/ssh/sshremoteprocessrunner.cpp \
     $$PWD/ssh/sshconnectionmanager.cpp \
+    $$PWD/ssh/sshkeypasswordretriever.cpp \
     $$PWD/outputformatter.cpp \
     $$PWD/flowlayout.cpp \
-    $$PWD/networkaccessmanager.cpp
+    $$PWD/networkaccessmanager.cpp \
+    $$PWD/persistentsettings.cpp
 
 win32 {
     SOURCES += \
@@ -108,6 +111,7 @@ HEADERS += \
     $$PWD/qtcprocess.h \
     $$PWD/utils_global.h \
     $$PWD/reloadpromptutils.h \
+    $$PWD/settingsselector.h \
     $$PWD/stringutils.h \
     $$PWD/filesearch.h \
     $$PWD/listutils.h \
@@ -134,6 +138,7 @@ HEADERS += \
     $$PWD/synchronousprocess.h \
     $$PWD/savefile.h \
     $$PWD/fileutils.h \
+    $$PWD/textfileformat.h \
     $$PWD/submitfieldwidget.h \
     $$PWD/uncommentselection.h \
     $$PWD/parameteraction.h \
@@ -186,11 +191,13 @@ HEADERS += \
     $$PWD/ssh/sshremoteprocessrunner.h \
     $$PWD/ssh/sshconnectionmanager.h \
     $$PWD/ssh/sshpseudoterminal.h \
+    $$PWD/ssh/sshkeypasswordretriever_p.h \
     $$PWD/statuslabel.h \
     $$PWD/outputformatter.h \
     $$PWD/outputformat.h \
     $$PWD/flowlayout.h \
-    $$PWD/networkaccessmanager.h
+    $$PWD/networkaccessmanager.h \
+    $$PWD/persistentsettings.h
 
 FORMS += $$PWD/filewizardpage.ui \
     $$PWD/projectintropage.ui \
@@ -199,8 +206,3 @@ FORMS += $$PWD/filewizardpage.ui \
     $$PWD/checkablemessagebox.ui
 
 RESOURCES += $$PWD/utils.qrc
-
-OTHER_FILES += $$PWD/app_version.h.in
-
-
-QMAKE_SUBSTITUTES += $$PWD/app_version.h.in

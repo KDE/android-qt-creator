@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -137,7 +137,7 @@ void CleanFilesTask::run()
 struct CleanDialogPrivate {
     CleanDialogPrivate();
 
-    Ui::CleanDialog ui;
+    Internal::Ui::CleanDialog ui;
     QStandardItemModel *m_filesModel;
     QString m_workingDirectory;
 };
@@ -266,7 +266,7 @@ void CleanDialog::slotDoubleClicked(const QModelIndex &index)
     if (const QStandardItem *item = d->m_filesModel->itemFromIndex(index))
         if (!item->data(isDirectoryRole).toBool()) {
             const QString fname = item->data(fileNameRole).toString();
-            Core::EditorManager::instance()->openEditor(fname, QString(), Core::EditorManager::ModeSwitch);
+            Core::EditorManager::instance()->openEditor(fname, Core::Id(), Core::EditorManager::ModeSwitch);
     }
 }
 

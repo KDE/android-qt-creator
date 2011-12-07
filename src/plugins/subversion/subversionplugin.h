@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -84,7 +84,7 @@ public:
     SubversionPlugin();
     ~SubversionPlugin();
 
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
 
     void svnDiff(const QString  &workingDir, const QStringList &files, QString diffname = QString());
 
@@ -163,7 +163,7 @@ private:
                  bool enableAnnotationContextMenu = false);
     void svnStatus(const QString &workingDir, const QStringList &relativePath = QStringList());
     void svnUpdate(const QString &workingDir, const QStringList &relativePaths = QStringList());
-    bool checkSVNSubDir(const QDir &directory) const;
+    bool checkSVNSubDir(const QDir &directory, const QString &fileName = QString()) const;
     void startCommit(const QString &workingDir, const QStringList &files = QStringList());
     bool commit(const QString &messageFile, const QStringList &subVersionFileList);
     void cleanCommitMessageFile();

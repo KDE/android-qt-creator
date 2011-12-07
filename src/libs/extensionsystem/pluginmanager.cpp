@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -329,6 +329,22 @@ void PluginManager::loadPlugins()
 }
 
 /*!
+    \fn bool PluginManager::hasError() const
+    Returns true if any plugin has errors even though it is enabled.
+    Most useful to call after loadPlugins().
+*/
+bool PluginManager::hasError() const
+{
+    foreach (PluginSpec *spec, plugins()) {
+        // only show errors on startup if plugin is enabled.
+        if (spec->hasError() && spec->isEnabled() && !spec->isDisabledIndirectly()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*!
     \fn void PluginManager::shutdown()
     Shuts down and deletes all plugins.
 */
@@ -386,19 +402,38 @@ void PluginManager::setFileExtension(const QString &extension)
     d->extension = extension;
 }
 
+/*!
+    Define the user specific settings to use for information about enabled/disabled plugins.
+    Needs to be set before the plugin search path is set with setPluginPaths().
+*/
 void PluginManager::setSettings(QSettings *settings)
 {
     d->setSettings(settings);
 }
 
+/*!
+    Define the global (user-independent) settings to use for information about default disabled plugins.
+    Needs to be set before the plugin search path is set with setPluginPaths().
+*/
+void PluginManager::setGlobalSettings(QSettings *settings)
+{
+    d->setGlobalSettings(settings);
+}
+
+/*!
+    Returns the user specific settings used for information about enabled/disabled plugins.
+*/
 QSettings *PluginManager::settings() const
 {
     return d->settings;
 }
 
-void PluginManager::readSettings()
+/*!
+    Returns the global (user-independent) settings used for information about default disabled plugins.
+*/
+QSettings *PluginManager::globalSettings() const
 {
-    d->readSettings();
+    return d->globalSettings;
 }
 
 void PluginManager::writeSettings()
@@ -584,6 +619,11 @@ void PluginManager::formatOptions(QTextStream &str, int optionIndentation, int d
     formatOption(str, QLatin1String(OptionsParser::PROFILE_OPTION),
                  QString(), QLatin1String("Profile plugin loading"),
                  optionIndentation, descriptionIndentation);
+#ifdef WITH_TESTS
+    formatOption(str, QLatin1String(OptionsParser::TEST_OPTION),
+                 QLatin1String("plugin|all"), QLatin1String("Run plugin's tests"),
+                 optionIndentation, descriptionIndentation);
+#endif
 }
 
 /*!
@@ -627,6 +667,8 @@ void PluginManager::startTests()
 {
 #ifdef WITH_TESTS
     foreach (PluginSpec *pluginSpec, d->testSpecs) {
+        if (!pluginSpec->plugin())
+            continue;
         const QMetaObject *mo = pluginSpec->plugin()->metaObject();
         QStringList methods;
         methods.append("arg0");
@@ -638,9 +680,12 @@ void PluginManager::startTests()
                 methods.append(method.left(method.size()-2));
             }
         }
-        QTest::qExec(pluginSpec->plugin(), methods);
+        // Don't run QTest::qExec with only one argument, that'd run
+        // *all* slots as tests.
+        if (methods.size() > 1)
+            QTest::qExec(pluginSpec->plugin(), methods);
     }
-    if(!d->testSpecs.isEmpty())
+    if (!d->testSpecs.isEmpty())
         QTimer::singleShot(1, QCoreApplication::instance(), SLOT(quit()));
 #endif
 }
@@ -717,6 +762,18 @@ void PluginManagerPrivate::setSettings(QSettings *s)
 }
 
 /*!
+    \internal
+*/
+void PluginManagerPrivate::setGlobalSettings(QSettings *s)
+{
+    if (globalSettings)
+        delete globalSettings;
+    globalSettings = s;
+    if (globalSettings)
+        globalSettings->setParent(this);
+}
+
+/*!
     \fn PluginSpecPrivate *PluginManagerPrivate::privateSpec(PluginSpec *spec)
     \internal
 */
@@ -734,6 +791,7 @@ PluginManagerPrivate::PluginManagerPrivate(PluginManager *pluginManager) :
     m_profileElapsedMS(0),
     m_profilingVerbosity(0),
     settings(0),
+    globalSettings(0),
     q(pluginManager)
 {
 }
@@ -760,9 +818,9 @@ void PluginManagerPrivate::writeSettings()
     QStringList tempDisabledPlugins;
     QStringList tempForceEnabledPlugins;
     foreach(PluginSpec *spec, pluginSpecs) {
-        if (!spec->isExperimental() && !spec->isEnabled())
+        if (!spec->isDisabledByDefault() && !spec->isEnabled())
             tempDisabledPlugins.append(spec->name());
-        if (spec->isExperimental() && spec->isEnabled())
+        if (spec->isDisabledByDefault() && spec->isEnabled())
             tempForceEnabledPlugins.append(spec->name());
     }
 
@@ -776,10 +834,13 @@ void PluginManagerPrivate::writeSettings()
 */
 void PluginManagerPrivate::readSettings()
 {
-    if (!settings)
-        return;
-    disabledPlugins = settings->value(QLatin1String(C_IGNORED_PLUGINS)).toStringList();
-    forceEnabledPlugins = settings->value(QLatin1String(C_FORCEENABLED_PLUGINS)).toStringList();
+    if (globalSettings) {
+        defaultDisabledPlugins = globalSettings->value(QLatin1String(C_IGNORED_PLUGINS)).toStringList();
+    }
+    if (settings) {
+        disabledPlugins = settings->value(QLatin1String(C_IGNORED_PLUGINS)).toStringList();
+        forceEnabledPlugins = settings->value(QLatin1String(C_FORCEENABLED_PLUGINS)).toStringList();
+    }
 }
 
 /*!
@@ -1088,9 +1149,13 @@ void PluginManagerPrivate::readPluginPaths()
             collection = new PluginCollection(spec->category());
             pluginCategories.insert(spec->category(), collection);
         }
-        if (spec->isExperimental() && forceEnabledPlugins.contains(spec->name()))
+        if (defaultDisabledPlugins.contains(spec->name())) {
+            spec->setDisabledByDefault(true);
+            spec->setEnabled(false);
+        }
+        if (spec->isDisabledByDefault() && forceEnabledPlugins.contains(spec->name()))
             spec->setEnabled(true);
-        if (!spec->isExperimental() && disabledPlugins.contains(spec->name()))
+        if (!spec->isDisabledByDefault() && disabledPlugins.contains(spec->name()))
             spec->setEnabled(false);
 
         collection->addPlugin(spec);

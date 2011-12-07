@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -67,9 +67,9 @@ void NodeProperty::setModelNode(const ModelNode &modelNode)
     }
 
     if (internalNode()->hasProperty(name()) && !internalNode()->property(name())->isNodeProperty())
-        model()->m_d->removeProperty(internalNode()->property(name()));
+        model()->d->removeProperty(internalNode()->property(name()));
 
-    model()->m_d->reparentNode(internalNode(), name(), modelNode.internalNode(), false); //### we have to add a flag that this is not a list
+    model()->d->reparentNode(internalNode(), name(), modelNode.internalNode(), false); //### we have to add a flag that this is not a list
 }
 
 ModelNode NodeProperty::modelNode() const

@@ -6,7 +6,7 @@
 **
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,6 +51,8 @@
 using namespace Analyzer;
 using namespace Valgrind::Internal;
 using namespace Utils;
+
+const int progressMaximum  = 1000000;
 
 ValgrindEngine::ValgrindEngine(IAnalyzerTool *tool, const AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration)
@@ -84,8 +86,10 @@ bool ValgrindEngine::start()
     Core::FutureProgress *fp = Core::ICore::instance()->progressManager()->addTask(m_progress->future(),
                                                         progressTitle(), "valgrind");
     fp->setKeepOnFinish(Core::FutureProgress::HideOnFinish);
+    m_progress->setProgressRange(0, progressMaximum);
     m_progress->reportStarted();
     m_progressWatcher->setFuture(m_progress->future());
+    m_progress->setProgressValue(progressMaximum / 10);
 
 #if VALGRIND_DEBUG_OUTPUT
     emit outputReceived(tr("Valgrind options: %1").arg(toolArguments().join(" ")), Utils::DebugFormat);
@@ -103,6 +107,8 @@ bool ValgrindEngine::start()
     runner()->setDebuggeeExecutable(sp.debuggee);
     runner()->setDebuggeeArguments(sp.debuggeeArgs);
     runner()->setEnvironment(sp.environment);
+    runner()->setConnectionParameters(sp.connParams);
+    runner()->setStartMode(sp.startMode);
 
     connect(runner(), SIGNAL(processOutputReceived(QByteArray,Utils::OutputFormat)),
             SLOT(receiveProcessOutput(QByteArray,Utils::OutputFormat)));
@@ -111,10 +117,7 @@ bool ValgrindEngine::start()
     connect(runner(), SIGNAL(finished()),
             SLOT(runnerFinished()));
 
-    if (sp.startMode == StartRemote)
-        runner()->startRemotely(sp.connParams);
-    else
-        runner()->start();
+    runner()->start();
 
     return true;
 }
@@ -155,6 +158,12 @@ void ValgrindEngine::runnerFinished()
 
 void ValgrindEngine::receiveProcessOutput(const QByteArray &b, Utils::OutputFormat format)
 {
+    int progress = m_progress->progressValue();
+    if (progress < 5 * progressMaximum / 10)
+        progress += progress / 100;
+    else if (progress < 9 * progressMaximum / 10)
+        progress += progress / 1000;
+    m_progress->setProgressValue(progress);
     emit outputReceived(QString::fromLocal8Bit(b), format);
 }
 

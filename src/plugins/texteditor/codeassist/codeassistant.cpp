@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -57,7 +57,7 @@ using namespace Internal;
 namespace {
 
 template <class T>
-void filterEditorSpecificProviders(QList<T *> *providers, const QString &editorId)
+void filterEditorSpecificProviders(QList<T *> *providers, const Core::Id &editorId)
 {
     typename QList<T *>::iterator it = providers->begin();
     while (it != providers->end()) {
@@ -147,7 +147,7 @@ CodeAssistantPrivate::CodeAssistantPrivate(CodeAssistant *assistant)
     , m_settings(TextEditorSettings::instance()->completionSettings())
 {
     m_automaticProposalTimer.setSingleShot(true);
-    m_automaticProposalTimer.setInterval(250);
+    m_automaticProposalTimer.setInterval(400);
     connect(&m_automaticProposalTimer, SIGNAL(timeout()), this, SLOT(automaticProposalTimeout()));
 
     connect(TextEditorSettings::instance(),
@@ -157,7 +157,8 @@ CodeAssistantPrivate::CodeAssistantPrivate(CodeAssistant *assistant)
 }
 
 CodeAssistantPrivate::~CodeAssistantPrivate()
-{}
+{
+}
 
 void CodeAssistantPrivate::configure(BaseTextEditor *textEditor)
 {
@@ -277,7 +278,7 @@ void CodeAssistantPrivate::proposalComputed()
 {
     // Since the request runner is a different thread, there's still a gap in which the queued
     // signal could be processed after an invalidation of the current request.
-    if (!m_requestRunner)
+    if (m_requestRunner != sender())
         return;
 
     IAssistProposal *newProposal = m_requestRunner->proposal();
@@ -481,40 +482,42 @@ bool CodeAssistantPrivate::eventFilter(QObject *o, QEvent *e)
 // -------------
 // CodeAssistant
 // -------------
-CodeAssistant::CodeAssistant() : m_d(new CodeAssistantPrivate(this))
+CodeAssistant::CodeAssistant() : d(new CodeAssistantPrivate(this))
 {}
 
 CodeAssistant::~CodeAssistant()
-{}
+{
+    delete d;
+}
 
 void CodeAssistant::configure(BaseTextEditor *textEditor)
 {
-    m_d->configure(textEditor);
+    d->configure(textEditor);
 }
 
 void CodeAssistant::process()
 {
-    m_d->process();
+    d->process();
 }
 
 void CodeAssistant::notifyChange()
 {
-    m_d->notifyChange();
+    d->notifyChange();
 }
 
 bool CodeAssistant::hasContext() const
 {
-    return m_d->hasContext();
+    return d->hasContext();
 }
 
 void CodeAssistant::destroyContext()
 {
-    m_d->destroyContext();
+    d->destroyContext();
 }
 
 void CodeAssistant::invoke(AssistKind kind, IAssistProvider *provider)
 {
-    m_d->invoke(kind, provider);
+    d->invoke(kind, provider);
 }
 
 #include "codeassistant.moc"

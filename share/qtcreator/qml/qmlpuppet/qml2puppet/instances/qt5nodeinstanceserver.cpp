@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,18 +26,17 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qt5nodeinstanceserver.h"
 
-#if QT_VERSION >= 0x050000
 
 #include <QSGItem>
 #include <QSGView>
 
-#include <designersupportfunctions.h>
+#include <designersupport.h>
 #include <addimportcontainer.h>
 #include <createscenecommand.h>
 
@@ -92,8 +91,6 @@ QDeclarativeEngine *Qt5NodeInstanceServer::engine() const
 
 void Qt5NodeInstanceServer::resizeCanvasSizeToRootItemSize()
 {
-    if (sgView())
-        sgView()->resize(rootNodeInstance().size().toSize());
 }
 
 void Qt5NodeInstanceServer::resetAllItems()
@@ -162,5 +159,3 @@ void Qt5NodeInstanceServer::clearScene(const ClearSceneCommand &command)
 }
 
 } // QmlDesigner
-
-#endif // QT_VERSION

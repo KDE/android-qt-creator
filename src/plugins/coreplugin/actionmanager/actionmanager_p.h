@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,22 +34,20 @@
 #define ACTIONMANAGERPRIVATE_H
 
 #include <coreplugin/actionmanager/actionmanager.h>
-#include "command_p.h"
-
+#include <coreplugin/actionmanager/command_p.h>
 #include <coreplugin/icontext.h>
 
 #include <QtCore/QMap>
 #include <QtCore/QHash>
 #include <QtCore/QMultiHash>
+#include <QtCore/QTimer>
 
 QT_BEGIN_NAMESPACE
+class QLabel;
 class QSettings;
 QT_END_NAMESPACE
 
 namespace Core {
-
-class UniqueIDManager;
-
 namespace Internal {
 
 class ActionContainerPrivate;
@@ -64,46 +62,49 @@ public:
     explicit ActionManagerPrivate(MainWindow *mainWnd);
     ~ActionManagerPrivate();
 
-    void setContext(const Context &context);
     static ActionManagerPrivate *instance();
+
+    void initialize();
+
+    void setContext(const Context &context);
+    bool hasContext(int context) const;
 
     void saveSettings(QSettings *settings);
 
     QList<Command *> commands() const;
 
-    bool hasContext(int context) const;
-
-    Command *command(int uid) const;
-    ActionContainer *actionContainer(int uid) const;
-
-    void initialize();
-
-    //ActionManager Interface
+    Command *command(const Id &id) const;
+    ActionContainer *actionContainer(const Id &id) const;
     ActionContainer *createMenu(const Id &id);
     ActionContainer *createMenuBar(const Id &id);
 
     Command *registerAction(QAction *action, const Id &id,
-        const Context &context, bool scriptable=false);
+        const Context &context, bool scriptable = false);
     Command *registerShortcut(QShortcut *shortcut, const Id &id,
-        const Context &context, bool scriptable=false);
+        const Context &context, bool scriptable = false);
 
-    Core::Command *command(const Id &id) const;
-    Core::ActionContainer *actionContainer(const Id &id) const;
     void unregisterAction(QAction *action, const Id &id);
     void unregisterShortcut(const Id &id);
 
+    void setPresentationModeEnabled(bool enabled);
+    bool isPresentationModeEnabled();
+
 private slots:
     void containerDestroyed();
+
+    void actionTriggered();
+    void shortcutTriggered();
 private:
+    void showShortcutPopup(const QString &shortcut);
     bool hasContext(const Context &context) const;
     Action *overridableAction(const Id &id);
 
     static ActionManagerPrivate *m_instance;
 
-    typedef QHash<int, CommandPrivate *> IdCmdMap;
+    typedef QHash<Core::Id, CommandPrivate *> IdCmdMap;
     IdCmdMap m_idCmdMap;
 
-    typedef QHash<int, ActionContainerPrivate *> IdContainerMap;
+    typedef QHash<Core::Id, ActionContainerPrivate *> IdContainerMap;
     IdContainerMap m_idContainerMap;
 
 //    typedef QMap<int, int> GlobalGroupMap;
@@ -112,6 +113,9 @@ private:
     Context m_context;
 
     MainWindow *m_mainWnd;
+
+    QLabel *m_presentationLabel;
+    QTimer m_presentationLabelTimer;
 };
 
 } // namespace Internal

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,6 +41,7 @@
 
 #include <iomanip>
 #include <algorithm>
+#include <ctype.h>
 
 typedef std::vector<int>::size_type VectorIndexType;
 
@@ -78,7 +79,8 @@ SymbolGroupValue::SymbolGroupValue(SymbolGroupNode *node,
     if (m_node && !m_node->isMemoryAccessible()) { // Invalid if no value
         m_node = 0;
         if (SymbolGroupValue::verbose)
-            DebugPrint() << node->name() << '/' << node->iName() << " memory access error";
+            DebugPrint() << node->name() << '/' << node->iName() << '/'
+                         << node->type() << " memory access error";
     }
 }
 
@@ -446,6 +448,12 @@ unsigned SymbolGroupValue::intSize()
     return is;
 }
 
+unsigned SymbolGroupValue::pointerDiffSize()
+{
+    static const unsigned is = SymbolGroupValue::sizeOf("ptrdiff_t");
+    return is;
+}
+
 unsigned SymbolGroupValue::sizeOf(const char *type)
 {
     const unsigned rc = GetTypeSize(type);
@@ -616,38 +624,23 @@ static inline std::string resolveQtSymbol(const char *symbolC,
 
 const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
 {
-    static const char qtCoreDefaultModule[] = "QtCored";
-    static const char qtGuiDefaultModule[] = "QtGuid";
-    static const char qtNetworkDefaultModule[] = "QtNetworkd";
-    static const char qtScriptDefaultModule[] = "QtScriptd";
     static QtInfo rc;
-    if (!rc.coreModule.empty())
+    if (!rc.libInfix.empty())
         return rc;
 
     do {
         // Lookup qstrdup() to hopefully get module (potential libinfix) and namespace
         // Typically, this resolves to 'QtGuid4!qstrdup' and 'QtCored4!qstrdup'...
-        const std::string qualifiedSymbol = resolveQtSymbol("qstrdup", qtCoreDefaultModule, "Core", ctx);
+        const std::string qualifiedSymbol = resolveQtSymbol("qstrdup", "QtCored", "Core", ctx);
         const std::string::size_type exclPos = qualifiedSymbol.find('!'); // Resolved: 'QtCored4!qstrdup'
         if (exclPos == std::string::npos) {
-            const char defaultVersion = '4';
+            rc.libInfix = "d4";
             rc.version = 4;
-            rc.coreModule = qtCoreDefaultModule + defaultVersion;
-            rc.guiModule = qtGuiDefaultModule + defaultVersion;
-            rc.networkModule = qtNetworkDefaultModule + defaultVersion;
-            rc.scriptModule = qtScriptDefaultModule + defaultVersion;
             break;
         }
         // Should be 'QtCored4!qstrdup'
-        rc.coreModule = qualifiedSymbol.substr(0, exclPos);
+        rc.libInfix = qualifiedSymbol.substr(6, exclPos - 6);
         rc.version = qualifiedSymbol.at(exclPos - 1) - '0';
-        // Derive other module names 'QtXX<infix>d4'
-        rc.guiModule = rc.coreModule;
-        rc.guiModule.replace(0, 6, "QtGui");
-        rc.networkModule = rc.coreModule;
-        rc.networkModule.replace(0, 6, "QtNetwork");
-        rc.scriptModule = rc.coreModule;
-        rc.scriptModule.replace(0, 6, "QtScript");
         // Any namespace? 'QtCored4!nsp::qstrdup'
         const std::string::size_type nameSpaceStart = exclPos + 1;
         const std::string::size_type colonPos = qualifiedSymbol.find(':', nameSpaceStart);
@@ -657,10 +650,21 @@ const QtInfo &QtInfo::get(const SymbolGroupValueContext &ctx)
     } while (false);
     rc.qObjectType = rc.prependQtCoreModule("QObject");
     rc.qObjectPrivateType = rc.prependQtCoreModule("QObjectPrivate");
-    rc.qWidgetPrivateType = rc.prependQtGuiModule("QWidgetPrivate");
+    rc.qWindowPrivateType = rc.prependQtGuiModule("QWindowPrivate");
+    rc.qWidgetPrivateType =
+        rc.prependQtModule("QWidgetPrivate",
+                           rc.version >= 5 &&  qt5WidgetSplit ? Widgets : Gui);
     if (SymbolGroupValue::verbose)
         DebugPrint() << rc;
     return rc;
+}
+
+std::string QtInfo::moduleName(Module m) const
+{
+    // Must match the enumeration
+    static const char* modNames[] =
+        {"QtCore", "QtGui", "QtWidgets", "QtNetwork", "QtScript" };
+    return modNames[m] + libInfix;
 }
 
 std::string QtInfo::prependModuleAndNameSpace(const std::string &type,
@@ -695,7 +699,7 @@ std::string QtInfo::prependModuleAndNameSpace(const std::string &type,
 std::ostream &operator<<(std::ostream &os, const QtInfo &i)
 {
     os << "Qt Info: Version: " << i.version << " Modules '"
-       << i.coreModule << "', '" << i.guiModule
+       << i.moduleName(QtInfo::Core) << "', '" << i.moduleName(QtInfo::Gui)
        << "', Namespace='" << i.nameSpace
        << "', types: " << i.qObjectType << ','
        << i.qObjectPrivateType << ',' << i.qWidgetPrivateType;
@@ -1136,6 +1140,8 @@ static KnownType knownClassTypeHelper(const std::string &type,
             return KT_QObject;
         if (!type.compare(qPos, 7, "QWidget"))
             return KT_QWidget;
+        if (!type.compare(qPos, 7, "QWindow"))
+            return KT_QWindow;
         if (!type.compare(qPos, 7, "QLocale"))
             return KT_QLocale;
         if (!type.compare(qPos, 7, "QMatrix"))
@@ -1388,18 +1394,121 @@ void formatKnownTypeFlags(std::ostream &os, KnownType kt)
         os << " simple_dumper";
 }
 
+static inline DumpParameterRecodeResult
+    checkCharArrayRecode(const SymbolGroupValue &v)
+{
+    return DumpParameters::checkRecode(v.type(), std::string(),
+                                       v.value(), v.context(), v.address());
+}
+
+// Helper struct containing data Address and size/alloc information
+// from Qt's QString/QByteArray.
+struct QtStringAddressData
+{
+    QtStringAddressData() : address(0), size(0), allocated(0) {}
+
+    ULONG64 address;
+    unsigned size; // Size and allocated are in ushort for QString's.
+    unsigned allocated;
+};
+
+/* Helper to determine the location and size of the data of
+ * QStrings/QByteArrays for versions 4,5. In Qt 4, 'd' has a 'data'
+ * pointer. In Qt 5, the d-elements and the data are in a storage pool
+ * and the data are at an offset behind the d-structures. */
+QtStringAddressData readQtStringAddressData(const SymbolGroupValue &dV,
+                                           int qtMajorVersion)
+{
+    QtStringAddressData result;
+    const SymbolGroupValue sizeV = dV["size"];
+    const SymbolGroupValue allocV = dV["alloc"];
+    if (!sizeV || !allocV)
+        return QtStringAddressData();
+    result.size = sizeV.intValue();
+    result.allocated = allocV.intValue();
+    if (qtMajorVersion < 5) {
+        // Qt 4: Simple 'data' pointer.
+        result.address = dV["data"].pointerValue();
+    } else {
+        // Qt 5: Memory pool after the data element.
+        const SymbolGroupValue offsetV = dV["offset"];
+        const SymbolGroupValue arrayV = dV["d"];
+        if (!offsetV || !arrayV)
+            return QtStringAddressData();
+        int offset = offsetV.intValue();
+        if (arrayV.type().find("short") != std::string::npos)
+            offset /= sizeof(short); // QString: offset is in short[].
+        result.address = arrayV.address()
+                + SymbolGroupValue::pointerDiffSize()
+                + offset;
+    }
+    return result;
+}
+
+// Retrieve data from a QByteArrayData(char)/QStringData(wchar_t)
+// in desired type. For empty arrays, no data are allocated.
+template <typename CharType>
+bool readQt5StringData(const SymbolGroupValue &dV, int qtMajorVersion,
+                       bool zeroTerminated, unsigned sizeLimit,
+                       unsigned *fullSize, unsigned *arraySize,
+                       CharType **array)
+{
+    *array = 0;
+    QtStringAddressData data = readQtStringAddressData(dV, qtMajorVersion);
+    *arraySize = *fullSize = data.size;
+    if (!data.address)
+        return false;
+    if (!*fullSize)
+        return true;
+    const bool truncated = *fullSize > sizeLimit;
+    *arraySize = truncated ?  sizeLimit : *fullSize;
+    const unsigned memorySize =
+            sizeof(CharType) * (*arraySize + (zeroTerminated ? 1 : 0));
+    unsigned char *memory =
+            SymbolGroupValue::readMemory(dV.context().dataspaces,
+                                         data.address, memorySize);
+    if (!memory)
+        return false;
+    *array = reinterpret_cast<CharType *>(memory);
+    if (truncated && zeroTerminated)
+        *(*array + *arraySize) = CharType(0);
+    return true;
+}
+
 static inline bool dumpQString(const SymbolGroupValue &v, std::wostream &str)
 {
-    if (const SymbolGroupValue d = v["d"]) {
-        if (const SymbolGroupValue sizeValue = d["size"]) {
+    const QtInfo &qtInfo = QtInfo::get(v.context());
+    const SymbolGroupValue dV = v["d"];
+    if (!dV)
+        return false;
+    // Qt 4.
+    if (qtInfo.version < 5) {
+        if (const SymbolGroupValue sizeValue = dV["size"]) {
             const int size = sizeValue.intValue();
             if (size >= 0) {
-                str << L'"' << d["data"].wcharPointerData(size) << L'"';
+                str << L'"' << dV["data"].wcharPointerData(size) << L'"';
                 return true;
             }
         }
+        return false;
+
+    } // Qt 4.
+
+    wchar_t *memory;
+    unsigned fullSize;
+    unsigned size;
+    if (!readQt5StringData(dV, qtInfo.version, true, 10240, &fullSize, &size, &memory))
+        return false;
+    if (size) {
+        str << L'"' << memory;
+        if (fullSize > size)
+            str << L"...";
+        str << L'"';
+    } else {
+        str << L"\"\"";
     }
-    return false;
+    delete [] memory;
+    return true;
 }
 
 /* Pad a memory offset to align with pointer size */
@@ -1446,12 +1555,51 @@ static unsigned qAtomicIntSize(const SymbolGroupValueContext &ctx)
 // Dump a QByteArray
 static inline bool dumpQByteArray(const SymbolGroupValue &v, std::wostream &str)
 {
-    // TODO: More sophisticated dumping of binary data?
-    if (const  SymbolGroupValue data = v["d"]["data"]) {
-        str << data.value();
-        return true;
+    const QtInfo &qtInfo = QtInfo::get(v.context());
+    const SymbolGroupValue dV = v["d"];
+    if (!dV)
+        return false;
+    // Qt 4.
+    if (qtInfo.version < 5) {
+        if (const SymbolGroupValue data = dV["data"]) {
+            const DumpParameterRecodeResult check =
+                checkCharArrayRecode(data);
+            if (check.buffer) {
+                str << quotedWStringFromCharData(check.buffer, check.size);
+                delete [] check.buffer;
+            } else {
+                str << data.value();
+            }
+            return true;
+        }
+        return false;
     }
-    return false;
+
+    // Qt 5: Data start at offset past the 'd' of type QByteArrayData.
+    char *memory;
+    unsigned fullSize;
+    unsigned size;
+    if (!readQt5StringData(dV, qtInfo.version, false, 10240, &fullSize, &size, &memory))
+        return false;
+    if (size) {
+        // Emulate CDB's behavior of replacing unprintable characters
+        // by dots.
+        std::wstring display;
+        display.reserve(size);
+        char *memEnd = memory + size;
+        for (char *p = memory; p < memEnd; p++) {
+            const char c = *p;
+            display.push_back(c >= 0 && isprint(c) ? wchar_t(c) : L'.');
+        }
+        str << fullSize << L" bytes \"" << display;
+        if (fullSize > size)
+            str << L"...";
+        str << L'"';
+    } else {
+        str << L"<empty>";
+    }
+    delete [] memory;
+    return true;
 }
 
 /* Below are some helpers for simple dumpers for some Qt classes accessing their
@@ -1807,29 +1955,44 @@ static inline bool dumpQRectF(const SymbolGroupValue &v, std::wostream &str)
     return true;
 }
 
+/* Return a SymbolGroupValue containing the private class of
+ * a type (multiple) derived from QObject and something else
+ * (QWidget: QObject,QPaintDevice or QWindow: QObject,QSurface).
+ * We get differing behaviour for pointers and values on stack.
+ * For 'QWidget *', the base class QObject usually can be accessed
+ * by name (past the vtable). When browsing class hierarchies (stack),
+ * typically only the uninteresting QPaintDevice is seen. */
+
+SymbolGroupValue qobjectDerivedPrivate(const SymbolGroupValue &v,
+                                       const std::string &qwPrivateType,
+                                       const QtInfo &qtInfo)
+{
+    if (const SymbolGroupValue base = v[SymbolGroupValue::stripModuleFromType(qtInfo.qObjectType).c_str()])
+        if (const SymbolGroupValue qwPrivate = base["d_ptr"]["d"].pointerTypeCast(qwPrivateType.c_str()))
+            return qwPrivate;
+    if (!SymbolGroupValue::isPointerType(v.type()))
+        return SymbolGroupValue();
+    // Class hierarchy: Using brute force, add new symbol based on that
+    // QScopedPointer<Private> is basically a 'X *' (first member).
+    std::string errorMessage;
+    std::ostringstream str;
+    str << '(' << qwPrivateType << "*)(" << std::showbase << std::hex << v.address() << ')';
+    const std::string name = str.str();
+    SymbolGroupNode *qwPrivateNode
+        = v.node()->symbolGroup()->addSymbol(v.module(), name, std::string(), &errorMessage);
+    return SymbolGroupValue(qwPrivateNode, v.context());
+}
+
 // Dump the object name
 static inline bool dumpQWidget(const SymbolGroupValue &v, std::wostream &str, void **specialInfoIn = 0)
 {
     const QtInfo &qtInfo = QtInfo::get(v.context());
-    const std::string &qwPrivateType = qtInfo.qWidgetPrivateType;
-    // We get differing behaviour caused by multiple inheritance of QWidget from QObject,QPaintDevice:
-    // For 'QWidget *', the base class QObject usually can be accessed (past the vtable).
-    // When browsing class hierarchies, typically only the uninteresting QPaintDevice is seen.
-    SymbolGroupValue qwPrivate;
-    if (const SymbolGroupValue base = v[SymbolGroupValue::stripModuleFromType(qtInfo.qObjectType).c_str()])
-        qwPrivate = base["d_ptr"]["d"].pointerTypeCast(qwPrivateType.c_str());
-    if (!qwPrivate && !SymbolGroupValue::isPointerType(v.type())) {
-        // Class hierarchy: Using brute force, add new symbol based on that
-        // QScopedPointer<Private> is basically a 'X *' (first member).
-        std::string errorMessage;
-        std::ostringstream str;
-        str << '(' << qwPrivateType << "*)(" << std::showbase << std::hex << v.address() << ')';
-        const std::string name = str.str();
-        SymbolGroupNode *qwPrivateNode
-            = v.node()->symbolGroup()->addSymbol(v.module(), name, std::string(), &errorMessage);
-        qwPrivate = SymbolGroupValue(qwPrivateNode, v.context());
-    }
-    const SymbolGroupValue oName = qwPrivate[unsigned(0)]["objectName"]; // QWidgetPrivate inherits QObjectPrivate
+    const SymbolGroupValue qwPrivate =
+        qobjectDerivedPrivate(v, qtInfo.qWidgetPrivateType, qtInfo);
+    if (!qwPrivate)
+        return false;
+    // QWidgetPrivate inherits QObjectPrivate
+    const SymbolGroupValue oName = qwPrivate[unsigned(0)]["objectName"];
     if (!oName)
         return false;
     if (specialInfoIn)
@@ -1853,6 +2016,24 @@ static inline bool dumpQObject(const SymbolGroupValue &v, std::wostream &str, vo
     return false;
 }
 
+// Dump the object name
+static inline bool dumpQWindow(const SymbolGroupValue &v, std::wostream &str, void **specialInfoIn = 0)
+{
+    const QtInfo &qtInfo = QtInfo::get(v.context());
+    const SymbolGroupValue qwPrivate =
+        qobjectDerivedPrivate(v, qtInfo.qWindowPrivateType, qtInfo);
+    if (!qwPrivate)
+        return false;
+    // QWindowPrivate inherits QObjectPrivate
+    const SymbolGroupValue oName = qwPrivate[unsigned(0)]["objectName"]; // QWidgetPrivate inherits QObjectPrivate
+    if (!oName)
+        return false;
+    if (specialInfoIn)
+        *specialInfoIn = qwPrivate.node();
+    dumpQString(oName, str);
+    return true;
+}
+
 // Dump a std::string.
 static bool dumpStd_W_String(const SymbolGroupValue &v, int type, std::wostream &str)
 {
@@ -1871,7 +2052,17 @@ static bool dumpStd_W_String(const SymbolGroupValue &v, int type, std::wostream 
     const SymbolGroupValue string = bufSize <= reserved ? bx["_Ptr"] : bx["_Buf"];
     if (!string)
         return false;
-    str << string.value();
+    // Potentially re-code char arrays (preferably relying on
+    // CDB to initially format the string array).
+    const DumpParameterRecodeResult recode = checkCharArrayRecode(string);
+    if (recode.buffer) {
+        str << (type == KT_StdString ?
+            quotedWStringFromCharData(recode.buffer, recode.size) :
+            quotedWStringFromWCharData(recode.buffer, recode.size));
+        delete [] recode.buffer;
+    } else {
+        str << string.value();
+    }
     return true;
 }
 
@@ -2220,6 +2411,9 @@ unsigned dumpSimpleType(SymbolGroupNode  *n, const SymbolGroupValueContext &ctx,
     case KT_QWidget:
         rc = dumpQWidget(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
+    case KT_QWindow:
+        rc = dumpQWindow(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
+        break;
     case KT_QSharedPointer:
         rc = dumpQSharedPointer(v, str, specialInfoIn) ? SymbolGroupNode::SimpleDumperOk : SymbolGroupNode::SimpleDumperFailed;
         break;
@@ -2248,18 +2442,34 @@ static inline std::vector<AbstractSymbolGroupNode *>
     complexDumpQByteArray(SymbolGroupNode *n, const SymbolGroupValueContext &ctx)
 {
     std::vector<AbstractSymbolGroupNode *> rc;
-    const SymbolGroupValue ba(n, ctx);
-    int size = ba["d"]["size"].intValue();
-    ULONG64 address = ba["d"]["data"].pointerValue();
+
+    const SymbolGroupValue baV(n, ctx);
+    const SymbolGroupValue dV = baV["d"];
+    if (!dV)
+        return rc;
+    // Determine memory area.
+
+    unsigned size = 0;
+    ULONG64 address = 0;
+    if (QtInfo::get(ctx).version > 4) {
+        const QtStringAddressData data = readQtStringAddressData(dV, 5);
+        size = data.size;
+        address = data.address;
+    } else {
+        size = dV["size"].intValue();
+        address = dV["data"].pointerValue();
+    }
+
     if (size <= 0 || !address)
         return rc;
+
     if (size > 200)
         size = 200;
     rc.reserve(size);
     const std::string charType = "unsigned char";
     std::string errorMessage;
     SymbolGroup *sg = n->symbolGroup();
-    for (int i = 0; i < size; ++i, ++address) {
+    for (int i = 0; i < (int)size; ++i, ++address) {
         SymbolGroupNode *en = sg->addSymbol(std::string(), SymbolGroupValue::pointedToSymbolName(address, charType),
                                             std::string(), &errorMessage);
         if (!en) {
@@ -2388,15 +2598,18 @@ static int assignQStringI(SymbolGroupNode  *n, const char *className,
     SymbolGroupValue d = v["d"];
     if (!d)
         return 1;
+    const QtInfo &qtInfo = QtInfo::get(ctx);
     // Check the size, re-allocate if required.
-    const size_t allocated = d["alloc"].intValue();
-    const bool needRealloc = allocated < data.stringLength;
+    const QtStringAddressData addressData = readQtStringAddressData(d, qtInfo.version);
+    if (!addressData.address)
+        return 9;
+    const bool needRealloc = addressData.allocated < data.stringLength;
     if (needRealloc) {
         if (!doAlloc) // Calling re-alloc failed somehow.
             return 3;
         std::ostringstream callStr;
         const std::string funcName
-            = QtInfo::get(ctx).prependQtCoreModule(std::string(className) + "::resize");
+            = qtInfo.prependQtCoreModule(std::string(className) + "::resize");
         callStr << funcName << '(' << std::hex << std::showbase
                 << v.address() << ',' << data.stringLength << ')';
         std::wstring wOutput;
@@ -2405,11 +2618,9 @@ static int assignQStringI(SymbolGroupNode  *n, const char *className,
             assignQStringI(n, className, data, ctx, false) : 5;
     }
     // Write data.
-    const ULONG64 address = d["data"].pointerValue();
-    if (!address)
-        return 9;
     if (!SymbolGroupValue::writeMemory(v.context().dataspaces,
-                                       address, data.data, ULONG(data.dataLength)))
+                                       addressData.address, data.data,
+                                       ULONG(data.dataLength)))
         return 11;
     // Correct size unless we re-allocated
     if (!needRealloc) {
@@ -2542,6 +2753,7 @@ std::vector<AbstractSymbolGroupNode *>
         rc = complexDumpQByteArray(n, ctx);
         break;
     case KT_QWidget: // Special info by simple dumper is the QWidgetPrivate node
+    case KT_QWindow: // Special info by simple dumper is the QWindowPrivate node
     case KT_QObject: // Special info by simple dumper is the QObjectPrivate node
         if (specialInfo) {
             SymbolGroupNode *qObjectPrivateNode = reinterpret_cast<SymbolGroupNode *>(specialInfo);

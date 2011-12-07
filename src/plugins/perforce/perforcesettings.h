@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -84,8 +84,10 @@ inline bool operator!=(const Settings &s1, const Settings &s2) { return !s1.equa
  * p4. This is why the client root portion of working directory must be mapped for the
  * "-d" option, so that running p4 in "/depot/dev/foo" results in "-d $HOME/dev/foo". */
 
-class PerforceSettings {
+class PerforceSettings
+{
     Q_DISABLE_COPY(PerforceSettings)
+
 public:
     PerforceSettings();
     ~PerforceSettings();

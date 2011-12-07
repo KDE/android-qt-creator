@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -81,6 +81,9 @@ public:
     /// Sets the minimum qt version
     /// calls this before \sa initializePage()
     void setMinimumQtVersion(const QtSupport::QtVersionNumber &number);
+    /// Sets the maximum qt version
+    /// calls this before \sa initializePage()
+    void setMaximumQtVersion(const QtSupport::QtVersionNumber &number);
     /// Sets whether the TargetSetupPage looks on disk for builds of this project
     /// call this before \sa initializePage()
     void setImportSearch(bool b);
@@ -102,6 +105,7 @@ private:
     QSet<QString> m_requiredFeatures;
     bool m_importSearch;
     QtSupport::QtVersionNumber m_minimumQtVersionNumber;
+    QtSupport::QtVersionNumber m_maximumQtVersionNumber;
     QString m_proFilePath;
     QString m_defaultShadowBuildLocation;
     QMap<QString, Qt4TargetSetupWidget *> m_widgets;

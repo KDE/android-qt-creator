@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -81,6 +81,8 @@ struct ApplicationLauncherPrivate {
     QTextCodec *m_outputCodec;
     QTextCodec::ConverterState m_outputCodecState;
     QTextCodec::ConverterState m_errorCodecState;
+    // Keep track whether we need to emit a finished signal
+    bool m_processRunning;
 };
 
 ApplicationLauncherPrivate::ApplicationLauncherPrivate() :
@@ -111,6 +113,8 @@ ApplicationLauncher::ApplicationLauncher(QObject *parent)
 #ifdef Q_OS_UNIX
     d->m_consoleProcess.setSettings(Core::ICore::instance()->settings());
 #endif
+    connect(&d->m_consoleProcess, SIGNAL(processStarted()),
+            this, SIGNAL(processStarted()));
     connect(&d->m_consoleProcess, SIGNAL(processError(QString)),
             this, SLOT(consoleProcessError(QString)));
     connect(&d->m_consoleProcess, SIGNAL(processStopped()),
@@ -126,6 +130,7 @@ ApplicationLauncher::ApplicationLauncher(QObject *parent)
 
 ApplicationLauncher::~ApplicationLauncher()
 {
+    delete d;
 }
 
 void ApplicationLauncher::setWorkingDirectory(const QString &dir)
@@ -153,6 +158,7 @@ void ApplicationLauncher::setEnvironment(const Utils::Environment &env)
 
 void ApplicationLauncher::start(Mode mode, const QString &program, const QString &args)
 {
+    d->m_processRunning = true;
 #ifdef Q_OS_WIN
     if (!WinDebugInterface::instance()->isRunning())
         WinDebugInterface::instance()->start(); // Try to start listener again...
@@ -223,11 +229,19 @@ void ApplicationLauncher::guiProcessError()
         error = tr("Some error has occurred while running the program.");
     }
     emit appendMessage(error + QLatin1Char('\n'), Utils::ErrorMessageFormat);
+    if (d->m_processRunning && !isRunning()) {
+        d->m_processRunning = false;
+        emit processExited(-1);
+    }
 }
 
 void ApplicationLauncher::consoleProcessError(const QString &error)
 {
     emit appendMessage(error + QLatin1Char('\n'), Utils::ErrorMessageFormat);
+    if (d->m_processRunning && d->m_consoleProcess.applicationPID() == 0) {
+        d->m_processRunning = false;
+        emit processExited(-1);
+    }
 }
 
 void ApplicationLauncher::readStandardOutput()
@@ -242,7 +256,7 @@ void ApplicationLauncher::readStandardError()
 {
     QByteArray data = d->m_guiProcess.readAllStandardError();
     QString msg = d->m_outputCodec->toUnicode(
-            data.constData(), data.length(), &d->m_outputCodecState);
+            data.constData(), data.length(), &d->m_errorCodecState);
     emit appendMessage(msg, Utils::StdErrFormatSameLine);
 }
 
@@ -273,6 +287,7 @@ void ApplicationLauncher::processDone(int exitCode, QProcess::ExitStatus)
 void ApplicationLauncher::bringToForeground()
 {
     emit bringToForegroundRequested(applicationPID());
+    emit processStarted();
 }
 
 QString ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput()

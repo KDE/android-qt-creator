@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "remotegdbserveradapter.h"
 
+#include "debuggeractions.h"
 #include "debuggerstartparameters.h"
 #include "debuggercore.h"
 #include "debuggerstringutils.h"
@@ -161,27 +162,26 @@ void RemoteGdbServerAdapter::uploadProcFinished()
 void RemoteGdbServerAdapter::setupInferior()
 {
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
+    const DebuggerStartParameters &sp = startParameters();
 #ifdef Q_OS_WIN
     #define PATHSEP ";"
 #else
     #define PATHSEP ":"
 #endif
     QString fileName;
-    if (!startParameters().executable.isEmpty()) {
-        QFileInfo fi(startParameters().executable);
+    if (!sp.executable.isEmpty()) {
+        QFileInfo fi(sp.executable);
         fileName = fi.absoluteFilePath();
     }
-    const QByteArray sysroot = startParameters().sysroot.toLocal8Bit();
-    const QByteArray remoteArch = startParameters().remoteArchitecture.toLatin1();
-    const QByteArray gnuTarget = startParameters().gnuTarget.toLatin1();
-    QByteArray solibPath =
-            QFileInfo(startParameters().dumperLibrary).path().toLocal8Bit();
+    const QByteArray sysroot = sp.sysroot.toLocal8Bit();
+    const QByteArray remoteArch = sp.remoteArchitecture.toLatin1();
+    const QByteArray gnuTarget = sp.gnuTarget.toLatin1();
+    const QString args = sp.processArgs;
 
     if (!solibPath.isEmpty() && !startParameters().solibSearchPath.isEmpty())
         solibPath += PATHSEP;
     solibPath += startParameters().solibSearchPath.join(PATHSEP).toLocal8Bit();
 
-    const QString args = startParameters().processArgs;
 
     if (!remoteArch.isEmpty())
         m_engine->postCommand("set architecture " + remoteArch);
@@ -189,8 +189,6 @@ void RemoteGdbServerAdapter::setupInferior()
         m_engine->postCommand("set gnutarget " + gnuTarget);
     if (!sysroot.isEmpty())
         m_engine->postCommand("set sysroot " + sysroot);
-    if (!solibPath.isEmpty())
-        m_engine->postCommand("set solib-search-path " + solibPath);
     if (!args.isEmpty())
         m_engine->postCommand("-exec-arguments " + args.toLocal8Bit());
 
@@ -208,7 +206,13 @@ void RemoteGdbServerAdapter::setupInferior()
     // Some external comment: '[but] "set target-async on" with a native
     // windows gdb will work, but then fail when you actually do
     // "run"/"attach", I think..
-    m_engine->postCommand("set target-async on", CB(handleSetTargetAsync));
+
+
+    // gdb/mi/mi-main.c:1958: internal-error:
+    // mi_execute_async_cli_command: Assertion `is_running (inferior_ptid)'
+    // failed.\nA problem internal to GDB has been detected,[...]
+    if (debuggerCore()->boolSetting(TargetAsync))
+        m_engine->postCommand("set target-async on", CB(handleSetTargetAsync));
 
     if (fileName.isEmpty()) {
         showMessage(tr("No symbol file given."), StatusBar);
@@ -279,8 +283,18 @@ void RemoteGdbServerAdapter::runEngine()
 void RemoteGdbServerAdapter::interruptInferior()
 {
     QTC_ASSERT(state() == InferiorStopRequested, qDebug() << state());
-    m_engine->postCommand("-exec-interrupt", GdbEngine::Immediate,
-        CB(handleInterruptInferior));
+    if (debuggerCore()->boolSetting(TargetAsync)) {
+        m_engine->postCommand("-exec-interrupt", GdbEngine::Immediate,
+            CB(handleInterruptInferior));
+    } else {
+        bool ok = m_gdbProc.interrupt();
+        if (!ok) {
+            // FIXME: Extra state needed?
+            m_engine->showMessage(_("NOTE: INFERIOR STOP NOT POSSIBLE"));
+            m_engine->showStatusMessage(tr("Interrupting not possible"));
+            m_engine->notifyInferiorRunOk();
+        }
+    }
 }
 
 void RemoteGdbServerAdapter::handleInterruptInferior(const GdbResponse &response)
@@ -297,7 +311,10 @@ void RemoteGdbServerAdapter::handleInterruptInferior(const GdbResponse &response
 
 void RemoteGdbServerAdapter::shutdownInferior()
 {
-    m_engine->defaultInferiorShutdown("kill");
+    if (m_engine->startParameters().startMode == AttachToRemoteServer)
+        m_engine->defaultInferiorShutdown("detach");
+    else
+        m_engine->defaultInferiorShutdown("kill");
 }
 
 void RemoteGdbServerAdapter::shutdownAdapter()

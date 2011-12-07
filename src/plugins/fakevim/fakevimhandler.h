@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -68,6 +68,7 @@ struct ExCommand
         const Range &range = Range());
 
     bool matches(const QString &min, const QString &full) const;
+    void setContentsFromLine(const QString &line);
 
     QString cmd;
     bool hasBang;
@@ -114,7 +115,7 @@ public slots:
     QString tabExpand(int n) const;
 
 signals:
-    void commandBufferChanged(const QString &msg);
+    void commandBufferChanged(const QString &msg, int pos);
     void statusDataChanged(const QString &msg);
     void extraInformationChanged(const QString &msg);
     void selectionChanged(const QList<QTextEdit::ExtraSelection> &selection);

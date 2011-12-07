@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,17 +55,18 @@ public:
 
     void toSettings(QSettings *) const;
     void fromSettings(QSettings *);
-    bool equals(const GlobalDebuggerOptions &rhs) const { return sourcePathMap == rhs.sourcePathMap; }
+    bool operator==(const GlobalDebuggerOptions &rhs) const
+        { return sourcePathMap == rhs.sourcePathMap; }
+    bool operator!=(const GlobalDebuggerOptions &rhs) const
+        { return sourcePathMap != rhs.sourcePathMap; }
 
     SourcePathMap sourcePathMap;
 };
 
-inline bool operator==(const GlobalDebuggerOptions &o1, const GlobalDebuggerOptions &o2) { return o1.equals(o2); }
-inline bool operator!=(const GlobalDebuggerOptions &o1, const GlobalDebuggerOptions &o2) { return !o1.equals(o2); }
-
 class DebuggerSettings : public QObject
 {
     Q_OBJECT // For tr().
+
 public:
     explicit DebuggerSettings(QSettings *setting);
     ~DebuggerSettings();
@@ -116,8 +117,10 @@ enum DebuggerActionCode
 
     // Gdb
     LoadGdbInit,
-    GdbScriptFile,
+    GdbStartupCommands,
     GdbWatchdogTimeout,
+    AutoEnrichParameters,
+    UseDynamicType,
     TargetAsync,
 
     // Stack

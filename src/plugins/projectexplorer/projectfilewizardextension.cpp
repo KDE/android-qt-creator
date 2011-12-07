@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,7 +45,16 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/iversioncontrol.h>
 #include <coreplugin/vcsmanager.h>
+#include <coreplugin/mimedatabase.h>
 #include <extensionsystem/pluginmanager.h>
+#include <texteditor/texteditorsettings.h>
+#include <texteditor/indenter.h>
+#include <texteditor/icodestylepreferences.h>
+#include <texteditor/icodestylepreferencesfactory.h>
+#include <texteditor/normalindenter.h>
+#include <texteditor/tabsettings.h>
+#include <projectexplorer/project.h>
+#include <projectexplorer/editorconfiguration.h>
 
 #include <QtCore/QVariant>
 #include <QtCore/QtAlgorithms>
@@ -53,6 +62,8 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QMultiMap>
 #include <QtCore/QDir>
+#include <QtGui/QTextDocument>
+#include <QtGui/QTextCursor>
 
 /*!
     \class ProjectExplorer::Internal::ProjectFileWizardExtension
@@ -406,9 +417,10 @@ void ProjectFileWizardExtension::initProjectChoices(const QString &generatedProj
 
     m_context->page->setProjects(projectChoices);
     m_context->page->setProjectToolTips(projectToolTips);
+    m_context->page->setAddingSubProject(projectAction == ProjectNode::AddSubProject);
 }
 
-bool ProjectFileWizardExtension::process(
+bool ProjectFileWizardExtension::processFiles(
         const QList<Core::GeneratedFile> &files,
         bool *removeOpenProjectAttribute, QString *errorMessage)
 {
@@ -485,6 +497,57 @@ bool ProjectFileWizardExtension::processVersionControl(const QList<Core::Generat
         }
     }
     return true;
+}
+
+static TextEditor::ICodeStylePreferences *codeStylePreferences(ProjectExplorer::Project *project, const QString &languageId)
+{
+    if (languageId.isEmpty())
+        return 0;
+
+    if (project)
+        return project->editorConfiguration()->codeStyle(languageId);
+
+    return TextEditor::TextEditorSettings::instance()->codeStyle(languageId);
+}
+
+void ProjectFileWizardExtension::applyCodeStyle(Core::GeneratedFile *file) const
+{
+    if (file->isBinary() || file->contents().isEmpty())
+        return; // nothing to do
+
+    const Core::MimeDatabase *mdb = Core::ICore::instance()->mimeDatabase();
+    Core::MimeType mt = mdb->findByFile(QFileInfo(file->path()));
+    const QString languageId = TextEditor::TextEditorSettings::instance()->languageId(mt.type());
+
+    if (languageId.isEmpty())
+        return; // don't modify files like *.ui *.pro
+
+    ProjectNode *project = 0;
+    const int projectIndex = m_context->page->currentProjectIndex() - 1;
+    if (projectIndex >= 0 && projectIndex < m_context->projects.size())
+        project = m_context->projects.at(projectIndex).node;
+
+    ProjectExplorer::Project *baseProject
+            = ProjectExplorer::ProjectExplorerPlugin::instance()->session()->projectForNode(project);
+
+    TextEditor::ICodeStylePreferencesFactory *factory
+            = TextEditor::TextEditorSettings::instance()->codeStyleFactory(languageId);
+
+    TextEditor::Indenter *indenter = 0;
+    if (factory)
+        indenter = factory->createIndenter();
+    if (!indenter)
+        indenter = new TextEditor::NormalIndenter();
+
+    TextEditor::ICodeStylePreferences *codeStylePrefs = codeStylePreferences(baseProject, languageId);
+    indenter->setCodeStylePreferences(codeStylePrefs);
+
+    QTextDocument doc(file->contents());
+    QTextCursor cursor(&doc);
+    cursor.select(QTextCursor::Document);
+    indenter->indent(&doc, cursor, QChar::Null, codeStylePrefs->currentTabSettings());
+    file->setContents(doc.toPlainText());
+    delete indenter;
 }
 
 } // namespace Internal

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,24 +26,26 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmljsscopebuilder.h"
 
 #include "qmljsbind.h"
-#include "qmljsinterpreter.h"
+#include "qmljscontext.h"
 #include "qmljsevaluate.h"
+#include "qmljsscopechain.h"
+#include "qmljsutils.h"
 #include "parser/qmljsast_p.h"
 
+#include <utils/qtcassert.h>
+
 using namespace QmlJS;
-using namespace QmlJS::Interpreter;
 using namespace QmlJS::AST;
 
-ScopeBuilder::ScopeBuilder(Context *context, Document::Ptr doc)
-    : _doc(doc)
-    , _context(context)
+ScopeBuilder::ScopeBuilder(ScopeChain *scopeChain)
+    : _scopeChain(scopeChain)
 {
 }
 
@@ -59,8 +61,40 @@ void ScopeBuilder::push(AST::Node *node)
     Node *qmlObject = cast<UiObjectDefinition *>(node);
     if (! qmlObject)
         qmlObject = cast<UiObjectBinding *>(node);
-    if (qmlObject)
+    if (qmlObject) {
+        // save the previous scope objects
+        _qmlScopeObjects.push(_scopeChain->qmlScopeObjects());
         setQmlScopeObject(qmlObject);
+    }
+
+    // JS signal handler scope
+    if (UiScriptBinding *script = cast<UiScriptBinding *>(node)) {
+        QString name;
+        if (script->qualifiedId)
+            name = script->qualifiedId->name.toString();
+        if (!_scopeChain->qmlScopeObjects().isEmpty()
+                && name.startsWith(QLatin1String("on"))
+                && !script->qualifiedId->next) {
+            const ObjectValue *owner = 0;
+            const Value *value = 0;
+            // try to find the name on the scope objects
+            foreach (const ObjectValue *scope, _scopeChain->qmlScopeObjects()) {
+                value = scope->lookupMember(name, _scopeChain->context(), &owner);
+                if (value)
+                    break;
+            }
+            // signals defined in QML
+            if (const ASTSignal *astsig = value_cast<ASTSignal>(value)) {
+                _scopeChain->appendJsScope(astsig->bodyScope());
+            }
+            // signals defined in C++
+            else if (const CppComponentValue *qmlObject = value_cast<CppComponentValue>(owner)) {
+                if (const ObjectValue *scope = qmlObject->signalScope(name)) {
+                    _scopeChain->appendJsScope(scope);
+                }
+            }
+        }
+    }
 
     // JS scopes
     switch (node->kind) {
@@ -69,16 +103,14 @@ void ScopeBuilder::push(AST::Node *node)
     case Node::Kind_FunctionExpression:
     case Node::Kind_UiPublicMember:
     {
-        ObjectValue *scope = _doc->bind()->findAttachedJSScope(node);
+        ObjectValue *scope = _scopeChain->document()->bind()->findAttachedJSScope(node);
         if (scope)
-            _context->scopeChain().jsScopes += scope;
+            _scopeChain->appendJsScope(scope);
         break;
     }
     default:
         break;
     }
-
-    _context->scopeChain().update();
 }
 
 void ScopeBuilder::push(const QList<AST::Node *> &nodes)
@@ -99,9 +131,14 @@ void ScopeBuilder::pop()
     case Node::Kind_FunctionExpression:
     case Node::Kind_UiPublicMember:
     {
-        ObjectValue *scope = _doc->bind()->findAttachedJSScope(toRemove);
-        if (scope)
-            _context->scopeChain().jsScopes.removeLast();
+        ObjectValue *scope = _scopeChain->document()->bind()->findAttachedJSScope(toRemove);
+        if (scope) {
+            QList<const ObjectValue *> jsScopes = _scopeChain->jsScopes();
+            if (!jsScopes.isEmpty()) {
+                jsScopes.removeLast();
+                _scopeChain->setJsScopes(jsScopes);
+            }
+        }
         break;
     }
     default:
@@ -109,106 +146,17 @@ void ScopeBuilder::pop()
     }
 
     // QML scope object
-    if (! _nodes.isEmpty()
-        && (cast<UiObjectDefinition *>(toRemove) || cast<UiObjectBinding *>(toRemove)))
-        setQmlScopeObject(_nodes.last());
-
-    _context->scopeChain().update();
-}
-
-void ScopeBuilder::initializeRootScope()
-{
-    ScopeChain &scopeChain = _context->scopeChain();
-    if (scopeChain.qmlComponentScope
-            && scopeChain.qmlComponentScope->document == _doc) {
-        return;
+    if (cast<UiObjectDefinition *>(toRemove) || cast<UiObjectBinding *>(toRemove)) {
+        // restore the previous scope objects
+        QTC_ASSERT(!_qmlScopeObjects.isEmpty(), return);
+        _scopeChain->setQmlScopeObjects(_qmlScopeObjects.pop());
     }
-
-    scopeChain = ScopeChain(); // reset
-
-    Interpreter::Engine *engine = _context->engine();
-
-    // ### TODO: This object ought to contain the global namespace additions by QML.
-    scopeChain.globalScope = engine->globalObject();
-
-    if (! _doc) {
-        scopeChain.update();
-        return;
-    }
-
-    Bind *bind = _doc->bind();
-    QHash<Document *, ScopeChain::QmlComponentChain *> componentScopes;
-    const Snapshot &snapshot = _context->snapshot();
-
-    ScopeChain::QmlComponentChain *chain = new ScopeChain::QmlComponentChain;
-    scopeChain.qmlComponentScope = QSharedPointer<const ScopeChain::QmlComponentChain>(chain);
-    if (_doc->qmlProgram()) {
-        componentScopes.insert(_doc.data(), chain);
-        makeComponentChain(_doc, snapshot, chain, &componentScopes);
-
-        if (const Imports *imports = _context->imports(_doc.data())) {
-            scopeChain.qmlTypes = imports->typeScope();
-            scopeChain.jsImports = imports->jsImportScope();
-        }
-    } else {
-        // add scope chains for all components that import this file
-        foreach (Document::Ptr otherDoc, snapshot) {
-            foreach (const ImportInfo &import, otherDoc->bind()->imports()) {
-                if (import.type() == ImportInfo::FileImport && _doc->fileName() == import.name()) {
-                    ScopeChain::QmlComponentChain *component = new ScopeChain::QmlComponentChain;
-                    componentScopes.insert(otherDoc.data(), component);
-                    chain->instantiatingComponents += component;
-                    makeComponentChain(otherDoc, snapshot, component, &componentScopes);
-                }
-            }
-        }
-
-        // ### TODO: Which type environment do scripts see?
-
-        if (bind->rootObjectValue())
-            scopeChain.jsScopes += bind->rootObjectValue();
-    }
-
-    scopeChain.update();
-}
-
-void ScopeBuilder::makeComponentChain(
-        Document::Ptr doc,
-        const Snapshot &snapshot,
-        ScopeChain::QmlComponentChain *target,
-        QHash<Document *, ScopeChain::QmlComponentChain *> *components)
-{
-    if (!doc->qmlProgram())
-        return;
-
-    Bind *bind = doc->bind();
-
-    // add scopes for all components instantiating this one
-    foreach (Document::Ptr otherDoc, snapshot) {
-        if (otherDoc == doc)
-            continue;
-        if (otherDoc->bind()->usesQmlPrototype(bind->rootObjectValue(), _context)) {
-            if (components->contains(otherDoc.data())) {
-//                target->instantiatingComponents += components->value(otherDoc.data());
-            } else {
-                ScopeChain::QmlComponentChain *component = new ScopeChain::QmlComponentChain;
-                components->insert(otherDoc.data(), component);
-                target->instantiatingComponents += component;
-
-                makeComponentChain(otherDoc, snapshot, component, components);
-            }
-        }
-    }
-
-    // build this component scope
-    target->document = doc;
 }
 
 void ScopeBuilder::setQmlScopeObject(Node *node)
 {
-    ScopeChain &scopeChain = _context->scopeChain();
-
-    if (_doc->bind()->isGroupedPropertyBinding(node)) {
+    QList<const ObjectValue *> qmlScopeObjects;
+    if (_scopeChain->document()->bind()->isGroupedPropertyBinding(node)) {
         UiObjectDefinition *definition = cast<UiObjectDefinition *>(node);
         if (!definition)
             return;
@@ -219,76 +167,74 @@ void ScopeBuilder::setQmlScopeObject(Node *node)
         if (!object)
             return;
 
-        scopeChain.qmlScopeObjects.clear();
-        scopeChain.qmlScopeObjects += object;
+        qmlScopeObjects += object;
+        _scopeChain->setQmlScopeObjects(qmlScopeObjects);
+        return;
     }
 
-    const ObjectValue *scopeObject = _doc->bind()->findQmlObject(node);
+    const ObjectValue *scopeObject = _scopeChain->document()->bind()->findQmlObject(node);
     if (scopeObject) {
-        scopeChain.qmlScopeObjects.clear();
-        scopeChain.qmlScopeObjects += scopeObject;
+        qmlScopeObjects += scopeObject;
     } else {
         return; // Probably syntax errors, where we're working with a "recovered" AST.
     }
 
     // check if the object has a Qt.ListElement or Qt.Connections ancestor
     // ### allow only signal bindings for Connections
-    PrototypeIterator iter(scopeObject, _context);
+    PrototypeIterator iter(scopeObject, _scopeChain->context());
     iter.next();
     while (iter.hasNext()) {
         const ObjectValue *prototype = iter.next();
-        if (const QmlObjectValue *qmlMetaObject = dynamic_cast<const QmlObjectValue *>(prototype)) {
+        if (const CppComponentValue *qmlMetaObject = value_cast<CppComponentValue>(prototype)) {
             if ((qmlMetaObject->className() == QLatin1String("ListElement")
                     || qmlMetaObject->className() == QLatin1String("Connections")
-                    ) && (qmlMetaObject->packageName() == QLatin1String("Qt")
-                          || qmlMetaObject->packageName() == QLatin1String("QtQuick"))) {
-                scopeChain.qmlScopeObjects.clear();
+                    ) && (qmlMetaObject->moduleName() == QLatin1String("Qt")
+                          || qmlMetaObject->moduleName() == QLatin1String("QtQuick"))) {
+                qmlScopeObjects.clear();
                 break;
             }
         }
     }
 
     // check if the object has a Qt.PropertyChanges ancestor
-    const ObjectValue *prototype = scopeObject->prototype(_context);
-    prototype = isPropertyChangesObject(_context, prototype);
+    const ObjectValue *prototype = scopeObject->prototype(_scopeChain->context());
+    prototype = isPropertyChangesObject(_scopeChain->context(), prototype);
     // find the target script binding
     if (prototype) {
-        UiObjectInitializer *initializer = 0;
-        if (UiObjectDefinition *definition = cast<UiObjectDefinition *>(node))
-            initializer = definition->initializer;
-        if (UiObjectBinding *binding = cast<UiObjectBinding *>(node))
-            initializer = binding->initializer;
+        UiObjectInitializer *initializer = initializerOfObject(node);
         if (initializer) {
             for (UiObjectMemberList *m = initializer->members; m; m = m->next) {
                 if (UiScriptBinding *scriptBinding = cast<UiScriptBinding *>(m->member)) {
-                    if (scriptBinding->qualifiedId && scriptBinding->qualifiedId->name
-                            && scriptBinding->qualifiedId->name->asString() == QLatin1String("target")
+                    if (scriptBinding->qualifiedId
+                            && scriptBinding->qualifiedId->name == QLatin1String("target")
                             && ! scriptBinding->qualifiedId->next) {
-                        Evaluate evaluator(_context);
+                        Evaluate evaluator(_scopeChain);
                         const Value *targetValue = evaluator(scriptBinding->statement);
 
-                        if (const ObjectValue *target = value_cast<const ObjectValue *>(targetValue)) {
-                            scopeChain.qmlScopeObjects.prepend(target);
+                        if (const ObjectValue *target = value_cast<ObjectValue>(targetValue)) {
+                            qmlScopeObjects.prepend(target);
                         } else {
-                            scopeChain.qmlScopeObjects.clear();
+                            qmlScopeObjects.clear();
                         }
                     }
                 }
             }
         }
     }
+
+    _scopeChain->setQmlScopeObjects(qmlScopeObjects);
 }
 
 const Value *ScopeBuilder::scopeObjectLookup(AST::UiQualifiedId *id)
 {
     // do a name lookup on the scope objects
     const Value *result = 0;
-    foreach (const ObjectValue *scopeObject, _context->scopeChain().qmlScopeObjects) {
+    foreach (const ObjectValue *scopeObject, _scopeChain->qmlScopeObjects()) {
         const ObjectValue *object = scopeObject;
         for (UiQualifiedId *it = id; it; it = it->next) {
-            if (!it->name)
+            if (it->name.isEmpty())
                 return 0;
-            result = object->lookupMember(it->name->asString(), _context);
+            result = object->lookupMember(it->name.toString(), _scopeChain->context());
             if (!result)
                 break;
             if (it->next) {
@@ -307,16 +253,16 @@ const Value *ScopeBuilder::scopeObjectLookup(AST::UiQualifiedId *id)
 }
 
 
-const ObjectValue *ScopeBuilder::isPropertyChangesObject(const Context *context,
+const ObjectValue *ScopeBuilder::isPropertyChangesObject(const ContextPtr &context,
                                                    const ObjectValue *object)
 {
     PrototypeIterator iter(object, context);
     while (iter.hasNext()) {
         const ObjectValue *prototype = iter.next();
-        if (const QmlObjectValue *qmlMetaObject = dynamic_cast<const QmlObjectValue *>(prototype)) {
+        if (const CppComponentValue *qmlMetaObject = value_cast<CppComponentValue>(prototype)) {
             if (qmlMetaObject->className() == QLatin1String("PropertyChanges")
-                    && (qmlMetaObject->packageName() == QLatin1String("Qt")
-                        || qmlMetaObject->packageName() == QLatin1String("QtQuick")))
+                    && (qmlMetaObject->moduleName() == QLatin1String("Qt")
+                        || qmlMetaObject->moduleName() == QLatin1String("QtQuick")))
                 return prototype;
         }
     }

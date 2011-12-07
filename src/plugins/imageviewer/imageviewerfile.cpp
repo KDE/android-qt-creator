@@ -5,7 +5,7 @@
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,7 @@
 #include "imageviewer.h"
 
 #include <coreplugin/icore.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <utils/reloadpromptutils.h>
 
@@ -55,13 +55,14 @@ struct ImageViewerFilePrivate
 
 ImageViewerFile::ImageViewerFile(ImageViewer *parent)
     : Core::IFile(parent),
-    d_ptr(new ImageViewerFilePrivate)
+    d(new ImageViewerFilePrivate)
 {
-    d_ptr->editor = parent;
+    d->editor = parent;
 }
 
 ImageViewerFile::~ImageViewerFile()
 {
+    delete d;
 }
 
 bool ImageViewerFile::reload(QString *errorString,
@@ -73,9 +74,8 @@ bool ImageViewerFile::reload(QString *errorString,
     if (type == TypePermissions) {
         emit changed();
         return true;
-    } else {
-        return d_ptr->editor->open(errorString, d_ptr->fileName, d_ptr->fileName);
     }
+    return d->editor->open(errorString, d->fileName, d->fileName);
 }
 
 bool ImageViewerFile::save(QString *errorString, const QString &fileName, bool autoSave)
@@ -88,12 +88,12 @@ bool ImageViewerFile::save(QString *errorString, const QString &fileName, bool a
 
 void ImageViewerFile::rename(const QString &newName)
 {
-    d_ptr->fileName = newName;
+    d->fileName = newName;
 }
 
 QString ImageViewerFile::fileName() const
 {
-    return d_ptr->fileName;
+    return d->fileName;
 }
 
 QString ImageViewerFile::defaultPath() const
@@ -108,7 +108,7 @@ QString ImageViewerFile::suggestedFileName() const
 
 QString ImageViewerFile::mimeType() const
 {
-    return d_ptr->mimeType;
+    return d->mimeType;
 }
 
 bool ImageViewerFile::isModified() const
@@ -128,13 +128,13 @@ bool ImageViewerFile::isSaveAsAllowed() const
 
 void ImageViewerFile::setMimetype(const QString &mimetype)
 {
-    d_ptr->mimeType = mimetype;
+    d->mimeType = mimetype;
     emit changed();
 }
 
 void ImageViewerFile::setFileName(const QString &filename)
 {
-    d_ptr->fileName = filename;
+    d->fileName = filename;
     emit changed();
 }
 

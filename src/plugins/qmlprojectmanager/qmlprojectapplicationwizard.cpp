@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,7 +34,7 @@
 
 #include "qmlprojectconstants.h"
 
-#include <coreplugin/coreconstants.h>
+#include <app/app_version.h>
 #include <projectexplorer/customwizard/customwizard.h>
 #include <qtsupport/qtsupportconstants.h>
 
@@ -71,7 +71,7 @@ Core::BaseFileWizardParameters QmlProjectApplicationWizard::parameters()
     parameters.setDisplayName(tr("Qt Quick UI"));
     parameters.setId(QLatin1String("QB.QML Application"));
 
-    parameters.setDescription(tr("Creates a  Qt Quick UI project with a single "
+    parameters.setDescription(tr("Creates a Qt Quick UI project with a single "
         "QML file that contains the main view.\n\n"
         "You can review Qt Quick UI projects in the QML Viewer and you need not build them. "
         "You do not need to have the development environment installed "
@@ -119,7 +119,8 @@ Core::GeneratedFiles QmlProjectApplicationWizard::generateFiles(const QWizard *w
         QTextStream out(&contents);
 
         out
-            << "import QtQuick 1.0" << endl
+            << "// import QtQuick 1.0 // to target S60 5th Edition or Maemo 5" << endl
+            << "import QtQuick 1.1" << endl
             << endl
             << "Rectangle {" << endl
             << "    width: 360" << endl

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,6 +47,7 @@
 #include <QMutableVectorIterator>
 
 #include "servernodeinstance.h"
+#include "objectnodeinstance.h"
 #include "childrenchangeeventfilter.h"
 #include "propertyabstractcontainer.h"
 #include "propertybindingcontainer.h"
@@ -800,7 +801,7 @@ void NodeInstanceServer::setInstancePropertyVariant(const PropertyValueContainer
         }
 
         if (valueContainer.isDynamic() && valueContainer.instanceId() == 0 && engine())
-            rootContext()->setContextProperty(name, value);
+            rootContext()->setContextProperty(name, Internal::ObjectNodeInstance::fixResourcePaths(value));
     }
 }
 
@@ -814,6 +815,17 @@ void NodeInstanceServer::setInstanceAuxiliaryData(const PropertyValueContainer &
             setInstancePropertyVariant(auxiliaryContainer);
         } else {
             rootNodeInstance().resetProperty(auxiliaryContainer.name());
+        }
+    }
+    if (auxiliaryContainer.name().endsWith(QLatin1String("@NodeInstance"))) {
+        QString propertyName = auxiliaryContainer.name().leftRef(auxiliaryContainer.name().count() - 12).toString();
+        if (!auxiliaryContainer.value().isNull()) {
+            setInstancePropertyVariant(PropertyValueContainer(auxiliaryContainer.instanceId(),
+                                                              propertyName,
+                                                              auxiliaryContainer.value(),
+                                                              auxiliaryContainer.dynamicTypeName()));
+        } else {
+            rootNodeInstance().resetProperty(propertyName);
         }
     }
 }
@@ -1045,7 +1057,7 @@ PixmapChangedCommand NodeInstanceServer::createPixmapChangedCommand(const QList<
     QVector<ImageContainer> imageVector;
 
     foreach (const ServerNodeInstance &instance, instanceList) {
-        if (instance.isValid())
+        if (instance.isValid() && instance.hasContent())
             imageVector.append(ImageContainer(instance.instanceId(), instance.renderImage()));
     }
 

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "servernodeinstance.h"
@@ -52,6 +52,11 @@
 
 #include <QHash>
 #include <QSet>
+#include <QtDebug>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QSGItem>
+#endif
 
 #include <QtDeclarative/QDeclarativeEngine>
 
@@ -223,9 +228,9 @@ ServerNodeInstance ServerNodeInstance::create(NodeInstanceServer *nodeInstanceSe
 
     if ((object == 0) && (instanceContainer.metaType() == InstanceContainer::ItemMetaType)) //If we cannot instanciate the object but we know it has to be an Ttem, we create an Item instead.
 #if QT_VERSION >= 0x050000
-        object = Internal::ObjectNodeInstance::createPrimitive("QSGItem", 2, 0, nodeInstanceServer->context())
+        object = Internal::ObjectNodeInstance::createPrimitive("QSGItem", 2, 0, nodeInstanceServer->context());
 #else
-        object = Internal::ObjectNodeInstance::createPrimitive("QDeclarativeItem", 2, 0, nodeInstanceServer->context());
+        object = Internal::ObjectNodeInstance::createPrimitive("QtQuick/Item", 1, 0, nodeInstanceServer->context());
 #endif
 
     ServerNodeInstance instance(createInstance(object));
@@ -546,6 +551,13 @@ QObject *ServerNodeInstance::internalObject() const
 
     return m_nodeInstance->object();
 }
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+QSGItem *ServerNodeInstance::internalSGItem() const
+{
+    return qobject_cast<QSGItem*>(internalObject());
+}
+#endif
 
 void ServerNodeInstance::activateState()
 {

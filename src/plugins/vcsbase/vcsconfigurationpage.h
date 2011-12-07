@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,9 @@ class IVersionControl;
 
 namespace VCSBase {
 
+namespace Internal {
 class VcsConfigurationPagePrivate;
+} // namespace Internal
 
 class VCSBASE_EXPORT VcsConfigurationPage : public QWizardPage {
     Q_OBJECT
@@ -57,7 +59,7 @@ public:
 private slots:
     void openConfiguration();
 private:
-    VcsConfigurationPagePrivate *const m_d;
+    Internal::VcsConfigurationPagePrivate *const d;
 };
 
 } // namespace VCSBase

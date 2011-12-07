@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/actionmanager/actionmanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/texteditoractionhandler.h>
@@ -74,9 +74,9 @@ Core::IEditor *ProFileEditor::duplicate(QWidget *parent)
     return ret->editor();
 }
 
-QString ProFileEditor::id() const
+Core::Id ProFileEditor::id() const
 {
-    return QLatin1String(Qt4ProjectManager::Constants::PROFILE_EDITOR_ID);
+    return Qt4ProjectManager::Constants::PROFILE_EDITOR_ID;
 }
 
 //

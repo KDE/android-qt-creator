@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,77 +26,46 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 import QtQuick 1.0
-import qtcomponents 1.0 as Components
+import qtcomponents 1.0
 
-HeaderItemView {
-    header: qsTr("Recently Used Sessions")
-    model: sessionList
+ScrollArea {
 
-    delegate: Rectangle {
-        height: 30
-        width: dataSection.width
+    property alias model: repeater.model
 
-        Rectangle {
-            height: 1
-            color: "#eee"
-            anchors.bottom: parent.bottom
-            width: parent.width
-        }
+    property alias listHeight: column.height
 
-        color: mousearea.containsMouse ? "#f9f9f9" : "white"
+    height: Math.min(listHeight, 276)
 
-        function fullSessionName()
-        {
-            var newSessionName = sessionName
-            if (model.lastSession && sessionList.isDefaultVirgin())
-                newSessionName = qsTr("%1 (last session)").arg(sessionName);
-            else if (model.activeSession && !sessionList.isDefaultVirgin())
-                newSessionName = qsTr("%1 (current session)").arg(sessionName);
-            return newSessionName;
-        }
+    frame: false
+    horizontalScrollBar.visible: false
+    clip: true
 
-        Image {
-            id: arrowImage;
-            source: "qrc:welcome/images/list_bullet_arrow.png"
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: 10
-        }
+    Column {
+        id: column
 
-        Text {
-            id: fileNameText
-            text: parent.fullSessionName()
-            elide: Text.ElideMiddle
-            anchors.left: arrowImage.right
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 10
-            anchors.rightMargin: 20
-        }
+        spacing: 8
 
-        Timer {
-            id: timer
-            interval: 1000
-            repeat: false
-            onTriggered: {
-                if (fileNameText.truncated)
-                    styleItem.showToolTip(sessionName)
+        Repeater {
+            id: repeater
+            SessionItem {
+
+                function fullSessionName()
+                {
+                    var newSessionName = sessionName
+                    if (model.lastSession && sessionList.isDefaultVirgin())
+                        newSessionName = qsTr("%1 (last session)").arg(sessionName);
+                    else if (model.activeSession && !sessionList.isDefaultVirgin())
+                        newSessionName = qsTr("%1 (current session)").arg(sessionName);
+                    return newSessionName;
+                }
+
+                name: fullSessionName()
             }
-        }
-
-        MouseArea {
-            id: mousearea
-            anchors.fill: parent
-            onClicked: projectWelcomePage.requestSession(sessionName)
-            hoverEnabled: true
-            onEntered: timer.start()
-            onExited: timer.stop()
-            Components.QStyleItem { id: styleItem; cursor: "pointinghandcursor"; anchors.fill: parent }
         }
     }
 }

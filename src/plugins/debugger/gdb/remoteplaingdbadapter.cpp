@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -72,11 +72,6 @@ void RemotePlainGdbAdapter::interruptInferior()
 QByteArray RemotePlainGdbAdapter::execFilePath() const
 {
     return startParameters().executable.toUtf8();
-}
-
-bool RemotePlainGdbAdapter::infoTargetNecessary() const
-{
-    return true;
 }
 
 QByteArray RemotePlainGdbAdapter::toLocalEncoding(const QString &s) const

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,7 @@ S60PublishingWizardOvi::S60PublishingWizardOvi(const Project *project, QWidget *
     Wizard(parent),
     m_publisher(new S60PublisherOvi(this))
 {
-    setWindowTitle(tr("Publishing to Ovi Store"));
+    setWindowTitle(tr("Publishing to Nokia Store"));
 
     m_buildSettingsPage = new S60PublishingBuildSettingsPageOvi(m_publisher, project);
     m_buildSettingsPage->setTitle(tr("Build Configuration"));

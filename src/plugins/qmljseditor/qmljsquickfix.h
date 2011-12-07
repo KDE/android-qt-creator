@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,8 +62,6 @@ class QmlJSQuickFixAssistInterface;
  */
 class QmlJSQuickFixOperation: public TextEditor::QuickFixOperation
 {
-    Q_DISABLE_COPY(QmlJSQuickFixOperation)
-
 public:
     /*!
         Creates a new QmlJSQuickFixOperation.
@@ -81,8 +79,8 @@ public:
 protected:
     typedef Utils::ChangeSet::Range Range;
 
-    virtual void performChanges(QmlJSTools::QmlJSRefactoringFile *currentFile,
-                                QmlJSTools::QmlJSRefactoringChanges *refactoring) = 0;
+    virtual void performChanges(QmlJSTools::QmlJSRefactoringFilePtr currentFile,
+                                const QmlJSTools::QmlJSRefactoringChanges &refactoring) = 0;
 
     const Internal::QmlJSQuickFixAssistInterface *assistInterface() const;
 

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,26 +42,17 @@
 
 static const char spacesForTabsKey[] = "SpacesForTabs";
 static const char autoSpacesForTabsKey[] = "AutoSpacesForTabs";
-static const char smartBackspaceKey[] = "SmartBackspace";
-static const char autoIndentKey[] = "AutoIndent";
 static const char tabSizeKey[] = "TabSize";
 static const char indentSizeKey[] = "IndentSize";
-static const char indentBracesKey[] = "IndentBraces";
-static const char doubleIndentBlocksKey[] = "DoubleIndentBlocks";
-static const char tabKeyBehaviorKey[] = "TabKeyBehavior";
 static const char groupPostfix[] = "TabSettings";
 static const char paddingModeKey[] = "PaddingMode";
 
 namespace TextEditor {
 
 TabSettings::TabSettings() :
-    m_spacesForTabs(true),
-    m_autoSpacesForTabs(false),
-    m_autoIndent(true),
-    m_smartBackspace(false),
+    m_tabPolicy(SpacesOnlyTabPolicy),
     m_tabSize(8),
     m_indentSize(4),
-    m_tabKeyBehavior(TabNeverIndents),
     m_continuationAlignBehavior(ContinuationAlignWithSpaces)
 {
 }
@@ -79,29 +70,22 @@ void TabSettings::fromSettings(const QString &category, const QSettings *s)
 
 void TabSettings::toMap(const QString &prefix, QVariantMap *map) const
 {
-    map->insert(prefix + QLatin1String(spacesForTabsKey), m_spacesForTabs);
-    map->insert(prefix + QLatin1String(autoSpacesForTabsKey), m_autoSpacesForTabs);
-    map->insert(prefix + QLatin1String(autoIndentKey), m_autoIndent);
-    map->insert(prefix + QLatin1String(smartBackspaceKey), m_smartBackspace);
+    map->insert(prefix + QLatin1String(spacesForTabsKey), m_tabPolicy != TabsOnlyTabPolicy);
+    map->insert(prefix + QLatin1String(autoSpacesForTabsKey), m_tabPolicy == MixedTabPolicy);
     map->insert(prefix + QLatin1String(tabSizeKey), m_tabSize);
     map->insert(prefix + QLatin1String(indentSizeKey), m_indentSize);
-    map->insert(prefix + QLatin1String(tabKeyBehaviorKey), m_tabKeyBehavior);
     map->insert(prefix + QLatin1String(paddingModeKey), m_continuationAlignBehavior);
 }
 
 void TabSettings::fromMap(const QString &prefix, const QVariantMap &map)
 {
-    m_spacesForTabs =
-        map.value(prefix + QLatin1String(spacesForTabsKey), m_spacesForTabs).toBool();
-    m_autoSpacesForTabs =
-        map.value(prefix + QLatin1String(autoSpacesForTabsKey), m_autoSpacesForTabs).toBool();
-    m_autoIndent = map.value(prefix + QLatin1String(autoIndentKey), m_autoIndent).toBool();
-    m_smartBackspace =
-            map.value(prefix + QLatin1String(smartBackspaceKey), m_smartBackspace).toBool();
+    const bool spacesForTabs =
+        map.value(prefix + QLatin1String(spacesForTabsKey), true).toBool();
+    const bool autoSpacesForTabs =
+        map.value(prefix + QLatin1String(autoSpacesForTabsKey), false).toBool();
+    m_tabPolicy = spacesForTabs ? (autoSpacesForTabs ? MixedTabPolicy : SpacesOnlyTabPolicy) : TabsOnlyTabPolicy;
     m_tabSize = map.value(prefix + QLatin1String(tabSizeKey), m_tabSize).toInt();
     m_indentSize = map.value(prefix + QLatin1String(indentSizeKey), m_indentSize).toInt();
-    m_tabKeyBehavior = (TabKeyBehavior)
-        map.value(prefix + QLatin1String(tabKeyBehaviorKey), m_tabKeyBehavior).toInt();
     m_continuationAlignBehavior = (ContinuationAlignBehavior)
         map.value(prefix + QLatin1String(paddingModeKey), m_continuationAlignBehavior).toInt();
 }
@@ -187,35 +171,12 @@ bool TabSettings::isIndentationClean(const QTextBlock &block) const
             if (!spacesForTabs && spaceCount == m_tabSize)
                 return false;
         } else if (c == QLatin1Char('\t')) {
-            if (spacesForTabs || spaceCount != m_indentSize)
+            if (spacesForTabs || spaceCount != 0)
                 return false;
-            spaceCount = 0;
         }
         ++i;
     }
     return true;
-}
-
-bool TabSettings::tabShouldIndent(const QTextDocument *document, QTextCursor cursor, int *suggestedPosition) const
-{
-    if (m_tabKeyBehavior == TabNeverIndents)
-        return false;
-    QTextCursor tc = cursor;
-    if (suggestedPosition)
-        *suggestedPosition = tc.position(); // At least suggest original position
-    tc.movePosition(QTextCursor::StartOfLine);
-    if (tc.atBlockEnd()) // cursor was on a blank line
-        return true;
-    if (document->characterAt(tc.position()).isSpace()) {
-        tc.movePosition(QTextCursor::WordRight);
-        if (tc.positionInBlock() >= cursor.positionInBlock()) {
-            if (suggestedPosition)
-                *suggestedPosition = tc.position(); // Suggest position after whitespace
-            if (m_tabKeyBehavior == TabLeadingWhitespaceIndents)
-                return true;
-        }
-    }
-    return (m_tabKeyBehavior == TabAlwaysIndents);
 }
 
 int TabSettings::columnAt(const QString &text, int position) const
@@ -269,7 +230,7 @@ int TabSettings::indentedColumn(int column, bool doIndent) const
 
 bool TabSettings::guessSpacesForTabs(const QTextBlock &_block) const
 {
-    if (m_spacesForTabs && m_autoSpacesForTabs && _block.isValid()) {
+    if (m_tabPolicy == MixedTabPolicy && _block.isValid()) {
         const QTextDocument *doc = _block.document();
         QVector<QTextBlock> currentBlocks(2, _block); // [0] looks back; [1] looks forward
         int maxLookAround = 100;
@@ -295,7 +256,7 @@ bool TabSettings::guessSpacesForTabs(const QTextBlock &_block) const
                 break;
         }
     }
-    return m_spacesForTabs;
+    return m_tabPolicy != TabsOnlyTabPolicy;
 }
 
 QString TabSettings::indentationString(int startColumn, int targetColumn, const QTextBlock &block) const
@@ -338,7 +299,7 @@ void TabSettings::indentLine(QTextBlock block, int newIndent, int padding) const
 
     QString indentString;
 
-    if (!m_spacesForTabs) {
+    if (m_tabPolicy == TabsOnlyTabPolicy) {
         // user likes tabs for spaces and uses tabs for indentation, preserve padding
         indentString = indentationString(0, newIndent - padding, block);
         indentString += QString(padding, QLatin1Char(' '));
@@ -370,7 +331,7 @@ void TabSettings::reindentLine(QTextBlock block, int delta) const
         return;
 
     QString indentString;
-    if (!m_spacesForTabs && m_tabSize == m_indentSize) {
+    if (m_tabPolicy == TabsOnlyTabPolicy && m_tabSize == m_indentSize) {
         // user likes tabs for spaces and uses tabs for indentation, preserve padding
         int padding = qMin(maximumPadding(text), newIndent);
         indentString = indentationString(0, newIndent - padding, block);
@@ -393,13 +354,9 @@ void TabSettings::reindentLine(QTextBlock block, int delta) const
 
 bool TabSettings::equals(const TabSettings &ts) const
 {
-    return m_spacesForTabs == ts.m_spacesForTabs
-        && m_autoSpacesForTabs == ts.m_autoSpacesForTabs
-        && m_autoIndent == ts.m_autoIndent
-        && m_smartBackspace == ts.m_smartBackspace
+    return m_tabPolicy == ts.m_tabPolicy
         && m_tabSize == ts.m_tabSize
         && m_indentSize == ts.m_indentSize
-        && m_tabKeyBehavior == ts.m_tabKeyBehavior
         && m_continuationAlignBehavior == ts.m_continuationAlignBehavior;
 }
 

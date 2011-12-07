@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 #include <coreplugin/icore.h>
 #include <projectexplorer/environmentwidget.h>
 #include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <utils/debuggerlanguagechooser.h>
 #include <utils/detailswidget.h>
 #include <utils/environment.h>
@@ -93,7 +94,7 @@ QmlProjectRunConfigurationWidget::QmlProjectRunConfigurationWidget(QmlProjectRun
             this, SLOT(onQtVersionSelectionChanged()));
 
     QPushButton *pushButton = new QPushButton;
-    pushButton->setText(tr("Manage Qt versions"));
+    pushButton->setText(tr("Manage Qt versions..."));
     connect(pushButton, SIGNAL(clicked()), this, SLOT(manageQtVersions()));
 
     QHBoxLayout *qtVersionLayout = new QHBoxLayout;
@@ -264,13 +265,11 @@ void QmlProjectRunConfigurationWidget::onViewerArgsChanged()
 void QmlProjectRunConfigurationWidget::useCppDebuggerToggled(bool toggled)
 {
     m_runConfiguration->setUseCppDebugger(toggled);
-    m_runConfiguration->updateEnabled();
 }
 
 void QmlProjectRunConfigurationWidget::useQmlDebuggerToggled(bool toggled)
 {
     m_runConfiguration->setUseQmlDebugger(toggled);
-    m_runConfiguration->updateEnabled();
 }
 
 void QmlProjectRunConfigurationWidget::qmlDebugServerPortChanged(uint port)
@@ -281,7 +280,7 @@ void QmlProjectRunConfigurationWidget::qmlDebugServerPortChanged(uint port)
 void QmlProjectRunConfigurationWidget::manageQtVersions()
 {
     ICore *core = ICore::instance();
-    core->showOptionsDialog(QtSupport::Constants::QT_SETTINGS_CATEGORY,
+    core->showOptionsDialog(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY,
                             QtSupport::Constants::QTVERSION_SETTINGS_PAGE_ID);
 }
 

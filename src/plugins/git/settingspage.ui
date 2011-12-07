@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>390</width>
-    <height>444</height>
+    <height>361</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -17,57 +17,49 @@
       <bool>true</bool>
      </property>
      <property name="title">
-      <string>Environment Variables</string>
+      <string>Customize Environment:</string>
      </property>
      <property name="checkable">
       <bool>true</bool>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout_2">
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QLabel" name="pathlabel">
-          <property name="text">
-           <string>PATH:</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="pathLineEdit"/>
-        </item>
-        <item>
-         <widget class="QPushButton" name="adoptButton">
-          <property name="text">
-           <string>From System</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="0" column="0">
+       <widget class="QLabel" name="pathlabel">
+        <property name="text">
+         <string>PATH:</string>
+        </property>
+       </widget>
       </item>
-      <item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="pathLineEdit"/>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="adoptButton">
+        <property name="text">
+         <string>From System</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="3">
        <widget class="QCheckBox" name="winHomeCheckBox">
         <property name="text">
          <string>Set &quot;HOME&quot; environment variable</string>
         </property>
        </widget>
       </item>
-      <item>
-       <layout class="QHBoxLayout" name="noteHorizontalLayout">
-        <item>
-         <widget class="QLabel" name="noteLabel">
-          <property name="text">
-           <string>&lt;b&gt;Note:&lt;/b&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="noteFieldlabel">
-          <property name="text">
-           <string>Git needs to find Perl in the environment as well.</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
+      <item row="2" column="0">
+       <widget class="QLabel" name="noteLabel">
+        <property name="text">
+         <string>&lt;b&gt;Note:&lt;/b&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <widget class="QLabel" name="noteFieldlabel">
+        <property name="text">
+         <string>Git needs to find Perl in the environment.</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
@@ -77,14 +69,11 @@
      <property name="title">
       <string>Miscellaneous</string>
      </property>
-     <layout class="QFormLayout" name="formLayout">
-      <property name="fieldGrowthPolicy">
-       <enum>QFormLayout::ExpandingFieldsGrow</enum>
-      </property>
+     <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="0">
        <widget class="QLabel" name="logCountLabel">
         <property name="text">
-         <string>Log commit display count:</string>
+         <string>Log count:</string>
         </property>
        </widget>
       </item>
@@ -96,7 +85,23 @@
         <property name="maximum">
          <number>1000</number>
         </property>
+        <property name="value">
+         <number>1000</number>
+        </property>
        </widget>
+      </item>
+      <item row="0" column="2">
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>211</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="timeoutLabel">
@@ -121,14 +126,14 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0" colspan="2">
+      <item row="2" column="0" colspan="3">
        <widget class="QCheckBox" name="promptToSubmitCheckBox">
         <property name="text">
          <string>Prompt on submit</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="0" colspan="2">
+      <item row="3" column="0" colspan="3">
        <widget class="QCheckBox" name="pullRebaseCheckBox">
         <property name="text">
          <string>Pull with rebase</string>

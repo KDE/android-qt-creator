@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -184,7 +184,10 @@ void NodeInstanceClientProxy::readDataStream()
         in >> command;
         m_blockSize = 0;
 
-        Q_ASSERT(in.status() == QDataStream::Ok);
+        if (in.status() != QDataStream::Ok) {
+            qWarning() << "Stream is no ok!!!";
+            exit(1);
+        }
 
         commandList.append(command);
     }

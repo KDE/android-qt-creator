@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,10 +26,11 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
+#include <cmath>
 #include "modelnodecontextmenu.h"
 #include <QApplication>
 #include <QMessageBox>
@@ -40,13 +41,21 @@
 #include <modelnode.h>
 #include <qmlitemnode.h>
 #include <variantproperty.h>
+#include <bindingproperty.h>
 #include <nodeproperty.h>
 #include <rewritingexception.h>
 #include <rewritertransaction.h>
-#include <designdocumentcontroller.h>
+#include <designmodewidget.h>
+#include <qmlanchors.h>
 
+const QString auxDataString = QLatin1String("anchors_");
 
 namespace QmlDesigner {
+
+static inline DesignDocumentController* designDocumentController()
+{
+    return Internal::DesignModeWidget::instance()->currentDesignDocumentController();
+}
 
 static inline QString captionForModelNode(const ModelNode &modelNode)
 {
@@ -72,6 +81,38 @@ static inline bool checkIfNodeIsAView(const ModelNode &node)
 static inline bool isItem(const ModelNode &node)
 {
     return node.isValid() && node.metaInfo().isValid() && node.metaInfo().isSubclassOf("QtQuick.Item", -1, -1);
+}
+
+static inline bool itemsHaveSameParent(const QList<ModelNode> &siblingList)
+{
+    if (siblingList.isEmpty())
+        return false;
+
+
+    QmlItemNode item(siblingList.first());
+    if (!item.isValid())
+        return false;
+
+    if (item.isRootModelNode())
+        return false;
+
+    QmlItemNode parent = item.instanceParent().toQmlItemNode();
+    if (!parent.isValid())
+        return false;
+
+    foreach (const ModelNode &node, siblingList) {
+        QmlItemNode currentItem(node);
+        if (!currentItem.isValid())
+            return false;
+        QmlItemNode currentParent = currentItem.instanceParent().toQmlItemNode();
+        if (!currentParent.isValid())
+            return false;
+        if (currentItem.instanceIsInPositioner())
+            return false;
+        if (currentParent != parent)
+            return false;
+    }
+    return true;
 }
 
 static inline QList<QmlItemNode> siblingsForNode(const QmlItemNode &itemNode)
@@ -151,15 +192,82 @@ static inline bool isFileComponent(const ModelNode &node)
     return false;
 }
 
+static inline void getWidthHeight(const ModelNode &node, int &width, int &height)
+{
+    QmlItemNode itemNode(node);
+    if (itemNode.isValid()) {
+        width = itemNode.instanceValue("width").toInt();
+        height = itemNode.instanceValue("height").toInt();
+    }
+}
+
+static inline void getProperties(const ModelNode node, QHash<QString, QVariant> &propertyHash)
+{
+    if (QmlObjectNode(node).isValid()) {
+        foreach (const QString &propertyName, node.propertyNames()) {
+            if (node.property(propertyName).isVariantProperty() ||
+                    (node.property(propertyName).isBindingProperty() &&
+                     !propertyName.contains(QLatin1String("anchors.")))) {
+                propertyHash.insert(propertyName, QmlObjectNode(node).instanceValue(propertyName));
+            }
+        }
+    }
+    QmlItemNode itemNode(node);
+    if (itemNode.isValid()) {
+        propertyHash.insert(QLatin1String("width"), itemNode.instanceValue(QLatin1String("width")));
+        propertyHash.insert(QLatin1String("height"), itemNode.instanceValue(QLatin1String("height")));
+        propertyHash.remove(QLatin1String("x"));
+        propertyHash.remove(QLatin1String("y"));
+        propertyHash.remove(QLatin1String("rotation"));
+        propertyHash.remove(QLatin1String("opacity"));
+    }
+}
+
+static inline void applyProperties(ModelNode &node, const QHash<QString, QVariant> &propertyHash)
+{
+    QHash<QString, QVariant> auxiliaryData  = node.auxiliaryData();
+    foreach (const QString propertyName, auxiliaryData.keys()) {
+        node.setAuxiliaryData(propertyName, QVariant());
+    }
+
+    QHashIterator<QString, QVariant> i(propertyHash);
+    while (i.hasNext()) {
+        i.next();
+        if (i.key() == QLatin1String("width") || i.key() == QLatin1String("height")) {
+            node.setAuxiliaryData(i.key(), i.value());
+        } else if (node.property(i.key()).isDynamic() &&
+                   node.property(i.key()).dynamicTypeName() == QLatin1String("alias") &&
+                   node.property(i.key()).isBindingProperty()) {
+            AbstractProperty targetProperty = node.bindingProperty(i.key()).resolveToProperty();
+            if (targetProperty.isValid()) {
+                targetProperty.parentModelNode().setAuxiliaryData(targetProperty.name() + QLatin1String("@NodeInstance"), i.value());
+            }
+        } else {
+            node.setAuxiliaryData(i.key() + QLatin1String("@NodeInstance"), i.value());
+        }
+    }
+}
+
 static inline void openFileForComponent(const ModelNode &node)
 {
+    //int width = 0;
+    //int height = 0;
+    QHash<QString, QVariant> propertyHash;
     if (node.metaInfo().isComponent()) {
-        Core::EditorManager::instance()->openEditor(node.metaInfo().componentFileName());
+        //getWidthHeight(node, width, height);
+        getProperties(node, propertyHash);
+        designDocumentController()->changeToExternalSubComponent(node.metaInfo().componentFileName());
     } else if (checkIfNodeIsAView(node) &&
                node.hasNodeProperty("delegate") &&
                node.nodeProperty("delegate").modelNode().metaInfo().isComponent()) {
-        Core::EditorManager::instance()->openEditor(node.nodeProperty("delegate").modelNode().metaInfo().componentFileName());
+        //getWidthHeight(node, width, height);
+        getProperties(node, propertyHash);
+        designDocumentController()->changeToExternalSubComponent(node.nodeProperty("delegate").modelNode().metaInfo().componentFileName());
     }
+    ModelNode rootModelNode = designDocumentController()->model()->rewriterView()->rootModelNode();
+    applyProperties(rootModelNode, propertyHash);
+    //rootModelNode.setAuxiliaryData("width", width);
+    //rootModelNode.setAuxiliaryData("height", height);
 }
 
 static inline void openInlineComponent(const ModelNode &node)
@@ -167,16 +275,30 @@ static inline void openInlineComponent(const ModelNode &node)
     if (!node.isValid() || !node.metaInfo().isValid())
         return;
 
-    if (!DesignDocumentController::instance())
+    if (!designDocumentController())
         return;
 
-    if (node.nodeSourceType() == ModelNode::NodeWithComponentSource)
-        DesignDocumentController::instance()->changeCurrentModelTo(node);
-    if (checkIfNodeIsAView(node) &&
-        node.hasNodeProperty("delegate")) {
-        if (node.nodeProperty("delegate").modelNode().nodeSourceType() == ModelNode::NodeWithComponentSource)
-            DesignDocumentController::instance()->changeCurrentModelTo(node.nodeProperty("delegate").modelNode());
+    //int width = 0;
+    //int height = 0;
+    QHash<QString, QVariant> propertyHash;
+
+    if (node.nodeSourceType() == ModelNode::NodeWithComponentSource) {
+        //getWidthHeight(node, width, height);
+        getProperties(node, propertyHash);
+        designDocumentController()->changeToSubComponent(node);
+    } else if (checkIfNodeIsAView(node) &&
+               node.hasNodeProperty("delegate")) {
+        if (node.nodeProperty("delegate").modelNode().nodeSourceType() == ModelNode::NodeWithComponentSource) {
+            //getWidthHeight(node, width, height);
+            getProperties(node, propertyHash);
+            designDocumentController()->changeToSubComponent(node.nodeProperty("delegate").modelNode());
+        }
     }
+
+    ModelNode rootModelNode = designDocumentController()->model()->rewriterView()->rootModelNode();
+    applyProperties(rootModelNode, propertyHash);
+    //rootModelNode.setAuxiliaryData("width", width);
+    //rootModelNode.setAuxiliaryData("height", height);
 }
 
 static inline bool modelNodesHaveProperty(const QList<ModelNode> &modelNodeList, const QString &propertyName)
@@ -199,6 +321,7 @@ void ModelNodeContextMenu::execute(const QPoint &pos, bool selectionMenuBool)
     bool singleSelected = false;
     bool selectionIsEmpty = m_view->selectedModelNodes().isEmpty();
     ModelNode currentSingleNode;
+    const bool isInBaseState = m_view->currentState().isBaseState();
     const QList<ModelNode> &selectedModelNodes =  m_view->selectedModelNodes();
     if (selectedModelNodes.count()== 1) {
         singleSelected = true;
@@ -243,20 +366,59 @@ void ModelNodeContextMenu::execute(const QPoint &pos, bool selectionMenuBool)
         //editMenu->addAction(createModelNodeAction(tr("Change Id"), editMenu, QList<ModelNode>() << currentSingleNode, ModelNodeAction::SetId, singleSelected));
         ModelNodeAction* action = createModelNodeAction(tr("Reset Position"), editMenu, selectedModelNodes, ModelNodeAction::ResetPosition);
         if (!modelNodesHaveProperty(selectedModelNodes, QLatin1String("x")) && !modelNodesHaveProperty(selectedModelNodes, QLatin1String("y")))
-            action->setDisabled(true);
+            action->setEnabled(false);
         editMenu->addAction(action);
         action = createModelNodeAction(tr("Reset Size"), editMenu, selectedModelNodes, ModelNodeAction::ResetSize);
         if (!modelNodesHaveProperty(selectedModelNodes, QLatin1String("width")) && !modelNodesHaveProperty(selectedModelNodes, QLatin1String("height")))
-            action->setDisabled(true);
+            action->setEnabled(false);
         editMenu->addAction(action);
         action = createModelNodeAction(tr("Visibility"), editMenu, QList<ModelNode>() << currentSingleNode, ModelNodeAction::ModelNodeVisibility, singleSelected);
         editMenu->addAction(action);
         if (singleSelected && !isItem(currentSingleNode))
-            action->setDisabled(true);
+            action->setEnabled(false);
 
     } else {
         editMenu->setEnabled(false);
     }
+
+    QMenu *anchorMenu = new QMenu(tr("Anchors"), menu);
+    menu->addMenu(anchorMenu);
+
+
+    if (singleSelected && isInBaseState) {
+        QmlItemNode itemNode(currentSingleNode);
+
+        bool anchored = itemNode.instanceHasAnchors();
+        bool isRootNode = itemNode.isRootNode();
+
+        ModelNodeAction *action = createModelNodeAction(tr("Fill"), anchorMenu, QList<ModelNode>() << currentSingleNode, ModelNodeAction::AnchorFill, !anchored && !isRootNode);
+        anchorMenu->addAction(action);
+        action = createModelNodeAction(tr("Reset"), anchorMenu, QList<ModelNode>() << currentSingleNode, ModelNodeAction::AnchorReset, anchored && !isRootNode);
+        anchorMenu->addAction(action);
+    } else {
+        anchorMenu->setEnabled(false);
+    }
+
+    QMenu *layoutMenu = new QMenu(tr("Layout"), menu);
+    menu->addMenu(layoutMenu);
+
+    bool layoutingIsPossible = itemsHaveSameParent(selectedModelNodes) && isInBaseState;
+
+    if (!singleSelected && !selectionIsEmpty && layoutingIsPossible) {
+
+        ModelNodeAction *action = createModelNodeAction(tr("Layout in Row"), layoutMenu, selectedModelNodes, ModelNodeAction::LayoutRow, true);
+        layoutMenu->addAction(action);
+        action = createModelNodeAction(tr("Layout in Column"), layoutMenu, selectedModelNodes, ModelNodeAction::LayoutColumn, true);
+        layoutMenu->addAction(action);
+        action = createModelNodeAction(tr("Layout in Grid"), layoutMenu, selectedModelNodes, ModelNodeAction::LayoutGrid, true);
+        layoutMenu->addAction(action);
+        action = createModelNodeAction(tr("Layout in Flow"), layoutMenu, selectedModelNodes, ModelNodeAction::LayoutFlow, true);
+        layoutMenu->addAction(action);
+
+    } else {
+        layoutMenu->setEnabled(false);
+    }
+
 
     menu->addSeparator();
     bool enterComponent = false;
@@ -310,25 +472,35 @@ void ModelNodeAction::goIntoComponent(const ModelNode &modelNode)
 
 void ModelNodeAction::actionTriggered(bool b)
 {
-    switch (m_type) {
-    case ModelNodeAction::SelectModelNode: select(); break;
-    case ModelNodeAction::DeSelectModelNode: deSelect(); break;
-    case ModelNodeAction::CutSelection: cut(); break;
-    case ModelNodeAction::CopySelection: copy(); break;
-    case ModelNodeAction::DeleteSelection: deleteSelection(); break;
-    case ModelNodeAction::ToFront: toFront(); break;
-    case ModelNodeAction::ToBack: toBack(); break;
-    case ModelNodeAction::Raise: raise(); break;
-    case ModelNodeAction::Lower: lower(); break;
-    case ModelNodeAction::Paste: paste(); break;
-    case ModelNodeAction::Undo: undo(); break;
-    case ModelNodeAction::Redo: redo(); break;
-    case ModelNodeAction::ModelNodeVisibility: setVisible(b); break;
-    case ModelNodeAction::ResetSize: resetSize(); break;
-    case ModelNodeAction::ResetPosition: resetPosition(); break;
-    case ModelNodeAction::GoIntoComponent: goIntoComponent(); break;
-    case ModelNodeAction::SetId: setId(); break;
-    case ModelNodeAction::ResetZ: resetZ(); break;
+    try {
+        switch (m_type) {
+        case ModelNodeAction::SelectModelNode: select(); break;
+        case ModelNodeAction::DeSelectModelNode: deSelect(); break;
+        case ModelNodeAction::CutSelection: cut(); break;
+        case ModelNodeAction::CopySelection: copy(); break;
+        case ModelNodeAction::DeleteSelection: deleteSelection(); break;
+        case ModelNodeAction::ToFront: toFront(); break;
+        case ModelNodeAction::ToBack: toBack(); break;
+        case ModelNodeAction::Raise: raise(); break;
+        case ModelNodeAction::Lower: lower(); break;
+        case ModelNodeAction::Paste: paste(); break;
+        case ModelNodeAction::Undo: undo(); break;
+        case ModelNodeAction::Redo: redo(); break;
+        case ModelNodeAction::ModelNodeVisibility: setVisible(b); break;
+        case ModelNodeAction::ResetSize: resetSize(); break;
+        case ModelNodeAction::ResetPosition: resetPosition(); break;
+        case ModelNodeAction::GoIntoComponent: goIntoComponent(); break;
+        case ModelNodeAction::SetId: setId(); break;
+        case ModelNodeAction::ResetZ: resetZ(); break;
+        case ModelNodeAction::AnchorFill: anchorsFill(); break;
+        case ModelNodeAction::AnchorReset: anchorsReset(); break;
+        case ModelNodeAction::LayoutColumn: layoutColumn(); break;
+        case ModelNodeAction::LayoutRow: layoutRow(); break;
+        case ModelNodeAction::LayoutGrid: layoutGrid(); break;
+        case ModelNodeAction::LayoutFlow: layoutFlow(); break;
+        }
+    } catch (RewritingException e) { //better save then sorry
+        QMessageBox::warning(0, "Error", e.description());
     }
 }
 
@@ -404,7 +576,7 @@ void ModelNodeAction::raise()
         return;
 
     try {
-        RewriterTransaction(m_view);
+        RewriterTransaction transaction(m_view);
         foreach (ModelNode modelNode, m_modelNodeList) {
             QmlItemNode node = modelNode;
             if (node.isValid()) {
@@ -423,7 +595,7 @@ void ModelNodeAction::lower()
     if (!m_view)
         return;
     try {
-        RewriterTransaction(m_view);
+        RewriterTransaction transaction(m_view);
         foreach (ModelNode modelNode, m_modelNodeList) {
             QmlItemNode node = modelNode;
             if (node.isValid()) {
@@ -466,7 +638,7 @@ void ModelNodeAction::resetSize()
     if (!m_view)
         return;
     try {
-        RewriterTransaction(m_view);
+        RewriterTransaction transaction(m_view);
         foreach (ModelNode node, m_modelNodeList) {
             node.removeProperty("width");
             node.removeProperty("height");
@@ -481,7 +653,7 @@ void ModelNodeAction::resetPosition()
     if (!m_view)
         return;
     try {
-        RewriterTransaction(m_view);
+        RewriterTransaction transaction(m_view);
         foreach (ModelNode node, m_modelNodeList) {
             node.removeProperty("x");
             node.removeProperty("y");
@@ -505,9 +677,277 @@ void ModelNodeAction::resetZ()
     if (!m_view)
         return;
 
-    RewriterTransaction(m_view);
+    RewriterTransaction transaction(m_view);
     foreach (ModelNode node, m_modelNodeList) {
         node.removeProperty("z");
+    }
+}
+
+static inline void backupPropertyAndRemove(ModelNode node, const QString &propertyName)
+{
+    if (node.hasVariantProperty(propertyName)) {
+        node.setAuxiliaryData(auxDataString + propertyName, node.variantProperty(propertyName).value());
+        node.removeProperty(propertyName);
+
+    }
+    if (node.hasBindingProperty(propertyName)) {
+        node.setAuxiliaryData(auxDataString + propertyName, QmlItemNode(node).instanceValue(propertyName));
+        node.removeProperty(propertyName);
+    }
+}
+
+
+static inline void restoreProperty(ModelNode node, const QString &propertyName)
+{
+    if (node.hasAuxiliaryData(auxDataString + propertyName))
+        node.variantProperty(propertyName) = node.auxiliaryData(auxDataString + propertyName);
+}
+
+void ModelNodeAction::anchorsFill()
+{
+    if (!m_view)
+        return;
+
+    RewriterTransaction transaction(m_view);
+
+    foreach (ModelNode modelNode, m_modelNodeList) {
+        QmlItemNode node = modelNode;
+        if (node.isValid()) {
+            node.anchors().fill();
+            backupPropertyAndRemove(modelNode, QLatin1String("x"));
+            backupPropertyAndRemove(modelNode, QLatin1String("y"));
+            backupPropertyAndRemove(modelNode, QLatin1String("width"));
+            backupPropertyAndRemove(modelNode, QLatin1String("height"));
+        }
+    }
+}
+
+void ModelNodeAction::anchorsReset()
+{
+    if (!m_view)
+        return;
+    RewriterTransaction transaction(m_view);
+
+    foreach (ModelNode modelNode, m_modelNodeList) {
+        QmlItemNode node = modelNode;
+        if (node.isValid()) {
+            node.anchors().removeAnchors();
+            node.anchors().removeMargins();
+            restoreProperty(node, "x");
+            restoreProperty(node, "y");
+            restoreProperty(node, "width");
+            restoreProperty(node, "height");
+        }
+    }
+}
+
+static inline void reparentTo(const ModelNode &node, const QmlItemNode &parent)
+{
+
+    if (parent.isValid() && node.isValid()) {
+        NodeAbstractProperty parentProperty;
+
+        if (parent.hasDefaultProperty()) {
+            parentProperty = parent.nodeAbstractProperty(parent.defaultProperty());
+        } else {
+            parentProperty = parent.nodeAbstractProperty(QLatin1String("data"));
+        }
+
+        parentProperty.reparentHere(node);
+    }
+}
+
+
+bool compareByX(const ModelNode &node1, const ModelNode &node2)
+{
+        QmlItemNode itemNode1 = QmlItemNode(node1);
+        QmlItemNode itemNode2 = QmlItemNode(node2);
+        if (itemNode1.isValid() && itemNode2.isValid())
+            return itemNode1.instancePosition().x() < itemNode2.instancePosition().x();
+        return false;
+}
+
+bool compareByY(const ModelNode &node1, const ModelNode &node2)
+{
+        QmlItemNode itemNode1 = QmlItemNode(node1);
+        QmlItemNode itemNode2 = QmlItemNode(node2);
+        if (itemNode1.isValid() && itemNode2.isValid())
+            return itemNode1.instancePosition().y() < itemNode2.instancePosition().y();
+        return false;
+}
+
+bool compareByGrid(const ModelNode &node1, const ModelNode &node2)
+{
+        QmlItemNode itemNode1 = QmlItemNode(node1);
+        QmlItemNode itemNode2 = QmlItemNode(node2);
+        if (itemNode1.isValid() && itemNode2.isValid()) {
+            if ((itemNode1.instancePosition().y() + itemNode1.instanceSize().height())  < itemNode2.instancePosition().y())
+                return true;
+            if ((itemNode2.instancePosition().y() + itemNode2.instanceSize().height())  < itemNode1.instancePosition().y())
+                return false; //first sort y (rows)
+            return itemNode1.instancePosition().x() < itemNode2.instancePosition().x();
+        }
+        return false;
+}
+
+static inline QPoint getUpperLeftPosition(const QList<ModelNode> &modelNodeList)
+{
+    QPoint p(INT_MAX, INT_MAX);
+    foreach (ModelNode modelNode, modelNodeList) {
+        QmlItemNode itemNode = QmlItemNode(modelNode);
+        if (itemNode.isValid()) {
+            if (itemNode.instancePosition().x() < p.x())
+                p.setX(itemNode.instancePosition().x());
+            if (itemNode.instancePosition().y() < p.y())
+                p.setY(itemNode.instancePosition().y());
+        }
+
+    }
+    return p;
+}
+
+void ModelNodeAction::layoutRow()
+{
+    if (!m_view)
+        return;
+
+    ModelNode row;
+    {
+        RewriterTransaction transaction(m_view);
+
+        QmlItemNode parent = QmlItemNode(m_modelNodeList.first()).instanceParent().toQmlItemNode();
+        if (!parent.isValid())
+            return;
+
+        row = m_view->createModelNode(QLatin1String("QtQuick.Row"), parent.modelNode().majorQtQuickVersion(), 0);
+
+        reparentTo(row, parent);
+    }
+
+    {
+        RewriterTransaction transaction(m_view);
+
+        QPoint pos = getUpperLeftPosition(m_modelNodeList);
+        row.variantProperty(QLatin1String("x")) = pos.x();
+        row.variantProperty(QLatin1String("y")) = pos.y();
+
+        QList<ModelNode> sortedList = m_modelNodeList;
+        qSort(sortedList.begin(), sortedList.end(), compareByX);
+
+        foreach (ModelNode modelNode, sortedList) {
+            reparentTo(modelNode, row);
+            modelNode.removeProperty(QLatin1String("x"));
+            modelNode.removeProperty(QLatin1String("y"));
+        }
+    }
+}
+
+void ModelNodeAction::layoutColumn()
+{
+    if (!m_view)
+        return;
+
+    ModelNode column;
+    {
+        RewriterTransaction transaction(m_view);
+
+        QmlItemNode parent = QmlItemNode(m_modelNodeList.first()).instanceParent().toQmlItemNode();
+        if (!parent.isValid())
+            return;
+
+        column = m_view->createModelNode(QLatin1String("QtQuick.Column"), parent.modelNode().majorQtQuickVersion(), 0);
+
+        reparentTo(column, parent);
+    }
+
+    {
+        RewriterTransaction transaction(m_view);
+
+        QPoint pos = getUpperLeftPosition(m_modelNodeList);
+        column.variantProperty(QLatin1String("x")) = pos.x();
+        column.variantProperty(QLatin1String("y")) = pos.y();
+
+        QList<ModelNode> sortedList = m_modelNodeList;
+        qSort(sortedList.begin(), sortedList.end(), compareByY);
+
+        foreach (ModelNode modelNode, sortedList) {
+            reparentTo(modelNode, column);
+            modelNode.removeProperty(QLatin1String("x"));
+            modelNode.removeProperty(QLatin1String("y"));
+        }
+    }
+}
+
+void ModelNodeAction::layoutGrid()
+{
+    if (!m_view)
+        return;
+
+    ModelNode grid;
+    {
+        RewriterTransaction transaction(m_view);
+
+        QmlItemNode parent = QmlItemNode(m_modelNodeList.first()).instanceParent().toQmlItemNode();
+        if (!parent.isValid())
+            return;
+
+        grid = m_view->createModelNode(QLatin1String("QtQuick.Grid"), parent.modelNode().majorQtQuickVersion(), 0);
+        grid.variantProperty(QLatin1String("columns")) = int(sqrt(double(m_modelNodeList.count())));
+
+        reparentTo(grid, parent);
+    }
+
+    {
+        RewriterTransaction transaction(m_view);
+
+        QPoint pos = getUpperLeftPosition(m_modelNodeList);
+        grid.variantProperty(QLatin1String("x")) = pos.x();
+        grid.variantProperty(QLatin1String("y")) = pos.y();
+
+        QList<ModelNode> sortedList = m_modelNodeList;
+        qSort(sortedList.begin(), sortedList.end(), compareByGrid);
+
+        foreach (ModelNode modelNode, sortedList) {
+            reparentTo(modelNode, grid);
+            modelNode.removeProperty(QLatin1String("x"));
+            modelNode.removeProperty(QLatin1String("y"));
+        }
+    }
+}
+
+void ModelNodeAction::layoutFlow()
+{
+    if (!m_view)
+        return;
+
+    ModelNode flow;
+    {
+        RewriterTransaction transaction(m_view);
+
+        QmlItemNode parent = QmlItemNode(m_modelNodeList.first()).instanceParent().toQmlItemNode();
+        if (!parent.isValid())
+            return;
+
+        flow = m_view->createModelNode(QLatin1String("QtQuick.Flow"), parent.modelNode().majorQtQuickVersion(), 0);
+
+        reparentTo(flow, parent);
+    }
+
+    {
+        RewriterTransaction transaction(m_view);
+
+        QPoint pos = getUpperLeftPosition(m_modelNodeList);
+        flow.variantProperty(QLatin1String("x")) = pos.x();
+        flow.variantProperty(QLatin1String("y")) = pos.y();
+
+        QList<ModelNode> sortedList = m_modelNodeList;
+        qSort(sortedList.begin(), sortedList.end(), compareByGrid);
+
+        foreach (ModelNode modelNode, sortedList) {
+            reparentTo(modelNode, flow);
+            modelNode.removeProperty(QLatin1String("x"));
+            modelNode.removeProperty(QLatin1String("y"));
+        }
     }
 }
 

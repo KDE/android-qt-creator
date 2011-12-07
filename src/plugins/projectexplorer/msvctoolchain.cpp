@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,18 +40,14 @@
 #include <projectexplorer/projectexplorersettings.h>
 
 #include <utils/fileutils.h>
-#include <utils/qtcprocess.h>
-#include <utils/qtcassert.h>
 #include <utils/synchronousprocess.h>
 #include <utils/winutils.h>
+#include <utils/qtcassert.h>
 
-#include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
-#include <QtCore/QFileInfo>
+#include <QtCore/QProcess>
 #include <QtCore/QSettings>
 #include <QtCore/QUrl>
-#include <QtCore/QTemporaryFile>
-#include <QtGui/QLabel>
 #include <QtGui/QFormLayout>
 #include <QtGui/QDesktopServices>
 
@@ -170,16 +166,9 @@ static QByteArray msvcCompilationFile()
 }
 
 // Run MSVC 'cl' compiler to obtain #defines.
-static QByteArray msvcPredefinedMacros(const Utils::Environment &env)
+QByteArray MsvcToolChain::msvcPredefinedMacros(const Utils::Environment &env) const
 {
-    QByteArray predefinedMacros = "#define __MSVCRT__\n"
-                      "#define __w64\n"
-                      "#define __int64 long long\n"
-                      "#define __int32 long\n"
-                      "#define __int16 short\n"
-                      "#define __int8 char\n"
-                      "#define __ptr32\n"
-                      "#define __ptr64\n";
+    QByteArray predefinedMacros = AbstractMsvcToolChain::msvcPredefinedMacros(env);
 
     Utils::TempFileSaver saver(QDir::tempPath()+"/envtestXXXXXX.cpp");
     saver.write(msvcCompilationFile());
@@ -258,77 +247,24 @@ static QString winExpandDelayedEnvReferences(QString in, const Utils::Environmen
     return in;
 }
 
-static Utils::Environment msvcReadEnvironmentSetting(const QString &varsBat,
-                                                     const QString &args,
-                                                     Utils::Environment env)
+Utils::Environment MsvcToolChain::readEnvironmentSetting(Utils::Environment& env) const
 {
-    // Run the setup script and extract the variables
     Utils::Environment result = env;
-    if (!QFileInfo(varsBat).exists())
+    if (!QFileInfo(m_vcvarsBat).exists())
         return result;
 
-    const QString tempOutputFileName = QDir::tempPath() + QLatin1String("\\qtcreator-msvc-environment.txt");
-    Utils::TempFileSaver saver(QDir::tempPath() + "\\XXXXXX.bat");
-    QByteArray call = "call ";
-    call += Utils::QtcProcess::quoteArg(varsBat).toLocal8Bit();
-    if (!args.isEmpty()) {
-        call += ' ';
-        call += args.toLocal8Bit();
-    }
-    call += "\r\n";
-    saver.write(call);
-    const QByteArray redirect = "set > " + Utils::QtcProcess::quoteArg(
-                QDir::toNativeSeparators(tempOutputFileName)).toLocal8Bit() + "\r\n";
-    saver.write(redirect);
-    if (!saver.finalize()) {
-        qWarning("%s: %s", Q_FUNC_INFO, qPrintable(saver.errorString()));
-        return result;
-    }
-
-    Utils::QtcProcess run;
-    // As of WinSDK 7.1, there is logic preventing the path from being set
-    // correctly if "ORIGINALPATH" is already set. That can cause problems
-    // if Creator is launched within a session set up by setenv.cmd.
-    env.unset(QLatin1String("ORIGINALPATH"));
-    run.setEnvironment(env);
-    const QString cmdPath = QString::fromLocal8Bit(qgetenv("COMSPEC"));
-    // Windows SDK setup scripts require command line switches for environment expansion.
-    QString cmdArguments = QLatin1String(" /E:ON /V:ON /c \"");
-    cmdArguments += QDir::toNativeSeparators(saver.fileName());
-    cmdArguments += QLatin1Char('"');
-    run.setCommand(cmdPath, cmdArguments);
-    if (debug)
-        qDebug() << "msvcReadEnvironmentSetting: " << call << cmdPath << cmdArguments
-                 << " Env: " << env.size();
-    run.start();
-
-    if (!run.waitForStarted()) {
-        qWarning("%s: Unable to run '%s': %s", Q_FUNC_INFO, qPrintable(varsBat),
-            qPrintable(run.errorString()));
-        return result;
-    }
-    if (!run.waitForFinished()) {
-        qWarning("%s: Timeout running '%s'", Q_FUNC_INFO, qPrintable(varsBat));
-        Utils::SynchronousProcess::stopProcess(run);
-        return result;
-    }
-
-    QFile varsFile(tempOutputFileName);
-    if (!varsFile.open(QIODevice::ReadOnly|QIODevice::Text))
+    QMap<QString, QString> envPairs;
+    if (!generateEnvironmentSettings(env, m_vcvarsBat, m_varsBatArg, envPairs))
         return result;
 
-    QRegExp regexp(QLatin1String("(\\w*)=(.*)"));
-    while (!varsFile.atEnd()) {
-        const QString line = QString::fromLocal8Bit(varsFile.readLine()).trimmed();
-        if (regexp.exactMatch(line)) {
-            const QString varName = regexp.cap(1);
-            const QString expandedValue = winExpandDelayedEnvReferences(regexp.cap(2), env);
-            if (!expandedValue.isEmpty())
-                result.set(varName, expandedValue);
-        }
+    // Now loop through and process them
+    QMap<QString,QString>::const_iterator envIter;
+    for (envIter = envPairs.begin(); envIter!=envPairs.end(); ++envIter) {
+        const QString expandedValue = winExpandDelayedEnvReferences(envIter.value(), env);
+        if (!expandedValue.isEmpty())
+            result.set(envIter.key(), expandedValue);
     }
-    varsFile.close();
-    varsFile.remove();
+
     if (debug) {
         const QStringList newVars = result.toStringList();
         const QStringList oldVars = env.toStringList();
@@ -347,26 +283,17 @@ static Utils::Environment msvcReadEnvironmentSetting(const QString &varsBat,
 
 MsvcToolChain::MsvcToolChain(const QString &name, const Abi &abi,
                              const QString &varsBat, const QString &varsBatArg, bool autodetect) :
-    ToolChain(QLatin1String(Constants::MSVC_TOOLCHAIN_ID), autodetect),
-    m_varsBat(varsBat),
-    m_varsBatArg(varsBatArg),
-    m_lastEnvironment(Utils::Environment::systemEnvironment()),
-    m_abi(abi)
+    AbstractMsvcToolChain(QLatin1String(Constants::MSVC_TOOLCHAIN_ID), autodetect, abi, varsBat),
+    m_varsBatArg(varsBatArg)
 {
     Q_ASSERT(!name.isEmpty());
-    Q_ASSERT(!m_varsBat.isEmpty());
-    Q_ASSERT(QFileInfo(m_varsBat).exists());
-    Q_ASSERT(abi.os() == Abi::WindowsOS);
-    Q_ASSERT(abi.binaryFormat() == Abi::PEFormat);
-    Q_ASSERT(abi.osFlavor() != Abi::WindowsMSysFlavor);
 
     updateId();
     setDisplayName(name);
 }
 
 MsvcToolChain::MsvcToolChain() :
-    ToolChain(QLatin1String(Constants::MSVC_TOOLCHAIN_ID), false),
-    m_lastEnvironment(Utils::Environment::systemEnvironment())
+    AbstractMsvcToolChain(QLatin1String(Constants::MSVC_TOOLCHAIN_ID), false)
 {
 }
 
@@ -384,7 +311,7 @@ void MsvcToolChain::updateId()
     const QChar colon = QLatin1Char(':');
     QString id = QLatin1String(Constants::MSVC_TOOLCHAIN_ID);
     id += colon;
-    id += m_varsBat;
+    id += m_vcvarsBat;
     id += colon;
     id += m_varsBatArg;
     id += colon;
@@ -397,88 +324,15 @@ QString MsvcToolChain::typeName() const
     return MsvcToolChainFactory::tr("MSVC");
 }
 
-Abi MsvcToolChain::targetAbi() const
-{
-    return m_abi;
-}
-
-bool MsvcToolChain::isValid() const
-{
-    return !m_varsBat.isEmpty();
-}
-
-QByteArray MsvcToolChain::predefinedMacros() const
-{
-    if (m_predefinedMacros.isEmpty()) {
-        Utils::Environment env(m_lastEnvironment);
-        addToEnvironment(env);
-        m_predefinedMacros = msvcPredefinedMacros(env);
-    }
-    return m_predefinedMacros;
-}
-
-QList<HeaderPath> MsvcToolChain::systemHeaderPaths() const
-{
-    if (m_headerPaths.isEmpty()) {
-        Utils::Environment env(m_lastEnvironment);
-        addToEnvironment(env);
-        foreach (const QString &path, env.value("INCLUDE").split(QLatin1Char(';')))
-            m_headerPaths.append(HeaderPath(path, HeaderPath::GlobalHeaderPath));
-    }
-    return m_headerPaths;
-}
-
-void MsvcToolChain::addToEnvironment(Utils::Environment &env) const
-{
-    // We cache the full environment (incoming + modifications by setup script).
-    if (!m_resultEnvironment.size() || env != m_lastEnvironment) {
-        if (debug)
-            qDebug() << "addToEnvironment: " << displayName();
-        m_lastEnvironment = env;
-        m_resultEnvironment = msvcReadEnvironmentSetting(m_varsBat, m_varsBatArg, env);
-    }
-    env = m_resultEnvironment;
-}
-
-QString MsvcToolChain::mkspec() const
+Utils::FileName MsvcToolChain::mkspec() const
 {
     if (m_abi.osFlavor() == Abi::WindowsMsvc2005Flavor)
-        return QLatin1String("win32-msvc2005");
+        return Utils::FileName::fromString(QLatin1String("win32-msvc2005"));
     if (m_abi.osFlavor() == Abi::WindowsMsvc2008Flavor)
-        return QLatin1String("win32-msvc2008");
+        return Utils::FileName::fromString(QLatin1String("win32-msvc2008"));
     if (m_abi.osFlavor() == Abi::WindowsMsvc2010Flavor)
-        return QLatin1String("win32-msvc2010");
-    return QString();
-}
-
-QString MsvcToolChain::makeCommand() const
-{
-    if (ProjectExplorerPlugin::instance()->projectExplorerSettings().useJom) {
-        // We want jom! Try to find it.
-        const QString jom = QLatin1String("jom.exe");
-        const QFileInfo installedJom = QFileInfo(QCoreApplication::applicationDirPath()
-                                                 + QLatin1Char('/') + jom);
-        if (installedJom.isFile() && installedJom.isExecutable()) {
-            return installedJom.absoluteFilePath();
-        } else {
-            return jom;
-        }
-    }
-    return QLatin1String("nmake.exe");
-}
-
-void MsvcToolChain::setDebuggerCommand(const QString &d)
-{
-    if (m_debuggerCommand == d)
-        return;
-    m_debuggerCommand = d;
-    updateId();
-    toolChainUpdated();
-}
-
-QString MsvcToolChain::debuggerCommand() const
-{
-    return m_debuggerCommand;
+        return Utils::FileName::fromString(QLatin1String("win32-msvc2010"));
+    return Utils::FileName();
 }
 
 QVariantMap MsvcToolChain::toMap() const
@@ -486,7 +340,7 @@ QVariantMap MsvcToolChain::toMap() const
     QVariantMap data = ToolChain::toMap();
     if (!m_debuggerCommand.isEmpty())
         data.insert(QLatin1String(debuggerCommandKeyC), m_debuggerCommand);
-    data.insert(QLatin1String(varsBatKeyC), m_varsBat);
+    data.insert(QLatin1String(varsBatKeyC), m_vcvarsBat);
     if (!m_varsBatArg.isEmpty())
         data.insert(QLatin1String(varsBatArgKeyC), m_varsBatArg);
     data.insert(QLatin1String(supportedAbiKeyC), m_abi.toString());
@@ -497,28 +351,20 @@ bool MsvcToolChain::fromMap(const QVariantMap &data)
 {
     if (!ToolChain::fromMap(data))
         return false;
-    m_varsBat = data.value(QLatin1String(varsBatKeyC)).toString();
+    m_vcvarsBat = data.value(QLatin1String(varsBatKeyC)).toString();
     m_varsBatArg = data.value(QLatin1String(varsBatArgKeyC)).toString();
     m_debuggerCommand = data.value(QLatin1String(debuggerCommandKeyC)).toString();
     const QString abiString = data.value(QLatin1String(supportedAbiKeyC)).toString();
     m_abi = Abi(abiString);
     updateId();
-    return !m_varsBat.isEmpty() && m_abi.isValid();
+
+    return !m_vcvarsBat.isEmpty() && m_abi.isValid();
 }
 
-IOutputParser *MsvcToolChain::outputParser() const
-{
-    return new MsvcParser;
-}
 
 ToolChainConfigWidget *MsvcToolChain::configurationWidget()
 {
     return new MsvcToolChainConfigWidget(this);
-}
-
-bool MsvcToolChain::canClone() const
-{
-    return true;
 }
 
 ToolChain *MsvcToolChain::clone() const
@@ -610,17 +456,30 @@ bool MsvcToolChainConfigWidget::isDirty() const
 
 void MsvcToolChainConfigWidget::autoDetectDebugger()
 {
-    QStringList directories;
-    const QString cdbExecutable = MsvcToolChain::autoDetectCdbDebugger(&directories);
-    if (cdbExecutable.isEmpty()) {
-        const QString msg = tr("The CDB debugger could not be found in %1").arg(directories.join(QLatin1String(", ")));
-        setErrorMessage(msg);
-    } else {
-        clearErrorMessage();
-        if (cdbExecutable != debuggerCommand()) {
-            setDebuggerCommand(cdbExecutable);
-            emitDirty();
+    clearErrorMessage();
+
+    MsvcToolChain *tc = static_cast<MsvcToolChain *>(toolChain());
+    QTC_ASSERT(tc, return);
+    ProjectExplorer::Abi abi = tc->targetAbi();
+
+    const QPair<QString, QString> cdbExecutables = MsvcToolChain::autoDetectCdbDebugger();
+    QString debugger;
+    if (abi.wordWidth() == 32) {
+        if (cdbExecutables.first.isEmpty()) {
+            setErrorMessage(tr("No CDB debugger detected (neither 32bit nor 64bit)."));
+            return;
         }
+        debugger = cdbExecutables.first;
+    } else if (abi.wordWidth() == 64) {
+        if (cdbExecutables.second.isEmpty()) {
+            setErrorMessage(tr("No 64bit CDB debugger detected."));
+            return;
+        }
+        debugger = cdbExecutables.second;
+    }
+    if (debugger != debuggerCommand()) {
+        setDebuggerCommand(debugger);
+        emitDirty();
     }
 }
 
@@ -745,70 +604,51 @@ QList<ToolChain *> MsvcToolChainFactory::autoDetect()
     }
 #endif
     if (!results.isEmpty()) { // Detect debugger
-        const QString cdbDebugger = MsvcToolChain::autoDetectCdbDebugger();
-        if (!cdbDebugger.isEmpty()) {
-            foreach (ToolChain *tc, results)
-                static_cast<MsvcToolChain *>(tc)->setDebuggerCommand(cdbDebugger);
-        }
+        const QPair<QString, QString> cdbDebugger = MsvcToolChain::autoDetectCdbDebugger();
+        foreach (ToolChain *tc, results)
+            static_cast<MsvcToolChain *>(tc)->setDebuggerCommand(tc->targetAbi().wordWidth() == 32 ? cdbDebugger.first : cdbDebugger.second);
     }
+
     return results;
 }
 
-// Check the CDB executable and accumulate the list of checked paths
-// for reporting.
-static QString checkCdbExecutable(const QString &programDir, const QString &postfix,
-                                  QStringList *checkedDirectories = 0)
+QPair<QString, QString> MsvcToolChain::autoDetectCdbDebugger()
 {
-    QString executable = programDir;
-    executable += QLatin1String("/Debugging Tools For Windows");
-    executable += postfix;
-    if (checkedDirectories)
-        checkedDirectories->push_back(QDir::toNativeSeparators(executable));
-    executable += QLatin1String("/cdb.exe");
-    const QFileInfo fi(executable);
-    return fi.isFile() && fi.isExecutable() ? fi.absoluteFilePath() : QString();
-}
+    QPair<QString, QString> result;
+    QStringList cdbs;
 
-QString MsvcToolChain::autoDetectCdbDebugger(QStringList *checkedDirectories /* = 0 */)
-{
-    // Look for $ProgramFiles/"Debugging Tools For Windows <bit-idy>/cdb.exe" and its
-    // " (x86)", " (x64)" variations.
-    static const char *postFixes[] = {"", " (x64)", " 64-bit", " (x86)", " (x32)" };
+    QStringList programDirs;
+    programDirs.append(QString::fromLocal8Bit(qgetenv("ProgramFiles")));
+    programDirs.append(QString::fromLocal8Bit(qgetenv("ProgramFiles(x86)")));
+    programDirs.append(QString::fromLocal8Bit(qgetenv("ProgramW6432")));
 
-    if (checkedDirectories)
-        checkedDirectories->clear();
-
-    const QString programDir = QString::fromLocal8Bit(qgetenv("ProgramFiles"));
-    if (programDir.isEmpty())
-        return QString();
-
-    // Try the post fixes
-    QString outPath;
-    for (unsigned i = 0; i < sizeof(postFixes)/sizeof(const char*); ++i) {
-        outPath = checkCdbExecutable(programDir, QLatin1String(postFixes[i]), checkedDirectories);
-        if (!outPath.isEmpty())
-            return outPath;
-    }
-    // A 32bit-compile running on a 64bit system sees the 64 bit installation
-    // as "$ProgramFiles (x64)/Debugging Tools..." and (untested), a 64 bit-
-    // compile running on a 64bit system sees the 32 bit installation as
-    // "$ProgramFiles (x86)/Debugging Tools..." (assuming this works at all)
-#ifdef Q_OS_WIN64
-    outPath = checkCdbExecutable(programDir + QLatin1String(" (x32)"), QString(), checkedDirectories);
-    if (!outPath.isEmpty())
-        return QString();
-#else
-    // A 32bit process on 64 bit sees "ProgramFiles\Debg.. (x64)".
-    if (programDir.endsWith(QLatin1String(" (x86)"))) {
-        const QString programDir64 = programDir.left(programDir.size() - 6);
-        for (unsigned i = 0; i < sizeof(postFixes)/sizeof(const char*); ++i) {
-            outPath = checkCdbExecutable(programDir64, QLatin1String(postFixes[i]), checkedDirectories);
-            if (!outPath.isEmpty())
-                return outPath;
+    foreach (const QString &dirName, programDirs) {
+        if (dirName.isEmpty())
+            continue;
+        QDir dir(dirName);
+        foreach (const QFileInfo &fi, dir.entryInfoList(QStringList(QLatin1String("Debugging Tools for Windows*")),
+                                                        QDir::Dirs | QDir::NoDotAndDotDot)) {
+            const QString filePath = fi.absoluteFilePath() + QLatin1String("/cdb.exe");
+            if (!cdbs.contains(filePath))
+                cdbs.append(fi.absoluteFilePath() + QLatin1String("/cdb.exe"));
         }
     }
-#endif
-    return QString();
+
+    foreach (const QString &cdb, cdbs) {
+        QList<ProjectExplorer::Abi> abis = ProjectExplorer::Abi::abisOfBinary(cdb);
+        if (abis.isEmpty())
+            continue;
+        if (abis.first().wordWidth() == 32)
+            result.first = cdb;
+        else if (abis.first().wordWidth() == 64)
+            result.second = cdb;
+    }
+
+    // prefer 64bit debugger, even for 32bit binaries:
+    if (!result.second.isEmpty())
+        result.first = result.second;
+
+    return result;
 }
 
 bool MsvcToolChainFactory::canRestore(const QVariantMap &data)

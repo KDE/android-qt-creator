@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,6 @@
 #define QMLPROJECT_H
 
 #include "qmlprojectmanager_global.h"
-#include "qmlprojectnodes.h"
-#include "qmlprojectmanager.h"
 
 #include <projectexplorer/project.h>
 
@@ -54,9 +52,10 @@ namespace QmlProjectManager {
 class QmlProjectItem;
 
 namespace Internal {
-
+class Manager;
 class QmlProjectFile;
 class QmlProjectTarget;
+class QmlProjectNode;
 } // namespace Internal
 
 class QMLPROJECTMANAGER_EXPORT QmlProject : public ProjectExplorer::Project
@@ -72,14 +71,14 @@ public:
     QString displayName() const;
     QString id() const;
     Core::IFile *file() const;
-    Internal::Manager *projectManager() const;
+    ProjectExplorer::IProjectManager *projectManager() const;
     Internal::QmlProjectTarget *activeTarget() const;
 
     QList<ProjectExplorer::Project *> dependsOn();
 
     QList<ProjectExplorer::BuildConfigWidget*> subConfigWidgets();
 
-    Internal::QmlProjectNode *rootProjectNode() const;
+    ProjectExplorer::ProjectNode *rootProjectNode() const;
     QStringList files(FilesMode fileMode) const;
 
     bool validProjectFile() const;
@@ -101,8 +100,9 @@ public:
 
     bool addFiles(const QStringList &filePaths);
 
-private slots:
     void refreshProjectFile();
+
+private slots:
     void refreshFiles(const QSet<QString> &added, const QSet<QString> &removed);
 
 protected:
@@ -125,7 +125,6 @@ private:
     // qml based, new format
     QDeclarativeEngine m_engine;
     QWeakPointer<QmlProjectItem> m_projectItem;
-    Utils::FileSystemWatcher *m_fileWatcher;
 
     Internal::QmlProjectNode *m_rootNode;
 };

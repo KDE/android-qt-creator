@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef PUBLICKEYDEPLOYMENTDIALOG_H
@@ -51,8 +51,10 @@ class REMOTELINUX_EXPORT PublicKeyDeploymentDialog : public QProgressDialog
 {
     Q_OBJECT
 public:
-    explicit PublicKeyDeploymentDialog(const QSharedPointer<const LinuxDeviceConfiguration> &deviceConfig,
+    // Asks for public key and returns null if the file dialog is canceled.
+    static PublicKeyDeploymentDialog *createDialog(const QSharedPointer<const LinuxDeviceConfiguration> &deviceConfig,
         QWidget *parent = 0);
+
     ~PublicKeyDeploymentDialog();
 
 private slots:
@@ -61,9 +63,11 @@ private slots:
     void handleCanceled();
 
 private:
+    explicit PublicKeyDeploymentDialog(const QSharedPointer<const LinuxDeviceConfiguration> &deviceConfig,
+        const QString &publicKeyFileName, QWidget *parent = 0);
     void handleDeploymentFinished(const QString &errorMsg);
 
-    Internal::PublicKeyDeploymentDialogPrivate * const m_d;
+    Internal::PublicKeyDeploymentDialogPrivate * const d;
 };
 
 } // namespace RemoteLinux

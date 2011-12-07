@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,17 +35,17 @@
 
 #include <QWizardPage>
 
-QT_BEGIN_NAMESPACE
-namespace Ui {class S60PublishingResultsPageOvi;}
-QT_END_NAMESPACE
-
 namespace Qt4ProjectManager {
 namespace Internal {
+
 class S60PublisherOvi;
+
+namespace Ui { class S60PublishingResultsPageOvi; }
 
 class S60PublishingResultsPageOvi : public QWizardPage
 {
     Q_OBJECT
+
 public:
     explicit S60PublishingResultsPageOvi(S60PublisherOvi *publisher, QWidget *parent = 0);
     ~S60PublishingResultsPageOvi();

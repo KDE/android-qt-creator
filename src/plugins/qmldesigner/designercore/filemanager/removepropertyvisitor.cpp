@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -93,7 +93,7 @@ void RemovePropertyVisitor::removeFrom(QmlJS::AST::UiObjectInitializer *ast)
         // check for grouped properties:
         else if (!prefix.isEmpty()) {
             if (UiObjectDefinition *def = cast<UiObjectDefinition *>(member)) {
-                if (flatten(def->qualifiedTypeNameId) == prefix) {
+                if (toString(def->qualifiedTypeNameId) == prefix) {
                     removeGroupedProperty(def);
                 }
             }
@@ -145,13 +145,13 @@ void RemovePropertyVisitor::removeMember(UiObjectMember *member)
 bool RemovePropertyVisitor::memberNameMatchesPropertyName(const QString &propertyName, UiObjectMember *ast)
 {
     if (UiPublicMember *publicMember = cast<UiPublicMember*>(ast))
-        return publicMember->name->asString() == propertyName;
+        return publicMember->name == propertyName;
     else if (UiObjectBinding *objectBinding = cast<UiObjectBinding*>(ast))
-        return flatten(objectBinding->qualifiedId) == propertyName;
+        return toString(objectBinding->qualifiedId) == propertyName;
     else if (UiScriptBinding *scriptBinding = cast<UiScriptBinding*>(ast))
-        return flatten(scriptBinding->qualifiedId) == propertyName;
+        return toString(scriptBinding->qualifiedId) == propertyName;
     else if (UiArrayBinding *arrayBinding = cast<UiArrayBinding*>(ast))
-        return flatten(arrayBinding->qualifiedId) == propertyName;
+        return toString(arrayBinding->qualifiedId) == propertyName;
     else
         return false;
 }

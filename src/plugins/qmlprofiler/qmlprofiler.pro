@@ -3,16 +3,16 @@ TARGET = QmlProfiler
 
 DEFINES += PROFILER_LIBRARY
 
+QT += network script declarative
+
 include(../../qtcreatorplugin.pri)
 include(../../plugins/coreplugin/coreplugin.pri)
 include(../../plugins/analyzerbase/analyzerbase.pri)
 include(../../plugins/qmlprojectmanager/qmlprojectmanager.pri)
 include(../../plugins/qt4projectmanager/qt4projectmanager.pri)
 include(../../plugins/remotelinux/remotelinux.pri)
-include(../../libs/qmljsdebugclient/qmljsdebugclient-lib.pri)
+include(../../libs/qmljsdebugclient/qmljsdebugclient.pri)
 include(../../libs/extensionsystem/extensionsystem.pri)
-
-QT += network script declarative
 
 include(canvas/canvas.pri)
 
@@ -26,7 +26,6 @@ SOURCES += \
     localqmlprofilerrunner.cpp \
     codaqmlprofilerrunner.cpp \
     remotelinuxqmlprofilerrunner.cpp \
-    qmlprofilertraceclient.cpp \
     qmlprofilereventview.cpp \
     qmlprofilerruncontrolfactory.cpp
 
@@ -43,13 +42,11 @@ HEADERS += \
     localqmlprofilerrunner.h \
     codaqmlprofilerrunner.h \
     remotelinuxqmlprofilerrunner.h \
-    qmlprofilertraceclient.h \
     qmlprofilereventview.h \
-    qmlprofilereventtypes.h \
     qmlprofilerruncontrolfactory.h
 
 RESOURCES += \
-    qml/qml.qrc
+    qml/qmlprofiler.qrc
 
 OTHER_FILES += \
     qml/Detail.qml \
@@ -58,9 +55,13 @@ OTHER_FILES += \
     qml/MainView.qml \
     qml/RangeDetails.qml \
     qml/RangeMover.qml \
-    qml/MainView.js \
     qml/TimeDisplay.qml \
-    qml/StatusDisplay.qml
+    qml/TimeMarks.qml \
+    qml/StatusDisplay.qml \
+    qml/SelectionRange.qml \
+    qml/SelectionRangeDetails.qml \
+    qml/Overview.qml \
+    qml/Overview.js
 
 FORMS += \
     qmlprofilerattachdialog.ui

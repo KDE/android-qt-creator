@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -205,9 +205,11 @@ StateListener::StateListener(QObject *parent) :
         QObject(parent)
 {
     Core::ICore *core = Core::ICore::instance();
-    connect(core->fileManager(), SIGNAL(currentFileChanged(QString)),
+    connect(core->editorManager(), SIGNAL(currentEditorChanged(Core::IEditor*)),
             this, SLOT(slotStateChanged()));
-    connect(core->editorManager()->instance(), SIGNAL(currentEditorStateChanged(Core::IEditor*)),
+    connect(core->editorManager(), SIGNAL(currentEditorStateChanged(Core::IEditor*)),
+            this, SLOT(slotStateChanged()));
+    connect(core->vcsManager(), SIGNAL(repositoryChanged(QString)),
             this, SLOT(slotStateChanged()));
 
     if (ProjectExplorer::ProjectExplorerPlugin *pe = ProjectExplorer::ProjectExplorerPlugin::instance())
@@ -233,7 +235,11 @@ void StateListener::slotStateChanged()
     // temporary path prefix or does the file contains a hash, indicating a project
     // folder?
     State state;
-    state.currentFile = core->fileManager()->currentFile();
+    Core::EditorManager *em = core->editorManager();
+    if (!em || !em->currentEditor() || !em->currentEditor()->file())
+        state.currentFile.clear();
+    else
+        state.currentFile = em->currentEditor()->file()->fileName();
     QScopedPointer<QFileInfo> currentFileInfo; // Instantiate QFileInfo only once if required.
     if (!state.currentFile.isEmpty()) {
         const bool isTempFile = state.currentFile.startsWith(QDir::tempPath());
@@ -479,12 +485,13 @@ VCSBASE_EXPORT QDebug operator<<(QDebug in, const VCSBasePluginState &state)
     the virtual submitEditorAboutToClose() to trigger the submit process.
 */
 
-struct VCSBasePluginPrivate {
+struct VCSBasePluginPrivate
+{
     explicit VCSBasePluginPrivate(const QString &submitEditorId);
 
     inline bool supportsRepositoryCreation() const;
 
-    const QString m_submitEditorId;
+    const Core::Id m_submitEditorId;
     Core::IVersionControl *m_versionControl;
     VCSBasePluginState m_state;
     int m_actionState;
@@ -551,7 +558,7 @@ void VCSBasePlugin::extensionsInitialized()
 void VCSBasePlugin::slotSubmitEditorAboutToClose(VCSBaseSubmitEditor *submitEditor, bool *result)
 {
     if (debug)
-        qDebug() << this << d->m_submitEditorId << "Closing submit editor" << submitEditor << submitEditor->id();
+        qDebug() << this << d->m_submitEditorId.name() << "Closing submit editor" << submitEditor << submitEditor->id().name();
     if (submitEditor->id() == d->m_submitEditorId)
         *result = submitEditorAboutToClose(submitEditor);
 }
@@ -841,26 +848,25 @@ static Utils::SynchronousProcessResponse
 
 
 Utils::SynchronousProcessResponse
-        VCSBasePlugin::runVCS(const QString &workingDir,
-                              const QString &binary,
-                              const QStringList &arguments,
-                              int timeOutMS,
-                              unsigned flags,
-                              QTextCodec *outputCodec /* = 0 */)
+VCSBasePlugin::runVCS(const QString &workingDir,
+                      const QString &binary,
+                      const QStringList &arguments,
+                      int timeOutMS,
+                      unsigned flags,
+                      QTextCodec *outputCodec)
 {
     const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     return runVCS(workingDir, binary, arguments, timeOutMS, env,
                   flags, outputCodec);
 }
 
-Utils::SynchronousProcessResponse
-        VCSBasePlugin::runVCS(const QString &workingDir,
-                              const QString &binary,
-                              const QStringList &arguments,
-                              int timeOutMS,
-                              QProcessEnvironment env,
-                              unsigned flags,
-                              QTextCodec *outputCodec /* = 0 */)
+Utils::SynchronousProcessResponse VCSBasePlugin::runVCS(const QString &workingDir,
+                                                        const QString &binary,
+                                                        const QStringList &arguments,
+                                                        int timeOutMS,
+                                                        QProcessEnvironment env,
+                                                        unsigned flags,
+                                                        QTextCodec *outputCodec)
 {
     VCSBase::VCSBaseOutputWindow *outputWindow = VCSBase::VCSBaseOutputWindow::instance();
 
@@ -946,6 +952,45 @@ Utils::SynchronousProcessResponse
     }
 
     return response;
+}
+
+bool VCSBasePlugin::runFullySynchronous(const QString &workingDirectory,
+                                        const QString &binary,
+                                        const QStringList &arguments,
+                                        const QProcessEnvironment &env,
+                                        QByteArray* outputText,
+                                        QByteArray* errorText,
+                                        int timeoutMS,
+                                        bool logCommandToWindow)
+{
+    VCSBase::VCSBaseOutputWindow *outputWindow = VCSBase::VCSBaseOutputWindow::instance();
+
+    if (logCommandToWindow)
+        outputWindow->appendCommand(workingDirectory, binary, arguments);
+
+    QProcess process;
+    process.setWorkingDirectory(workingDirectory);
+    process.setProcessEnvironment(env);
+
+    process.start(binary, arguments);
+    process.closeWriteChannel();
+    if (!process.waitForStarted()) {
+        if (errorText) {
+            const QString msg = QString::fromLatin1("Unable to execute '%1': %2:")
+                                .arg(binary, process.errorString());
+            *errorText = msg.toLocal8Bit();
+        }
+        return false;
+    }
+
+    if (!Utils::SynchronousProcess::readDataFromProcess(process, timeoutMS,
+                                                        outputText, errorText, true)) {
+        errorText->append(tr("Error: Executable timed out after %1s.").arg(timeoutMS / 1000).toLocal8Bit());
+        Utils::SynchronousProcess::stopProcess(process);
+        return false;
+    }
+
+    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
 }
 
 bool VCSBasePlugin::runPatch(const QByteArray &input, const QString &workingDirectory,

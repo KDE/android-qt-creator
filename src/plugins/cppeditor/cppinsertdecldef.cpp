@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,11 +55,10 @@ class InsertDeclOperation: public CppQuickFixOperation
 {
 public:
     InsertDeclOperation(const QSharedPointer<const Internal::CppQuickFixAssistInterface> &interface,
-                        int priority,
                         const QString &targetFileName, const Class *targetSymbol,
                         InsertionPointLocator::AccessSpec xsSpec,
                         const QString &decl)
-        : CppQuickFixOperation(interface, priority)
+        : CppQuickFixOperation(interface, 0)
         , m_targetFileName(targetFileName)
         , m_targetSymbol(targetSymbol)
         , m_xsSpec(xsSpec)
@@ -80,25 +79,24 @@ public:
                                                    "Add %1 Declaration").arg(type));
     }
 
-    void performChanges(CppRefactoringFile *, CppRefactoringChanges *refactoring)
+    void performChanges(const CppRefactoringFilePtr &,
+                        const CppRefactoringChanges &refactoring)
     {
         InsertionPointLocator locator(refactoring);
         const InsertionLocation loc = locator.methodDeclarationInClass(
                     m_targetFileName, m_targetSymbol, m_xsSpec);
         Q_ASSERT(loc.isValid());
 
-        CppRefactoringFile targetFile = refactoring->file(m_targetFileName);
-        int targetPosition1 = targetFile.position(loc.line(), loc.column());
-        int targetPosition2 = qMax(0, targetFile.position(loc.line(), 1) - 1);
+        CppRefactoringFilePtr targetFile = refactoring.file(m_targetFileName);
+        int targetPosition1 = targetFile->position(loc.line(), loc.column());
+        int targetPosition2 = qMax(0, targetFile->position(loc.line(), 1) - 1);
 
         Utils::ChangeSet target;
         target.insert(targetPosition1, loc.prefix() + m_decl);
-        targetFile.change(target);
-        targetFile.indent(Utils::ChangeSet::Range(targetPosition2, targetPosition1));
-
-        const int prefixLineCount = loc.prefix().count(QLatin1Char('\n'));
-        refactoring->activateEditor(m_targetFileName, loc.line() + prefixLineCount,
-                                    qMax(((int) loc.column()) - 1, 0));
+        targetFile->setChangeSet(target);
+        targetFile->appendIndentRange(Utils::ChangeSet::Range(targetPosition2, targetPosition1));
+        targetFile->setOpenEditor(true, targetPosition1);
+        targetFile->apply();
     }
 
 private:
@@ -114,7 +112,7 @@ QList<CppQuickFixOperation::Ptr> DeclFromDef::match(
     const QSharedPointer<const Internal::CppQuickFixAssistInterface> &interface)
 {
     const QList<AST *> &path = interface->path();
-    const CppRefactoringFile &file = interface->currentFile();
+    CppRefactoringFilePtr file = interface->currentFile();
 
     FunctionDefinitionAST *funDef = 0;
     int idx = 0;
@@ -122,7 +120,7 @@ QList<CppQuickFixOperation::Ptr> DeclFromDef::match(
         AST *node = path.at(idx);
         if (idx > 1) {
             if (DeclaratorIdAST *declId = node->asDeclaratorId()) {
-                if (file.isCursorOn(declId)) {
+                if (file->isCursorOn(declId)) {
                     if (FunctionDefinitionAST *candidate = path.at(idx - 2)->asFunctionDefinition()) {
                         if (funDef) {
                             return noResult();
@@ -184,7 +182,7 @@ QList<CppQuickFixOperation::Ptr> DeclFromDef::match(
                                                          method,
                                                          binding);
                 return singleResult(
-                            new InsertDeclOperation(interface, idx, fn, matchingClass,
+                            new InsertDeclOperation(interface, fn, matchingClass,
                                                     InsertionPointLocator::Public,
                                                     decl));
             }
@@ -217,9 +215,9 @@ namespace {
 class InsertDefOperation: public CppQuickFixOperation
 {
 public:
-    InsertDefOperation(const QSharedPointer<const Internal::CppQuickFixAssistInterface> &interface, int priority,
+    InsertDefOperation(const QSharedPointer<const Internal::CppQuickFixAssistInterface> &interface,
                        Declaration *decl, const InsertionLocation &loc)
-        : CppQuickFixOperation(interface, priority)
+        : CppQuickFixOperation(interface, 0)
         , m_decl(decl)
         , m_loc(loc)
     {
@@ -230,44 +228,51 @@ public:
                        .arg(dir.relativeFilePath(m_loc.fileName())));
     }
 
-    void performChanges(CppRefactoringFile *,
-                        CppRefactoringChanges *refactoring)
+    void performChanges(const CppRefactoringFilePtr &,
+                        const CppRefactoringChanges &refactoring)
     {
         Q_ASSERT(m_loc.isValid());
 
-        CppRefactoringFile targetFile = refactoring->file(m_loc.fileName());
+        CppRefactoringFilePtr targetFile = refactoring.file(m_loc.fileName());
 
         Overview oo;
         oo.setShowFunctionSignatures(true);
         oo.setShowReturnTypes(true);
         oo.setShowArgumentNames(true);
 
-        //--
+        // make target lookup context
+        Document::Ptr targetDoc = targetFile->cppDocument();
+        Scope *targetScope = targetDoc->scopeAt(m_loc.line(), m_loc.column());
+        LookupContext targetContext(targetDoc, assistInterface()->snapshot());
+        ClassOrNamespace *targetCoN = targetContext.lookupType(targetScope);
+        if (!targetCoN)
+            targetCoN = targetContext.globalNamespace();
+
+        // setup rewriting to get minimally qualified names
         SubstitutionEnvironment env;
         env.setContext(assistInterface()->context());
         env.switchScope(m_decl->enclosingScope());
-        UseQualifiedNames q;
+        UseMinimalNames q(targetCoN);
         env.enter(&q);
-
         Control *control = assistInterface()->context().control().data();
+
+        // rewrite the function type
         FullySpecifiedType tn = rewriteType(m_decl->type(), &env, control);
-        QString name = oo(LookupContext::fullyQualifiedName(m_decl));
-        //--
+
+        // rewrite the function name
+        QString name = oo(LookupContext::minimalName(m_decl, targetCoN, control));
 
         QString defText = oo.prettyType(tn, name) + "\n{\n}";
 
-        int targetPos = targetFile.position(m_loc.line(), m_loc.column());
-        int targetPos2 = qMax(0, targetFile.position(m_loc.line(), 1) - 1);
+        int targetPos = targetFile->position(m_loc.line(), m_loc.column());
+        int targetPos2 = qMax(0, targetFile->position(m_loc.line(), 1) - 1);
 
         Utils::ChangeSet target;
         target.insert(targetPos,  m_loc.prefix() + defText + m_loc.suffix());
-        targetFile.change(target);
-        targetFile.indent(Utils::ChangeSet::Range(targetPos2, targetPos));
-
-        const int prefixLineCount = m_loc.prefix().count(QLatin1Char('\n'));
-        refactoring->activateEditor(m_loc.fileName(),
-                                    m_loc.line() + prefixLineCount,
-                                    0);
+        targetFile->setChangeSet(target);
+        targetFile->appendIndentRange(Utils::ChangeSet::Range(targetPos2, targetPos));
+        targetFile->setOpenEditor(true, targetPos);
+        targetFile->apply();
     }
 
 private:
@@ -281,7 +286,6 @@ QList<CppQuickFixOperation::Ptr> DefFromDecl::match(
     const QSharedPointer<const Internal::CppQuickFixAssistInterface> &interface)
 {
     const QList<AST *> &path = interface->path();
-    const CppRefactoringFile &file = interface->currentFile();
 
     int idx = path.size() - 1;
     for (; idx >= 0; --idx) {
@@ -294,17 +298,14 @@ QList<CppQuickFixOperation::Ptr> DefFromDecl::match(
                                 && !decl->type()->asFunctionType()->isPureVirtual()
                                 && decl->enclosingScope()
                                 && decl->enclosingScope()->isClass()) {
-                            DeclaratorAST *declarator = simpleDecl->declarator_list->value;
-                            if (file.isCursorOn(declarator->core_declarator)) {
-                                CppRefactoringChanges refactoring(interface->snapshot());
-                                InsertionPointLocator locator(&refactoring);
-                                QList<CppQuickFixOperation::Ptr> results;
-                                foreach (const InsertionLocation &loc, locator.methodDefinition(decl)) {
-                                    if (loc.isValid())
-                                        results.append(CppQuickFixOperation::Ptr(new InsertDefOperation(interface, idx, decl, loc)));
-                                }
-                                return results;
+                            CppRefactoringChanges refactoring(interface->snapshot());
+                            InsertionPointLocator locator(refactoring);
+                            QList<CppQuickFixOperation::Ptr> results;
+                            foreach (const InsertionLocation &loc, locator.methodDefinition(decl)) {
+                                if (loc.isValid())
+                                    results.append(CppQuickFixOperation::Ptr(new InsertDefOperation(interface, decl, loc)));
                             }
+                            return results;
                         }
                     }
                 }

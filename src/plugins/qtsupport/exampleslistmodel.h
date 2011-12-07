@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,12 +42,13 @@ namespace QtSupport {
 namespace Internal {
 
 enum ExampleRoles { Name=Qt::UserRole, ProjectPath, Description, ImageUrl,
-                    DocUrl,  FilesToOpen, Tags, Difficulty, HasSourceCode, Type };
+                    DocUrl,  FilesToOpen, Tags, Difficulty, HasSourceCode,
+                    Type, Dependencies, IsVideo, VideoUrl, VideoLength };
 
 enum InstructionalType { Example=0, Demo, Tutorial };
 
 struct ExampleItem {
-    ExampleItem(): difficulty(0) {}
+    ExampleItem(): difficulty(0), isVideo(false) {}
     InstructionalType type;
     QString name;
     QString projectPath;
@@ -56,8 +57,12 @@ struct ExampleItem {
     QString docUrl;
     QStringList filesToOpen;
     QStringList tags;
+    QStringList dependencies;
     int difficulty;
     bool hasSourceCode;
+    bool isVideo;
+    QString videoUrl;
+    QString videoLength;
 };
 
 struct QMakePathCache {
@@ -136,6 +141,7 @@ public slots:
     }
 
     void parseSearchString(const QString& arg);
+    void setShowTutorialsOnly(bool showTutorialsOnly);
 
 signals:
     void showTutorialsOnlyChanged();
@@ -143,9 +149,6 @@ signals:
     void filterTagsChanged(const QStringList& arg);
 
     void searchStrings(const QStringList& arg);
-
-private slots:
-    void setShowTutorialsOnly(bool showTutorialsOnly);
 
 private:
     bool m_showTutorialsOnly;

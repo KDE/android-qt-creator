@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,7 +45,8 @@
 
 namespace Core {
 
-class VMMapExpander : public Utils::AbstractQtcMacroExpander {
+class VMMapExpander : public Utils::AbstractQtcMacroExpander
+{
 public:
     virtual bool resolveMacro(const QString &name, QString *ret)
     {
@@ -55,27 +56,25 @@ public:
     }
 };
 
-class VariableManagerPrivate : public QObject
+class VariableManagerPrivate
 {
-    Q_OBJECT
-
 public:
     QHash<QString, QString> m_map;
     VMMapExpander m_macroExpander;
     QMap<QString, QString> m_descriptions;
-    static VariableManager *m_instance;
 };
 
-VariableManager *VariableManagerPrivate::m_instance = 0;
+static VariableManager *variableManagerInstance = 0;
 
 VariableManager::VariableManager() : d(new VariableManagerPrivate)
 {
-    VariableManagerPrivate::m_instance = this;
+    variableManagerInstance = this;
 }
 
 VariableManager::~VariableManager()
 {
-    VariableManagerPrivate::m_instance = 0;
+    variableManagerInstance = 0;
+    delete d;
 }
 
 void VariableManager::insert(const QString &variable, const QString &value)
@@ -108,9 +107,9 @@ Utils::AbstractMacroExpander *VariableManager::macroExpander()
     return &d->m_macroExpander;
 }
 
-VariableManager* VariableManager::instance()
+VariableManager *VariableManager::instance()
 {
-    return VariableManagerPrivate::m_instance;
+    return variableManagerInstance;
 }
 
 void VariableManager::registerVariable(const QString &variable, const QString &description)
@@ -129,5 +128,3 @@ QString VariableManager::variableDescription(const QString &variable) const
 }
 
 } // namespace Core
-
-#include "variablemanager.moc"

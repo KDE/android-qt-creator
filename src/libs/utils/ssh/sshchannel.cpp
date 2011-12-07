@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -84,7 +84,7 @@ void AbstractSshChannel::requestSessionStart()
         setChannelState(SessionRequested);
         m_timeoutTimer->start(ReplyTimeout);
     }  catch (Botan::Exception &e) {
-        m_errorString = QString::fromAscii(e.what());
+        qDebug("Botan error: %s", e.what());
         closeChannel();
     }
 }
@@ -95,7 +95,7 @@ void AbstractSshChannel::sendData(const QByteArray &data)
         m_sendBuffer += data;
         flushSendBuffer();
     }  catch (Botan::Exception &e) {
-        m_errorString = QString::fromAscii(e.what());
+        qDebug("Botan error: %s", e.what());
         closeChannel();
     }
 }
@@ -116,8 +116,8 @@ void AbstractSshChannel::handleWindowAdjust(quint32 bytesToAdd)
 
 void AbstractSshChannel::flushSendBuffer()
 {
-    const quint32 bytesToSend
-        = qMin<quint32>(m_remoteWindowSize, m_sendBuffer.size());
+    const quint32 bytesToSend = qMin(m_remoteMaxPacketSize,
+        qMin<quint32>(m_remoteWindowSize, m_sendBuffer.size()));
     if (bytesToSend > 0) {
         const QByteArray &data = m_sendBuffer.left(bytesToSend);
         m_sendFacility.sendChannelDataPacket(m_remoteChannel, data);
@@ -147,7 +147,8 @@ void AbstractSshChannel::handleOpenSuccess(quint32 remoteChannelId,
 #endif
    m_remoteChannel = remoteChannelId;
    m_remoteWindowSize = remoteWindowSize;
-   m_remoteMaxPacketSize = remoteMaxPacketSize;
+   m_remoteMaxPacketSize = remoteMaxPacketSize - sizeof(quint32) - sizeof m_remoteChannel - 1;
+        // Original value includes packet type, channel number and length field for string.
    setChannelState(SessionEstablished);
    handleOpenSuccessInternal();
 }
@@ -163,8 +164,7 @@ void AbstractSshChannel::handleOpenFailure(const QString &reason)
 #ifdef CREATOR_SSH_DEBUG
    qDebug("Channel open request failed for channel %u", m_localChannel);
 #endif
-   m_errorString = reason;
-   handleOpenFailureInternal();
+   handleOpenFailureInternal(reason);
 }
 
 void AbstractSshChannel::handleChannelEof()

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,7 +63,6 @@ QT_QML_BEGIN_NAMESPACE
 namespace QmlJS {
 
 class Engine;
-class NameId;
 
 class QML_PARSER_EXPORT Parser: protected QmlJSGrammar
 {
@@ -71,7 +70,6 @@ public:
     union Value {
       int ival;
       double dval;
-      NameId *sval;
       AST::ArgumentList *ArgumentList;
       AST::CaseBlock *CaseBlock;
       AST::CaseClause *CaseClause;
@@ -110,9 +108,6 @@ public:
       AST::UiObjectMemberList *UiObjectMemberList;
       AST::UiArrayMemberList *UiArrayMemberList;
       AST::UiQualifiedId *UiQualifiedId;
-      AST::UiSignature *UiSignature;
-      AST::UiFormalList *UiFormalList;
-      AST::UiFormal *UiFormal;
     };
 
 public:
@@ -187,6 +182,9 @@ protected:
     inline Value &sym(int index)
     { return sym_stack [tos + index - 1]; }
 
+    inline QStringRef &stringRef(int index)
+    { return string_stack [tos + index - 1]; }
+
     inline AST::SourceLocation &loc(int index)
     { return location_stack [tos + index - 1]; }
 
@@ -194,11 +192,13 @@ protected:
 
 protected:
     Engine *driver;
+    MemoryPool *pool;
     int tos;
     int stack_size;
     Value *sym_stack;
     int *state_stack;
     AST::SourceLocation *location_stack;
+    QStringRef *string_stack;
 
     AST::Node *program;
 
@@ -209,9 +209,11 @@ protected:
        int token;
        double dval;
        AST::SourceLocation loc;
+       QStringRef spell;
     };
 
     double yylval;
+    QStringRef yytokenspell;
     AST::SourceLocation yylloc;
     AST::SourceLocation yyprevlloc;
 
@@ -226,9 +228,9 @@ protected:
 
 
 
-#define J_SCRIPT_REGEXPLITERAL_RULE1 76
+#define J_SCRIPT_REGEXPLITERAL_RULE1 79
 
-#define J_SCRIPT_REGEXPLITERAL_RULE2 77
+#define J_SCRIPT_REGEXPLITERAL_RULE2 80
 
 QT_QML_END_NAMESPACE
 

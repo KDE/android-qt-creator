@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,18 +25,20 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "remotelinuxruncontrol.h"
 
-#include "maemoglobal.h"
 #include "remotelinuxapplicationrunner.h"
 #include "remotelinuxrunconfiguration.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
 #include <utils/qtcassert.h>
+
+#include <QtCore/QString>
+#include <QtGui/QIcon>
 
 using namespace ProjectExplorer;
 
@@ -97,7 +99,7 @@ void AbstractRemoteLinuxRunControl::startExecution()
 
 void AbstractRemoteLinuxRunControl::handleRemoteProcessFinished(qint64 exitCode)
 {
-    if (exitCode != RemoteLinuxApplicationRunner::InvalidExitCode) {
+    if (exitCode != AbstractRemoteLinuxApplicationRunner::InvalidExitCode) {
         appendMessage(tr("Finished running remote process. Exit code was %1.\n")
             .arg(exitCode), Utils::NormalMessageFormat);
     }
@@ -145,7 +147,7 @@ void AbstractRemoteLinuxRunControl::setFinished()
 
 RemoteLinuxRunControl::RemoteLinuxRunControl(ProjectExplorer::RunConfiguration *runConfig)
     : AbstractRemoteLinuxRunControl(runConfig),
-      m_runner(new RemoteLinuxApplicationRunner(this, qobject_cast<RemoteLinuxRunConfiguration *>(runConfig)))
+      m_runner(new GenericRemoteLinuxApplicationRunner(qobject_cast<RemoteLinuxRunConfiguration *>(runConfig), this))
 {
 }
 
@@ -153,7 +155,7 @@ RemoteLinuxRunControl::~RemoteLinuxRunControl()
 {
 }
 
-RemoteLinuxApplicationRunner *RemoteLinuxRunControl::runner() const
+AbstractRemoteLinuxApplicationRunner *RemoteLinuxRunControl::runner() const
 {
     return m_runner;
 }

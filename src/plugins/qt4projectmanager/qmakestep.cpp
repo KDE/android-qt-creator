@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,8 +40,8 @@
 #include "qt4projectmanagerconstants.h"
 #include "qt4projectmanager.h"
 #include "qt4target.h"
+#include "qt4nodes.h"
 #include "qt4basetargetfactory.h"
-#include "ui_showbuildlog.h"
 
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/buildsteplist.h>
@@ -79,6 +79,7 @@ const char * const QMAKE_QMLDEBUGLIB_KEY("QtProjectManager.QMakeBuildStep.LinkQm
 QMakeStep::QMakeStep(BuildStepList *bsl) :
     AbstractProcessStep(bsl, QLatin1String(QMAKE_BS_ID)),
     m_forced(false),
+    m_needToRunQMake(false),
     m_linkQmlDebuggingLibrary(DebugLink)
 {
     ctor();
@@ -130,10 +131,9 @@ QString QMakeStep::allArguments(bool shorted)
     if (bc->subNodeBuild())
         arguments << QDir::toNativeSeparators(bc->subNodeBuild()->path());
     else if (shorted)
-        arguments << QDir::toNativeSeparators(QFileInfo(
-                buildConfiguration()->target()->project()->file()->fileName()).fileName());
+        arguments << QDir::toNativeSeparators(QFileInfo(project()->file()->fileName()).fileName());
     else
-        arguments << QDir::toNativeSeparators(buildConfiguration()->target()->project()->file()->fileName());
+        arguments << QDir::toNativeSeparators(project()->file()->fileName());
 
     arguments << "-r";
     bool userProvidedMkspec = false;
@@ -145,8 +145,9 @@ QString QMakeStep::allArguments(bool shorted)
             }
         }
     }
-    if (!userProvidedMkspec)
-        arguments << "-spec" << mkspec();
+    Utils::FileName specArg = mkspec();
+    if (!userProvidedMkspec && !specArg.isEmpty())
+        arguments << "-spec" << specArg.toUserOutput();
 
     // Find out what flags we pass on to qmake
     arguments << bc->configCommandLineArguments();
@@ -154,7 +155,11 @@ QString QMakeStep::allArguments(bool shorted)
     arguments << moreArguments();
 
     QString args = Utils::QtcProcess::joinArgs(arguments);
+    // User arguments
     Utils::QtcProcess::addArgs(&args, m_userArgs);
+    // moreArgumentsAfter
+    foreach (const QString &arg, moreArgumentsAfter())
+        Utils::QtcProcess::addArg(&args, arg);
     return args;
 }
 
@@ -206,19 +211,26 @@ QStringList QMakeStep::moreArguments()
         }
     }
 
+
+    return arguments;
+}
+
+QStringList QMakeStep::moreArgumentsAfter()
+{
+    Qt4BuildConfiguration *bc = qt4BuildConfiguration();
     if (bc->qtVersion() && !bc->qtVersion()->supportsShadowBuilds()) {
         // We have a target which does not allow shadow building.
         // But we really don't want to have the build artefacts in the source dir
         // so we try to hack around it, to make the common cases work.
         // This is a HACK, remove once the symbian make generator supports
         // shadow building
-        arguments << QLatin1String("-after")
-                  << QLatin1String("OBJECTS_DIR=obj")
-                  << QLatin1String("MOC_DIR=moc")
-                  << QLatin1String("UI_DIR=ui")
-                  << QLatin1String("RCC_DIR=rcc");
+        return QStringList() << QLatin1String("-after")
+                             << QLatin1String("OBJECTS_DIR=obj")
+                             << QLatin1String("MOC_DIR=moc")
+                             << QLatin1String("UI_DIR=ui")
+                             << QLatin1String("RCC_DIR=rcc");
     }
-    return arguments;
+    return QStringList();
 }
 
 bool QMakeStep::init()
@@ -237,10 +249,8 @@ bool QMakeStep::init()
     else
         workingDirectory = qt4bc->buildDirectory();
 
-    QString program = qtVersion->qmakeCommand();
+    Utils::FileName program = qtVersion->qmakeCommand();
 
-    // Check whether we need to run qmake
-    m_needToRunQMake = true;
     QString makefile = workingDirectory;
 
     if (qt4bc->subNodeBuild()) {
@@ -256,29 +266,30 @@ bool QMakeStep::init()
         makefile.append("/Makefile");
     }
 
+    // Check whether we need to run qmake
+    bool makefileOutDated = true;
     if (QFileInfo(makefile).exists()) {
-        QString qmakePath = QtSupport::QtVersionManager::findQMakeBinaryFromMakefile(makefile);
+        Utils::FileName qmakePath = QtSupport::QtVersionManager::findQMakeBinaryFromMakefile(makefile);
         if (qtVersion->qmakeCommand() == qmakePath) {
-            m_needToRunQMake = !qt4bc->compareToImportFrom(makefile);
+            makefileOutDated = !qt4bc->compareToImportFrom(makefile);
         }
     }
 
-    if (m_forced) {
-        m_forced = false;
+    if (m_forced || makefileOutDated)
         m_needToRunQMake = true;
-    }
+    m_forced = false;
 
     setEnabled(m_needToRunQMake);
     ProcessParameters *pp = processParameters();
     pp->setMacroExpander(qt4bc->macroExpander());
     pp->setWorkingDirectory(workingDirectory);
-    pp->setCommand(program);
+    pp->setCommand(program.toString());
     pp->setArguments(args);
     pp->setEnvironment(qt4bc->environment());
 
     setOutputParser(new QMakeParser);
 
-    Qt4ProFileNode *node = qt4bc->qt4Target()->qt4Project()->rootProjectNode();
+    Qt4ProFileNode *node = qt4bc->qt4Target()->qt4Project()->rootQt4ProjectNode();
     if (qt4bc->subNodeBuild())
         node = qt4bc->subNodeBuild();
     QString proFile = node->path();
@@ -310,7 +321,7 @@ void QMakeStep::run(QFutureInterface<bool> &fi)
             canContinue = false;
     }
     if (!canContinue) {
-        emit addOutput(tr("Configuration is faulty, please check the Build Issues view for details."), BuildStep::MessageOutput);
+        emit addOutput(tr("Configuration is faulty, please check the Issues view for details."), BuildStep::MessageOutput);
         fi.reportResult(false);
         return;
     }
@@ -321,6 +332,7 @@ void QMakeStep::run(QFutureInterface<bool> &fi)
         return;
     }
 
+    m_needToRunQMake = false;
     AbstractProcessStep::run(fi);
 }
 
@@ -346,7 +358,7 @@ bool QMakeStep::immutable() const
 
 void QMakeStep::processStartupFailed()
 {
-    m_forced = true;
+    m_needToRunQMake = true;
     AbstractProcessStep::processStartupFailed();
 }
 
@@ -354,7 +366,7 @@ bool QMakeStep::processSucceeded(int exitCode, QProcess::ExitStatus status)
 {
     bool result = AbstractProcessStep::processSucceeded(exitCode, status);
     if (!result)
-        m_forced = true;
+        m_needToRunQMake = true;
     qt4BuildConfiguration()->emitBuildDirectoryInitialized();
     return result;
 }
@@ -431,15 +443,6 @@ void QMakeStep::setLinkQmlDebuggingLibrary(bool enable)
 
     qt4BuildConfiguration()->emitQMakeBuildConfigurationChanged();
     qt4BuildConfiguration()->emitProFileEvaluateNeeded();
-
-    Core::ICore * const core = Core::ICore::instance();
-    QMessageBox *question = new QMessageBox(core->mainWindow());
-    question->setWindowTitle(tr("QML Debugging"));
-    question->setText(tr("The option will only take effect if the project is recompiled. Do you want to recompile now?"));
-    question->setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    question->setModal(true);
-    connect(question, SIGNAL(finished(int)), this, SLOT(recompileMessageBoxFinished(int)));
-    question->show();
 }
 
 QStringList QMakeStep::parserArguments()
@@ -456,23 +459,18 @@ QString QMakeStep::userArguments()
     return m_userArgs;
 }
 
-QString QMakeStep::mkspec()
+Utils::FileName QMakeStep::mkspec()
 {
     Qt4BuildConfiguration *bc = qt4BuildConfiguration();
     QString additionalArguments = m_userArgs;
     for (Utils::QtcProcess::ArgIterator ait(&additionalArguments); ait.next(); ) {
         if (ait.value() == QLatin1String("-spec")) {
             if (ait.next())
-                return ait.value();
+                return Utils::FileName::fromUserInput(ait.value());
         }
     }
 
-    const QString tcSpec = bc->toolChain() ? bc->toolChain()->mkspec() : QString();
-    if (!bc->qtVersion())
-        return tcSpec;
-    if (!tcSpec.isEmpty() && bc->qtVersion()->hasMkspec(tcSpec))
-        return tcSpec;
-    return bc->qtVersion()->mkspec();
+    return static_cast<Qt4BaseTarget *>(target())->mkspec(bc);
 }
 
 QVariantMap QMakeStep::toMap() const
@@ -502,26 +500,12 @@ bool QMakeStep::fromMap(const QVariantMap &map)
     return BuildStep::fromMap(map);
 }
 
-void QMakeStep::recompileMessageBoxFinished(int button)
-{
-    if (button == QMessageBox::Yes) {
-        Qt4BuildConfiguration *bc = qt4BuildConfiguration();
-        if (!bc)
-            return;
-
-        QList<ProjectExplorer::BuildStepList *> stepLists;
-        stepLists << bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN);
-        stepLists << bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
-        ProjectExplorerPlugin::instance()->buildManager()->buildLists(stepLists);
-    }
-}
-
 ////
 // QMakeStepConfigWidget
 ////
 
 QMakeStepConfigWidget::QMakeStepConfigWidget(QMakeStep *step)
-    : BuildStepConfigWidget(), m_ui(new Ui::QMakeStep), m_step(step),
+    : BuildStepConfigWidget(), m_ui(new Internal::Ui::QMakeStep), m_step(step),
       m_ignoreChange(false)
 {
     m_ui->setupUi(this);
@@ -553,8 +537,8 @@ QMakeStepConfigWidget::QMakeStepConfigWidget(QMakeStep *step)
             this, SLOT(qtVersionChanged()));
     connect(step->qt4BuildConfiguration(), SIGNAL(qmakeBuildConfigurationChanged()),
             this, SLOT(qmakeBuildConfigChanged()));
-    connect(QtSupport::QtVersionManager::instance(), SIGNAL(dumpUpdatedFor(QString)),
-            this, SLOT(qtVersionsDumpUpdated(QString)));
+    connect(QtSupport::QtVersionManager::instance(), SIGNAL(dumpUpdatedFor(Utils::FileName)),
+            this, SLOT(qtVersionsDumpUpdated(Utils::FileName)));
 }
 
 QMakeStepConfigWidget::~QMakeStepConfigWidget()
@@ -565,6 +549,11 @@ QMakeStepConfigWidget::~QMakeStepConfigWidget()
 QString QMakeStepConfigWidget::summaryText() const
 {
     return m_summaryText;
+}
+
+QString QMakeStepConfigWidget::additionalSummaryText() const
+{
+    return m_additionalSummaryText;
 }
 
 QString QMakeStepConfigWidget::displayName() const
@@ -579,7 +568,7 @@ void QMakeStepConfigWidget::qtVersionChanged()
     updateQmlDebuggingOption();
 }
 
-void QMakeStepConfigWidget::qtVersionsDumpUpdated(const QString &qmakeCommand)
+void QMakeStepConfigWidget::qtVersionsDumpUpdated(const Utils::FileName &qmakeCommand)
 {
     QtSupport::BaseQtVersion *version = m_step->qt4BuildConfiguration()->qtVersion();
     if (version && version->qmakeCommand() == qmakeCommand)
@@ -658,6 +647,16 @@ void QMakeStepConfigWidget::linkQmlDebuggingLibraryChecked(bool checked)
     updateSummaryLabel();
     updateEffectiveQMakeCall();
     updateQmlDebuggingOption();
+
+
+    Core::ICore * const core = Core::ICore::instance();
+    QMessageBox *question = new QMessageBox(core->mainWindow());
+    question->setWindowTitle(tr("QML Debugging"));
+    question->setText(tr("The option will only take effect if the project is recompiled. Do you want to recompile now?"));
+    question->setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    question->setModal(true);
+    connect(question, SIGNAL(finished(int)), this, SLOT(recompileMessageBoxFinished(int)));
+    question->show();
 }
 
 void QMakeStepConfigWidget::buildQmlDebuggingHelper()
@@ -684,29 +683,30 @@ void QMakeStepConfigWidget::updateSummaryLabel()
     Qt4BuildConfiguration *qt4bc = m_step->qt4BuildConfiguration();
     QtSupport::BaseQtVersion *qtVersion = qt4bc->qtVersion();
     if (!qtVersion) {
-        m_summaryText = tr("<b>qmake:</b> No Qt version set. Cannot run qmake.");
-        emit updateSummary();
+        setSummaryText(tr("<b>qmake:</b> No Qt version set. Cannot run qmake."));
         return;
     }
-
     // We don't want the full path to the .pro file
     QString args = m_step->allArguments(true);
     // And we only use the .pro filename not the full path
-    QString program = QFileInfo(qtVersion->qmakeCommand()).fileName();
-    m_summaryText = tr("<b>qmake:</b> %1 %2").arg(program, args);
-    emit updateSummary();
+    QString program = qtVersion->qmakeCommand().toFileInfo().fileName();
+    setSummaryText(tr("<b>qmake:</b> %1 %2").arg(program, args));
 
+    ToolChain *tc = qt4bc->toolChain();
+    if (!tc)
+        return;
+
+    Utils::FileName tcSpec = tc->mkspec();
+    if (!tcSpec.isEmpty() && tcSpec != m_step->mkspec())
+        setAdditionalSummaryText(tr("<b>Warning:</b> The tool chain suggested \"%1\" as mkspec.").arg(tcSpec.toUserOutput()));
+    else
+        setAdditionalSummaryText(QString());
 }
 
 void QMakeStepConfigWidget::updateQmlDebuggingOption()
 {
     m_ui->qmlDebuggingLibraryCheckBox->setEnabled(m_step->isQmlDebuggingLibrarySupported());
-
-    QtSupport::BaseQtVersion *qtVersion = m_step->qt4BuildConfiguration()->qtVersion();
-    if (!qtVersion || !qtVersion->needsQmlDebuggingLibrary())
-        m_ui->debuggingLibraryLabel->setText(tr("Enable QML debugging:"));
-    else
-        m_ui->debuggingLibraryLabel->setText(tr("Link QML debugging library:"));
+    m_ui->debuggingLibraryLabel->setText(tr("Enable QML debugging:"));
 
     QString warningText;
 
@@ -725,8 +725,40 @@ void QMakeStepConfigWidget::updateEffectiveQMakeCall()
     QtSupport::BaseQtVersion *qtVersion = qt4bc->qtVersion();
     QString program = tr("<No Qt version>");
     if (qtVersion)
-        program = QFileInfo(qtVersion->qmakeCommand()).fileName();
+        program = qtVersion->qmakeCommand().toFileInfo().fileName();
     m_ui->qmakeArgumentsEdit->setPlainText(program + QLatin1Char(' ') + m_step->allArguments());
+}
+
+void QMakeStepConfigWidget::recompileMessageBoxFinished(int button)
+{
+    if (button == QMessageBox::Yes) {
+        Qt4BuildConfiguration *bc = m_step->qt4BuildConfiguration();
+        if (!bc)
+            return;
+
+        QList<ProjectExplorer::BuildStepList *> stepLists;
+        stepLists << bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN);
+        stepLists << bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+        ProjectExplorer::BuildManager *bm = ProjectExplorerPlugin::instance()->buildManager();
+        bm->buildLists(stepLists, QStringList() << ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN)
+                       << ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
+    }
+}
+
+void QMakeStepConfigWidget::setSummaryText(const QString &text)
+{
+    if (text == m_summaryText)
+        return;
+    m_summaryText = text;
+    emit updateSummary();
+}
+
+void QMakeStepConfigWidget::setAdditionalSummaryText(const QString &text)
+{
+    if (text == m_additionalSummaryText)
+        return;
+    m_additionalSummaryText = text;
+    emit updateAdditionalSummary();
 }
 
 ////

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,6 @@
 #include "qmldebuggerclient.h"
 
 #include <QtCore/QObject>
-#include <QtCore/QScopedPointer>
 #include <QtNetwork/QAbstractSocket>
 
 namespace QmlJsDebugClient {
@@ -57,6 +56,7 @@ class QmlAdapterPrivate;
 class DEBUGGER_EXPORT QmlAdapter : public QObject
 {
     Q_OBJECT
+
 public:
     explicit QmlAdapter(DebuggerEngine *engine, QObject *parent = 0);
     virtual ~QmlAdapter();
@@ -67,8 +67,19 @@ public:
     bool isConnected() const;
 
     QmlJsDebugClient::QDeclarativeDebugConnection *connection() const;
+    DebuggerEngine *debuggerEngine() const;
 
     bool disableJsDebugging(bool block);
+
+    Internal::QmlDebuggerClient *activeDebuggerClient();
+    QHash<QString, Internal::QmlDebuggerClient*> debuggerClients();
+
+    QmlJsDebugClient::QDeclarativeEngineDebug *engineDebugClient() const;
+    void setEngineDebugClient(QmlJsDebugClient::QDeclarativeEngineDebug *client);
+
+    int currentSelectedDebugId() const;
+    QString currentSelectedDisplayName() const;
+    void setCurrentSelectedDebugInfo(int debugId, const QString &displayName = QString());
 
 public slots:
     void logServiceStatusChange(const QString &service, QDeclarativeDebugClient::Status newStatus);    
@@ -80,23 +91,21 @@ signals:
     void connectionStartupFailed();
     void connectionError(QAbstractSocket::SocketError socketError);
     void serviceConnectionError(const QString serviceName);
+    void selectionChanged();
 
 private slots:
-    void sendMessage(const QByteArray &msg);
     void connectionErrorOccurred(QAbstractSocket::SocketError socketError);
     void clientStatusChanged(QDeclarativeDebugClient::Status status);
     void connectionStateChanged();
-    void pollInferior();
+    void checkConnectionState();
 
 private:
-    void connectToViewer();
-    void createDebuggerClient();
+    void createDebuggerClients();
     void showConnectionStatusMessage(const QString &message);
     void showConnectionErrorMessage(const QString &message);
-    void flushSendBuffer();
 
 private:
-    QScopedPointer<Internal::QmlAdapterPrivate> d;
+    Internal::QmlAdapterPrivate *d;
 };
 
 } // namespace Debugger

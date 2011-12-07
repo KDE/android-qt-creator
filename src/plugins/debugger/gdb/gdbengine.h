@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -238,11 +238,11 @@ private: ////////// General Interface //////////
     virtual void runEngine();
 
     virtual unsigned debuggerCapabilities() const;
-    virtual bool canWatchWidgets() const;
     virtual void detachDebugger();
     virtual void shutdownEngine();
     virtual void shutdownInferior();
     virtual void notifyInferiorSetupFailed();
+    virtual void abortDebugger();
 
     virtual bool acceptsDebuggerCommands() const;
     virtual void executeDebuggerCommand(const QString &command);
@@ -270,6 +270,7 @@ private: ////////// Gdb Process Management //////////
 
     void handleAdapterStarted();
     void defaultInferiorShutdown(const char *cmd);
+    void loadInitScript();
     void loadPythonDumpers();
     void pythonDumpersFailed();
 
@@ -504,6 +505,7 @@ private: ////////// View & Data Stuff //////////
     void handleTraceInsert2(const GdbResponse &response);
     void handleBreakCondition(const GdbResponse &response);
     void handleBreakThreadSpec(const GdbResponse &response);
+    void handleBreakLineNumber(const GdbResponse &response);
     void handleWatchInsert(const GdbResponse &response);
     void handleCatchInsert(const GdbResponse &response);
     void handleInfoLine(const GdbResponse &response);

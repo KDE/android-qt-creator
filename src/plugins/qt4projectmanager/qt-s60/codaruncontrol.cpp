@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,7 +51,6 @@
 
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
-#include <QtCore/QScopedPointer>
 #include <QtCore/QTimer>
 
 #include <QtGui/QMessageBox>
@@ -338,7 +337,7 @@ void CodaRunControl::handleDebugSessionEnded(const CodaCommandResult &result)
 
 void CodaRunControl::handleFindProcesses(const CodaCommandResult &result)
 {
-    if (result.values.size() && result.values.at(0).type() == JsonValue::Array && result.values.at(0).children().count()) {
+    if (result.values.size() && result.values.at(0).type() == Json::JsonValue::Array && result.values.at(0).children().count()) {
         //there are processes running. Cannot run mine
         appendMessage(tr("The process is already running on the device. Please first close it.\n"), Utils::ErrorMessageFormat);
         finishRunControl();
@@ -360,7 +359,7 @@ void CodaRunControl::handleCreateProcess(const CodaCommandResult &result)
     bool processCreated = false;
     if (ok) {
         if (result.values.size()) {
-            JsonValue id = result.values.at(0).findChild("ID");
+            Json::JsonValue id = result.values.at(0).findChild("ID");
             if (id.isValid()) {
                 m_state = StateProcessRunning;
                 m_runningProcessId = id.data();

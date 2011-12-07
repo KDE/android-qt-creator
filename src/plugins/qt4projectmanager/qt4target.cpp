@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,8 +37,10 @@
 #include "qmakestep.h"
 #include "qt4project.h"
 #include "qt4basetargetfactory.h"
+#include "qt4nodes.h"
 #include "qt4projectconfigwidget.h"
 #include "qt4projectmanagerconstants.h"
+#include "qt4buildconfiguration.h"
 
 #include <coreplugin/icore.h>
 #include <extensionsystem/pluginmanager.h>
@@ -46,12 +48,15 @@
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/task.h>
 #include <qtsupport/qtversionfactory.h>
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionmanager.h>
 #include <utils/pathchooser.h>
 #include <utils/detailswidget.h>
+#include <utils/qtcprocess.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtGui/QPushButton>
@@ -85,17 +90,18 @@ Qt4BaseTargetFactory::~Qt4BaseTargetFactory()
 
 Qt4TargetSetupWidget *Qt4BaseTargetFactory::createTargetSetupWidget(const QString &id,
                                                                     const QString &proFilePath,
-                                                                    const QtSupport::QtVersionNumber &number,
+                                                                    const QtSupport::QtVersionNumber &minimumQtVersion,
+                                                                    const QtSupport::QtVersionNumber &maximumQtVersion,
                                                                     bool importEnabled,
                                                                     QList<BuildConfigurationInfo> importInfos)
 {
-    QList<BuildConfigurationInfo> infos = this->availableBuildConfigurations(id, proFilePath, number);
+    QList<BuildConfigurationInfo> infos = this->availableBuildConfigurations(id, proFilePath, minimumQtVersion, maximumQtVersion);
     if (infos.isEmpty())
         return 0;
     const bool supportsShadowBuilds
             = targetFeatures(id).contains(Constants::SHADOWBUILD_TARGETFEATURE_ID);
     Qt4DefaultTargetSetupWidget *widget
-            = new Qt4DefaultTargetSetupWidget(this, id, proFilePath, infos, number,
+            = new Qt4DefaultTargetSetupWidget(this, id, proFilePath, infos, minimumQtVersion, maximumQtVersion,
                                               importEnabled && supportsShadowBuilds, importInfos,
                                               (supportsShadowBuilds
                                                ? Qt4DefaultTargetSetupWidget::ENABLE
@@ -113,16 +119,19 @@ ProjectExplorer::Target *Qt4BaseTargetFactory::create(ProjectExplorer::Project *
     return create(parent, id, w->buildConfigurationInfos());
 }
 
-QList<BuildConfigurationInfo> Qt4BaseTargetFactory::availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtSupport::QtVersionNumber &minimumQtVersion)
+QList<BuildConfigurationInfo> Qt4BaseTargetFactory::availableBuildConfigurations(const QString &id, const QString &proFilePath,
+                                                                                 const QtSupport::QtVersionNumber &minimumQtVersion,
+                                                                                 const QtSupport::QtVersionNumber &maximumQtVersion)
 {
     QList<BuildConfigurationInfo> infoList;
-    QList<QtSupport::BaseQtVersion *> knownVersions = QtSupport::QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion);
+    QList<QtSupport::BaseQtVersion *> knownVersions
+            = QtSupport::QtVersionManager::instance()->versionsForTargetId(id, minimumQtVersion, maximumQtVersion);
 
     foreach (QtSupport::BaseQtVersion *version, knownVersions) {
         if (!version->isValid() || !version->toolChainAvailable(id))
             continue;
         QtSupport::BaseQtVersion::QmakeBuildConfigs config = version->defaultBuildConfig();
-        BuildConfigurationInfo info = BuildConfigurationInfo(version, config, QString(), QString());
+        BuildConfigurationInfo info = BuildConfigurationInfo(version, config, QString(), QString(), false, false);
         info.directory = shadowBuildDirectory(proFilePath, id, msgBuildConfigurationName(info));
         infoList.append(info);
 
@@ -243,7 +252,7 @@ ProjectExplorer::BuildConfigWidget *Qt4BaseTarget::createConfigWidget()
     return new Qt4ProjectConfigWidget(this);
 }
 
-Qt4BuildConfiguration *Qt4BaseTarget::activeBuildConfiguration() const
+Qt4BuildConfiguration *Qt4BaseTarget::activeQt4BuildConfiguration() const
 {
     return static_cast<Qt4BuildConfiguration *>(Target::activeBuildConfiguration());
 }
@@ -259,8 +268,20 @@ QList<ProjectExplorer::ToolChain *> Qt4BaseTarget::possibleToolChains(ProjectExp
     QList<ProjectExplorer::ToolChain *> result;
 
     Qt4BuildConfiguration *qt4bc = qobject_cast<Qt4BuildConfiguration *>(bc);
-    if (!qt4bc || !qt4bc->qtVersion() || !qt4bc->qtVersion()->isValid())
+    if (!qt4bc || !qt4bc->qtVersion())
         return tmp;
+
+    QList<Qt4ProFileNode *> profiles = qt4Project()->allProFiles();
+    bool qtUsed = false;
+    foreach (Qt4ProFileNode *pro, profiles) {
+        if (!pro->variableValue(QtVar).isEmpty()) {
+            qtUsed = true;
+            break;
+        }
+    }
+
+    if (!qtUsed || !qt4bc->qtVersion()->isValid())
+        return ProjectExplorer::ToolChainManager::instance()->toolChains();
 
     QList<ProjectExplorer::Abi> abiList = qt4bc->qtVersion()->qtAbis();
     foreach (const ProjectExplorer::Abi &abi, abiList)
@@ -273,6 +294,35 @@ QList<ProjectExplorer::ToolChain *> Qt4BaseTarget::possibleToolChains(ProjectExp
             result.append(tc);
     }
     return result;
+}
+
+ProjectExplorer::ToolChain *Qt4BaseTarget::preferredToolChain(ProjectExplorer::BuildConfiguration *bc) const
+{
+    Qt4BuildConfiguration *qtBc = qobject_cast<Qt4BuildConfiguration *>(bc);
+    if (!qtBc || !qtBc->qtVersion())
+        return Target::preferredToolChain(bc);
+
+    QList<ProjectExplorer::ToolChain *> tcs = possibleToolChains(bc);
+    const Utils::FileName mkspec = qtBc->qtVersion()->mkspec();
+    foreach (ProjectExplorer::ToolChain *tc, tcs)
+        if (tc->mkspec() == mkspec)
+            return tc;
+    return tcs.isEmpty() ? 0 : tcs.at(0);
+}
+
+Utils::FileName Qt4BaseTarget::mkspec(const Qt4BuildConfiguration *bc) const
+{
+    QtSupport::BaseQtVersion *version = bc->qtVersion();
+    // We do not know which abi the Qt version has, so let's stick with the defaults
+    if (version && version->qtAbis().count() == 1 && version->qtAbis().first().isNull())
+        return Utils::FileName();
+
+    const Utils::FileName tcSpec = bc->toolChain() ? bc->toolChain()->mkspec() : Utils::FileName();
+    if (!version)
+        return tcSpec;
+    if (!tcSpec.isEmpty() && version->hasMkspec(tcSpec))
+        return tcSpec;
+    return version->mkspec();
 }
 
 void Qt4BaseTarget::removeUnconfiguredCustomExectutableRunConfigurations()
@@ -295,7 +345,8 @@ Qt4BuildConfiguration *Qt4BaseTarget::addQt4BuildConfiguration(QString defaultDi
                                                            QString displayName, QtSupport::BaseQtVersion *qtversion,
                                                            QtSupport::BaseQtVersion::QmakeBuildConfigs qmakeBuildConfiguration,
                                                            QString additionalArguments,
-                                                           QString directory)
+                                                           QString directory,
+                                                           bool importing)
 {
     Q_ASSERT(qtversion);
     bool debug = qmakeBuildConfiguration & QtSupport::BaseQtVersion::DebugBuild;
@@ -320,8 +371,13 @@ Qt4BuildConfiguration *Qt4BaseTarget::addQt4BuildConfiguration(QString defaultDi
     cleanStep->setClean(true);
     cleanStep->setUserArguments("clean");
     cleanSteps->insertStep(0, cleanStep);
+
+    bool enableQmlDebugger
+            = Qt4BuildConfiguration::removeQMLInspectorFromArguments(&additionalArguments);
     if (!additionalArguments.isEmpty())
         qmakeStep->setUserArguments(additionalArguments);
+    if (importing)
+        qmakeStep->setLinkQmlDebuggingLibrary(enableQmlDebugger);
 
     // set some options for qmake and make
     if (qmakeBuildConfiguration & QtSupport::BaseQtVersion::BuildAll) // debug_and_release => explicit targets
@@ -399,6 +455,7 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
                                                          const QString &proFilePath,
                                                          const QList<BuildConfigurationInfo> &infos,
                                                          const QtSupport::QtVersionNumber &minimumQtVersion,
+                                                         const QtSupport::QtVersionNumber &maximumQtVersion,
                                                          bool importEnabled,
                                                          const QList<BuildConfigurationInfo> &importInfos,
                                                          ShadowBuildOption shadowBuild)
@@ -407,6 +464,7 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
       m_factory(factory),
       m_proFilePath(proFilePath),
       m_minimumQtVersion(minimumQtVersion),
+      m_maximumQtVersion(maximumQtVersion),
       m_importInfos(importInfos),
       m_directoriesEnabled(true),
       m_hasInSourceBuild(false),
@@ -629,7 +687,7 @@ void Qt4DefaultTargetSetupWidget::setProFilePath(const QString &proFilePath)
 {
     m_proFilePath = proFilePath;
     m_detailsWidget->setAdditionalSummaryText(issuesListToString(m_factory->reportIssues(m_proFilePath)));
-    setBuildConfigurationInfos(m_factory->availableBuildConfigurations(m_id, proFilePath, m_minimumQtVersion), false);
+    setBuildConfigurationInfos(m_factory->availableBuildConfigurations(m_id, proFilePath, m_minimumQtVersion, m_maximumQtVersion), false);
 }
 
 void Qt4DefaultTargetSetupWidget::setBuildConfiguraionComboBoxVisible(bool b)
@@ -715,32 +773,46 @@ void Qt4DefaultTargetSetupWidget::addImportClicked()
         m_importLineButton->setAttribute(Qt::WA_MacNormalSize);
         return;
     }
-    BuildConfigurationInfo info = BuildConfigurationInfo::checkForBuild(m_importLinePath->path(), m_proFilePath);
-    if (!info.isValid()) {
+    QList<BuildConfigurationInfo> infos = BuildConfigurationInfo::checkForBuild(m_importLinePath->path(), m_proFilePath);
+    if (infos.isEmpty()) {
         QMessageBox::critical(this,
                               tr("No build found"),
                               tr("No build found in %1 matching project %2.").arg(m_importLinePath->path()).arg(m_proFilePath));
         return;
     }
 
-    if (!info.version->supportsTargetId(m_id)) {
-        QMessageBox::critical(this,
-                              tr("Incompatible build found"),
-                              tr("The build found in %1 is incompatible with this target").arg(m_importLinePath->path()));
-        return;
+    QList<BuildConfigurationInfo> filterdInfos;
+    bool filtered = false;
+    foreach (const BuildConfigurationInfo &info, infos) {
+        if (info.version->supportsTargetId(m_id))
+            filterdInfos << info;
+        else
+            filtered = true;
+    }
+
+    if (filtered) {
+        if (filterdInfos.isEmpty()) {
+            QMessageBox::critical(this,
+                                  tr("Incompatible build found"),
+                                  tr("The build found in %1 is incompatible with this target").arg(m_importLinePath->path()));
+            return;
+        }
+        // show something if we found incompatible builds?
     }
 
     // We switch from to "NONE" on importing if the user has not changed it
     if (m_buildConfigurationTemplateUnchanged)
         setBuildConfigurationTemplate(NONE);
 
-    ++m_selected;
-    m_importEnabled << true;
+    foreach (const BuildConfigurationInfo &info, filterdInfos) {
+        ++m_selected;
+        m_importEnabled << true;
 
-    m_importInfos << info;
+        m_importInfos << info;
 
-    createImportWidget(info, m_importEnabled.size() - 1);
-    emit newImportBuildConfiguration(info);
+        createImportWidget(info, m_importEnabled.size() - 1);
+        emit newImportBuildConfiguration(info);
+    }
     emit selectedToggled();
 }
 
@@ -1080,9 +1152,9 @@ QList<BuildConfigurationInfo> BuildConfigurationInfo::importBuildConfigurations(
 
     // Check for in source build first
     QString sourceDir = QFileInfo(proFilePath).absolutePath();
-    BuildConfigurationInfo info = checkForBuild(sourceDir, proFilePath);
-    if (info.isValid())
-        result.append(info);
+    QList<BuildConfigurationInfo> infos = checkForBuild(sourceDir, proFilePath);
+    if (!infos.isEmpty())
+        result.append(infos);
 
     // If we found a in source build, we do not search for out of source builds
     if (!result.isEmpty())
@@ -1097,9 +1169,9 @@ QList<BuildConfigurationInfo> BuildConfigurationInfo::importBuildConfigurations(
             QString baseDir = QFileInfo(expectedBuildprefix).absolutePath();
             foreach (const QString &dir, QDir(baseDir).entryList()) {
                 if (dir.startsWith(expectedBuildprefix)) {
-                    BuildConfigurationInfo info = checkForBuild(dir, proFilePath);
-                    if (info.isValid())
-                        result.append(info);
+                    QList<BuildConfigurationInfo> infos = checkForBuild(dir, proFilePath);
+                    if (infos.isEmpty())
+                        result.append(infos);
                 }
             }
         }
@@ -1107,46 +1179,50 @@ QList<BuildConfigurationInfo> BuildConfigurationInfo::importBuildConfigurations(
     return result;
 }
 
-BuildConfigurationInfo BuildConfigurationInfo::checkForBuild(const QString &directory, const QString &proFilePath)
+QList<BuildConfigurationInfo> BuildConfigurationInfo::checkForBuild(const QString &directory, const QString &proFilePath)
 {
-    QString makefile = directory + "/Makefile";
-    QString qmakeBinary = QtSupport::QtVersionManager::findQMakeBinaryFromMakefile(makefile);
-    if (qmakeBinary.isEmpty())
-        return BuildConfigurationInfo();
-    if (QtSupport::QtVersionManager::makefileIsFor(makefile, proFilePath) != QtSupport::QtVersionManager::SameProject)
-        return BuildConfigurationInfo();
+    QStringList makefiles = QDir(directory).entryList(QStringList() << "Makefile*");
+    QList<BuildConfigurationInfo> infos;
+    foreach (const QString &file, makefiles) {
+        QString makefile = directory + '/' + file;
+        Utils::FileName qmakeBinary = QtSupport::QtVersionManager::findQMakeBinaryFromMakefile(makefile);
+        if (qmakeBinary.isEmpty())
+            continue;
+        if (QtSupport::QtVersionManager::makefileIsFor(makefile, proFilePath) != QtSupport::QtVersionManager::SameProject)
+            continue;
 
-    bool temporaryQtVersion = false;
-    QtSupport::BaseQtVersion *version = QtSupport::QtVersionManager::instance()->qtVersionForQMakeBinary(qmakeBinary);
-    if (!version) {
-        version = QtSupport::QtVersionFactory::createQtVersionFromQMakePath(qmakeBinary);
-        temporaryQtVersion = true;
-        if (!version)
-            return BuildConfigurationInfo();
+        bool temporaryQtVersion = false;
+        QtSupport::BaseQtVersion *version = QtSupport::QtVersionManager::instance()->qtVersionForQMakeBinary(qmakeBinary);
+        if (!version) {
+            version = QtSupport::QtVersionFactory::createQtVersionFromQMakePath(qmakeBinary);
+            temporaryQtVersion = true;
+            if (!version)
+                continue;
+        }
+
+        QPair<QtSupport::BaseQtVersion::QmakeBuildConfigs, QString> makefileBuildConfig =
+                QtSupport::QtVersionManager::scanMakeFile(makefile, version->defaultBuildConfig());
+
+        QString additionalArguments = makefileBuildConfig.second;
+        Utils::FileName parsedSpec = Qt4BuildConfiguration::extractSpecFromArguments(&additionalArguments, directory, version);
+        Utils::FileName versionSpec = version->mkspec();
+
+        QString specArgument;
+        // Compare mkspecs and add to additional arguments
+        if (parsedSpec.isEmpty() || parsedSpec == versionSpec || parsedSpec == Utils::FileName::fromString("default")) {
+            // using the default spec, don't modify additional arguments
+        } else {
+            specArgument = "-spec " + Utils::QtcProcess::quoteArg(parsedSpec.toUserOutput());
+        }
+        Utils::QtcProcess::addArgs(&specArgument, additionalArguments);
+
+        BuildConfigurationInfo info = BuildConfigurationInfo(version,
+                                                             makefileBuildConfig.first,
+                                                             specArgument,
+                                                             directory,
+                                                             true,
+                                                             temporaryQtVersion);
+        infos.append(info);
     }
-
-    QPair<QtSupport::BaseQtVersion::QmakeBuildConfigs, QString> makefileBuildConfig =
-            QtSupport::QtVersionManager::scanMakeFile(makefile, version->defaultBuildConfig());
-
-    QString additionalArguments = makefileBuildConfig.second;
-    QString parsedSpec = Qt4BuildConfiguration::extractSpecFromArguments(&additionalArguments, directory, version);
-    QString versionSpec = version->mkspec();
-
-    QString specArgument;
-    // Compare mkspecs and add to additional arguments
-    if (parsedSpec.isEmpty() || parsedSpec == versionSpec || parsedSpec == "default") {
-        // using the default spec, don't modify additional arguments
-    } else {
-        specArgument = "-spec " + Utils::QtcProcess::quoteArg(parsedSpec);
-    }
-    Utils::QtcProcess::addArgs(&specArgument, additionalArguments);
-    Qt4BuildConfiguration::removeQMLInspectorFromArguments(&specArgument);
-
-    BuildConfigurationInfo info = BuildConfigurationInfo(version,
-                                                         makefileBuildConfig.first,
-                                                         specArgument,
-                                                         directory,
-                                                         true,
-                                                         temporaryQtVersion);
-    return info;
+    return infos;
 }

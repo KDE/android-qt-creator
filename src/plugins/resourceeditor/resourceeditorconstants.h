@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,11 +36,11 @@
 namespace ResourceEditor {
 namespace Constants {
 
-const char * const C_RESOURCEEDITOR = "Qt4.ResourceEditor";
-const char * const RESOURCEEDITOR_ID = "Qt4.ResourceEditor";
-const char * const C_RESOURCEEDITOR_DISPLAY_NAME = QT_TRANSLATE_NOOP("OpenWith::Editors", "Resource Editor");
+const char C_RESOURCEEDITOR[] = "Qt4.ResourceEditor";
+const char RESOURCEEDITOR_ID[] = "Qt4.ResourceEditor";
+const char C_RESOURCEEDITOR_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("OpenWith::Editors", "Resource Editor");
 
-const char * const C_RESOURCE_MIMETYPE = "application/vnd.nokia.xml.qt.resource";
+const char C_RESOURCE_MIMETYPE[] = "application/vnd.nokia.xml.qt.resource";
 
 } // namespace Constants
 } // namespace ResourceEditor

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,25 +63,24 @@ public:
     virtual ~Target();
 
     virtual BuildConfigWidget *createConfigWidget() = 0;
-
-    virtual Project *project() const;
+    Project *project() const;
 
     // Build configuration
     void addBuildConfiguration(BuildConfiguration *configuration);
-    void removeBuildConfiguration(BuildConfiguration *configuration);
+    bool removeBuildConfiguration(BuildConfiguration *configuration);
 
     QList<BuildConfiguration *> buildConfigurations() const;
-    virtual BuildConfiguration *activeBuildConfiguration() const;
+    BuildConfiguration *activeBuildConfiguration() const;
     void setActiveBuildConfiguration(BuildConfiguration *configuration);
 
     virtual IBuildConfigurationFactory *buildConfigurationFactory() const = 0;
 
     // DeployConfiguration
     void addDeployConfiguration(DeployConfiguration *dc);
-    void removeDeployConfiguration(DeployConfiguration *dc);
+    bool removeDeployConfiguration(DeployConfiguration *dc);
 
     QList<DeployConfiguration *> deployConfigurations() const;
-    virtual DeployConfiguration *activeDeployConfiguration() const;
+    DeployConfiguration *activeDeployConfiguration() const;
     void setActiveDeployConfiguration(DeployConfiguration *configuration);
 
     QStringList availableDeployConfigurationIds();
@@ -158,7 +157,7 @@ private slots:
     void changeBuildConfigurationEnabled();
 
 private:
-    QScopedPointer<TargetPrivate> d;
+    TargetPrivate *d;
 };
 
 class PROJECTEXPLORER_EXPORT ITargetFactory :
@@ -185,5 +184,7 @@ signals:
 };
 
 } // namespace ProjectExplorer
+
+Q_DECLARE_METATYPE(ProjectExplorer::Target *)
 
 #endif // TARGET_H

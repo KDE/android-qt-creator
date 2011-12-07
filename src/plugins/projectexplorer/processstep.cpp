@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 #include "project.h"
 #include "buildconfiguration.h"
 #include "projectexplorerconstants.h"
+#include "target.h"
 
 #include <coreplugin/ifile.h>
 #include <utils/qtcprocess.h>
@@ -47,12 +48,11 @@ using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 
 namespace {
-const char * const PROCESS_STEP_ID("ProjectExplorer.ProcessStep");
-
-const char * const PROCESS_COMMAND_KEY("ProjectExplorer.ProcessStep.Command");
-const char * const PROCESS_WORKINGDIRECTORY_KEY("ProjectExplorer.ProcessStep.WorkingDirectory");
-const char * const PROCESS_ARGUMENTS_KEY("ProjectExplorer.ProcessStep.Arguments");
-const char * const PROCESS_ENABLED_KEY("ProjectExplorer.ProcessStep.Enabled");
+const char PROCESS_STEP_ID[] = "ProjectExplorer.ProcessStep";
+const char PROCESS_COMMAND_KEY[] = "ProjectExplorer.ProcessStep.Command";
+const char PROCESS_WORKINGDIRECTORY_KEY[] = "ProjectExplorer.ProcessStep.WorkingDirectory";
+const char PROCESS_ARGUMENTS_KEY[] = "ProjectExplorer.ProcessStep.Arguments";
+const char PROCESS_ENABLED_KEY[] = "ProjectExplorer.ProcessStep.Enabled";
 }
 
 ProcessStep::ProcessStep(BuildStepList *bsl) :
@@ -72,7 +72,6 @@ ProcessStep::ProcessStep(BuildStepList *bsl, ProcessStep *bs) :
     m_command(bs->m_command),
     m_arguments(bs->m_arguments),
     m_workingDirectory(bs->m_workingDirectory),
-    m_env(bs->m_env),
     m_enabled(bs->m_enabled)
 {
     ctor();
@@ -93,6 +92,8 @@ ProcessStep::~ProcessStep()
 bool ProcessStep::init()
 {
     BuildConfiguration *bc = buildConfiguration();
+    if (!bc)
+        bc = target()->activeBuildConfiguration();
     ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
     pp->setEnvironment(bc->environment());
@@ -260,10 +261,13 @@ ProcessStepConfigWidget::ProcessStepConfigWidget(ProcessStep *step)
     m_ui.command->setExpectedKind(Utils::PathChooser::Command);
     m_ui.workingDirectory->setExpectedKind(Utils::PathChooser::Directory);
 
-    m_ui.command->setEnvironment(m_step->buildConfiguration()->environment());
+    BuildConfiguration *bc = m_step->buildConfiguration();
+    if (!bc)
+        bc = m_step->target()->activeBuildConfiguration();
+    m_ui.command->setEnvironment(bc->environment());
     m_ui.command->setPath(m_step->command());
 
-    m_ui.workingDirectory->setEnvironment(m_step->buildConfiguration()->environment());
+    m_ui.workingDirectory->setEnvironment(bc->environment());
     m_ui.workingDirectory->setPath(m_step->workingDirectory());
 
     m_ui.commandArgumentsLineEdit->setText(m_step->arguments());
@@ -288,8 +292,12 @@ void ProcessStepConfigWidget::updateDetails()
     if (displayName.isEmpty())
         displayName = tr("Custom Process Step");
     ProcessParameters param;
-    param.setMacroExpander(m_step->buildConfiguration()->macroExpander());
-    param.setEnvironment(m_step->buildConfiguration()->environment());
+    BuildConfiguration *bc = m_step->buildConfiguration();
+    if (!bc) // iff the step is actually in the deploy list
+        bc = m_step->target()->activeBuildConfiguration();
+    param.setMacroExpander(bc->macroExpander());
+    param.setEnvironment(bc->environment());
+
     param.setWorkingDirectory(m_step->workingDirectory());
     param.setCommand(m_step->command());
     param.setArguments(m_step->arguments());

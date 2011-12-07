@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,24 +26,19 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "savefile.h"
-
 #include "qtcassert.h"
-
-#include <QtCore/QFileInfo>
-#include <QtCore/QTemporaryFile>
+#include "fileutils.h"
 
 namespace Utils {
 
-SaveFile::SaveFile(const QString &filename)
+SaveFile::SaveFile(const QString &filename) :
+    m_finalFileName(filename), m_finalized(true), m_backup(false)
 {
-    m_finalFileName = filename;
-    m_finalized = false;
-    m_backup = false;
 }
 
 SaveFile::~SaveFile()
@@ -67,6 +62,7 @@ bool SaveFile::open(OpenMode flags)
     if (!QTemporaryFile::open(flags))
         return false;
 
+    m_finalized = false; // needs clean up in the end
     if (ofi.exists())
         setPermissions(ofi.permissions()); // Ignore errors
 
@@ -90,11 +86,12 @@ bool SaveFile::commit()
         return false;
     }
 
-    QString bakname = m_finalFileName + QLatin1Char('~');
+    QString finalFileName = Utils::FileUtils::resolveSymlinks(m_finalFileName);
+    QString bakname = finalFileName + QLatin1Char('~');
     QFile::remove(bakname); // Kill old backup
-    QFile::rename(m_finalFileName, bakname); // Backup current file
-    if (!rename(m_finalFileName)) { // Replace current file
-        QFile::rename(bakname, m_finalFileName); // Rollback to current file
+    QFile::rename(finalFileName, bakname); // Backup current file
+    if (!rename(finalFileName)) { // Replace current file
+        QFile::rename(bakname, finalFileName); // Rollback to current file
         return false;
     }
     if (!m_backup)

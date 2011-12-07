@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -141,6 +141,12 @@ SftpOutgoingPacket &SftpOutgoingPacket::generateWriteFile(const QByteArray &hand
 {
     return init(SSH_FXP_WRITE, requestId).appendString(handle)
         .appendInt64(offset).appendString(data).finalize();
+}
+
+SftpOutgoingPacket &SftpOutgoingPacket::generateCreateLink(const QString &filePath,
+    const QString &target, quint32 requestId)
+{
+    return init(SSH_FXP_SYMLINK, requestId).appendString(filePath).appendString(target).finalize();
 }
 
 SftpOutgoingPacket &SftpOutgoingPacket::generateOpenFile(const QString &path,

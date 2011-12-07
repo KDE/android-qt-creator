@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -99,25 +99,63 @@ protected:
                         const Identifier *id = member->identifier();
                         unsigned line, column;
                         getTokenStartPosition(member->sourceLocation(), &line, &column);
-                        localUses[member].append(SemanticInfo::Use(line, column, id->size(), SemanticInfo::Use::Local));
+                        localUses[member].append(SemanticInfo::Use(line, column, id->size(), SemanticInfo::LocalUse));
                     }
                 }
             }
         }
     }
 
-    virtual bool visit(IdExpressionAST *ast)
+    bool checkLocalUse(NameAST *nameAst, unsigned firstToken)
     {
-        if (SimpleNameAST *simpleName = ast->name->asSimpleName()) {
+        if (SimpleNameAST *simpleName = nameAst->asSimpleName()) {
             const Identifier *id = identifier(simpleName->identifier_token);
             for (int i = _scopeStack.size() - 1; i != -1; --i) {
                 if (Symbol *member = _scopeStack.at(i)->find(id)) {
-                    if (member->isTypedef())
+                    if (member->isTypedef() ||
+                            !(member->isDeclaration() || member->isArgument()))
                         continue;
-                    else if (!member->isGenerated() && (member->sourceLocation() < ast->firstToken() || member->enclosingScope()->isFunction())) {
+                    else if (!member->isGenerated() && (member->sourceLocation() < firstToken || member->enclosingScope()->isFunction())) {
                         unsigned line, column;
                         getTokenStartPosition(simpleName->identifier_token, &line, &column);
-                        localUses[member].append(SemanticInfo::Use(line, column, id->size(), SemanticInfo::Use::Local));
+                        localUses[member].append(SemanticInfo::Use(line, column, id->size(), SemanticInfo::LocalUse));
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    virtual bool visit(IdExpressionAST *ast)
+    {
+        return checkLocalUse(ast->name, ast->firstToken());
+    }
+
+    virtual bool visit(SizeofExpressionAST *ast)
+    {
+        if (ast->expression && ast->expression->asTypeId()) {
+            TypeIdAST *typeId = ast->expression->asTypeId();
+            if (!typeId->declarator && typeId->type_specifier_list && !typeId->type_specifier_list->next) {
+                if (NamedTypeSpecifierAST *namedTypeSpec = typeId->type_specifier_list->value->asNamedTypeSpecifier()) {
+                    if (checkLocalUse(namedTypeSpec->name, namedTypeSpec->firstToken()))
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    virtual bool visit(CastExpressionAST *ast)
+    {
+        if (ast->expression && ast->expression->asUnaryExpression()) {
+            TypeIdAST *typeId = ast->type_id->asTypeId();
+            if (typeId && !typeId->declarator && typeId->type_specifier_list && !typeId->type_specifier_list->next) {
+                if (NamedTypeSpecifierAST *namedTypeSpec = typeId->type_specifier_list->value->asNamedTypeSpecifier()) {
+                    if (checkLocalUse(namedTypeSpec->name, namedTypeSpec->firstToken())) {
+                        accept(ast->expression);
                         return false;
                     }
                 }

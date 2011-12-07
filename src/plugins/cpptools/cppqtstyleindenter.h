@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,15 +34,17 @@
 #define CPPQTSTYLEINDENTER_H
 
 #include "cpptools_global.h"
+
 #include <texteditor/indenter.h>
-#include "cppcodestylesettingspage.h"
 
 namespace TextEditor
 {
-class IFallbackPreferences;
+class ICodeStylePreferences;
 }
 
 namespace CppTools {
+class CppCodeStyleSettings;
+class CppCodeStylePreferences;
 
 class CPPTOOLS_EXPORT CppQtStyleIndenter : public TextEditor::Indenter
 {
@@ -54,14 +56,15 @@ public:
     virtual void indentBlock(QTextDocument *doc,
                              const QTextBlock &block,
                              const QChar &typedChar,
-                             TextEditor::BaseTextEditorWidget *editor);
+                             const TextEditor::TabSettings &tabSettings);
 
     virtual void indent(QTextDocument *doc,
                         const QTextCursor &cursor,
                         const QChar &typedChar,
-                        TextEditor::BaseTextEditorWidget *editor);
+                        const TextEditor::TabSettings &tabSettings);
 
-    virtual void setCodeStylePreferences(TextEditor::IFallbackPreferences *preferences);
+    virtual void setCodeStylePreferences(TextEditor::ICodeStylePreferences *preferences);
+    virtual void invalidateCache(QTextDocument *doc);
 private:
     CppCodeStyleSettings codeStyleSettings() const;
     CppCodeStylePreferences *m_cppCodeStylePreferences;

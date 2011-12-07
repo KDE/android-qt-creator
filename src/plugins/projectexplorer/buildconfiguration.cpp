@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "buildconfiguration.h"
 
+#include "toolchain.h"
 #include "buildmanager.h"
 #include "buildsteplist.h"
 #include "projectexplorer.h"
@@ -42,25 +43,47 @@
 
 #include <coreplugin/variablemanager.h>
 
+#include <utils/stringutils.h>
+
 #include <QtCore/QProcess>
 
-using namespace ProjectExplorer;
+static const char BUILD_STEP_LIST_COUNT[] = "ProjectExplorer.BuildConfiguration.BuildStepListCount";
+static const char BUILD_STEP_LIST_PREFIX[] = "ProjectExplorer.BuildConfiguration.BuildStepList.";
+static const char CLEAR_SYSTEM_ENVIRONMENT_KEY[] = "ProjectExplorer.BuildConfiguration.ClearSystemEnvironment";
+static const char USER_ENVIRONMENT_CHANGES_KEY[] = "ProjectExplorer.BuildConfiguration.UserEnvironmentChanges";
+static const char TOOLCHAIN_KEY[] = "ProjectExplorer.BuildCOnfiguration.ToolChain";
 
-namespace {
+namespace ProjectExplorer {
+namespace Internal {
 
-const char * const BUILD_STEP_LIST_COUNT("ProjectExplorer.BuildConfiguration.BuildStepListCount");
-const char * const BUILD_STEP_LIST_PREFIX("ProjectExplorer.BuildConfiguration.BuildStepList.");
-const char * const CLEAR_SYSTEM_ENVIRONMENT_KEY("ProjectExplorer.BuildConfiguration.ClearSystemEnvironment");
-const char * const USER_ENVIRONMENT_CHANGES_KEY("ProjectExplorer.BuildConfiguration.UserEnvironmentChanges");
-const char * const TOOLCHAIN_KEY("ProjectExplorer.BuildCOnfiguration.ToolChain");
+class BuildConfigMacroExpander : public Utils::AbstractQtcMacroExpander {
+public:
+    explicit BuildConfigMacroExpander(const BuildConfiguration *bc) : m_bc(bc) {}
+    virtual bool resolveMacro(const QString &name, QString *ret);
+private:
+    const BuildConfiguration *m_bc;
+};
 
-} // namespace
+bool BuildConfigMacroExpander::resolveMacro(const QString &name, QString *ret)
+{
+    if (name == QLatin1String("sourceDir")) {
+        *ret = QDir::toNativeSeparators(m_bc->target()->project()->projectDirectory());
+        return true;
+    }
+    if (name == QLatin1String("buildDir")) {
+        *ret = QDir::toNativeSeparators(m_bc->buildDirectory());
+        return true;
+    }
+    *ret = Core::VariableManager::instance()->value(name);
+    return !ret->isEmpty();
+}
+} // namespace Internal
 
 BuildConfiguration::BuildConfiguration(Target *target, const QString &id) :
     ProjectConfiguration(target, id),
     m_clearSystemEnvironment(false),
-    m_macroExpander(this),
-    m_toolChain(0)
+    m_toolChain(0),
+    m_macroExpander(0)
 {
     Q_ASSERT(target);
     BuildStepList *bsl = new BuildStepList(this, QLatin1String(Constants::BUILDSTEPS_BUILD));
@@ -84,8 +107,8 @@ BuildConfiguration::BuildConfiguration(Target *target, BuildConfiguration *sourc
     ProjectConfiguration(target, source),
     m_clearSystemEnvironment(source->m_clearSystemEnvironment),
     m_userEnvironmentChanges(source->m_userEnvironmentChanges),
-    m_macroExpander(this),
-    m_toolChain(source->m_toolChain)
+    m_toolChain(source->m_toolChain),
+    m_macroExpander(0)
 {
     Q_ASSERT(target);
     // Do not clone stepLists here, do that in the derived constructor instead
@@ -101,7 +124,16 @@ BuildConfiguration::BuildConfiguration(Target *target, BuildConfiguration *sourc
 }
 
 BuildConfiguration::~BuildConfiguration()
-{ }
+{
+    delete m_macroExpander;
+}
+
+Utils::AbstractMacroExpander *BuildConfiguration::macroExpander()
+{
+    if (!m_macroExpander)
+        m_macroExpander = new Internal::BuildConfigMacroExpander(this);
+    return m_macroExpander;
+}
 
 QStringList BuildConfiguration::knownStepLists() const
 {
@@ -155,6 +187,10 @@ bool BuildConfiguration::fromMap(const QVariantMap &map)
             delete list;
             return false;
         }
+        if (list->id() == QLatin1String(Constants::BUILDSTEPS_BUILD))
+            list->setDefaultDisplayName(tr("Build"));
+        else if (list->id() == QLatin1String(Constants::BUILDSTEPS_CLEAN))
+            list->setDefaultDisplayName(tr("Clean"));
         m_stepLists.append(list);
     }
 
@@ -284,20 +320,6 @@ QString BuildConfiguration::disabledReason() const
     return QString();
 }
 
-bool BuildConfigMacroExpander::resolveMacro(const QString &name, QString *ret)
-{
-    if (name == QLatin1String("sourceDir")) {
-        *ret = QDir::toNativeSeparators(m_bc->target()->project()->projectDirectory());
-        return true;
-    }
-    if (name == QLatin1String("buildDir")) {
-        *ret = QDir::toNativeSeparators(m_bc->buildDirectory());
-        return true;
-    }
-    *ret = Core::VariableManager::instance()->value(name);
-    return !ret->isEmpty();
-}
-
 ///
 // IBuildConfigurationFactory
 ///
@@ -308,3 +330,5 @@ IBuildConfigurationFactory::IBuildConfigurationFactory(QObject *parent) :
 
 IBuildConfigurationFactory::~IBuildConfigurationFactory()
 { }
+
+} // namespace ProjectExplorer

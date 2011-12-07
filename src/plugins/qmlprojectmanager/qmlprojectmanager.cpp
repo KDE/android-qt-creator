@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,6 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/ifile.h>
-#include <coreplugin/messagemanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/session.h>
@@ -53,17 +52,15 @@ Manager::Manager()
 QString Manager::mimeType() const
 { return QLatin1String(Constants::QMLMIMETYPE); }
 
-ProjectExplorer::Project *Manager::openProject(const QString &fileName)
+ProjectExplorer::Project *Manager::openProject(const QString &fileName, QString *errorString)
 {
-    Core::MessageManager *messageManager = Core::ICore::instance()->messageManager();
-
     QFileInfo fileInfo(fileName);
     ProjectExplorer::ProjectExplorerPlugin *projectExplorer = ProjectExplorer::ProjectExplorerPlugin::instance();
 
     foreach (ProjectExplorer::Project *pi, projectExplorer->session()->projects()) {
         if (fileName == pi->file()->fileName()) {
-            messageManager->printToOutputPanePopup(tr("Failed opening project '%1': Project already open")
-                                                   .arg(QDir::toNativeSeparators(fileName)));
+            if (errorString)
+                *errorString = tr("Failed opening project '%1': Project already open") .arg(QDir::toNativeSeparators(fileName));
             return 0;
         }
     }
@@ -71,6 +68,7 @@ ProjectExplorer::Project *Manager::openProject(const QString &fileName)
     if (fileInfo.isFile())
         return new QmlProject(this, fileName);
 
+    *errorString = tr("Failed opening project '%1': Project file is not a file").arg(QDir::toNativeSeparators(fileName));
     return 0;
 }
 

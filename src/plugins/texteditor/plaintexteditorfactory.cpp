@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -65,9 +65,9 @@ PlainTextEditorFactory::~PlainTextEditorFactory()
     delete m_actionHandler;
 }
 
-QString PlainTextEditorFactory::id() const
+Core::Id PlainTextEditorFactory::id() const
 {
-    return QLatin1String(Core::Constants::K_DEFAULT_TEXT_EDITOR_ID);
+    return Core::Constants::K_DEFAULT_TEXT_EDITOR_ID;
 }
 
 QString PlainTextEditorFactory::displayName() const
@@ -107,7 +107,7 @@ void PlainTextEditorFactory::updateEditorInfoBar(Core::IEditor *editor)
             Core::InfoBarEntry info(Constants::INFO_SYNTAX_DEFINITION,
                                     tr("A highlight definition was not found for this file. "
                                        "Would you like to try to find one?"));
-            info.setCustomButtonInfo(tr("Show highlighter options"),
+            info.setCustomButtonInfo(tr("Show highlighter options..."),
                                      textEditor, SLOT(acceptMissingSyntaxDefinitionInfo()));
             info.setCancelButtonInfo(textEditor, SLOT(ignoreMissingSyntaxDefinitionInfo()));
             file->infoBar()->addInfo(info);

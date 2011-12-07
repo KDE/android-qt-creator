@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,7 @@
 #include <toolbox.h>
 
 #include <coreplugin/coreconstants.h>
+#include <coreplugin/designmode.h>
 #include <coreplugin/modemanager.h>
 #include <coreplugin/outputpane.h>
 #include <coreplugin/icore.h>
@@ -59,6 +60,7 @@
 #include <utils/parameteraction.h>
 #include <utils/fileutils.h>
 #include <utils/qtcassert.h>
+#include <utils/crumblepath.h>
 
 #include <QtCore/QSettings>
 #include <QtCore/QEvent>
@@ -84,15 +86,17 @@ enum {
     debug = false
 };
 
-const char * const SB_NAVIGATOR = "Navigator";
-const char * const SB_LIBRARY = "Library";
-const char * const SB_PROPERTIES = "Properties";
-const char * const SB_PROJECTS = "Projects";
-const char * const SB_FILESYSTEM = "FileSystem";
-const char * const SB_OPENDOCUMENTS = "OpenDocuments";
+const char SB_NAVIGATOR[] = "Navigator";
+const char SB_LIBRARY[] = "Library";
+const char SB_PROPERTIES[] = "Properties";
+const char SB_PROJECTS[] = "Projects";
+const char SB_FILESYSTEM[] = "FileSystem";
+const char SB_OPENDOCUMENTS[] = "OpenDocuments";
 
 namespace QmlDesigner {
 namespace Internal {
+
+DesignModeWidget *DesignModeWidget::s_instance = 0;
 
 DocumentWarningWidget::DocumentWarningWidget(DesignModeWidget *parent) :
         Utils::FakeToolTip(parent),
@@ -195,6 +199,7 @@ DesignModeWidget::DesignModeWidget(QWidget *parent) :
     m_navigatorHistoryCounter(-1),
     m_keepNavigatorHistory(false)
 {
+    s_instance = this;
     m_undoAction = new QAction(tr("&Undo"), this);
     connect(m_undoAction, SIGNAL(triggered()), this, SLOT(undo()));
     m_redoAction = new QAction(tr("&Redo"), this);
@@ -220,14 +225,13 @@ DesignModeWidget::DesignModeWidget(QWidget *parent) :
     m_toggleRightSidebarAction = new QAction(tr("Toggle &Right Sidebar"), this);
     connect(m_toggleRightSidebarAction, SIGNAL(triggered()), SLOT(toggleRightSidebar()));
 
-    Core::ModeManager *modeManager = Core::ModeManager::instance();
-    Core::IMode *designmode = modeManager->mode(Core::Constants::MODE_DESIGN);
     m_outputPlaceholderSplitter = new Core::MiniSplitter;
-    m_outputPanePlaceholder = new StyledOutputpanePlaceHolder(designmode, m_outputPlaceholderSplitter);
+    m_outputPanePlaceholder = new StyledOutputpanePlaceHolder(Core::DesignMode::instance(), m_outputPlaceholderSplitter);
 }
 
 DesignModeWidget::~DesignModeWidget()
 {
+    s_instance = 0;
 }
 
 void DesignModeWidget::restoreDefaultView()
@@ -329,7 +333,7 @@ void DesignModeWidget::showEditor(Core::IEditor *editor)
 
             newDocument->setFileName(fileName);
 
-            document = newDocument;          
+            document = newDocument;
 
             m_documentHash.insert(textEdit, document);
         }
@@ -664,19 +668,18 @@ void DesignModeWidget::setup()
     QWidget *fileSystemExplorer = 0;
 
 
-    foreach(Core::INavigationWidgetFactory *factory, factories)
-    {
+    foreach (Core::INavigationWidgetFactory *factory, factories) {
         Core::NavigationView navigationView;
         navigationView.widget = 0;
-        if (factory->id() == QLatin1String("Projects")) {
+        if (factory->id() == Core::Id("Projects")) {
             navigationView = factory->createWidget();
             projectsExplorer = navigationView.widget;
             projectsExplorer->setWindowTitle(tr("Projects"));
-        } else if (factory->id() == QLatin1String("File System")) {
+        } else if (factory->id() == Core::Id("File System")) {
             navigationView = factory->createWidget();
             fileSystemExplorer = navigationView.widget;
             fileSystemExplorer->setWindowTitle(tr("File System"));
-        } else if (factory->id() == QLatin1String("Open Documents")) {
+        } else if (factory->id() == Core::Id("Open Documents")) {
             navigationView = factory->createWidget();
             openDocumentsWidget = navigationView.widget;
             openDocumentsWidget->setWindowTitle(tr("Open Documents"));
@@ -698,8 +701,9 @@ void DesignModeWidget::setup()
     m_itemLibraryView = new ItemLibraryView(this);
 
     m_statesEditorView = new StatesEditorView(this);
-    
+
     m_formEditorView = new FormEditorView(this);
+    connect(m_formEditorView->crumblePath(), SIGNAL(elementClicked(QVariant)), this, SLOT(onCrumblePathElementClicked(QVariant)));
 
     m_componentView = new ComponentView(this);
     m_formEditorView->widget()->toolBox()->addLeftSideAction(m_componentView->action());
@@ -856,6 +860,17 @@ void DesignModeWidget::onGoForwardClicked()
         m_keepNavigatorHistory = false;
     }
 }
+
+void DesignModeWidget::onCrumblePathElementClicked(const QVariant &data)
+{
+    currentDesignDocumentController()->setCrumbleBarInfo(data.value<CrumbleBarInfo>());
+}
+
+DesignModeWidget *DesignModeWidget::instance()
+{
+    return s_instance;
+}
+
 
 void DesignModeWidget::resizeEvent(QResizeEvent *event)
 {

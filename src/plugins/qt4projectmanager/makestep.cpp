@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 
 #include "qt4project.h"
 #include "qt4target.h"
+#include "qt4nodes.h"
 #include "qt4buildconfiguration.h"
 #include "qt4projectmanagerconstants.h"
 
@@ -141,9 +142,6 @@ bool MakeStep::init()
     ProjectExplorer::ProcessParameters *pp = processParameters();
     pp->setMacroExpander(bc->macroExpander());
 
-    Utils::Environment environment = bc->environment();
-    pp->setEnvironment(environment);
-
     QString workingDirectory;
     if (bc->subNodeBuild())
         workingDirectory = bc->subNodeBuild()->buildDir();
@@ -167,7 +165,7 @@ bool MakeStep::init()
 
     if (bc->subNodeBuild()) {
         QString makefile = bc->subNodeBuild()->makefile();
-        if(!makefile.isEmpty()) {
+        if (!makefile.isEmpty()) {
             Utils::QtcProcess::addArg(&args, QLatin1String("-f"));
             Utils::QtcProcess::addArg(&args, makefile);
             m_makeFileToCheck = QDir(workingDirectory).filePath(makefile);
@@ -190,15 +188,28 @@ bool MakeStep::init()
         if (!bc->defaultMakeTarget().isEmpty())
             Utils::QtcProcess::addArg(&args, bc->defaultMakeTarget());
     }
+
+    Utils::Environment env = bc->environment();
+    // Force output to english for the parsers. Do this here and not in the toolchain's
+    // addToEnvironment() to not screw up the users run environment.
+    env.set(QLatin1String("LC_ALL"), QLatin1String("C"));
     // -w option enables "Enter"/"Leaving directory" messages, which we need for detecting the
     // absolute file path
     // FIXME doing this without the user having a way to override this is rather bad
     // so we only do it for unix and if the user didn't override the make command
     // but for now this is the least invasive change
-    if (toolchain
-            && toolchain->targetAbi().binaryFormat() != ProjectExplorer::Abi::PEFormat
-            && m_makeCmd.isEmpty())
-        Utils::QtcProcess::addArg(&args, QLatin1String("-w"));
+    // We also prepend "L" to the MAKEFLAGS, so that nmake / jom are less verbose
+    ProjectExplorer::ToolChain *toolChain = bc->toolChain();
+    if (toolChain && m_makeCmd.isEmpty()) {
+        if (toolChain->targetAbi().binaryFormat() != ProjectExplorer::Abi::PEFormat )
+            Utils::QtcProcess::addArg(&args, QLatin1String("-w"));
+        if (toolChain->targetAbi().os() == ProjectExplorer::Abi::WindowsOS
+                && toolChain->targetAbi().osFlavor() != ProjectExplorer::Abi::WindowsMSysFlavor) {
+            env.set("MAKEFLAGS", env.value("MAKEFLAGS").prepend("L"));
+        }
+    }
+
+    pp->setEnvironment(env);
 
     setEnabled(true);
     pp->setArguments(args);
@@ -222,15 +233,15 @@ bool MakeStep::init()
 
 void MakeStep::run(QFutureInterface<bool> & fi)
 {
-    if (qt4BuildConfiguration()->qt4Target()->qt4Project()->rootProjectNode()->projectType() == ScriptTemplate) {
+    if (qt4BuildConfiguration()->qt4Target()->qt4Project()->rootQt4ProjectNode()->projectType() == ScriptTemplate) {
         fi.reportResult(true);
         return;
     }
 
     if (!QFileInfo(m_makeFileToCheck).exists()) {
-        if (!m_clean)
+        if (!ignoreReturnValue())
             emit addOutput(tr("Cannot find Makefile. Check your build settings."), BuildStep::MessageOutput);
-        fi.reportResult(m_clean);
+        fi.reportResult(ignoreReturnValue());
         return;
     }
 
@@ -242,7 +253,7 @@ void MakeStep::run(QFutureInterface<bool> & fi)
             canContinue = false;
     }
     if (!canContinue) {
-        emit addOutput(tr("Configuration is faulty. Check the Build Issues view for details."), BuildStep::MessageOutput);
+        emit addOutput(tr("Configuration is faulty. Check the Issues view for details."), BuildStep::MessageOutput);
         fi.reportResult(false);
         return;
     }
@@ -281,7 +292,7 @@ void MakeStep::setUserArguments(const QString &arguments)
 }
 
 MakeStepConfigWidget::MakeStepConfigWidget(MakeStep *makeStep)
-    : BuildStepConfigWidget(), m_ui(new Ui::MakeStep), m_makeStep(makeStep), m_ignoreChange(false)
+    : BuildStepConfigWidget(), m_ui(new Internal::Ui::MakeStep), m_makeStep(makeStep), m_ignoreChange(false)
 {
     m_ui->setupUi(this);
 
@@ -341,34 +352,42 @@ void MakeStepConfigWidget::updateDetails()
     ProjectExplorer::ProcessParameters param;
     param.setMacroExpander(bc->macroExpander());
     param.setWorkingDirectory(bc->buildDirectory());
-    param.setEnvironment(bc->environment());
     QString makeCmd = bc->makeCommand();
     if (!m_makeStep->m_makeCmd.isEmpty())
         makeCmd = m_makeStep->m_makeCmd;
     param.setCommand(makeCmd);
-    if (param.commandMissing()) {
-        m_summaryText = tr("<b>Make:</b> %1 not found in the environment.").arg(makeCmd);
-        emit updateSummary();
-        return;
-    }
 
     QString args = m_makeStep->userArguments();
     if (!m_makeStep->isClean()) {
         if (!bc->defaultMakeTarget().isEmpty())
             Utils::QtcProcess::addArg(&args, bc->defaultMakeTarget());
     }
+
+    Utils::Environment env = bc->environment();
+    // Force output to english for the parsers. Do this here and not in the toolchain's
+    // addToEnvironment() to not screw up the users run environment.
+    env.set(QLatin1String("LC_ALL"), QLatin1String("C"));
     // -w option enables "Enter"/"Leaving directory" messages, which we need for detecting the
     // absolute file path
     // FIXME doing this without the user having a way to override this is rather bad
     // so we only do it for unix and if the user didn't override the make command
     // but for now this is the least invasive change
+    // We also prepend "L" to the MAKEFLAGS, so that nmake / jom are less verbose
     ProjectExplorer::ToolChain *toolChain = bc->toolChain();
-    if (toolChain
-        && toolChain->targetAbi().binaryFormat() != ProjectExplorer::Abi::PEFormat
-        && m_makeStep->m_makeCmd.isEmpty())
-        Utils::QtcProcess::addArg(&args, QLatin1String("-w"));
+    if (toolChain && m_makeStep->m_makeCmd.isEmpty()) {
+        if (toolChain->targetAbi().binaryFormat() != ProjectExplorer::Abi::PEFormat )
+            Utils::QtcProcess::addArg(&args, QLatin1String("-w"));
+        if (toolChain->targetAbi().os() == ProjectExplorer::Abi::WindowsOS
+                && toolChain->targetAbi().osFlavor() != ProjectExplorer::Abi::WindowsMSysFlavor) {
+            env.set("MAKEFLAGS", env.value("MAKEFLAGS").prepend("L"));
+        }
+    }
     param.setArguments(args);
+    param.setEnvironment(env);
     m_summaryText = param.summaryInWorkdir(displayName());
+
+    if (param.commandMissing())
+        m_summaryText = tr("<b>Make:</b> %1 not found in the environment.").arg(makeCmd); // Override display text
     emit updateSummary();
 }
 
@@ -428,7 +447,12 @@ ProjectExplorer::BuildStep *MakeStepFactory::create(ProjectExplorer::BuildStepLi
 {
     if (!canCreate(parent, id))
         return 0;
-    return new MakeStep(parent);
+    MakeStep *step = new MakeStep(parent);
+    if (parent->id() == ProjectExplorer::Constants::BUILDSTEPS_CLEAN) {
+        step->setClean(true);
+        step->setUserArguments("clean");
+    }
+    return step;
 }
 
 bool MakeStepFactory::canClone(ProjectExplorer::BuildStepList *parent, ProjectExplorer::BuildStep *source) const

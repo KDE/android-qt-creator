@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,11 +35,11 @@
 namespace Bazaar {
 namespace Internal {
 
-BranchInfo::BranchInfo(const QString &branchLoc, bool isBound) :
-    branchLocation(branchLoc),
-    isBoundToBranch(isBound)
+BranchInfo::BranchInfo(const QString &branchLoc, bool isBound)
+    : branchLocation(branchLoc),
+      isBoundToBranch(isBound)
 {
 }
 
-} //namespace Internal
+} // namespace Internal
 } // namespace Bazaar

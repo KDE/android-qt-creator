@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,34 +26,30 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef DEBUGGER_REGISTERWINDOW_H
 #define DEBUGGER_REGISTERWINDOW_H
 
-#include <QtGui/QTreeView>
+#include "basewindow.h"
 
 namespace Debugger {
 namespace Internal {
 
-class RegisterWindow : public QTreeView
+class RegisterWindow : public BaseWindow
 {
     Q_OBJECT
 
 public:
     explicit RegisterWindow(QWidget *parent = 0);
-    void setModel(QAbstractItemModel *model);
 
 public slots:
-    void resizeColumnsToContents();
-    void setAlwaysResizeColumnsToContents(bool on);
-    void setAlternatingRowColorsHelper(bool on) { setAlternatingRowColors(on); }
     void reloadRegisters();
 
 private:
-    virtual void contextMenuEvent(QContextMenuEvent *ev);
+    void contextMenuEvent(QContextMenuEvent *ev);
 };
 
 } // namespace Internal

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,11 +35,13 @@
 #include "project.h"
 #include "target.h"
 #include "toolchain.h"
+#include "abi.h"
 #include "buildconfiguration.h"
 #include "projectexplorerconstants.h"
 #include <extensionsystem/pluginmanager.h>
 
 #include <utils/qtcassert.h>
+#include <utils/outputformatter.h>
 #include <utils/checkablemessagebox.h>
 
 #include <coreplugin/icore.h>
@@ -532,6 +534,13 @@ QString RunControl::runMode() const
 QString RunControl::displayName() const
 {
     return m_displayName;
+}
+
+Abi RunControl::abi() const
+{
+    if (const RunConfiguration *rc = m_runConfiguration.data())
+        return rc->abi();
+    return Abi();
 }
 
 ProcessHandle RunControl::applicationProcessHandle() const

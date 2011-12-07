@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,10 +56,10 @@ bool QtQuickApp::generateFiles(QString *errorMessage) const
             && writeFile(generateFile(QtQuickAppGeneratedFileInfo::AppViewerCppFile, errorMessage), path(AppViewerCpp))
             && writeFile(generateFile(QtQuickAppGeneratedFileInfo::AppViewerHFile, errorMessage), path(AppViewerH))
             && writeFile(generateFile(QtQuickAppGeneratedFileInfo::SymbianSvgIconFile, errorMessage), path(SymbianSvgIcon))
-            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::MaemoPngIconFile64, errorMessage), path(MaemoPngIcon64))
-            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::MaemoPngIconFile80, errorMessage), path(MaemoPngIcon80))
-            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::DesktopFileFremantle, errorMessage), path(DesktopFremantle))
-            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::DesktopFileHarmattan, errorMessage), path(DesktopHarmattan));
+            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::PngIcon64File, errorMessage), path(PngIcon64))
+            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::PngIcon80File, errorMessage), path(PngIcon80))
+            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::DesktopFremantleFile, errorMessage), path(DesktopFremantle))
+            && writeFile(generateFile(QtQuickAppGeneratedFileInfo::DesktopHarmattanFile, errorMessage), path(DesktopHarmattan));
 }
 
 bool Html5App::generateFiles(QString *errorMessage) const
@@ -71,10 +71,10 @@ bool Html5App::generateFiles(QString *errorMessage) const
             && writeFile(generateFile(Html5AppGeneratedFileInfo::AppViewerCppFile, errorMessage), path(AppViewerCpp))
             && writeFile(generateFile(Html5AppGeneratedFileInfo::AppViewerHFile, errorMessage), path(AppViewerH))
             && writeFile(generateFile(Html5AppGeneratedFileInfo::SymbianSvgIconFile, errorMessage), path(SymbianSvgIcon))
-            && writeFile(generateFile(Html5AppGeneratedFileInfo::MaemoPngIconFile64, errorMessage), path(MaemoPngIcon64))
-            && writeFile(generateFile(Html5AppGeneratedFileInfo::MaemoPngIconFile80, errorMessage), path(MaemoPngIcon80))
-            && writeFile(generateFile(Html5AppGeneratedFileInfo::DesktopFileFremantle, errorMessage), path(DesktopFremantle))
-            && writeFile(generateFile(Html5AppGeneratedFileInfo::DesktopFileHarmattan, errorMessage), path(DesktopHarmattan));
+            && writeFile(generateFile(Html5AppGeneratedFileInfo::PngIcon64File, errorMessage), path(PngIcon64))
+            && writeFile(generateFile(Html5AppGeneratedFileInfo::PngIcon80File, errorMessage), path(PngIcon80))
+            && writeFile(generateFile(Html5AppGeneratedFileInfo::DesktopFremantleFile, errorMessage), path(DesktopFremantle))
+            && writeFile(generateFile(Html5AppGeneratedFileInfo::DesktopHarmattanFile, errorMessage), path(DesktopHarmattan));
 }
 
 QString AbstractMobileApp::templatesRoot()

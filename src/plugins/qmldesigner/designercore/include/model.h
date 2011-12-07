@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -76,8 +76,8 @@ class CORESHARED_EXPORT Model : public QObject
     friend class QmlDesigner::AbstractView;
     friend class Internal::ModelPrivate;
 
-    Q_DISABLE_COPY(Model)
     Q_OBJECT
+
 public:
     enum ViewNotification { NotifyView, DoNotNotifyView };
 
@@ -114,7 +114,7 @@ protected:
     Model();
 
 public:
-    Internal::ModelPrivate *m_d;
+    Internal::ModelPrivate *d;
 };
 
 }

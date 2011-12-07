@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmldirparser_p.h"
 #include "qmlerror.h"
+bool Qml_isFileCaseCorrect(const QString &) { return true; }
 
 #include <QtCore/QTextStream>
+#include <QtCore/QFile>
 #include <QtCore/QtDebug>
 
 QT_BEGIN_NAMESPACE
@@ -55,6 +57,16 @@ QUrl QmlDirParser::url() const
 void QmlDirParser::setUrl(const QUrl &url)
 {
     _url = url;
+}
+
+QString QmlDirParser::fileSource() const
+{
+    return _filePathSouce;
+}
+
+void QmlDirParser::setFileSource(const QString &filePath)
+{
+    _filePathSouce = filePath;
 }
 
 QString QmlDirParser::source() const
@@ -82,6 +94,23 @@ bool QmlDirParser::parse()
     _errors.clear();
     _plugins.clear();
     _components.clear();
+
+    if (_source.isEmpty() && !_filePathSouce.isEmpty()) {
+        QFile file(_filePathSouce);
+        if (!Qml_isFileCaseCorrect(_filePathSouce)) {
+            QmlError error;
+            error.setDescription(QString::fromUtf8("cannot load module \"$$URI$$\": File name case mismatch for \"%1\"").arg(_filePathSouce));
+            _errors.prepend(error);
+            return false;
+        } else if (file.open(QFile::ReadOnly)) {
+            _source = QString::fromUtf8(file.readAll());
+        } else {
+            QmlError error;
+            error.setDescription(QString::fromUtf8("module \"$$URI$$\" definition \"%1\" not readable").arg(_filePathSouce));
+            _errors.prepend(error);
+            return false;
+        }
+    }
 
     QTextStream stream(&_source);
     int lineNumber = 0;
@@ -215,9 +244,16 @@ bool QmlDirParser::hasError() const
     return false;
 }
 
-QList<QmlError> QmlDirParser::errors() const
+QList<QmlError> QmlDirParser::errors(const QString &uri) const
 {
-    return _errors;
+    QList<QmlError> errors = _errors;
+    for (int i = 0; i < errors.size(); ++i) {
+        QmlError &e = errors[i];
+        QString description = e.description();
+        description.replace(QLatin1String("$$URI$$"), uri);
+        e.setDescription(description);
+    }
+    return errors;
 }
 
 QList<QmlDirParser::Plugin> QmlDirParser::plugins() const

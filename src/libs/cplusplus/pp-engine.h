@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 /*
@@ -78,6 +78,9 @@ public:
 
     bool expandMacros() const;
     void setExpandMacros(bool expandMacros);
+
+    bool keepComments() const;
+    void setKeepComments(bool keepComments);
 
 private:
     enum { MAX_LEVEL = 512 };
@@ -177,6 +180,9 @@ private:
     QString string(const char *first, int len) const;
     bool maybeAfterComment() const;
 
+    bool maybeMultilineToken(TokenIterator tok);
+    void skipToNextLine();
+
 private:
     Client *client;
     Environment *env;
@@ -197,6 +203,7 @@ private:
 
     QString _originalSource;
     bool _expandMacros;
+    bool _keepComments;
 };
 
 } // namespace CPlusPlus

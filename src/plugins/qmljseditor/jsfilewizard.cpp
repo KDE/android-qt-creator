@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-#include "qmljseditorconstants.h"
 #include "jsfilewizard.h"
+
+#include <qmljstools/qmljstoolsconstants.h>
 
 #include <utils/filewizarddialog.h>
 #include <utils/qtcassert.h>
@@ -104,7 +105,7 @@ Core::GeneratedFiles JsFileWizard::generateFiles(const QWizard *w,
     const QString path = wizardDialog->path();
     const QString name = wizardDialog->fileName();
 
-    const QString mimeType = QLatin1String(Constants::JS_MIMETYPE);
+    const QString mimeType = QLatin1String(QmlJSTools::Constants::JS_MIMETYPE);
     const QString fileName = Core::BaseFileWizard::buildFileName(path, name, preferredSuffix(mimeType));
 
     Core::GeneratedFile file(fileName);

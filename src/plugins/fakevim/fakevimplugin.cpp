@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,7 +48,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/ifile.h>
 #include <coreplugin/messagemanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/statusbarwidget.h>
 #include <coreplugin/statusbarmanager.h>
 
@@ -58,8 +58,9 @@
 #include <texteditor/basetexteditor.h>
 #include <texteditor/basetextmark.h>
 #include <texteditor/texteditorconstants.h>
+#include <texteditor/typingsettings.h>
 #include <texteditor/tabsettings.h>
-#include <texteditor/tabpreferences.h>
+#include <texteditor/icodestylepreferences.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/indenter.h>
 #include <texteditor/codeassist/basicproposalitem.h>
@@ -75,6 +76,7 @@
 #include <utils/qtcassert.h>
 #include <utils/savedaction.h>
 #include <utils/treewidgetcolumnstretcher.h>
+#include <utils/stylehelper.h>
 
 #include <cppeditor/cppeditorconstants.h>
 
@@ -105,14 +107,14 @@ using namespace Core;
 namespace FakeVim {
 namespace Constants {
 
-const char * const INSTALL_HANDLER                = "TextEditor.FakeVimHandler";
-const char * const MINI_BUFFER                    = "TextEditor.FakeVimMiniBuffer";
-const char * const INSTALL_KEY                    = "Alt+V,Alt+V";
-const char * const SETTINGS_CATEGORY              = "D.FakeVim";
-const char * const SETTINGS_CATEGORY_FAKEVIM_ICON = ":/core/images/category_fakevim.png";
-const char * const SETTINGS_ID                    = "A.General";
-const char * const SETTINGS_EX_CMDS_ID            = "B.ExCommands";
-const char * const SETTINGS_USER_CMDS_ID          = "C.UserCommands";
+const char INSTALL_HANDLER[]                = "TextEditor.FakeVimHandler";
+const char MINI_BUFFER[]                    = "TextEditor.FakeVimMiniBuffer";
+const char INSTALL_KEY[]                    = "Alt+V,Alt+V";
+const char SETTINGS_CATEGORY[]              = "D.FakeVim";
+const char SETTINGS_CATEGORY_FAKEVIM_ICON[] = ":/core/images/category_fakevim.png";
+const char SETTINGS_ID[]                    = "A.General";
+const char SETTINGS_EX_CMDS_ID[]            = "B.ExCommands";
+const char SETTINGS_USER_CMDS_ID[]          = "C.UserCommands";
 
 } // namespace Constants
 } // namespace FakeVim
@@ -120,6 +122,51 @@ const char * const SETTINGS_USER_CMDS_ID          = "C.UserCommands";
 
 namespace FakeVim {
 namespace Internal {
+
+class MiniBuffer : public QLabel
+{
+    Q_OBJECT
+
+public:
+    void setContents(const QString &contents, int cursorPos)
+    {
+        QString msg = contents;
+        if (cursorPos != -1)
+            msg = contents.left(cursorPos) + QChar(10073) + contents.mid(cursorPos);
+        setText("  " + msg);
+    }
+};
+
+class MiniBuffer1 : public QLineEdit
+{
+    Q_OBJECT
+
+public:
+    MiniBuffer1()
+    {
+        setFrame(false);
+    }
+    void showEvent(QShowEvent *ev)
+    {
+        QLineEdit::showEvent(ev);
+        QColor color = Qt::black;
+        QPalette pal = parentWidget()->palette();
+        pal.setBrush(QPalette::All, QPalette::WindowText, color);
+        pal.setBrush(QPalette::All, QPalette::ButtonText, color);
+        pal.setBrush(QPalette::All, QPalette::Foreground, color);
+        pal.setBrush(QPalette::All, QPalette::Background, color);
+        //color.setAlpha(100);
+        //pal.setBrush(QPalette::Disabled, QPalette::WindowText, color);
+        //pal.setBrush(QPalette::Disabled, QPalette::ButtonText, color);
+        //pal.setBrush(QPalette::Disabled, QPalette::Foreground, color);
+        setPalette(pal);
+    }
+    void setContents(const QString &contents, int cursorPos)
+    {
+        setText(contents);
+        setCursorPosition(cursorPos);
+    }
+};
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -238,13 +285,15 @@ QWidget *FakeVimOptionPage::createPage(QWidget *parent)
 
 void FakeVimOptionPage::copyTextEditorSettings()
 {
-    TabSettings ts = TextEditorSettings::instance()->tabPreferences()->settings();
-    m_ui.checkBoxExpandTab->setChecked(ts.m_spacesForTabs);
+    TabSettings ts = TextEditorSettings::instance()->codeStyle()->tabSettings();
+    TypingSettings tps = TextEditorSettings::instance()->typingSettings();
+    m_ui.checkBoxExpandTab->setChecked(ts.m_tabPolicy != TabSettings::TabsOnlyTabPolicy);
     m_ui.spinBoxTabStop->setValue(ts.m_tabSize);
     m_ui.spinBoxShiftWidth->setValue(ts.m_indentSize);
-    m_ui.checkBoxSmartTab->setChecked(ts.m_smartBackspace);
+    m_ui.checkBoxSmartTab->setChecked(
+        tps.m_smartBackspaceBehavior == TypingSettings::BackspaceFollowsPreviousIndents);
     m_ui.checkBoxAutoIndent->setChecked(true);
-    m_ui.checkBoxSmartIndent->setChecked(ts.m_autoIndent);
+    m_ui.checkBoxSmartIndent->setChecked(tps.m_autoIndent);
     m_ui.checkBoxIncSearch->setChecked(true);
 }
 
@@ -333,8 +382,6 @@ void FakeVimExCommandsPage::initialize()
 {
     ActionManager *am = ICore::instance()->actionManager();
     QTC_ASSERT(am, return);
-    UniqueIDManager *uidm = UniqueIDManager::instance();
-    QTC_ASSERT(uidm, return);
 
     QMap<QString, QTreeWidgetItem *> sections;
 
@@ -343,12 +390,11 @@ void FakeVimExCommandsPage::initialize()
             continue;
 
         QTreeWidgetItem *item = new QTreeWidgetItem;
-        item->setData(0, CommandRole, int(c->id()));
-
-        const QString name = uidm->stringForUniqueIdentifier(c->id());
+        const QString name = c->id().toString();
         const int pos = name.indexOf(QLatin1Char('.'));
         const QString section = name.left(pos);
         const QString subId = name.mid(pos + 1);
+        item->setData(0, CommandRole, name);
 
         if (!sections.contains(section)) {
             QTreeWidgetItem *categoryItem =
@@ -398,9 +444,7 @@ void FakeVimExCommandsPage::targetIdentifierChanged()
     if (!current)
         return;
 
-    UniqueIDManager *uidm = UniqueIDManager::instance();
-    int id = current->data(0, CommandRole).toInt();
-    const QString name = uidm->stringForUniqueIdentifier(id);
+    const QString name =  current->data(0, CommandRole).toString();
     const QString regex = targetEdit()->text();
 
     if (current->data(0, Qt::UserRole).isValid()) {
@@ -416,9 +460,7 @@ void FakeVimExCommandsPage::resetTargetIdentifier()
     QTreeWidgetItem *current = commandList()->currentItem();
     if (!current)
         return;
-    UniqueIDManager *uidm = UniqueIDManager::instance();
-    int id = current->data(0, CommandRole).toInt();
-    const QString name = uidm->stringForUniqueIdentifier(id);
+    const QString name = current->data(0, CommandRole).toString();
     QString regex;
     if (defaultExCommandMap().contains(name))
         regex = defaultExCommandMap()[name].pattern();
@@ -432,15 +474,13 @@ void FakeVimExCommandsPage::removeTargetIdentifier()
 
 void FakeVimExCommandsPage::defaultAction()
 {
-    UniqueIDManager *uidm = UniqueIDManager::instance();
     int n = commandList()->topLevelItemCount();
     for (int i = 0; i != n; ++i) {
         QTreeWidgetItem *section = commandList()->topLevelItem(i);
         int m = section->childCount();
         for (int j = 0; j != m; ++j) {
             QTreeWidgetItem *item = section->child(j);
-            const int id = item->data(0, CommandRole).toInt();
-            const QString name = uidm->stringForUniqueIdentifier(id);
+            const QString name = item->data(0, CommandRole).toString();
             QString regex;
             if (defaultExCommandMap().contains(name))
                 regex = defaultExCommandMap()[name].pattern();
@@ -590,12 +630,12 @@ void FakeVimUserCommandsPage::apply()
 class FakeVimCompletionAssistProvider : public TextEditor::CompletionAssistProvider
 {
 public:
-    virtual bool supportsEditor(const QString &) const
+    bool supportsEditor(const Core::Id &) const
     {
         return false;
     }
 
-    virtual TextEditor::IAssistProcessor *createProcessor() const;
+    TextEditor::IAssistProcessor *createProcessor() const;
 
     void setActive(const QString &needle, bool forward, FakeVimHandler *handler)
     {
@@ -775,7 +815,7 @@ private slots:
     void setBlockSelection(bool);
     void hasBlockSelection(bool*);
 
-    void showCommandBuffer(const QString &contents);
+    void showCommandBuffer(const QString &contents, int cursorPos);
     void showExtraInformation(const QString &msg);
     void changeSelection(const QList<QTextEdit::ExtraSelection> &selections);
     void moveToMatchingParenthesis(bool *moved, bool *forward, QTextCursor *cursor);
@@ -803,15 +843,9 @@ private:
     FakeVimExCommandsPage *m_fakeVimExCommandsPage;
     FakeVimUserCommandsPage *m_fakeVimUserCommandsPage;
     QHash<Core::IEditor *, FakeVimHandler *> m_editorToHandler;
-    QPointer<Core::ICore> m_core;
-    QPointer<Core::EditorManager> m_editorManager;
-    QPointer<Core::ActionManager> m_actionManager;
-    ICore *core() const { return m_core; }
-    EditorManager *editorManager() const { return m_editorManager; }
-    ActionManager *actionManager() const { return m_actionManager; }
 
-    void triggerAction(const QString &code);
-    void setActionChecked(const QString &code, bool check);
+    void triggerAction(const Core::Id &id);
+    void setActionChecked(const Core::Id &id, bool check);
 
     typedef int (*DistFunction)(const QRect &cursor, const QRect &other);
     void moveSomewhere(DistFunction f);
@@ -903,8 +937,8 @@ FakeVimPluginPrivate::~FakeVimPluginPrivate()
 
 void FakeVimPluginPrivate::onCoreAboutToClose()
 {
-    // don't attach to editors any more
-    disconnect(editorManager(), SIGNAL(editorOpened(Core::IEditor*)),
+    // Don't attach to editors anymore.
+    disconnect(ICore::instance()->editorManager(), SIGNAL(editorOpened(Core::IEditor*)),
         this, SLOT(editorOpened(Core::IEditor*)));
 }
 
@@ -914,10 +948,10 @@ void FakeVimPluginPrivate::aboutToShutdown()
 
 bool FakeVimPluginPrivate::initialize()
 {
-    m_core = Core::ICore::instance();
-    m_editorManager = core()->editorManager();
-    m_actionManager = core()->actionManager();
-    QTC_ASSERT(actionManager(), return false);
+    Core::ICore *core = Core::ICore::instance();
+    EditorManager *editorManager = core->editorManager();
+    ActionManager *actionManager = core->actionManager();
+    QTC_ASSERT(actionManager, return false);
 
     //m_wordCompletion = new WordCompletion;
     //q->addAutoReleasedObject(m_wordCompletion);
@@ -947,31 +981,31 @@ bool FakeVimPluginPrivate::initialize()
     readSettings();
 
     Core::Command *cmd = 0;
-    cmd = actionManager()->registerAction(theFakeVimSetting(ConfigUseFakeVim),
-        Constants::INSTALL_HANDLER, globalcontext);
+    cmd = actionManager->registerAction(theFakeVimSetting(ConfigUseFakeVim),
+        Constants::INSTALL_HANDLER, globalcontext, true);
     cmd->setDefaultKeySequence(QKeySequence(Constants::INSTALL_KEY));
 
     ActionContainer *advancedMenu =
-        actionManager()->actionContainer(Core::Constants::M_EDIT_ADVANCED);
+        actionManager->actionContainer(Core::Constants::M_EDIT_ADVANCED);
     advancedMenu->addAction(cmd, Core::Constants::G_EDIT_EDITOR);
 
     for (int i = 1; i < 10; ++i) {
         QAction *act = new QAction(this);
-        act->setText(QString("Execute User Action #%1").arg(i));
+        act->setText(tr("Execute User Action #%1").arg(i));
         act->setData(i);
         QString id = QString("FakeVim.UserAction%1").arg(i);
         QString keys = QString("Alt+V,%1").arg(i);
-        cmd = actionManager()->registerAction(act, id, globalcontext);
+        cmd = actionManager->registerAction(act, Core::Id(id), globalcontext);
         cmd->setDefaultKeySequence(QKeySequence(keys));
         connect(act, SIGNAL(triggered()), SLOT(userActionTriggered()));
     }
 
-    connect(m_core, SIGNAL(coreAboutToClose()), this, SLOT(onCoreAboutToClose()));
+    connect(core, SIGNAL(coreAboutToClose()), this, SLOT(onCoreAboutToClose()));
 
     // EditorManager
-    connect(editorManager(), SIGNAL(editorAboutToClose(Core::IEditor*)),
+    connect(editorManager, SIGNAL(editorAboutToClose(Core::IEditor*)),
         this, SLOT(editorAboutToClose(Core::IEditor*)));
-    connect(editorManager(), SIGNAL(editorOpened(Core::IEditor*)),
+    connect(editorManager, SIGNAL(editorOpened(Core::IEditor*)),
         this, SLOT(editorOpened(Core::IEditor*)));
 
     connect(theFakeVimSetting(ConfigUseFakeVim), SIGNAL(valueChanged(QVariant)),
@@ -999,17 +1033,19 @@ void FakeVimPluginPrivate::userActionTriggered()
     if (!key)
         return;
     QString cmd = userCommandMap().value(key);
-    IEditor *editor = editorManager()->currentEditor();
+    Core::ICore *core = Core::ICore::instance();
+    EditorManager *editorManager = core->editorManager();
+    IEditor *editor = editorManager->currentEditor();
     FakeVimHandler *handler = m_editorToHandler[editor];
     if (handler)
         handler->handleInput(cmd);
 }
 
-static const char *exCommandMapGroup = "FakeVimExCommand";
-static const char *userCommandMapGroup = "FakeVimUserCommand";
-static const char *reKey = "RegEx";
-static const char *cmdKey = "Cmd";
-static const char *idKey = "Command";
+static const char exCommandMapGroup[] = "FakeVimExCommand";
+static const char userCommandMapGroup[] = "FakeVimUserCommand";
+static const char reKey[] = "RegEx";
+static const char cmdKey[] = "Cmd";
+static const char idKey[] = "Command";
 
 void FakeVimPluginPrivate::writeSettings()
 {
@@ -1107,27 +1143,27 @@ void FakeVimPluginPrivate::maybeReadVimRc()
 
 void FakeVimPluginPrivate::showSettingsDialog()
 {
-    core()->showOptionsDialog(
+    ICore::instance()->showOptionsDialog(
         _(Constants::SETTINGS_CATEGORY),
         _(Constants::SETTINGS_ID));
 }
 
-void FakeVimPluginPrivate::triggerAction(const QString &code)
+void FakeVimPluginPrivate::triggerAction(const Id &id)
 {
-    Core::ActionManager *am = actionManager();
+    Core::ActionManager *am = ICore::instance()->actionManager();
     QTC_ASSERT(am, return);
-    Core::Command *cmd = am->command(code);
-    QTC_ASSERT(cmd, qDebug() << "UNKNOWN CODE: " << code; return);
+    Core::Command *cmd = am->command(id);
+    QTC_ASSERT(cmd, qDebug() << "UNKNOWN CODE: " << id.name(); return);
     QAction *action = cmd->action();
     QTC_ASSERT(action, return);
     action->trigger();
 }
 
-void FakeVimPluginPrivate::setActionChecked(const QString &code, bool check)
+void FakeVimPluginPrivate::setActionChecked(const Id &id, bool check)
 {
-    Core::ActionManager *am = actionManager();
+    Core::ActionManager *am = ICore::instance()->actionManager();
     QTC_ASSERT(am, return);
-    Core::Command *cmd = am->command(code);
+    Core::Command *cmd = am->command(id);
     QTC_ASSERT(cmd, return);
     QAction *action = cmd->action();
     QTC_ASSERT(action, return);
@@ -1233,7 +1269,8 @@ void FakeVimPluginPrivate::windowCommand(int key)
 
 void FakeVimPluginPrivate::moveSomewhere(DistFunction f)
 {
-    IEditor *editor = editorManager()->currentEditor();
+    EditorManager *editorManager = ICore::instance()->editorManager();
+    IEditor *editor = editorManager->currentEditor();
     QWidget *w = editor->widget();
     QPlainTextEdit *pe =
         qobject_cast<QPlainTextEdit *>(editor->widget());
@@ -1246,7 +1283,7 @@ void FakeVimPluginPrivate::moveSomewhere(DistFunction f)
     IEditor *bestEditor = 0;
     int bestValue = 1 << 30;
 
-    QList<IEditor*> editors = editorManager()->visibleEditors();
+    QList<IEditor*> editors = editorManager->visibleEditors();
     foreach (IEditor *editor, editors) {
         QWidget *w = editor->widget();
         QRect editorRect(w->mapToGlobal(w->geometry().topLeft()),
@@ -1265,7 +1302,7 @@ void FakeVimPluginPrivate::moveSomewhere(DistFunction f)
     // FIME: This is know to fail as the EditorManager will fall back to
     // the current editor's view. Needs additional public API there.
     if (bestEditor)
-        editorManager()->activateEditor(bestEditor);
+        editorManager->activateEditor(bestEditor);
 }
 
 void FakeVimPluginPrivate::find(bool reverse)
@@ -1332,8 +1369,8 @@ void FakeVimPluginPrivate::editorOpened(Core::IEditor *editor)
 
     connect(handler, SIGNAL(extraInformationChanged(QString)),
         SLOT(showExtraInformation(QString)));
-    connect(handler, SIGNAL(commandBufferChanged(QString)),
-        SLOT(showCommandBuffer(QString)));
+    connect(handler, SIGNAL(commandBufferChanged(QString,int)),
+        SLOT(showCommandBuffer(QString,int)));
     connect(handler, SIGNAL(selectionChanged(QList<QTextEdit::ExtraSelection>)),
         SLOT(changeSelection(QList<QTextEdit::ExtraSelection>)));
     connect(handler, SIGNAL(moveToMatchingParenthesis(bool*,bool*,QTextCursor*)),
@@ -1360,7 +1397,7 @@ void FakeVimPluginPrivate::editorOpened(Core::IEditor *editor)
     connect(handler, SIGNAL(handleExCommandRequested(bool*,ExCommand)),
         SLOT(handleExCommand(bool*,ExCommand)));
 
-    connect(core(), SIGNAL(saveSettingsRequested()),
+    connect(ICore::instance(), SIGNAL(saveSettingsRequested()),
         SLOT(writeSettings()));
 
     handler->setCurrentFileName(editor->file()->fileName());
@@ -1368,7 +1405,7 @@ void FakeVimPluginPrivate::editorOpened(Core::IEditor *editor)
 
     // pop up the bar
     if (theFakeVimSetting(ConfigUseFakeVim)->value().toBool()) {
-       showCommandBuffer(QString());
+       showCommandBuffer(QString(), -1);
        handler->setupWidget();
     }
 }
@@ -1400,7 +1437,7 @@ void FakeVimPluginPrivate::setUseFakeVimInternal(bool on)
         //ICore *core = ICore::instance();
         //core->updateAdditionalContexts(Core::Context(),
         // Core::Context(FAKEVIM_CONTEXT));
-        showCommandBuffer(QString());
+        showCommandBuffer(QString(), -1);
         foreach (Core::IEditor *editor, m_editorToHandler.keys()) {
             if (TextEditor::BaseTextEditorWidget *textEditor =
                     qobject_cast<TextEditor::BaseTextEditorWidget *>(editor->widget())) {
@@ -1464,8 +1501,6 @@ void FakeVimPluginPrivate::handleExCommand(bool *handled, const ExCommand &cmd)
     FakeVimHandler *handler = qobject_cast<FakeVimHandler *>(sender());
     if (!handler)
         return;
-
-    QTC_ASSERT(editorManager(), return);
 
     *handled = true;
     if (cmd.matches("w", "write") || cmd.cmd == "wq") {
@@ -1548,7 +1583,7 @@ void FakeVimPluginPrivate::handleExCommand(bool *handled, const ExCommand &cmd)
             const QString &id = it.key();
             const QRegExp &re = it.value();
             if (!re.pattern().isEmpty() && re.indexIn(cmd.cmd) != -1) {
-                triggerAction(id);
+                triggerAction(Core::Id(id));
                 return;
             }
         }
@@ -1560,19 +1595,20 @@ void FakeVimPluginPrivate::handleDelayedQuit(bool forced, Core::IEditor *editor)
 {
     // This tries to simulate vim behaviour. But the models of vim and
     // Qt Creator core do not match well...
-    if (editorManager()->hasSplitter()) {
+    EditorManager *editorManager = ICore::instance()->editorManager();
+    if (editorManager->hasSplitter()) {
         triggerAction(Core::Constants::REMOVE_CURRENT_SPLIT);
     } else {
         QList<Core::IEditor *> editors;
         editors.append(editor);
-        editorManager()->closeEditors(editors, !forced);
+        editorManager->closeEditors(editors, !forced);
     }
 }
 
 void FakeVimPluginPrivate::handleDelayedQuitAll(bool forced)
 {
     triggerAction(Core::Constants::REMOVE_ALL_SPLITS);
-    editorManager()->closeAllEditors(!forced);
+    ICore::instance()->editorManager()->closeAllEditors(!forced);
 }
 
 void FakeVimPluginPrivate::moveToMatchingParenthesis(bool *moved, bool *forward,
@@ -1622,12 +1658,11 @@ void FakeVimPluginPrivate::indentRegion(int beginLine, int endLine,
     if (!bt)
         return;
 
-    const TabSettings oldTabSettings = bt->tabSettings();
     TabSettings tabSettings;
     tabSettings.m_indentSize = theFakeVimSetting(ConfigShiftWidth)->value().toInt();
     tabSettings.m_tabSize = theFakeVimSetting(ConfigTabStop)->value().toInt();
-    tabSettings.m_spacesForTabs = theFakeVimSetting(ConfigExpandTab)->value().toBool();
-    bt->setTabSettings(tabSettings);
+    tabSettings.m_tabPolicy = theFakeVimSetting(ConfigExpandTab)->value().toBool()
+            ? TabSettings::SpacesOnlyTabPolicy : TabSettings::TabsOnlyTabPolicy;
 
     QTextDocument *doc = bt->document();
     QTextBlock startBlock = doc->findBlockByNumber(beginLine);
@@ -1644,12 +1679,10 @@ void FakeVimPluginPrivate::indentRegion(int beginLine, int endLine,
             while (!cursor.atBlockEnd())
                 cursor.deleteChar();
         } else {
-            bt->indenter()->indentBlock(doc, block, typedChar, bt);
+            bt->indenter()->indentBlock(doc, block, typedChar, tabSettings);
         }
         block = block.next();
     }
-
-    bt->setTabSettings(oldTabSettings);
 }
 
 void FakeVimPluginPrivate::quitFakeVim()
@@ -1657,11 +1690,11 @@ void FakeVimPluginPrivate::quitFakeVim()
     theFakeVimSetting(ConfigUseFakeVim)->setValue(false);
 }
 
-void FakeVimPluginPrivate::showCommandBuffer(const QString &contents)
+void FakeVimPluginPrivate::showCommandBuffer(const QString &contents, int cursorPos)
 {
     //qDebug() << "SHOW COMMAND BUFFER" << contents;
-    if (QLabel *label = qobject_cast<QLabel *>(m_statusBar->widget()))
-        label->setText("  " + contents);
+    if (MiniBuffer *w = qobject_cast<MiniBuffer *>(m_statusBar->widget()))
+        w->setContents(contents, cursorPos);
 }
 
 void FakeVimPluginPrivate::showExtraInformation(const QString &text)
@@ -1681,20 +1714,22 @@ void FakeVimPluginPrivate::changeSelection
 
 int FakeVimPluginPrivate::currentFile() const
 {
-    Core::OpenEditorsModel *model = editorManager()->openedEditorsModel();
-    IEditor *editor = editorManager()->currentEditor();
+    EditorManager *editorManager = ICore::instance()->editorManager();
+    OpenEditorsModel *model = editorManager->openedEditorsModel();
+    IEditor *editor = editorManager->currentEditor();
     return model->indexOf(editor).row();
 }
 
 void FakeVimPluginPrivate::switchToFile(int n)
 {
-    Core::OpenEditorsModel *model = editorManager()->openedEditorsModel();
+    EditorManager *editorManager = ICore::instance()->editorManager();
+    Core::OpenEditorsModel *model = editorManager->openedEditorsModel();
     int size = model->rowCount();
     QTC_ASSERT(size, return);
     n = n % size;
     if (n < 0)
         n += size;
-    editorManager()->activateEditorForIndex(model->index(n, 0));
+    editorManager->activateEditorForIndex(model->index(n, 0));
 }
 
 ExCommandMap &FakeVimExCommandsPage::exCommandMap()
@@ -1748,8 +1783,7 @@ ExtensionSystem::IPlugin::ShutdownFlag FakeVimPlugin::aboutToShutdown()
 void FakeVimPlugin::extensionsInitialized()
 {
     d->m_statusBar = new Core::StatusBarWidget;
-    d->m_statusBar->setWidget(new QLabel);
-    //d->m_statusBar->setContext(Context(FAKEVIM_CONTEXT));
+    d->m_statusBar->setWidget(new MiniBuffer);
     d->m_statusBar->setPosition(StatusBarWidget::Last);
     addAutoReleasedObject(d->m_statusBar);
 }

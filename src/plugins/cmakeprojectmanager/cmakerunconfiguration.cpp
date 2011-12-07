@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,6 +46,8 @@
 #include <utils/detailswidget.h>
 #include <utils/qtcassert.h>
 #include <utils/debuggerlanguagechooser.h>
+#include <utils/qtcprocess.h>
+#include <utils/stringutils.h>
 
 #include <QtGui/QFormLayout>
 #include <QtGui/QLineEdit>
@@ -59,15 +61,15 @@ using namespace CMakeProjectManager;
 using namespace CMakeProjectManager::Internal;
 
 namespace {
-const char * const CMAKE_RC_ID("CMakeProjectManager.CMakeRunConfiguration");
-const char * const CMAKE_RC_PREFIX("CMakeProjectManager.CMakeRunConfiguration.");
+const char CMAKE_RC_ID[] = "CMakeProjectManager.CMakeRunConfiguration";
+const char CMAKE_RC_PREFIX[] = "CMakeProjectManager.CMakeRunConfiguration.";
 
-const char * const USER_WORKING_DIRECTORY_KEY("CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory");
-const char * const USE_TERMINAL_KEY("CMakeProjectManager.CMakeRunConfiguration.UseTerminal");
-const char * const TITLE_KEY("CMakeProjectManager.CMakeRunConfiguation.Title");
-const char * const ARGUMENTS_KEY("CMakeProjectManager.CMakeRunConfiguration.Arguments");
-const char * const USER_ENVIRONMENT_CHANGES_KEY("CMakeProjectManager.CMakeRunConfiguration.UserEnvironmentChanges");
-const char * const BASE_ENVIRONMENT_BASE_KEY("CMakeProjectManager.BaseEnvironmentBase");
+const char USER_WORKING_DIRECTORY_KEY[] = "CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory";
+const char USE_TERMINAL_KEY[] = "CMakeProjectManager.CMakeRunConfiguration.UseTerminal";
+const char TITLE_KEY[] = "CMakeProjectManager.CMakeRunConfiguation.Title";
+const char ARGUMENTS_KEY[] = "CMakeProjectManager.CMakeRunConfiguration.Arguments";
+const char USER_ENVIRONMENT_CHANGES_KEY[] = "CMakeProjectManager.CMakeRunConfiguration.UserEnvironmentChanges";
+const char BASE_ENVIRONMENT_BASE_KEY[] = "CMakeProjectManager.BaseEnvironmentBase";
 
 QString buildTargetFromId(const QString &id)
 {
@@ -239,7 +241,7 @@ void CMakeRunConfiguration::setCommandLineArguments(const QString &newText)
 
 QString CMakeRunConfiguration::dumperLibrary() const
 {
-    QString qmakePath = ProjectExplorer::DebuggingHelperLibrary::findSystemQt(environment());
+    Utils::FileName qmakePath = ProjectExplorer::DebuggingHelperLibrary::findSystemQt(environment());
     QString qtInstallData = ProjectExplorer::DebuggingHelperLibrary::qtInstallDataDir(qmakePath);
     QString dhl = ProjectExplorer::DebuggingHelperLibrary::debuggingHelperLibraryByInstallData(qtInstallData);
     return dhl;
@@ -247,9 +249,9 @@ QString CMakeRunConfiguration::dumperLibrary() const
 
 QStringList CMakeRunConfiguration::dumperLibraryLocations() const
 {
-    QString qmakePath = ProjectExplorer::DebuggingHelperLibrary::findSystemQt(environment());
+    Utils::FileName qmakePath = ProjectExplorer::DebuggingHelperLibrary::findSystemQt(environment());
     QString qtInstallData = ProjectExplorer::DebuggingHelperLibrary::qtInstallDataDir(qmakePath);
-    return ProjectExplorer::DebuggingHelperLibrary::locationsByInstallData(qtInstallData);
+    return ProjectExplorer::DebuggingHelperLibrary::debuggingHelperLibraryDirectories(qtInstallData);
 }
 
 Utils::Environment CMakeRunConfiguration::baseEnvironment() const

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,7 +45,7 @@ namespace Git {
 namespace Internal {
 
 class GitSubmitEditorWidget;
-struct CommitData;
+class CommitData;
 struct GitSubmitEditorPanelData;
 
 class GitSubmitEditor : public VCSBase::VCSBaseSubmitEditor
@@ -60,6 +60,9 @@ public:
 signals:
     void diff(const QStringList &unstagedFiles, const QStringList &stagedFiles);
 
+protected:
+    QByteArray fileContents() const;
+
 private slots:
     void slotDiffSelected(const QStringList &);
 
@@ -67,6 +70,7 @@ private:
     inline GitSubmitEditorWidget *submitEditorWidget();
 
     VCSBase::SubmitFileModel *m_model;
+    QString m_commitEncoding;
 };
 
 } // namespace Internal

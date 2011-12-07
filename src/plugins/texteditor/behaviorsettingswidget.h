@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,8 @@ QT_END_NAMESPACE
 
 namespace TextEditor {
 
-class TabPreferences;
+class ICodeStylePreferences;
+class TypingSettings;
 class StorageSettings;
 class BehaviorSettings;
 class ExtraEncodingSettings;
@@ -63,7 +64,10 @@ public:
     void setAssignedCodec(QTextCodec *codec);
     QTextCodec *assignedCodec() const;
 
-    void setTabPreferences(TabPreferences *tabPreferences);
+    void setCodeStyle(ICodeStylePreferences *preferences);
+
+    void setAssignedTypingSettings(const TypingSettings &typingSettings);
+    void assignedTypingSettings(TypingSettings *typingSettings) const;
 
     void setAssignedStorageSettings(const StorageSettings &storageSettings);
     void assignedStorageSettings(StorageSettings *storageSettings) const;
@@ -76,22 +80,22 @@ public:
 
     QString collectUiKeywords() const;
 
-    void setFallbacksVisible(bool on);
-
 signals:
+    void typingSettingsChanged(const TextEditor::TypingSettings &settings);
     void storageSettingsChanged(const TextEditor::StorageSettings &settings);
     void behaviorSettingsChanged(const TextEditor::BehaviorSettings &settings);
     void extraEncodingSettingsChanged(const TextEditor::ExtraEncodingSettings &settings);
     void textCodecChanged(QTextCodec *codec);
 
 private slots:
+    void slotTypingSettingsChanged();
     void slotStorageSettingsChanged();
     void slotBehaviorSettingsChanged();
     void slotExtraEncodingChanged();
     void slotEncodingBoxChanged(int index);
 
 private:
-    BehaviorSettingsWidgetPrivate *m_d;
+    BehaviorSettingsWidgetPrivate *d;
 };
 
 } // TextEditor

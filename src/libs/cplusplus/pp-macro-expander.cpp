@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -179,6 +179,17 @@ const char *MacroExpander::expand(const char *__first, const char *__last,
             lines += skip_char_literal.lines;
             __result->append(__first, next_pos - __first);
             __first = next_pos;
+        }
+        else if (*__first == '\\')
+        {
+            ++__first;
+            if (__first != __last && *__first == '\n')
+            {
+                ++lines;
+                ++__first;
+            } else {
+                __result->append('\\');
+            }
         }
         else if (comment_p (__first, __last))
         {

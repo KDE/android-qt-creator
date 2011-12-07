@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,7 +48,7 @@ class Task;
 namespace Internal {
 class TaskWindowPrivate;
 
-// Show build issues (warnings or errors) and open the editor on click.
+// Show issues (warnings or errors) and open the editor on click.
 class TaskWindow : public Core::IOutputPane
 {
     Q_OBJECT
@@ -57,26 +57,26 @@ public:
     TaskWindow(ProjectExplorer::TaskHub *taskHub);
     virtual ~TaskWindow();
 
-    int taskCount() const;
-    int warningTaskCount() const;
-    int errorTaskCount() const;
+    int taskCount(const QString &category = QString()) const;
+    int warningTaskCount(const QString &category = QString()) const;
+    int errorTaskCount(const QString &category = QString()) const;
 
     // IOutputPane
     QWidget *outputWidget(QWidget *);
-    QList<QWidget*> toolBarWidgets() const;
+    QList<QWidget *> toolBarWidgets() const;
 
-    QString displayName() const { return tr("Build Issues"); }
+    QString displayName() const { return tr("Issues"); }
     int priorityInStatusBar() const;
     void clearContents();
     void visibilityChanged(bool visible);
 
-    bool canFocus();
-    bool hasFocus();
+    bool canFocus() const;
+    bool hasFocus() const;
     void setFocus();
 
-    bool canNavigate();
-    bool canNext();
-    bool canPrevious();
+    bool canNavigate() const;
+    bool canNext() const;
+    bool canPrevious() const;
     void goToNext();
     void goToPrev();
 
@@ -85,10 +85,11 @@ signals:
     void tasksCleared();
 
 private slots:
-    void addCategory(const QString &categoryId, const QString &displayName);
+    void addCategory(const QString &categoryId, const QString &displayName, bool visible);
     void addTask(const ProjectExplorer::Task &task);
     void removeTask(const ProjectExplorer::Task &task);
     void clearTasks(const QString &categoryId);
+    void setCategoryVisibility(const QString &categoryId, bool visible);
 
     void triggerDefaultHandler(const QModelIndex &index);
     void showContextMenu(const QPoint &position);

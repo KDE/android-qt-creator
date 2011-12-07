@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -66,14 +66,20 @@ public:
 
     virtual ProjectExplorer::BuildStepConfigWidget *createConfigWidget();
     virtual bool immutable() const;
+
+    QStringList buildTargets() const;
     bool buildsBuildTarget(const QString &target) const;
     void setBuildTarget(const QString &target, bool on);
+    void setBuildTargets(const QStringList &targets);
+    void clearBuildTargets();
+
     QString additionalArguments() const;
     void setAdditionalArguments(const QString &list);
 
     void setClean(bool clean);
 
     QVariantMap toMap() const;
+
 
 protected:
     MakeStep(ProjectExplorer::BuildStepList *bsl, MakeStep *bs);

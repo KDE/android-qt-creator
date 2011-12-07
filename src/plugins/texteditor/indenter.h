@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,8 +46,8 @@ QT_END_NAMESPACE
 
 namespace TextEditor {
 
-class BaseTextEditorWidget;
-class IFallbackPreferences;
+class ICodeStylePreferences;
+class TabSettings;
 
 class TEXTEDITOR_EXPORT Indenter
 {
@@ -62,19 +62,21 @@ public:
     virtual void indentBlock(QTextDocument *doc,
                              const QTextBlock &block,
                              const QChar &typedChar,
-                             BaseTextEditorWidget *editor);
+                             const TabSettings &tabSettings);
 
     // Indent at cursor. Calls indentBlock for selection or current line.
     virtual void indent(QTextDocument *doc,
                         const QTextCursor &cursor,
                         const QChar &typedChar,
-                        BaseTextEditorWidget *editor);
+                        const TabSettings &tabSettings);
 
     // Reindent at cursor. Selection will be adjusted according to the indentation
     // change of the first block.
-    virtual void reindent(QTextDocument *doc, const QTextCursor &cursor, BaseTextEditorWidget *editor);
+    virtual void reindent(QTextDocument *doc, const QTextCursor &cursor, const TabSettings &tabSettings);
 
-    virtual void setCodeStylePreferences(IFallbackPreferences *preferences);
+    virtual void setCodeStylePreferences(ICodeStylePreferences *preferences);
+
+    virtual void invalidateCache(QTextDocument *doc);
 };
 
 } // namespace TextEditor

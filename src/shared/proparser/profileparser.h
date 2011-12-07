@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,9 +43,8 @@
 #endif
 
 // Be fast even for debug builds, except MinGW32 (gcc 4.5.2), where:
-// ../../shared/proparser/profileparser.cpp:203:20: sorry, unimplemented: inlining failed in call to 'void ProFileParser::putBlockLen(ushort*&, uint)': function not inlinable
-// happens.
-#if defined(__GNUC__) && !defined(__MINGW32__)
+// MinGW GCC 4.5+ has a problem with always_inline putTok and putBlockLen
+#if defined(__GNUC__) && !(defined(__MINGW32__) && __GNUC__ == 4 && __GNUC_MINOR__ >= 5)
 # define ALWAYS_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
 # define ALWAYS_INLINE __forceinline

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/filemanager.h>
@@ -489,12 +489,15 @@ void PerforcePlugin::revertCurrentFile()
     if (result.error)
         return;
     // "foo.cpp - file(s) not opened on this client."
-    if (result.stdOut.isEmpty() || result.stdOut.contains(QLatin1String(" - ")))
+    // also revert when the output is empty: The file is unchanged but open then.
+    if (result.stdOut.contains(QLatin1String(" - ")) || result.stdErr.contains(QLatin1String(" - ")))
         return;
 
-    const bool doNotRevert = QMessageBox::warning(0, tr("p4 revert"),
-                             tr("The file has been changed. Do you want to revert it?"),
-                             QMessageBox::Yes, QMessageBox::No) == QMessageBox::No;
+    bool doNotRevert = false;
+    if (!result.stdOut.isEmpty())
+        doNotRevert = (QMessageBox::warning(0, tr("p4 revert"),
+                                            tr("The file has been changed. Do you want to revert it?"),
+                                            QMessageBox::Yes, QMessageBox::No) == QMessageBox::No);
     if (doNotRevert)
         return;
 
@@ -1183,16 +1186,17 @@ PerforceResponse PerforcePlugin::runP4Cmd(const QString &workingDir,
     return response;
 }
 
-Core::IEditor * PerforcePlugin::showOutputInEditor(const QString& title, const QString output,
+Core::IEditor *PerforcePlugin::showOutputInEditor(const QString &title, const QString output,
                                                    int editorType,
                                                    const QString &source,
                                                    QTextCodec *codec)
 {
     const VCSBase::VCSBaseEditorParameters *params = findType(editorType);
     QTC_ASSERT(params, return 0);
-    const QString id = params->id;
+    const Core::Id id(params->id);
     if (Perforce::Constants::debug)
-        qDebug() << "PerforcePlugin::showOutputInEditor" << title << id <<  "Size= " << output.size() <<  " Type=" << editorType << debugCodec(codec);
+        qDebug() << "PerforcePlugin::showOutputInEditor" << title << id.name()
+                 <<  "Size= " << output.size() <<  " Type=" << editorType << debugCodec(codec);
     QString s = title;
     Core::IEditor *editor = Core::EditorManager::instance()->openEditorWithContents(id, &s, output);
     connect(editor, SIGNAL(annotateRevisionRequested(QString,QString,int)),

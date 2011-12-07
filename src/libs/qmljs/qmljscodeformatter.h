@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -71,7 +71,7 @@ public:
 
 protected:
     virtual void onEnter(int newState, int *indentDepth, int *savedIndentDepth) const = 0;
-    virtual void adjustIndent(const QList<Token> &tokens, int lexerState, int *indentDepth) const = 0;
+    virtual void adjustIndent(const QList<Token> &tokens, int startLexerState, int *indentDepth) const = 0;
 
     struct State;
     class QMLJS_EXPORT BlockData
@@ -127,13 +127,13 @@ public: // must be public to make Q_GADGET introspection work
         binding_or_objectdefinition, // after an identifier
 
         binding_assignment, // after : in a binding
-        property_initializer, // after : in a property
         objectdefinition_open, // after {
 
         expression,
         expression_continuation, // at the end of the line, when the next line definitely is a continuation
         expression_maybe_continuation, // at the end of the line, when the next line may be an expression
         expression_or_objectdefinition, // after a binding starting with an identifier ("x: foo")
+        expression_or_label, // when expecting a statement and getting an identifier
 
         paren_open, // opening ( in expression
         bracket_open, // opening [ in expression
@@ -145,11 +145,12 @@ public: // must be public to make Q_GADGET introspection work
         bracket_element_maybe_objectdefinition, // after an identifier in bracket_element_start
 
         ternary_op, // The ? : operator
+        ternary_op_after_colon, // after the : in a ternary
 
         jsblock_open,
 
         empty_statement, // for a ';', will be popped directly
-        breakcontinue_statement, // for continue/break, will be popped directly
+        breakcontinue_statement, // for continue/break, may be followed by identifier
 
         if_statement, // After 'if'
         maybe_else, // after the first substatement in an if
@@ -161,13 +162,18 @@ public: // must be public to make Q_GADGET introspection work
         substatement, // The first line after a conditional or loop construct.
         substatement_open, // The brace that opens a substatement block.
 
+        labelled_statement, // after a label
+
         return_statement, // After 'return'
         throw_statement, // After 'throw'
 
-        statement_with_condition, // After the 'for', 'while', 'catch', ... token
+        statement_with_condition, // After the 'for', 'while', ... token
         statement_with_condition_paren_open, // While inside the (...)
 
-        statement_with_block, // try, finally
+        try_statement, // after 'try'
+        catch_statement, // after 'catch', nested in try_statement
+        finally_statement, // after 'finally', nested in try_statement
+        maybe_catch_or_finally, // after ther closing '}' of try_statement and catch_statement, nested in try_statement
 
         do_statement, // after 'do'
         do_statement_while_paren_open, // after '(' in while clause
@@ -275,6 +281,7 @@ protected:
     bool isExpressionEndState(int type) const;
 
     void dump() const;
+    QString stateToString(int type) const;
 
 private:
     void recalculateStateAfter(const QTextBlock &block);
@@ -310,6 +317,21 @@ private:
     int m_indentDepth;
 
     int m_tabSize;
+};
+
+class QMLJS_EXPORT QtStyleCodeFormatter : public CodeFormatter
+{
+public:
+    QtStyleCodeFormatter();
+
+    void setIndentSize(int size);
+
+protected:
+    virtual void onEnter(int newState, int *indentDepth, int *savedIndentDepth) const;
+    virtual void adjustIndent(const QList<QmlJS::Token> &tokens, int lexerState, int *indentDepth) const;
+
+private:
+    int m_indentSize;
 };
 
 } // namespace QmlJS

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,7 +47,6 @@ struct NewClassWidgetPrivate;
 
 class QTCREATOR_UTILS_EXPORT NewClassWidget : public QWidget
 {
-    Q_DISABLE_COPY(NewClassWidget)
     Q_OBJECT
     Q_PROPERTY(bool namespacesEnabled READ namespacesEnabled WRITE setNamespacesEnabled DESIGNABLE true)
     Q_PROPERTY(bool baseClassInputVisible READ isBaseClassInputVisible WRITE setBaseClassInputVisible DESIGNABLE true)
@@ -73,6 +72,7 @@ class QTCREATOR_UTILS_EXPORT NewClassWidget : public QWidget
     // Utility "USER" property for wizards containing file names.
     Q_PROPERTY(QStringList files READ files DESIGNABLE false USER true)
     Q_ENUMS(ClassType)
+
 public:
     enum ClassType { NoClassType, ClassInheritsQObject, ClassInheritsQWidget,
                      ClassInheritsQDeclarativeItem,
@@ -160,7 +160,7 @@ private:
     void setFormInputCheckable(bool checkable, bool force);
 
     QString fixSuffix(const QString &suffix);
-    NewClassWidgetPrivate *m_d;
+    NewClassWidgetPrivate *d;
 };
 
 } // namespace Utils

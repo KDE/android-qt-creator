@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,6 @@ namespace Internal {
 class MobileAppWizardGenericOptionsPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(MobileAppWizardGenericOptionsPage)
 
 public:
     explicit MobileAppWizardGenericOptionsPage(QWidget *parent = 0);
@@ -53,13 +52,12 @@ public:
     AbstractMobileApp::ScreenOrientation orientation() const;
 
 private:
-    class MobileAppWizardGenericOptionsPagePrivate *m_d;
+    class MobileAppWizardGenericOptionsPagePrivate *d;
 };
 
 class MobileAppWizardSymbianOptionsPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(MobileAppWizardSymbianOptionsPage)
 
 public:
     explicit MobileAppWizardSymbianOptionsPage(QWidget *parent = 0);
@@ -76,13 +74,12 @@ private slots:
     void openSvgIcon(); // Via file open dialog
 
 private:
-    class MobileAppWizardSymbianOptionsPagePrivate *m_d;
+    class MobileAppWizardSymbianOptionsPagePrivate *d;
 };
 
 class MobileAppWizardMaemoOptionsPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(MobileAppWizardMaemoOptionsPage)
 
 public:
     explicit MobileAppWizardMaemoOptionsPage(QWidget *parent = 0);
@@ -95,7 +92,7 @@ private slots:
     void openPngIcon();
 
 private:
-    class MobileAppWizardMaemoOptionsPagePrivate *m_d;
+    class MobileAppWizardMaemoOptionsPagePrivate *d;
 };
 
 class MobileAppWizardHarmattanOptionsPage : public QWizardPage
@@ -116,7 +113,7 @@ private slots:
     void openPngIcon();
 
 private:
-    class MobileAppWizardHarmattanOptionsPagePrivate *m_d;
+    class MobileAppWizardHarmattanOptionsPagePrivate *d;
 };
 
 } // namespace Internal

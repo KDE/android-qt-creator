@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -57,7 +57,7 @@ class QT4PROJECTMANAGER_EXPORT AbstractMobileAppWizardDialog : public ProjectExp
     Q_OBJECT
 
 protected:
-    explicit AbstractMobileAppWizardDialog(QWidget *parent, const QtSupport::QtVersionNumber &minimumQtVersionNumber);
+    explicit AbstractMobileAppWizardDialog(QWidget *parent, const QtSupport::QtVersionNumber &minimumQtVersionNumber, const QtSupport::QtVersionNumber &maximumQtVersionNumber);
     void addMobilePages();
 
 public:
@@ -66,7 +66,6 @@ public:
 protected:
     int addPageWithTitle(QWizardPage *page, const QString &title);
     virtual void initializePage(int id);
-    virtual void cleanupPage(int id);
     virtual void setIgnoreGenericOptionsPage(bool);
     virtual int nextId() const;
 
@@ -123,12 +122,12 @@ private:
     virtual bool postGenerateFiles(const QWizard *w,
         const Core::GeneratedFiles &l, QString *errorMessage);
 
-    virtual AbstractMobileApp *app() const=0;
-    virtual AbstractMobileAppWizardDialog *wizardDialog() const=0;
-    virtual AbstractMobileAppWizardDialog *createWizardDialogInternal(QWidget *parent) const=0;
-    virtual void projectPathChanged(const QString &path) const=0;
+    virtual AbstractMobileApp *app() const = 0;
+    virtual AbstractMobileAppWizardDialog *wizardDialog() const = 0;
+    virtual AbstractMobileAppWizardDialog *createWizardDialogInternal(QWidget *parent) const = 0;
+    virtual void projectPathChanged(const QString &path) const = 0;
     virtual void prepareGenerateFiles(const QWizard *wizard,
-        QString *errorMessage) const=0;
+        QString *errorMessage) const = 0;
 };
 
 } // namespace Qt4ProjectManager

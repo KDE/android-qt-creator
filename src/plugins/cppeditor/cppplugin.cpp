@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,13 +49,10 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/navigationwidget.h>
-#include <texteditor/fontsettings.h>
-#include <texteditor/tabpreferences.h>
-#include <texteditor/storagesettings.h>
 #include <texteditor/texteditoractionhandler.h>
 #include <texteditor/texteditorplugin.h>
 #include <texteditor/texteditorsettings.h>
@@ -101,9 +98,9 @@ CppEditorFactory::CppEditorFactory(CppPlugin *owner) :
 #endif
 }
 
-QString CppEditorFactory::id() const
+Core::Id CppEditorFactory::id() const
 {
-    return QLatin1String(CppEditor::Constants::CPPEDITOR_ID);
+    return CppEditor::Constants::CPPEDITOR_ID;
 }
 
 QString CppEditorFactory::displayName() const
@@ -242,6 +239,9 @@ bool CppPlugin::initialize(const QStringList & /*arguments*/, QString *errorMess
 
     Core::Command *cmd;
     Core::ActionContainer *cppToolsMenu = am->actionContainer(Core::Id(CppTools::Constants::M_TOOLS_CPP));
+
+    cmd = am->command(Core::Id(CppTools::Constants::SWITCH_HEADER_SOURCE));
+    contextMenu->addAction(cmd);
 
     QAction *jumpToDefinition = new QAction(tr("Follow Symbol Under Cursor"), this);
     cmd = am->registerAction(jumpToDefinition,
@@ -406,7 +406,7 @@ void CppPlugin::currentEditorChanged(Core::IEditor *editor)
         return;
 
     else if (CPPEditorWidget *textEditor = qobject_cast<CPPEditorWidget *>(editor->widget())) {
-        textEditor->rehighlight(/*force = */ true);
+        textEditor->semanticRehighlight(/*force = */ true);
     }
 }
 
@@ -416,7 +416,7 @@ void CppPlugin::openTypeHierarchy()
     CPPEditorWidget *editor = qobject_cast<CPPEditorWidget*>(em->currentEditor()->widget());
     if (editor) {
         Core::NavigationWidget *navigation = Core::NavigationWidget::instance();
-        navigation->activateSubWidget(QLatin1String(Constants::TYPE_HIERARCHY_ID));
+        navigation->activateSubWidget(Core::Id(Constants::TYPE_HIERARCHY_ID));
         emit typeHierarchyRequested();
     }
 }

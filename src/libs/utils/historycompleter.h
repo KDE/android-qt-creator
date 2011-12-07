@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,15 +41,16 @@ QT_FORWARD_DECLARE_CLASS(QSettings)
 
 namespace Utils {
 
-class HistoryCompleterPrivate;
+namespace Internal {
+    class HistoryCompleterPrivate;
+}
 
 class QTCREATOR_UTILS_EXPORT HistoryCompleter : public QCompleter
 {
     Q_OBJECT
 
 public:
-    HistoryCompleter(QObject *parent = 0);
-    QSettings *settings() const;
+    HistoryCompleter(QSettings *settings, QObject *parent);
     int historySize() const;
     int maximalHistorySize() const;
     void setMaximalHistorySize(int numberOfEntries);
@@ -58,11 +59,9 @@ public Q_SLOTS:
     void clearHistory();
     void saveHistory();
 
-protected:
-    HistoryCompleterPrivate *d_ptr;
-
 private:
-    Q_DECLARE_PRIVATE(HistoryCompleter)
+    Internal::HistoryCompleterPrivate *d;
+
 };
 
 } // namespace Utils

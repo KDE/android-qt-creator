@@ -4,6 +4,8 @@ DEFINES += CORE_LIBRARY
 QT += network \
     script \
     sql
+greaterThan(QT_MAJOR_VERSION, 4): QT += printsupport
+
 CONFIG += help
 include(../../qtcreatorplugin.pri)
 include(../../libs/utils/utils.pri)
@@ -22,7 +24,7 @@ SOURCES += mainwindow.cpp \
     fancytabwidget.cpp \
     generalsettings.cpp \
     filemanager.cpp \
-    uniqueidmanager.cpp \
+    id.cpp \
     messagemanager.cpp \
     messageoutputwindow.cpp \
     outputpane.cpp \
@@ -57,6 +59,7 @@ SOURCES += mainwindow.cpp \
     modemanager.cpp \
     coreimpl.cpp \
     basefilewizard.cpp \
+    generatedfile.cpp \
     plugindialog.cpp \
     inavigationwidgetfactory.cpp \
     navigationwidget.cpp \
@@ -90,7 +93,9 @@ SOURCES += mainwindow.cpp \
     variablechooser.cpp \
     mimetypemagicdialog.cpp \
     mimetypesettings.cpp \
-    dialogs/promptoverwritedialog.cpp
+    dialogs/promptoverwritedialog.cpp \
+    fileutils.cpp \
+    textfile.cpp
 
 HEADERS += mainwindow.h \
     editmode.h \
@@ -99,7 +104,7 @@ HEADERS += mainwindow.h \
     fancytabwidget.h \
     generalsettings.h \
     filemanager.h \
-    uniqueidmanager.h \
+    id.h \
     messagemanager.h \
     messageoutputwindow.h \
     outputpane.h \
@@ -156,6 +161,7 @@ HEADERS += mainwindow.h \
     modemanager.h \
     coreimpl.h \
     basefilewizard.h \
+    generatedfile.h \
     plugindialog.h \
     inavigationwidgetfactory.h \
     navigationwidget.h \
@@ -182,7 +188,11 @@ HEADERS += mainwindow.h \
     variablechooser.h \
     mimetypemagicdialog.h \
     mimetypesettings.h \
-    dialogs/promptoverwritedialog.h
+    dialogs/promptoverwritedialog.h \
+    fileutils.h \
+    externaltoolmanager.h \
+    textfile.h \
+    generatedfile.h
 
 FORMS += dialogs/newdialog.ui \
     actionmanager/commandmappings.ui \
@@ -203,7 +213,9 @@ win32 {
     LIBS += -lole32
 }
 else:macx {
-    OBJECTIVE_SOURCES += progressmanager/progressmanager_mac.mm
+    OBJECTIVE_SOURCES += progressmanager/progressmanager_mac.mm \
+                         fullscreen.mm
+
     LIBS += -framework AppKit
 }
 else:unix {
@@ -217,6 +229,5 @@ else:unix {
         INSTALLS += image$${imagesize}
     }
 }
-OTHER_FILES += editormanager/BinFiles.mimetypes.xml ide_version.h.in
+OTHER_FILES += editormanager/BinFiles.mimetypes.xml
 
-QMAKE_SUBSTITUTES += ide_version.h.in

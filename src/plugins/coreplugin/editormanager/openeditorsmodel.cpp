@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,8 @@
 
 namespace Core {
 
-struct OpenEditorsModelPrivate {
+struct OpenEditorsModelPrivate
+{
     OpenEditorsModelPrivate();
 
     const QIcon m_lockedIcon;
@@ -67,6 +68,7 @@ OpenEditorsModel::OpenEditorsModel(QObject *parent) :
 
 OpenEditorsModel::~OpenEditorsModel()
 {
+    delete d;
 }
 
 QIcon OpenEditorsModel::lockedIcon() const
@@ -87,7 +89,7 @@ QString OpenEditorsModel::Entry::displayName() const {
     return editor ? editor->displayName() : m_displayName;
 }
 
-QString OpenEditorsModel::Entry::id() const
+Id OpenEditorsModel::Entry::id() const
 {
     return editor ? editor->id() : m_id;
 }
@@ -129,7 +131,7 @@ void OpenEditorsModel::addEditor(IEditor *editor, bool isDuplicate)
     addEntry(entry);
 }
 
-void OpenEditorsModel::addRestoredEditor(const QString &fileName, const QString &displayName, const QString &id)
+void OpenEditorsModel::addRestoredEditor(const QString &fileName, const QString &displayName, const Id &id)
 {
     Entry entry;
     entry.m_fileName = fileName;
@@ -308,8 +310,14 @@ QVariant OpenEditorsModel::data(const QModelIndex &index, int role) const
                 ? e.displayName() + QLatin1Char('*')
                 : e.displayName();
     case Qt::DecorationRole:
-        return (e.editor && e.editor->file()->isReadOnly())
-                ? d->m_lockedIcon : QIcon();
+    {
+        bool readOnly = false;
+        if (e.editor)
+            readOnly = e.editor->file()->isReadOnly();
+        else
+            readOnly = !QFileInfo(e.m_fileName).isWritable();
+        return readOnly ? d->m_lockedIcon : QIcon();
+    }
     case Qt::ToolTipRole:
         return e.fileName().isEmpty()
                 ? e.displayName()
@@ -319,7 +327,7 @@ QVariant OpenEditorsModel::data(const QModelIndex &index, int role) const
     case Qt::UserRole + 1:
         return e.fileName();
     case Qt::UserRole + 2:
-        return e.editor ? e.editor->id() : e.id();
+        return QVariant::fromValue(e.editor ? Core::Id(e.editor->id()) : e.id());
     default:
         return QVariant();
     }

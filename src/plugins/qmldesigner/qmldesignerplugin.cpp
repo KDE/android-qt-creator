@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/designmode.h>
 #include <coreplugin/dialogs/iwizard.h>
@@ -117,7 +117,7 @@ BauhausPlugin::~BauhausPlugin()
 // INHERITED FROM ExtensionSystem::Plugin
 //
 ////////////////////////////////////////////////////
-bool BauhausPlugin::initialize(const QStringList & /*arguments*/, QString *error_message/* = 0*/) // =0;
+bool BauhausPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage/* = 0*/) // =0;
 {
     Core::ICore *core = Core::ICore::instance();
 
@@ -137,7 +137,7 @@ bool BauhausPlugin::initialize(const QStringList & /*arguments*/, QString *error
     const QString pluginPath = QCoreApplication::applicationDirPath() + "/../PlugIns/QmlDesigner";
 #else
     const QString pluginPath = QCoreApplication::applicationDirPath() + "/../"
-                               + QLatin1String(IDE_LIBRARY_BASENAME) + "/qmldesigner";
+                               + QLatin1String(IDE_LIBRARY_BASENAME) + "/qtcreator/qmldesigner";
 #endif
 
     m_designerCore->pluginManager()->setPluginPaths(QStringList() << pluginPath);
@@ -150,7 +150,7 @@ bool BauhausPlugin::initialize(const QStringList & /*arguments*/, QString *error
 
     m_settings.fromSettings(core->settings());
 
-    error_message->clear();
+    errorMessage->clear();
 
     return true;
 }
@@ -290,9 +290,8 @@ void BauhausPlugin::createDesignModeWidget()
 
 void BauhausPlugin::updateEditor(Core::IEditor *editor)
 {
-    Core::ICore *creatorCore = Core::ICore::instance();
     if (editor && editor->id() == QmlJSEditor::Constants::C_QMLJSEDITOR_ID
-        && creatorCore->modeManager()->currentMode() == m_designMode)
+        && Core::ModeManager::instance()->currentMode() == m_designMode)
     {
         m_mainWidget->showEditor(editor);
     }
@@ -360,7 +359,7 @@ void BauhausPlugin::updateActions(Core::IEditor* editor)
 
 void BauhausPlugin::extensionsInitialized()
 {
-    m_designMode = ExtensionSystem::PluginManager::instance()->getObject<Core::DesignMode>();
+    m_designMode = Core::DesignMode::instance();
 
     m_mimeTypes << "application/x-qml";
 

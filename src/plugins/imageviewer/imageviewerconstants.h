@@ -5,7 +5,7 @@
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,16 +37,15 @@
 namespace ImageViewer {
 namespace Constants {
 
-const char * const IMAGEVIEWER_ID = "Editors.ImageViewer";
-const char * const IMAGEVIEWER_DISPLAY_NAME = QT_TRANSLATE_NOOP("OpenWith::Editors", "Image Viewer");
+const char IMAGEVIEWER_ID[] = "Editors.ImageViewer";
+const char IMAGEVIEWER_DISPLAY_NAME[] = QT_TRANSLATE_NOOP("OpenWith::Editors", "Image Viewer");
 
-// actions
-const char * const ACTION_ZOOM_IN = "ImageViewer.ZoomIn";
-const char * const ACTION_ZOOM_OUT = "ImageViewer.ZoomOut";
-const char * const ACTION_ORIGINAL_SIZE = "ImageViewer.OriginalSize";
-const char * const ACTION_FIT_TO_SCREEN = "ImageViewer.FitToScreen";
-const char * const ACTION_BACKGROUND = "ImageViewer.Background";
-const char * const ACTION_OUTLINE = "ImageViewer.Outline";
+const char ACTION_ZOOM_IN[] = "ImageViewer.ZoomIn";
+const char ACTION_ZOOM_OUT[] = "ImageViewer.ZoomOut";
+const char ACTION_ORIGINAL_SIZE[] = "ImageViewer.OriginalSize";
+const char ACTION_FIT_TO_SCREEN[] = "ImageViewer.FitToScreen";
+const char ACTION_BACKGROUND[] = "ImageViewer.Background";
+const char ACTION_OUTLINE[] = "ImageViewer.Outline";
 
 } // namespace Constants
 } // namespace ImageViewer

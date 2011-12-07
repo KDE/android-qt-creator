@@ -2,7 +2,6 @@ TEMPLATE = lib
 TARGET = ProjectExplorer
 QT += xml \
     script \
-    network \
     declarative
 include(../../qtcreatorplugin.pri)
 include(projectexplorer_dependencies.pri)
@@ -31,7 +30,7 @@ HEADERS += projectexplorer.h \
     showoutputtaskhandler.h \
     vcsannotatetaskhandler.h \
     taskwindow.h \
-    persistentsettings.h \
+    taskmodel.h \
     projectfilewizardextension.h \
     session.h \
     dependenciespanel.h \
@@ -75,7 +74,6 @@ HEADERS += projectexplorer.h \
     toolchainconfigwidget.h \
     toolchainmanager.h \
     toolchainoptionspage.h \
-    userfileaccessor.h \
     cesdkhandler.h \
     gccparser.h \
     debugginghelper.h \
@@ -103,7 +101,9 @@ HEADERS += projectexplorer.h \
     headerpath.h \
     gcctoolchainfactories.h \
     appoutputpane.h \
-    codestylesettingspropertiespage.h
+    codestylesettingspropertiespage.h \
+    settingsaccessor.h \
+    environmentitemswidget.h
 
 SOURCES += projectexplorer.cpp \
     abi.cpp \
@@ -128,7 +128,7 @@ SOURCES += projectexplorer.cpp \
     showoutputtaskhandler.cpp \
     vcsannotatetaskhandler.cpp \
     taskwindow.cpp \
-    persistentsettings.cpp \
+    taskmodel.cpp \
     projectfilewizardextension.cpp \
     session.cpp \
     dependenciespanel.cpp \
@@ -166,7 +166,6 @@ SOURCES += projectexplorer.cpp \
     toolchainmanager.cpp \
     toolchainoptionspage.cpp \
     cesdkhandler.cpp \
-    userfileaccessor.cpp \
     gccparser.cpp \
     debugginghelper.cpp \
     projectexplorersettingspage.cpp \
@@ -189,12 +188,13 @@ SOURCES += projectexplorer.cpp \
     sessionnodeimpl.cpp \
     publishing/publishingwizardselectiondialog.cpp \
     appoutputpane.cpp \
-    codestylesettingspropertiespage.cpp
+    codestylesettingspropertiespage.cpp \
+    settingsaccessor.cpp \
+    environmentitemswidget.cpp
 
 FORMS += processstep.ui \
     toolchainoptionspage.ui \
     editorsettingspropertiespage.ui \
-    runsettingspropertiespage.ui \
     sessiondialog.ui \
     projectwizardpage.ui \
     removefiledialog.ui \
@@ -204,6 +204,25 @@ FORMS += processstep.ui \
     publishing/publishingwizardselectiondialog.ui \
     codestylesettingspropertiespage.ui
 
+WINSOURCES += \
+    windebuginterface.cpp \
+    msvcparser.cpp \
+    msvctoolchain.cpp \
+    abstractmsvctoolchain.cpp \
+    wincetoolchain.cpp
+
+WINHEADERS += \
+    windebuginterface.h \
+    msvcparser.h \
+    msvctoolchain.h \
+    abstractmsvctoolchain.h \
+    wincetoolchain.h
+
+win32|equals(TEST, 1) {
+    SOURCES += $$WINSOURCES
+    HEADERS += $$WINHEADERS
+}
+
 equals(TEST, 1) {
     SOURCES += \
         outputparser_test.cpp
@@ -211,18 +230,8 @@ equals(TEST, 1) {
         outputparser_test.h
 }
 
-win32 {
-    SOURCES += \
-        windebuginterface.cpp \
-        msvcparser.cpp \
-        msvctoolchain.cpp
-    HEADERS += \
-        windebuginterface.h \
-        msvcparser.h \
-        msvctoolchain.h
-} else {
-    macx:LIBS += -framework Carbon
-}
+macx:LIBS += -framework Carbon
+
 RESOURCES += projectexplorer.qrc
 
 # Some way to override the architecture used in Abi:

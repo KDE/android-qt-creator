@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,8 @@
 
 #include <coreplugin/core_global.h>
 #include <coreplugin/icontext.h>
+#include <coreplugin/id.h>
+
 #include <QtCore/QMetaType>
 
 namespace Core {
@@ -52,7 +54,7 @@ public:
     virtual bool createNew(const QString &contents = QString()) = 0;
     virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName) = 0;
     virtual IFile *file() = 0;
-    virtual QString id() const = 0;
+    virtual Core::Id id() const = 0;
     virtual QString displayName() const = 0;
     virtual void setDisplayName(const QString &title) = 0;
 

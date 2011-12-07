@@ -5,7 +5,7 @@
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,7 @@
 
 namespace ImageViewer {
 namespace Internal {
+
 class ImageViewer;
 
 class ImageViewerFile : public Core::IFile
@@ -67,10 +68,10 @@ public:
     void setFileName(const QString &filename);
 
 private:
-    QScopedPointer<struct ImageViewerFilePrivate> d_ptr;
+    struct ImageViewerFilePrivate *d;
 };
 
-}
-}
+} // namespace Internal
+} // namespace ImageViewer
 
 #endif // IMAGEVIEWERFILE_H

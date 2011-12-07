@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -417,6 +417,7 @@ void QrcEditor::onAddFiles()
             : m_treeview->model()->parent(current).row();
     int const cursorFileArrayIndex = currentIsPrefixNode ? 0 : current.row();
     QStringList fileNames = m_treeview->fileNamesToAdd();
+    fileNames = m_treeview->existingFilesSubtracted(prefixArrayIndex, fileNames);
     resolveLocationIssues(fileNames);
     if (fileNames.isEmpty())
         return;

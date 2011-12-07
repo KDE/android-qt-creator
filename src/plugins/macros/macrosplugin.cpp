@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Nicolas Arnaud-Cormos.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/icontext.h>
 
 #include <QtCore/QtPlugin>
@@ -64,10 +64,10 @@ MacrosPlugin::~MacrosPlugin()
 {
 }
 
-bool MacrosPlugin::initialize(const QStringList &arguments, QString *error_message)
+bool MacrosPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments);
-    Q_UNUSED(error_message);
+    Q_UNUSED(errorMessage);
 
     addAutoReleasedObject(new MacroOptionsPage);
     addAutoReleasedObject(new MacroLocatorFilter);

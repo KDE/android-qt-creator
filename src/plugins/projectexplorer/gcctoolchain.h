@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,6 +56,7 @@ class PROJECTEXPLORER_EXPORT GccToolChain : public ToolChain
 public:
     QString typeName() const;
     Abi targetAbi() const;
+    QString version() const;
     QList<Abi> supportedAbis() const;
     void setTargetAbi(const Abi &);
 
@@ -64,7 +65,7 @@ public:
     QByteArray predefinedMacros() const;
     QList<HeaderPath> systemHeaderPaths() const;
     void addToEnvironment(Utils::Environment &env) const;
-    QString mkspec() const;
+    Utils::FileName mkspec() const;
     QString makeCommand() const;
     void setDebuggerCommand(const QString &);
     QString debuggerCommand() const;
@@ -91,6 +92,7 @@ protected:
     void updateId();
 
     virtual QList<Abi> detectSupportedAbis() const;
+    virtual QString detectVersion() const;
 
     mutable QByteArray m_predefinedMacros;
 
@@ -105,6 +107,7 @@ private:
     Abi m_targetAbi;
     mutable QList<Abi> m_supportedAbis;
     mutable QList<HeaderPath> m_headerPathes;
+    mutable QString m_version;
 
     friend class Internal::GccToolChainFactory;
     friend class ToolChainFactory;
@@ -119,7 +122,7 @@ class PROJECTEXPLORER_EXPORT ClangToolChain : public GccToolChain
 public:
     QString typeName() const;
     QString makeCommand() const;
-    QString mkspec() const;
+    Utils::FileName mkspec() const;
 
     IOutputParser *outputParser() const;
 
@@ -140,7 +143,7 @@ class PROJECTEXPLORER_EXPORT MingwToolChain : public GccToolChain
 {
 public:
     QString typeName() const;
-    QString mkspec() const;
+    Utils::FileName mkspec() const;
     QString makeCommand() const;
 
     ToolChain *clone() const;
@@ -164,7 +167,7 @@ public:
 
     IOutputParser *outputParser() const;
 
-    QString mkspec() const;
+    Utils::FileName mkspec() const;
 
     ToolChain *clone() const;
 

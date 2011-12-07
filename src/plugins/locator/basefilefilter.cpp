@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -100,7 +100,7 @@ QList<FilterEntry> BaseFileFilter::matchesFor(QFutureInterface<Locator::FilterEn
 void BaseFileFilter::accept(Locator::FilterEntry selection) const
 {
     Core::EditorManager *em = Core::EditorManager::instance();
-    em->openEditor(selection.internalData.toString(), QString(), Core::EditorManager::ModeSwitch);
+    em->openEditor(selection.internalData.toString(), Id(), Core::EditorManager::ModeSwitch);
 }
 
 void BaseFileFilter::generateFileNames()

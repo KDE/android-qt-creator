@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,8 @@
 
 #include <utils/pathchooser.h>
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
+#include <projectexplorer/abi.h>
 #include <texteditor/fontsettings.h>
 
 #include <QtGui/QVBoxLayout>
@@ -259,6 +261,7 @@ ShadowBuildPage::ShadowBuildPage(CMakeOpenProjectWizard *cmakeWizard, bool chang
     m_pc = new Utils::PathChooser(this);
     m_pc->setBaseDirectory(m_cmakeWizard->sourceDirectory());
     m_pc->setPath(m_cmakeWizard->buildDirectory());
+    m_pc->setExpectedKind(Utils::PathChooser::Directory);
     connect(m_pc, SIGNAL(changed(QString)), this, SLOT(buildDirectoryChanged()));
     fl->addRow(tr("Build directory:"), m_pc);
     setTitle(tr("Build Location"));
@@ -350,6 +353,7 @@ void CMakeRunPage::initWidgets()
     fl->addRow(m_exitCodeLabel);
 
     setTitle(tr("Run CMake"));
+    setMinimumSize(600, 400);
 }
 
 void CMakeRunPage::initializePage()
@@ -374,14 +378,14 @@ void CMakeRunPage::initializePage()
                                        "If you want to add additional command line arguments, "
                                        "add them below. Note that CMake remembers command "
                                        "line arguments from the previous runs.").arg(m_buildDirectory));
-    } else if(m_mode == CMakeRunPage::Recreate) {
+    } else if (m_mode == CMakeRunPage::Recreate) {
         m_descriptionLabel->setText(tr("The directory %1 specified in a build-configuration, "
                                        "does not contain a cbp file. Qt Creator needs to "
                                        "recreate this file, by running CMake. "
                                        "Some projects require command line arguments to "
                                        "the initial CMake call. Note that CMake remembers command "
                                        "line arguments from the previous runs.").arg(m_buildDirectory));
-    } else if(m_mode == CMakeRunPage::ChangeDirectory) {
+    } else if (m_mode == CMakeRunPage::ChangeDirectory) {
         m_buildDirectory = m_cmakeWizard->buildDirectory();
         m_descriptionLabel->setText(tr("Qt Creator needs to run CMake in the new build directory. "
                                        "Some projects require command line arguments to the "
@@ -423,7 +427,7 @@ void CMakeRunPage::initializePage()
     bool hasCodeBlocksGenerator = m_cmakeWizard->cmakeManager()->hasCodeBlocksMsvcGenerator();
     ProjectExplorer::Abi abi = ProjectExplorer::Abi::hostAbi();
     abi = ProjectExplorer::Abi(abi.architecture(), abi.os(), ProjectExplorer::Abi::UnknownFlavor,
-                               abi.binaryFormat(), abi.wordWidth() == 32 ? 32 : 0);
+                               abi.binaryFormat(), 0);
     QList<ProjectExplorer::ToolChain *> tcs =
             ProjectExplorer::ToolChainManager::instance()->findToolChains(abi);
 

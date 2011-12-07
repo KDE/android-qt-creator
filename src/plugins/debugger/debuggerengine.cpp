@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -60,11 +60,16 @@
 #include <texteditor/itexteditor.h>
 #include <texteditor/basetextmark.h>
 
+#include <projectexplorer/taskhub.h>
+#include <extensionsystem/pluginmanager.h>
+
 #include <utils/savedaction.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QTimer>
+#include <QtCore/QFile>
+#include <QtCore/QFileInfo>
 #include <QtCore/QFutureInterface>
 
 #include <QtGui/QMessageBox>
@@ -139,11 +144,13 @@ class DebuggerEnginePrivate : public QObject
 public:
     DebuggerEnginePrivate(DebuggerEngine *engine,
             DebuggerEngine *masterEngine,
+            DebuggerLanguages languages,
             const DebuggerStartParameters &sp)
       : m_engine(engine),
         m_masterEngine(masterEngine),
         m_runControl(0),
         m_startParameters(sp),
+        m_languages(languages),
         m_state(DebuggerNotReady),
         m_lastGoodState(DebuggerNotReady),
         m_targetState(DebuggerNotReady),
@@ -156,10 +163,12 @@ public:
         m_watchHandler(engine),
         m_disassemblerAgent(engine),
         m_memoryAgent(engine),
-        m_isStateDebugging(false)
+        m_isStateDebugging(false),
+        m_testsPossible(true),
+        m_taskHub(0)
     {
         connect(&m_locationTimer, SIGNAL(timeout()), SLOT(resetLocation()));
-        if (sp.toolChainAbi.os() == ProjectExplorer::Abi::MacOS)
+        if (sp.toolChainAbi.os() == Abi::MacOS)
             m_disassemblerAgent.setTryMixed(false);
     }
 
@@ -256,6 +265,7 @@ public:
     DebuggerRunControl *m_runControl;  // Not owned.
 
     DebuggerStartParameters m_startParameters;
+    DebuggerLanguages m_languages;
 
     // The current state.
     DebuggerState m_state;
@@ -282,6 +292,15 @@ public:
     QTimer m_locationTimer;
 
     bool m_isStateDebugging;
+
+    // Testing
+    void handleAutoTests();
+    void handleAutoTestLine(int line);
+    void reportTestError(const QString &msg, int line);
+    bool m_testsPossible;
+    QStringList m_testContents;
+    TaskHub *m_taskHub;
+    QString m_testFileName;
 };
 
 
@@ -292,8 +311,9 @@ public:
 //////////////////////////////////////////////////////////////////////
 
 DebuggerEngine::DebuggerEngine(const DebuggerStartParameters &startParameters,
+        DebuggerLanguages languages,
         DebuggerEngine *parentEngine)
-  : d(new DebuggerEnginePrivate(this, parentEngine, startParameters))
+  : d(new DebuggerEnginePrivate(this, parentEngine, languages, startParameters))
 {
     d->m_inferiorPid = 0;
 }
@@ -563,7 +583,7 @@ void DebuggerEngine::gotoLocation(const Location &loc)
     QList<IEditor *> editors = editorManager->editorsForFileName(file);
     IEditor *editor = 0;
     if (editors.isEmpty()) {
-        editor = editorManager->openEditor(file, QString(),
+        editor = editorManager->openEditor(file, Core::Id(),
             EditorManager::IgnoreNavigationHistory);
         if (editor) {
             editors.append(editor);
@@ -870,7 +890,9 @@ void DebuggerEngine::notifyInferiorRunRequested()
 void DebuggerEngine::notifyInferiorRunOk()
 {
     showMessage(_("NOTE: INFERIOR RUN OK"));
-    QTC_ASSERT(state() == InferiorRunRequested, qDebug() << this << state());
+    // Transition from StopRequested can happen sin remotegdbadapter.
+    QTC_ASSERT(state() == InferiorRunRequested
+        || state() == InferiorStopRequested, qDebug() << this << state());
     setState(InferiorRunOk);
 }
 
@@ -1133,6 +1155,11 @@ DebuggerEngine *DebuggerEngine::masterEngine() const
     return d->m_masterEngine;
 }
 
+DebuggerLanguages DebuggerEngine::languages() const
+{
+    return d->m_languages;
+}
+
 bool DebuggerEngine::debuggerActionsEnabled() const
 {
     return debuggerActionsEnabled(d->m_state);
@@ -1198,7 +1225,7 @@ bool DebuggerEngine::isReverseDebugging() const
 // Called by DebuggerRunControl.
 void DebuggerEngine::quitDebugger()
 {
-    showMessage("QUIT DEBUGGER REQUESTED");
+    showMessage(_("QUIT DEBUGGER REQUESTED IN STATE %1").arg(state()));
     d->m_targetState = DebuggerFinished;
     switch (state()) {
     case InferiorStopOk:
@@ -1208,11 +1235,26 @@ void DebuggerEngine::quitDebugger()
     case InferiorRunOk:
         d->doInterruptInferior();
         break;
+    case EngineRunRequested:
+        notifyEngineRunFailed();
+        break;
+    case EngineRunFailed:
+    case DebuggerFinished:
+        break;
+    case InferiorSetupRequested:
+        notifyInferiorSetupFailed();
+        break;
     default:
         // FIXME: We should disable the actions connected to that.
         notifyInferiorIll();
         break;
     }
+}
+
+void DebuggerEngine::abortDebugger()
+{
+    // Overridden in e.g. GdbEngine.
+    quitDebugger();
 }
 
 void DebuggerEngine::requestInterruptInferior()
@@ -1296,16 +1338,6 @@ void DebuggerEngine::addOptionPages(QList<Core::IOptionsPage*> *) const
 unsigned DebuggerEngine::debuggerCapabilities() const
 {
     return 0;
-}
-
-bool DebuggerEngine::canWatchWidgets() const
-{
-    return false;
-}
-
-bool DebuggerEngine::acceptsWatchesWhileRunning() const
-{
-    return false;
 }
 
 bool DebuggerEngine::isSynchronous() const
@@ -1427,9 +1459,9 @@ void DebuggerEngine::detachDebugger()
 
 void DebuggerEngine::exitDebugger()
 {
-    QTC_ASSERT(d->m_state == InferiorStopOk || d->m_state == InferiorUnrunnable,
-            qDebug() << d->m_state);
-    d->queueShutdownInferior();
+    QTC_ASSERT(d->m_state == InferiorStopOk || d->m_state == InferiorUnrunnable
+        || d->m_state == InferiorRunOk, qDebug() << d->m_state);
+    quitDebugger();
 }
 
 void DebuggerEngine::executeStep()
@@ -1587,6 +1619,11 @@ void DebuggerEngine::showStoppedByExceptionMessageBox(const QString &description
 
 bool DebuggerEngine::isCppBreakpoint(const BreakpointParameters &p)
 {
+    //Qml specific breakpoint types
+    if (p.type == BreakpointAtJavaScriptThrow
+            || p.type == BreakpointOnQmlSignalHandler)
+        return false;
+
     // Qml is currently only file
     if (p.type != BreakpointByFileAndLine)
         return true;
@@ -1631,6 +1668,126 @@ bool DebuggerEngine::isStateDebugging() const
 void DebuggerEngine::setStateDebugging(bool on)
 {
     d->m_isStateDebugging = on;
+}
+
+void DebuggerEngine::handleAutoTests()
+{
+    d->handleAutoTests();
+}
+
+void DebuggerEnginePrivate::handleAutoTests()
+{
+    if (!m_testsPossible)
+        return;
+
+    StackFrame frame = m_engine->stackHandler()->currentFrame();
+    if (!frame.file.endsWith(QLatin1String("debugger/simple/simple_test_app.cpp")))
+        return;
+
+    if (m_testContents.isEmpty()) {
+        QFile file(frame.file);
+        file.open(QIODevice::ReadOnly);
+        QTextStream ts(&file);
+        m_testFileName = QFileInfo(frame.file).absoluteFilePath();
+        m_testContents = ts.readAll().split(QLatin1Char('\n'));
+        if (m_testContents.isEmpty()) {
+            m_testsPossible = false;
+            return;
+        }
+        foreach (const QString &s, m_testContents) {
+            if (s.startsWith(QLatin1String("#define USE_AUTORUN"))) {
+                m_testsPossible = s.startsWith(QLatin1String("#define USE_AUTORUN 1"));
+                break;
+            }
+        }
+    }
+
+    if (!m_testsPossible)
+        return;
+
+    int line = frame.line;
+    if (line > 1 && line < m_testContents.size())
+        handleAutoTestLine(line);
+}
+
+void DebuggerEnginePrivate::handleAutoTestLine(int line)
+{
+    QString s = m_testContents.at(line).trimmed();
+    if (s.endsWith(QLatin1Char('.')))
+        s.chop(1);
+    int pos = s.indexOf(QLatin1String("//"));
+    if (pos == -1)
+        return;
+    s = s.mid(pos + 2).trimmed();
+    QString cmd = s.section(QLatin1Char(' '), 0, 0);
+    if (cmd == QLatin1String("Expand")) {
+        m_engine->showMessage(_("'Expand' found in line %1, but not implemented yet.").arg(line));
+        handleAutoTestLine(line + 1);
+    } else if (cmd == QLatin1String("Expand")) {
+        m_engine->showMessage(_("'Expand' found in line %1, but not implemented yet.").arg(line));
+        handleAutoTestLine(line + 1);
+    } else if (cmd == QLatin1String("Check")) {
+        QString name = s.section(QLatin1Char(' '), 1, 1);
+        if (name.isEmpty()) {
+            reportTestError(_("'Check'  needs arguments."), line);
+        } else {
+            QByteArray iname = "local." + name.toLatin1();
+            QString found = m_engine->watchHandler()->displayForAutoTest(iname);
+            if (found.isEmpty()) {
+                reportTestError(_("Check referes to unknown variable %1.")
+                    .arg(name), line);
+            } else {
+                QString needle = s.section(QLatin1Char(' '), 2, -1);
+                if (needle == found) {
+                    m_engine->showMessage(_("Check in line %1 for %2 was successful")
+                        .arg(line).arg(needle));
+                } else {
+                    reportTestError(_("Check for %1 failed. Got %2.")
+                        .arg(needle).arg(found), line);
+                }
+            }
+        }
+        handleAutoTestLine(line + 1);
+    } else if (cmd == QLatin1String("CheckType")) {
+        QString name = s.section(QLatin1Char(' '), 1, 1);
+        if (name.isEmpty()) {
+            reportTestError(_("'CheckType'  needs arguments."), line);
+        } else {
+            QByteArray iname = "local." + name.toLatin1();
+            QString found = m_engine->watchHandler()->displayForAutoTest(iname);
+            if (found.isEmpty()) {
+                reportTestError(_("CheckType referes to unknown variable %1.")
+                    .arg(name), line);
+            } else {
+                QString needle = s.section(QLatin1Char(' '), 2, -1);
+                if (found.endsWith(needle)) {
+                    m_engine->showMessage(_("CheckType in line %1 for %2 was successful")
+                        .arg(line).arg(needle));
+                } else {
+                    reportTestError(_("CheckType for %1 failed. Got %2.")
+                        .arg(needle).arg(found), line);
+                }
+            }
+        }
+        handleAutoTestLine(line + 1);
+    } else if (cmd == QLatin1String("Continue")) {
+        m_engine->showMessage(_("Continue in line %1 processed.").arg(line));
+        m_engine->continueInferior();
+    }
+}
+
+void DebuggerEnginePrivate::reportTestError(const QString &msg, int line)
+{
+    m_engine->showMessage(_("### Line %1: %2").arg(line).arg(msg));
+
+    if (!m_taskHub) {
+        ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
+        m_taskHub = pm->getObject<TaskHub>();
+        m_taskHub->addCategory(QLatin1String("DebuggerTest"), tr("Debugger Test"));
+    }
+
+    Task task(Task::Error, msg, m_testFileName, line + 1, QLatin1String("DebuggerTest"));
+    m_taskHub->addTask(task);
 }
 
 } // namespace Debugger

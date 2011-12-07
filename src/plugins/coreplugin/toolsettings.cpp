@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "toolsettings.h"
-
+#include "dialogs/externaltoolconfig.h"
 #include "externaltool.h"
+#include "externaltoolmanager.h"
 #include "coreconstants.h"
+#include "icore.h"
 
 #include <utils/qtcassert.h>
 
@@ -41,6 +43,7 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QDir>
 #include <QtCore/QTime>
+#include <QtGui/QIcon>
 
 #include <QtDebug>
 
@@ -49,6 +52,10 @@ using namespace Core::Internal;
 
 ToolSettings::ToolSettings(QObject *parent) :
     IOptionsPage(parent)
+{
+}
+
+ToolSettings::~ToolSettings()
 {
 }
 

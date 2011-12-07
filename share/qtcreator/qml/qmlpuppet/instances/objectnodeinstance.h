@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,36 +26,32 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef ABSTRACTNODEINSTANCE_H
 #define ABSTRACTNODEINSTANCE_H
 
-#include <QPainter>
-#include <QStyleOptionGraphicsItem>
-#include <QSharedPointer>
-#include <QScopedPointer>
-#include <QWeakPointer>
 #include "nodeinstanceserver.h"
 #include "nodeinstancemetaobject.h"
 #include "nodeinstancesignalspy.h"
+
+#include <QPainter>
+#include <QSharedPointer>
+#include <QWeakPointer>
 
 QT_BEGIN_NAMESPACE
 class QGraphicsItem;
 class QDeclarativeContext;
 class QDeclarativeEngine;
 class QDeclarativeProperty;
-class QDeclarativeContext;
-class QDeclarativeBinding;
 class QDeclarativeAbstractBinding;
 QT_END_NAMESPACE
 
 namespace QmlDesigner {
 
 class NodeInstanceServer;
-
 
 namespace Internal {
 
@@ -71,7 +67,7 @@ class ObjectNodeInstance
 public:
     typedef QSharedPointer<ObjectNodeInstance> Pointer;
     typedef QWeakPointer<ObjectNodeInstance> WeakPointer;
-    ObjectNodeInstance(QObject *object);
+    explicit ObjectNodeInstance(QObject *object);
 
     virtual ~ObjectNodeInstance();
     void destroy();
@@ -186,6 +182,8 @@ public:
 
     virtual void setNodeSource(const QString &source);
 
+    static QVariant fixResourcePaths(const QVariant &value);
+
 protected:
     void doResetProperty(const QString &propertyName);
     void removeFromOldProperty(QObject *object, QObject *oldParent, const QString &oldParentProperty);
@@ -209,7 +207,6 @@ private:
     NodeInstanceSignalSpy m_signalSpy;
     bool m_isInPositioner;
 };
-
 
 } // namespace Internal
 } // namespace QmlDesigner

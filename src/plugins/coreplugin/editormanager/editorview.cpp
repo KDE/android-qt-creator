@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -93,6 +93,9 @@ EditorView::EditorView(QWidget *parent) :
         connect(m_toolBar, SIGNAL(goForwardClicked()), this, SLOT(goForwardInNavigationHistory()));
         connect(m_toolBar, SIGNAL(closeClicked()), this, SLOT(closeView()));
         connect(m_toolBar, SIGNAL(listSelectionActivated(int)), this, SLOT(listSelectionActivated(int)));
+        connect(m_toolBar, SIGNAL(horizontalSplitClicked()), this, SLOT(splitHorizontally()));
+        connect(m_toolBar, SIGNAL(verticalSplitClicked()), this, SLOT(splitVertically()));
+        connect(m_toolBar, SIGNAL(closeSplitClicked()), this, SLOT(closeSplit()));
         tl->addWidget(m_toolBar);
     }
 
@@ -167,6 +170,11 @@ void EditorView::hideEditorStatusBar(const QString &id)
     }
 }
 
+void EditorView::setCloseSplitEnabled(bool enable)
+{
+    m_toolBar->setCloseSplitEnabled(enable);
+}
+
 void EditorView::addEditor(IEditor *editor)
 {
     if (m_editors.contains(editor))
@@ -218,6 +226,31 @@ void EditorView::listSelectionActivated(int index)
 {
     QAbstractItemModel *model = EditorManager::instance()->openedEditorsModel();
     EditorManager::instance()->activateEditorForIndex(this, model->index(index, 0), Core::EditorManager::ModeSwitch);
+}
+
+void EditorView::splitHorizontally()
+{
+    EditorManager *editorManager = EditorManager::instance();
+    SplitterOrView *splitterOrView = editorManager->topSplitterOrView()->findView(this);
+    if (splitterOrView)
+        splitterOrView->split(Qt::Vertical);
+    editorManager->updateActions();
+}
+
+void EditorView::splitVertically()
+{
+    EditorManager *editorManager = EditorManager::instance();
+    SplitterOrView *splitterOrView = editorManager->topSplitterOrView()->findView(this);
+    if (splitterOrView)
+        splitterOrView->split(Qt::Horizontal);
+    editorManager->updateActions();
+}
+
+void EditorView::closeSplit()
+{
+    EditorManager *editorManager = EditorManager::instance();
+    editorManager->closeView(this);
+    editorManager->updateActions();
 }
 
 void EditorView::setCurrentEditor(IEditor *editor)
@@ -756,10 +789,10 @@ QByteArray SplitterOrView::saveState() const
             stream << QByteArray("empty");
         } else if (e == em->currentEditor()) {
             stream << QByteArray("currenteditor")
-                    << e->file()->fileName() << e->id() << e->saveState();
+                    << e->file()->fileName() << e->id().toString() << e->saveState();
         } else {
             stream << QByteArray("editor")
-                    << e->file()->fileName() << e->id() << e->saveState();
+                    << e->file()->fileName() << e->id().toString() << e->saveState();
         }
     }
     return bytes;
@@ -781,12 +814,12 @@ void SplitterOrView::restoreState(const QByteArray &state)
     } else if (mode == "editor" || mode == "currenteditor") {
         EditorManager *em = CoreImpl::instance()->editorManager();
         QString fileName;
-        QByteArray id;
+        QString id;
         QByteArray editorState;
         stream >> fileName >> id >> editorState;
         if (!QFile::exists(fileName))
             return;
-        IEditor *e = em->openEditor(view(), fileName, id, Core::EditorManager::IgnoreNavigationHistory
+        IEditor *e = em->openEditor(view(), fileName, Id(id), Core::EditorManager::IgnoreNavigationHistory
                                     | Core::EditorManager::NoActivate);
 
         if (!e) {

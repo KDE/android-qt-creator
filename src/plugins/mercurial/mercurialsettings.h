@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Brian McGillion
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,15 +41,10 @@ namespace Internal {
 class MercurialSettings : public VCSBase::VCSBaseClientSettings
 {
 public:
+    static const QLatin1String diffIgnoreWhiteSpaceKey;
+    static const QLatin1String diffIgnoreBlankLinesKey;
+
     MercurialSettings();
-    MercurialSettings& operator=(const MercurialSettings& other);
-
-    virtual void writeSettings(QSettings *settings) const;
-    virtual void readSettings(const QSettings *settings);
-    virtual bool equals(const VCSBaseClientSettings &rhs) const;
-
-    bool diffIgnoreWhiteSpace;
-    bool diffIgnoreBlankLines;
 };
 
 } // namespace Internal

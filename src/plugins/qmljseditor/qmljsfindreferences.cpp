@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,8 +48,10 @@
 #include <qmljs/qmljsevaluate.h>
 #include <qmljs/qmljsscopebuilder.h>
 #include <qmljs/qmljsscopeastpath.h>
+#include <qmljs/qmljscontext.h>
 #include <qmljs/parser/qmljsastvisitor_p.h>
 #include <qmljs/parser/qmljsast_p.h>
+#include <qmljstools/qmljsmodelmanager.h>
 
 #include "qmljseditorconstants.h"
 
@@ -59,12 +61,12 @@
 #include <QtCore/QtConcurrentMap>
 #include <QtCore/QDir>
 #include <QtGui/QApplication>
+#include <QtGui/QLabel>
 #include <qtconcurrent/runextensions.h>
 
 #include <functional>
 
 using namespace QmlJS;
-using namespace QmlJS::Interpreter;
 using namespace QmlJS::AST;
 using namespace QmlJSEditor;
 
@@ -77,12 +79,11 @@ class FindUsages: protected Visitor
 public:
     typedef QList<AST::SourceLocation> Result;
 
-    FindUsages(Document::Ptr doc, Context *context)
+    FindUsages(Document::Ptr doc, const ContextPtr &context)
         : _doc(doc)
-        , _context(context)
-        , _builder(context, doc)
+        , _scopeChain(doc, context)
+        , _builder(&_scopeChain)
     {
-        _builder.initializeRootScope();
     }
 
     Result operator()(const QString &name, const ObjectValue *scope)
@@ -103,9 +104,8 @@ protected:
 
     virtual bool visit(AST::UiPublicMember *node)
     {
-        if (node->name
-                && node->name->asString() == _name
-                && _context->scopeChain().qmlScopeObjects.contains(_scope)) {
+        if (node->name == _name
+                && _scopeChain.qmlScopeObjects().contains(_scope)) {
             _usages.append(node->identifierToken);
         }
         if (AST::cast<Block *>(node->statement)) {
@@ -129,7 +129,7 @@ protected:
     {
         if (node->qualifiedId
                 && !node->qualifiedId->next
-                && node->qualifiedId->name->asString() == _name
+                && node->qualifiedId->name == _name
                 && checkQmlScope()) {
             _usages.append(node->qualifiedId->identifierToken);
         }
@@ -144,7 +144,7 @@ protected:
     {
         if (node->qualifiedId
                 && !node->qualifiedId->next
-                && node->qualifiedId->name->asString() == _name
+                && node->qualifiedId->name == _name
                 && checkQmlScope()) {
             _usages.append(node->qualifiedId->identifierToken);
         }
@@ -162,7 +162,7 @@ protected:
     {
         if (node->qualifiedId
                 && !node->qualifiedId->next
-                && node->qualifiedId->name->asString() == _name
+                && node->qualifiedId->name == _name
                 && checkQmlScope()) {
             _usages.append(node->qualifiedId->identifierToken);
         }
@@ -171,11 +171,11 @@ protected:
 
     virtual bool visit(AST::IdentifierExpression *node)
     {
-        if (!node->name || node->name->asString() != _name)
+        if (node->name.isEmpty() || node->name != _name)
             return false;
 
         const ObjectValue *scope;
-        _context->lookup(_name, &scope);
+        _scopeChain.lookup(_name, &scope);
         if (!scope)
             return false;
         if (check(scope)) {
@@ -187,14 +187,14 @@ protected:
         // so it might still be a use - we just found a different value in a different scope first
 
         // if scope is one of these, our match wasn't inside the instantiating components list
-        const ScopeChain &chain = _context->scopeChain();
-        if (chain.jsScopes.contains(scope)
-                || chain.qmlScopeObjects.contains(scope)
-                || chain.qmlTypes == scope
-                || chain.globalScope == scope)
+        const ScopeChain &chain = _scopeChain;
+        if (chain.jsScopes().contains(scope)
+                || chain.qmlScopeObjects().contains(scope)
+                || chain.qmlTypes() == scope
+                || chain.globalScope() == scope)
             return false;
 
-        if (contains(chain.qmlComponentScope.data()))
+        if (contains(chain.qmlComponentChain().data()))
             _usages.append(node->identifierToken);
 
         return false;
@@ -202,10 +202,10 @@ protected:
 
     virtual bool visit(AST::FieldMemberExpression *node)
     {
-        if (!node->name || node->name->asString() != _name)
+        if (node->name != _name)
             return true;
 
-        Evaluate evaluate(_context);
+        Evaluate evaluate(&_scopeChain);
         const Value *lhsValue = evaluate(node->base);
         if (!lhsValue)
             return true;
@@ -223,7 +223,7 @@ protected:
 
     virtual bool visit(AST::FunctionExpression *node)
     {
-        if (node->name && node->name->asString() == _name) {
+        if (node->name == _name) {
             if (checkLookup())
                 _usages.append(node->identifierToken);
         }
@@ -236,7 +236,7 @@ protected:
 
     virtual bool visit(AST::VariableDeclaration *node)
     {
-        if (node->name && node->name->asString() == _name) {
+        if (node->name == _name) {
             if (checkLookup())
                 _usages.append(node->identifierToken);
         }
@@ -244,19 +244,20 @@ protected:
     }
 
 private:
-    bool contains(const ScopeChain::QmlComponentChain *chain)
+    bool contains(const QmlComponentChain *chain)
     {
-        if (!chain || !chain->document)
+        if (!chain || !chain->document() || !chain->document()->bind())
             return false;
 
-        if (chain->document->bind()->idEnvironment()->lookupMember(_name, _context))
-            return chain->document->bind()->idEnvironment() == _scope;
-        const ObjectValue *root = chain->document->bind()->rootObjectValue();
-        if (root->lookupMember(_name, _context)) {
+        const ObjectValue *idEnv = chain->document()->bind()->idEnvironment();
+        if (idEnv && idEnv->lookupMember(_name, _scopeChain.context()))
+            return idEnv == _scope;
+        const ObjectValue *root = chain->document()->bind()->rootObjectValue();
+        if (root && root->lookupMember(_name, _scopeChain.context())) {
             return check(root);
         }
 
-        foreach (const ScopeChain::QmlComponentChain *parent, chain->instantiatingComponents) {
+        foreach (const QmlComponentChain *parent, chain->instantiatingComponents()) {
             if (contains(parent))
                 return true;
         }
@@ -268,13 +269,13 @@ private:
         if (!s)
             return false;
         const ObjectValue *definingObject;
-        s->lookupMember(_name, _context, &definingObject);
+        s->lookupMember(_name, _scopeChain.context(), &definingObject);
         return definingObject == _scope;
     }
 
     bool checkQmlScope()
     {
-        foreach (const ObjectValue *s, _context->scopeChain().qmlScopeObjects) {
+        foreach (const ObjectValue *s, _scopeChain.qmlScopeObjects()) {
             if (check(s))
                 return true;
         }
@@ -284,14 +285,14 @@ private:
     bool checkLookup()
     {
         const ObjectValue *scope = 0;
-        _context->lookup(_name, &scope);
+        _scopeChain.lookup(_name, &scope);
         return check(scope);
     }
 
     Result _usages;
 
     Document::Ptr _doc;
-    Context *_context;
+    ScopeChain _scopeChain;
     ScopeBuilder _builder;
 
     QString _name;
@@ -303,12 +304,12 @@ class FindTypeUsages: protected Visitor
 public:
     typedef QList<AST::SourceLocation> Result;
 
-    FindTypeUsages(Document::Ptr doc, Context *context)
+    FindTypeUsages(Document::Ptr doc, const ContextPtr &context)
         : _doc(doc)
         , _context(context)
-        , _builder(context, doc)
+        , _scopeChain(doc, context)
+        , _builder(&_scopeChain)
     {
-        _builder.initializeRootScope();
     }
 
     Result operator()(const QString &name, const ObjectValue *typeValue)
@@ -329,7 +330,7 @@ protected:
 
     virtual bool visit(AST::UiPublicMember *node)
     {
-        if (node->memberType && node->memberType->asString() == _name){
+        if (node->memberType == _name){
             const ObjectValue * tVal = _context->lookupType(_doc.data(), QStringList(_name));
             if (tVal == _typeValue)
                 _usages.append(node->typeToken);
@@ -375,11 +376,11 @@ protected:
 
     virtual bool visit(AST::IdentifierExpression *node)
     {
-        if (!node->name || node->name->asString() != _name)
+        if (node->name != _name)
             return false;
 
         const ObjectValue *scope;
-        const Value *objV = _context->lookup(_name, &scope);
+        const Value *objV = _scopeChain.lookup(_name, &scope);
         if (objV == _typeValue)
             _usages.append(node->identifierToken);
         return false;
@@ -387,9 +388,9 @@ protected:
 
     virtual bool visit(AST::FieldMemberExpression *node)
     {
-        if (!node->name || node->name->asString() != _name)
+        if (node->name != _name)
             return true;
-        Evaluate evaluate(_context);
+        Evaluate evaluate(&_scopeChain);
         const Value *lhsValue = evaluate(node->base);
         if (!lhsValue)
             return true;
@@ -421,7 +422,7 @@ protected:
 
     virtual bool visit(UiImport *ast)
     {
-        if (ast && ast->importId && ast->importId->asString() == _name) {
+        if (ast && ast->importId == _name) {
             const Imports *imp = _context->imports(_doc.data());
             if (!imp)
                 return false;
@@ -436,7 +437,7 @@ private:
     bool checkTypeName(UiQualifiedId *id)
     {
         for (UiQualifiedId *att = id; att; att = att->next){
-            if (att->name && att->name->asString() == _name) {
+            if (att->name == _name) {
                 const ObjectValue *objectValue = _context->lookupType(_doc.data(), id, att->next);
                 if (_typeValue == objectValue){
                     _usages.append(att->identifierToken);
@@ -450,7 +451,8 @@ private:
     Result _usages;
 
     Document::Ptr _doc;
-    Context *_context;
+    ContextPtr _context;
+    ScopeChain _scopeChain;
     ScopeBuilder _builder;
 
     QString _name;
@@ -465,8 +467,8 @@ public:
         TypeKind
     };
 
-    FindTargetExpression(Document::Ptr doc, Context *context)
-        : _doc(doc), _context(context)
+    FindTargetExpression(Document::Ptr doc, const ScopeChain *scopeChain)
+        : _doc(doc), _scopeChain(scopeChain)
     {
     }
 
@@ -487,7 +489,7 @@ public:
     const ObjectValue *scope()
     {
         if (!_scope)
-            _context->lookup(_name, &_scope);
+            _scopeChain->lookup(_name, &_scope);
         return _scope;
     }
 
@@ -520,11 +522,11 @@ protected:
     virtual bool visit(IdentifierExpression *node)
     {
         if (containsOffset(node->identifierToken)) {
-            _name = node->name->asString();
+            _name = node->name.toString();
             if ((!_name.isEmpty()) && _name.at(0).isUpper()) {
                 // a possible type
-                _targetValue = _context->lookup(_name, &_scope);
-                if (value_cast<const ObjectValue*>(_targetValue))
+                _targetValue = _scopeChain->lookup(_name, &_scope);
+                if (value_cast<ObjectValue>(_targetValue))
                     _typeKind = TypeKind;
             }
         }
@@ -535,17 +537,17 @@ protected:
     {
         if (containsOffset(node->identifierToken)) {
             setScope(node->base);
-            _name = node->name->asString();
+            _name = node->name.toString();
             if ((!_name.isEmpty()) && _name.at(0).isUpper()) {
                 // a possible type
-                Evaluate evaluate(_context);
+                Evaluate evaluate(_scopeChain);
                 const Value *lhsValue = evaluate(node->base);
                 if (!lhsValue)
                     return true;
                 const ObjectValue *lhsObj = lhsValue->asObjectValue();
                 if (lhsObj) {
                     _scope = lhsObj;
-                    _targetValue = lhsObj->lookupMember(_name, _context);
+                    _targetValue = lhsObj->lookupMember(_name, _scopeChain->context());
                     _typeKind = TypeKind;
                 }
             }
@@ -590,16 +592,16 @@ protected:
     virtual bool visit(UiPublicMember *node)
     {
         if (containsOffset(node->typeToken)){
-            if (node->memberType){
-                _name = node->memberType->asString();
-                _targetValue = _context->lookupType(_doc.data(), QStringList(_name));
+            if (!node->memberType.isEmpty()) {
+                _name = node->memberType.toString();
+                _targetValue = _scopeChain->context()->lookupType(_doc.data(), QStringList(_name));
                 _scope = 0;
                 _typeKind = TypeKind;
             }
             return false;
         } else if (containsOffset(node->identifierToken)) {
             _scope = _doc->bind()->findQmlObject(_objectNode);
-            _name = node->name->asString();
+            _name = node->name.toString();
             return false;
         }
         return true;
@@ -613,7 +615,7 @@ protected:
     virtual bool visit(FunctionExpression *node)
     {
         if (containsOffset(node->identifierToken)) {
-            _name = node->name->asString();
+            _name = node->name.toString();
             return false;
         }
         return true;
@@ -622,7 +624,7 @@ protected:
     virtual bool visit(VariableDeclaration *node)
     {
         if (containsOffset(node->identifierToken)) {
-            _name = node->name->asString();
+            _name = node->name.toString();
             return false;
         }
         return true;
@@ -641,9 +643,9 @@ private:
 
     bool checkBindingName(UiQualifiedId *id)
     {
-        if (id && id->name && !id->next && containsOffset(id->identifierToken)) {
+        if (id && !id->name.isEmpty() && !id->next && containsOffset(id->identifierToken)) {
             _scope = _doc->bind()->findQmlObject(_objectNode);
-            _name = id->name->asString();
+            _name = id->name.toString();
             return true;
         }
         return false;
@@ -652,10 +654,10 @@ private:
     bool checkTypeName(UiQualifiedId *id)
     {
         for (UiQualifiedId *att = id; att; att = att->next) {
-            if (att->name && containsOffset(att->identifierToken)) {
-                _targetValue = _context->lookupType(_doc.data(), id, att->next);
+            if (!att->name.isEmpty() && containsOffset(att->identifierToken)) {
+                _targetValue = _scopeChain->context()->lookupType(_doc.data(), id, att->next);
                 _scope = 0;
-                _name = att->name->asString();
+                _name = att->name.toString();
                 _typeKind = TypeKind;
                 return true;
             }
@@ -665,7 +667,7 @@ private:
 
     void setScope(Node *node)
     {
-        Evaluate evaluate(_context);
+        Evaluate evaluate(_scopeChain);
         const Value *v = evaluate(node);
         if (v)
             _scope = v->asObjectValue();
@@ -676,7 +678,7 @@ private:
     const Value *_targetValue;
     Node *_objectNode;
     Document::Ptr _doc;
-    Context *_context;
+    const ScopeChain *_scopeChain;
     quint32 _offset;
     Kind _typeKind;
 };
@@ -692,13 +694,13 @@ static QString matchingLine(unsigned position, const QString &source)
 
 class ProcessFile: public std::unary_function<QString, QList<FindReferences::Usage> >
 {
-    const Context &context;
+    ContextPtr context;
     typedef FindReferences::Usage Usage;
     QString name;
     const ObjectValue *scope;
 
 public:
-    ProcessFile(const Context &context,
+    ProcessFile(const ContextPtr &context,
                 QString name,
                 const ObjectValue *scope)
         : context(context), name(name), scope(scope)
@@ -708,14 +710,12 @@ public:
     {
         QList<Usage> usages;
 
-        Document::Ptr doc = context.snapshot().document(fileName);
+        Document::Ptr doc = context->snapshot().document(fileName);
         if (!doc)
             return usages;
 
-        Context contextCopy(context);
-
         // find all idenfifier expressions, try to resolve them and check if the result is in scope
-        FindUsages findUsages(doc, &contextCopy);
+        FindUsages findUsages(doc, context);
         FindUsages::Result results = findUsages(name, scope);
         foreach (const AST::SourceLocation &loc, results)
             usages.append(Usage(fileName, matchingLine(loc.offset, doc->source()), loc.startLine, loc.startColumn - 1, loc.length));
@@ -726,13 +726,13 @@ public:
 
 class SearchFileForType: public std::unary_function<QString, QList<FindReferences::Usage> >
 {
-    const Context &context;
+    ContextPtr context;
     typedef FindReferences::Usage Usage;
     QString name;
     const ObjectValue *scope;
 
 public:
-    SearchFileForType(const Context &context,
+    SearchFileForType(const ContextPtr &context,
                 QString name,
                 const ObjectValue *scope)
         : context(context), name(name), scope(scope)
@@ -742,14 +742,12 @@ public:
     {
         QList<Usage> usages;
 
-        Document::Ptr doc = context.snapshot().document(fileName);
+        Document::Ptr doc = context->snapshot().document(fileName);
         if (!doc)
             return usages;
 
-        Context contextCopy(context);
-
         // find all idenfifier expressions, try to resolve them and check if the result is in scope
-        FindTypeUsages findUsages(doc, &contextCopy);
+        FindTypeUsages findUsages(doc, context);
         FindTypeUsages::Result results = findUsages(name, scope);
         foreach (const AST::SourceLocation &loc, results)
             usages.append(Usage(fileName, matchingLine(loc.offset, doc->source()), loc.startLine, loc.startColumn - 1, loc.length));
@@ -779,7 +777,6 @@ public:
 
 FindReferences::FindReferences(QObject *parent)
     : QObject(parent)
-    , _resultWindow(Find::SearchResultWindow::instance())
 {
     m_watcher.setPendingResultsLimit(1);
     connect(&m_watcher, SIGNAL(resultsReadyAt(int,int)), this, SLOT(displayResults(int,int)));
@@ -794,7 +791,8 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
                         const ModelManagerInterface::WorkingCopy workingCopy,
                         Snapshot snapshot,
                         const QString fileName,
-                        quint32 offset)
+                        quint32 offset,
+                        QString replacement)
 {
     // update snapshot from workingCopy to make sure it's up to date
     // ### remove?
@@ -802,34 +800,45 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
     QHashIterator< QString, QPair<QString, int> > it(workingCopy.all());
     while (it.hasNext()) {
         it.next();
-        Document::Ptr oldDoc = snapshot.document(it.key());
+        const QString fileName = it.key();
+        Document::Ptr oldDoc = snapshot.document(fileName);
         if (oldDoc && oldDoc->editorRevision() == it.value().second)
             continue;
 
-        Document::Ptr newDoc = snapshot.documentFromSource(it.key(), it.value().first);
+        Document::Language language;
+        if (oldDoc)
+            language = oldDoc->language();
+        else
+            language = QmlJSTools::languageOfFile(fileName);
+
+        Document::MutablePtr newDoc = snapshot.documentFromSource(
+                    it.value().first, fileName, language);
         newDoc->parse();
         snapshot.insert(newDoc);
     }
 
     // find the scope for the name we're searching
-    Context context(snapshot);
     Document::Ptr doc = snapshot.document(fileName);
     if (!doc)
         return;
 
-    Link link(&context, snapshot, ModelManagerInterface::instance()->importPaths());
-    link();
+    QmlJS::ModelManagerInterface *modelManager = QmlJS::ModelManagerInterface::instance();
 
-    ScopeBuilder builder(&context, doc);
-    builder.initializeRootScope();
+    Link link(snapshot, modelManager->importPaths(), modelManager->builtins(doc));
+    ContextPtr context = link();
+
+    ScopeChain scopeChain(doc, context);
+    ScopeBuilder builder(&scopeChain);
     ScopeAstPath astPath(doc);
     builder.push(astPath(offset));
 
-    FindTargetExpression findTarget(doc, &context);
+    FindTargetExpression findTarget(doc, &scopeChain);
     findTarget(offset);
     const QString &name = findTarget.name();
     if (name.isEmpty())
         return;
+    if (!replacement.isNull() && replacement.isEmpty())
+        replacement = name;
 
     QStringList files;
     foreach (const Document::Ptr &doc, snapshot) {
@@ -839,12 +848,14 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
 
     future.setProgressRange(0, files.size());
 
+    // report a dummy usage to indicate the search is starting
+    FindReferences::Usage searchStarting(replacement, name, 0, 0, 0);
+
     if (findTarget.typeKind() == findTarget.TypeKind){
-        const ObjectValue *typeValue = value_cast<const ObjectValue*>(findTarget.targetValue());
+        const ObjectValue *typeValue = value_cast<ObjectValue>(findTarget.targetValue());
         if (!typeValue)
             return;
-        // report a dummy usage to indicate the search is starting
-        future.reportResult(FindReferences::Usage());
+        future.reportResult(searchStarting);
 
         SearchFileForType process(context, name, typeValue);
         UpdateUI reduce(&future);
@@ -854,11 +865,12 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
         const ObjectValue *scope = findTarget.scope();
         if (!scope)
             return;
-        scope->lookupMember(name, &context, &scope);
+        scope->lookupMember(name, context, &scope);
         if (!scope)
             return;
-        // report a dummy usage to indicate the search is starting
-         future.reportResult(FindReferences::Usage());
+        if (!scope->className().isEmpty())
+            searchStarting.lineText.prepend(scope->className() + QLatin1Char('.'));
+        future.reportResult(searchStarting);
 
         ProcessFile process(context, name, scope);
         UpdateUI reduce(&future);
@@ -870,17 +882,29 @@ static void find_helper(QFutureInterface<FindReferences::Usage> &future,
 
 void FindReferences::findUsages(const QString &fileName, quint32 offset)
 {
-    findAll_helper(fileName, offset);
-}
-
-void FindReferences::findAll_helper(const QString &fileName, quint32 offset)
-{
     ModelManagerInterface *modelManager = ModelManagerInterface::instance();
-
 
     QFuture<Usage> result = QtConcurrent::run(
                 &find_helper, modelManager->workingCopy(),
-                modelManager->snapshot(), fileName, offset);
+                modelManager->snapshot(), fileName, offset,
+                QString());
+    m_watcher.setFuture(result);
+}
+
+void FindReferences::renameUsages(const QString &fileName, quint32 offset,
+                                  const QString &replacement)
+{
+    ModelManagerInterface *modelManager = ModelManagerInterface::instance();
+
+    // an empty non-null string asks the future to use the current name as base
+    QString newName = replacement;
+    if (newName.isNull())
+        newName = QLatin1String("");
+
+    QFuture<Usage> result = QtConcurrent::run(
+                &find_helper, modelManager->workingCopy(),
+                modelManager->snapshot(), fileName, offset,
+                newName);
     m_watcher.setFuture(result);
 }
 
@@ -888,23 +912,42 @@ void FindReferences::displayResults(int first, int last)
 {
     // the first usage is always a dummy to indicate we now start searching
     if (first == 0) {
-        Find::SearchResult *search = _resultWindow->startNewSearch(Find::SearchResultWindow::SearchOnly);
-        connect(search, SIGNAL(activated(Find::SearchResultItem)),
+        Usage dummy = m_watcher.future().resultAt(0);
+        const QString replacement = dummy.path;
+        const QString symbolName = dummy.lineText;
+        const QString label = tr("QML/JS Usages:");
+
+        if (replacement.isEmpty()) {
+            m_currentSearch = Find::SearchResultWindow::instance()->startNewSearch(
+                        label, QString(), symbolName, Find::SearchResultWindow::SearchOnly);
+        } else {
+            m_currentSearch = Find::SearchResultWindow::instance()->startNewSearch(
+                        label, QString(), symbolName, Find::SearchResultWindow::SearchAndReplace);
+            m_currentSearch->setTextToReplace(replacement);
+            connect(m_currentSearch, SIGNAL(replaceButtonClicked(QString,QList<Find::SearchResultItem>)),
+                    SLOT(onReplaceButtonClicked(QString,QList<Find::SearchResultItem>)));
+        }
+        connect(m_currentSearch, SIGNAL(activated(Find::SearchResultItem)),
                 this, SLOT(openEditor(Find::SearchResultItem)));
-        _resultWindow->popup(true);
+        connect(m_currentSearch, SIGNAL(cancelled()), this, SLOT(cancel()));
+        Find::SearchResultWindow::instance()->popup(true);
 
         Core::ProgressManager *progressManager = Core::ICore::instance()->progressManager();
         Core::FutureProgress *progress = progressManager->addTask(
                     m_watcher.future(), tr("Searching"),
                     QmlJSEditor::Constants::TASK_SEARCH);
-        connect(progress, SIGNAL(clicked()), _resultWindow, SLOT(popup()));
+        connect(progress, SIGNAL(clicked()), Find::SearchResultWindow::instance(), SLOT(popup()));
 
         ++first;
     }
 
+    if (!m_currentSearch) {
+        m_watcher.cancel();
+        return;
+    }
     for (int index = first; index != last; ++index) {
         Usage result = m_watcher.future().resultAt(index);
-        _resultWindow->addResult(result.path,
+        m_currentSearch->addResult(result.path,
                                  result.line,
                                  result.lineText,
                                  result.col,
@@ -914,17 +957,47 @@ void FindReferences::displayResults(int first, int last)
 
 void FindReferences::searchFinished()
 {
-    _resultWindow->finishSearch();
+    if (m_currentSearch)
+        m_currentSearch->finishSearch();
+    m_currentSearch = 0;
     emit changed();
+}
+
+void FindReferences::cancel()
+{
+    m_watcher.cancel();
 }
 
 void FindReferences::openEditor(const Find::SearchResultItem &item)
 {
     if (item.path.size() > 0) {
         TextEditor::BaseTextEditorWidget::openEditorAt(item.path.first(), item.lineNumber, item.textMarkPos,
-                                                 QString(),
+                                                 Core::Id(),
                                                  Core::EditorManager::ModeSwitch);
     } else {
-        Core::EditorManager::instance()->openEditor(item.text, QString(), Core::EditorManager::ModeSwitch);
+        Core::EditorManager::instance()->openEditor(item.text, Core::Id(), Core::EditorManager::ModeSwitch);
     }
+}
+
+void FindReferences::onReplaceButtonClicked(const QString &text, const QList<Find::SearchResultItem> &items)
+{
+    const QStringList fileNames = TextEditor::BaseFileFind::replaceAll(text, items);
+
+    // files that are opened in an editor are changed, but not saved
+    QStringList changedOnDisk;
+    QStringList changedUnsavedEditors;
+    Core::EditorManager *editorManager = Core::EditorManager::instance();
+    foreach (const QString &fileName, fileNames) {
+        if (editorManager->editorsForFileName(fileName).isEmpty())
+            changedOnDisk += fileName;
+        else
+            changedUnsavedEditors += fileName;
+    }
+
+    if (!changedOnDisk.isEmpty())
+        QmlJS::ModelManagerInterface::instance()->updateSourceFiles(changedOnDisk, true);
+    if (!changedUnsavedEditors.isEmpty())
+        QmlJS::ModelManagerInterface::instance()->updateSourceFiles(changedUnsavedEditors, false);
+
+    Find::SearchResultWindow::instance()->hide();
 }

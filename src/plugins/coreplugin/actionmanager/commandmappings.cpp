@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@
 #include "coreconstants.h"
 #include "filemanager.h"
 #include "icore.h"
-#include "uniqueidmanager.h"
+#include "id.h"
 
 #include <utils/treewidgetcolumnstretcher.h>
 
@@ -69,7 +69,7 @@ CommandMappings::~CommandMappings()
 
 QWidget *CommandMappings::createPage(QWidget *parent)
 {
-    m_page = new Ui_CommandMappings();
+    m_page = new Ui::CommandMappings();
     QWidget *w = new QWidget(parent);
     m_page->setupUi(w);
     m_page->targetEdit->setAutoHideButton(Utils::FancyLineEdit::Right, true);

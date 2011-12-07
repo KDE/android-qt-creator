@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,10 +36,6 @@
 #include <QtGui/QWizardPage>
 
 QT_BEGIN_NAMESPACE
-namespace Ui {
-class S60PublishingSisSettingsPageOvi;
-}
-
 class QLabel;
 QT_END_NAMESPACE
 
@@ -47,7 +43,10 @@ namespace ProjectExplorer { class Project; }
 
 namespace Qt4ProjectManager {
 namespace Internal {
+
 class S60PublisherOvi;
+
+namespace Ui { class S60PublishingSisSettingsPageOvi; }
 
 class S60PublishingSisSettingsPageOvi : public QWizardPage
 {
@@ -69,7 +68,8 @@ private slots:
     void displayNameChanged();
 
 private:
-    void reflectSettingState(bool settingState, QLabel *okLabel, QLabel *errorLabel, QLabel *errorReasonLabel, const QString &errorReason);
+    void reflectSettingState(bool settingState, QLabel *okLabel,
+        QLabel *errorLabel, QLabel *errorReasonLabel, const QString &errorReason);
     void showWarningsForUnenforcableChecks();
 
     Ui::S60PublishingSisSettingsPageOvi *ui;

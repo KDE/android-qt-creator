@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,22 +40,26 @@
 #include <QtGui/QStringListModel>
 #include <QtGui/QCompleter>
 #include <QtGui/QKeyEvent>
+#include <QtGui/QScrollArea>
 
 using namespace Find;
 using namespace Find::Internal;
 
-FindToolWindow::FindToolWindow(FindPlugin *plugin)
-    : QDialog(Core::ICore::instance()->mainWindow()),
+static FindToolWindow *m_instance = 0;
+
+FindToolWindow::FindToolWindow(FindPlugin *plugin, QWidget *parent)
+    : QWidget(parent),
     m_plugin(plugin),
     m_findCompleter(new QCompleter(this)),
     m_currentFilter(0),
     m_configWidget(0)
 {
+    m_instance = this;
     m_ui.setupUi(this);
-    connect(m_ui.closeButton, SIGNAL(clicked()), this, SLOT(reject()));
+    setFocusProxy(m_ui.searchTerm);
+
     connect(m_ui.searchButton, SIGNAL(clicked()), this, SLOT(search()));
     connect(m_ui.replaceButton, SIGNAL(clicked()), this, SLOT(replace()));
-    connect(m_ui.cancelButton, SIGNAL(clicked()), this, SLOT(cancelSearch()));
     connect(m_ui.matchCase, SIGNAL(toggled(bool)), m_plugin, SLOT(setCaseSensitive(bool)));
     connect(m_ui.wholeWords, SIGNAL(toggled(bool)), m_plugin, SLOT(setWholeWord(bool)));
     connect(m_ui.regExp, SIGNAL(toggled(bool)), m_plugin, SLOT(setRegularExpression(bool)));
@@ -77,6 +81,25 @@ FindToolWindow::~FindToolWindow()
     qDeleteAll(m_configWidgets);
 }
 
+FindToolWindow *FindToolWindow::instance()
+{
+    return m_instance;
+}
+
+bool FindToolWindow::event(QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress) {
+        QKeyEvent *ke = static_cast<QKeyEvent *>(event);
+        if ((ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter)
+                && (ke->modifiers() == Qt::NoModifier || ke->modifiers() == Qt::KeypadModifier)) {
+            ke->accept();
+            search();
+            return true;
+        }
+    }
+    return QWidget::event(event);
+}
+
 bool FindToolWindow::eventFilter(QObject *obj, QEvent *event)
 {
     if (obj == m_ui.searchTerm && event->type() == QEvent::KeyPress) {
@@ -85,7 +108,7 @@ bool FindToolWindow::eventFilter(QObject *obj, QEvent *event)
             m_findCompleter->complete();
         }
     }
-    return QDialog::eventFilter(obj, event);
+    return QWidget::eventFilter(obj, event);
 }
 
 void FindToolWindow::updateButtonStates()
@@ -105,7 +128,6 @@ void FindToolWindow::updateButtonStates()
     m_ui.regExp->setEnabled(filterEnabled
                             && (m_currentFilter->supportedFindFlags() & Find::FindRegularExpression));
     m_ui.searchTerm->setEnabled(filterEnabled);
-    m_ui.cancelButton->setEnabled(m_currentFilter && m_currentFilter->canCancel());
 }
 
 void FindToolWindow::setFindFilters(const QList<IFindFilter *> &filters)
@@ -129,7 +151,7 @@ void FindToolWindow::setFindText(const QString &text)
     m_ui.searchTerm->setText(text);
 }
 
-void FindToolWindow::open(IFindFilter *filter)
+void FindToolWindow::setCurrentFilter(IFindFilter *filter)
 {
     if (!filter)
         filter = m_currentFilter;
@@ -143,7 +165,6 @@ void FindToolWindow::open(IFindFilter *filter)
 
     m_ui.searchTerm->setFocus();
     m_ui.searchTerm->selectAll();
-    exec();
 }
 
 void FindToolWindow::setCurrentFilter(int index)
@@ -166,13 +187,25 @@ void FindToolWindow::setCurrentFilter(int index)
                 configWidget->setParent(0);
         }
     }
+    QWidget *w = m_ui.configWidget;
+    while (w) {
+        QScrollArea *sa = qobject_cast<QScrollArea *>(w);
+        if (sa) {
+            sa->updateGeometry();
+            break;
+        }
+        w = w->parentWidget();
+    }
+    for (w = m_configWidget ? m_configWidget : m_ui.configWidget; w; w = w->parentWidget()) {
+        if (w->layout())
+            w->layout()->activate();
+    }
 }
 
 void FindToolWindow::acceptAndGetParameters(QString *term, IFindFilter **filter)
 {
     if (filter)
         *filter = 0;
-    accept();
     m_plugin->updateFindCompletion(m_ui.searchTerm->text());
     int index = m_ui.filterList->currentIndex();
     QString searchTerm = m_ui.searchTerm->text();
@@ -199,12 +232,6 @@ void FindToolWindow::replace()
     IFindFilter *filter;
     acceptAndGetParameters(&term, &filter);
     filter->replaceAll(term, m_plugin->findFlags());
-}
-
-void FindToolWindow::cancelSearch()
-{
-    if (m_currentFilter)
-        m_currentFilter->cancel();
 }
 
 void FindToolWindow::writeSettings()

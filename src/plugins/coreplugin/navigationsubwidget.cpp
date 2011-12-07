@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,7 +40,7 @@
 #include "modemanager.h"
 #include "actionmanager/actionmanager.h"
 #include "actionmanager/command.h"
-#include "uniqueidmanager.h"
+#include "id.h"
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -176,8 +176,8 @@ void NavigationSubWidget::restoreSettings()
 
 Core::Command *NavigationSubWidget::command(const QString &title) const
 {
-    const QHash<QString, Core::Command*> commandMap = m_parentWidget->commandMap();
-    QHash<QString, Core::Command*>::const_iterator r = commandMap.find(title);
+    const QHash<Id, Command *> commandMap = m_parentWidget->commandMap();
+    QHash<Id, Command *>::const_iterator r = commandMap.find(Id(title));
     if (r != commandMap.end())
         return r.value();
     return 0;

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -157,19 +157,20 @@ bool FormWindowEditor::open(QString *errorString, const QString &fileName, const
     const QFileInfo fi(fileName);
     const QString absfileName = fi.absoluteFilePath();
 
-    Utils::FileReader reader;
-    if (!reader.fetch(realFileName, QIODevice::Text, errorString))
+    QString contents;
+    if (d->m_file.read(absfileName, &contents, errorString) != Utils::TextFileFormat::ReadSuccess)
         return false;
 
     form->setFileName(absfileName);
-    QByteArray contents = reader.data();
 #if QT_VERSION >= 0x050000
-    QBuffer str(&contents);
+    const QByteArray contentsBA = contents.toUtf8();
+    QBuffer str;
+    str.setData(contentsBA);
     str.open(QIODevice::ReadOnly);
     if (!form->setContents(&str, errorString))
         return false;
 #else
-    form->setContents(QString::fromUtf8(contents));
+    form->setContents(contents);
     if (!form->mainContainer())
         return false;
 #endif
@@ -208,9 +209,9 @@ Core::IFile *FormWindowEditor::file()
     return &d->m_file;
 }
 
-QString FormWindowEditor::id() const
+Core::Id FormWindowEditor::id() const
 {
-    return QLatin1String(Designer::Constants::K_DESIGNER_XML_EDITOR_ID);
+    return Designer::Constants::K_DESIGNER_XML_EDITOR_ID;
 }
 
 QString FormWindowEditor::displayName() const

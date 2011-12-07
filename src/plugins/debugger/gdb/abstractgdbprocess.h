@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,7 +42,10 @@ namespace Internal {
 class AbstractGdbProcess : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(AbstractGdbProcess)
+
+protected:
+    explicit AbstractGdbProcess(QObject *parent = 0) : QObject(parent) {}
+
 public:
     virtual QByteArray readAllStandardOutput() = 0;
     virtual QByteArray readAllStandardError() = 0;
@@ -51,6 +54,7 @@ public:
     virtual bool waitForStarted() = 0;
     virtual qint64 write(const QByteArray &data) = 0;
     virtual void kill() = 0;
+    virtual bool interrupt() = 0;
 
     virtual QProcess::ProcessState state() const = 0;
     virtual QString errorString() const = 0;
@@ -60,17 +64,11 @@ public:
     virtual void setEnvironment(const QStringList &env) = 0;
     virtual void setWorkingDirectory(const QString &dir) = 0;
 
-    virtual ~AbstractGdbProcess() {}
-
 signals:
     void error(QProcess::ProcessError);
     void finished(int exitCode, QProcess::ExitStatus exitStatus);
     void readyReadStandardError();
     void readyReadStandardOutput();
-
-protected:
-    explicit AbstractGdbProcess(QObject *parent = 0) : QObject(parent) {}
-
 };
 
 } // namespace Internal

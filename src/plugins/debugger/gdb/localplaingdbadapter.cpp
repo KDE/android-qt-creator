@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -128,6 +128,9 @@ void LocalPlainGdbAdapter::shutdownAdapter()
 
 void LocalPlainGdbAdapter::checkForReleaseBuild()
 {
+#ifndef Q_OS_MAC
+    // There is usually no objdump on Mac, and if there is,
+    // there are no .debug_info sections.
     QString objDump = _("objdump");
     // Windows: Locate objdump in the debuggee's (MinGW) environment
     if (ProjectExplorer::Abi::hostAbi().os() == ProjectExplorer::Abi::WindowsOS
@@ -166,6 +169,7 @@ void LocalPlainGdbAdapter::checkForReleaseBuild()
            tr("This does not seem to be a \"Debug\" build.\n"
               "Setting breakpoints by file name and line number may fail."));
     }
+#endif
 }
 
 void LocalPlainGdbAdapter::interruptInferior()
@@ -188,15 +192,6 @@ QByteArray LocalPlainGdbAdapter::execFilePath() const
 {
     return QFileInfo(startParameters().executable)
             .absoluteFilePath().toLocal8Bit();
-}
-
-bool LocalPlainGdbAdapter::infoTargetNecessary() const
-{
-#ifdef Q_OS_LINUX
-    return true;
-#else
-    return false;
-#endif
 }
 
 QByteArray LocalPlainGdbAdapter::toLocalEncoding(const QString &s) const

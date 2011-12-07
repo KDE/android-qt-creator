@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,21 +26,22 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef GENERICLINUXDEVICECONFIGURATIONFACTORY_H
 #define GENERICLINUXDEVICECONFIGURATIONFACTORY_H
 
 #include "linuxdeviceconfiguration.h"
+#include "remotelinux_export.h"
 
 namespace RemoteLinux {
-namespace Internal {
 
-class GenericLinuxDeviceConfigurationFactory : public ILinuxDeviceConfigurationFactory
+class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationFactory
+    : public ILinuxDeviceConfigurationFactory
 {
     Q_OBJECT
-    Q_DISABLE_COPY(GenericLinuxDeviceConfigurationFactory)
+
 public:
     GenericLinuxDeviceConfigurationFactory(QObject *parent = 0);
 
@@ -54,7 +55,6 @@ public:
         const LinuxDeviceConfiguration::ConstPtr &deviceConfig, QWidget *parent) const;
 };
 
-} // namespace Internal
 } // namespace RemoteLinux
 
 #endif // GENERICLINUXDEVICECONFIGURATIONFACTORY_H

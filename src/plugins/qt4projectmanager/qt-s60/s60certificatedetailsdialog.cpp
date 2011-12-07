@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,18 +44,18 @@ struct S60CertificateDetailsDialogPrivate
 
 S60CertificateDetailsDialog::S60CertificateDetailsDialog(QWidget *parent) :
     QDialog(parent),
-    m_d(new S60CertificateDetailsDialogPrivate)
+    d(new S60CertificateDetailsDialogPrivate)
 {
-    m_d->m_ui.setupUi(this);
-    connect(m_d->m_ui.buttonBox, SIGNAL(clicked(QAbstractButton*)), this, SLOT(close()));
+    d->m_ui.setupUi(this);
+    connect(d->m_ui.buttonBox, SIGNAL(clicked(QAbstractButton*)), this, SLOT(close()));
 }
 
 S60CertificateDetailsDialog::~S60CertificateDetailsDialog()
 {
-    delete m_d;
+    delete d;
 }
 
 void S60CertificateDetailsDialog::setText(const QString &text)
 {
-    m_d->m_ui.textBrowser->setText(text);
+    d->m_ui.textBrowser->setText(text);
 }

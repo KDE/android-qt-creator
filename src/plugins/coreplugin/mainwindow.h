@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -64,7 +64,6 @@ class NavigationWidget;
 class RightPaneWidget;
 class ScriptManager;
 class SettingsDatabase;
-class UniqueIDManager;
 class VariableManager;
 class VcsManager;
 
@@ -103,7 +102,6 @@ public:
 
     Core::ActionManager *actionManager() const;
     Core::FileManager *fileManager() const;
-    Core::UniqueIDManager *uniqueIDManager() const;
     Core::MessageManager *messageManager() const;
     Core::EditorManager *editorManager() const;
     Core::ProgressManager *progressManager() const;
@@ -126,6 +124,9 @@ public:
     void setSuppressNavigationWidget(bool suppress);
 
     void setOverrideColor(const QColor &color);
+
+    bool isPresentationModeEnabled();
+    void setPresentationModeEnabled(bool);
 
 signals:
     void windowActivated();
@@ -180,7 +181,6 @@ private:
     void writeSettings();
 
     CoreImpl *m_coreImpl;
-    UniqueIDManager *m_uniqueIDManager;
     Context m_additionalContexts;
     QSettings *m_settings;
     QSettings *m_globalSettings;

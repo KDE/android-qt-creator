@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -113,13 +113,13 @@ public:
 };
 
 PluginManager::PluginManager() :
-        m_d(new PluginManagerPrivate)
+        d(new PluginManagerPrivate)
 {
 }
 
 PluginManager::~PluginManager()
 {
-    delete m_d;
+    delete d;
 }
 
 PluginManager::IPluginList PluginManager::instances()
@@ -127,8 +127,8 @@ PluginManager::IPluginList PluginManager::instances()
     if (debug)
         qDebug() << '>' << Q_FUNC_INFO << QLibraryInfo::buildKey();
     IPluginList rc;
-    const PluginManagerPrivate::PluginPathList::iterator end = m_d->m_paths.end();
-    for (PluginManagerPrivate::PluginPathList::iterator it = m_d->m_paths.begin(); it != end; ++it)
+    const PluginManagerPrivate::PluginPathList::iterator end = d->m_paths.end();
+    for (PluginManagerPrivate::PluginPathList::iterator it = d->m_paths.begin(); it != end; ++it)
         it->getInstances(&rc);
     if (debug)
         qDebug() << '<' << Q_FUNC_INFO << rc.size();
@@ -141,7 +141,7 @@ void PluginManager::setPluginPaths(const QStringList &paths)
         const QDir dir(path);
         if (!dir.exists())
             continue;
-        m_d->m_paths.push_back(PluginPath(dir));
+        d->m_paths.push_back(PluginPath(dir));
     }
 
     // also register path in widgetpluginmanager
@@ -151,8 +151,8 @@ void PluginManager::setPluginPaths(const QStringList &paths)
 QAbstractItemModel *PluginManager::createModel(QObject *parent)
 {
     QStandardItemModel *model = new QStandardItemModel(parent);
-    const PluginManagerPrivate::PluginPathList::iterator end = m_d->m_paths.end();
-    for (PluginManagerPrivate::PluginPathList::iterator it = m_d->m_paths.begin(); it != end; ++it)
+    const PluginManagerPrivate::PluginPathList::iterator end = d->m_paths.end();
+    for (PluginManagerPrivate::PluginPathList::iterator it = d->m_paths.begin(); it != end; ++it)
         model->appendRow(it->createModelItem());
     return model;
 }

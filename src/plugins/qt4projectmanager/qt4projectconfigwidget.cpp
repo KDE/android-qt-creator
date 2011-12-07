@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,12 +43,16 @@
 #include "ui_qt4projectconfigwidget.h"
 
 #include <coreplugin/icore.h>
+#include <coreplugin/ifile.h>
 
 #include <projectexplorer/toolchainmanager.h>
+#include <projectexplorer/toolchain.h>
+#include <projectexplorer/task.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/buildconfiguration.h>
 #include <qtsupport/qtversionfactory.h>
 #include <qtsupport/baseqtversion.h>
+#include <qtsupport/qtversionmanager.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -118,6 +122,9 @@ Qt4ProjectConfigWidget::Qt4ProjectConfigWidget(Qt4BaseTarget *target)
     connect(target->qt4Project(), SIGNAL(buildDirectoryInitialized()),
             this, SLOT(updateImportLabel()));
 
+    connect(target->qt4Project(), SIGNAL(proFileUpdated(Qt4ProjectManager::Qt4ProFileNode*,bool,bool)),
+            this, SLOT(updateToolChainCombo()));
+
     connect(ProjectExplorer::ToolChainManager::instance(), SIGNAL(toolChainsChanged()),
             this, SLOT(updateToolChainCombo()));
 }
@@ -173,13 +180,13 @@ void Qt4ProjectConfigWidget::updateShadowBuildUi()
 void Qt4ProjectConfigWidget::manageQtVersions()
 {
     Core::ICore *core = Core::ICore::instance();
-    core->showOptionsDialog(QtSupport::Constants::QT_SETTINGS_CATEGORY, QtSupport::Constants::QTVERSION_SETTINGS_PAGE_ID);
+    core->showOptionsDialog(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY, QtSupport::Constants::QTVERSION_SETTINGS_PAGE_ID);
 }
 
 void Qt4ProjectConfigWidget::manageToolChains()
 {
     Core::ICore *core = Core::ICore::instance();
-    core->showOptionsDialog(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY,
+    core->showOptionsDialog(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY,
                             ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_PAGE_ID);
 }
 
@@ -350,7 +357,7 @@ void Qt4ProjectConfigWidget::updateImportLabel()
         else
             makefile.append(m_buildConfiguration->makefile());
 
-        QString qmakePath = QtSupport::QtVersionManager::findQMakeBinaryFromMakefile(makefile);
+        Utils::FileName qmakePath = QtSupport::QtVersionManager::findQMakeBinaryFromMakefile(makefile);
         QtSupport::BaseQtVersion *version = m_buildConfiguration->qtVersion();
         // check that there's a makefile
         if (!qmakePath.isEmpty()) {
@@ -360,7 +367,7 @@ void Qt4ProjectConfigWidget::updateImportLabel()
             if (mc == QtSupport::QtVersionManager::DifferentProject) {
                 incompatibleBuild = true;
             } else if (mc == QtSupport::QtVersionManager::SameProject) {
-                if (qmakePath != (version ? version->qmakeCommand() : QString())) {
+                if (qmakePath != (version ? version->qmakeCommand() : Utils::FileName())) {
                     // and that the qmake path is different from the current version
                     // import enable
                     visible = true;
@@ -402,7 +409,7 @@ void Qt4ProjectConfigWidget::updateImportLabel()
         m_ui->problemLabel->setVisible(true);
         m_ui->warningLabel->setVisible(true);
         m_ui->importLabel->setVisible(false);
-        m_ui->problemLabel->setText(tr("An build for a different project exists in %1, which will be overwritten.",
+        m_ui->problemLabel->setText(tr("A build for a different project exists in %1, which will be overwritten.",
                                        "%1 build directory").
                                     arg(m_ui->shadowBuildDirEdit->path()));
     } else if (!issues.isEmpty()) {

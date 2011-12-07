@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -175,7 +175,8 @@ QList<ProjectExplorer::ProjectNode::ProjectAction> GenericProjectNode::supported
     return QList<ProjectAction>()
         << AddNewFile
         << AddExistingFile
-        << RemoveFile;
+        << RemoveFile
+        << Rename;
 }
 
 bool GenericProjectNode::canAddSubProject(const QString &proFilePath) const
@@ -226,9 +227,8 @@ bool GenericProjectNode::renameFile(const ProjectExplorer::FileType fileType,
                                     const QString &filePath, const QString &newFilePath)
 {
     Q_UNUSED(fileType)
-    Q_UNUSED(filePath)
-    Q_UNUSED(newFilePath)
-    return false;
+
+    return m_project->renameFile(filePath, newFilePath);
 }
 
 QList<ProjectExplorer::RunConfiguration *> GenericProjectNode::runConfigurationsFor(Node *node)

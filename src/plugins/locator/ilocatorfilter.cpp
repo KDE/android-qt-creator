@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,8 @@ using namespace Locator;
 ILocatorFilter::ILocatorFilter(QObject *parent):
     QObject(parent),
     m_includedByDefault(false),
-    m_hidden(false)
+    m_hidden(false),
+    m_enabled(true)
 {
 }
 
@@ -139,4 +140,14 @@ bool ILocatorFilter::isHidden() const
 void ILocatorFilter::setHidden(bool hidden)
 {
     m_hidden = hidden;
+}
+
+bool ILocatorFilter::isEnabled() const
+{
+    return m_enabled;
+}
+
+void ILocatorFilter::setEnabled(bool enabled)
+{
+    m_enabled = enabled;
 }

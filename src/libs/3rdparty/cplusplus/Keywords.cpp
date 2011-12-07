@@ -530,7 +530,7 @@ static inline int classify6(const char *s, bool q, bool) {
   return T_IDENTIFIER;
 }
 
-static inline int classify7(const char *s, bool q, bool) {
+static inline int classify7(const char *s, bool q, bool x) {
   if (s[0] == '_') {
     if (s[1] == '_') {
       if (s[2] == 'a') {
@@ -580,6 +580,21 @@ static inline int classify7(const char *s, bool q, bool) {
             if (s[5] == 'l') {
               if (s[6] == 'e') {
                 return T_MUTABLE;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  else if (x && s[0] == 'n') {
+    if (s[1] == 'u') {
+      if (s[2] == 'l') {
+        if (s[3] == 'l') {
+          if (s[4] == 'p') {
+            if (s[5] == 't') {
+              if (s[6] == 'r') {
+                return T_NULLPTR;
               }
             }
           }
@@ -945,7 +960,7 @@ static inline int classify8(const char *s, bool q, bool x) {
   return T_IDENTIFIER;
 }
 
-static inline int classify9(const char *s, bool q, bool) {
+static inline int classify9(const char *s, bool q, bool x) {
   if (s[0] == '_') {
     if (s[1] == '_') {
       if (s[2] == 'c') {
@@ -956,6 +971,25 @@ static inline int classify9(const char *s, bool q, bool) {
                 if (s[7] == '_') {
                   if (s[8] == '_') {
                     return T___CONST__;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  else if (x && s[0] == 'c') {
+    if (s[1] == 'o') {
+      if (s[2] == 'n') {
+        if (s[3] == 's') {
+          if (s[4] == 't') {
+            if (s[5] == 'e') {
+              if (s[6] == 'x') {
+                if (s[7] == 'p') {
+                  if (s[8] == 'r') {
+                    return T_CONSTEXPR;
                   }
                 }
               }

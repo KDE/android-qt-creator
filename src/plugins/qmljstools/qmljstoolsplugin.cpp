@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,11 +37,6 @@
 #include "qmljscodestylesettingspage.h"
 #include "qmljstoolsconstants.h"
 #include "qmljstoolssettings.h"
-#include "qmljscodestylesettingsfactory.h"
-
-#include <texteditor/texteditorsettings.h>
-#include <texteditor/tabsettings.h>
-#include <texteditor/codestylepreferencesmanager.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -101,9 +96,6 @@ bool QmlJSToolsPlugin::initialize(const QStringList &arguments, QString *error)
     addAutoReleasedObject(locatorData);
     addAutoReleasedObject(new FunctionFilter(locatorData));
     addAutoReleasedObject(new QmlJSCodeStyleSettingsPage);
-
-    TextEditor::CodeStylePreferencesManager::instance()->registerFactory(
-                new QmlJSTools::QmlJSCodeStylePreferencesFactory());
 
     // Menus
     Core::ActionContainer *mtools = am->actionContainer(Core::Constants::M_TOOLS);

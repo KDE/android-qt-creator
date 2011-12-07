@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,7 @@ public:
     virtual ~VCSBaseOutputWindow();
 
     virtual QWidget *outputWidget(QWidget *parent);
-    virtual QList<QWidget*> toolBarWidgets() const;
+    virtual QList<QWidget *> toolBarWidgets() const;
     virtual QString displayName() const;
 
     virtual int priorityInStatusBar() const;
@@ -58,12 +58,12 @@ public:
     virtual void visibilityChanged(bool visible);
 
     virtual void setFocus();
-    virtual bool hasFocus();
-    virtual bool canFocus();
+    virtual bool hasFocus() const;
+    virtual bool canFocus() const;
 
-    virtual bool canNavigate();
-    virtual bool canNext();
-    virtual bool canPrevious();
+    virtual bool canNavigate() const;
+    virtual bool canNext() const;
+    virtual bool canPrevious() const;
     virtual void goToNext();
     virtual void goToPrev();
 

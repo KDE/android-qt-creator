@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,8 @@
 #define QMLJSTYPEDESCRIPTIONREADER_H
 
 #include <languageutils/fakemetaobject.h>
-
-#include <QtCore/QScopedPointer>
+#include <languageutils/componentversion.h>
+#include "qmljsdocument.h"
 
 // for Q_DECLARE_TR_FUNCTIONS
 #include <QtCore/QCoreApplication>
@@ -62,7 +62,9 @@ public:
     explicit TypeDescriptionReader(const QString &data);
     ~TypeDescriptionReader();
 
-    bool operator()(QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *objects);
+    bool operator()(
+            QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *objects,
+            QList<ModuleApiInfo> *moduleApis);
     QString errorMessage() const;
     QString warningMessage() const;
 
@@ -70,6 +72,7 @@ private:
     void readDocument(AST::UiProgram *ast);
     void readModule(AST::UiObjectDefinition *ast);
     void readComponent(AST::UiObjectDefinition *ast);
+    void readModuleApi(AST::UiObjectDefinition *ast);
     void readSignalOrMethod(AST::UiObjectDefinition *ast, bool isMethod, LanguageUtils::FakeMetaObject::Ptr fmo);
     void readProperty(AST::UiObjectDefinition *ast, LanguageUtils::FakeMetaObject::Ptr fmo);
     void readEnum(AST::UiObjectDefinition *ast, LanguageUtils::FakeMetaObject::Ptr fmo);
@@ -78,8 +81,10 @@ private:
     QString readStringBinding(AST::UiScriptBinding *ast);
     bool readBoolBinding(AST::UiScriptBinding *ast);
     double readNumericBinding(AST::UiScriptBinding *ast);
+    LanguageUtils::ComponentVersion readNumericVersionBinding(AST::UiScriptBinding *ast);
     int readIntBinding(AST::UiScriptBinding *ast);
     void readExports(AST::UiScriptBinding *ast, LanguageUtils::FakeMetaObject::Ptr fmo);
+    void readMetaObjectRevisions(AST::UiScriptBinding *ast, LanguageUtils::FakeMetaObject::Ptr fmo);
     void readEnumValues(AST::UiScriptBinding *ast, LanguageUtils::FakeMetaEnum *fme);
 
     void addError(const AST::SourceLocation &loc, const QString &message);
@@ -89,6 +94,7 @@ private:
     QString _errorMessage;
     QString _warningMessage;
     QHash<QString, LanguageUtils::FakeMetaObject::ConstPtr> *_objects;
+    QList<ModuleApiInfo> *_moduleApis;
 };
 
 } // namespace QmlJS

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -140,6 +140,19 @@ void BuildStepListWidget::updateSummary()
     }
 }
 
+void BuildStepListWidget::updateAdditionalSummary()
+{
+    BuildStepConfigWidget *widget = qobject_cast<BuildStepConfigWidget *>(sender());
+    if (widget) {
+        foreach (const BuildStepsWidgetData *s, m_buildStepsData) {
+            if (s->widget == widget) {
+                s->detailsWidget->setAdditionalSummaryText(widget->additionalSummaryText());
+                break;
+            }
+        }
+    }
+}
+
 void BuildStepListWidget::init(BuildStepList *bsl)
 {
     Q_ASSERT(bsl);
@@ -222,6 +235,8 @@ void BuildStepListWidget::addBuildStepWidget(int pos, BuildStep *step)
 
     connect(s->widget, SIGNAL(updateSummary()),
             this, SLOT(updateSummary()));
+    connect(s->widget, SIGNAL(updateAdditionalSummary()),
+            this, SLOT(updateAdditionalSummary()));
 
     connect(s->upButton, SIGNAL(clicked()),
             m_upMapper, SLOT(map()));

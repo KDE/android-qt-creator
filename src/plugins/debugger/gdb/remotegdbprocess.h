@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -60,6 +60,7 @@ public:
     virtual bool waitForStarted();
     virtual qint64 write(const QByteArray &data);
     virtual void kill();
+    virtual bool interrupt();
 
     virtual QProcess::ProcessState state() const;
     virtual QString errorString() const;
@@ -87,9 +88,9 @@ private slots:
     void handleAppOutputReaderFinished(int exitStatus);
     void handleGdbStarted();
     void handleGdbFinished(int exitStatus);
-    void handleGdbOutput(const QByteArray &output);
-    void handleAppOutput(const QByteArray &output);
-    void handleErrOutput(const QByteArray &output);
+    void handleGdbOutput();
+    void handleAppOutput();
+    void handleErrOutput();
 
 private:
     enum State {

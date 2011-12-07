@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 import QtQuick 1.0
 import Monitor 1.0
-import "MainView.js" as Plotter
 
 Item {
     id: detail
@@ -40,7 +39,7 @@ Item {
     property string content
     signal linkActivated(string url)
 
-    height: childrenRect.height
+    height: childrenRect.height+2
     width: childrenRect.width
     Item {
         id: guideline
@@ -48,6 +47,7 @@ Item {
         width: 5
     }
     Text {
+        y: 1
         id: lbl
         text: label
         font.pixelSize: 12

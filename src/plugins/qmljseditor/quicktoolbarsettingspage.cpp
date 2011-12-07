@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-#include <qmldesigner/qmldesignerconstants.h>
 #include "quicktoolbarsettingspage.h"
+#include "qmljseditorconstants.h"
 
+#include <qmldesigner/qmldesignerconstants.h>
 #include <coreplugin/icore.h>
 
 #include <QtCore/QSettings>
@@ -140,12 +141,12 @@ QString QuickToolBarSettingsPage::displayName() const
 
 QString QuickToolBarSettingsPage::category() const
 {
-    return QLatin1String("Qt Quick");
+    return QLatin1String(Constants::SETTINGS_CATEGORY_QML);
 }
 
 QString QuickToolBarSettingsPage::displayCategory() const
 {
-    return QCoreApplication::translate("Qt Quick", "Qt Quick");
+    return QCoreApplication::translate("QmlJSEditor", QmlJSEditor::Constants::SETTINGS_TR_CATEGORY_QML);
 }
 
 QIcon QuickToolBarSettingsPage::categoryIcon() const

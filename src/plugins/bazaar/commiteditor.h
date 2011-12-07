@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef COMMITEDITOR_H
 #define COMMITEDITOR_H
 
+#include <vcsbase/vcsbaseclient.h>
 #include <vcsbase/vcsbasesubmiteditor.h>
 
 namespace VCSBase {
@@ -48,13 +49,14 @@ class BazaarCommitWidget;
 class CommitEditor : public VCSBase::VCSBaseSubmitEditor
 {
     Q_OBJECT
+
 public:
     explicit CommitEditor(const VCSBase::VCSBaseSubmitEditorParameters *parameters,
                           QWidget *parent);
 
     void setFields(const BranchInfo &branch,
                    const QString &userName, const QString &email,
-                   const QList<QPair<QString, QString> > &repoStatus);
+                   const QList<VCSBase::VCSBaseClient::StatusItem> &repoStatus);
 
     const BazaarCommitWidget *commitWidget() const;
 
@@ -65,4 +67,5 @@ private:
 
 }
 }
+
 #endif // COMMITEDITOR_H

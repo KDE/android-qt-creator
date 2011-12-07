@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,7 +38,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/imode.h>
 #include <coreplugin/modemanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <QtCore/QDebug>
 #include <QtCore/QtPlugin>
@@ -88,13 +88,13 @@ HelloWorldPlugin::~HelloWorldPlugin()
 /*! Initializes the plugin. Returns true on success.
     Plugins want to register objects with the plugin manager here.
 
-    \a error_message can be used to pass an error message to the plugin system,
+    \a errorMessage can be used to pass an error message to the plugin system,
        if there was any.
 */
-bool HelloWorldPlugin::initialize(const QStringList &arguments, QString *error_message)
+bool HelloWorldPlugin::initialize(const QStringList &arguments, QString *errorMessage)
 {
     Q_UNUSED(arguments)
-    Q_UNUSED(error_message)
+    Q_UNUSED(errorMessage)
 
     // Get the primary access point to the workbench.
     Core::ICore *core = Core::ICore::instance();

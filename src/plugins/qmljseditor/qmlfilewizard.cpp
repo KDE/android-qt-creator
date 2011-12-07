@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-#include "qmljseditorconstants.h"
 #include "qmlfilewizard.h"
+
+#include <qmljstools/qmljstoolsconstants.h>
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QTextStream>
@@ -49,7 +50,7 @@ Core::GeneratedFiles QmlFileWizard::generateFilesFromPath(const QString &path,
                                                           QString * /*errorMessage*/) const
 
 {
-    const QString mimeType = QLatin1String(Constants::QML_MIMETYPE);
+    const QString mimeType = QLatin1String(QmlJSTools::Constants::QML_MIMETYPE);
     const QString fileName = Core::BaseFileWizard::buildFileName(path, name, preferredSuffix(mimeType));
 
     Core::GeneratedFile file(fileName);
@@ -66,7 +67,8 @@ QString QmlFileWizard::fileContents(const QString &fileName) const
 //    str << CppTools::AbstractEditorSupport::licenseTemplate();
 
     // 100:62 is the 'golden ratio'
-    str << QLatin1String("import QtQuick 1.0\n")
+    str << QLatin1String("// import QtQuick 1.0 // to target S60 5th Edition or Maemo 5\n")
+        << QLatin1String("import QtQuick 1.1\n")
         << QLatin1String("\n")
         << QLatin1String("Rectangle {\n")
         << QLatin1String("    width: 100\n")

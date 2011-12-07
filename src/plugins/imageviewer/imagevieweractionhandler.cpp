@@ -5,7 +5,7 @@
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,6 @@
 #include "imageviewerconstants.h"
 
 #include <QtCore/QList>
-#include <QtCore/QPointer>
 #include <QtCore/QSignalMapper>
 #include <QtGui/QAction>
 
@@ -44,40 +43,17 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 namespace ImageViewer {
 namespace Internal {
 
 enum SupportedActions { ZoomIn = 0, ZoomOut, OriginalSize, FitToScreen, Background, Outline };
 
-struct ImageViewerActionHandlerPrivate
-{
-    ImageViewerActionHandlerPrivate()
-        : context(Constants::IMAGEVIEWER_ID)
-    {}
-
-    QPointer<QAction> actionZoomIn;
-    QPointer<QAction> actionZoomOut;
-    QPointer<QAction> actionOriginalSize;
-    QPointer<QAction> actionFitToScreen;
-    QPointer<QAction> actionBackground;
-    QPointer<QAction> actionOutline;
-
-    Core::Context context;
-    QPointer<QSignalMapper> signalMapper;
-};
-
 ImageViewerActionHandler::ImageViewerActionHandler(QObject *parent) :
-    QObject(parent),
-    d_ptr(new ImageViewerActionHandlerPrivate)
+    QObject(parent), m_signalMapper(new QSignalMapper(this))
 {
-    d_ptr->signalMapper = new QSignalMapper(this);
-    connect(d_ptr->signalMapper, SIGNAL(mapped(int)), SLOT(actionTriggered(int)));
-}
-
-ImageViewerActionHandler::~ImageViewerActionHandler()
-{
+    connect(m_signalMapper, SIGNAL(mapped(int)), SLOT(actionTriggered(int)));
 }
 
 void ImageViewerActionHandler::actionTriggered(int supportedAction)
@@ -116,33 +92,30 @@ void ImageViewerActionHandler::actionTriggered(int supportedAction)
 void ImageViewerActionHandler::createActions()
 {
     registerNewAction(ZoomIn, Constants::ACTION_ZOOM_IN, tr("Zoom In"),
-                      d_ptr->context, QKeySequence(tr("Ctrl++")));
+                      QKeySequence(tr("Ctrl++")));
     registerNewAction(ZoomOut, Constants::ACTION_ZOOM_OUT, tr("Zoom Out"),
-                      d_ptr->context, QKeySequence(tr("Ctrl+-")));
+                      QKeySequence(tr("Ctrl+-")));
     registerNewAction(OriginalSize, Constants::ACTION_ORIGINAL_SIZE, tr("Original Size"),
-                      d_ptr->context, QKeySequence(tr("Ctrl+0")));
+                      QKeySequence(tr("Ctrl+0")));
     registerNewAction(FitToScreen, Constants::ACTION_FIT_TO_SCREEN, tr("Fit To Screen"),
-                      d_ptr->context, QKeySequence(tr("Ctrl+=")));
+                      QKeySequence(tr("Ctrl+=")));
     registerNewAction(Background, Constants::ACTION_BACKGROUND, tr("Switch Background"),
-                      d_ptr->context, QKeySequence(tr("Ctrl+[")));
+                      QKeySequence(tr("Ctrl+[")));
     registerNewAction(Outline, Constants::ACTION_OUTLINE, tr("Switch Outline"),
-                      d_ptr->context, QKeySequence(tr("Ctrl+]")));
+                      QKeySequence(tr("Ctrl+]")));
 }
 
-QAction *ImageViewerActionHandler::registerNewAction(int actionId, const QString &id,
-                           const QString &title, const Core::Context &context, const QKeySequence &key)
+void ImageViewerActionHandler::registerNewAction(int actionId, const Core::Id &id,
+    const QString &title, const QKeySequence &key)
 {
+    Core::Context context(Constants::IMAGEVIEWER_ID);
     Core::ActionManager *actionManager = Core::ICore::instance()->actionManager();
-    Core::Command *command = 0;
-
     QAction *action = new QAction(title, this);
-    command = actionManager->registerAction(action, id, context);
+    Core::Command *command = actionManager->registerAction(action, id, context);
     if (command)
         command->setDefaultKeySequence(key);
-    connect(action, SIGNAL(triggered()), d_ptr->signalMapper, SLOT(map()));
-    d_ptr->signalMapper->setMapping(action, actionId);
-
-    return action;
+    connect(action, SIGNAL(triggered()), m_signalMapper, SLOT(map()));
+    m_signalMapper->setMapping(action, actionId);
 }
 
 } // namespace Internal

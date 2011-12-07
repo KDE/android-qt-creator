@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -91,13 +91,16 @@ void GdbEngine::updateLocalsPython(const UpdateParameters &params)
         watchers += it.key() + "#watch." + QByteArray::number(it.value());
     }
 
+    const static bool alwaysVerbose = !qgetenv("QTC_DEBUGGER_PYTHON_VERBOSE").isEmpty();
     QByteArray options;
+    if (alwaysVerbose)
+        options += "pe,";
     if (debuggerCore()->boolSetting(UseDebuggingHelpers))
         options += "fancy,";
     if (debuggerCore()->boolSetting(AutoDerefPointers))
         options += "autoderef,";
-    if (!qgetenv("QTC_DEBUGGER_PYTHON_VERBOSE").isEmpty())
-        options += "pe,";
+    if (debuggerCore()->boolSetting(UseDynamicType))
+        options += "dyntype,";
     if (options.isEmpty())
         options += "defaults,";
     if (params.tryPartial)
@@ -190,6 +193,7 @@ void GdbEngine::handleStackFramePython(const GdbResponse &response)
         }
         if (!partial)
             emit stackFrameCompleted();
+        handleAutoTests();
     } else {
         showMessage(_("DUMPER FAILED: " + response.toString()));
     }
@@ -208,7 +212,7 @@ void GdbEngine::updateAllPython()
     if (m_gdbAdapter->isCodaAdapter())
         m_gdbAdapter->codaReloadThreads();
     else
-        postCommand("-thread-list-ids", CB(handleThreadListIds), 0);
+        postCommand("-thread-info", CB(handleThreadInfo), 0);
     reloadRegisters();
     updateLocals();
 }

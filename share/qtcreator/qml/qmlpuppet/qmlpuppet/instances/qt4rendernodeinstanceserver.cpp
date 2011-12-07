@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -93,14 +93,14 @@ void Qt4RenderNodeInstanceServer::collectItemChangesAndSendChangeCommands()
 
         bool adjustSceneRect = false;
 
-        if (declarativeView()) {
+        if (declarativeView() && nodeInstanceClient()->bytesToWrite() < 10000) {
             foreach (QGraphicsItem *item, declarativeView()->items()) {
                 QGraphicsObject *graphicsObject = item->toGraphicsObject();
                 if (graphicsObject && hasInstanceForObject(graphicsObject)) {
                     ServerNodeInstance instance = instanceForObject(graphicsObject);
                     QGraphicsItemPrivate *d = QGraphicsItemPrivate::get(item);
 
-                    if((d->dirty && d->notifyBoundingRectChanged) || (d->dirty && !d->dirtySceneTransform) || nonInstanceChildIsDirty(graphicsObject))
+                    if ((d->dirty && d->notifyBoundingRectChanged) || (d->dirty && !d->dirtySceneTransform) || nonInstanceChildIsDirty(graphicsObject))
                         m_dirtyInstanceSet.insert(instance);
 
                     if (d->geometryChanged) {
@@ -130,7 +130,7 @@ void Qt4RenderNodeInstanceServer::collectItemChangesAndSendChangeCommands()
             clearChangedPropertyList();
             resetAllItems();
 
-            if (!m_dirtyInstanceSet.isEmpty() && nodeInstanceClient()->bytesToWrite() < 10000) {
+            if (!m_dirtyInstanceSet.isEmpty() ) {
                 nodeInstanceClient()->pixmapChanged(createPixmapChangedCommand(m_dirtyInstanceSet.toList()));
                 m_dirtyInstanceSet.clear();
             }

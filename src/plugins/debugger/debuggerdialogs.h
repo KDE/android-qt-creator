@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,48 +26,40 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef DEBUGGER_DIALOGS_H
 #define DEBUGGER_DIALOGS_H
 
+#include <QtCore/QHash>
+#include <QtCore/QStringList>
 #include <QtGui/QDialog>
+#include <QtGui/QVBoxLayout>
 
 QT_BEGIN_NAMESPACE
-
 class QModelIndex;
 class QPushButton;
 class QLineEdit;
 class QDialogButtonBox;
+QT_END_NAMESPACE
+
+namespace ProjectExplorer { class Abi; }
+
+namespace Debugger {
+namespace Internal {
 
 namespace Ui {
 class AttachCoreDialog;
 class AttachExternalDialog;
 class StartExternalDialog;
 class StartRemoteDialog;
+class AttachToQmlPortDialog;
 class StartRemoteEngineDialog;
 } // namespace Ui
 
-QT_END_NAMESPACE
-
-namespace ProjectExplorer {
-class Abi;
-}
-
-namespace Debugger {
-namespace Internal {
-
 class ProcessListFilterModel;
-
-struct ProcData
-{
-    QString ppid;
-    QString name;
-    QString image;
-    QString state;
-};
 
 class AttachCoreDialog : public QDialog
 {
@@ -178,7 +170,7 @@ class StartRemoteDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit StartRemoteDialog(QWidget *parent);
+    explicit StartRemoteDialog(QWidget *parent, bool enableStartScript);
     ~StartRemoteDialog();
 
     QString localExecutable() const;
@@ -209,11 +201,35 @@ public:
     QString debugger() const;
     void setDebugger(const QString &debugger);
 
+    void setDebugInfoLocation(const QString &location);
+    QString debugInfoLocation() const;
+
 private slots:
     void updateState();
 
 private:
     Ui::StartRemoteDialog *m_ui;
+};
+
+class AttachToQmlPortDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit AttachToQmlPortDialog(QWidget *parent);
+    ~AttachToQmlPortDialog();
+
+    QString host() const;
+    void setHost(const QString &host);
+
+    int port() const;
+    void setPort(const int port);
+
+    QString sysroot() const;
+    void setSysroot(const QString &sysroot);
+
+private:
+    Ui::AttachToQmlPortDialog *m_ui;
 };
 
 class StartRemoteCdbDialog : public QDialog
@@ -261,6 +277,8 @@ private:
      QDialogButtonBox *m_box;
 };
 
+typedef QHash<QString, QStringList> TypeFormats;
+
 class StartRemoteEngineDialog : public QDialog
 {
     Q_OBJECT
@@ -276,6 +294,24 @@ public:
 
 private:
     Ui::StartRemoteEngineDialog *m_ui;
+};
+
+class TypeFormatsDialogUi;
+
+class TypeFormatsDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit TypeFormatsDialog(QWidget *parent);
+    ~TypeFormatsDialog();
+
+    void addTypeFormats(const QString &type, const QStringList &formats,
+        int currentFormat);
+    TypeFormats typeFormats() const;
+
+private:
+    TypeFormatsDialogUi *m_ui;
 };
 
 } // namespace Debugger

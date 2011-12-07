@@ -6,7 +6,7 @@
 **
 ** Author: Andreas Hartmetz, KDAB (andreas.hartmetz@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,8 +36,6 @@
 #define ANALYZERRUNCONTROL_H
 
 #include "analyzerbase_global.h"
-
-#include <utils/ssh/sshconnection.h>
 
 #include <projectexplorer/runconfiguration.h>
 #include <projectexplorer/task.h>
@@ -71,7 +69,6 @@ private slots:
                  const QString &file, int line);
 
     void engineFinished();
-    void runControlFinished();
 
 private:
     class Private;

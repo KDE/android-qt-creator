@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,26 +43,20 @@ class DesktopQtVersion : public QtSupport::BaseQtVersion
 {
 public:
     DesktopQtVersion();
-    DesktopQtVersion(const QString &path, bool isAutodetected = false, const QString &autodetectionSource = QString());
+    DesktopQtVersion(const Utils::FileName &path, bool isAutodetected = false, const QString &autodetectionSource = QString());
     ~DesktopQtVersion();
     DesktopQtVersion *clone() const;
 
-    virtual QString type() const;
+    QString type() const;
 
-    virtual bool isValid() const;
-    virtual QString invalidReason() const;
-    virtual QString warningReason() const;
+    QString warningReason() const;
 
-    virtual QList<ProjectExplorer::Abi> qtAbis() const;
+    QList<ProjectExplorer::Abi> detectQtAbis() const;
 
-    virtual bool supportsTargetId(const QString &id) const;
-    virtual QSet<QString> supportedTargetIds() const;
+    bool supportsTargetId(const QString &id) const;
+    QSet<QString> supportedTargetIds() const;
 
     QString description() const;
-
-private:
-    mutable bool m_qtAbisUpToDate;
-    mutable QList<ProjectExplorer::Abi> m_qtAbis;
 };
 
 }

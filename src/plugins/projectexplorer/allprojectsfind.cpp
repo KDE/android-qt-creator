@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,16 +46,16 @@
 
 #include <QtGui/QGridLayout>
 #include <QtGui/QLabel>
+#include <QtGui/QHBoxLayout>
 
 using namespace Find;
 using namespace ProjectExplorer;
 using namespace ProjectExplorer::Internal;
 using namespace TextEditor;
 
-AllProjectsFind::AllProjectsFind(ProjectExplorerPlugin *plugin, SearchResultWindow *resultWindow)
-    : BaseFileFind(resultWindow),
-    m_plugin(plugin),
-    m_configWidget(0)
+AllProjectsFind::AllProjectsFind(ProjectExplorerPlugin *plugin)
+    : m_plugin(plugin),
+      m_configWidget(0)
 {
     connect(m_plugin, SIGNAL(fileListChanged()), this, SIGNAL(changed()));
 }
@@ -117,6 +117,17 @@ Utils::FileIterator *AllProjectsFind::files() const
     return new Utils::FileIterator(encodings.keys(), encodings.values());
 }
 
+QString AllProjectsFind::label() const
+{
+    return tr("All Projects:");
+}
+
+QString AllProjectsFind::toolTip() const
+{
+    // %2 is filled by BaseFileFind::runNewSearch
+    return tr("Filter: %1\n%2").arg(fileNameFilters().join(QLatin1String(",")));
+}
+
 QWidget *AllProjectsFind::createConfigWidget()
 {
     if (!m_configWidget) {
@@ -124,7 +135,7 @@ QWidget *AllProjectsFind::createConfigWidget()
         QGridLayout * const gridLayout = new QGridLayout(m_configWidget);
         gridLayout->setMargin(0);
         m_configWidget->setLayout(gridLayout);
-        QLabel * const filePatternLabel = new QLabel(tr("File &pattern:"));
+        QLabel * const filePatternLabel = new QLabel(tr("Fi&le pattern:"));
         filePatternLabel->setMinimumWidth(80);
         filePatternLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
         filePatternLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);

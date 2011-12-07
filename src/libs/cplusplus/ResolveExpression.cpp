@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,6 +48,7 @@
 
 #include <QtCore/QList>
 #include <QtCore/QtDebug>
+#include <QtCore/QSet>
 
 using namespace CPlusPlus;
 
@@ -268,6 +269,13 @@ bool ResolveExpression::visit(SizeofExpressionAST *)
 {
     FullySpecifiedType ty(control()->integerType(IntegerType::Int));
     ty.setUnsigned(true);
+    addResult(ty, _scope);
+    return false;
+}
+
+bool ResolveExpression::visit(PointerLiteralAST *)
+{
+    FullySpecifiedType ty(control()->integerType(IntegerType::Int)); // Handling as Int.
     addResult(ty, _scope);
     return false;
 }
@@ -679,6 +687,38 @@ ClassOrNamespace *ResolveExpression::findClass(const FullySpecifiedType &origina
     return binding;
 }
 
+static void resolveTypedefs(const LookupContext &context,
+                            FullySpecifiedType *type,
+                            Scope **scope)
+{
+    QSet<Symbol *> visited;
+    while (NamedType *namedTy = (*type)->asNamedType()) {
+        ClassOrNamespace *scopeCoN = context.lookupType(*scope);
+        if (!scopeCoN)
+            break;
+
+        // check if namedTy->name() resolves to a typedef
+        QList<LookupItem> namedTypeItems = scopeCoN->lookup(namedTy->name());
+        bool foundTypedef = false;
+        foreach (const LookupItem &it, namedTypeItems) {
+            if (it.declaration() && it.declaration()->isTypedef()) {
+                if (visited.contains(it.declaration()))
+                    break;
+                visited.insert(it.declaration());
+
+                // continue working with the typedefed type and scope
+                *type = it.declaration()->type();
+                *scope = it.scope();
+                foundTypedef = true;
+                break;
+            }
+        }
+
+        if (!foundTypedef)
+            break;
+    }
+}
+
 ClassOrNamespace *ResolveExpression::baseExpression(const QList<LookupItem> &baseResults,
                                                     int accessOp,
                                                     bool *replacedDotOperator) const
@@ -686,6 +726,8 @@ ClassOrNamespace *ResolveExpression::baseExpression(const QList<LookupItem> &bas
     foreach (const LookupItem &r, baseResults) {
         FullySpecifiedType ty = r.type().simplified();
         Scope *scope = r.scope();
+
+        resolveTypedefs(_context, &ty, &scope);
 
         if (accessOp == T_ARROW) {
             if (PointerType *ptrTy = ty->asPointerType()) {
@@ -700,6 +742,7 @@ ClassOrNamespace *ResolveExpression::baseExpression(const QList<LookupItem> &bas
                     Symbol *overload = r.declaration();
                     if (! overload)
                         continue;
+                    Scope *functionScope = overload->enclosingScope();
 
                     if (overload->type()->isFunctionType()) {
                         FullySpecifiedType overloadTy = instantiate(binding->templateId(), overload);
@@ -708,13 +751,25 @@ ClassOrNamespace *ResolveExpression::baseExpression(const QList<LookupItem> &bas
 
                         FullySpecifiedType retTy = instantiatedFunction->returnType().simplified();
 
+                        resolveTypedefs(_context, &retTy, &functionScope);
+
                         if (PointerType *ptrTy = retTy->asPointerType()) {
-                            if (ClassOrNamespace *retBinding = findClass(ptrTy->elementType(), overload->enclosingScope()))
+                            if (ClassOrNamespace *retBinding = findClass(ptrTy->elementType(), functionScope))
                                 return retBinding;
 
-                            else if (scope != overload->enclosingScope()) {
+                            if (scope != functionScope) {
                                 if (ClassOrNamespace *retBinding = findClass(ptrTy->elementType(), scope))
                                     return retBinding;
+                            }
+
+                            if (ClassOrNamespace *origin = binding->instantiationOrigin()) {
+                                foreach (Symbol *originSymbol, origin->symbols()) {
+                                    Scope *originScope = originSymbol->asScope();
+                                    if (originScope && originScope != scope && originScope != functionScope) {
+                                        if (ClassOrNamespace *retBinding = findClass(ptrTy->elementType(), originScope))
+                                            return retBinding;
+                                    }
+                                }
                             }
                         }
                     }

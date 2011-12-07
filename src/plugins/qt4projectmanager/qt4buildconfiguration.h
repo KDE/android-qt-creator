@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,7 @@
 #include "qt4projectmanager_global.h"
 
 #include <projectexplorer/buildconfiguration.h>
-#include <qtsupport/qtversionmanager.h>
+#include <qtsupport/baseqtversion.h>
 
 namespace ProjectExplorer {
 class ToolChain;
@@ -107,8 +107,8 @@ public:
     QString makefile() const;
 
     bool compareToImportFrom(const QString &makefile);
-    static void removeQMLInspectorFromArguments(QString *args);
-    static QString extractSpecFromArguments(QString *arguments,
+    static bool removeQMLInspectorFromArguments(QString *args);
+    static Utils::FileName extractSpecFromArguments(QString *arguments,
                                             const QString &directory, const QtSupport::BaseQtVersion *version,
                                             QStringList *outArgs = 0);
 
@@ -146,6 +146,7 @@ signals:
 private slots:
     void qtVersionsChanged(const QList<int> &changedVersions);
     void emitBuildDirectoryChanged();
+    void proFileUpdated();
 
 protected:
     Qt4BuildConfiguration(Qt4BaseTarget *target, Qt4BuildConfiguration *source);

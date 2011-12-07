@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -68,12 +68,12 @@ public:
     QModelIndex next(const QModelIndex &idx, bool includeGenerated = false, bool *wrapped = 0) const;
     QModelIndex prev(const QModelIndex &idx, bool includeGenerated = false, bool *wrapped = 0) const;
 
-    QList<QModelIndex> addResults(const QList<SearchResultItem> &items, SearchResultWindow::AddMode mode);
+    QList<QModelIndex> addResults(const QList<SearchResultItem> &items, SearchResult::AddMode mode);
 
     QModelIndex find(const QRegExp &expr, const QModelIndex &index,
-                     QTextDocument::FindFlags flags, bool *wrapped = 0);
+                     QTextDocument::FindFlags flags, bool startWithCurrentIndex, bool *wrapped = 0);
     QModelIndex find(const QString &term, const QModelIndex &index,
-                     QTextDocument::FindFlags flags, bool *wrapped = 0);
+                     QTextDocument::FindFlags flags, bool startWithCurrentIndex, bool *wrapped = 0);
 
 signals:
     void jumpToSearchResult(const QString &fileName, int lineNumber,
@@ -84,12 +84,14 @@ public slots:
 
 private:
     QModelIndex index(SearchResultTreeItem *item) const;
-    void addResultsToCurrentParent(const QList<SearchResultItem> &items, SearchResultWindow::AddMode mode);
+    void addResultsToCurrentParent(const QList<SearchResultItem> &items, SearchResult::AddMode mode);
     QSet<SearchResultTreeItem *> addPath(const QStringList &path);
     QVariant data(const SearchResultTreeItem *row, int role) const;
     bool setCheckState(const QModelIndex &idx, Qt::CheckState checkState, bool firstCall = true);
     QModelIndex nextIndex(const QModelIndex &idx, bool *wrapped = 0) const;
     QModelIndex prevIndex(const QModelIndex &idx, bool *wrapped = 0) const;
+    QModelIndex followingIndex(const QModelIndex &idx, bool backward, bool includeGenerated = false,
+                               bool *wrapped = 0);
     SearchResultTreeItem *treeItemAtIndex(const QModelIndex &idx) const;
 
     SearchResultTreeItem *m_rootItem;

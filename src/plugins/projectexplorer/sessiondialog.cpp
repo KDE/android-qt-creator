@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -94,13 +94,19 @@ public:
 
     void setValue(const QString &value);
     QString value() const;
+    bool isSwitchToRequested() const;
+
+private slots:
+    void clicked(QAbstractButton *button);
 
 private:
     QLineEdit *m_newSessionLineEdit;
+    QPushButton *m_switchToButton;
+    bool m_usedSwitchTo;
 };
 
 SessionNameInputDialog::SessionNameInputDialog(const QStringList &sessions, QWidget *parent)
-    : QDialog(parent)
+    : QDialog(parent), m_usedSwitchTo(false)
 {
     QVBoxLayout *hlayout = new QVBoxLayout(this);
     QLabel *label = new QLabel(tr("Enter the name of the session:"), this);
@@ -109,8 +115,10 @@ SessionNameInputDialog::SessionNameInputDialog(const QStringList &sessions, QWid
     m_newSessionLineEdit->setValidator(new SessionValidator(this, sessions));
     hlayout->addWidget(m_newSessionLineEdit);
     QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, this);
+    m_switchToButton = buttons->addButton(tr("Switch to"), QDialogButtonBox::AcceptRole);
     connect(buttons, SIGNAL(accepted()), this, SLOT(accept()));
     connect(buttons, SIGNAL(rejected()), this, SLOT(reject()));
+    connect(buttons, SIGNAL(clicked(QAbstractButton*)), this, SLOT(clicked(QAbstractButton*)));
     hlayout->addWidget(buttons);
     setLayout(hlayout);
 }
@@ -125,9 +133,20 @@ QString SessionNameInputDialog::value() const
     return m_newSessionLineEdit->text();
 }
 
+void SessionNameInputDialog::clicked(QAbstractButton *button)
+{
+    if (button == m_switchToButton)
+        m_usedSwitchTo = true;
+}
 
-SessionDialog::SessionDialog(SessionManager *sessionManager)
-    : m_sessionManager(sessionManager)
+bool SessionNameInputDialog::isSwitchToRequested() const
+{
+    return m_usedSwitchTo;
+}
+
+
+SessionDialog::SessionDialog(SessionManager *sessionManager, QWidget *parent)
+    : QDialog(parent), m_sessionManager(sessionManager)
 {
     m_ui.setupUi(this);
 
@@ -223,6 +242,9 @@ void SessionDialog::createNew()
         m_ui.sessionList->addItems(sessions);
         m_ui.sessionList->setCurrentRow(sessions.indexOf(newSession));
         markItems();
+        if (newSessionInputDialog.isSwitchToRequested()) {
+            switchToSession();
+        }
     }
 }
 
@@ -272,6 +294,7 @@ void SessionDialog::switchToSession()
     m_sessionManager->loadSession(session);
     markItems();
     updateActions();
+    reject();
 }
 
 } // namespace Internal

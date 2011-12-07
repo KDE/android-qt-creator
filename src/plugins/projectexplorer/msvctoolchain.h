@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef MSVCTOOLCHAIN_H
 #define MSVCTOOLCHAIN_H
 
-#include "toolchain.h"
+#include "abstractmsvctoolchain.h"
 #include "abi.h"
 #include "toolchainconfigwidget.h"
 
@@ -48,7 +48,7 @@ namespace Internal {
 // MsvcToolChain
 // --------------------------------------------------------------------------
 
-class MsvcToolChain : public ToolChain
+class MsvcToolChain : public AbstractMsvcToolChain
 {
 public:
     enum Type { WindowsSDK, VS };
@@ -60,44 +60,28 @@ public:
     static MsvcToolChain *readFromMap(const QVariantMap &data);
 
     QString typeName() const;
-    Abi targetAbi() const;
+    Utils::FileName mkspec() const;
 
-    bool isValid() const;
-
-    QByteArray predefinedMacros() const;
-    QList<HeaderPath> systemHeaderPaths() const;
-    void addToEnvironment(Utils::Environment &env) const;
-    QString mkspec() const;
-    QString makeCommand() const;
-    void setDebuggerCommand(const QString &d);
-    virtual QString debuggerCommand() const;
-    IOutputParser *outputParser() const;
-
-    virtual QVariantMap toMap() const;
-    virtual bool fromMap(const QVariantMap &data);
+    QVariantMap toMap() const;
+    bool fromMap(const QVariantMap &data);
 
     ToolChainConfigWidget *configurationWidget();
 
-    bool canClone() const;
     ToolChain *clone() const;
 
-    QString varsBat() const { return m_varsBat; }
     QString varsBatArg() const { return m_varsBatArg; }
 
-    static QString autoDetectCdbDebugger(QStringList *checkedDirectories = 0);
+    static QPair<QString, QString> autoDetectCdbDebugger();
+
+protected:
+    Utils::Environment readEnvironmentSetting(Utils::Environment& env) const;
+    QByteArray msvcPredefinedMacros(const Utils::Environment &env) const;
 
 private:
     MsvcToolChain();
     void updateId();
 
-    QString m_varsBat; // Script to setup environment
     QString m_varsBatArg; // Argument
-    QString m_debuggerCommand;
-    mutable QByteArray m_predefinedMacros;
-    mutable Utils::Environment m_lastEnvironment;   // Last checked 'incoming' environment.
-    mutable Utils::Environment m_resultEnvironment; // Resulting environment for VC
-    mutable QList<HeaderPath> m_headerPaths;
-    Abi m_abi;
 };
 
 // --------------------------------------------------------------------------

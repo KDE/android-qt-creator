@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,9 +44,9 @@ struct FileWizardPagePrivate;
 class QTCREATOR_UTILS_EXPORT FileWizardPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(FileWizardPage)
     Q_PROPERTY(QString path READ path WRITE setPath DESIGNABLE true)
     Q_PROPERTY(QString fileName READ fileName WRITE setFileName DESIGNABLE true)
+
 public:
     explicit FileWizardPage(QWidget *parent = 0);
     virtual ~FileWizardPage();
@@ -78,7 +78,7 @@ protected:
     virtual void changeEvent(QEvent *e);
 
 private:
-    FileWizardPagePrivate *m_d;
+    FileWizardPagePrivate *d;
 };
 
 } // namespace Utils

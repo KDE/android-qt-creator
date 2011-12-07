@@ -34,11 +34,22 @@
   <style name="RemovedLine" foreground="#ff0000"/>
   <style name="SearchResult" foreground="#000000" background="#ffef0b"/>
   <style name="SearchScope" foreground="#000000" background="#f8fafc"/>
-  <style name="Selection" foreground="#ffffff" background="#678db2"/>
+  <style name="Selection" foreground="#ffffff" background="#4e4e8f"/>
   <style name="Static" foreground="#cb6ecb"/>
   <style name="String" foreground="#ffcd8b" background="#404040"/>
   <style name="Text" foreground="#cfbfad" background="#1e1e27"/>
   <style name="Type" foreground="#ff8bff"/>
   <style name="VirtualMethod" italic="true"/>
   <style name="VisualWhitespace" foreground="#646482"/>
+  <style name="QmlTypeId" foreground="#ff8bff"/>
+  <style name="Binding" foreground="#ff5555"/>
+  <style name="QmlLocalId" italic="true"/>
+  <style name="QmlRootObjectProperty" italic="true"/>
+  <style name="QmlScopeObjectProperty" italic="true"/>
+  <style name="QmlStateName" italic="true"/>
+  <style name="QmlExternalId" foreground="#aaaaff" italic="true"/>
+  <style name="QmlExternalObjectProperty" foreground="#aaaaff" italic="true"/>
+  <style name="JsScopeVar" foreground="#8888ff" italic="true"/>
+  <style name="JsImportVar" foreground="#8888ff" italic="true"/>
+  <style name="JsGlobalVar" foreground="#8888ff" italic="true"/>
 </style-scheme>

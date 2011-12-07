@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -81,9 +81,9 @@ void BindingProperty::setExpression(const QString &expression)
     }
 
     if (internalNode()->hasProperty(name()) && !internalNode()->property(name())->isBindingProperty())
-        model()->m_d->removeProperty(internalNode()->property(name()));
+        model()->d->removeProperty(internalNode()->property(name()));
 
-    model()->m_d->setBindingProperty(internalNode(), name(), expression);
+    model()->d->setBindingProperty(internalNode(), name(), expression);
 }
 
 QString BindingProperty::expression() const
@@ -229,9 +229,9 @@ void BindingProperty::setDynamicTypeNameAndExpression(const QString &typeName, c
     }
 
     if (internalNode()->hasProperty(name()) && !internalNode()->property(name())->isBindingProperty())
-        model()->m_d->removeProperty(internalNode()->property(name()));
+        model()->d->removeProperty(internalNode()->property(name()));
 
-     model()->m_d->setDynamicBindingProperty(internalNode(), name(), typeName, expression);
+     model()->d->setDynamicBindingProperty(internalNode(), name(), typeName, expression);
 }
 
 BindingProperty& BindingProperty::operator= (const QPair<QString, QString> &typeExpressionPair)

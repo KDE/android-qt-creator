@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,7 @@
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
 
-#include <cplusplus/ModelManagerInterface.h>
+#include <cplusplus/CppDocument.h>
 
 #include <QtCore/QFuture>
 #include <QtCore/QFutureSynchronizer>
@@ -50,7 +50,15 @@ class ICore;
 class MimeType;
 }
 
+namespace CPlusPlus {
+class CppModelManagerInterface;
+}
+
 namespace QmlJSTools {
+
+QMLJSTOOLS_EXPORT QmlJS::Document::Language languageOfFile(const QString &fileName);
+QMLJSTOOLS_EXPORT QStringList qmlAndJsGlobPatterns();
+
 namespace Internal {
 
 class PluginDumper;
@@ -61,11 +69,13 @@ class QMLJSTOOLS_EXPORT ModelManager: public QmlJS::ModelManagerInterface
 
 public:
     ModelManager(QObject *parent = 0);
+    ~ModelManager();
 
     void delayedInitialization();
 
     virtual WorkingCopy workingCopy() const;
     virtual QmlJS::Snapshot snapshot() const;
+    virtual QmlJS::Snapshot newestSnapshot() const;
 
     virtual void updateSourceFiles(const QStringList &files,
                                    bool emitDocumentOnDiskChanged);
@@ -75,6 +85,7 @@ public:
     virtual QList<ProjectInfo> projectInfos() const;
     virtual ProjectInfo projectInfo(ProjectExplorer::Project *project) const;
     virtual void updateProjectInfo(const ProjectInfo &pinfo);
+    Q_SLOT virtual void removeProjectInfo(ProjectExplorer::Project *project);
 
     void updateDocument(QmlJS::Document::Ptr doc);
     void updateLibraryInfo(const QString &path, const QmlJS::LibraryInfo &info);
@@ -85,8 +96,11 @@ public:
     virtual void loadPluginTypes(const QString &libraryPath, const QString &importPath,
                                  const QString &importUri, const QString &importVersion);
 
-    virtual CppQmlTypeHash cppQmlTypes() const;
-    virtual BuiltinPackagesHash builtinPackages() const;
+    virtual CppDataHash cppData() const;
+
+    virtual QmlJS::LibraryInfo builtins(const QmlJS::Document::Ptr &doc) const;
+
+    virtual void joinAllThreads();
 
 public slots:
     virtual void resetCodeModel();
@@ -110,25 +124,32 @@ protected:
     void updateImportPaths();
 
 private slots:
-    void queueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc);
+    void maybeQueueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc);
+    void queueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &doc, bool scan);
     void startCppQmlTypeUpdate();
 
 private:
     static bool matchesMimeType(const Core::MimeType &fileMimeType, const Core::MimeType &knownMimeType);
-    static void updateCppQmlTypes(ModelManager *qmlModelManager, CPlusPlus::CppModelManagerInterface *cppModelManager, QSet<QString> files);
+    static void updateCppQmlTypes(QFutureInterface<void> &interface,
+                                  ModelManager *qmlModelManager,
+                                  CPlusPlus::Snapshot snapshot,
+                                  QHash<QString, QPair<CPlusPlus::Document::Ptr, bool> > documents);
 
     mutable QMutex m_mutex;
     Core::ICore *m_core;
-    QmlJS::Snapshot _snapshot;
+    QmlJS::Snapshot _validSnapshot;
+    QmlJS::Snapshot _newestSnapshot;
     QStringList m_allImportPaths;
     QStringList m_defaultImportPaths;
 
     QFutureSynchronizer<void> m_synchronizer;
 
     QTimer *m_updateCppQmlTypesTimer;
-    QSet<QString> m_queuedCppDocuments;
-    CppQmlTypeHash m_cppTypes;
-    mutable QMutex m_cppTypesMutex;
+    QHash<QString, QPair<CPlusPlus::Document::Ptr, bool> > m_queuedCppDocuments;
+    QFuture<void> m_cppQmlTypesUpdater;
+
+    CppDataHash m_cppDataHash;
+    mutable QMutex m_cppDataMutex;
 
     // project integration
     QMap<ProjectExplorer::Project *, ProjectInfo> m_projects;

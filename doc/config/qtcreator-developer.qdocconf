@@ -8,6 +8,7 @@ headerdirs              = . \
                           ../../src/libs/cplusplus \
                           ../../src/libs/extensionsystem \
                           ../../src/libs/utils \
+                          ../../src/libs/qmljs \
                           ../../src/libs/qtcreatorcdbext \
                           ../../src/plugins/coreplugin \
                           ../../src/plugins/find \
@@ -22,6 +23,7 @@ sourcedirs              = . \
                           ../../src/libs/cplusplus \
                           ../../src/libs/extensionsystem \
                           ../../src/libs/utils \
+                          ../../src/libs/qmljs \
                           ../../src/libs/qtcreatorcdbext \
                           ../../src/plugins/coreplugin \
                           ../../src/plugins/find \
@@ -39,9 +41,9 @@ showinternal = true
 headers.fileextensions  = "*.h"
 sources.fileextensions  = "*.cpp *.qdoc"
 
-imagedirs = $SRCDIR/images $SRCDIR/templates/images
+imagedirs = $SRCDIR/api/images $SRCDIR/images $SRCDIR/templates/images
 outputdir = $OUTDIR
-exampledirs = ../api/examples
+exampledirs = $SRCDIR/api/examples
 indexes                 = qt.index
 
 include(compat.qdocconf)

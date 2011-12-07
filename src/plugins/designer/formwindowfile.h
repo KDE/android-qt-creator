@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef FORMWINDOWFILE_H
 #define FORMWINDOWFILE_H
 
-#include <coreplugin/ifile.h>
+#include <coreplugin/textfile.h>
 
 #include <QtCore/QPointer>
 
@@ -45,7 +45,7 @@ QT_END_NAMESPACE
 namespace Designer {
 namespace Internal {
 
-class FormWindowFile : public Core::IFile
+class FormWindowFile : public Core::TextFile
 {
     Q_OBJECT
 

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,7 +45,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <utils/qtcassert.h>
 
 #include <QtCore/QSet>
@@ -78,6 +78,10 @@ TextEditorActionHandler::TextEditorActionHandler(const char *context,
     m_cutLineAction(0),
     m_copyLineAction(0),
     m_deleteLineAction(0),
+    m_deleteEndOfWordAction(0),
+    m_deleteEndOfWordCamelCaseAction(0),
+    m_deleteStartOfWordAction(0),
+    m_deleteStartOfWordCamelCaseAction(0),
     m_selectEncodingAction(0),
     m_increaseFontSizeAction(0),
     m_decreaseFontSizeAction(0),
@@ -106,6 +110,10 @@ TextEditorActionHandler::TextEditorActionHandler(const char *context,
         this, SLOT(updateCurrentEditor(Core::IEditor*)));
 }
 
+TextEditorActionHandler::~TextEditorActionHandler()
+{
+}
+
 void TextEditorActionHandler::setupActions(BaseTextEditorWidget *editor)
 {
     initializeActions();
@@ -126,17 +134,17 @@ void TextEditorActionHandler::initializeActions()
 
 void TextEditorActionHandler::createActions()
 {
-    m_undoAction      = registerNewAction(QLatin1String(Core::Constants::UNDO),      this, SLOT(undoAction()),
+    m_undoAction      = registerNewAction(Core::Constants::UNDO,      this, SLOT(undoAction()),
                                           true, tr("&Undo"));
-    m_redoAction      = registerNewAction(QLatin1String(Core::Constants::REDO),      this, SLOT(redoAction()),
+    m_redoAction      = registerNewAction(Core::Constants::REDO,      this, SLOT(redoAction()),
                                           true, tr("&Redo"));
-    m_copyAction      = registerNewAction(QLatin1String(Core::Constants::COPY),      this, SLOT(copyAction()), true);
-    m_cutAction       = registerNewAction(QLatin1String(Core::Constants::CUT),       this, SLOT(cutAction()), true);
-    m_pasteAction     = registerNewAction(QLatin1String(Core::Constants::PASTE),     this, SLOT(pasteAction()), true);
+    m_copyAction      = registerNewAction(Core::Constants::COPY,      this, SLOT(copyAction()), true);
+    m_cutAction       = registerNewAction(Core::Constants::CUT,       this, SLOT(cutAction()), true);
+    m_pasteAction     = registerNewAction(Core::Constants::PASTE,     this, SLOT(pasteAction()), true);
     m_modifyingActions << m_pasteAction;
-    m_selectAllAction = registerNewAction(QLatin1String(Core::Constants::SELECTALL), this, SLOT(selectAllAction()), true);
-    m_gotoAction      = registerNewAction(QLatin1String(Core::Constants::GOTO),      this, SLOT(gotoAction()));
-    m_printAction     = registerNewAction(QLatin1String(Core::Constants::PRINT),     this, SLOT(printAction()));
+    m_selectAllAction = registerNewAction(Core::Constants::SELECTALL, this, SLOT(selectAllAction()), true);
+    m_gotoAction      = registerNewAction(Core::Constants::GOTO,      this, SLOT(gotoAction()));
+    m_printAction     = registerNewAction(Core::Constants::PRINT,     this, SLOT(printAction()));
 
     Core::ActionManager *am = Core::ICore::instance()->actionManager();
 
@@ -216,6 +224,26 @@ void TextEditorActionHandler::createActions()
     m_modifyingActions << m_deleteLineAction;
     command = am->registerAction(m_deleteLineAction, Constants::DELETE_LINE, m_contextId, true);
     connect(m_deleteLineAction, SIGNAL(triggered()), this, SLOT(deleteLine()));
+
+    m_deleteEndOfWordAction = new QAction(tr("Delete Word From The Cursor On"), this);
+    m_modifyingActions << m_deleteEndOfWordAction;
+    am->registerAction(m_deleteEndOfWordAction, Constants::DELETE_END_OF_WORD, m_contextId, true);
+    connect(m_deleteEndOfWordAction, SIGNAL(triggered()), this, SLOT(deleteEndOfWord()));
+
+    m_deleteEndOfWordCamelCaseAction = new QAction(tr("Delete Word Camel Case From The Cursor On"), this);
+    m_modifyingActions << m_deleteEndOfWordCamelCaseAction;
+    am->registerAction(m_deleteEndOfWordCamelCaseAction, Constants::DELETE_END_OF_WORD_CAMEL_CASE, m_contextId, true);
+    connect(m_deleteEndOfWordCamelCaseAction, SIGNAL(triggered()), this, SLOT(deleteEndOfWordCamelCase()));
+
+    m_deleteStartOfWordAction = new QAction(tr("Delete Word Up To The Cursor"), this);
+    m_modifyingActions << m_deleteStartOfWordAction;
+    am->registerAction(m_deleteStartOfWordAction, Constants::DELETE_START_OF_WORD, m_contextId, true);
+    connect(m_deleteStartOfWordAction, SIGNAL(triggered()), this, SLOT(deleteStartOfWord()));
+
+    m_deleteStartOfWordCamelCaseAction = new QAction(tr("Delete Word Camel Case Up To The Cursor"), this);
+    m_modifyingActions << m_deleteStartOfWordCamelCaseAction;
+    am->registerAction(m_deleteStartOfWordCamelCaseAction, Constants::DELETE_START_OF_WORD_CAMEL_CASE, m_contextId, true);
+    connect(m_deleteStartOfWordCamelCaseAction, SIGNAL(triggered()), this, SLOT(deleteStartOfWordCamelCase()));
 
     m_foldAction = new QAction(tr("Fold"), this);
     command = am->registerAction(m_foldAction, Constants::FOLD, m_contextId, true);
@@ -406,12 +434,12 @@ void TextEditorActionHandler::createActions()
 
 }
 
-bool TextEditorActionHandler::supportsAction(const QString & /*id */) const
+bool TextEditorActionHandler::supportsAction(const Core::Id & /*id */) const
 {
     return true;
 }
 
-QAction *TextEditorActionHandler::registerNewAction(const QString &id, bool scriptable, const QString &title)
+QAction *TextEditorActionHandler::registerNewAction(const Core::Id &id, bool scriptable, const QString &title)
 {
     if (!supportsAction(id))
         return 0;
@@ -421,7 +449,7 @@ QAction *TextEditorActionHandler::registerNewAction(const QString &id, bool scri
     return result;
 }
 
-QAction *TextEditorActionHandler::registerNewAction(const QString &id,
+QAction *TextEditorActionHandler::registerNewAction(const Core::Id &id,
                                                     QObject *receiver,
                                                     const char *slot,
                                                     bool scriptable,
@@ -548,6 +576,10 @@ FUNCTION(unCommentSelection)
 FUNCTION(cutLine)
 FUNCTION(copyLine)
 FUNCTION(deleteLine)
+FUNCTION(deleteEndOfWord)
+FUNCTION(deleteEndOfWordCamelCase)
+FUNCTION(deleteStartOfWord)
+FUNCTION(deleteStartOfWordCamelCase)
 FUNCTION(unfoldAll)
 FUNCTION(fold)
 FUNCTION(unfold)

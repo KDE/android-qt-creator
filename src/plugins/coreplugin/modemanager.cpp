@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,7 +43,7 @@
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/imode.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -59,6 +59,15 @@
 #include <QtGui/QAction>
 
 namespace Core {
+
+/*!
+    \class Core::ModeManager
+
+    The mode manager handles everything related to the instances of IMode
+    that were added to the plugin manager's object pool as well as their
+    buttons and the tool bar with the round buttons in the lower left
+    corner of Qt Creator.
+*/
 
 struct ModeManagerPrivate
 {
@@ -194,7 +203,7 @@ void ModeManager::objectAdded(QObject *obj)
 
     // Register mode shortcut
     ActionManager *am = d->m_mainWindow->actionManager();
-    const QString shortcutId = QLatin1String("QtCreator.Mode.") + mode->id();
+    const Id shortcutId(QLatin1String("QtCreator.Mode.") + mode->id());
     QShortcut *shortcut = new QShortcut(d->m_mainWindow);
     shortcut->setWhatsThis(tr("Switch to <b>%1</b> mode").arg(mode->displayName()));
     Command *cmd = am->registerShortcut(shortcut, shortcutId, Context(Constants::C_GLOBAL));

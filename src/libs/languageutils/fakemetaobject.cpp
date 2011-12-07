@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -61,6 +61,9 @@ int FakeMetaEnum::keyCount() const
 
 QStringList FakeMetaEnum::keys() const
 { return m_keys; }
+
+bool FakeMetaEnum::hasKey(const QString &key) const
+{ return m_keys.contains(key); }
 
 FakeMetaMethod::FakeMetaMethod(const QString &name, const QString &returnType)
     : m_name(name)
@@ -154,11 +157,14 @@ void FakeMetaObject::addExport(const QString &name, const QString &package, Comp
     exp.type = name;
     exp.package = package;
     exp.version = version;
-    exp.packageNameVersion = QString::fromLatin1("%1/%2 %3").arg(
-                package, name,
-                version.toString());
     m_exports.append(exp);
 }
+
+void FakeMetaObject::setExportMetaObjectRevision(int exportIndex, int metaObjectRevision)
+{
+    m_exports[exportIndex].metaObjectRevision = metaObjectRevision;
+}
+
 QList<FakeMetaObject::Export> FakeMetaObject::exports() const
 { return m_exports; }
 FakeMetaObject::Export FakeMetaObject::exportInPackage(const QString &package) const
@@ -216,5 +222,8 @@ QString FakeMetaObject::attachedTypeName() const
 void FakeMetaObject::setAttachedTypeName(const QString &name)
 { m_attachedTypeName = name; }
 
+FakeMetaObject::Export::Export()
+    : metaObjectRevision(0)
+{}
 bool FakeMetaObject::Export::isValid() const
-{ return !type.isEmpty(); }
+{ return version.isValid() || !package.isEmpty() || !type.isEmpty(); }

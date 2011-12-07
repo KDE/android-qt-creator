@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,15 +34,16 @@
 
 #include "ui_startremotedialog.h"
 
-#include <QtGui/QPushButton>
-
 #include <coreplugin/icore.h>
+#include <utils/ssh/sshconnection.h>
+
+#include <QtGui/QPushButton>
 
 namespace Analyzer {
 
 StartRemoteDialog::StartRemoteDialog(QWidget *parent)
     : QDialog(parent)
-    , m_ui(new Ui::StartRemoteDialog)
+    , m_ui(new Internal::Ui::StartRemoteDialog)
 {
     m_ui->setupUi(this);
 

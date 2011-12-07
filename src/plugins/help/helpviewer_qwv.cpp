@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -295,7 +295,7 @@ void HelpViewer::scaleUp()
 
 void HelpViewer::scaleDown()
 {
-    setTextSizeMultiplier(qMax(qreal(0.0), textSizeMultiplier() - 0.1));
+    setTextSizeMultiplier(qMax(qreal(0.0), textSizeMultiplier() - qreal(0.1)));
 }
 
 void HelpViewer::resetScale()

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,8 +53,7 @@ bool HelpFindSupport::isEnabled() const
 
 Find::FindFlags HelpFindSupport::supportedFindFlags() const
 {
-    return Find::FindBackward | Find::FindCaseSensitively
-        | Find::FindWholeWords;
+    return Find::FindBackward | Find::FindCaseSensitively;
 }
 
 QString HelpFindSupport::currentFindString() const
@@ -103,8 +102,7 @@ HelpViewerFindSupport::HelpViewerFindSupport(HelpViewer *viewer)
 
 Find::FindFlags HelpViewerFindSupport::supportedFindFlags() const
 {
-    return Find::FindBackward | Find::FindCaseSensitively
-        | Find::FindWholeWords;
+    return Find::FindBackward | Find::FindCaseSensitively;
 }
 
 QString HelpViewerFindSupport::currentFindString() const

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -58,6 +58,7 @@ class CORESHARED_EXPORT ItemLibraryEntry
     //friend class QmlDesigner::Internal::MetaInfoParser;
     friend CORESHARED_EXPORT QDataStream& QmlDesigner::operator<<(QDataStream& stream, const ItemLibraryEntry &itemLibraryEntry);
     friend CORESHARED_EXPORT QDataStream& QmlDesigner::operator>>(QDataStream& stream, ItemLibraryEntry &itemLibraryEntry);
+
 public:
     ItemLibraryEntry();
     ~ItemLibraryEntry();
@@ -99,7 +100,7 @@ private:
 class CORESHARED_EXPORT ItemLibraryInfo : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ItemLibraryInfo)
+
     friend class Internal::MetaInfoPrivate;
 public:
     ~ItemLibraryInfo();
@@ -118,7 +119,7 @@ signals:
 private:
     ItemLibraryInfo(QObject *parent = 0);
     void setBaseInfo(ItemLibraryInfo *baseInfo);
-    QScopedPointer<Internal::ItemLibraryInfoPrivate> m_d;
+    Internal::ItemLibraryInfoPrivate *d;
 };
 
 } // namespace QmlDesigner

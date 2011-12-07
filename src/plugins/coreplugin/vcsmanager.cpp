@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -85,9 +85,13 @@ public:
         qDeleteAll(m_vcsInfoList);
     }
 
-    VcsInfo *findInCache(const QString &directory)
+    VcsInfo *findInCache(const QString &dir)
     {
-        const QMap<QString, VcsInfo *>::const_iterator it = m_cachedMatches.constFind(directory);
+        Q_ASSERT(QDir(dir).isAbsolute());
+        Q_ASSERT(!dir.endsWith(QLatin1Char('/')));
+        Q_ASSERT(QDir::fromNativeSeparators(dir) == dir);
+
+        const QMap<QString, VcsInfo *>::const_iterator it = m_cachedMatches.constFind(dir);
         if (it != m_cachedMatches.constEnd())
             return it.value();
         return 0;
@@ -108,9 +112,25 @@ public:
         return result;
     }
 
-    void cache(IVersionControl *vc, const QString topLevel, const QString directory)
+    void resetCache(const QString &dir)
     {
-        Q_ASSERT(directory.startsWith(topLevel));
+        Q_ASSERT(QDir(dir).isAbsolute());
+        Q_ASSERT(!dir.endsWith(QLatin1Char('/')));
+        Q_ASSERT(QDir::fromNativeSeparators(dir) == dir);
+
+        const QString dirSlash = dir + QLatin1Char('/');
+        foreach (const QString &key, m_cachedMatches.keys()) {
+            if (key == dir || key.startsWith(dirSlash))
+                m_cachedMatches.remove(key);
+        }
+    }
+
+    void cache(IVersionControl *vc, const QString topLevel, const QString dir)
+    {
+        Q_ASSERT(QDir(dir).isAbsolute());
+        Q_ASSERT(!dir.endsWith(QLatin1Char('/')));
+        Q_ASSERT(QDir::fromNativeSeparators(dir) == dir);
+        Q_ASSERT(dir.startsWith(topLevel));
 
         VcsInfo *newInfo = new VcsInfo(vc, topLevel);
         bool createdNewInfo(true);
@@ -126,7 +146,7 @@ public:
         if (createdNewInfo)
             m_vcsInfoList.append(newInfo);
 
-        QString tmpDir = directory;
+        QString tmpDir = dir;
         while (tmpDir.count() >= topLevel.count() && tmpDir.count() > 0) {
             m_cachedMatches.insert(tmpDir, newInfo);
             int slashPos = tmpDir.lastIndexOf(SLASH);
@@ -140,7 +160,7 @@ public:
 
 VcsManager::VcsManager(QObject *parent) :
    QObject(parent),
-   m_d(new VcsManagerPrivate)
+   d(new VcsManagerPrivate)
 {
 }
 
@@ -148,7 +168,7 @@ VcsManager::VcsManager(QObject *parent) :
 
 VcsManager::~VcsManager()
 {
-    delete m_d;
+    delete d;
 }
 
 void VcsManager::extensionsInitialized()
@@ -168,6 +188,17 @@ static bool longerThanPath(QPair<QString, IVersionControl *> &pair1, QPair<QStri
     return pair1.first.size() > pair2.first.size();
 }
 
+void VcsManager::resetVersionControlForDirectory(const QString &inputDirectory)
+{
+    if (inputDirectory.isEmpty())
+        return;
+
+    const QString directory = QDir(inputDirectory).absolutePath();
+
+    d->resetCache(directory);
+    emit repositoryChanged(directory);
+}
+
 IVersionControl* VcsManager::findVersionControlForDirectory(const QString &inputDirectory,
                                                             QString *topLevelDirectory)
 {
@@ -177,7 +208,7 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
     // Make sure we a clean absolute path:
     const QString directory = QDir(inputDirectory).absolutePath();
 
-    VcsManagerPrivate::VcsInfo *cachedData = m_d->findInCache(directory);
+    VcsManagerPrivate::VcsInfo *cachedData = d->findInCache(directory);
     if (cachedData) {
         if (topLevelDirectory)
             *topLevelDirectory = cachedData->topLevel;
@@ -199,7 +230,7 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
     qSort(allThatCanManage.begin(), allThatCanManage.end(), longerThanPath);
 
     if (allThatCanManage.isEmpty()) {
-        m_d->cache(0, QString(), directory); // register that nothing was found!
+        d->cache(0, QString(), directory); // register that nothing was found!
 
         // report result;
         if (topLevelDirectory)
@@ -211,7 +242,7 @@ IVersionControl* VcsManager::findVersionControlForDirectory(const QString &input
     QString tmpDir = directory;
     for (QList<QPair<QString, IVersionControl *> >::const_iterator i = allThatCanManage.constBegin();
          i != allThatCanManage.constEnd(); ++i) {
-        m_d->cache(i->second, i->first, tmpDir);
+        d->cache(i->second, i->first, tmpDir);
         tmpDir = i->first;
         tmpDir = tmpDir.left(tmpDir.lastIndexOf(SLASH));
     }
@@ -237,7 +268,7 @@ IVersionControl *VcsManager::checkout(const QString &versionControlType,
         if (versionControl->displayName() == versionControlType
             && versionControl->supportsOperation(Core::IVersionControl::CheckoutOperation)) {
             if (versionControl->vcsCheckout(directory, url)) {
-                m_d->cache(versionControl, directory, directory);
+                d->cache(versionControl, directory, directory);
                 return versionControl;
             }
             return 0;

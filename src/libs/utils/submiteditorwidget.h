@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,7 +55,6 @@ struct SubmitEditorWidgetPrivate;
 class QTCREATOR_UTILS_EXPORT SubmitEditorWidget : public QWidget
 {
     Q_OBJECT
-    Q_DISABLE_COPY(SubmitEditorWidget)
     Q_PROPERTY(QString descriptionText READ descriptionText WRITE setDescriptionText DESIGNABLE true)
     Q_PROPERTY(int fileNameColumn READ fileNameColumn WRITE setFileNameColumn DESIGNABLE false)
     Q_PROPERTY(QAbstractItemView::SelectionMode fileListSelectionMode READ fileListSelectionMode WRITE setFileListSelectionMode DESIGNABLE true)
@@ -117,7 +116,7 @@ signals:
     void diffSelected(const QStringList &);
     void fileSelectionChanged(bool someFileSelected);
     void submitActionTextChanged(const QString &);
-    void submitActionEnabledChanged(const bool);
+    void submitActionEnabledChanged(bool);
 
 private slots:
     void updateCheckAllComboBox();
@@ -147,7 +146,7 @@ private:
     bool hasSelection() const;
     int checkedFilesCount() const;
 
-    SubmitEditorWidgetPrivate *m_d;
+    SubmitEditorWidgetPrivate *d;
 };
 
 } // namespace Utils

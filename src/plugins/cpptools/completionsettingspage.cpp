@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -65,7 +65,7 @@ QString CompletionSettingsPage::displayName() const
 QWidget *CompletionSettingsPage::createPage(QWidget *parent)
 {
     QWidget *w = new QWidget(parent);
-    m_page = new Ui_CompletionSettingsPage;
+    m_page = new Ui::CompletionSettingsPage;
     m_page->setupUi(w);
 
     const TextEditor::CompletionSettings &settings =
@@ -100,12 +100,14 @@ QWidget *CompletionSettingsPage::createPage(QWidget *parent)
     m_page->caseSensitivity->setCurrentIndex(caseSensitivityIndex);
     m_page->completionTrigger->setCurrentIndex(completionTriggerIndex);
     m_page->autoInsertBrackets->setChecked(settings.m_autoInsertBrackets);
+    m_page->surroundSelectedText->setChecked(settings.m_surroundingAutoBrackets);
     m_page->partiallyComplete->setChecked(settings.m_partiallyComplete);
     m_page->spaceAfterFunctionName->setChecked(settings.m_spaceAfterFunctionName);
 
     if (m_searchKeywords.isEmpty()) {
         QTextStream(&m_searchKeywords) << m_page->caseSensitivityLabel->text()
                 << ' ' << m_page->autoInsertBrackets->text()
+                << ' ' << m_page->surroundSelectedText->text()
                 << ' ' << m_page->completionTriggerLabel->text()
                 << ' ' << m_page->partiallyComplete->text()
                 << ' ' << m_page->spaceAfterFunctionName->text();
@@ -123,6 +125,7 @@ void CompletionSettingsPage::apply()
     settings.m_caseSensitivity = caseSensitivity();
     settings.m_completionTrigger = completionTrigger();
     settings.m_autoInsertBrackets = m_page->autoInsertBrackets->isChecked();
+    settings.m_surroundingAutoBrackets = m_page->surroundSelectedText->isChecked();
     settings.m_partiallyComplete = m_page->partiallyComplete->isChecked();
     settings.m_spaceAfterFunctionName = m_page->spaceAfterFunctionName->isChecked();
 

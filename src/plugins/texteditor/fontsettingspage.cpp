@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -239,6 +239,13 @@ FormatDescription::FormatDescription(const QString &id, const QString &displayNa
     m_format.setForeground(color);
 }
 
+FormatDescription::FormatDescription(const QString &id, const QString &displayName, const Format &format) :
+    m_id(id),
+    m_displayName(displayName),
+    m_format(format)
+{
+}
+
 QColor FormatDescription::foreground() const
 {
     if (m_id == QLatin1String(Constants::C_LINE_NUMBER)) {
@@ -389,14 +396,7 @@ void FontSettingsPage::updatePointSizes()
 {
     // Update point sizes
     const int oldSize = d_ptr->m_value.fontSize();
-    if (d_ptr->m_ui->sizeComboBox->count()) {
-        const QString curSize = d_ptr->m_ui->sizeComboBox->currentText();
-        bool ok = true;
-        int oldSize = curSize.toInt(&ok);
-        if (!ok)
-            oldSize = d_ptr->m_value.fontSize();
-        d_ptr->m_ui->sizeComboBox->clear();
-    }
+    d_ptr->m_ui->sizeComboBox->clear();
     const QList<int> sizeLst = pointSizesForSelectedFont();
     int idx = -1;
     int i = 0;

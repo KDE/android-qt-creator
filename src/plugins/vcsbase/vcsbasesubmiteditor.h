@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -125,7 +125,7 @@ public:
     virtual void setDisplayName(const QString &title);
     virtual bool duplicateSupported() const;
     virtual Core::IEditor *duplicate(QWidget * parent);
-    virtual QString id() const;
+    virtual Core::Id id() const;
 
     virtual QWidget *toolBar();
 
@@ -170,7 +170,7 @@ protected:
     /* These hooks allow for modifying the contents that goes to
      * the file. The default implementation uses the text
      * of the description editor. */
-    virtual QString fileContents() const;
+    virtual QByteArray fileContents() const;
     virtual bool setFileContents(const QString &contents);
 
 private:
@@ -179,7 +179,7 @@ private:
     bool runSubmitMessageCheckScript(const QString &script, QString *errorMessage) const;
     QString promptForNickName();
 
-    VCSBaseSubmitEditorPrivate *m_d;
+    VCSBaseSubmitEditorPrivate *d;
 };
 
 } // namespace VCSBase

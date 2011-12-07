@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,6 +45,7 @@ class PullOrPushDialog;
 class PullOrPushDialog : public QDialog
 {
     Q_OBJECT
+
 public:
     enum Mode {
         PullMode,
@@ -59,8 +60,10 @@ public:
     bool isRememberOptionEnabled() const;
     bool isOverwriteOptionEnabled() const;
     QString revision() const;
+
     // Pull-specific options
     bool isLocalOptionEnabled() const;
+
     // Push-specific options
     bool isUseExistingDirectoryOptionEnabled() const;
     bool isCreatePrefixOptionEnabled() const;

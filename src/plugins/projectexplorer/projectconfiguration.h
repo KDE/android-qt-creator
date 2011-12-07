@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -72,8 +72,6 @@ protected:
     ProjectConfiguration(QObject *parent, const ProjectConfiguration *source);
 
 private:
-    Q_DISABLE_COPY(ProjectConfiguration)
-
     QString m_id;
     QString m_displayName;
     QString m_defaultDisplayName;
@@ -84,5 +82,7 @@ PROJECTEXPLORER_EXPORT QString idFromMap(const QVariantMap &map);
 PROJECTEXPLORER_EXPORT QString displayNameFromMap(const QVariantMap &map);
 
 } // namespace ProjectExplorer
+
+Q_DECLARE_METATYPE(ProjectExplorer::ProjectConfiguration *)
 
 #endif // PROJECTCONFIGURATION_H

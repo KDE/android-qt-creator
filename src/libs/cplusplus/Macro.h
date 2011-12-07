@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 /*
@@ -125,13 +125,22 @@ public:
     void setVariadic(bool isVariadic)
     { f._variadic = isVariadic; }
 
+    void setLineBreaks(const QList<unsigned> &breaks)
+    { _lineBreaks = breaks; }
+
+    const QList<unsigned> &lineBreaks() const
+    { return _lineBreaks; }
+
     QString toString() const;
+    QString toStringWithLineBreaks() const;
 
 // ### private
     Macro *_next;
     unsigned _hashcode;
 
 private:
+    QString decoratedName() const;
+
     struct Flags
     {
         unsigned _hidden: 1;
@@ -143,6 +152,7 @@ private:
     QByteArray _definition;
     QVector<QByteArray> _formals;
     QString _fileName;
+    QList<unsigned> _lineBreaks;
     unsigned _line;
     unsigned _offset;
     unsigned _length;

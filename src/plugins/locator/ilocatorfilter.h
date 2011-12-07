@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -133,6 +133,9 @@ public:
     /* Returns whether the filter should be hidden from configuration and menus. */
     bool isHidden() const;
 
+    /* Returns whether the filter should be enabled and used in menus. */
+    bool isEnabled() const;
+
     static QString trimWildcards(const QString &str) {
         if (str.isEmpty())
             return str;
@@ -146,6 +149,10 @@ public:
         return str.mid(first, last-first+1);
     }
 
+public slots:
+    /* Enable or disable the filter. */
+    void setEnabled(bool enabled);
+
 protected:
     void setShortcutString(const QString &shortcut);
     void setIncludedByDefault(bool includedByDefault);
@@ -155,6 +162,7 @@ private:
     QString m_shortcut;
     bool m_includedByDefault;
     bool m_hidden;
+    bool m_enabled;
 };
 
 } // namespace Locator

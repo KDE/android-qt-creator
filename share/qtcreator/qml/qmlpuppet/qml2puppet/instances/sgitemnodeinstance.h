@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,12 +35,10 @@
 
 #include <QtGlobal>
 
-#if QT_VERSION >= 0x050000
-
 #include "objectnodeinstance.h"
 
 #include <QSGItem>
-#include <designersupportfunctions.h>
+#include <designersupport.h>
 
 namespace QmlDesigner {
 namespace Internal {
@@ -111,6 +109,8 @@ public:
     DesignerSupport *designerSupport() const;
     Qt5NodeInstanceServer *qt5NodeInstanceServer() const;
 
+    static void createEffectItem(bool createEffectItem);
+
 protected:
     SGItemNodeInstance(QSGItem*);
     QSGItem *sgItem() const;
@@ -118,6 +118,7 @@ protected:
     void resetVertical();
     void refresh();
     QRectF boundingRectWithStepChilds(QSGItem *parentItem) const;
+    void updateDirtyNodeRecursive(QSGItem *parentItem) const;
 
 private: //variables
     bool m_hasHeight;
@@ -129,11 +130,11 @@ private: //variables
     double m_y;
     double m_width;
     double m_height;
+    static bool s_createEffectItem;
 };
 
 } // namespace Internal
 } // namespace QmlDesigner
 
-#endif  // QT_VERSION
 #endif  // SGITEMNODEINSTANCE_H
 

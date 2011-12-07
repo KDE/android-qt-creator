@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,10 @@
 #define QMLJSCHECK_H
 
 #include <qmljs/qmljsdocument.h>
-#include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljscontext.h>
 #include <qmljs/qmljsscopebuilder.h>
+#include <qmljs/qmljsscopechain.h>
+#include <qmljs/qmljsstaticanalysismessage.h>
 #include <qmljs/parser/qmljsastvisitor_p.h>
 
 #include <QtCore/QCoreApplication>
@@ -52,33 +54,14 @@ class QMLJS_EXPORT Check: protected AST::Visitor
     typedef QSet<QString> StringSet;
 
 public:
-    Check(Document::Ptr doc, const Interpreter::Context *linkedContextNoScope);
+    // prefer taking root scope chain?
+    Check(Document::Ptr doc, const ContextPtr &context);
     virtual ~Check();
 
-    QList<DiagnosticMessage> operator()();
+    QList<StaticAnalysis::Message> operator()();
 
-    enum Option {
-        WarnDangerousNonStrictEqualityChecks = 1 << 0,
-        WarnAllNonStrictEqualityChecks       = 1 << 1,
-        WarnBlocks                           = 1 << 2,
-        WarnWith                             = 1 << 3,
-        WarnVoid                             = 1 << 4,
-        WarnCommaExpression                  = 1 << 5,
-        WarnExpressionStatement              = 1 << 6,
-        WarnAssignInCondition                = 1 << 7,
-        WarnUseBeforeDeclaration             = 1 << 8,
-        WarnDuplicateDeclaration             = 1 << 9,
-        WarnDeclarationsNotStartOfFunction   = 1 << 10,
-        WarnCaseWithoutFlowControlEnd        = 1 << 11,
-        ErrCheckTypeErrors                   = 1 << 12
-    };
-    Q_DECLARE_FLAGS(Options, Option)
-
-    const Options options() const
-    { return _options; }
-
-    void setOptions(Options options)
-    { _options = options; }
+    void enableMessage(StaticAnalysis::Type type);
+    void disableMessage(StaticAnalysis::Type type);
 
 protected:
     virtual bool preVisit(AST::Node *ast);
@@ -89,6 +72,7 @@ protected:
     virtual bool visit(AST::UiObjectBinding *ast);
     virtual bool visit(AST::UiScriptBinding *ast);
     virtual bool visit(AST::UiArrayBinding *ast);
+    virtual bool visit(AST::UiPublicMember *ast);
     virtual bool visit(AST::IdentifierExpression *ast);
     virtual bool visit(AST::FieldMemberExpression *ast);
     virtual bool visit(AST::FunctionDeclaration *ast);
@@ -106,57 +90,66 @@ protected:
     virtual bool visit(AST::LocalForStatement *ast);
     virtual bool visit(AST::WhileStatement *ast);
     virtual bool visit(AST::DoWhileStatement *ast);
-    virtual bool visit(AST::CaseClause *ast);
-    virtual bool visit(AST::DefaultClause *ast);
+    virtual bool visit(AST::CaseBlock *ast);
+    virtual bool visit(AST::NewExpression *ast);
+    virtual bool visit(AST::NewMemberExpression *ast);
+    virtual bool visit(AST::CallExpression *ast);
+    virtual bool visit(AST::StatementList *ast);
+    virtual bool visit(AST::ReturnStatement *ast);
+    virtual bool visit(AST::ThrowStatement *ast);
+    virtual bool visit(AST::DeleteExpression *ast);
+    virtual bool visit(AST::TypeOfExpression *ast);
 
     virtual void endVisit(QmlJS::AST::UiObjectInitializer *);
 
 private:
     void visitQmlObject(AST::Node *ast, AST::UiQualifiedId *typeId,
                         AST::UiObjectInitializer *initializer);
-    const Interpreter::Value *checkScopeObjectMember(const AST::UiQualifiedId *id);
+    const Value *checkScopeObjectMember(const AST::UiQualifiedId *id);
     void checkAssignInCondition(AST::ExpressionNode *condition);
-    void checkEndsWithControlFlow(AST::StatementList *statements, AST::SourceLocation errorLoc);
+    void checkCaseFallthrough(AST::StatementList *statements, AST::SourceLocation errorLoc, AST::SourceLocation nextLoc);
     void checkProperty(QmlJS::AST::UiQualifiedId *);
+    void checkNewExpression(AST::ExpressionNode *node);
+    void checkBindingRhs(AST::Statement *statement);
+    void checkExtraParentheses(AST::ExpressionNode *expression);
 
-    void warning(const AST::SourceLocation &loc, const QString &message);
-    void error(const AST::SourceLocation &loc, const QString &message);
+    void addMessages(const QList<StaticAnalysis::Message> &messages);
+    void addMessage(const StaticAnalysis::Message &message);
+    void addMessage(StaticAnalysis::Type type, const AST::SourceLocation &location,
+                    const QString &arg1 = QString(), const QString &arg2 = QString());
+
+    void scanCommentsForAnnotations();
+    void warnAboutUnnecessarySuppressions();
 
     AST::Node *parent(int distance = 0);
 
     Document::Ptr _doc;
 
-    Interpreter::Context _context;
+    ContextPtr _context;
+    ScopeChain _scopeChain;
     ScopeBuilder _scopeBuilder;
 
-    QList<DiagnosticMessage> _messages;
+    QList<StaticAnalysis::Message> _messages;
+    QSet<StaticAnalysis::Type> _enabledMessages;
 
-    Options _options;
-
-    const Interpreter::Value *_lastValue;
+    const Value *_lastValue;
     QList<AST::Node *> _chain;
     QStack<StringSet> m_idStack;
     QStack<StringSet> m_propertyStack;
+
+    class MessageTypeAndSuppression
+    {
+    public:
+        AST::SourceLocation suppressionSource;
+        StaticAnalysis::Type type;
+        bool wasSuppressed;
+    };
+
+    QHash< int, QList<MessageTypeAndSuppression> > m_disabledMessageTypesByLine;
+
+    bool _importsOk;
+    bool _inStatementBinding;
 };
-
-QMLJS_EXPORT QColor toQColor(const QString &qmlColorString);
-
-QMLJS_EXPORT AST::SourceLocation locationFromRange(const AST::SourceLocation &start,
-                                                   const AST::SourceLocation &end);
-
-QMLJS_EXPORT AST::SourceLocation fullLocationForQualifiedId(AST::UiQualifiedId *);
-
-QMLJS_EXPORT DiagnosticMessage errorMessage(const AST::SourceLocation &loc,
-                                            const QString &message);
-
-template <class T>
-DiagnosticMessage errorMessage(const T *node, const QString &message)
-{
-    return DiagnosticMessage(DiagnosticMessage::Error,
-                             locationFromRange(node->firstSourceLocation(),
-                                               node->lastSourceLocation()),
-                             message);
-}
 
 } // namespace QmlJS
 

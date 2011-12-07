@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -66,18 +66,6 @@ QStringList DebuggingHelperLibrary::debuggingHelperLibraryDirectories(const QStr
             << QDir::cleanPath((QCoreApplication::applicationDirPath() + QLatin1String("/../qtc-debugging-helper/") + QString::number(hash))) + slash
             << (QDesktopServices::storageLocation(QDesktopServices::DataLocation) + QLatin1String("/qtc-debugging-helper/") + QString::number(hash)) + slash;
     return directories;
-}
-
-QStringList DebuggingHelperLibrary::locationsByInstallData(const QString &qtInstallData)
-{
-    QStringList result;
-    QFileInfo fileInfo;
-    const QStringList binFilenames = validBinaryFilenames();
-    foreach(const QString &directory, debuggingHelperLibraryDirectories(qtInstallData)) {
-        if (getHelperFileInfoFor(binFilenames, directory, &fileInfo))
-            result << fileInfo.filePath();
-    }
-    return result;
 }
 
 static QString sourcePath()

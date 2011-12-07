@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -64,18 +64,23 @@
 namespace Debugger {
 namespace Internal {
 
-SshIODevice::SshIODevice(Utils::SshRemoteProcessRunner::Ptr r)
+SshIODevice::SshIODevice(Utils::SshRemoteProcessRunner *r)
     : runner(r)
     , buckethead(0)
 {
     setOpenMode(QIODevice::ReadWrite | QIODevice::Unbuffered);
-    connect (runner.data(), SIGNAL(processStarted()),
-            this, SLOT(processStarted()));
-    connect(runner.data(), SIGNAL(processOutputAvailable(const QByteArray &)),
+    connect (runner, SIGNAL(processStarted()), this, SLOT(processStarted()));
+    connect(runner, SIGNAL(processOutputAvailable(const QByteArray &)),
             this, SLOT(outputAvailable(const QByteArray &)));
-    connect(runner.data(), SIGNAL(processErrorOutputAvailable(const QByteArray &)),
+    connect(runner, SIGNAL(processErrorOutputAvailable(const QByteArray &)),
             this, SLOT(errorOutputAvailable(const QByteArray &)));
 }
+
+SshIODevice::~SshIODevice()
+{
+    delete runner;
+}
+
 qint64 SshIODevice::bytesAvailable () const
 {
     qint64 r = QIODevice::bytesAvailable();
@@ -90,7 +95,7 @@ qint64 SshIODevice::writeData (const char * data, qint64 maxSize)
         startupbuffer += QByteArray::fromRawData(data, maxSize);
         return maxSize;
     }
-    proc->sendInput(QByteArray::fromRawData(data, maxSize));
+    proc->write(data, maxSize);
     return maxSize;
 }
 qint64 SshIODevice::readData (char * data, qint64 maxSize)
@@ -122,8 +127,7 @@ qint64 SshIODevice::readData (char * data, qint64 maxSize)
 
 void SshIODevice::processStarted()
 {
-    proc = runner->process();
-    proc->sendInput(startupbuffer);
+    runner->writeDataToProcess(startupbuffer);
 }
 
 void SshIODevice::outputAvailable(const QByteArray &output)
@@ -139,18 +143,17 @@ void SshIODevice::errorOutputAvailable(const QByteArray &output)
 
 
 LldbEngineHost::LldbEngineHost(const DebuggerStartParameters &startParameters)
-    :IPCEngineHost(startParameters)
+    :IPCEngineHost(startParameters), m_ssh(0)
 {
     showMessage(QLatin1String("setting up coms"));
 
     if (startParameters.startMode == StartRemoteEngine)
     {
         m_guestProcess = 0;
-        Utils::SshRemoteProcessRunner::Ptr runner =
-            Utils::SshRemoteProcessRunner::create(startParameters.connParams);
-        connect (runner.data(), SIGNAL(connectionError(Utils::SshError)),
+        Utils::SshRemoteProcessRunner * const runner = new Utils::SshRemoteProcessRunner;
+        connect (runner, SIGNAL(connectionError(Utils::SshError)),
                 this, SLOT(sshConnectionError(Utils::SshError)));
-        runner->run(startParameters.serverStartScript.toUtf8());
+        runner->run(startParameters.serverStartScript.toUtf8(), startParameters.connParams);
         setGuestDevice(new SshIODevice(runner));
     } else  {
         m_guestProcess = new QProcess(this);
@@ -193,10 +196,10 @@ LldbEngineHost::~LldbEngineHost()
         m_guestProcess->terminate();
         m_guestProcess->kill();
     }
-    if (m_ssh.data() && m_ssh->process().data()) {
+    if (m_ssh && m_ssh->isProcessRunning()) {
         // TODO: openssh doesn't do that
 
-        m_ssh->process()->kill();
+        m_ssh->sendSignalToProcess(Utils::SshRemoteProcess::KillSignal);
     }
 }
 

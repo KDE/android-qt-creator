@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,33 +26,36 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qtsingleapplication.h"
 
+#include <app/app_version.h>
+#include <extensionsystem/iplugin.h>
+#include <extensionsystem/pluginerroroverview.h>
 #include <extensionsystem/pluginmanager.h>
 #include <extensionsystem/pluginspec.h>
-#include <extensionsystem/iplugin.h>
 
-#include <QtCore/QDir>
-#include <QtCore/QUrl>
-#include <QtCore/QTextStream>
-#include <QtCore/QFileInfo>
 #include <QtCore/QDebug>
-#include <QtCore/QTimer>
+#include <QtCore/QDir>
+#include <QtCore/QFileInfo>
 #include <QtCore/QLibraryInfo>
-#include <QtCore/QTranslator>
 #include <QtCore/QSettings>
-#include <QtCore/QVariant>
+#include <QtCore/QTextStream>
 #include <QtCore/QThreadPool>
+#include <QtCore/QTimer>
+#include <QtCore/QTranslator>
+#include <QtCore/QUrl>
+#include <QtCore/QVariant>
 
 #include <QtNetwork/QNetworkProxyFactory>
 
-#include <QtGui/QMessageBox>
 #include <QtGui/QApplication>
+#include <QtGui/QDesktopServices>
 #include <QtGui/QMainWindow>
+#include <QtGui/QMessageBox>
 
 #ifdef ENABLE_QT_BREAKPAD
 #include <qtsystemexceptionhandler.h>
@@ -68,7 +71,7 @@ static const char fixedOptionsC[] =
 "    -help                         Display this help\n"
 "    -version                      Display program version\n"
 "    -client                       Attempt to connect to already running instance\n"
-"    -settingspath <path>          Override the default path where user settings are stored.\n";
+"    -settingspath <path>          Override the default path where user settings are stored\n";
 
 static const char HELP_OPTION1[] = "-h";
 static const char HELP_OPTION2[] = "-help";
@@ -132,9 +135,9 @@ static void printHelp(const QString &a0, const ExtensionSystem::PluginManager &p
 {
     QString help;
     QTextStream str(&help);
-    str << "Usage: " << a0  << fixedOptionsC;
+    str << "Usage: " << a0 << fixedOptionsC;
     ExtensionSystem::PluginManager::formatOptions(str, OptionIndent, DescriptionIndent);
-    pm.formatPluginOptions(str,  OptionIndent, DescriptionIndent);
+    pm.formatPluginOptions(str, OptionIndent, DescriptionIndent);
     displayHelpText(help);
 }
 
@@ -146,7 +149,7 @@ static inline QString msgCoreLoadFailure(const QString &why)
 static inline int askMsgSendFailed()
 {
     return QMessageBox::question(0, QApplication::translate("Application","Could not send message"),
-                                 QCoreApplication::translate("Application", "Unable to send command line arguments to the already running instance."
+                                 QCoreApplication::translate("Application", "Unable to send command line arguments to the already running instance. "
                                                              "It appears to be not responding. Do you want to start a new instance of Creator?"),
                                  QMessageBox::Yes | QMessageBox::No | QMessageBox::Retry,
                                  QMessageBox::Retry);
@@ -164,16 +167,28 @@ static inline QStringList getPluginPaths()
     QString pluginPath = rootDirPath;
     pluginPath += QLatin1Char('/');
     pluginPath += QLatin1String(IDE_LIBRARY_BASENAME);
-    pluginPath += QLatin1Char('/');
-    pluginPath += QLatin1String("qtcreator");
-    pluginPath += QLatin1Char('/');
-    pluginPath += QLatin1String("plugins");
+    pluginPath += QLatin1String("/qtcreator/plugins");
     rc.push_back(pluginPath);
 #else
     // 2) "PlugIns" (OS X)
     QString pluginPath = rootDirPath;
-    pluginPath += QLatin1Char('/');
-    pluginPath += QLatin1String("PlugIns");
+    pluginPath += QLatin1String("/PlugIns");
+    rc.push_back(pluginPath);
+#endif
+    // 3) <localappdata>/plugins/<ideversion>
+    //    where <localappdata> is e.g.
+    //    <drive>:\Users\<username>\AppData\Local\Nokia\qtcreator on Windows Vista and later
+    //    $XDG_DATA_HOME or ~/.local/share/Nokia/qtcreator on Linux
+    //    ~/Library/Application Support/Nokia/Qt Creator on Mac
+    pluginPath = QDesktopServices::storageLocation(QDesktopServices::DataLocation);
+    pluginPath += QLatin1String("/Nokia/");
+#if !defined(Q_OS_MAC)
+    pluginPath += QLatin1String("qtcreator");
+#else
+    pluginPath += QLatin1String("Qt Creator");
+#endif
+    pluginPath += QLatin1String("/plugins/");
+    pluginPath += QLatin1String(Core::Constants::IDE_VERSION_LONG);
     rc.push_back(pluginPath);
 #endif
     return rc;
@@ -254,7 +269,7 @@ int main(int argc, char **argv)
     // We can't use the regular way of the plugin manager, because that needs to parse pluginspecs
     // but the settings path can influence which plugins are enabled
     QString settingsPath;
-    QStringList arguments = app.arguments(); /* adapted arguments list is passed to plugin manager later */
+    QStringList arguments = app.arguments(); // adapted arguments list is passed to plugin manager later
     QMutableStringListIterator it(arguments);
     while (it.hasNext()) {
         const QString &arg = it.next();
@@ -271,19 +286,21 @@ int main(int argc, char **argv)
 
     // Must be done before any QSettings class is created
     QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope,
-                       QCoreApplication::applicationDirPath()+QLatin1String(SHARE_PATH));
+                       QCoreApplication::applicationDirPath() + QLatin1String(SHARE_PATH));
 
     // plugin manager takes control of this settings object
     QSettings *settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,
-                                 QLatin1String(NQTC_SETTINGS_ORG), QLatin1String(NQTC_SETTINGS_APPNAME));
-
+                                        QLatin1String("Nokia"), QLatin1String("QtCreator"));
+    QSettings *globalSettings = new QSettings(QSettings::IniFormat, QSettings::SystemScope,
+                                              QLatin1String("Nokia"), QLatin1String("QtCreator"));
     ExtensionSystem::PluginManager pluginManager;
     pluginManager.setFileExtension(QLatin1String("pluginspec"));
+    pluginManager.setGlobalSettings(globalSettings);
     pluginManager.setSettings(settings);
 
     locale = settings->value("General/OverrideLanguage", locale).toString();
     const QString &creatorTrPath = QCoreApplication::applicationDirPath()
-                        + QLatin1String(SHARE_PATH "/translations");
+            + QLatin1String(SHARE_PATH "/translations");
     if (translator.load(QLatin1String("qtcreator_") + locale, creatorTrPath)) {
         const QString &qtTrPath = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
         const QString &qtTrFile = QLatin1String("qt_") + locale;
@@ -325,10 +342,7 @@ int main(int argc, char **argv)
         appOptions.insert(QLatin1String(VERSION_OPTION), false);
         appOptions.insert(QLatin1String(CLIENT_OPTION), false);
         QString errorMessage;
-        if (!pluginManager.parseOptions(arguments,
-                                        appOptions,
-                                        &foundAppOptions,
-                                        &errorMessage)) {
+        if (!pluginManager.parseOptions(arguments, appOptions, &foundAppOptions, &errorMessage)) {
             displayError(errorMessage);
             printHelp(QFileInfo(app.applicationFilePath()).baseName(), pluginManager);
             return -1;
@@ -392,37 +406,30 @@ int main(int argc, char **argv)
         displayError(msgCoreLoadFailure(coreplugin->errorString()));
         return 1;
     }
-    {
-        QStringList errors;
-        foreach (ExtensionSystem::PluginSpec *p, pluginManager.plugins())
-            // only show errors on startup if plugin is enabled.
-            if (p->hasError() && p->isEnabled() && !p->isDisabledIndirectly())
-                errors.append(p->name() + "\n" + p->errorString());
-        if (!errors.isEmpty())
-            QMessageBox::warning(0,
-                QCoreApplication::translate("Application", "Qt Creator - Plugin loader messages"),
-                errors.join(QString::fromLatin1("\n\n")));
+    if (pluginManager.hasError()) {
+        ExtensionSystem::PluginErrorOverview errorOverview(&pluginManager);
+        errorOverview.exec();
     }
 
     if (isFirstInstance) {
         // Set up lock and remote arguments for the first instance only.
-        // Silently fallback to unconnected instances for any subsequent
-        // instances.
+        // Silently fallback to unconnected instances for any subsequent instances.
         app.initialize();
         QObject::connect(&app, SIGNAL(messageReceived(QString)),
                          &pluginManager, SLOT(remoteArguments(QString)));
     }
-    QObject::connect(&app, SIGNAL(fileOpenRequest(QString)), coreplugin->plugin(), SLOT(fileOpenRequest(QString)));
+
+    QObject::connect(&app, SIGNAL(fileOpenRequest(QString)), coreplugin->plugin(),
+                     SLOT(fileOpenRequest(QString)));
 
     // shutdown plugin manager on the exit
     QObject::connect(&app, SIGNAL(aboutToQuit()), &pluginManager, SLOT(shutdown()));
 
 #ifdef WITH_TESTS
     // Do this after the event loop has started
-    if(pluginManager.runningTests())
+    if (pluginManager.runningTests())
         QTimer::singleShot(100, &pluginManager, SLOT(startTests()));
 #endif
 
     return app.exec();
 }
-

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,18 +35,24 @@
 
 #include "qtsupport_global.h"
 #include <utils/environment.h>
+#include <utils/fileutils.h>
 #include <projectexplorer/toolchain.h>
 
 #include <QtCore/QObject>
 #include <QtCore/QFutureInterface>
 #include <QtCore/QMetaType>
 
+namespace ProjectExplorer {
+class ToolChain;
+} // namespace ProjectExplorer
+
 namespace QtSupport {
 class BaseQtVersion;
 
-class QTSUPPORT_EXPORT DebuggingHelperBuildTask : public QObject {
-    Q_DISABLE_COPY(DebuggingHelperBuildTask)
+class QTSUPPORT_EXPORT DebuggingHelperBuildTask : public QObject
+{
     Q_OBJECT
+
 public:
     enum DebuggingHelper {
         GdbDebugging = 0x01,
@@ -72,7 +78,7 @@ signals:
 
     // used internally
     void logOutput(const QString &output, bool bringToForeground);
-    void updateQtVersions(const QString &qmakeCommand);
+    void updateQtVersions(const Utils::FileName &qmakeCommand);
 
 private:
     bool buildDebuggingHelper(QFutureInterface<void> &future);
@@ -83,17 +89,17 @@ private:
     int m_qtId;
     QString m_qtInstallData;
     QString m_target;
-    QString m_qmakeCommand;
+    Utils::FileName m_qmakeCommand;
     QString m_makeCommand;
     QStringList m_makeArguments;
-    QString m_mkspec;
+    Utils::FileName m_mkspec;
     Utils::Environment m_environment;
     QString m_log;
     bool m_invalidQt;
     bool m_showErrors;
 };
 
-} //namespace Qt4ProjectManager
+} // namespace Qt4ProjectManager
 
 Q_DECLARE_METATYPE(QtSupport::DebuggingHelperBuildTask::Tools)
 

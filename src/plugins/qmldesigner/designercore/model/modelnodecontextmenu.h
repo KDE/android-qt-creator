@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -64,7 +64,13 @@ public:
          ResetPosition,
          GoIntoComponent,
          SetId,
-         ResetZ
+         ResetZ,
+         AnchorReset,
+         AnchorFill,
+         LayoutRow,
+         LayoutColumn,
+         LayoutGrid,
+         LayoutFlow
      };
 
 
@@ -94,6 +100,12 @@ private:
      void goIntoComponent();
      void setId();
      void resetZ();
+     void anchorsFill();
+     void anchorsReset();
+     void layoutRow();
+     void layoutColumn();
+     void layoutGrid();
+     void layoutFlow();
 
      QmlModelView *m_view;
      QList<ModelNode> m_modelNodeList;

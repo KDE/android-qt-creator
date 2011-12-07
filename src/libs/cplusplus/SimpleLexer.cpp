@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -72,6 +72,16 @@ void SimpleLexer::setObjCEnabled(bool onoff)
     _objCEnabled = onoff;
 }
 
+bool SimpleLexer::cxx0xEnabled() const
+{
+    return _cxx0xEnabled;
+}
+
+void SimpleLexer::setCxx0xEnabled(bool enabled)
+{
+    _cxx0xEnabled = enabled;
+}
+
 bool SimpleLexer::skipComments() const
 {
     return _skipComments;
@@ -100,6 +110,7 @@ QList<Token> SimpleLexer::operator()(const QString &text, int state)
     lex.setObjCEnabled(_objCEnabled);
     lex.setStartWithNewline(true);
     lex.setObjCEnabled(_objCEnabled);
+    lex.setCxxOxEnabled(_cxx0xEnabled);
 
     if (! _skipComments)
         lex.setScanCommentTokens(true);

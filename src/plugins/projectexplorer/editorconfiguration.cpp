@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,11 +41,12 @@
 #include <texteditor/basetexteditor.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/tabsettings.h>
-#include <texteditor/tabpreferences.h>
+#include <texteditor/simplecodestylepreferences.h>
+#include <texteditor/typingsettings.h>
 #include <texteditor/storagesettings.h>
 #include <texteditor/behaviorsettings.h>
 #include <texteditor/extraencodingsettings.h>
-#include <texteditor/codestylepreferencesmanager.h>
+#include <texteditor/icodestylepreferences.h>
 #include <texteditor/icodestylepreferencesfactory.h>
 
 #include <QtCore/QLatin1String>
@@ -56,8 +57,6 @@
 static const QLatin1String kPrefix("EditorConfiguration.");
 static const QLatin1String kUseGlobal("EditorConfiguration.UseGlobal");
 static const QLatin1String kCodec("EditorConfiguration.Codec");
-static const QLatin1String kTabPrefix("EditorConfiguration.Tab.");
-static const QLatin1String kTabCount("EditorConfiguration.Tab.Count");
 static const QLatin1String kCodeStylePrefix("EditorConfiguration.CodeStyle.");
 static const QLatin1String kCodeStyleCount("EditorConfiguration.CodeStyle.Count");
 static const QLatin1String kId("Project");
@@ -70,7 +69,7 @@ struct EditorConfigurationPrivate
 {
     EditorConfigurationPrivate()
         : m_useGlobal(true)
-        , m_tabPreferences(0)
+        , m_typingSettings(TextEditorSettings::instance()->typingSettings())
         , m_storageSettings(TextEditorSettings::instance()->storageSettings())
         , m_behaviorSettings(TextEditorSettings::instance()->behaviorSettings())
         , m_extraEncodingSettings(TextEditorSettings::instance()->extraEncodingSettings())
@@ -79,157 +78,114 @@ struct EditorConfigurationPrivate
     }
 
     bool m_useGlobal;
-    TabPreferences *m_tabPreferences;
+    ICodeStylePreferences *m_defaultCodeStyle;
+    TypingSettings m_typingSettings;
     StorageSettings m_storageSettings;
     BehaviorSettings m_behaviorSettings;
     ExtraEncodingSettings m_extraEncodingSettings;
     QTextCodec *m_textCodec;
 
-    QMap<QString, TabPreferences *> m_languageTabPreferences;
-    QMap<QString, IFallbackPreferences *> m_languageCodeStylePreferences;
+    QMap<QString, ICodeStylePreferences *> m_languageCodeStylePreferences;
 };
 
-EditorConfiguration::EditorConfiguration() : m_d(new EditorConfigurationPrivate)
+EditorConfiguration::EditorConfiguration() : d(new EditorConfigurationPrivate)
 {
-    TextEditor::TextEditorSettings *textEditorSettings = TextEditor::TextEditorSettings::instance();
-    QList<TabPreferences *> tabFallbacks;
-    tabFallbacks << textEditorSettings->tabPreferences();
-    m_d->m_tabPreferences = new TabPreferences(tabFallbacks, this);
-    m_d->m_tabPreferences->setFallbackEnabled(textEditorSettings->tabPreferences(), false);
-    m_d->m_tabPreferences->setDisplayName(tr("Project", "Settings"));
-    m_d->m_tabPreferences->setId(kId);
+    TextEditorSettings *textEditorSettings = TextEditorSettings::instance();
 
-    CodeStylePreferencesManager *manager =
-            CodeStylePreferencesManager::instance();
-    TextEditorSettings *settings = TextEditorSettings::instance();
-
-    const QMap<QString, TabPreferences *> languageTabPreferences = settings->languageTabPreferences();
-    QMapIterator<QString, TabPreferences *> itTab(languageTabPreferences);
-    while (itTab.hasNext()) {
-        itTab.next();
-        const QString languageId = itTab.key();
-        TabPreferences *originalPreferences = itTab.value();
-        QList<IFallbackPreferences *> fallbacks;
-        fallbacks << originalPreferences->fallbacks();
-        fallbacks << originalPreferences;
-        fallbacks << tabPreferences();
-        TabPreferences *preferences = new TabPreferences(
-                    fallbacks, this);
-        for (int i = 0; i < fallbacks.count(); i++)
-            preferences->setFallbackEnabled(fallbacks.at(i), false);
-        preferences->setId(languageId + QLatin1String("Project"));
-        preferences->setCurrentFallback(originalPreferences);
-        m_d->m_languageTabPreferences.insert(languageId, preferences);
-    }
-
-    const QMap<QString, IFallbackPreferences *> languageCodeStylePreferences = settings->languageCodeStylePreferences();
-    QMapIterator<QString, IFallbackPreferences *> itCodeStyle(languageCodeStylePreferences);
+    const QMap<QString, ICodeStylePreferences *> languageCodeStylePreferences = textEditorSettings->codeStyles();
+    QMapIterator<QString, ICodeStylePreferences *> itCodeStyle(languageCodeStylePreferences);
     while (itCodeStyle.hasNext()) {
         itCodeStyle.next();
         const QString languageId = itCodeStyle.key();
-        IFallbackPreferences *originalPreferences = itCodeStyle.value();
-        ICodeStylePreferencesFactory *factory = manager->factory(languageId);
-        IFallbackPreferences *preferences = factory->createPreferences(
-                    QList<IFallbackPreferences *>() << originalPreferences);
-        preferences->setFallbackEnabled(originalPreferences, false);
+        ICodeStylePreferences *originalPreferences = itCodeStyle.value();
+        ICodeStylePreferencesFactory *factory = textEditorSettings->codeStyleFactory(languageId);
+        ICodeStylePreferences *preferences = factory->createCodeStyle();
+        preferences->setDelegatingPool(textEditorSettings->codeStylePool(languageId));
         preferences->setId(languageId + QLatin1String("Project"));
         preferences->setDisplayName(tr("Project %1", "Settings, %1 is a language (C++ or QML)").arg(factory->displayName()));
-        preferences->setCurrentFallback(originalPreferences);
-        m_d->m_languageCodeStylePreferences.insert(languageId, preferences);
+        preferences->setCurrentDelegate(originalPreferences);
+        d->m_languageCodeStylePreferences.insert(languageId, preferences);
     }
+
+    d->m_defaultCodeStyle = new SimpleCodeStylePreferences(this);
+    d->m_defaultCodeStyle->setDelegatingPool(textEditorSettings->codeStylePool());
+    d->m_defaultCodeStyle->setDisplayName(tr("Project", "Settings"));
+    d->m_defaultCodeStyle->setId(kId);
+    d->m_defaultCodeStyle->setCurrentDelegate(d->m_useGlobal
+                    ? TextEditorSettings::instance()->codeStyle() : 0);
 }
 
 EditorConfiguration::~EditorConfiguration()
 {
-    qDeleteAll(m_d->m_languageTabPreferences.values());
-    qDeleteAll(m_d->m_languageCodeStylePreferences.values());
+    qDeleteAll(d->m_languageCodeStylePreferences.values());
 }
 
 bool EditorConfiguration::useGlobalSettings() const
 {
-    return m_d->m_useGlobal;
+    return d->m_useGlobal;
 }
 
 void EditorConfiguration::cloneGlobalSettings()
 {
-    m_d->m_tabPreferences->setSettings(TextEditorSettings::instance()->tabPreferences()->settings());
-    setStorageSettings(TextEditorSettings::instance()->storageSettings());
-    setBehaviorSettings(TextEditorSettings::instance()->behaviorSettings());
-    setExtraEncodingSettings(TextEditorSettings::instance()->extraEncodingSettings());
-    m_d->m_textCodec = Core::EditorManager::instance()->defaultTextCodec();
+    TextEditorSettings *textEditorSettings = TextEditorSettings::instance();
+
+    d->m_defaultCodeStyle->setTabSettings(textEditorSettings->codeStyle()->tabSettings());
+    setTypingSettings(textEditorSettings->typingSettings());
+    setStorageSettings(textEditorSettings->storageSettings());
+    setBehaviorSettings(textEditorSettings->behaviorSettings());
+    setExtraEncodingSettings(textEditorSettings->extraEncodingSettings());
+    d->m_textCodec = Core::EditorManager::instance()->defaultTextCodec();
 }
 
 QTextCodec *EditorConfiguration::textCodec() const
 {
-    return m_d->m_textCodec;
+    return d->m_textCodec;
 }
 
-TabPreferences *EditorConfiguration::tabPreferences() const
+const TypingSettings &EditorConfiguration::typingSettings() const
 {
-    return m_d->m_tabPreferences;
+    return d->m_typingSettings;
 }
 
 const StorageSettings &EditorConfiguration::storageSettings() const
 {
-    return m_d->m_storageSettings;
+    return d->m_storageSettings;
 }
 
 const BehaviorSettings &EditorConfiguration::behaviorSettings() const
 {
-    return m_d->m_behaviorSettings;
+    return d->m_behaviorSettings;
 }
 
 const ExtraEncodingSettings &EditorConfiguration::extraEncodingSettings() const
 {
-    return m_d->m_extraEncodingSettings;
+    return d->m_extraEncodingSettings;
 }
 
-TabPreferences *EditorConfiguration::tabPreferences(const QString &languageId) const
+ICodeStylePreferences *EditorConfiguration::codeStyle() const
 {
-    TabPreferences *prefs = m_d->m_languageTabPreferences.value(languageId);
-    if (!prefs)
-        prefs = m_d->m_tabPreferences;
-    return prefs;
+    return d->m_defaultCodeStyle;
 }
 
-QMap<QString, TabPreferences *> EditorConfiguration::languageTabPreferences() const
+ICodeStylePreferences *EditorConfiguration::codeStyle(const QString &languageId) const
 {
-    return m_d->m_languageTabPreferences;
+    return d->m_languageCodeStylePreferences.value(languageId, codeStyle());
 }
 
-IFallbackPreferences *EditorConfiguration::codeStylePreferences(const QString &languageId) const
+QMap<QString, ICodeStylePreferences *> EditorConfiguration::codeStyles() const
 {
-    return m_d->m_languageCodeStylePreferences.value(languageId);
-}
-
-QMap<QString, IFallbackPreferences *> EditorConfiguration::languageCodeStylePreferences() const
-{
-    return m_d->m_languageCodeStylePreferences;
+    return d->m_languageCodeStylePreferences;
 }
 
 QVariantMap EditorConfiguration::toMap() const
 {
     QVariantMap map;
-    map.insert(kUseGlobal, m_d->m_useGlobal);
-    map.insert(kCodec, m_d->m_textCodec->name());
+    map.insert(kUseGlobal, d->m_useGlobal);
+    map.insert(kCodec, d->m_textCodec->name());
 
-    map.insert(kTabCount, m_d->m_languageTabPreferences.count());
-    QMapIterator<QString, TabPreferences *> itTab(m_d->m_languageTabPreferences);
+    map.insert(kCodeStyleCount, d->m_languageCodeStylePreferences.count());
+    QMapIterator<QString, ICodeStylePreferences *> itCodeStyle(d->m_languageCodeStylePreferences);
     int i = 0;
-    while (itTab.hasNext()) {
-        itTab.next();
-        QVariantMap settingsIdMap;
-        settingsIdMap.insert(QLatin1String("language"), itTab.key());
-        QVariantMap value;
-        itTab.value()->toMap(QString(), &value);
-        settingsIdMap.insert(QLatin1String("value"), value);
-        map.insert(kTabPrefix + QString::number(i), settingsIdMap);
-        i++;
-    }
-
-    map.insert(kCodeStyleCount, m_d->m_languageCodeStylePreferences.count());
-    QMapIterator<QString, IFallbackPreferences *> itCodeStyle(m_d->m_languageCodeStylePreferences);
-    i = 0;
     while (itCodeStyle.hasNext()) {
         itCodeStyle.next();
         QVariantMap settingsIdMap;
@@ -241,37 +197,23 @@ QVariantMap EditorConfiguration::toMap() const
         i++;
     }
 
-    m_d->m_tabPreferences->toMap(kPrefix, &map);
-    m_d->m_storageSettings.toMap(kPrefix, &map);
-    m_d->m_behaviorSettings.toMap(kPrefix, &map);
-    m_d->m_extraEncodingSettings.toMap(kPrefix, &map);
+    d->m_defaultCodeStyle->tabSettings().toMap(kPrefix, &map);
+    d->m_typingSettings.toMap(kPrefix, &map);
+    d->m_storageSettings.toMap(kPrefix, &map);
+    d->m_behaviorSettings.toMap(kPrefix, &map);
+    d->m_extraEncodingSettings.toMap(kPrefix, &map);
 
     return map;
 }
 
 void EditorConfiguration::fromMap(const QVariantMap &map)
 {
-    m_d->m_useGlobal = map.value(kUseGlobal, m_d->m_useGlobal).toBool();
+    d->m_useGlobal = map.value(kUseGlobal, d->m_useGlobal).toBool();
 
-    const QByteArray &codecName = map.value(kCodec, m_d->m_textCodec->name()).toByteArray();
-    m_d->m_textCodec = QTextCodec::codecForName(codecName);
-    if (!m_d->m_textCodec)
-        m_d->m_textCodec = Core::EditorManager::instance()->defaultTextCodec();
-
-    const int tabCount = map.value(kTabCount, 0).toInt();
-    for (int i = 0; i < tabCount; ++i) {
-        QVariantMap settingsIdMap = map.value(kTabPrefix + QString::number(i)).toMap();
-        if (settingsIdMap.isEmpty()) {
-            qWarning() << "No data for tab settings list" << i << "found!";
-            continue;
-        }
-        QString languageId = settingsIdMap.value(QLatin1String("language")).toString();
-        QVariantMap value = settingsIdMap.value(QLatin1String("value")).toMap();
-        TabPreferences *preferences = m_d->m_languageTabPreferences.value(languageId);
-        if (preferences) {
-             preferences->fromMap(QString(), value);
-        }
-    }
+    const QByteArray &codecName = map.value(kCodec, d->m_textCodec->name()).toByteArray();
+    d->m_textCodec = QTextCodec::codecForName(codecName);
+    if (!d->m_textCodec)
+        d->m_textCodec = Core::EditorManager::instance()->defaultTextCodec();
 
     const int codeStyleCount = map.value(kCodeStyleCount, 0).toInt();
     for (int i = 0; i < codeStyleCount; ++i) {
@@ -282,27 +224,25 @@ void EditorConfiguration::fromMap(const QVariantMap &map)
         }
         QString languageId = settingsIdMap.value(QLatin1String("language")).toString();
         QVariantMap value = settingsIdMap.value(QLatin1String("value")).toMap();
-        IFallbackPreferences *preferences = m_d->m_languageCodeStylePreferences.value(languageId);
+        ICodeStylePreferences *preferences = d->m_languageCodeStylePreferences.value(languageId);
         if (preferences) {
              preferences->fromMap(QString(), value);
         }
     }
 
-    m_d->m_tabPreferences->fromMap(kPrefix, map);
-    m_d->m_tabPreferences->setCurrentFallback(m_d->m_useGlobal
-                    ? TextEditorSettings::instance()->tabPreferences() : 0);
-    m_d->m_storageSettings.fromMap(kPrefix, map);
-    m_d->m_behaviorSettings.fromMap(kPrefix, map);
-    m_d->m_extraEncodingSettings.fromMap(kPrefix, map);
+    d->m_defaultCodeStyle->fromMap(kPrefix, map);
+    d->m_typingSettings.fromMap(kPrefix, map);
+    d->m_storageSettings.fromMap(kPrefix, map);
+    d->m_behaviorSettings.fromMap(kPrefix, map);
+    d->m_extraEncodingSettings.fromMap(kPrefix, map);
 }
 
 void EditorConfiguration::configureEditor(ITextEditor *textEditor) const
 {
     BaseTextEditorWidget *baseTextEditor = qobject_cast<BaseTextEditorWidget *>(textEditor->widget());
-    baseTextEditor->setTabPreferences(tabPreferences(baseTextEditor->languageSettingsId()));
-    baseTextEditor->setCodeStylePreferences(codeStylePreferences(baseTextEditor->languageSettingsId()));
-    if (!m_d->m_useGlobal) {
-        textEditor->setTextCodec(m_d->m_textCodec, ITextEditor::TextCodecFromProjectSetting);
+    baseTextEditor->setCodeStyle(codeStyle(baseTextEditor->languageSettingsId()));
+    if (!d->m_useGlobal) {
+        textEditor->setTextCodec(d->m_textCodec, ITextEditor::TextCodecFromProjectSetting);
         if (baseTextEditor)
             switchSettings(baseTextEditor);
     }
@@ -310,9 +250,9 @@ void EditorConfiguration::configureEditor(ITextEditor *textEditor) const
 
 void EditorConfiguration::setUseGlobalSettings(bool use)
 {
-    m_d->m_useGlobal = use;
-    m_d->m_tabPreferences->setCurrentFallback(m_d->m_useGlobal
-                    ? TextEditorSettings::instance()->tabPreferences() : 0);
+    d->m_useGlobal = use;
+    d->m_defaultCodeStyle->setCurrentDelegate(d->m_useGlobal
+                    ? TextEditorSettings::instance()->codeStyle() : 0);
     const SessionManager *session = ProjectExplorerPlugin::instance()->session();
     QList<Core::IEditor *> opened = Core::EditorManager::instance()->openedEditors();
     foreach (Core::IEditor *editor, opened) {
@@ -326,7 +266,7 @@ void EditorConfiguration::setUseGlobalSettings(bool use)
 
 void EditorConfiguration::switchSettings(BaseTextEditorWidget *baseTextEditor) const
 {
-    if (m_d->m_useGlobal)
+    if (d->m_useGlobal)
         switchSettings_helper(TextEditorSettings::instance(), this, baseTextEditor);
     else
         switchSettings_helper(this, TextEditorSettings::instance(), baseTextEditor);
@@ -337,10 +277,13 @@ void EditorConfiguration::switchSettings_helper(const NewSenderT *newSender,
                                                 const OldSenderT *oldSender,
                                                 BaseTextEditorWidget *baseTextEditor) const
 {
+    baseTextEditor->setTypingSettings(newSender->typingSettings());
     baseTextEditor->setStorageSettings(newSender->storageSettings());
     baseTextEditor->setBehaviorSettings(newSender->behaviorSettings());
     baseTextEditor->setExtraEncodingSettings(newSender->extraEncodingSettings());
 
+    disconnect(oldSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
+               baseTextEditor, SLOT(setTypingSettings(TextEditor::TypingSettings)));
     disconnect(oldSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
                baseTextEditor, SLOT(setStorageSettings(TextEditor::StorageSettings)));
     disconnect(oldSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
@@ -348,6 +291,8 @@ void EditorConfiguration::switchSettings_helper(const NewSenderT *newSender,
     disconnect(oldSender, SIGNAL(extraEncodingSettingsChanged(TextEditor::ExtraEncodingSettings)),
                baseTextEditor, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
 
+    connect(newSender, SIGNAL(typingSettingsChanged(TextEditor::TypingSettings)),
+            baseTextEditor, SLOT(setTypingSettings(TextEditor::TypingSettings)));
     connect(newSender, SIGNAL(storageSettingsChanged(TextEditor::StorageSettings)),
             baseTextEditor, SLOT(setStorageSettings(TextEditor::StorageSettings)));
     connect(newSender, SIGNAL(behaviorSettingsChanged(TextEditor::BehaviorSettings)),
@@ -356,27 +301,33 @@ void EditorConfiguration::switchSettings_helper(const NewSenderT *newSender,
             baseTextEditor, SLOT(setExtraEncodingSettings(TextEditor::ExtraEncodingSettings)));
 }
 
+void EditorConfiguration::setTypingSettings(const TextEditor::TypingSettings &settings)
+{
+    d->m_typingSettings = settings;
+    emit typingSettingsChanged(d->m_typingSettings);
+}
+
 void EditorConfiguration::setStorageSettings(const TextEditor::StorageSettings &settings)
 {
-    m_d->m_storageSettings = settings;
-    emit storageSettingsChanged(m_d->m_storageSettings);
+    d->m_storageSettings = settings;
+    emit storageSettingsChanged(d->m_storageSettings);
 }
 
 void EditorConfiguration::setBehaviorSettings(const TextEditor::BehaviorSettings &settings)
 {
-    m_d->m_behaviorSettings = settings;
-    emit behaviorSettingsChanged(m_d->m_behaviorSettings);
+    d->m_behaviorSettings = settings;
+    emit behaviorSettingsChanged(d->m_behaviorSettings);
 }
 
 void EditorConfiguration::setExtraEncodingSettings(const TextEditor::ExtraEncodingSettings &settings)
 {
-    m_d->m_extraEncodingSettings = settings;
-    emit extraEncodingSettingsChanged(m_d->m_extraEncodingSettings);
+    d->m_extraEncodingSettings = settings;
+    emit extraEncodingSettingsChanged(d->m_extraEncodingSettings);
 }
 
 void EditorConfiguration::setTextCodec(QTextCodec *textCodec)
 {
-    m_d->m_textCodec = textCodec;
+    d->m_textCodec = textCodec;
 }
 
 TabSettings actualTabSettings(const QString &fileName,
@@ -387,9 +338,9 @@ TabSettings actualTabSettings(const QString &fileName,
     } else {
         const SessionManager *session = ProjectExplorerPlugin::instance()->session();
         if (Project *project = session->projectForFile(fileName))
-            return project->editorConfiguration()->tabPreferences()->settings();
+            return project->editorConfiguration()->codeStyle()->tabSettings();
         else
-            return TextEditorSettings::instance()->tabPreferences()->settings();
+            return TextEditorSettings::instance()->codeStyle()->tabSettings();
     }
 }
 

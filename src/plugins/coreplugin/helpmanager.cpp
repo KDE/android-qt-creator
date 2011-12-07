@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -50,11 +50,13 @@
 
 namespace Core {
 
-struct HelpManagerPrivate {
+struct HelpManagerPrivate
+{
     HelpManagerPrivate() :
-       m_needsSetup(true), m_helpEngine(0), m_collectionWatcher(0) {}
+       m_needsSetup(true), m_helpEngine(0), m_collectionWatcher(0)
+    {}
 
-    static HelpManager *m_instance;
+    QStringList documentationFromInstaller();
 
     bool m_needsSetup;
     QHelpEngineCore *m_helpEngine;
@@ -65,7 +67,7 @@ struct HelpManagerPrivate {
     QHash<QString, QVariant> m_customValues;
 };
 
-HelpManager *HelpManagerPrivate::m_instance = 0;
+static HelpManager *m_instance = 0;
 
 static const char linksForKeyQuery[] = "SELECT d.Title, f.Name, e.Name, "
     "d.Name, a.Anchor FROM IndexTable a, FileNameTable d, FolderTable e, "
@@ -74,12 +76,10 @@ static const char linksForKeyQuery[] = "SELECT d.Title, f.Name, e.Name, "
 
 // -- DbCleaner
 
-struct DbCleaner {
-    DbCleaner(const QString &dbName)
-        : name(dbName) {}
-    ~DbCleaner() {
-        QSqlDatabase::removeDatabase(name);
-    }
+struct DbCleaner
+{
+    DbCleaner(const QString &dbName) : name(dbName) {}
+    ~DbCleaner() { QSqlDatabase::removeDatabase(name); }
     QString name;
 };
 
@@ -88,25 +88,23 @@ struct DbCleaner {
 HelpManager::HelpManager(QObject *parent) :
     QObject(parent), d(new HelpManagerPrivate)
 {
-    Q_ASSERT(!HelpManagerPrivate::m_instance);
-    HelpManagerPrivate::m_instance = this;
-
-    connect(Core::ICore::instance(), SIGNAL(coreOpened()), this,
-        SLOT(setupHelpManager()));
+    Q_ASSERT(!m_instance);
+    m_instance = this;
+    connect(Core::ICore::instance(), SIGNAL(coreOpened()), SLOT(setupHelpManager()));
 }
 
 HelpManager::~HelpManager()
 {
     delete d->m_helpEngine;
     d->m_helpEngine = 0;
-
-    HelpManagerPrivate::m_instance = 0;
+    m_instance = 0;
+    delete d;
 }
 
-HelpManager* HelpManager::instance()
+HelpManager *HelpManager::instance()
 {
-    Q_ASSERT(HelpManagerPrivate::m_instance);
-    return HelpManagerPrivate::m_instance;
+    Q_ASSERT(m_instance);
+    return m_instance;
 }
 
 QString HelpManager::collectionFilePath()
@@ -412,13 +410,7 @@ void HelpManager::setupHelpManager()
         d->m_nameSpacesToUnregister.clear();
     }
 
-    // this might come from the installer
-    const QLatin1String key("AddedDocs");
-    const QString addedDocs = d->m_helpEngine->customValue(key).toString();
-    if (!addedDocs.isEmpty()) {
-        d->m_helpEngine->removeCustomValue(key);
-        d->m_filesToRegister += addedDocs.split(QLatin1Char(';'));
-    }
+    d->m_filesToRegister << d->documentationFromInstaller();
 
     if (!d->m_filesToRegister.isEmpty()) {
         registerDocumentation(d->m_filesToRegister);
@@ -429,23 +421,7 @@ void HelpManager::setupHelpManager()
     for (it = d->m_customValues.constBegin(); it != d->m_customValues.constEnd(); ++it)
         setCustomValue(it.key(), it.value());
 
-    d->m_collectionWatcher = new Utils::FileSystemWatcher(this);
-    d->m_collectionWatcher->setObjectName(QLatin1String("HelpCollectionWatcher"));
-    d->m_collectionWatcher->addFile(collectionFilePath(), Utils::FileSystemWatcher::WatchAllChanges);
-    connect(d->m_collectionWatcher, SIGNAL(fileChanged(QString)), this,
-        SLOT(collectionFileModified()));
-
     emit setupFinished();
-}
-
-void HelpManager::collectionFileModified()
-{
-    const QLatin1String key("AddedDocs");
-    const QString addedDocs = d->m_helpEngine->customValue(key).toString();
-    if (!addedDocs.isEmpty()) {
-        d->m_helpEngine->removeCustomValue(key);
-        registerDocumentation(addedDocs.split(QLatin1Char(';')));
-    }
 }
 
 // -- private
@@ -457,6 +433,27 @@ void HelpManager::verifyDocumenation()
         if (!QFileInfo(d->m_helpEngine->documentationFileName(nameSpace)).exists())
             d->m_nameSpacesToUnregister.append(nameSpace);
     }
+}
+
+QStringList HelpManagerPrivate::documentationFromInstaller()
+{
+    QSettings *installSettings = Core::ICore::instance()->settings(QSettings::SystemScope);
+    QStringList documentationPaths = installSettings->value(QLatin1String("Help/InstalledDocumentation"))
+            .toString().split(QLatin1Char(';'), QString::SkipEmptyParts);
+    QStringList documentationFiles;
+    foreach (const QString &path, documentationPaths) {
+        QFileInfo pathInfo(path);
+        if (pathInfo.isFile() && pathInfo.isReadable()) {
+            documentationFiles << pathInfo.absoluteFilePath();
+        } else if (pathInfo.isDir()) {
+            QDir dir(path);
+            foreach (const QFileInfo &fileInfo, dir.entryInfoList(QStringList() << "*.qch",
+                                                              QDir::Files | QDir::Readable)) {
+                documentationFiles << fileInfo.absoluteFilePath();
+            }
+        }
+    }
+    return documentationFiles;
 }
 
 }   // Core

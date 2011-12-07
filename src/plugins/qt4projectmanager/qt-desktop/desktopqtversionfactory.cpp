@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "desktopqtversionfactory.h"
@@ -73,11 +73,11 @@ int DesktopQtVersionFactory::priority() const
     return 0;
 }
 
-QtSupport::BaseQtVersion *DesktopQtVersionFactory::create(const QString &qmakePath, ProFileEvaluator *evaluator, bool isAutoDetected, const QString &autoDetectionSource)
+QtSupport::BaseQtVersion *DesktopQtVersionFactory::create(const Utils::FileName &qmakePath, ProFileEvaluator *evaluator, bool isAutoDetected, const QString &autoDetectionSource)
 {
     Q_UNUSED(evaluator);
     // we are the fallback :) so we don't care what kind of qt it is
-    QFileInfo fi(qmakePath);
+    QFileInfo fi = qmakePath.toFileInfo();
     if (fi.exists() && fi.isExecutable() && fi.isFile())
         return new DesktopQtVersion(qmakePath, isAutoDetected, autoDetectionSource);
     return 0;

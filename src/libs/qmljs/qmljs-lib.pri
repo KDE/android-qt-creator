@@ -18,7 +18,6 @@ HEADERS += \
     $$PWD/qmljslink.h \
     $$PWD/qmljscheck.h \
     $$PWD/qmljsscopebuilder.h \
-    $$PWD/qmljslookupcontext.h \
     $$PWD/qmljslineinfo.h \
     $$PWD/qmljscompletioncontextfinder.h \
     $$PWD/qmljsmodelmanagerinterface.h \
@@ -28,7 +27,12 @@ HEADERS += \
     $$PWD/qmljsicons.h \
     $$PWD/qmljsdelta.h \
     $$PWD/qmljstypedescriptionreader.h \
-    $$PWD/qmljsscopeastpath.h
+    $$PWD/qmljsscopeastpath.h \
+    $$PWD/qmljsvalueowner.h \
+    $$PWD/qmljscontext.h \
+    $$PWD/qmljsscopechain.h \
+    $$PWD/qmljsutils.h \
+    $$PWD/qmljsstaticanalysismessage.h
 
 SOURCES += \
     $$PWD/qmljsbind.cpp \
@@ -39,7 +43,6 @@ SOURCES += \
     $$PWD/qmljslink.cpp \
     $$PWD/qmljscheck.cpp \
     $$PWD/qmljsscopebuilder.cpp \
-    $$PWD/qmljslookupcontext.cpp \
     $$PWD/qmljslineinfo.cpp \
     $$PWD/qmljscompletioncontextfinder.cpp \
     $$PWD/qmljsmodelmanagerinterface.cpp \
@@ -48,7 +51,12 @@ SOURCES += \
     $$PWD/qmljsicons.cpp \
     $$PWD/qmljsdelta.cpp \
     $$PWD/qmljstypedescriptionreader.cpp \
-    $$PWD/qmljsscopeastpath.cpp
+    $$PWD/qmljsscopeastpath.cpp \
+    $$PWD/qmljsvalueowner.cpp \
+    $$PWD/qmljscontext.cpp \
+    $$PWD/qmljsscopechain.cpp \
+    $$PWD/qmljsutils.cpp \
+    $$PWD/qmljsstaticanalysismessage.cpp
 
 RESOURCES += \
     $$PWD/qmljs.qrc
@@ -59,9 +67,11 @@ OTHER_FILES += \
 contains(QT, gui) {
     SOURCES += \
         $$PWD/qmljsindenter.cpp \
-        $$PWD/qmljscodeformatter.cpp
+        $$PWD/qmljscodeformatter.cpp \
+        $$PWD/qmljsreformatter.cpp
 
     HEADERS += \
         $$PWD/qmljsindenter.h \
-        $$PWD/qmljscodeformatter.h
+        $$PWD/qmljscodeformatter.h \
+        $$PWD/qmljsreformatter.h
 }

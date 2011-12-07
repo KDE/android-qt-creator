@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,10 +37,6 @@
 
 QT_BEGIN_NAMESPACE
 class QListWidgetItem;
-
-namespace Ui {
-class GenericMakeStep;
-}
 QT_END_NAMESPACE
 
 namespace GenericProjectManager {
@@ -49,10 +45,12 @@ namespace Internal {
 class GenericBuildConfiguration;
 class GenericMakeStepConfigWidget;
 class GenericMakeStepFactory;
+namespace Ui { class GenericMakeStep; }
 
 class GenericMakeStep : public ProjectExplorer::AbstractProcessStep
 {
     Q_OBJECT
+
     friend class GenericMakeStepConfigWidget; // TODO remove again?
     friend class GenericMakeStepFactory;
 
@@ -73,6 +71,9 @@ public:
     QString allArguments() const;
     QString makeCommand() const;
 
+    void setClean(bool clean);
+    bool isClean() const;
+
     QVariantMap toMap() const;
 
 protected:
@@ -86,6 +87,7 @@ private:
     QStringList m_buildTargets;
     QString m_makeArguments;
     QString m_makeCommand;
+    bool m_clean;
 };
 
 class GenericMakeStepConfigWidget :public ProjectExplorer::BuildStepConfigWidget

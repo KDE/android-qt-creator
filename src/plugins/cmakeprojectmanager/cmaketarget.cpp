@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -115,7 +115,7 @@ void CMakeTarget::updateRunConfigurations()
     // *Update* runconfigurations:
     QMultiMap<QString, CMakeRunConfiguration*> existingRunConfigurations;
     QList<ProjectExplorer::RunConfiguration *> toRemove;
-    foreach(ProjectExplorer::RunConfiguration* rc, runConfigurations()) {
+    foreach (ProjectExplorer::RunConfiguration* rc, runConfigurations()) {
         if (CMakeRunConfiguration* cmakeRC = qobject_cast<CMakeRunConfiguration *>(rc))
             existingRunConfigurations.insert(cmakeRC->title(), cmakeRC);
         ProjectExplorer::CustomExecutableRunConfiguration *ceRC =
@@ -124,7 +124,7 @@ void CMakeTarget::updateRunConfigurations()
             toRemove << rc;
     }
 
-    foreach(const CMakeBuildTarget &ct, cmakeProject()->buildTargets()) {
+    foreach (const CMakeBuildTarget &ct, cmakeProject()->buildTargets()) {
         if (ct.library)
             continue;
         if (ct.executable.isEmpty())
@@ -147,7 +147,7 @@ void CMakeTarget::updateRunConfigurations()
     }
     QMultiMap<QString, CMakeRunConfiguration *>::const_iterator it =
             existingRunConfigurations.constBegin();
-    for( ; it != existingRunConfigurations.constEnd(); ++it) {
+    for ( ; it != existingRunConfigurations.constEnd(); ++it) {
         CMakeRunConfiguration *rc = it.value();
         // The executables for those runconfigurations aren't build by the current buildconfiguration
         // We just set a disable flag and show that in the display name

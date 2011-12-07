@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -88,18 +88,25 @@ QString StackFrame::toToolTip() const
     const QString filePath = QDir::toNativeSeparators(file);
     QString res;
     QTextStream str(&res);
-    str << "<html><body><table>"
-        << "<tr><td>" << tr("Address:") << "</td><td>0x";
-    str.setIntegerBase(16);
-    str <<  address;
+    str << "<html><body><table>";
+    if (address) {
+        str << "<tr><td>" << tr("Address:") << "</td><td>0x";
+        str.setIntegerBase(16);
+        str <<  address;
+    }
     str.setIntegerBase(10);
-    str << "</td></tr>"
-        << "<tr><td>" << tr("Function:") << "</td><td>" << function << "</td></tr>"
-        << "<tr><td>" << tr("File:") << "</td><td>" << filePath << "</td></tr>"
-        << "<tr><td>" << tr("Line:") << "</td><td>" << line << "</td></tr>"
-        << "<tr><td>" << tr("From:") << "</td><td>" << from << "</td></tr>"
-        << "<tr><td>" << tr("To:") << "</td><td>" << to << "</td></tr>"
-        << "</table></body></html>";
+    str << "</td></tr>";
+    if (!function.isEmpty())
+        str << "<tr><td>" << tr("Function:") << "</td><td>" << function << "</td></tr>";
+    if (!file.isEmpty())
+        str << "<tr><td>" << tr("File:") << "</td><td>" << filePath << "</td></tr>";
+    if (line != -1)
+        str << "<tr><td>" << tr("Line:") << "</td><td>" << line << "</td></tr>";
+    if (!from.isEmpty())
+        str << "<tr><td>" << tr("From:") << "</td><td>" << from << "</td></tr>";
+    if (!to.isEmpty())
+        str << "<tr><td>" << tr("To:") << "</td><td>" << to << "</td></tr>";
+    str << "</table></body></html>";
     return res;
 }
 

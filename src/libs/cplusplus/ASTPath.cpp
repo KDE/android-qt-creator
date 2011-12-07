@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,8 +45,8 @@ using namespace CPlusPlus;
 QList<AST *> ASTPath::operator()(int line, int column)
 {
     _nodes.clear();
-    _line = line + 1;
-    _column = column + 1;
+    _line = line;
+    _column = column;
 
     if (_doc) {
         if (TranslationUnit *unit = _doc->translationUnit())
@@ -71,7 +71,8 @@ bool ASTPath::preVisit(AST *ast)
     unsigned lastToken = ast->lastToken();
 
     if (firstToken > 0) {
-        Q_ASSERT(lastToken > firstToken);
+        if (lastToken <= firstToken)
+            return false;
 
         unsigned startLine, startColumn;
         getTokenStartPosition(firstToken, &startLine, &startColumn);

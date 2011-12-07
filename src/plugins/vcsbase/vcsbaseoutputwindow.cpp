@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -192,7 +192,7 @@ void OutputWindowPlainTextEdit::contextMenuEvent(QContextMenuEvent *event)
         }
         if (action == openAction) {
             const QString fileName = action->data().toString();
-            Core::EditorManager::instance()->openEditor(fileName, QString(), Core::EditorManager::ModeSwitch);
+            Core::EditorManager::instance()->openEditor(fileName, Core::Id(), Core::EditorManager::ModeSwitch);
         }
     }
     delete menu;
@@ -318,27 +318,27 @@ void VCSBaseOutputWindow::setFocus()
 {
 }
 
-bool VCSBaseOutputWindow::hasFocus()
+bool VCSBaseOutputWindow::hasFocus() const
 {
     return false;
 }
 
-bool VCSBaseOutputWindow::canFocus()
+bool VCSBaseOutputWindow::canFocus() const
 {
     return false;
 }
 
-bool VCSBaseOutputWindow::canNavigate()
+bool VCSBaseOutputWindow::canNavigate() const
 {
     return false;
 }
 
-bool VCSBaseOutputWindow::canNext()
+bool VCSBaseOutputWindow::canNext() const
 {
     return false;
 }
 
-bool VCSBaseOutputWindow::canPrevious()
+bool VCSBaseOutputWindow::canPrevious() const
 {
     return false;
 }

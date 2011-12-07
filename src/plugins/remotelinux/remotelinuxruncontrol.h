@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,14 +36,15 @@
 
 #include <projectexplorer/runconfiguration.h>
 
-#include <QtCore/QString>
+QT_FORWARD_DECLARE_CLASS(QString)
 
 namespace RemoteLinux {
-class RemoteLinuxApplicationRunner;
+class AbstractRemoteLinuxApplicationRunner;
 
 class REMOTELINUX_EXPORT AbstractRemoteLinuxRunControl : public ProjectExplorer::RunControl
 {
     Q_OBJECT
+    Q_DISABLE_COPY(AbstractRemoteLinuxRunControl)
 public:
     explicit AbstractRemoteLinuxRunControl(ProjectExplorer::RunConfiguration *runConfig);
     virtual ~AbstractRemoteLinuxRunControl();
@@ -53,7 +54,7 @@ public:
     virtual bool isRunning() const;
     virtual QIcon icon() const;
 
-    virtual RemoteLinuxApplicationRunner *runner() const=0;
+    virtual AbstractRemoteLinuxApplicationRunner *runner() const = 0;
 
 private slots:
     void startExecution();
@@ -65,7 +66,6 @@ private slots:
     void handleProgressReport(const QString &progressString);
 
 private:
-
     void setFinished();
     void handleError(const QString &errString);
 
@@ -81,9 +81,9 @@ public:
     explicit RemoteLinuxRunControl(ProjectExplorer::RunConfiguration *runConfig);
     virtual ~RemoteLinuxRunControl();
 private:
-    virtual RemoteLinuxApplicationRunner *runner() const;
+    virtual AbstractRemoteLinuxApplicationRunner *runner() const;
 
-    RemoteLinuxApplicationRunner * const m_runner;
+    AbstractRemoteLinuxApplicationRunner * const m_runner;
 };
 
 } // namespace RemoteLinux

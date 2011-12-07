@@ -6,7 +6,7 @@
 **
 ** Author: Andreas Hartmetz, KDAB (andreas.hartmetz@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,12 +37,13 @@
 
 #include "analyzerbase_global.h"
 #include "analyzerconstants.h"
-#include "projectexplorer/runconfiguration.h"
+#include <coreplugin/id.h>
 
 #include <QtCore/QObject>
 
 QT_BEGIN_NAMESPACE
 class QDockWidget;
+class QAction;
 QT_END_NAMESPACE
 
 namespace Utils {
@@ -71,8 +72,7 @@ public:
 
     // Register a tool and initialize it.
     static void addTool(IAnalyzerTool *tool, const StartModes &mode);
-    static IAnalyzerTool *toolFromId(const QByteArray &id);
-    static StartMode modeFromId(const QByteArray &id);
+    static IAnalyzerTool *toolFromId(const Core::Id &id);
 
     // Dockwidgets are registered to the main window.
     static QDockWidget *createDockWidget(IAnalyzerTool *tool, const QString &title,
@@ -81,6 +81,7 @@ public:
     static Utils::FancyMainWindow *mainWindow();
 
     static void showMode();
+    static IAnalyzerTool *currentSelectedTool();
     static void selectTool(IAnalyzerTool *tool, StartMode mode);
     static void startTool(IAnalyzerTool *tool, StartMode mode);
     static void stopTool();

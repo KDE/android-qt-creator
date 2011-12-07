@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,9 +46,9 @@
 
 #include <QtGui/QApplication>
 #include <QtGui/QClipboard>
+#include <QtGui/QContextMenuEvent>
 #include <QtGui/QHeaderView>
 #include <QtGui/QMenu>
-#include <QtGui/QResizeEvent>
 
 namespace Debugger {
 namespace Internal {
@@ -59,33 +59,17 @@ static DebuggerEngine *currentEngine()
 }
 
 StackWindow::StackWindow(QWidget *parent)
-    : QTreeView(parent)
+    : BaseWindow(parent)
 {
-    setAttribute(Qt::WA_MacShowFocusRect, false);
-    setFrameStyle(QFrame::NoFrame);
-
-    QAction *act = debuggerCore()->action(UseAlternatingRowColors);
     setWindowTitle(tr("Stack"));
+    setAlwaysAdjustColumnsAction(debuggerCore()->action(AlwaysAdjustStackColumnWidths));
 
-    setAlternatingRowColors(act->isChecked());
-    setRootIsDecorated(false);
-    setIconSize(QSize(10, 10));
-
-    header()->setDefaultAlignment(Qt::AlignLeft);
-
-    connect(this, SIGNAL(activated(QModelIndex)),
-        SLOT(rowActivated(QModelIndex)));
-    connect(act, SIGNAL(toggled(bool)),
-        SLOT(setAlternatingRowColorsHelper(bool)));
     connect(debuggerCore()->action(UseAddressInStackView), SIGNAL(toggled(bool)),
         SLOT(showAddressColumn(bool)));
     connect(debuggerCore()->action(ExpandStack), SIGNAL(triggered()),
         SLOT(reloadFullStack()));
     connect(debuggerCore()->action(MaximalStackDepth), SIGNAL(triggered()),
         SLOT(reloadFullStack()));
-    connect(debuggerCore()->action(AlwaysAdjustStackColumnWidths),
-        SIGNAL(triggered(bool)),
-        SLOT(setAlwaysResizeColumnsToContents(bool)));
     showAddressColumn(false);
 }
 
@@ -101,14 +85,10 @@ void StackWindow::rowActivated(const QModelIndex &index)
 
 void StackWindow::setModel(QAbstractItemModel *model)
 {
-    QTreeView::setModel(model);
-    //resizeColumnsToContents();
+    BaseWindow::setModel(model);
     resizeColumnToContents(0);
     resizeColumnToContents(3);
-    if (header()) {
-        bool adjust = debuggerCore()->boolSetting(AlwaysAdjustStackColumnWidths);
-        setAlwaysResizeColumnsToContents(adjust);
-    }
+    showAddressColumn(debuggerCore()->action(UseAddressInStackView)->isChecked());
 }
 
 void StackWindow::contextMenuEvent(QContextMenuEvent *ev)
@@ -132,50 +112,53 @@ void StackWindow::contextMenuEvent(QContextMenuEvent *ev)
     if (engineCapabilities & CreateFullBacktraceCapability)
         menu.addAction(debuggerCore()->action(CreateFullBacktrace));
 
-    QAction *actShowMemory = menu.addAction(QString());
-    if (address == 0) {
-        actShowMemory->setText(tr("Open Memory Editor"));
-        actShowMemory->setEnabled(false);
-    } else {
-        actShowMemory->setText(tr("Open Memory Editor at 0x%1").arg(address, 0, 16));
-        actShowMemory->setEnabled(engineCapabilities & ShowMemoryCapability);
+    QAction *actShowMemory = 0;
+    if (engineCapabilities & ShowMemoryCapability) {
+        actShowMemory = menu.addAction(QString());
+        if (address == 0) {
+            actShowMemory->setText(tr("Open Memory Editor"));
+            actShowMemory->setEnabled(false);
+        } else {
+            actShowMemory->setText(tr("Open Memory Editor at 0x%1").arg(address, 0, 16));
+            actShowMemory->setEnabled(engineCapabilities & ShowMemoryCapability);
+        }
     }
 
-    QAction *actShowDisassemblerAt = menu.addAction(QString());
-    QAction *actShowDisassembler = menu.addAction(tr("Open Disassembler..."));
-    actShowDisassembler->setEnabled(engineCapabilities & DisassemblerCapability);
-    if (address == 0) {
-        actShowDisassemblerAt->setText(tr("Open Disassembler"));
-        actShowDisassemblerAt->setEnabled(false);
-    } else {
-        actShowDisassemblerAt->setText(tr("Open Disassembler at 0x%1").arg(address, 0, 16));
-        actShowDisassemblerAt->setEnabled(engineCapabilities & DisassemblerCapability);
+    QAction *actShowDisassemblerAt = 0;
+    QAction *actShowDisassembler = 0;
+
+    if (engineCapabilities & DisassemblerCapability) {
+        actShowDisassemblerAt = menu.addAction(QString());
+        actShowDisassembler = menu.addAction(tr("Open Disassembler..."));
+        if (address == 0) {
+            actShowDisassemblerAt->setText(tr("Open Disassembler"));
+            actShowDisassemblerAt->setEnabled(false);
+        } else {
+            actShowDisassemblerAt->setText(tr("Open Disassembler at 0x%1").arg(address, 0, 16));
+        }
     }
+
 
     QAction *actLoadSymbols = 0;
     if (engineCapabilities & ShowModuleSymbolsCapability)
         actLoadSymbols = menu.addAction(tr("Try to Load Unknown Symbols"));
 
-    menu.addSeparator();
 #if 0 // @TODO: not implemented
     menu.addAction(debuggerCore()->action(UseToolTipsInStackView));
 #endif
-    menu.addAction(debuggerCore()->action(UseAddressInStackView));
+    if (engineCapabilities & MemoryAddressCapability)
+        menu.addAction(debuggerCore()->action(UseAddressInStackView));
 
-    QAction *actAdjust = menu.addAction(tr("Adjust Column Widths to Contents"));
-    menu.addAction(debuggerCore()->action(AlwaysAdjustStackColumnWidths));
     menu.addSeparator();
 
-    menu.addAction(debuggerCore()->action(SettingsDialog));
+    addBaseContextActions(&menu);
 
     QAction *act = menu.exec(ev->globalPos());
-
     if (!act)
-        ;
-    else if (act == actCopyContents)
+        return;
+
+    if (act == actCopyContents)
         copyContentsToClipboard();
-    else if (act == actAdjust)
-        resizeColumnsToContents();
     else if (act == actShowMemory) {
         const QString title = tr("Memory at Frame #%1 (%2) 0x%3").
         arg(row).arg(frame.function).arg(address, 0, 16);
@@ -193,6 +176,8 @@ void StackWindow::contextMenuEvent(QContextMenuEvent *ev)
         engine->openDisassemblerView(frame);
     else if (act == actLoadSymbols)
         engine->loadSymbolsForStack();
+    else
+        handleBaseContextAction(act);
 }
 
 void StackWindow::copyContentsToClipboard()
@@ -218,20 +203,6 @@ void StackWindow::copyContentsToClipboard()
 void StackWindow::reloadFullStack()
 {
     currentEngine()->reloadFullStack();
-}
-
-void StackWindow::resizeColumnsToContents()
-{
-    for (int i = model()->columnCount(); --i >= 0; )
-        resizeColumnToContents(i);
-}
-
-void StackWindow::setAlwaysResizeColumnsToContents(bool on)
-{
-    QHeaderView::ResizeMode mode =
-        on ? QHeaderView::ResizeToContents : QHeaderView::Interactive;
-    for (int i = model()->columnCount(); --i >= 0; )
-        header()->setResizeMode(i, mode);
 }
 
 } // namespace Internal

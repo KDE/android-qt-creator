@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,12 +34,11 @@
 #define CLASSVIEWTREEITEMMODEL_H
 
 #include <QtGui/QStandardItemModel>
-#include <QtCore/QModelIndex>
-#include <QtCore/QScopedPointer>
-#include <QtCore/QSet>
 
 namespace ClassView {
 namespace Internal {
+
+class TreeItemModelPrivate;
 
 /*!
    \class TreeItemModel
@@ -71,7 +70,7 @@ public:
 
 private:
     //! private class data pointer
-    QScopedPointer<struct TreeItemModelPrivate> d_ptr;
+    TreeItemModelPrivate *d;
 };
 
 } // namespace Internal

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,16 +42,19 @@ class CloneOptionsPanel;
 class CloneWizardPage : public VCSBase::BaseCheckoutWizardPage
 {
     Q_OBJECT
+
 public:
     CloneWizardPage(QWidget *parent = 0);
     const CloneOptionsPanel *cloneOptionsPanel() const;
+
 protected:
     QString directoryFromRepository(const QString &repository) const;
+
 private:
     CloneOptionsPanel *m_optionsPanel;
 };
 
-} //namespace Internal
-} //namespace Bazaar
+} // namespace Internal
+} // namespace Bazaar
 
 #endif // CLONEWIZARDPAGE_H

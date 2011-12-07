@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,10 +43,9 @@ struct ClassNameValidatingLineEditPrivate;
 class QTCREATOR_UTILS_EXPORT ClassNameValidatingLineEdit
   : public Utils::BaseValidatingLineEdit
 {
-    Q_DISABLE_COPY(ClassNameValidatingLineEdit)
+    Q_OBJECT
     Q_PROPERTY(bool namespacesEnabled READ namespacesEnabled WRITE setNamespacesEnabled DESIGNABLE true)
     Q_PROPERTY(bool lowerCaseFileName READ lowerCaseFileName WRITE setLowerCaseFileName)
-    Q_OBJECT
 
 public:
     explicit ClassNameValidatingLineEdit(QWidget *parent = 0);
@@ -71,7 +70,7 @@ protected:
     virtual void slotChanged(const QString &t);
 
 private:
-    ClassNameValidatingLineEditPrivate *m_d;
+    ClassNameValidatingLineEditPrivate *d;
 };
 
 } // namespace Utils

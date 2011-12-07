@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,6 +37,7 @@
 #include "cppinsertqtpropertymembers.h"
 #include "cppquickfixassistant.h"
 #include "cppcompleteswitch.h"
+#include "cppfunctiondecldeflink.h"
 
 #include <ASTVisitor.h>
 #include <AST.h>
@@ -55,16 +56,23 @@
 #include <cplusplus/DependencyTable.h>
 #include <cplusplus/Overview.h>
 #include <cplusplus/TypeOfExpression.h>
+#include <cplusplus/ModelManagerInterface.h>
 #include <cplusplus/CppRewriter.h>
 #include <cpptools/cpptoolsconstants.h>
 #include <cpptools/cpprefactoringchanges.h>
 #include <cpptools/insertionpointlocator.h>
+#include <cpptools/cpptoolsreuse.h>
+#include <cpptools/cppclassesfilter.h>
+#include <cpptools/searchsymbols.h>
 #include <extensionsystem/iplugin.h>
+#include <extensionsystem/pluginmanager.h>
 
 #include <QtCore/QFileInfo>
 #include <QtGui/QApplication>
 #include <QtGui/QTextBlock>
 #include <QtGui/QTextCursor>
+
+#include <cctype>
 
 using namespace CppEditor;
 using namespace CppEditor::Internal;
@@ -72,6 +80,11 @@ using namespace CppTools;
 using namespace TextEditor;
 using namespace CPlusPlus;
 using namespace Utils;
+
+static inline bool isQtStringLiteral(const QByteArray &id)
+{
+    return id == "QLatin1String" || id == "QLatin1Literal" || id == "QStringLiteral";
+}
 
 namespace {
 
@@ -89,7 +102,7 @@ public:
     virtual QList<CppQuickFixOperation::Ptr> match(const QSharedPointer<const CppQuickFixAssistInterface> &interface)
     {
         QList<CppQuickFixOperation::Ptr> result;
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         const QList<AST *> &path = interface->path();
         int index = path.size() - 1;
@@ -100,7 +113,7 @@ public:
             return result;
 
         Kind invertToken;
-        switch (file.tokenAt(binary->binary_op_token).kind()) {
+        switch (file->tokenAt(binary->binary_op_token).kind()) {
         case T_LESS_EQUAL:
             invertToken = T_GREATER;
             break;
@@ -153,7 +166,7 @@ private:
             // check for ! before parentheses
             if (nested && priority - 2 >= 0) {
                 negation = interface->path()[priority - 2]->asUnaryExpression();
-                if (negation && ! interface->currentFile().tokenAt(negation->unary_op_token).is(T_EXCLAIM))
+                if (negation && ! interface->currentFile()->tokenAt(negation->unary_op_token).is(T_EXCLAIM))
                     negation = 0;
             }
         }
@@ -163,7 +176,7 @@ private:
             return QApplication::translate("CppTools::QuickFix", "Rewrite Using %1").arg(replacement);
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
             if (negation) {
@@ -176,7 +189,8 @@ private:
                 changes.insert(currentFile->endOf(binary), ")");
             }
             changes.replace(currentFile->range(binary->binary_op_token), replacement);
-            currentFile->change(changes);
+            currentFile->setChangeSet(changes);
+            currentFile->apply();
         }
     };
 };
@@ -197,7 +211,7 @@ public:
     {
         QList<QuickFixOperation::Ptr> result;
         const QList<AST *> &path = interface->path();
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         int index = path.size() - 1;
         BinaryExpressionAST *binary = path.at(index)->asBinaryExpression();
@@ -207,7 +221,7 @@ public:
             return result;
 
         Kind flipToken;
-        switch (file.tokenAt(binary->binary_op_token).kind()) {
+        switch (file->tokenAt(binary->binary_op_token).kind()) {
         case T_LESS_EQUAL:
             flipToken = T_GREATER_EQUAL;
             break;
@@ -262,7 +276,7 @@ private:
                 return QApplication::translate("CppTools::QuickFix", "Rewrite Using %1").arg(replacement);
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
@@ -270,7 +284,8 @@ private:
             if (! replacement.isEmpty())
                 changes.replace(currentFile->range(binary->binary_op_token), replacement);
 
-            currentFile->change(changes);
+            currentFile->setChangeSet(changes);
+            currentFile->apply();
         }
 
     private:
@@ -296,7 +311,7 @@ public:
         QList<QuickFixOperation::Ptr> result;
         BinaryExpressionAST *expression = 0;
         const QList<AST *> &path = interface->path();
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         int index = path.size() - 1;
         for (; index != -1; --index) {
@@ -314,9 +329,9 @@ public:
         QSharedPointer<Operation> op(new Operation(interface));
 
         if (expression->match(op->pattern, &matcher) &&
-                file.tokenAt(op->pattern->binary_op_token).is(T_AMPER_AMPER) &&
-                file.tokenAt(op->left->unary_op_token).is(T_EXCLAIM) &&
-                file.tokenAt(op->right->unary_op_token).is(T_EXCLAIM)) {
+                file->tokenAt(op->pattern->binary_op_token).is(T_AMPER_AMPER) &&
+                file->tokenAt(op->left->unary_op_token).is(T_EXCLAIM) &&
+                file->tokenAt(op->right->unary_op_token).is(T_EXCLAIM)) {
             op->setDescription(QApplication::translate("CppTools::QuickFix", "Rewrite Condition Using ||"));
             op->setPriority(index);
             result.append(op);
@@ -343,7 +358,7 @@ private:
             pattern = mk->BinaryExpression(left, right);
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
             changes.replace(currentFile->range(pattern->binary_op_token), QLatin1String("||"));
@@ -354,8 +369,9 @@ private:
             changes.insert(start, QLatin1String("!("));
             changes.insert(end, QLatin1String(")"));
 
-            currentFile->change(changes);
-            currentFile->indent(currentFile->range(pattern));
+            currentFile->setChangeSet(changes);
+            currentFile->appendIndentRange(currentFile->range(pattern));
+            currentFile->apply();
         }
     };
 
@@ -408,7 +424,7 @@ public:
         QList<CppQuickFixOperation::Ptr> result;
         CoreDeclaratorAST *core_declarator = 0;
         const QList<AST *> &path = interface->path();
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         for (int index = path.size() - 1; index != -1; --index) {
             AST *node = path.at(index);
@@ -420,10 +436,10 @@ public:
                 if (checkDeclaration(simpleDecl)) {
                     SimpleDeclarationAST *declaration = simpleDecl;
 
-                    const int cursorPosition = file.cursor().selectionStart();
+                    const int cursorPosition = file->cursor().selectionStart();
 
-                    const int startOfDeclSpecifier = file.startOf(declaration->decl_specifier_list->firstToken());
-                    const int endOfDeclSpecifier = file.endOf(declaration->decl_specifier_list->lastToken() - 1);
+                    const int startOfDeclSpecifier = file->startOf(declaration->decl_specifier_list->firstToken());
+                    const int endOfDeclSpecifier = file->endOf(declaration->decl_specifier_list->lastToken() - 1);
 
                     if (cursorPosition >= startOfDeclSpecifier && cursorPosition <= endOfDeclSpecifier) {
                         // the AST node under cursor is a specifier.
@@ -455,7 +471,7 @@ private:
                                                    "Split Declaration"));
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
@@ -481,8 +497,9 @@ private:
                 prevDeclarator = declarator;
             }
 
-            currentFile->change(changes);
-            currentFile->indent(currentFile->range(declaration));
+            currentFile->setChangeSet(changes);
+            currentFile->appendIndentRange(currentFile->range(declaration));
+            currentFile->apply();
         }
 
     private:
@@ -547,7 +564,7 @@ private:
                                                    "Add Curly Braces"));
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
@@ -557,8 +574,9 @@ private:
             const int end = currentFile->endOf(_statement->lastToken() - 1);
             changes.insert(end, "\n}");
 
-            currentFile->change(changes);
-            currentFile->indent(Utils::ChangeSet::Range(start, end));
+            currentFile->setChangeSet(changes);
+            currentFile->appendIndentRange(Utils::ChangeSet::Range(start, end));
+            currentFile->apply();
         }
 
     private:
@@ -620,7 +638,7 @@ private:
             pattern = mk.IfStatement(condition);
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
@@ -630,8 +648,9 @@ private:
             changes.move(currentFile->range(condition), insertPos);
             changes.insert(insertPos, QLatin1String(";\n"));
 
-            currentFile->change(changes);
-            currentFile->indent(currentFile->range(pattern));
+            currentFile->setChangeSet(changes);
+            currentFile->appendIndentRange(currentFile->range(pattern));
+            currentFile->apply();
         }
 
         ASTMatcher matcher;
@@ -704,7 +723,7 @@ private:
             pattern = mk.WhileStatement(condition);
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
@@ -717,8 +736,9 @@ private:
             changes.copy(currentFile->range(core), insertPos);
             changes.insert(insertPos, QLatin1String(";\n"));
 
-            currentFile->change(changes);
-            currentFile->indent(currentFile->range(pattern));
+            currentFile->setChangeSet(changes);
+            currentFile->appendIndentRange(currentFile->range(pattern));
+            currentFile->apply();
         }
 
         ASTMatcher matcher;
@@ -780,7 +800,7 @@ public:
             if (! condition)
                 return noResult();
 
-            Token binaryToken = interface->currentFile().tokenAt(condition->binary_op_token);
+            Token binaryToken = interface->currentFile()->tokenAt(condition->binary_op_token);
 
             // only accept a chain of ||s or &&s - no mixing
             if (! splitKind) {
@@ -815,7 +835,7 @@ private:
                                                    "Split if Statement"));
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             const Token binaryToken = currentFile->tokenAt(condition->binary_op_token);
 
@@ -825,7 +845,7 @@ private:
                 splitOrCondition(currentFile);
         }
 
-        void splitAndCondition(CppRefactoringFile *currentFile)
+        void splitAndCondition(CppRefactoringFilePtr currentFile)
         {
             ChangeSet changes;
 
@@ -838,11 +858,12 @@ private:
             changes.remove(lExprEnd, currentFile->startOf(condition->right_expression));
             changes.insert(currentFile->endOf(pattern), QLatin1String("\n}"));
 
-            currentFile->change(changes);
-            currentFile->indent(currentFile->range(pattern));
+            currentFile->setChangeSet(changes);
+            currentFile->appendIndentRange(currentFile->range(pattern));
+            currentFile->apply();
         }
 
-        void splitOrCondition(CppRefactoringFile *currentFile)
+        void splitOrCondition(CppRefactoringFilePtr currentFile)
         {
             ChangeSet changes;
 
@@ -866,8 +887,9 @@ private:
             const int lExprEnd = currentFile->endOf(condition->left_expression);
             changes.remove(lExprEnd, currentFile->startOf(condition->right_expression));
 
-            currentFile->change(changes);
-            currentFile->indent(currentFile->range(pattern));
+            currentFile->setChangeSet(changes);
+            currentFile->appendIndentRange(currentFile->range(pattern));
+            currentFile->apply();
         }
 
     private:
@@ -887,6 +909,13 @@ private:
 
     Activates on: the string literal
 */
+
+static inline QString msgQtStringLiteralDescription(const QString &replacement, int qtVersion)
+{
+    return QApplication::translate("CppTools::QuickFix", "Enclose in %1(...) (Qt %2)")
+           .arg(replacement).arg(qtVersion);
+}
+
 class WrapStringLiteral: public CppQuickFixFactory
 {
 public:
@@ -897,7 +926,7 @@ public:
         ExpressionAST *literal = 0;
         Type type = TypeNone;
         const QList<AST *> &path = interface->path();
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         if (path.isEmpty())
             return noResult(); // nothing to do
@@ -906,7 +935,7 @@ public:
 
         if (! literal) {
             literal = path.last()->asNumericLiteral();
-            if (!literal || !file.tokenAt(literal->asNumericLiteral()->literal_token).is(T_CHAR_LITERAL))
+            if (!literal || !file->tokenAt(literal->asNumericLiteral()->literal_token).is(T_CHAR_LITERAL))
                 return noResult();
             else
                 type = TypeChar;
@@ -919,10 +948,10 @@ public:
                 if (call->base_expression) {
                     if (IdExpressionAST *idExpr = call->base_expression->asIdExpression()) {
                         if (SimpleNameAST *functionName = idExpr->name->asSimpleName()) {
-                            const QByteArray id(file.tokenAt(functionName->identifier_token).identifier->chars());
+                            const QByteArray id(file->tokenAt(functionName->identifier_token).identifier->chars());
 
                             if (id == "QT_TRANSLATE_NOOP" || id == "tr" || id == "trUtf8"
-                                    || (type == TypeString && (id == "QLatin1String" || id == "QLatin1Literal"))
+                                    || (type == TypeString && isQtStringLiteral(id))
                                     || (type == TypeChar && id == "QLatin1Char"))
                                 return noResult(); // skip it
                         }
@@ -932,55 +961,71 @@ public:
         }
 
         if (type == TypeString) {
-            if (file.charAt(file.startOf(literal)) == QLatin1Char('@'))
+            if (file->charAt(file->startOf(literal)) == QLatin1Char('@'))
                 type = TypeObjCString;
         }
-        return singleResult(new Operation(interface,
-                                          path.size() - 1, // very high priority
-                                          type,
-                                          literal));
+
+        QList<CppQuickFixOperation::Ptr> result;
+
+        const int priority = path.size() - 1; // very high priority
+        if (type == TypeChar) {
+            const QString replacement = QLatin1String("QLatin1Char");
+            const QString description =
+                QApplication::translate("CppTools::QuickFix", "Enclose in %1(...)")
+                           .arg(replacement);
+
+            result.push_back(CppQuickFixOperation::Ptr(new Operation(interface, priority, type,
+                                                       replacement, description, literal)));
+        } else {
+            QString replacement = QLatin1String("QLatin1String");
+            result.push_back(CppQuickFixOperation::Ptr(new Operation(interface, priority, type,
+                                                                     replacement, msgQtStringLiteralDescription(replacement, 4),
+                                                                     literal)));
+            replacement = QLatin1String("QStringLiteral");
+            result.push_back(CppQuickFixOperation::Ptr(new Operation(interface, priority, type,
+                                                                     replacement, msgQtStringLiteralDescription(replacement, 5),
+                                                                     literal)));
+        }
+        return result;
     }
 
 private:
     class Operation: public CppQuickFixOperation
     {
     public:
-        Operation(const QSharedPointer<const CppQuickFixAssistInterface> &interface, int priority, Type type,
+        Operation(const QSharedPointer<const CppQuickFixAssistInterface> &interface, int priority,
+                  Type type, const QString &replacement, const QString &description,
                   ExpressionAST *literal)
             : CppQuickFixOperation(interface, priority)
-            , type(type)
+            , type(type), replacement(replacement)
             , literal(literal)
         {
-            if (type == TypeChar)
-                setDescription(QApplication::translate("CppTools::QuickFix",
-                                                       "Enclose in QLatin1Char(...)"));
-            else
-                setDescription(QApplication::translate("CppTools::QuickFix",
-                                                       "Enclose in QLatin1String(...)"));
-        }
+            setDescription(description);
+       }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
             const int startPos = currentFile->startOf(literal);
-            QLatin1String replacement = (type == TypeChar ? QLatin1String("QLatin1Char(")
-                                                          : QLatin1String("QLatin1String("));
-
+            const QString fullReplacement = replacement + QLatin1Char('(');
             if (type == TypeObjCString)
-                changes.replace(startPos, startPos + 1, replacement);
+                changes.replace(startPos, startPos + 1, fullReplacement);
             else
-                changes.insert(startPos, replacement);
+                changes.insert(startPos, fullReplacement);
 
-            changes.insert(currentFile->endOf(literal), ")");
+            changes.insert(currentFile->endOf(literal), QLatin1String(")"));
 
-            currentFile->change(changes);
+            currentFile->setChangeSet(changes);
+            currentFile->apply();
         }
 
     private:
-        Type type;
+        const Type type;
+        const QString replacement;
         ExpressionAST *literal;
     };
+
 };
 
 /*
@@ -1019,12 +1064,12 @@ public:
                 if (call->base_expression) {
                     if (IdExpressionAST *idExpr = call->base_expression->asIdExpression()) {
                         if (SimpleNameAST *functionName = idExpr->name->asSimpleName()) {
-                            const QByteArray id(interface->currentFile().tokenAt(functionName->identifier_token).identifier->chars());
+                            const QByteArray id(interface->currentFile()->tokenAt(functionName->identifier_token).identifier->chars());
 
                             if (id == "tr" || id == "trUtf8"
                                     || id == "translate"
                                     || id == "QT_TRANSLATE_NOOP"
-                                    || id == "QLatin1String" || id == "QLatin1Literal")
+                                    || isQtStringLiteral(id))
                                 return noResult(); // skip it
                         }
                     }
@@ -1083,7 +1128,7 @@ private:
             setDescription(QApplication::translate("CppTools::QuickFix", "Mark as Translatable"));
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
@@ -1100,7 +1145,8 @@ private:
             changes.insert(startPos, replacement);
             changes.insert(currentFile->endOf(m_literal), QLatin1String(")"));
 
-            currentFile->change(changes);
+            currentFile->setChangeSet(changes);
+            currentFile->apply();
         }
 
     private:
@@ -1125,7 +1171,7 @@ class CStringToNSString: public CppQuickFixFactory
 public:
     virtual QList<CppQuickFixOperation::Ptr> match(const QSharedPointer<const CppQuickFixAssistInterface> &interface)
     {
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         if (interface->editor()->mimeType() != CppTools::Constants::OBJECTIVE_CPP_SOURCE_MIMETYPE)
             return noResult();
@@ -1142,7 +1188,7 @@ public:
         if (! stringLiteral)
             return noResult();
 
-        else if (file.charAt(file.startOf(stringLiteral)) == QLatin1Char('@'))
+        else if (file->charAt(file->startOf(stringLiteral)) == QLatin1Char('@'))
             return noResult(); // it's already an objc string literal.
 
         else if (path.size() > 1) {
@@ -1150,9 +1196,9 @@ public:
                 if (call->base_expression) {
                     if (IdExpressionAST *idExpr = call->base_expression->asIdExpression()) {
                         if (SimpleNameAST *functionName = idExpr->name->asSimpleName()) {
-                            const QByteArray id(interface->currentFile().tokenAt(functionName->identifier_token).identifier->chars());
+                            const QByteArray id(interface->currentFile()->tokenAt(functionName->identifier_token).identifier->chars());
 
-                            if (id == "QLatin1String" || id == "QLatin1Literal")
+                            if (isQtStringLiteral(id))
                                 qlatin1Call = call;
                         }
                     }
@@ -1176,7 +1222,7 @@ private:
                                                    "Convert to Objective-C String Literal"));
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
 
@@ -1187,7 +1233,8 @@ private:
                 changes.insert(currentFile->startOf(stringLiteral), "@");
             }
 
-            currentFile->change(changes);
+            currentFile->setChangeSet(changes);
+            currentFile->apply();
         }
 
     private:
@@ -1222,7 +1269,7 @@ public:
         QList<QuickFixOperation::Ptr> result;
 
         const QList<AST *> &path = interface->path();
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         if (path.isEmpty())
             return result; // nothing to do
@@ -1232,7 +1279,7 @@ public:
         if (! literal)
             return result;
 
-        Token token = file.tokenAt(literal->asNumericLiteral()->literal_token);
+        Token token = file->tokenAt(literal->asNumericLiteral()->literal_token);
         if (!token.is(T_NUMERIC_LITERAL))
             return result;
         const NumericLiteral *numeric = token.number;
@@ -1242,7 +1289,7 @@ public:
         // remove trailing L or U and stuff
         const char * const spell = numeric->chars();
         int numberLength = numeric->size();
-        while (numberLength > 0 && (spell[numberLength-1] < '0' || spell[numberLength-1] > 'F'))
+        while (numberLength > 0 && !std::isxdigit(spell[numberLength - 1]))
             --numberLength;
         if (numberLength < 1)
             return result;
@@ -1254,7 +1301,7 @@ public:
             return result;
 
         const int priority = path.size() - 1; // very high priority
-        const int start = file.startOf(literal);
+        const int start = file->startOf(literal);
         const char * const str = numeric->chars();
 
         if (!numeric->isHex()) {
@@ -1328,11 +1375,12 @@ private:
             , replacement(replacement)
         {}
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile, const CppRefactoringChanges &)
         {
             ChangeSet changes;
             changes.replace(start, end, replacement);
-            currentFile->change(changes);
+            currentFile->setChangeSet(changes);
+            currentFile->apply();
         }
 
     protected:
@@ -1407,7 +1455,8 @@ private:
                                                    "#include Header File"));
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile,
+                                    const CppRefactoringChanges &)
         {
             Q_ASSERT(fwdClass != 0);
 
@@ -1464,7 +1513,8 @@ private:
 
                 Utils::ChangeSet changes;
                 changes.insert(pos, QString("#include <%1>\n").arg(QFileInfo(best).fileName()));
-                currentFile->change(changes);
+                currentFile->setChangeSet(changes);
+                currentFile->apply();
             }
         }
 
@@ -1488,15 +1538,15 @@ public:
     virtual QList<CppQuickFixOperation::Ptr> match(const QSharedPointer<const CppQuickFixAssistInterface> &interface)
     {
         const QList<AST *> &path = interface->path();
-        const CppRefactoringFile &file = interface->currentFile();
+        CppRefactoringFilePtr file = interface->currentFile();
 
         for (int index = path.size() - 1; index != -1; --index) {
             if (BinaryExpressionAST *binary = path.at(index)->asBinaryExpression()) {
-                if (binary->left_expression && binary->right_expression && file.tokenAt(binary->binary_op_token).is(T_EQUAL)) {
+                if (binary->left_expression && binary->right_expression && file->tokenAt(binary->binary_op_token).is(T_EQUAL)) {
                     IdExpressionAST *idExpr = binary->left_expression->asIdExpression();
                     if (interface->isCursorOn(binary->left_expression) && idExpr && idExpr->name->asSimpleName() != 0) {
                         SimpleNameAST *nameAST = idExpr->name->asSimpleName();
-                        const QList<LookupItem> results = interface->context().lookup(nameAST->name, file.scopeAt(nameAST->firstToken()));
+                        const QList<LookupItem> results = interface->context().lookup(nameAST->name, file->scopeAt(nameAST->firstToken()));
                         Declaration *decl = 0;
                         foreach (const LookupItem &r, results) {
                             if (! r.declaration())
@@ -1531,13 +1581,15 @@ private:
             setDescription(QApplication::translate("CppTools::QuickFix", "Add Local Declaration"));
         }
 
-        virtual void performChanges(CppRefactoringFile *currentFile, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &currentFile,
+                                    const CppRefactoringChanges &)
         {
             TypeOfExpression typeOfExpression;
             typeOfExpression.init(assistInterface()->semanticInfo().doc,
                                   assistInterface()->snapshot(), assistInterface()->context().bindings());
+            Scope *scope = currentFile->scopeAt(binaryAST->firstToken());
             const QList<LookupItem> result = typeOfExpression(currentFile->textOf(binaryAST->right_expression),
-                                                              currentFile->scopeAt(binaryAST->firstToken()),
+                                                              scope,
                                                               TypeOfExpression::Preprocess);
 
             if (! result.isEmpty()) {
@@ -1545,7 +1597,10 @@ private:
                 SubstitutionEnvironment env;
                 env.setContext(assistInterface()->context());
                 env.switchScope(result.first().scope());
-                UseQualifiedNames q;
+                ClassOrNamespace *con = typeOfExpression.context().lookupType(scope);
+                if (!con)
+                    con = typeOfExpression.context().globalNamespace();
+                UseMinimalNames q(con);
                 env.enter(&q);
 
                 Control *control = assistInterface()->context().control().data();
@@ -1561,7 +1616,8 @@ private:
 
                     Utils::ChangeSet changes;
                     changes.insert(currentFile->startOf(binaryAST), ty);
-                    currentFile->change(changes);
+                    currentFile->setChangeSet(changes);
+                    currentFile->apply();
                 }
             }
         }
@@ -1622,7 +1678,8 @@ private:
                                                    "Convert to Camel Case"));
         }
 
-        virtual void performChanges(CppRefactoringFile *, CppRefactoringChanges *)
+        virtual void performChanges(const CppRefactoringFilePtr &,
+                                    const CppRefactoringChanges &)
         {
             for (int i = 1; i < m_name.length(); ++i) {
                 QCharRef c = m_name[i];
@@ -1645,6 +1702,157 @@ private:
 
     private:
         QString m_name;
+    };
+};
+
+/**
+ * Adds an include for an undefined identifier.
+ */
+class IncludeAdder : public CppQuickFixFactory
+{
+public:
+    virtual QList<CppQuickFixOperation::Ptr> match(const QSharedPointer<const CppQuickFixAssistInterface> &interface)
+    {
+        CppClassesFilter *classesFilter = ExtensionSystem::PluginManager::instance()->getObject<CppClassesFilter>();
+        if (!classesFilter)
+            return noResult();
+
+        const QList<AST *> &path = interface->path();
+
+        if (path.isEmpty())
+            return noResult();
+
+        // find the largest enclosing Name
+        const NameAST *enclosingName = 0;
+        const SimpleNameAST *innermostName = 0;
+        for (int i = path.size() - 1; i >= 0; --i) {
+            if (NameAST *nameAst = path.at(i)->asName()) {
+                enclosingName = nameAst;
+                if (!innermostName) {
+                    innermostName = nameAst->asSimpleName();
+                    if (!innermostName)
+                        return noResult();
+                }
+            } else {
+                break;
+            }
+        }
+        if (!enclosingName || !enclosingName->name)
+            return noResult();
+
+        // find the enclosing scope
+        unsigned line, column;
+        const Document::Ptr &doc = interface->semanticInfo().doc;
+        doc->translationUnit()->getTokenStartPosition(enclosingName->firstToken(), &line, &column);
+        Scope *scope = doc->scopeAt(line, column);
+        if (!scope)
+            return noResult();
+
+        // check if the name resolves to something
+        QList<LookupItem> existingResults = interface->context().lookup(enclosingName->name, scope);
+        if (!existingResults.isEmpty())
+            return noResult();
+
+        const QString &className = Overview()(innermostName->name);
+        if (className.isEmpty())
+            return noResult();
+
+        QList<CppQuickFixOperation::Ptr> results;
+
+        // find the include paths
+        QStringList includePaths;
+        CppModelManagerInterface *modelManager = CppModelManagerInterface::instance();
+        QList<CppModelManagerInterface::ProjectInfo> projectInfos = modelManager->projectInfos();
+        bool inProject = false;
+        foreach (const CppModelManagerInterface::ProjectInfo &info, projectInfos) {
+            if (info.sourceFiles.contains(doc->fileName())) {
+                inProject = true;
+                includePaths += info.includePaths;
+            }
+        }
+        if (!inProject) {
+            // better use all include paths than none
+            foreach (const CppModelManagerInterface::ProjectInfo &info, projectInfos)
+                includePaths += info.includePaths;
+        }
+
+        // find a include file through the locator
+        QFutureInterface<Locator::FilterEntry> dummyInterface;
+        QList<Locator::FilterEntry> matches = classesFilter->matchesFor(dummyInterface, className);
+        bool classExists = false;
+        foreach (const Locator::FilterEntry &entry, matches) {
+            const ModelItemInfo info = entry.internalData.value<ModelItemInfo>();
+            if (info.symbolName != className)
+                continue;
+            classExists = true;
+            const QString &fileName = info.fileName;
+            const QFileInfo fileInfo(fileName);
+
+            // find the shortest way to include fileName given the includePaths
+            QString shortestInclude;
+
+            if (fileInfo.path() == QFileInfo(doc->fileName()).path()) {
+                shortestInclude = QString("\"%1\"").arg(fileInfo.fileName());
+            } else {
+                foreach (const QString &includePath, includePaths) {
+                    if (!fileName.startsWith(includePath))
+                        continue;
+                    QString relativePath = fileName.mid(includePath.size());
+                    if (!relativePath.isEmpty() && relativePath.at(0) == QLatin1Char('/'))
+                        relativePath = relativePath.mid(1);
+                    if (shortestInclude.isEmpty() || relativePath.size() + 2 < shortestInclude.size())
+                        shortestInclude = QString("<%1>").arg(relativePath);
+                }
+            }
+
+            if (!shortestInclude.isEmpty())
+                results += CppQuickFixOperation::Ptr(new Operation(interface, 0, shortestInclude));
+        }
+
+        // for QSomething, propose a <QSomething> include -- if such a class was in the locator
+        if (classExists
+                && className.size() > 2
+                && className.at(0) == QLatin1Char('Q')
+                && className.at(1).isUpper()) {
+            results += CppQuickFixOperation::Ptr(new Operation(interface, 1, QString("<%1>").arg(className)));
+        }
+
+        return results;
+    }
+
+private:
+    class Operation: public CppQuickFixOperation
+    {
+    public:
+        Operation(const QSharedPointer<const CppQuickFixAssistInterface> &interface, int priority, const QString &include)
+            : CppQuickFixOperation(interface, priority)
+            , m_include(include)
+        {
+            setDescription(QApplication::translate("CppTools::QuickFix",
+                                                   "Add #include %1").arg(m_include));
+        }
+
+        virtual void performChanges(const CppRefactoringFilePtr &file,
+                                    const CppRefactoringChanges &)
+        {
+            // find location of last include in file
+            QList<Document::Include> includes = file->cppDocument()->includes();
+            unsigned lastIncludeLine = 0;
+            foreach (const Document::Include &include, includes) {
+                if (include.line() > lastIncludeLine)
+                    lastIncludeLine = include.line();
+            }
+
+            // add include
+            const int insertPos = file->position(lastIncludeLine + 1, 1) - 1;
+            ChangeSet changes;
+            changes.insert(insertPos, QString("\n#include %1").arg(m_include));
+            file->setChangeSet(changes);
+            file->apply();
+        }
+
+    private:
+        QString m_include;
     };
 };
 
@@ -1671,4 +1879,6 @@ void registerQuickFixes(ExtensionSystem::IPlugin *plugIn)
     plugIn->addAutoReleasedObject(new InsertQtPropertyMembers);
     plugIn->addAutoReleasedObject(new DeclFromDef);
     plugIn->addAutoReleasedObject(new DefFromDecl);
+    plugIn->addAutoReleasedObject(new ApplyDeclDefLinkChanges);
+    plugIn->addAutoReleasedObject(new IncludeAdder);
 }

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,15 +34,14 @@
 #define TEXTEDITOR_TABSETTINGSWIDGET_H
 
 #include "texteditor_global.h"
-#include <QWidget>
+
+#include <QtGui/QWidget>
 
 namespace TextEditor {
 
-class TabSettings;
+namespace Internal { namespace Ui { class TabSettingsWidget; } }
 
-namespace Ui {
-    class TabSettingsWidget;
-}
+class TabSettings;
 
 class TEXTEDITOR_EXPORT TabSettingsWidget : public QWidget
 {
@@ -52,13 +51,13 @@ public:
     explicit TabSettingsWidget(QWidget *parent = 0);
     ~TabSettingsWidget();
 
-    TabSettings settings() const;
+    TabSettings tabSettings() const;
 
     void setFlat(bool on);
     QString searchKeywords() const;
 
 public slots:
-    void setSettings(const TextEditor::TabSettings& s);
+    void setTabSettings(const TextEditor::TabSettings& s);
 
 signals:
     void settingsChanged(const TextEditor::TabSettings &);
@@ -68,12 +67,10 @@ protected:
 
 private slots:
     void slotSettingsChanged();
-    void updateWidget();
 
 private:
-    Ui::TabSettingsWidget *ui;
+    Internal::Ui::TabSettingsWidget *ui;
 };
-
 
 } // namespace TextEditor
 #endif // TEXTEDITOR_TABSETTINGSWIDGET_H

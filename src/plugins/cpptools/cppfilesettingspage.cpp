@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -234,7 +234,7 @@ QString CppFileSettings::licenseTemplate(const QString &fileName, const QString 
 
 CppFileSettingsWidget::CppFileSettingsWidget(QWidget *parent) :
     QWidget(parent),
-    m_ui(new Ui::CppFileSettingsPage)
+    m_ui(new Internal::Ui::CppFileSettingsPage)
 {
     m_ui->setupUi(this);
     const Core::MimeDatabase *mdb = Core::ICore::instance()->mimeDatabase();
@@ -247,7 +247,7 @@ CppFileSettingsWidget::CppFileSettingsWidget(QWidget *parent) :
         foreach (const QString &suffix, headerMt.suffixes())
             m_ui->headerSuffixComboBox->addItem(suffix);
     m_ui->licenseTemplatePathChooser->setExpectedKind(Utils::PathChooser::File);
-    m_ui->licenseTemplatePathChooser->addButton(tr("Edit"), this, SLOT(slotEdit()));
+    m_ui->licenseTemplatePathChooser->addButton(tr("Edit..."), this, SLOT(slotEdit()));
 }
 
 CppFileSettingsWidget::~CppFileSettingsWidget()
@@ -315,7 +315,7 @@ void CppFileSettingsWidget::slotEdit()
         setLicenseTemplatePath(path);
     }
     // Edit (now) existing file with C++
-    Core::EditorManager::instance()->openEditor(path, QLatin1String(CppEditor::Constants::CPPEDITOR_ID),
+    Core::EditorManager::instance()->openEditor(path, CppEditor::Constants::CPPEDITOR_ID,
                                                 Core::EditorManager::ModeSwitch);
 }
 

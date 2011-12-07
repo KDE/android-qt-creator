@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 
 #include <QtTest/QtTest>
 
+QT_BEGIN_NAMESPACE
 bool operator==(const Utils::FileSearchResult &r1, const Utils::FileSearchResult &r2)
 {
     return r1.fileName == r2.fileName
@@ -43,6 +44,7 @@ bool operator==(const Utils::FileSearchResult &r1, const Utils::FileSearchResult
             && r1.matchLength == r2.matchLength
             && r1.regexpCapturedTexts == r2.regexpCapturedTexts;
 }
+QT_END_NAMESPACE
 
 class tst_FileSearch : public QObject
 {

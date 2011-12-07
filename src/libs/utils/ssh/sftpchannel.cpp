@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -160,6 +160,12 @@ SftpJobId SftpChannel::renameFileOrDirectory(const QString &oldPath,
 {
     return d->createJob(Internal::SftpRename::Ptr(
         new Internal::SftpRename(++d->m_nextJobId, oldPath, newPath)));
+}
+
+SftpJobId SftpChannel::createLink(const QString &filePath, const QString &target)
+{
+    return d->createJob(Internal::SftpCreateLink::Ptr(
+        new Internal::SftpCreateLink(++d->m_nextJobId, filePath, target)));
 }
 
 SftpJobId SftpChannel::createFile(const QString &path, SftpOverwriteMode mode)
@@ -451,6 +457,7 @@ void SftpChannelPrivate::handleStatus()
     case AbstractSftpOperation::Rm:
     case AbstractSftpOperation::Rename:
     case AbstractSftpOperation::CreateFile:
+    case AbstractSftpOperation::CreateLink:
         handleStatusGeneric(it, response);
         break;
     }
@@ -814,13 +821,13 @@ void SftpChannelPrivate::handleOpenSuccessInternal()
     m_sftpState = SubsystemRequested;
 }
 
-void SftpChannelPrivate::handleOpenFailureInternal()
+void SftpChannelPrivate::handleOpenFailureInternal(const QString &reason)
 {
     if (channelState() != SessionRequested) {
         throw SSH_SERVER_EXCEPTION(SSH_DISCONNECT_PROTOCOL_ERROR,
             "Unexpected SSH_MSG_CHANNEL_OPEN_FAILURE packet.");
     }
-    emit initializationFailed(tr("Server could not start session."));
+    emit initializationFailed(tr("Server could not start session: %1").arg(reason));
 }
 
 void SftpChannelPrivate::sendReadRequest(const SftpDownload::Ptr &job,

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,7 @@
 
 #include <QtCore/QMetaType>
 
+#include <coreplugin/id.h>
 #include <utils/ssh/sshconnection.h>
 #include <utils/environment.h>
 
@@ -56,13 +57,14 @@ public:
     StartMode startMode;
     Utils::SshConnectionParameters connParams;
 
-    QByteArray toolId;
+    Core::Id toolId;
     QString debuggee;
     QString debuggeeArgs;
     QString analyzerCmdPrefix;
     QString displayName;
     Utils::Environment environment;
     QString workingDirectory;
+    QString sysroot;
 };
 
 } // namespace Analyzer

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -93,12 +93,12 @@ void CompileOutputWindow::updateWordWrapMode()
     m_outputWindow->setWordWrapEnabled(ProjectExplorerPlugin::instance()->projectExplorerSettings().wrapAppOutput);
 }
 
-bool CompileOutputWindow::hasFocus()
+bool CompileOutputWindow::hasFocus() const
 {
     return m_outputWindow->hasFocus();
 }
 
-bool CompileOutputWindow::canFocus()
+bool CompileOutputWindow::canFocus() const
 {
     return true;
 }
@@ -161,12 +161,12 @@ int CompileOutputWindow::priorityInStatusBar() const
     return 50;
 }
 
-bool CompileOutputWindow::canNext()
+bool CompileOutputWindow::canNext() const
 {
     return false;
 }
 
-bool CompileOutputWindow::canPrevious()
+bool CompileOutputWindow::canPrevious() const
 {
     return false;
 }
@@ -181,7 +181,7 @@ void CompileOutputWindow::goToPrev()
 
 }
 
-bool CompileOutputWindow::canNavigate()
+bool CompileOutputWindow::canNavigate() const
 {
     return false;
 }

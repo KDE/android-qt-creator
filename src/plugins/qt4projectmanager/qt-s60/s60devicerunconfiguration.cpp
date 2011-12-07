@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,16 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "s60devicerunconfiguration.h"
 
 #include "qt4project.h"
+#include "qt4nodes.h"
 #include "qt4projectmanagerconstants.h"
 #include "qt4symbiantarget.h"
 #include "qt4target.h"
+#include "qt4buildconfiguration.h"
 #include "s60deployconfiguration.h"
 #include "s60devicerunconfigurationwidget.h"
 #include "s60manager.h"
@@ -164,7 +166,7 @@ bool S60DeviceRunConfiguration::fromMap(const QVariantMap &map)
 {
     const QDir projectDir = QDir(target()->project()->projectDirectory());
 
-    m_proFilePath = projectDir.filePath(map.value(QLatin1String(PRO_FILE_KEY)).toString());
+    m_proFilePath = QDir::cleanPath(projectDir.filePath(map.value(QLatin1String(PRO_FILE_KEY)).toString()));
     m_commandLineArguments = map.value(QLatin1String(COMMAND_LINE_ARGUMENTS_KEY)).toString();
 
     if (m_proFilePath.isEmpty())
@@ -191,7 +193,7 @@ static inline QString fixBaseNameTarget(const QString &in)
 
 QString S60DeviceRunConfiguration::targetName() const
 {
-    TargetInformation ti = qt4Target()->qt4Project()->rootProjectNode()->targetInformation(projectFilePath());
+    TargetInformation ti = qt4Target()->qt4Project()->rootQt4ProjectNode()->targetInformation(projectFilePath());
     if (!ti.valid)
         return QString();
     return ti.target;
@@ -207,7 +209,7 @@ SymbianQtVersion *S60DeviceRunConfiguration::qtVersion() const
 
 bool S60DeviceRunConfiguration::isDebug() const
 {
-    const Qt4BuildConfiguration *qt4bc = qt4Target()->activeBuildConfiguration();
+    const Qt4BuildConfiguration *qt4bc = qt4Target()->activeQt4BuildConfiguration();
     return (qt4bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild);
 }
 
@@ -237,7 +239,7 @@ static inline QString localExecutableFromVersion(const SymbianQtVersion *qtv,
 
 QString S60DeviceRunConfiguration::localExecutableFileName() const
 {
-    TargetInformation ti = qt4Target()->qt4Project()->rootProjectNode()->targetInformation(projectFilePath());
+    TargetInformation ti = qt4Target()->qt4Project()->rootQt4ProjectNode()->targetInformation(projectFilePath());
     if (!ti.valid)
         return QString();
 

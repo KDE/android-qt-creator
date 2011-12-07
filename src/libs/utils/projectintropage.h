@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,6 @@ struct ProjectIntroPagePrivate;
 class QTCREATOR_UTILS_EXPORT ProjectIntroPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ProjectIntroPage)
     Q_PROPERTY(QString description READ description WRITE setPath DESIGNABLE true)
     Q_PROPERTY(QString path READ path WRITE setPath DESIGNABLE true)
     Q_PROPERTY(QString projectName READ projectName WRITE setProjectName DESIGNABLE true)
@@ -89,7 +88,7 @@ private:
     void displayStatusMessage(StatusLabelMode m, const QString &);
     void hideStatusLabel();
 
-    ProjectIntroPagePrivate *m_d;
+    ProjectIntroPagePrivate *d;
 };
 
 } // namespace Utils

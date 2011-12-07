@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -54,6 +54,8 @@ public:
     ClassOrNamespace(CreateBindings *factory, ClassOrNamespace *parent);
 
     const TemplateNameId *templateId() const;
+    ClassOrNamespace *instantiationOrigin() const;
+
     ClassOrNamespace *parent() const;
     QList<ClassOrNamespace *> usings() const;
     QList<Enum *> enums() const;
@@ -72,7 +74,7 @@ private:
     void flush();
 
     /// \internal
-    ClassOrNamespace *findOrCreateType(const Name *name);
+    ClassOrNamespace *findOrCreateType(const Name *name, ClassOrNamespace *origin = 0);
 
     void addTodo(Symbol *symbol);
     void addSymbol(Symbol *symbol);
@@ -88,9 +90,9 @@ private:
                        const TemplateNameId *templateId);
 
     ClassOrNamespace *lookupType_helper(const Name *name, QSet<ClassOrNamespace *> *processed,
-                                        bool searchInEnclosingScope);
+                                        bool searchInEnclosingScope, ClassOrNamespace *origin);
 
-    ClassOrNamespace *nestedType(const Name *name) const;
+    ClassOrNamespace *nestedType(const Name *name, ClassOrNamespace *origin) const;
 
 private:
     struct CompareName: std::binary_function<const Name *, const Name *, bool> {
@@ -109,6 +111,7 @@ private:
 
     // it's an instantiation.
     const TemplateNameId *_templateId;
+    ClassOrNamespace *_instantiationOrigin;
 
     friend class CreateBindings;
 };
@@ -232,8 +235,7 @@ public:
     static QList<const Name *> fullyQualifiedName(Symbol *symbol);
     static QList<const Name *> path(Symbol *symbol);
 
-    const Name *minimalName(const Name *name, Scope *source,
-                            ClassOrNamespace *target) const;
+    static const Name *minimalName(Symbol *symbol, ClassOrNamespace *target, Control *control);
 
 private:
     // The current expression.

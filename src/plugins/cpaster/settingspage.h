@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,8 +45,10 @@ namespace CodePaster {
 
 struct Settings;
 
-class SettingsWidget : public QWidget {
+class SettingsWidget : public QWidget
+{
     Q_OBJECT
+
 public:
     explicit SettingsWidget(const QStringList &protocols, QWidget *parent = 0);
 
@@ -56,13 +58,13 @@ public:
     QString searchKeywords() const;
 
 private:
-    Ui_SettingsPage m_ui;
+    Internal::Ui::SettingsPage m_ui;
 };
 
 class SettingsPage : public Core::IOptionsPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(SettingsPage)
+
 public:
     explicit SettingsPage(const QSharedPointer<Settings> &settings);
     virtual ~SettingsPage();

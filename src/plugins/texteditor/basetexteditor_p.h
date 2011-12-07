@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,6 @@
 #include "basetexteditor.h"
 #include "behaviorsettings.h"
 #include "displaysettings.h"
-#include "texteditoroverlay.h"
 #include "fontsettings.h"
 #include "refactoroverlay.h"
 
@@ -47,9 +46,6 @@
 #include <QtCore/QPointer>
 #include <QtCore/QScopedPointer>
 
-#include <QtGui/QPixmap>
-#include <QtGui/QTextEdit>
-
 namespace TextEditor {
 
 class BaseTextDocument;
@@ -57,6 +53,7 @@ class TextEditorActionHandler;
 class CodeAssistant;
 
 namespace Internal {
+class TextEditorOverlay;
 
 class TEXTEDITOR_EXPORT BaseTextBlockSelection
 {
@@ -209,8 +206,7 @@ public:
     QWidget *m_extraArea;
 
     QString m_tabSettingsId;
-    TabPreferences *m_tabPreferences;
-    IFallbackPreferences *m_codeStylePreferences;
+    ICodeStylePreferences *m_codeStylePreferences;
     DisplaySettings m_displaySettings;
     FontSettings m_fontSettings;
     BehaviorSettings m_behaviorSettings;
@@ -247,6 +243,8 @@ public:
     uint m_highlightCurrentLine : 1;
     uint m_requestMarkEnabled : 1;
     uint m_lineSeparatorsAllowed : 1;
+    uint autoParenthesisOverwriteBackup : 1;
+    uint surroundWithEnabledOverwriteBackup : 1;
     int m_visibleWrapColumn;
 
     QTextCharFormat m_linkFormat;

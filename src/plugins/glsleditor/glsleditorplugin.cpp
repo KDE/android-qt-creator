@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,7 +41,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/mimedatabase.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/fileiconprovider.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -49,8 +49,6 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/taskhub.h>
 #include <extensionsystem/pluginmanager.h>
-#include <texteditor/fontsettings.h>
-#include <texteditor/storagesettings.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/textfilewizard.h>
@@ -107,10 +105,10 @@ Core::Command *createSeparator(Core::ActionManager *am,
     return am->registerAction(separator, Core::Id(id), context);
 }
 
-bool GLSLEditorPlugin::initialize(const QStringList & /*arguments*/, QString *error_message)
+bool GLSLEditorPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage)
 {
     Core::ICore *core = Core::ICore::instance();
-    if (!core->mimeDatabase()->addMimeTypes(QLatin1String(":/glsleditor/GLSLEditor.mimetypes.xml"), error_message))
+    if (!core->mimeDatabase()->addMimeTypes(QLatin1String(":/glsleditor/GLSLEditor.mimetypes.xml"), errorMessage))
         return false;
 
     parseGlslFile(QLatin1String("glsl_120.frag"), &m_glsl_120_frag);
@@ -162,7 +160,7 @@ bool GLSLEditorPlugin::initialize(const QStringList & /*arguments*/, QString *er
     cmd = am->command(TextEditor::Constants::UN_COMMENT_SELECTION);
     contextMenu->addAction(cmd);
 
-    error_message->clear();
+    errorMessage->clear();
 
     Core::FileIconProvider *iconProvider = Core::FileIconProvider::instance();
     Core::MimeDatabase *mimeDatabase = Core::ICore::instance()->mimeDatabase();
@@ -242,12 +240,11 @@ void GLSLEditorPlugin::initializeEditor(GLSLEditor::GLSLTextEditorWidget *editor
     TextEditor::TextEditorSettings::instance()->initializeEditor(editor);
 }
 
-
 Core::Command *GLSLEditorPlugin::addToolAction(QAction *a, Core::ActionManager *am,
-                                               Core::Context &context, const QString &name,
+                                               Core::Context &context, const Core::Id &id,
                                                Core::ActionContainer *c1, const QString &keySequence)
 {
-    Core::Command *command = am->registerAction(a, name, context);
+    Core::Command *command = am->registerAction(a, id, context);
     if (!keySequence.isEmpty())
         command->setDefaultKeySequence(QKeySequence(keySequence));
     c1->addAction(command);

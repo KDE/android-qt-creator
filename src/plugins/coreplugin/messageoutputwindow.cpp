@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,11 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "messageoutputwindow.h"
+#include "outputwindow.h"
 #include "icontext.h"
 #include "coreconstants.h"
 
@@ -49,12 +50,12 @@ MessageOutputWindow::~MessageOutputWindow()
     delete m_widget;
 }
 
-bool MessageOutputWindow::hasFocus()
+bool MessageOutputWindow::hasFocus() const
 {
     return m_widget->hasFocus();
 }
 
-bool MessageOutputWindow::canFocus()
+bool MessageOutputWindow::canFocus() const
 {
     return true;
 }
@@ -94,12 +95,12 @@ int MessageOutputWindow::priorityInStatusBar() const
     return -1;
 }
 
-bool MessageOutputWindow::canNext()
+bool MessageOutputWindow::canNext() const
 {
     return false;
 }
 
-bool MessageOutputWindow::canPrevious()
+bool MessageOutputWindow::canPrevious() const
 {
     return false;
 }
@@ -114,7 +115,7 @@ void MessageOutputWindow::goToPrev()
 
 }
 
-bool MessageOutputWindow::canNavigate()
+bool MessageOutputWindow::canNavigate() const
 {
     return false;
 }

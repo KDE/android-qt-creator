@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef QMLJSGLOBAL_P_H
@@ -49,7 +49,12 @@
 #else // !QT_CREATOR
 #  define QT_QML_BEGIN_NAMESPACE QT_BEGIN_NAMESPACE
 #  define QT_QML_END_NAMESPACE QT_END_NAMESPACE
-#  define QML_PARSER_EXPORT Q_AUTOTEST_EXPORT
+#  if defined(QT_BUILD_QMLDEVTOOLS_LIB) || defined(QT_QMLDEVTOOLS_LIB)
+     // QmlDevTools is a static library
+#    define QML_PARSER_EXPORT
+#  else
+#    define QML_PARSER_EXPORT Q_AUTOTEST_EXPORT
+#  endif
 #endif // QT_CREATOR
 
 #endif // QMLJSGLOBAL_P_H

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,14 +40,10 @@
 #include <QtCore/QPointer>
 #include <QtGui/QWidget>
 
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class CommonSettingsPage;
-}
-QT_END_NAMESPACE
-
 namespace VCSBase {
 namespace Internal {
+
+namespace Ui { class CommonSettingsPage; }
 
 class CommonSettingsWidget : public QWidget
 {
@@ -90,7 +86,7 @@ signals:
 private:
     void updateNickNames();
 
-    CommonSettingsWidget* m_widget;
+    CommonSettingsWidget *m_widget;
     CommonVcsSettings m_settings;
     QString m_searchKeyWords;
 };

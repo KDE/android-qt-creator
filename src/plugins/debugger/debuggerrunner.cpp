@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -212,6 +212,7 @@ DebuggerRunControl::~DebuggerRunControl()
         engine->disconnect();
         delete engine;
     }
+    delete d;
 }
 
 const DebuggerStartParameters &DebuggerRunControl::startParameters() const
@@ -249,20 +250,22 @@ void DebuggerRunControl::start()
         return;
     }
 
-    foreach (const BreakpointModelId &id, debuggerCore()->breakHandler()->allBreakpointIds()) {
-        if (d->m_engine->breakHandler()->breakpointData(id).enabled
-                && !d->m_engine->acceptsBreakpoint(id)) {
+    if (d->m_engine->startParameters().startMode == StartInternal) {
+        foreach (const BreakpointModelId &id, debuggerCore()->breakHandler()->allBreakpointIds()) {
+            if (d->m_engine->breakHandler()->breakpointData(id).enabled
+                    && !d->m_engine->acceptsBreakpoint(id)) {
 
-            QString warningMessage =
-                    DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
-                                       "languages currently active, and will be ignored.");
+                QString warningMessage =
+                        DebuggerPlugin::tr("Some breakpoints cannot be handled by the debugger "
+                                           "languages currently active, and will be ignored.");
 
-            debuggerCore()->showMessage(warningMessage, LogWarning);
+                debuggerCore()->showMessage(warningMessage, LogWarning);
 
-            QErrorMessage *msgBox = new QErrorMessage(debuggerCore()->mainWindow());
-            msgBox->setAttribute(Qt::WA_DeleteOnClose);
-            msgBox->showMessage(warningMessage);
-            break;
+                QErrorMessage *msgBox = new QErrorMessage(debuggerCore()->mainWindow());
+                msgBox->setAttribute(Qt::WA_DeleteOnClose);
+                msgBox->showMessage(warningMessage);
+                break;
+            }
         }
     }
 
@@ -449,10 +452,17 @@ static QList<DebuggerEngineType> enginesForMode(DebuggerStartMode startMode,
         }
         break;
     case AttachCore:
+#ifdef Q_OS_WIN
+        result.push_back(CdbEngineType);
+#endif
+        result.push_back(GdbEngineType);
+        break;
+    case StartRemoteProcess:
     case StartRemoteGdb:
         result.push_back(GdbEngineType);
         break;
-    case AttachToRemote:
+    case AttachToRemoteProcess:
+    case AttachToRemoteServer:
         if (!hardConstraintsOnly) {
 #ifdef Q_OS_WIN
             result.push_back(CdbEngineType);
@@ -467,6 +477,9 @@ static QList<DebuggerEngineType> enginesForMode(DebuggerStartMode startMode,
         // FIXME: Unclear IPC override. Someone please have a better idea.
         // For now thats the only supported IPC engine.
         result.push_back(LldbEngineType);
+        break;
+    case AttachToQmlPort:
+        result.push_back(QmlEngineType); // Only QML can do this
         break;
     }
     return result;
@@ -499,7 +512,7 @@ static QList<DebuggerEngineType> engineTypes(const DebuggerStartParameters &sp)
         return result;
     }
 
-    if (sp.startMode != AttachToRemote && !sp.executable.isEmpty())
+    if (sp.startMode != AttachToRemoteServer && !sp.executable.isEmpty())
         result = enginesForExecutable(sp.executable);
     if (!result.isEmpty())
         return result;
@@ -665,26 +678,26 @@ QString DebuggerRunControlFactory::displayName() const
 }
 
 // Find Qt installation by running qmake
-static inline QString findQtInstallPath(const QString &qmakePath)
+static inline QString findQtInstallPath(const Utils::FileName &qmakePath)
 {
     QProcess proc;
     QStringList args;
     args.append(_("-query"));
     args.append(_("QT_INSTALL_HEADERS"));
-    proc.start(qmakePath, args);
+    proc.start(qmakePath.toString(), args);
     if (!proc.waitForStarted()) {
-        qWarning("%s: Cannot start '%s': %s", Q_FUNC_INFO, qPrintable(qmakePath),
+        qWarning("%s: Cannot start '%s': %s", Q_FUNC_INFO, qPrintable(qmakePath.toString()),
            qPrintable(proc.errorString()));
         return QString();
     }
     proc.closeWriteChannel();
     if (!proc.waitForFinished()) {
         Utils::SynchronousProcess::stopProcess(proc);
-        qWarning("%s: Timeout running '%s'.", Q_FUNC_INFO, qPrintable(qmakePath));
+        qWarning("%s: Timeout running '%s'.", Q_FUNC_INFO, qPrintable(qmakePath.toString()));
         return QString();
     }
     if (proc.exitStatus() != QProcess::NormalExit) {
-        qWarning("%s: '%s' crashed.", Q_FUNC_INFO, qPrintable(qmakePath));
+        qWarning("%s: '%s' crashed.", Q_FUNC_INFO, qPrintable(qmakePath.toString()));
         return QString();
     }
     const QByteArray ba = proc.readAllStandardOutput().trimmed();
@@ -714,13 +727,18 @@ static DebuggerStartParameters localStartParameters(RunConfiguration *runConfigu
     sp.executable = rc->executable();
     sp.processArgs = rc->commandLineArguments();
     sp.toolChainAbi = rc->abi();
+    if (!sp.toolChainAbi.isValid()) {
+        QList<Abi> abis = Abi::abisOfBinary(sp.executable);
+        if (!abis.isEmpty())
+            sp.toolChainAbi = abis.at(0);
+    }
     sp.useTerminal = rc->runMode() == LocalApplicationRunConfiguration::Console;
     sp.dumperLibrary = rc->dumperLibrary();
     sp.dumperLibraryLocations = rc->dumperLibraryLocations();
 
     if (const ProjectExplorer::Target *target = runConfiguration->target()) {
         if (QByteArray(target->metaObject()->className()).contains("Qt4")) {
-            const QString qmake = Utils::BuildableHelperLibrary::findSystemQt(sp.environment);
+            const Utils::FileName qmake = Utils::BuildableHelperLibrary::findSystemQt(sp.environment);
             if (!qmake.isEmpty())
                 sp.qtInstallPath = findQtInstallPath(qmake);
         }

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "findtoolbar.h"
 #include "findplugin.h"
 #include "textfindconstants.h"
+#include "ifindfilter.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icontext.h>
@@ -41,7 +42,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/findplaceholder.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -79,9 +80,6 @@ FindToolBar::FindToolBar(FindPlugin *plugin, CurrentDocumentFind *currentDocumen
       m_replaceAction(0),
       m_replaceNextAction(0),
       m_replacePreviousAction(0),
-      m_casesensitiveIcon(":/find/images/casesensitively.png"),
-      m_regexpIcon(":/find/images/regexp.png"),
-      m_wholewordsIcon(":/find/images/wholewords.png"),
       m_findIncrementalTimer(this), m_findStepTimer(this),
       m_useFakeVim(false),
       m_eventFiltersInstalled(false)
@@ -539,33 +537,17 @@ void FindToolBar::updateIcons()
     bool casesensitive = effectiveFlags & Find::FindCaseSensitively;
     bool wholewords = effectiveFlags & Find::FindWholeWords;
     bool regexp = effectiveFlags & Find::FindRegularExpression;
-    int width = 0;
-    if (casesensitive) width += 6;
-    if (wholewords) width += 6;
-    if (regexp) width += 6;
-    if (width == 0) width = 18;
-    --width;
-    QPixmap pixmap(width, 17);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    int x = 0;
-
-    if (casesensitive) {
-        painter.drawPixmap(x - 6, 0, m_casesensitiveIcon);
-        x += 6;
-    }
-    if (wholewords) {
-        painter.drawPixmap(x - 6, 0, m_wholewordsIcon);
-        x += 6;
-    }
-    if (regexp) {
-        painter.drawPixmap(x - 6, 0, m_regexpIcon);
-    }
     if (!casesensitive && !wholewords && !regexp) {
+        QPixmap pixmap(17, 17);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
         QPixmap mag(Core::Constants::ICON_MAGNIFIER);
         painter.drawPixmap(0, (pixmap.height() - mag.height()) / 2, mag);
+        m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left, pixmap);
+    } else {
+        m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left,
+                                       IFindFilter::pixmapForFindFlags(effectiveFlags));
     }
-    m_ui.findEdit->setButtonPixmap(Utils::FancyLineEdit::Left, pixmap);
 }
 
 Find::FindFlags FindToolBar::effectiveFindFlags()

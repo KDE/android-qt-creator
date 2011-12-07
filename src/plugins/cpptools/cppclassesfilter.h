@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,24 +26,24 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef CPPCLASSESFILTER_H
 #define CPPCLASSESFILTER_H
 
-#include <cpplocatorfilter.h>
+#include "cpptools_global.h"
+#include "cpplocatorfilter.h"
 
 namespace CppTools {
-namespace Internal {
 
-class CppClassesFilter : public CppLocatorFilter
+class CPPTOOLS_EXPORT CppClassesFilter : public Internal::CppLocatorFilter
 {
     Q_OBJECT
 
 public:
-    CppClassesFilter(CppModelManager *manager);
+    CppClassesFilter(Internal::CppModelManager *manager);
     ~CppClassesFilter();
 
     QString displayName() const { return tr("Classes"); }
@@ -51,7 +51,6 @@ public:
     Priority priority() const { return Medium; }
 };
 
-} // namespace Internal
 } // namespace CppTools
 
 #endif // CPPCLASSESFILTER_H

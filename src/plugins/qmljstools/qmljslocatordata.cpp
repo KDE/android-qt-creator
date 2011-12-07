@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,20 +26,21 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmljslocatordata.h"
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
-#include <qmljs/qmljsbind.h>
-#include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljsutils.h>
+//#include <qmljs/qmljsinterpreter.h>
 #include <qmljs/parser/qmljsast_p.h>
+
+#include <QtCore/QFileInfo>
 
 using namespace QmlJSTools::Internal;
 using namespace QmlJS;
-using namespace QmlJS::Interpreter;
 using namespace QmlJS::AST;
 
 LocatorData::LocatorData(QObject *parent)
@@ -57,26 +58,6 @@ LocatorData::~LocatorData()
 {}
 
 namespace {
-static QString findId(UiObjectInitializer *initializer)
-{
-    if (!initializer)
-        return QString();
-    for (UiObjectMemberList *member = initializer->members; member; member = member->next) {
-        if (UiScriptBinding *script = cast<UiScriptBinding *>(member->member)) {
-            if (!script->qualifiedId || !script->qualifiedId->name || script->qualifiedId->next)
-                continue;
-            if (script->qualifiedId->name->asString() != QLatin1String("id"))
-                continue;
-            if (ExpressionStatement *expStmt = cast<ExpressionStatement *>(script->statement)) {
-                if (IdentifierExpression *identExp = cast<IdentifierExpression *>(expStmt->expression)) {
-                    if (identExp->name)
-                        return identExp->name->asString();
-                }
-            }
-        }
-    }
-    return QString();
-}
 
 class FunctionFinder : protected AST::Visitor
 {
@@ -133,19 +114,19 @@ protected:
 
     bool visit(FunctionExpression *ast)
     {
-        if (!ast->name)
+        if (ast->name.isEmpty())
             return true;
 
         LocatorData::Entry entry = basicEntry(ast->identifierToken);
 
         entry.type = LocatorData::Function;
-        entry.displayName = ast->name->asString();
+        entry.displayName = ast->name.toString();
         entry.displayName += QLatin1Char('(');
         for (FormalParameterList *it = ast->formals; it; it = it->next) {
             if (it != ast->formals)
                 entry.displayName += QLatin1String(", ");
-            if (it->name)
-                entry.displayName += it->name->asString();
+            if (!it->name.isEmpty())
+                entry.displayName += it->name.toString();
         }
         entry.displayName += QLatin1Char(')');
         entry.symbolName = entry.displayName;
@@ -160,7 +141,7 @@ protected:
     {
         if (!ast->qualifiedId)
             return true;
-        const QString qualifiedIdString = Bind::toString(ast->qualifiedId);
+        const QString qualifiedIdString = toString(ast->qualifiedId);
 
         if (cast<Block *>(ast->statement)) {
             LocatorData::Entry entry = basicEntry(ast->qualifiedId->identifierToken);
@@ -169,7 +150,7 @@ protected:
             m_entries += entry;
         }
 
-        accept(ast->statement, contextString(Bind::toString(ast->qualifiedId)));
+        accept(ast->statement, contextString(toString(ast->qualifiedId)));
         return false;
     }
 
@@ -178,8 +159,8 @@ protected:
         if (!ast->qualifiedTypeNameId)
             return true;
 
-        QString context = Bind::toString(ast->qualifiedTypeNameId);
-        const QString id = findId(ast->initializer);
+        QString context = toString(ast->qualifiedTypeNameId);
+        const QString id = idOfObject(ast);
         if (!id.isEmpty())
             context = QString("%1 (%2)").arg(id, context);
         accept(ast->initializer, contextString(context));
@@ -191,8 +172,8 @@ protected:
         if (!ast->qualifiedTypeNameId)
             return true;
 
-        QString context = Bind::toString(ast->qualifiedTypeNameId);
-        const QString id = findId(ast->initializer);
+        QString context = toString(ast->qualifiedTypeNameId);
+        const QString id = idOfObject(ast);
         if (!id.isEmpty())
             context = QString("%1 (%2)").arg(id, context);
         accept(ast->initializer, contextString(context));

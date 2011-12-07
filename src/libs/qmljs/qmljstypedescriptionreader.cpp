@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,12 +35,12 @@
 #include "parser/qmljsparser_p.h"
 #include "parser/qmljslexer_p.h"
 #include "parser/qmljsengine_p.h"
-#include "parser/qmljsnodepool_p.h"
 #include "parser/qmljsast_p.h"
 #include "parser/qmljsastvisitor_p.h"
 
 #include "qmljsbind.h"
 #include "qmljsinterpreter.h"
+#include "qmljsutils.h"
 
 #include <QtCore/QIODevice>
 #include <QtCore/QBuffer>
@@ -59,16 +59,16 @@ TypeDescriptionReader::~TypeDescriptionReader()
 {
 }
 
-bool TypeDescriptionReader::operator()(QHash<QString, FakeMetaObject::ConstPtr> *objects)
+bool TypeDescriptionReader::operator()(
+        QHash<QString, FakeMetaObject::ConstPtr> *objects,
+        QList<ModuleApiInfo> *moduleApis)
 {
-    QString fileName("typeDescription");
     Engine engine;
-    NodePool pool(fileName, &engine);
 
     Lexer lexer(&engine);
     Parser parser(&engine);
 
-    lexer.setCode(_source, /*line = */ 1);
+    lexer.setCode(_source, /*line = */ 1, /*qmlMode = */true);
 
     if (!parser.parse()) {
         _errorMessage = QString("%1:%2: %3").arg(
@@ -79,6 +79,7 @@ bool TypeDescriptionReader::operator()(QHash<QString, FakeMetaObject::ConstPtr> 
     }
 
     _objects = objects;
+    _moduleApis = moduleApis;
     readDocument(parser.ast());
 
     return _errorMessage.isEmpty();
@@ -107,7 +108,7 @@ void TypeDescriptionReader::readDocument(UiProgram *ast)
     }
 
     UiImport *import = ast->imports->import;
-    if (Bind::toString(import->importUri) != QLatin1String("QtQuick.tooling")) {
+    if (toString(import->importUri) != QLatin1String("QtQuick.tooling")) {
         addError(import->importToken, "Expected import of QtQuick.tooling");
         return;
     }
@@ -135,7 +136,7 @@ void TypeDescriptionReader::readDocument(UiProgram *ast)
         return;
     }
 
-    if (Bind::toString(module->qualifiedTypeNameId) != "Module") {
+    if (toString(module->qualifiedTypeNameId) != "Module") {
         addError(SourceLocation(), "Expected document to contain a Module {} member");
         return;
     }
@@ -148,12 +149,21 @@ void TypeDescriptionReader::readModule(UiObjectDefinition *ast)
     for (UiObjectMemberList *it = ast->initializer->members; it; it = it->next) {
         UiObjectMember *member = it->member;
         UiObjectDefinition *component = dynamic_cast<UiObjectDefinition *>(member);
-        if (!component || Bind::toString(component->qualifiedTypeNameId) != "Component") {
-            addWarning(member->firstSourceLocation(), "Expected only 'Component' object definitions");
+
+        QString typeName;
+        if (component)
+            typeName = toString(component->qualifiedTypeNameId);
+
+        if (!component || (typeName != "Component" && typeName != "ModuleApi")) {
+            addWarning(member->firstSourceLocation(), "Expected only 'Component' and 'ModuleApi' object definitions");
             continue;
         }
 
-        readComponent(component);
+        if (typeName == QLatin1String("Component")) {
+            readComponent(component);
+        } else if (typeName == QLatin1String("ModuleApi")) {
+            readModuleApi(component);
+        }
     }
 }
 
@@ -182,7 +192,7 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
         UiObjectDefinition *component = dynamic_cast<UiObjectDefinition *>(member);
         UiScriptBinding *script = dynamic_cast<UiScriptBinding *>(member);
         if (component) {
-            QString name = Bind::toString(component->qualifiedTypeNameId);
+            QString name = toString(component->qualifiedTypeNameId);
             if (name == "Property") {
                 readProperty(component, fmo);
             } else if (name == "Method" || name == "Signal") {
@@ -193,7 +203,7 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
                 addWarning(component->firstSourceLocation(), "Expected only Property, Method, Signal and Enum object definitions");
             }
         } else if (script) {
-            QString name = Bind::toString(script->qualifiedId);
+            QString name = toString(script->qualifiedId);
             if (name == "name") {
                 fmo->setClassName(readStringBinding(script));
             } else if (name == "prototype") {
@@ -202,10 +212,14 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
                 fmo->setDefaultPropertyName(readStringBinding(script));
             } else if (name == "exports") {
                 readExports(script, fmo);
+            } else if (name == "exportMetaObjectRevisions") {
+                readMetaObjectRevisions(script, fmo);
             } else if (name == "attachedType") {
                 fmo->setAttachedTypeName(readStringBinding(script));
             } else {
-                addWarning(script->firstSourceLocation(), "Expected only name, prototype, defaultProperty, attachedType and exports script bindings");
+                addWarning(script->firstSourceLocation(),
+                           "Expected only name, prototype, defaultProperty, attachedType, exports"
+                           "and exportMetaObjectRevisions script bindings");
             }
         } else {
             addWarning(member->firstSourceLocation(), "Expected only script bindings and object definitions");
@@ -218,8 +232,42 @@ void TypeDescriptionReader::readComponent(UiObjectDefinition *ast)
     }
 
     // ### add implicit export into the package of c++ types
-    fmo->addExport(fmo->className(), QmlJS::Interpreter::CppQmlTypes::cppPackage, ComponentVersion());
+    fmo->addExport(fmo->className(), QmlJS::CppQmlTypes::cppPackage, ComponentVersion());
     _objects->insert(fmo->className(), fmo);
+}
+
+void TypeDescriptionReader::readModuleApi(UiObjectDefinition *ast)
+{
+    ModuleApiInfo apiInfo;
+
+    for (UiObjectMemberList *it = ast->initializer->members; it; it = it->next) {
+        UiObjectMember *member = it->member;
+        UiScriptBinding *script = dynamic_cast<UiScriptBinding *>(member);
+
+        if (script) {
+            const QString name = toString(script->qualifiedId);
+            if (name == "uri") {
+                apiInfo.uri = readStringBinding(script);
+            } else if (name == "version") {
+                apiInfo.version = readNumericVersionBinding(script);
+            } else if (name == "name") {
+                apiInfo.cppName = readStringBinding(script);
+            } else {
+                addWarning(script->firstSourceLocation(),
+                           "Expected only uri, version and name script bindings");
+            }
+        } else {
+            addWarning(member->firstSourceLocation(), "Expected only script bindings");
+        }
+    }
+
+    if (!apiInfo.version.isValid()) {
+        addError(ast->firstSourceLocation(), "ModuleApi definition has no or invalid 'version' binding");
+        return;
+    }
+
+    if (_moduleApis)
+        _moduleApis->append(apiInfo);
 }
 
 void TypeDescriptionReader::readSignalOrMethod(UiObjectDefinition *ast, bool isMethod, FakeMetaObject::Ptr fmo)
@@ -236,14 +284,14 @@ void TypeDescriptionReader::readSignalOrMethod(UiObjectDefinition *ast, bool isM
         UiObjectDefinition *component = dynamic_cast<UiObjectDefinition *>(member);
         UiScriptBinding *script = dynamic_cast<UiScriptBinding *>(member);
         if (component) {
-            QString name = Bind::toString(component->qualifiedTypeNameId);
+            QString name = toString(component->qualifiedTypeNameId);
             if (name == "Parameter") {
                 readParameter(component, &fmm);
             } else {
                 addWarning(component->firstSourceLocation(), "Expected only Parameter object definitions");
             }
         } else if (script) {
-            QString name = Bind::toString(script->qualifiedId);
+            QString name = toString(script->qualifiedId);
             if (name == "name") {
                 fmm.setMethodName(readStringBinding(script));
             } else if (name == "type") {
@@ -284,7 +332,7 @@ void TypeDescriptionReader::readProperty(UiObjectDefinition *ast, FakeMetaObject
             continue;
         }
 
-        QString id = Bind::toString(script->qualifiedId);
+        QString id = toString(script->qualifiedId);
         if (id == "name") {
             name = readStringBinding(script);
         } else if (id == "type") {
@@ -322,7 +370,7 @@ void TypeDescriptionReader::readEnum(UiObjectDefinition *ast, FakeMetaObject::Pt
             continue;
         }
 
-        QString name = Bind::toString(script->qualifiedId);
+        QString name = toString(script->qualifiedId);
         if (name == "name") {
             fme.setName(readStringBinding(script));
         } else if (name == "values") {
@@ -348,9 +396,9 @@ void TypeDescriptionReader::readParameter(UiObjectDefinition *ast, FakeMetaMetho
             continue;
         }
 
-        QString id = Bind::toString(script->qualifiedId);
+        const QString id = toString(script->qualifiedId);
         if (id == "name") {
-            id = readStringBinding(script);
+            name = readStringBinding(script);
         } else if (id == "type") {
             type = readStringBinding(script);
         } else if (id == "isPointer") {
@@ -386,7 +434,7 @@ QString TypeDescriptionReader::readStringBinding(UiScriptBinding *ast)
         return QString();
     }
 
-    return stringLit->value->asString();
+    return stringLit->value.toString();
 }
 
 bool TypeDescriptionReader::readBoolBinding(AST::UiScriptBinding *ast)
@@ -434,6 +482,30 @@ double TypeDescriptionReader::readNumericBinding(AST::UiScriptBinding *ast)
     return numericLit->value;
 }
 
+ComponentVersion TypeDescriptionReader::readNumericVersionBinding(UiScriptBinding *ast)
+{
+    ComponentVersion invalidVersion;
+
+    if (!ast || !ast->statement) {
+        addError(ast->colonToken, "Expected numeric literal after colon");
+        return invalidVersion;
+    }
+
+    ExpressionStatement *expStmt = AST::cast<ExpressionStatement *>(ast->statement);
+    if (!expStmt) {
+        addError(ast->statement->firstSourceLocation(), "Expected numeric literal after colon");
+        return invalidVersion;
+    }
+
+    NumericLiteral *numericLit = AST::cast<NumericLiteral *>(expStmt->expression);
+    if (!numericLit) {
+        addError(expStmt->firstSourceLocation(), "Expected numeric literal after colon");
+        return invalidVersion;
+    }
+
+    return ComponentVersion(_source.mid(numericLit->literalToken.begin(), numericLit->literalToken.length));
+}
+
 int TypeDescriptionReader::readIntBinding(AST::UiScriptBinding *ast)
 {
     double v = readNumericBinding(ast);
@@ -472,7 +544,7 @@ void TypeDescriptionReader::readExports(UiScriptBinding *ast, FakeMetaObject::Pt
             addError(arrayLit->firstSourceLocation(), "Expected array literal with only string literal members");
             return;
         }
-        QString exp = stringLit->value->asString();
+        QString exp = stringLit->value.toString();
         int slashIdx = exp.indexOf(QLatin1Char('/'));
         int spaceIdx = exp.indexOf(QLatin1Char(' '));
         ComponentVersion version(exp.mid(spaceIdx + 1));
@@ -488,6 +560,50 @@ void TypeDescriptionReader::readExports(UiScriptBinding *ast, FakeMetaObject::Pt
 
         // ### relocatable exports where package is empty?
         fmo->addExport(name, package, version);
+    }
+}
+
+void TypeDescriptionReader::readMetaObjectRevisions(UiScriptBinding *ast, FakeMetaObject::Ptr fmo)
+{
+    if (!ast || !ast->statement) {
+        addError(ast->colonToken, "Expected array of numbers after colon");
+        return;
+    }
+
+    ExpressionStatement *expStmt = dynamic_cast<ExpressionStatement *>(ast->statement);
+    if (!expStmt) {
+        addError(ast->statement->firstSourceLocation(), "Expected array of numbers after colon");
+        return;
+    }
+
+    ArrayLiteral *arrayLit = dynamic_cast<ArrayLiteral *>(expStmt->expression);
+    if (!arrayLit) {
+        addError(expStmt->firstSourceLocation(), "Expected array of numbers after colon");
+        return;
+    }
+
+    int exportIndex = 0;
+    const int exportCount = fmo->exports().size();
+    for (ElementList *it = arrayLit->elements; it; it = it->next, ++exportIndex) {
+        NumericLiteral *numberLit = cast<NumericLiteral *>(it->expression);
+        if (!numberLit) {
+            addError(arrayLit->firstSourceLocation(), "Expected array literal with only number literal members");
+            return;
+        }
+
+        if (exportIndex >= exportCount) {
+            addError(numberLit->firstSourceLocation(), "Meta object revision without matching export");
+            return;
+        }
+
+        const double v = numberLit->value;
+        const int metaObjectRevision = static_cast<int>(v);
+        if (metaObjectRevision != v) {
+            addError(numberLit->firstSourceLocation(), "Expected integer");
+            return;
+        }
+
+        fmo->setExportMetaObjectRevision(exportIndex, metaObjectRevision);
     }
 }
 
@@ -524,6 +640,6 @@ void TypeDescriptionReader::readEnumValues(AST::UiScriptBinding *ast, LanguageUt
         double v = value->value;
         if (minus)
             v = -v;
-        fme->addKey(propName->id->asString(), v);
+        fme->addKey(propName->id.toString(), v);
     }
 }

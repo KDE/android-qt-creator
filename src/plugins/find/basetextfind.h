@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,8 +35,6 @@
 
 #include "find_global.h"
 #include "ifindsupport.h"
-
-#include <QtCore/QScopedPointer>
 
 QT_BEGIN_NAMESPACE
 class QPlainTextEdit;
@@ -96,7 +94,7 @@ private:
     bool inScope(int startPosition, int endPosition) const;
     QTextCursor findOne(const QRegExp &expr, const QTextCursor &from, QTextDocument::FindFlags options) const;
 
-    QScopedPointer<BaseTextFindPrivate> d;
+    BaseTextFindPrivate *d;
 };
 
 } // namespace Find

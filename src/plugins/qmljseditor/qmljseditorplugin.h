@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,10 +35,10 @@
 
 #include <extensionsystem/iplugin.h>
 #include <coreplugin/icontext.h>
+#include <coreplugin/id.h>
 #include <QtCore/QPointer>
 
 QT_FORWARD_DECLARE_CLASS(QAction)
-QT_FORWARD_DECLARE_CLASS(QTimer)
 
 namespace TextEditor {
 class TextEditorActionHandler;
@@ -94,29 +94,30 @@ public:
 public Q_SLOTS:
     void followSymbolUnderCursor();
     void findUsages();
+    void renameUsages();
+    void reformatFile();
     void showContextPane();
 
 private Q_SLOTS:
     void currentEditorChanged(Core::IEditor *editor);
+    void runSemanticScan();
+    void checkCurrentEditorSemanticInfoUpToDate();
 
 private:
-    Core::Command *addToolAction(QAction *a, Core::ActionManager *am, Core::Context &context, const QString &name,
+    Core::Command *addToolAction(QAction *a, Core::ActionManager *am, Core::Context &context, const Core::Id &id,
                                  Core::ActionContainer *c1, const QString &keySequence);
 
     static QmlJSEditorPlugin *m_instance;
 
-    QAction *m_actionPreview;
-    QmlJSPreviewRunner *m_previewRunner;
-
     QmlJS::ModelManagerInterface *m_modelManager;
-    QmlFileWizard *m_wizard;
     QmlJSEditorFactory *m_editor;
     TextEditor::TextEditorActionHandler *m_actionHandler;
-
     QmlJSQuickFixAssistProvider *m_quickFixAssistProvider;
-
-    QPointer<TextEditor::ITextEditor> m_currentTextEditable;
     QmlTaskManager *m_qmlTaskManager;
+
+    QAction *m_reformatFileAction;
+
+    QPointer<QmlJSTextEditorWidget> m_currentEditor;
 };
 
 } // namespace Internal

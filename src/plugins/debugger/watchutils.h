@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,19 +56,23 @@ class GdbMi;
 // Keep in sync with dumper.py
 enum DebuggerEncoding
 {
-    Unencoded8Bit                        =  0,
-    Base64Encoded8BitWithQuotes          =  1,
-    Base64Encoded16BitWithQuotes         =  2,
-    Base64Encoded32BitWithQuotes         =  3,
-    Base64Encoded16Bit                   =  4,
-    Base64Encoded8Bit                    =  5,
-    Hex2EncodedLatin1                    =  6,
-    Hex4EncodedLittleEndian              =  7,
-    Hex8EncodedLittleEndian              =  8,
-    Hex2EncodedUtf8                      =  9,
-    Hex8EncodedBigEndian                 = 10,
-    Hex4EncodedBigEndian                 = 11,
-    Hex4EncodedLittleEndianWithoutQuotes = 12
+    Unencoded8Bit                          =  0,
+    Base64Encoded8BitWithQuotes            =  1,
+    Base64Encoded16BitWithQuotes           =  2,
+    Base64Encoded32BitWithQuotes           =  3,
+    Base64Encoded16Bit                     =  4,
+    Base64Encoded8Bit                      =  5,
+    Hex2EncodedLatin1WithQuotes            =  6,
+    Hex4EncodedLittleEndianWithQuotes      =  7,
+    Hex8EncodedLittleEndianWithQuotes      =  8,
+    Hex2EncodedUtf8WithQuotes              =  9,
+    Hex8EncodedBigEndian                   = 10,
+    Hex4EncodedBigEndianWithQuotes         = 11,
+    Hex4EncodedLittleEndianWithoutQuotes   = 12,
+    Hex2EncodedLocal8BitWithQuotes         = 13,
+    JulianDate                             = 14,
+    MillisecondsSinceMidnight              = 15,
+    JulianDateAndMillisecondsSinceMidnight = 16
 };
 
 bool isEditorDebuggable(Core::IEditor *editor);
@@ -81,7 +85,6 @@ bool hasLetterOrNumber(const QString &exp);
 bool hasSideEffects(const QString &exp);
 bool isKeyWord(const QString &exp);
 bool isPointerType(const QByteArray &type);
-bool isVTablePointer(const QByteArray &type);
 bool isCharPointerType(const QByteArray &type);
 bool startsWithDigit(const QString &str);
 QByteArray stripPointerType(QByteArray type);

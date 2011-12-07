@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,10 +62,9 @@ public:
     void setDisplayName(const QString &);
     virtual void apply() = 0;
     virtual void discard() = 0;
+    virtual bool isDirty() const = 0;
 
     ProjectExplorer::ToolChain *toolChain() const;
-
-    virtual bool isDirty() const = 0;
 
     virtual void makeReadOnly();
 
@@ -88,12 +87,12 @@ protected:
     void addErrorLabel(QGridLayout *lt, int row = 0, int column = 0, int colSpan = 1);
 
     QString debuggerCommand() const;
-    void setDebuggerCommand(const QString &d);
+    void setDebuggerCommand(const QString &debugger);
 
 private:
     void ensureDebuggerPathChooser(const QStringList &versionArguments);
 
-    Internal::ToolChainConfigWidgetPrivate *m_d;
+    Internal::ToolChainConfigWidgetPrivate *d;
 };
 
 } // namespace ProjectExplorer

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -77,9 +77,9 @@ void VariantProperty::setValue(const QVariant &value)
     }
 
     if (internalNode()->hasProperty(name()) && !internalNode()->property(name())->isVariantProperty())
-        model()->m_d->removeProperty(internalNode()->property(name()));
+        model()->d->removeProperty(internalNode()->property(name()));
 
-    model()->m_d->setVariantProperty(internalNode(), name(), value);
+    model()->d->setVariantProperty(internalNode(), name(), value);
 }
 
 QVariant VariantProperty::value() const
@@ -119,9 +119,9 @@ void VariantProperty::setDynamicTypeNameAndValue(const QString &type, const QVar
     }
 
     if (internalNode()->hasProperty(name()) && !internalNode()->property(name())->isVariantProperty())
-        model()->m_d->removeProperty(internalNode()->property(name()));
+        model()->d->removeProperty(internalNode()->property(name()));
 
-     model()->m_d->setDynamicVariantProperty(internalNode(), name(), type, value);
+     model()->d->setDynamicVariantProperty(internalNode(), name(), type, value);
 }
 
 VariantProperty& VariantProperty::operator= (const QPair<QString, QVariant> &typeValuePair)

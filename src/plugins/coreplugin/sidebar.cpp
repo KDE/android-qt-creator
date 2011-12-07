@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -111,12 +111,10 @@ SideBar::SideBar(QList<SideBarItem*> itemList,
 
 SideBar::~SideBar()
 {
-    QMutableMapIterator<QString, QWeakPointer<SideBarItem> > iter(d->m_itemMap);
-    while(iter.hasNext()) {
-        iter.next();
-        if (!iter.value().isNull())
-            delete iter.value().data();
-    }
+    foreach (const QWeakPointer<SideBarItem> &i, d->m_itemMap)
+        if (!i.isNull())
+            delete i.data();
+    delete d;
 }
 
 QString SideBar::idForTitle(const QString &title) const

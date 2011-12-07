@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,6 @@
 #define CLASSVIEWNAVIGATIONWIDGETFACTORY_H
 
 #include <coreplugin/inavigationwidgetfactory.h>
-
-#include <QtCore/QScopedPointer>
 
 namespace ClassView {
 namespace Internal {
@@ -52,13 +50,15 @@ namespace Internal {
 class NavigationWidgetFactory : public Core::INavigationWidgetFactory
 {
     Q_OBJECT
-    Q_DISABLE_COPY(NavigationWidgetFactory)
 
 public:
-    //! destructor
-    virtual ~NavigationWidgetFactory();
+    //! Constructor
+    NavigationWidgetFactory();
 
-    //! get an instance
+    //! Destructor
+    ~NavigationWidgetFactory();
+
+    //! Access to static instance
     static NavigationWidgetFactory *instance();
 
     // Core::INavigationWidgetFactory
@@ -69,7 +69,7 @@ public:
     int priority() const;
 
     //! \implements Core::INavigationWidgetFactory::id
-    QString id() const;
+    Core::Id id() const;
 
     //! \implements Core::INavigationWidgetFactory::activationSequence
     QKeySequence activationSequence() const;
@@ -83,28 +83,11 @@ public:
     //! \implements Core::INavigationWidgetFactory::restoreSettings
     void restoreSettings(int position, QWidget *widget);
 
-    // own functionality
-
 signals:
     /*!
        \brief Signal which informs that the widget factory creates a widget.
      */
     void widgetIsCreated();
-
-private:
-    //! Constructor
-    NavigationWidgetFactory();
-
-    /*!
-       \brief Get a settings prefix for the specified position
-       \param position Position
-       \return Settings prefix
-     */
-    QString settingsPrefix(int position) const;
-
-private:
-    //! private class data pointer
-    QScopedPointer<struct NavigationWidgetFactoryPrivate> d_ptr;
 };
 
 } // namespace Internal

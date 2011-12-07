@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -58,6 +58,11 @@ uint QmlProfilerAttachDialog::port() const
     return ui->portSpinBox->value();
 }
 
+QString QmlProfilerAttachDialog::sysroot() const
+{
+    return ui->sysrootChooser->path();
+}
+
 void QmlProfilerAttachDialog::setAddress(const QString &address)
 {
     ui->addressLineEdit->setText(address);
@@ -66,6 +71,11 @@ void QmlProfilerAttachDialog::setAddress(const QString &address)
 void QmlProfilerAttachDialog::setPort(uint port)
 {
     ui->portSpinBox->setValue(port);
+}
+
+void QmlProfilerAttachDialog::setSysroot(const QString &sysroot)
+{
+    ui->sysrootChooser->setPath(sysroot);
 }
 
 } // namespace Internal

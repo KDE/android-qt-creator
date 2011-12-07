@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,14 +37,8 @@
 
 #include <QtCore/QStringList>
 
-namespace TextEditor {
-class TextEditorActionHandler;
-}
-
 namespace QmlJSEditor {
 namespace Internal {
-
-class QmlJSEditorActionHandler;
 
 class QmlJSEditorFactory : public Core::IEditorFactory
 {
@@ -52,18 +46,13 @@ class QmlJSEditorFactory : public Core::IEditorFactory
 
 public:
     QmlJSEditorFactory(QObject *parent);
-    ~QmlJSEditorFactory();
 
-    virtual QStringList mimeTypes() const;
     // IEditorFactory
-    QString id() const;
+    QStringList mimeTypes() const;
+    Core::Id id() const;
     QString displayName() const;
     Core::IFile *open(const QString &fileName);
     Core::IEditor *createEditor(QWidget *parent);
-
-private slots:
-    void activateQmlDesigner();
-    void neverAskAgainAboutQmlDesigner();
 
 private:
     QStringList m_mimeTypes;

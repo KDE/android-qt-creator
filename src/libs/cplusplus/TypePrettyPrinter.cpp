@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -289,6 +289,12 @@ void TypePrettyPrinter::visit(ArrayType *type)
     acceptType(type->elementType());
 }
 
+static bool endsWithPtrOrRef(const QString &type)
+{
+    return type.endsWith(QLatin1Char('*'))
+            || type.endsWith(QLatin1Char('&'));
+}
+
 void TypePrettyPrinter::visit(Function *type)
 {
     if (_needsParens) {
@@ -309,7 +315,8 @@ void TypePrettyPrinter::visit(Function *type)
     if (_overview->showReturnTypes()) {
         const QString returnType = _overview->prettyType(type->returnType());
         if (!returnType.isEmpty()) {
-            _text.prepend(QLatin1Char(' '));
+            if (!endsWithPtrOrRef(returnType))
+                _text.prepend(QLatin1Char(' '));
             _text.prepend(returnType);
         }
     }

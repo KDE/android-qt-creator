@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -151,7 +151,7 @@ int make_depend(QCoreApplication *app)
     todo.removeFirst();
 
     if (todo.isEmpty())
-        todo.append(qgetenv("QTDIR") + "/include/QtCore/QtCore");
+        todo.append(QString::fromLocal8Bit(qgetenv("QTDIR")) + QLatin1String("/include/QtCore/QtCore"));
 
     QMap<QString, QStringList> processed;
 
@@ -170,8 +170,7 @@ int make_depend(QCoreApplication *app)
 
             Environment env;
             MakeDepend client(&env);
-            client.addSystemDir(qgetenv("QTDIR") + "/include");
-
+            client.addSystemDir(QString::fromLocal8Bit(qgetenv("QTDIR")) + QLatin1String("/include"));
             Preprocessor preproc(&client, &env);
             preproc.preprocess(fn, code, /*result = */ 0);
             deps = client.includedFiles();

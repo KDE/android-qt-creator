@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -64,7 +64,7 @@
 #include "variablemanager.h"
 #include "versiondialog.h"
 #include "statusbarmanager.h"
-#include "uniqueidmanager.h"
+#include "id.h"
 #include "manhattanstyle.h"
 #include "navigationwidget.h"
 #include "rightpane.h"
@@ -72,8 +72,10 @@
 #include "statusbarwidget.h"
 #include "basefilewizard.h"
 #include "ioutputpane.h"
+#include "externaltoolmanager.h"
 #include "editormanager/systemeditor.h"
 
+#include <app/app_version.h>
 #include <coreplugin/findplaceholder.h>
 #include <coreplugin/icorelistener.h>
 #include <coreplugin/inavigationwidgetfactory.h>
@@ -91,6 +93,7 @@
 #include <QtCore/QUrl>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
+#include <QtCore/QMimeData>
 
 #include <QtGui/QApplication>
 #include <QtGui/QCloseEvent>
@@ -125,11 +128,9 @@ enum { debugMainWindow = 0 };
 MainWindow::MainWindow() :
     EventFilteringMainWindow(),
     m_coreImpl(new CoreImpl(this)),
-    m_uniqueIDManager(new UniqueIDManager()),
     m_additionalContexts(Constants::C_GLOBAL),
     m_settings(ExtensionSystem::PluginManager::instance()->settings()),
-    m_globalSettings(new QSettings(QSettings::IniFormat, QSettings::SystemScope,
-                             QLatin1String(NQTC_SETTINGS_ORG), QLatin1String(NQTC_SETTINGS_APPNAME), this)),
+    m_globalSettings(ExtensionSystem::PluginManager::instance()->globalSettings()),
     m_settingsDatabase(new SettingsDatabase(QFileInfo(m_settings->fileName()).path(),
                                             QLatin1String(NQTC_SETTINGS_APPNAME),
                                             this)),
@@ -225,6 +226,11 @@ MainWindow::MainWindow() :
      //signal(SIGINT, handleSigInt);
 #endif
 
+#ifdef Q_WS_MAC
+    extern void enableMacFullScreen(WId);
+    enableMacFullScreen(winId());
+#endif
+
     statusBar()->setProperty("p_styled", true);
     setAcceptDrops(true);
 }
@@ -250,6 +256,16 @@ void MainWindow::setSuppressNavigationWidget(bool suppress)
 void MainWindow::setOverrideColor(const QColor &color)
 {
     m_overrideColor = color;
+}
+
+bool MainWindow::isPresentationModeEnabled()
+{
+    return m_actionManager->isPresentationModeEnabled();
+}
+
+void MainWindow::setPresentationModeEnabled(bool enabled)
+{
+    m_actionManager->setPresentationModeEnabled(enabled);
 }
 
 MainWindow::~MainWindow()
@@ -278,8 +294,6 @@ MainWindow::~MainWindow()
     m_settings = 0;
     delete m_printer;
     m_printer = 0;
-    delete m_uniqueIDManager;
-    m_uniqueIDManager = 0;
     delete m_vcsManager;
     m_vcsManager = 0;
     //we need to delete editormanager and statusbarmanager explicitly before the end of the destructor,
@@ -528,12 +542,11 @@ void MainWindow::registerDefaultContainers()
 }
 
 static Command *createSeparator(ActionManager *am, QObject *parent,
-                                const QString &name,
-                                const Context &context)
+                                const Id &id, const Context &context)
 {
     QAction *tmpaction = new QAction(parent);
     tmpaction->setSeparator(true);
-    Command *cmd = am->registerAction(tmpaction, name, context);
+    Command *cmd = am->registerAction(tmpaction, id, context);
     return cmd;
 }
 
@@ -549,30 +562,30 @@ void MainWindow::registerDefaultActions()
     Context globalContext(Constants::C_GLOBAL);
 
     // File menu separators
-    Command *cmd = createSeparator(am, this, QLatin1String("QtCreator.File.Sep.Save"), globalContext);
+    Command *cmd = createSeparator(am, this, Id("QtCreator.File.Sep.Save"), globalContext);
     mfile->addAction(cmd, Constants::G_FILE_SAVE);
 
-    cmd =  createSeparator(am, this, QLatin1String("QtCreator.File.Sep.Print"), globalContext);
+    cmd =  createSeparator(am, this, Id("QtCreator.File.Sep.Print"), globalContext);
     QIcon icon = QIcon::fromTheme(QLatin1String("edit-cut"), QIcon(Constants::ICON_CUT));
     mfile->addAction(cmd, Constants::G_FILE_PRINT);
 
-    cmd =  createSeparator(am, this, QLatin1String("QtCreator.File.Sep.Close"), globalContext);
+    cmd =  createSeparator(am, this, Id("QtCreator.File.Sep.Close"), globalContext);
     mfile->addAction(cmd, Constants::G_FILE_CLOSE);
 
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.File.Sep.Other"), globalContext);
+    cmd = createSeparator(am, this, Id("QtCreator.File.Sep.Other"), globalContext);
     mfile->addAction(cmd, Constants::G_FILE_OTHER);
 
     // Edit menu separators
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.Edit.Sep.CopyPaste"), globalContext);
+    cmd = createSeparator(am, this, Id("QtCreator.Edit.Sep.CopyPaste"), globalContext);
     medit->addAction(cmd, Constants::G_EDIT_COPYPASTE);
 
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.Edit.Sep.SelectAll"), globalContext);
+    cmd = createSeparator(am, this, Id("QtCreator.Edit.Sep.SelectAll"), globalContext);
     medit->addAction(cmd, Constants::G_EDIT_SELECTALL);
 
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.Edit.Sep.Find"), globalContext);
+    cmd = createSeparator(am, this, Id("QtCreator.Edit.Sep.Find"), globalContext);
     medit->addAction(cmd, Constants::G_EDIT_FIND);
 
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.Edit.Sep.Advanced"), globalContext);
+    cmd = createSeparator(am, this, Id("QtCreator.Edit.Sep.Advanced"), globalContext);
     medit->addAction(cmd, Constants::G_EDIT_ADVANCED);
 
     // Return to editor shortcut: Note this requires Qt to fix up
@@ -719,7 +732,7 @@ void MainWindow::registerDefaultActions()
 
     // Options Action
     mtools->appendGroup(Constants::G_TOOLS_OPTIONS);
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.Tools.Sep.Options"), globalContext);
+    cmd = createSeparator(am, this, Id("QtCreator.Tools.Sep.Options"), globalContext);
     mtools->addAction(cmd, Constants::G_TOOLS_OPTIONS);
     m_optionsAction = new QAction(tr("&Options..."), this);
     cmd = am->registerAction(m_optionsAction, Constants::OPTIONS, globalContext);
@@ -745,7 +758,7 @@ void MainWindow::registerDefaultActions()
     connect(m_zoomAction, SIGNAL(triggered()), this, SLOT(showMaximized()));
 
     // Window separator
-    cmd = createSeparator(am, this, QLatin1String("QtCreator.Window.Sep.Size"), globalContext);
+    cmd = createSeparator(am, this, Id("QtCreator.Window.Sep.Size"), globalContext);
     mwindow->addAction(cmd, Constants::G_WINDOW_SIZE);
 #endif
 
@@ -875,7 +888,7 @@ void MainWindow::openFiles(const QStringList &fileNames, ICore::OpenFilesFlags f
                 emFlags = EditorManager::ModeSwitch;
             if (flags & ICore::CanContainLineNumbers)
                 emFlags |=  EditorManager::CanContainLineNumber;
-            Core::IEditor *editor = editorManager()->openEditor(absoluteFilePath, QString(), emFlags);
+            Core::IEditor *editor = editorManager()->openEditor(absoluteFilePath, Id(), emFlags);
             if (!editor && (flags & ICore::StopOnLoadFail))
                 return;
         }
@@ -888,9 +901,12 @@ void MainWindow::setFocusToEditor()
 
     // give focus to the editor if we have one
     if (IEditor *editor = m_editorManager->currentEditor()) {
-        if (qApp->focusWidget() != editor->widget()) {
-            editor->widget()->setFocus();
-            focusWasMovedToEditor = editor->widget()->hasFocus();
+        if (qApp->focusWidget() != editor->widget()->focusWidget()) {
+            QWidget *w = editor->widget()->focusWidget();
+            if (!w)
+                w = editor->widget();
+            w->setFocus();
+            focusWasMovedToEditor = w->hasFocus();
         }
     }
 
@@ -904,7 +920,6 @@ void MainWindow::setFocusToEditor()
 
     if (focusWasMovedToEditor)
         return;
-
 
     // check for some visible bar which we want to hide
     bool stuffVisible =
@@ -924,7 +939,6 @@ void MainWindow::setFocusToEditor()
 
     // switch to edit mode if necessary
     m_coreImpl->modeManager()->activateMode(QLatin1String(Constants::MODE_EDIT));
-
 }
 
 void MainWindow::showNewItemDialog(const QString &title,
@@ -1004,8 +1018,8 @@ void MainWindow::openFileWith()
     QStringList fileNames = editorManager()->getOpenFileNames();
     foreach (const QString &fileName, fileNames) {
         bool isExternal;
-        const QString editorId = editorManager()->getOpenWithEditorId(fileName, &isExternal);
-        if (editorId.isEmpty())
+        const Id editorId = editorManager()->getOpenWithEditorId(fileName, &isExternal);
+        if (!editorId.isValid())
             continue;
         if (isExternal) {
             editorManager()->openExternalEditor(fileName, editorId);
@@ -1023,11 +1037,6 @@ ActionManager *MainWindow::actionManager() const
 FileManager *MainWindow::fileManager() const
 {
     return m_fileManager;
-}
-
-UniqueIDManager *MainWindow::uniqueIDManager() const
-{
-    return m_uniqueIDManager;
 }
 
 MessageManager *MainWindow::messageManager() const
@@ -1209,27 +1218,10 @@ void MainWindow::readSettings()
                                   QColor(Utils::StyleHelper::DEFAULT_BASE_COLOR)).value<QColor>());
     }
 
-    // TODO compat for <= 2.1, remove later
-    if (m_settings->contains(QLatin1String(geometryKey))) {
-        const QVariant geom = m_settings->value(QLatin1String(geometryKey));
-        if (geom.isValid()) {
-            setGeometry(geom.toRect());
-        } else {
-            resize(1024, 700);
-        }
-        if (m_settings->value(QLatin1String(maxKey), false).toBool())
-            setWindowState(Qt::WindowMaximized);
-        setFullScreen(m_settings->value(QLatin1String(fullScreenKey), false).toBool());
-
-        m_settings->remove(QLatin1String(geometryKey));
-        m_settings->remove(QLatin1String(maxKey));
-        m_settings->remove(QLatin1String(fullScreenKey));
-    } else {
-        if (!restoreGeometry(m_settings->value(QLatin1String(windowGeometryKey)).toByteArray())) {
-            resize(1024, 700);
-        }
-        restoreState(m_settings->value(QLatin1String(windowStateKey)).toByteArray());
+    if (!restoreGeometry(m_settings->value(QLatin1String(windowGeometryKey)).toByteArray())) {
+        resize(1008, 700); // size without window decoration
     }
+    restoreState(m_settings->value(QLatin1String(windowStateKey)).toByteArray());
 
     m_settings->endGroup();
 

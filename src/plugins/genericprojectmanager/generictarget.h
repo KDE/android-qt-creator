@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,10 +45,9 @@ class IBuildConfigurationFactory;
 } // namespace ProjectExplorer
 
 namespace GenericProjectManager {
-
 namespace Internal {
 
-const char * const GENERIC_DESKTOP_TARGET_ID("GenericProjectManager.GenericTarget");
+const char GENERIC_DESKTOP_TARGET_ID[] = "GenericProjectManager.GenericTarget";
 
 class GenericProject;
 class GenericRunConfiguration;
@@ -96,7 +95,6 @@ public:
 };
 
 } // namespace Internal
-
 } // namespace GenericProjectManager
 
 #endif // GENERICTARGET_H

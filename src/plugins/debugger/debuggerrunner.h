@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,6 @@
 #include <projectexplorer/abi.h>
 #include <projectexplorer/runconfiguration.h>
 
-#include <QtCore/QScopedPointer>
 #include <QtCore/QPair>
 #include <QtCore/QStringList>
 
@@ -116,7 +115,7 @@ protected:
 
 private:
     friend class Internal::DebuggerRunControlFactory;
-    QScopedPointer<Internal::DebuggerRunControlPrivate> d;
+    Internal::DebuggerRunControlPrivate *d;
 };
 
 } // namespace Debugger

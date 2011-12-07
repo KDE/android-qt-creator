@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -194,6 +194,14 @@ void tst_TypePrettyPrinter::basic_data()
     // simple functions
     addRow(ptr(fnTy("foo", voidTy(), intTy())), "void (*foo)(int)", "foo");
     addRow(ptr(fnTy("foo", voidTy(), ptr(voidTy()))), "void (*foo)(void *)", "foo");
+    addRow(fnTy("foo", voidTy(), intTy()), "void foo(int)", "foo");
+    addRow(fnTy("foo", voidTy(), ptr(voidTy())), "void foo(void *)", "foo");
+
+    // functions with ptr or ref returns
+    addRow(ptr(fnTy("foo", ptr(voidTy()), intTy())), "void *(*foo)(int)", "foo");
+    addRow(ptr(fnTy("foo", ref(voidTy()), ptr(voidTy()))), "void &(*foo)(void *)", "foo");
+    addRow(fnTy("foo", ptr(voidTy()), intTy()), "void *foo(int)", "foo");
+    addRow(fnTy("foo", ref(voidTy()), ptr(voidTy())), "void &foo(void *)", "foo");
 }
 
 void tst_TypePrettyPrinter::basic()

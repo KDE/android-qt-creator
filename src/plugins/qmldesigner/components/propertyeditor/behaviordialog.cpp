@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,13 +49,7 @@ void BehaviorDialog::registerDeclarativeType()
     qmlRegisterType<QmlDesigner::BehaviorWidget>("Bauhaus",1,0,"BehaviorWidget");
 }
 
-BehaviorWidget::BehaviorWidget() : QPushButton(), m_BehaviorDialog(new BehaviorDialog(0))
-{
-    setCheckable(true);
-    connect(this, SIGNAL(toggled(bool)), this, SLOT(buttonPressed(bool)));
-
-}
-BehaviorWidget::BehaviorWidget(QWidget *parent) : QPushButton(parent), m_BehaviorDialog(new BehaviorDialog(0))
+BehaviorWidget::BehaviorWidget(QWidget *parent) : QPushButton(parent), m_BehaviorDialog(new BehaviorDialog)
 {
     setCheckable(true);
     connect(this, SIGNAL(toggled(bool)), this, SLOT(buttonPressed(bool)));
@@ -92,7 +86,7 @@ void BehaviorWidget::buttonPressed(bool show)
     }
 }
 
-BehaviorDialog::BehaviorDialog(QWidget *parent) : QDialog(parent), m_ui(new Ui_BehaviorDialog)
+BehaviorDialog::BehaviorDialog(QWidget *parent) : QDialog(parent), m_ui(new Internal::Ui::BehaviorDialog)
 {
     m_ui->setupUi(this);
     setModal(true);

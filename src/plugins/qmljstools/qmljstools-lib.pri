@@ -9,7 +9,7 @@ HEADERS += \
     $$PWD/qmljstoolsplugin.h \
     $$PWD/qmljstoolsconstants.h \
     $$PWD/qmljstoolssettings.h \
-    $$PWD/qmljscodestylesettingsfactory.h \
+    $$PWD/qmljscodestylepreferencesfactory.h \
     $$PWD/qmljsmodelmanager.h \
     $$PWD/qmljsqtstylecodeformatter.h \
     $$PWD/qmljsrefactoringchanges.h \
@@ -17,12 +17,13 @@ HEADERS += \
     $$PWD/qmljsfunctionfilter.h \
     $$PWD/qmljslocatordata.h \
     $$PWD/qmljsindenter.h \
-    $$PWD/qmljscodestylesettingspage.h
+    $$PWD/qmljscodestylesettingspage.h \
+    $$PWD/qmljsfindexportedcpptypes.h
 
 SOURCES += \
     $$PWD/qmljstoolsplugin.cpp \
     $$PWD/qmljstoolssettings.cpp \
-    $$PWD/qmljscodestylesettingsfactory.cpp \
+    $$PWD/qmljscodestylepreferencesfactory.cpp \
     $$PWD/qmljsmodelmanager.cpp \
     $$PWD/qmljsqtstylecodeformatter.cpp \
     $$PWD/qmljsrefactoringchanges.cpp \
@@ -30,7 +31,13 @@ SOURCES += \
     $$PWD/qmljsfunctionfilter.cpp \
     $$PWD/qmljslocatordata.cpp \
     $$PWD/qmljsindenter.cpp \
-    $$PWD/qmljscodestylesettingspage.cpp
+    $$PWD/qmljscodestylesettingspage.cpp \
+    $$PWD/qmljsfindexportedcpptypes.cpp
 
 FORMS += \
     $$PWD/qmljscodestylesettingspage.ui
+
+equals(TEST, 1) {
+    SOURCES += \
+        $$PWD/qmljstools_test.cpp
+}

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,6 +48,7 @@ namespace Internal {
 
 class WatchItem;
 class WatchHandler;
+typedef QHash<QString, QStringList> TypeFormats;
 
 enum WatchType
 {
@@ -97,8 +98,11 @@ private:
         const WatchItem *parentItem, const QModelIndex &parentIndex) const;
 
     void insertData(const WatchData &data);
+    void reinsertAllData();
+    void reinsertAllDataHelper(WatchItem *item, QList<WatchData> *data);
     void insertBulkData(const QList<WatchData> &data);
     WatchItem *findItem(const QByteArray &iname, WatchItem *root) const;
+    QString displayForAutoTest(const QByteArray &iname) const;
     void reinitialize();
     void removeOutdated();
     void removeOutdatedHelper(WatchItem *item);
@@ -107,7 +111,7 @@ private:
 
     void emitDataChanged(int column,
         const QModelIndex &parentIndex = QModelIndex());
-    void beginCycle(); // Called at begin of updateLocals() cycle.
+    void beginCycle(bool fullCycle); // Called at begin of updateLocals() cycle.
     void endCycle(); // Called after all results have been received.
 
     friend QDebug operator<<(QDebug d, const WatchModel &m);
@@ -121,9 +125,14 @@ signals:
 
 private:
     QString displayType(const WatchData &typeIn) const;
+    QString formattedValue(const WatchData &data) const;
+    QString removeInitialNamespace(QString str) const;
+    QString removeNamespaces(QString str) const;
     void formatRequests(QByteArray *out, const WatchItem *item) const;
     DebuggerEngine *engine() const;
+    QString display(const WatchItem *item, int col) const;
     int itemFormat(const WatchData &data) const;
+    int m_generationCounter;
 
     WatchHandler *m_handler;
     WatchType m_type;
@@ -148,15 +157,17 @@ public:
 
     void beginCycle(bool fullCycle = true); // Called at begin of updateLocals() cycle
     void updateWatchers(); // Called after locals are fetched
-    void endCycle(bool fullCycle = true); // Called after all results have been received
+    void endCycle(); // Called after all results have been received
     void showEditValue(const WatchData &data);
 
     void insertData(const WatchData &data);
     void insertBulkData(const QList<WatchData> &data);
     void removeData(const QByteArray &iname);
+    Q_SLOT void reinsertAllData();
 
     const WatchData *watchData(WatchType type, const QModelIndex &) const;
     const WatchData *findItem(const QByteArray &iname) const;
+    QString displayForAutoTest(const QByteArray &iname) const;
     QModelIndex itemIndex(const QByteArray &iname) const;
 
     void loadSessionData();
@@ -179,13 +190,17 @@ public:
     int format(const QByteArray &iname) const;
 
     void addTypeFormats(const QByteArray &type, const QStringList &formats);
+    void setTypeFormats(const TypeFormats &typeFormats);
+    TypeFormats typeFormats() const;
+    QStringList typeFormatList(const WatchData &data) const;
 
-    void setUnprintableBase(int base) { m_unprintableBase = base; }
-    int unprintableBase() const { return m_unprintableBase; }
+    void setUnprintableBase(int base);
+    static int unprintableBase();
 
     QByteArray watcherName(const QByteArray &exp);
     void synchronizeWatchers();
     QString editorContents();
+    void editTypeFormats(bool includeLocals, const QByteArray &iname);
 
 private:
     friend class WatchModel;
@@ -207,7 +222,7 @@ private:
     static QHash<QByteArray, int> m_watcherNames;
     static QHash<QByteArray, int> m_typeFormats;
     QHash<QByteArray, int> m_individualFormats; // Indexed by iname.
-    QHash<QString, QStringList> m_reportedTypeFormats;
+    TypeFormats m_reportedTypeFormats;
 
     // Items expanded in the Locals & Watchers view.
     QSet<QByteArray> m_expandedINames;
@@ -217,7 +232,8 @@ private:
     WatchModel *m_watchers;
     WatchModel *m_tooltips;
     DebuggerEngine *m_engine;
-    static int m_unprintableBase;
+
+    int m_watcherCounter;
 };
 
 } // namespace Internal

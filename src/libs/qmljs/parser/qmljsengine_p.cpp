@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,70 +26,20 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmljsengine_p.h"
-
 #include "qmljsglobal_p.h"
-#include "qmljsnodepool_p.h"
 
 #include <qnumeric.h>
 #include <QHash>
+#include <QDebug>
 
 QT_QML_BEGIN_NAMESPACE
 
 namespace QmlJS {
-
-uint qHash(const QmlJS::NameId &id)
-{ return qHash(id.asString()); }
-
-QString numberToString(double value)
-{ return QString::number(value); }
-
-int Ecma::RegExp::flagFromChar(const QChar &ch)
-{
-    static QHash<QChar, int> flagsHash;
-    if (flagsHash.isEmpty()) {
-        flagsHash[QLatin1Char('g')] = Global;
-        flagsHash[QLatin1Char('i')] = IgnoreCase;
-        flagsHash[QLatin1Char('m')] = Multiline;
-    }
-    QHash<QChar, int>::const_iterator it;
-    it = flagsHash.constFind(ch);
-    if (it == flagsHash.constEnd())
-        return 0;
-    return it.value();
-}
-
-QString Ecma::RegExp::flagsToString(int flags)
-{
-    QString result;
-    if (flags & Global)
-        result += QLatin1Char('g');
-    if (flags & IgnoreCase)
-        result += QLatin1Char('i');
-    if (flags & Multiline)
-        result += QLatin1Char('m');
-    return result;
-}
-
-NodePool::NodePool(const QString &fileName, Engine *engine)
-    : m_fileName(fileName), m_engine(engine)
-{
-    m_engine->setNodePool(this);
-}
-
-NodePool::~NodePool()
-{
-}
-
-Code *NodePool::createCompiledCode(AST::Node *, CompilationUnit &)
-{
-    Q_ASSERT(0);
-    return 0;
-}
 
 static int toDigit(char c)
 {
@@ -163,14 +113,14 @@ double integerFromString(const QString &str, int radix)
 
 
 Engine::Engine()
-    : _lexer(0), _nodePool(0)
+    : _lexer(0), _directives(0)
 { }
 
 Engine::~Engine()
 { }
 
-QSet<NameId> Engine::literals() const
-{ return _literals; }
+void Engine::setCode(const QString &code)
+{ _code = code; }
 
 void Engine::addComment(int pos, int len, int line, int col)
 { if (len > 0) _comments.append(QmlJS::AST::SourceLocation(pos, len, line, col)); }
@@ -178,25 +128,30 @@ void Engine::addComment(int pos, int len, int line, int col)
 QList<QmlJS::AST::SourceLocation> Engine::comments() const
 { return _comments; }
 
-NameId *Engine::intern(const QChar *u, int s)
-{ return const_cast<NameId *>(&*_literals.insert(NameId(u, s))); }
-
-QString Engine::toString(NameId *id)
-{ return id->asString(); }
-
 Lexer *Engine::lexer() const
 { return _lexer; }
 
 void Engine::setLexer(Lexer *lexer)
 { _lexer = lexer; }
 
-NodePool *Engine::nodePool() const
-{ return _nodePool; }
+void Engine::setDirectives(Directives *directives)
+{ _directives = directives; }
 
-void Engine::setNodePool(NodePool *nodePool)
-{ _nodePool = nodePool; }
+Directives *Engine::directives() const
+{ return _directives; }
 
+MemoryPool *Engine::pool()
+{ return &_pool; }
 
+QStringRef Engine::newStringRef(const QString &text)
+{
+    const int pos = _extraCode.length();
+    _extraCode += text;
+    return _extraCode.midRef(pos, text.length());
+}
+
+QStringRef Engine::newStringRef(const QChar *chars, int size)
+{ return newStringRef(QString(chars, size)); }
 
 } // end of namespace QmlJS
 

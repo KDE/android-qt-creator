@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -58,23 +58,14 @@ namespace Debugger {
 namespace Internal {
 
 ModulesWindow::ModulesWindow(QWidget *parent)
-  : QTreeView(parent)
+  : BaseWindow(parent)
 {
-    QAction *act = debuggerCore()->action(UseAlternatingRowColors);
     setWindowTitle(tr("Modules"));
-    setAttribute(Qt::WA_MacShowFocusRect, false);
     setSortingEnabled(true);
-    setAlternatingRowColors(act->isChecked());
-    setRootIsDecorated(false);
-    setIconSize(QSize(10, 10));
+    setAlwaysAdjustColumnsAction(debuggerCore()->action(AlwaysAdjustModulesColumnWidths));
 
     connect(this, SIGNAL(activated(QModelIndex)),
         SLOT(moduleActivated(QModelIndex)));
-    connect(act, SIGNAL(toggled(bool)),
-        SLOT(setAlternatingRowColorsHelper(bool)));
-    connect(debuggerCore()->action(AlwaysAdjustModulesColumnWidths),
-        SIGNAL(toggled(bool)),
-        SLOT(setAlwaysResizeColumnsToContents(bool)));
 }
 
 void ModulesWindow::moduleActivated(const QModelIndex &index)
@@ -163,19 +154,12 @@ void ModulesWindow::contextMenuEvent(QContextMenuEvent *ev)
     menu.addAction(actLoadSymbolsForModule);
     menu.addAction(actEditFile);
     menu.addAction(actShowModuleSymbols);
-    menu.addSeparator();
-    QAction *actAdjustColumnWidths =
-        menu.addAction(tr("Adjust Column Widths to Contents"));
-    menu.addAction(debuggerCore()->action(AlwaysAdjustModulesColumnWidths));
-    menu.addSeparator();
-    menu.addAction(debuggerCore()->action(SettingsDialog));
+    addBaseContextActions(&menu);
 
     QAction *act = menu.exec(ev->globalPos());
 
     if (act == actUpdateModuleList)
         engine->reloadModules();
-    else if (act == actAdjustColumnWidths)
-        resizeColumnsToContents();
     else if (act == actShowModuleSources)
         engine->loadSymbols(name);
     else if (act == actLoadSymbolsForAllModules)
@@ -190,35 +174,8 @@ void ModulesWindow::contextMenuEvent(QContextMenuEvent *ev)
         engine->requestModuleSymbols(name);
     else if (actShowDependencies && act == actShowDependencies)
         QProcess::startDetached(QLatin1String("depends"), QStringList(fileName));
-}
-
-void ModulesWindow::resizeColumnsToContents()
-{
-    resizeColumnToContents(0);
-    resizeColumnToContents(1);
-    resizeColumnToContents(2);
-    resizeColumnToContents(3);
-}
-
-void ModulesWindow::setAlwaysResizeColumnsToContents(bool on)
-{
-    QHeaderView::ResizeMode mode = on
-        ? QHeaderView::ResizeToContents : QHeaderView::Interactive;
-    header()->setResizeMode(0, mode);
-    header()->setResizeMode(1, mode);
-    header()->setResizeMode(2, mode);
-    header()->setResizeMode(3, mode);
-    header()->setResizeMode(4, mode);
-    //setColumnHidden(3, true);
-}
-
-void ModulesWindow::setModel(QAbstractItemModel *model)
-{
-    QTreeView::setModel(model);
-    if (header()) {
-        bool adjust = debuggerCore()->boolSetting(AlwaysAdjustModulesColumnWidths);
-        setAlwaysResizeColumnsToContents(adjust);
-    }
+    else
+        handleBaseContextAction(act);
 }
 
 } // namespace Internal

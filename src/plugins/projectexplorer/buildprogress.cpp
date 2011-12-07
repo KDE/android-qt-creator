@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,11 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "buildprogress.h"
+#include "projectexplorerconstants.h"
 
 #include <utils/stylehelper.h>
 
@@ -88,7 +89,8 @@ void BuildProgress::updateState()
 {
     if (!m_taskWindow)
         return;
-    int errors = m_taskWindow->errorTaskCount();
+    int errors = m_taskWindow->errorTaskCount(Constants::TASK_CATEGORY_BUILDSYSTEM)
+            + m_taskWindow->errorTaskCount(Constants::TASK_CATEGORY_COMPILE);
     bool haveErrors = (errors > 0);
     m_errorIcon->setEnabled(haveErrors);
     m_errorLabel->setEnabled(haveErrors);

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -96,7 +96,11 @@ void NodeInstanceSignalSpy::registerObject(QObject *spiedObject, const QString &
              if (metaProperty.isReadable()
                  && QDeclarativeMetaType::isList(metaProperty.userType())) {
                  QDeclarativeListReference list(spiedObject, metaProperty.name());
+#if QT_VERSION<0x050000
                  if (list.canCount() && list.canAt()) {
+#else
+                 if (list.isReadable()) {
+#endif
                      for (int i = 0; i < list.count(); i++) {
                          QObject *propertyObject = list.at(i);
                          if (propertyObject)

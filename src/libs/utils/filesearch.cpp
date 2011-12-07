@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,20 +26,19 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "filesearch.h"
 #include <cctype>
 
-#include <QtCore/QIODevice>
 #include <QtCore/QBuffer>
 #include <QtCore/QFile>
-#include <QtCore/QFutureInterface>
 #include <QtCore/QtConcurrentRun>
 #include <QtCore/QRegExp>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QTextCodec>
 
 #include <qtconcurrent/runextensions.h>
 
@@ -70,6 +69,15 @@ static inline QString msgFound(const QString &searchTerm, int numMatches, int nu
 }
 
 namespace {
+
+const int MAX_LINE_SIZE = 400;
+
+QString clippedText(const QString &text, int maxLength)
+{
+    if (text.length() > maxLength)
+        return text.left(maxLength) + QChar(0x2026); // '...'
+    return text;
+}
 
 void runFileSearch(QFutureInterface<FileSearchResultList> &future,
                    QString searchTerm,
@@ -124,6 +132,7 @@ void runFileSearch(QFutureInterface<FileSearchResultList> &future,
         while (!stream.atEnd()) {
             ++lineNr;
             const QString chunk = stream.readLine();
+            const QString resultItemText = clippedText(chunk, MAX_LINE_SIZE);
             int chunkLength = chunk.length();
             const QChar *chunkPtr = chunk.constData();
             const QChar *chunkEnd = chunkPtr + chunkLength - 1;
@@ -167,7 +176,7 @@ void runFileSearch(QFutureInterface<FileSearchResultList> &future,
                         }
                     }
                     if (equal) {
-                        results << FileSearchResult(s, lineNr, chunk,
+                        results << FileSearchResult(s, lineNr, resultItemText,
                                                       regionPtr - chunkPtr, termLength,
                                                       QStringList());
                         ++numMatches;
@@ -245,10 +254,11 @@ void runFileSearchRegExp(QFutureInterface<FileSearchResultList> &future,
         QString line;
         while (!stream.atEnd()) {
             line = stream.readLine();
+            const QString resultItemText = clippedText(line, MAX_LINE_SIZE);
             int lengthOfLine = line.size();
             int pos = 0;
             while ((pos = expression.indexIn(line, pos)) != -1) {
-                results << FileSearchResult(s, lineNr, line,
+                results << FileSearchResult(s, lineNr, resultItemText,
                                               pos, expression.matchedLength(),
                                               expression.capturedTexts());
                 ++numMatches;

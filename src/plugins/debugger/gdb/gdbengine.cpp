@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -67,10 +67,7 @@
 #include "threadshandler.h"
 #include "watchhandler.h"
 #include "debuggersourcepathmappingwidget.h"
-
-#ifdef Q_OS_WIN
-#    include "dbgwinutils.h"
-#endif
+#include "hostutils.h"
 #include "logwindow.h"
 
 #include <coreplugin/icore.h>
@@ -189,7 +186,7 @@ static QByteArray parsePlainConsoleStream(const GdbResponse &response)
 
 GdbEngine::GdbEngine(const DebuggerStartParameters &startParameters,
         DebuggerEngine *masterEngine)
-  : DebuggerEngine(startParameters, masterEngine)
+  : DebuggerEngine(startParameters, CppLanguage, masterEngine)
 {
     setObjectName(_("GdbEngine"));
 
@@ -223,12 +220,6 @@ GdbEngine::GdbEngine(const DebuggerStartParameters &startParameters,
 
     connect(debuggerCore()->action(AutoDerefPointers), SIGNAL(valueChanged(QVariant)),
             SLOT(reloadLocals()));
-    connect(debuggerCore()->action(SortStructMembers), SIGNAL(valueChanged(QVariant)),
-            SLOT(reloadLocals()));
-    connect(debuggerCore()->action(ShowStdNamespace), SIGNAL(valueChanged(QVariant)),
-            SLOT(reloadLocals()));
-    connect(debuggerCore()->action(ShowQtNamespace), SIGNAL(valueChanged(QVariant)),
-            SLOT(reloadLocals()));
     connect(debuggerCore()->action(CreateFullBacktrace), SIGNAL(triggered()),
             SLOT(createFullBacktrace()));
 }
@@ -261,8 +252,11 @@ QString GdbEngine::errorMessage(QProcess::ProcessError error)
                 "permissions to invoke the program.\n%2")
                 .arg(m_gdb, gdbProc()->errorString());
         case QProcess::Crashed:
-            return tr("The gdb process crashed some time after starting "
-                "successfully.");
+            if (targetState() == DebuggerFinished)
+                return tr("The gdb process crashed some time after starting "
+                    "successfully.");
+            else
+                return tr("The gdb process was ended forcefully");
         case QProcess::Timedout:
             return tr("The last waitFor...() function timed out. "
                 "The state of QProcess is unchanged, and you can try calling "
@@ -497,7 +491,7 @@ void GdbEngine::handleResponse(const QByteArray &buff)
                 foreach (const GdbMi &bkpt, result.children()) {
                     const QByteArray nr = bkpt.findChild("number").data();
                     BreakpointResponseId rid(nr);
-                    if (!isHiddenBreakpoint(rid)) { 
+                    if (!isHiddenBreakpoint(rid)) {
                         if (nr.contains('.')) {
                             // A sub-breakpoint.
                             BreakpointResponse sub;
@@ -702,13 +696,11 @@ void GdbEngine::readGdbStandardOutput()
         scan = newstart;
         if (end == start)
             continue;
-#        if defined(Q_OS_WIN)
         if (m_inbuffer.at(end - 1) == '\r') {
             --end;
             if (end == start)
                 continue;
         }
-#        endif
         m_busy = true;
         handleResponse(QByteArray::fromRawData(m_inbuffer.constData() + start, end - start));
         m_busy = false;
@@ -1148,7 +1140,9 @@ bool GdbEngine::acceptsDebuggerCommands() const
 void GdbEngine::executeDebuggerCommand(const QString &command)
 {
     QTC_CHECK(acceptsDebuggerCommands());
-    m_gdbAdapter->write(command.toLatin1() + "\r\n");
+    GdbCommand cmd;
+    cmd.command = command.toLatin1();
+    flushCommand(cmd);
 }
 
 // This is called from CoreAdapter and AttachAdapter.
@@ -1790,6 +1784,8 @@ void GdbEngine::handleExecuteContinue(const GdbResponse &response)
         QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
         showStatusMessage(tr("Stopped."), 5000);
         reloadStack(true);
+    } else if (msg.startsWith("Cannot access memory at address")) {
+        // Happens on single step on ARM prolog and epilogs.
     } else if (msg.startsWith("\"finish\" not meaningful in the outermost frame")) {
         notifyInferiorRunFailed();
         if (isDying())
@@ -1953,7 +1949,7 @@ AbstractGdbAdapter *GdbEngine::createAdapter()
     switch (sp.startMode) {
     case AttachCore:
         return new CoreGdbAdapter(this);
-    case AttachToRemote:
+    case AttachToRemoteServer:
         return new RemoteGdbServerAdapter(this);
     case StartRemoteGdb:
         return new RemotePlainGdbAdapter(this);
@@ -1999,10 +1995,12 @@ unsigned GdbEngine::debuggerCapabilities() const
         | WatchpointByAddressCapability
         | WatchpointByExpressionCapability
         | AddWatcherCapability
+        | WatchWidgetsCapability
         | ShowModuleSymbolsCapability
         | CatchCapability
         | OperateByInstructionCapability
-        | RunToLineCapability;
+        | RunToLineCapability
+        | MemoryAddressCapability;
 
     if (startParameters().startMode == AttachCore)
         return caps;
@@ -2014,10 +2012,6 @@ unsigned GdbEngine::debuggerCapabilities() const
     return caps | SnapshotCapability;
 }
 
-bool GdbEngine::canWatchWidgets() const
-{
-    return true;
-}
 
 void GdbEngine::continueInferiorInternal()
 {
@@ -2078,7 +2072,8 @@ void GdbEngine::handleExecuteStep(const GdbResponse &response)
     }
     QByteArray msg = response.data.findChild("msg").data();
     if (msg.startsWith("Cannot find bounds of current function")
-            || msg.contains("Error accessing memory address")) {
+            || msg.contains("Error accessing memory address")
+            || msg.startsWith("Cannot access memory at address")) {
         // On S40: "40^error,msg="Warning:\nCannot insert breakpoint -39.\n"
         //" Error accessing memory address 0x11673fc: Input/output error.\n"
         notifyInferiorRunFailed();
@@ -2498,6 +2493,18 @@ void GdbEngine::handleBreakInsert1(const GdbResponse &response)
 {
     BreakHandler *handler = breakHandler();
     BreakpointModelId id = response.cookie.value<BreakpointModelId>();
+    if (handler->state(id) == BreakpointRemoveRequested) {
+        if (response.resultClass == GdbResultDone) {
+            // This delete was defered. Act now.
+            const GdbMi mainbkpt = response.data.findChild("bkpt");
+            handler->notifyBreakpointRemoveProceeding(id);
+            QByteArray nr = mainbkpt.findChild("number").data();
+            postCommand("-break-delete " + nr,
+                NeedsStop | RebuildBreakpointModel);
+            handler->notifyBreakpointRemoveOk(id);
+            return;
+        }
+    }
     if (response.resultClass == GdbResultDone) {
         // The result is a list with the first entry marked "bkpt"
         // and "unmarked" rest. The "bkpt" one seems to always be
@@ -2538,7 +2545,8 @@ void GdbEngine::handleBreakInsert1(const GdbResponse &response)
             // Remove if we only support 7.4 or later.
             if (br.multiple && !m_hasBreakpointNotifications)
                 postCommand("info break " + QByteArray::number(br.id.majorPart()),
-                    NeedsStop, CB(handleBreakListMultiple), QVariant::fromValue(id));
+                    NeedsStop, CB(handleBreakListMultiple),
+                    QVariant::fromValue(id));
         }
     } else if (response.data.findChild("msg").data().contains("Unknown option")) {
         // Older version of gdb don't know the -a option to set tracepoints
@@ -2702,6 +2710,18 @@ void GdbEngine::handleBreakThreadSpec(const GdbResponse &response)
     insertBreakpoint(id);
 }
 
+void GdbEngine::handleBreakLineNumber(const GdbResponse &response)
+{
+    QTC_CHECK(response.resultClass == GdbResultDone)
+    const BreakpointModelId id = response.cookie.value<BreakpointModelId>();
+    BreakHandler *handler = breakHandler();
+    BreakpointResponse br = handler->response(id);
+    br.lineNumber = handler->lineNumber(id);
+    handler->setResponse(id, br);
+    handler->notifyBreakpointNeedsReinsertion(id);
+    insertBreakpoint(id);
+}
+
 void GdbEngine::handleBreakIgnore(const GdbResponse &response)
 {
     // gdb 6.8:
@@ -2846,6 +2866,7 @@ void GdbEngine::extractDataFromInfoBreak(const QString &output, BreakpointModelI
                         sub.id = BreakpointResponseId(majorPart, minorPart);
                         sub.type = response.type;
                         sub.address = address;
+                        sub.hitCount = hitCount;
                         handler->insertSubBreakpoint(id, sub);
                         location.clear();
                         function.clear();
@@ -2866,7 +2887,7 @@ void GdbEngine::extractDataFromInfoBreak(const QString &output, BreakpointModelI
             sub.updateLocation(location);
             sub.id = BreakpointResponseId(majorPart, minorPart);
             sub.type = response.type;
-            sub.address = address;
+            sub.hitCount = hitCount;
             handler->insertSubBreakpoint(id, sub);
             location.clear();
             function.clear();
@@ -3010,6 +3031,13 @@ void GdbEngine::changeBreakpoint(BreakpointModelId id)
             CB(handleBreakThreadSpec), vid);
         return;
     }
+    if (data.lineNumber != response.lineNumber) {
+        // The only way to change this seems to be to re-set the bp completely.
+        postCommand("-break-delete " + bpnr,
+            NeedsStop | RebuildBreakpointModel,
+            CB(handleBreakLineNumber), vid);
+        return;
+    }
     if (data.command != response.command) {
         QByteArray breakCommand = "-break-commands " + bpnr;
         foreach (const QString &command, data.command.split(QLatin1String("\\n"))) {
@@ -3055,15 +3083,21 @@ void GdbEngine::removeBreakpoint(BreakpointModelId id)
 {
     BreakHandler *handler = breakHandler();
     QTC_CHECK(handler->state(id) == BreakpointRemoveRequested);
-    handler->notifyBreakpointRemoveProceeding(id);
     BreakpointResponse br = handler->response(id);
-    showMessage(_("DELETING BP %1 IN %2").arg(br.id.toString())
-        .arg(handler->fileName(id)));
-    postCommand("-break-delete " + br.id.toByteArray(),
-        NeedsStop | RebuildBreakpointModel);
-    // Pretend it succeeds without waiting for response. Feels better.
-    // FIXME: Really?
-    handler->notifyBreakpointRemoveOk(id);
+    if (br.id.isValid()) {
+        // We already have a fully inserted breakpoint.
+        handler->notifyBreakpointRemoveProceeding(id);
+        showMessage(_("DELETING BP %1 IN %2").arg(br.id.toString())
+            .arg(handler->fileName(id)));
+        postCommand("-break-delete " + br.id.toByteArray(),
+            NeedsStop | RebuildBreakpointModel);
+        // Pretend it succeeds without waiting for response. Feels better.
+        // FIXME: Really?
+        handler->notifyBreakpointRemoveOk(id);
+    } else {
+        // Breakpoint was scheduled to be inserted, but we haven't had
+        // an answer so far. Postpone activity by doing nothing.
+    }
 }
 
 
@@ -3603,7 +3637,7 @@ void GdbEngine::reloadRegisters()
     if (m_gdbAdapter->isCodaAdapter()) {
         m_gdbAdapter->codaReloadRegisters();
     } else {
-        postCommand("-data-list-register-values x",
+        postCommand("-data-list-register-values r",
                     Discardable, CB(handleRegisterListValues));
     }
 }
@@ -3611,14 +3645,7 @@ void GdbEngine::reloadRegisters()
 void GdbEngine::setRegisterValue(int nr, const QString &value)
 {
     Register reg = registerHandler()->registers().at(nr);
-    //qDebug() << "NOT IMPLEMENTED: CHANGE REGISTER " << nr << reg.name << ":"
-    //    << value;
-    postCommand("-var-delete \"R@\"");
-    postCommand("-var-create \"R@\" * $" + reg.name);
-    postCommand("-var-assign \"R@\" " + value.toLatin1());
-    postCommand("-var-delete \"R@\"");
-    //postCommand("-data-list-register-values d",
-    //            Discardable, CB(handleRegisterListValues));
+    postCommand("set $" + reg.name  + "=" + value.toLatin1());
     reloadRegisters();
 }
 
@@ -3631,7 +3658,8 @@ void GdbEngine::handleRegisterListNames(const GdbResponse &response)
 
     Registers registers;
     foreach (const GdbMi &item, response.data.findChild("register-names").children())
-        registers.append(Register(item.data()));
+        if (!item.data().isEmpty())
+            registers.append(Register(item.data()));
 
     registerHandler()->setRegisters(registers);
 
@@ -3645,38 +3673,15 @@ void GdbEngine::handleRegisterListValues(const GdbResponse &response)
         return;
 
     Registers registers = registerHandler()->registers();
+    const int registerCount = registers.size();
 
     // 24^done,register-values=[{number="0",value="0xf423f"},...]
     const GdbMi values = response.data.findChild("register-values");
+    QTC_ASSERT(registerCount == values.children().size(), return);
     foreach (const GdbMi &item, values.children()) {
-        const int index = item.findChild("number").data().toInt();
-        if (index < registers.size()) {
-            Register &reg = registers[index];
-            GdbMi val = item.findChild("value");
-            QByteArray ba;
-            bool handled = false;
-            if (val.data().startsWith('{')) {
-                int pos1 = val.data().indexOf("v2_int32");
-                if (pos1 == -1)
-                    pos1 = val.data().indexOf("v4_int32");
-                if (pos1 != -1) {
-                    // FIXME: This block wastes cycles.
-                    pos1 = val.data().indexOf('{', pos1 + 1) + 1;
-                    int pos2 = val.data().indexOf('}', pos1);
-                    QByteArray ba2 = val.data().mid(pos1, pos2 - pos1);
-                    foreach (QByteArray ba3, ba2.split(',')) {
-                        ba3 = ba3.trimmed();
-                        QTC_ASSERT(ba3.size() >= 3, continue);
-                        QTC_ASSERT(ba3.size() <= 10, continue);
-                        ba.prepend(QByteArray(10 - ba3.size(), '0'));
-                        ba.prepend(ba3.mid(2));
-                    }
-                    ba.prepend("0x");
-                    handled = true;
-                }
-            }
-            reg.value = _(handled ? ba : val.data());
-        }
+        const int number = item.findChild("number").data().toInt();
+        if (number >= 0 && number < registerCount)
+            registers[number].value = item.findChild("value").data();
     }
     registerHandler()->setAndMarkRegisters(registers);
 }
@@ -4533,16 +4538,16 @@ bool checkGdbConfiguration(const DebuggerStartParameters &sp, ConfigurationCheck
     const QString binary = gdbBinary(sp);
     if (gdbBinary(sp).isEmpty()) {
         check->errorDetails.push_back(msgNoGdbBinaryForToolChain(sp.toolChainAbi));
-        check->settingsCategory = _(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
-        check->settingsPage = _(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        check->settingsCategory = _(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
+        check->settingsPage = _(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
         return false;
     }
     if (sp.toolChainAbi.os() == Abi::WindowsOS &&  !QFileInfo(binary).isAbsolute()) {
     // See initialization below, we need an absolute path to be able to locate Python on Windows.
         check->errorDetails.push_back(GdbEngine::tr("The gdb location must be given as an "
                 "absolute path in the debugger settings (%1).").arg(binary));
-        check->settingsCategory = _(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
-        check->settingsPage = _(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        check->settingsCategory = _(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
+        check->settingsPage = _(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
         return false;
     }
     return true;
@@ -4577,45 +4582,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
         gdbArgs << _("-n");
     gdbArgs += args;
 
-// android python it seems is not working 
     if (sp.toolChainAbi.osFlavor() == Abi::WindowsMSysFlavor && false) {
-        // Set python path. By convention, python is located below gdb executable.
-        // Extend the environment set on the process in startAdapter().
-        const QFileInfo fi(m_gdb);
-        QTC_ASSERT(fi.isAbsolute(), return false; )
-
-        const QDir dir = fi.absoluteDir();
-
-        QProcessEnvironment environment = gdbProc()->processEnvironment();
-        const QString pythonPathVariable = _("PYTHONPATH");
-        QString pythonPath;
-
-        const QString environmentPythonPath = environment.value(pythonPathVariable);
-        if (dir.exists(_("lib"))) {
-            // Needed for our gdb 7.2 packages.
-            pythonPath = QDir::toNativeSeparators(dir.absoluteFilePath(_("lib")));
-        } else {
-            pythonPath = environmentPythonPath;
-        }
-        if (pythonPath.isEmpty()) {
-            const QString nativeGdb = QDir::toNativeSeparators(m_gdb);
-            showMessage(_("GDB %1 CANNOT FIND THE PYTHON INSTALLATION.").arg(nativeGdb));
-            showStatusMessage(_("%1 cannot find python").arg(nativeGdb));
-            const QString msg = tr("The GDB installed at %1 cannot "
-               "find a valid python installation in its subdirectories.\n"
-               "You may set the environment variable PYTHONPATH to point to your installation.")
-                    .arg(nativeGdb);
-            handleAdapterStartFailed(msg, settingsIdHint);
-            return false;
-        }
-        showMessage(_("Python path: %1").arg(pythonPath), LogMisc);
-        // Apply to process.
-        if (pythonPath != environmentPythonPath) {
-            environment.insert(pythonPathVariable, pythonPath);
-            gdbProc()->setProcessEnvironment(environment);
-        }
-    }
-
     connect(gdbProc(), SIGNAL(error(QProcess::ProcessError)),
         SLOT(handleGdbError(QProcess::ProcessError)));
     connect(gdbProc(), SIGNAL(finished(int, QProcess::ExitStatus)),
@@ -4646,7 +4613,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
     //postCommand("define hookpost-stop\nprint 5\nend");
     //postCommand("define hook-call\nprint 6\nend");
     //postCommand("define hookpost-call\nprint 7\nend");
-    //postCommand("set print object on"); // works with CLI, but not MI
+    postCommand("set print object on");
     //postCommand("set step-mode on");  // we can't work with that yes
     //postCommand("set exec-done-display on");
     //postCommand("set print pretty on");
@@ -4697,7 +4664,7 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
         postCommand("set non-stop on");
     }
 
-    // Work around http://bugreports.qt.nokia.com/browse/QTCREATORBUG-2004
+    // Work around https://bugreports.qt.nokia.com/browse/QTCREATORBUG-2004
     postCommand("maintenance set internal-warning quit no", ConsoleCommand);
     postCommand("maintenance set internal-error quit no", ConsoleCommand);
 
@@ -4711,25 +4678,28 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
 
     loadPythonDumpers();
 
-    QString scriptFileName = sp.overrideStartScript;
-    if (scriptFileName.isEmpty())
-        scriptFileName = debuggerCore()->stringSetting(GdbScriptFile);
-    if (!scriptFileName.isEmpty()) {
-        if (QFileInfo(scriptFileName).isReadable()) {
-            postCommand("source " + scriptFileName.toLocal8Bit());
-            // Re-do the setup, as the "source" might have changed something.
-            postCommand("bbsetup", ConsoleCommand, CB(handleHasPython));
+    return true;
+}
+
+void GdbEngine::loadInitScript()
+{
+    const QString script = startParameters().overrideStartScript;
+    if (!script.isEmpty()) {
+        if (QFileInfo(script).isReadable()) {
+            postCommand("source " + script.toLocal8Bit());
         } else {
             showMessageBox(QMessageBox::Warning,
             tr("Cannot find debugger initialization script"),
             tr("The debugger settings point to a script file at '%1' "
                "which is not accessible. If a script file is not needed, "
                "consider clearing that entry to avoid this warning. "
-              ).arg(scriptFileName));
+              ).arg(script));
         }
+    } else {
+        const QString commands = debuggerCore()->stringSetting(GdbStartupCommands);
+        if (!commands.isEmpty())
+            postCommand(commands.toLocal8Bit());
     }
-
-    return true;
 }
 
 void GdbEngine::loadPythonDumpers()
@@ -4743,6 +4713,9 @@ void GdbEngine::loadPythonDumpers()
         ConsoleCommand|NonCriticalResponse);
     postCommand("python execfile('" + dumperSourcePath + "qttypes.py')",
         ConsoleCommand|NonCriticalResponse);
+
+    loadInitScript();
+
     postCommand("bbsetup",
         ConsoleCommand, CB(handleHasPython));
 }
@@ -4799,6 +4772,21 @@ void GdbEngine::handleGdbFinished(int code, QProcess::ExitStatus type)
     }
 }
 
+void GdbEngine::abortDebugger()
+{
+    if (targetState() == DebuggerFinished) {
+        // We already tried. Try harder.
+        showMessage(_("ABORTING DEBUGGER. SECOND TIME."));
+        QTC_ASSERT(m_gdbAdapter, return);
+        QTC_ASSERT(m_gdbAdapter->gdbProc(), return);
+        m_gdbAdapter->gdbProc()->kill();
+    } else {
+        // Be friendly the first time. This will change targetState().
+        showMessage(_("ABORTING DEBUGGER. FIRST TIME."));
+        quitDebugger();
+    }
+}
+
 void GdbEngine::handleAdapterStartFailed(const QString &msg,
     const QString &settingsIdHint)
 {
@@ -4826,7 +4814,34 @@ void GdbEngine::handleAdapterStarted()
 void GdbEngine::setupInferior()
 {
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
+    typedef GlobalDebuggerOptions::SourcePathMap SourcePathMap;
+    typedef SourcePathMap::const_iterator SourcePathMapIterator;
+
     showStatusMessage(tr("Setting up inferior..."));
+    const DebuggerStartParameters &sp = startParameters();
+
+    // Apply source path mappings from global options.
+    const SourcePathMap sourcePathMap =
+        DebuggerSourcePathMappingWidget::mergePlatformQtPath(sp.qtInstallPath,
+                debuggerCore()->globalDebuggerOptions()->sourcePathMap);
+    const SourcePathMapIterator cend = sourcePathMap.constEnd();
+    SourcePathMapIterator it = sourcePathMap.constBegin();
+    for ( ; it != cend; ++it)
+        postCommand("set substitute-path " + it.key().toLocal8Bit()
+            + " " + it.value().toLocal8Bit());
+
+    const QByteArray debugInfoLocation = sp.debugInfoLocation.toLocal8Bit();
+    if (!debugInfoLocation.isEmpty())
+        postCommand("set debug-file-directory " + debugInfoLocation);
+
+    // Spaces just will not work.
+    foreach (const QString &src, sp.debugSourceLocation)
+        postCommand("directory " + src.toLocal8Bit());
+
+    //QByteArray ba = QFileInfo(sp.dumperLibrary).path().toLocal8Bit();
+    //if (!ba.isEmpty())
+    //    postCommand("set solib-search-path " + ba);
+
     m_gdbAdapter->setupInferior();
 }
 
@@ -4840,31 +4855,12 @@ void GdbEngine::notifyInferiorSetupFailed()
 
 void GdbEngine::handleInferiorPrepared()
 {
-    typedef GlobalDebuggerOptions::SourcePathMap SourcePathMap;
-    typedef SourcePathMap::const_iterator SourcePathMapIterator;
+    const DebuggerStartParameters &sp = startParameters();
 
     QTC_ASSERT(state() == InferiorSetupRequested, qDebug() << state());
 
-    // Apply source path mappings from global options.
-    const SourcePathMap sourcePathMap =
-            DebuggerSourcePathMappingWidget::mergePlatformQtPath(
-                startParameters().qtInstallPath,
-                debuggerCore()->globalDebuggerOptions()->sourcePathMap);
-
-    if (!sourcePathMap.isEmpty()) {
-        const SourcePathMapIterator cend = sourcePathMap.constEnd();
-        for (SourcePathMapIterator it = sourcePathMap.constBegin(); it != cend; ++it) {
-            QByteArray command = "set substitute-path ";
-            command += it.key().toLocal8Bit();
-            command += ' ';
-            command += it.value().toLocal8Bit();
-            postCommand(command);
-        }
-    }
-
     // Initial attempt to set breakpoints.
-    if (startParameters().startMode != AttachCore
-            && !isSlaveEngine()) {
+    if (sp.startMode != AttachCore) {
         showStatusMessage(tr("Setting breakpoints..."));
         showMessage(tr("Setting breakpoints..."));
         attemptBreakpointSynchronization();
@@ -5097,7 +5093,6 @@ void GdbEngine::scheduleTestResponse(int testCase, const QByteArray &response)
         .arg(testCase).arg(token).arg(_(response)));
     m_scheduledTestResponses[token] = response;
 }
-
 
 //
 // Factory

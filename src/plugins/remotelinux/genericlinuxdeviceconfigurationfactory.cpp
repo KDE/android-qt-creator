@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,25 +26,21 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "genericlinuxdeviceconfigurationfactory.h"
 
 #include "genericlinuxdeviceconfigurationwizard.h"
-#include "maemoconfigtestdialog.h"
-#include "maemoremoteprocessesdialog.h"
+#include "linuxdevicetestdialog.h"
 #include "publickeydeploymentdialog.h"
+#include "remotelinuxprocessesdialog.h"
+#include "remotelinuxprocesslist.h"
+#include "remotelinux_constants.h"
 
 #include <utils/qtcassert.h>
 
 namespace RemoteLinux {
-namespace Internal {
-namespace {
-const char * const TestDeviceActionId = "TestDeviceAction";
-const char * const DeployKeyToDeviceActionId = "DeployKeyToDeviceAction";
-const char * const RemoteProcessesActionId = "RemoteProcessesAction";
-} // anonymous namespace;
 
 GenericLinuxDeviceConfigurationFactory::GenericLinuxDeviceConfigurationFactory(QObject *parent)
     : ILinuxDeviceConfigurationFactory(parent)
@@ -63,7 +59,7 @@ ILinuxDeviceConfigurationWizard *GenericLinuxDeviceConfigurationFactory::createW
 
 bool GenericLinuxDeviceConfigurationFactory::supportsOsType(const QString &osType) const
 {
-    return osType == LinuxDeviceConfiguration::GenericLinuxOsType;
+    return osType == QLatin1String(Constants::GenericLinuxOsType);
 }
 
 QString GenericLinuxDeviceConfigurationFactory::displayNameForOsType(const QString &osType) const
@@ -74,19 +70,21 @@ QString GenericLinuxDeviceConfigurationFactory::displayNameForOsType(const QStri
 
 QStringList GenericLinuxDeviceConfigurationFactory::supportedDeviceActionIds() const
 {
-    return QStringList() << QLatin1String(TestDeviceActionId)
-        << QLatin1String(DeployKeyToDeviceActionId) << QLatin1String(RemoteProcessesActionId);
+    return QStringList() << QLatin1String(Constants::GenericTestDeviceActionId)
+        << QLatin1String(Constants::GenericDeployKeyToDeviceActionId)
+        << QLatin1String(Constants::GenericRemoteProcessesActionId);
 }
 
 QString GenericLinuxDeviceConfigurationFactory::displayNameForActionId(const QString &actionId) const
 {
     Q_ASSERT(supportedDeviceActionIds().contains(actionId));
-    if (actionId == QLatin1String(TestDeviceActionId))
+
+    if (actionId == QLatin1String(Constants::GenericTestDeviceActionId))
         return tr("Test");
-    if (actionId == QLatin1String(RemoteProcessesActionId))
-        return tr("Remote Processes");
-    if (actionId == QLatin1String(DeployKeyToDeviceActionId))
-        return tr("Deploy Public Key");
+    if (actionId == QLatin1String(Constants::GenericRemoteProcessesActionId))
+        return tr("Remote Processes...");
+    if (actionId == QLatin1String(Constants::GenericDeployKeyToDeviceActionId))
+        return tr("Deploy Public Key...");
     return QString(); // Can't happen.
 }
 
@@ -94,14 +92,16 @@ QDialog *GenericLinuxDeviceConfigurationFactory::createDeviceAction(const QStrin
     const LinuxDeviceConfiguration::ConstPtr &deviceConfig, QWidget *parent) const
 {
     Q_ASSERT(supportedDeviceActionIds().contains(actionId));
-    if (actionId == QLatin1String(TestDeviceActionId))
-        return new MaemoConfigTestDialog(deviceConfig, parent);
-    if (actionId == QLatin1String(RemoteProcessesActionId))
-        return new MaemoRemoteProcessesDialog(deviceConfig, parent);
-    if (actionId == QLatin1String(DeployKeyToDeviceActionId))
-        return new PublicKeyDeploymentDialog(deviceConfig, parent);
+
+    if (actionId == QLatin1String(Constants::GenericTestDeviceActionId))
+        return new LinuxDeviceTestDialog(deviceConfig, new GenericLinuxDeviceTester, parent);
+    if (actionId == QLatin1String(Constants::GenericRemoteProcessesActionId)) {
+        return new RemoteLinuxProcessesDialog(new GenericRemoteLinuxProcessList(deviceConfig),
+            parent);
+    }
+    if (actionId == QLatin1String(Constants::GenericDeployKeyToDeviceActionId))
+        return PublicKeyDeploymentDialog::createDialog(deviceConfig, parent);
     return 0; // Can't happen.
 }
 
-} // namespace Internal
 } // namespace RemoteLinux

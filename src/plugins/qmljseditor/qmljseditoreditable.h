@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,10 +48,10 @@ public:
 
     bool duplicateSupported() const { return true; }
     Core::IEditor *duplicate(QWidget *parent);
-    QString id() const;
+    Core::Id id() const;
     bool isTemporary() const { return false; }
-    virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
-    virtual QString preferredModeType() const;
+    bool open(QString *errorString, const QString &fileName, const QString &realFileName);
+    QString preferredModeType() const;
     void setTextCodec(QTextCodec *codec, TextCodecReason = TextCodecOtherReason);
 };
 

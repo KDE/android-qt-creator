@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,8 +47,9 @@ QT_END_NAMESPACE
 
 namespace ExtensionSystem {
 class PluginCollection;
+
 namespace Internal {
-    class PluginManagerPrivate;
+class PluginManagerPrivate;
 }
 
 class IPlugin;
@@ -56,7 +57,6 @@ class PluginSpec;
 
 class EXTENSIONSYSTEM_EXPORT PluginManager : public QObject
 {
-    Q_DISABLE_COPY(PluginManager)
     Q_OBJECT
 
 public:
@@ -106,11 +106,13 @@ public:
     QHash<QString, PluginCollection *> pluginCollections() const;
     void setFileExtension(const QString &extension);
     QString fileExtension() const;
+    bool hasError() const;
 
     // Settings
     void setSettings(QSettings *settings);
     QSettings *settings() const;
-    void readSettings();
+    void setGlobalSettings(QSettings *settings);
+    QSettings *globalSettings() const;
     void writeSettings();
 
     // command line arguments

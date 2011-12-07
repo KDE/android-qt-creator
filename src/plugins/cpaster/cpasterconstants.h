@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,10 +37,12 @@
 
 namespace CodePaster {
 namespace Constants {
-const char * const CPASTER_SETTINGS_CATEGORY = "X.CPaster";
-const char * const CPASTER_SETTINGS_TR_CATEGORY = QT_TRANSLATE_NOOP("CodePaster", "Code Pasting");
-const char * const SETTINGS_CATEGORY_CPASTER_ICON = ":/core/images/category_cpaster.png";
-}
-}
+
+const char CPASTER_SETTINGS_CATEGORY[] = "X.CPaster";
+const char CPASTER_SETTINGS_TR_CATEGORY[] = QT_TRANSLATE_NOOP("CodePaster", "Code Pasting");
+const char SETTINGS_CATEGORY_CPASTER_ICON[] = ":/core/images/category_cpaster.png";
+
+} // namespace Constants
+} // namespace CodePaster
 
 #endif // CPASTERCONSTANTS_H

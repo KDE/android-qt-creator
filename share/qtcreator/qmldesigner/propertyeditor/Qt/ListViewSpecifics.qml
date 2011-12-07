@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,14 +56,18 @@ QWidget {
                     minimumValue: 0;
                     maximumValue: 1000;
                 }
-                IntEditor {
-                    backendValue: backendValues.keyNavigationWraps
-                    caption: qsTr("Navigation wraps")
-                    toolTip: qsTr("Determines whether the grid wraps key navigation.")
-                    baseStateFlag: isBaseState;
-                    step: 1;
-                    minimumValue: 0;
-                    maximumValue: 1000;
+                QWidget {
+                    layout: HorizontalLayout {
+                        Label {
+                            text: qsTr("Navigation wraps")
+                        }
+                        CheckBox {
+                            backendValue: backendValues.keyNavigationWraps
+                            toolTip: qsTr("Determines whether the grid wraps key navigation.")
+                            baseStateFlag: isBaseState;
+                            checkable: True
+                        }
+                    }
                 }
                 //                Qt namespace enums not supported by the rewriter
                 //                QWidget {

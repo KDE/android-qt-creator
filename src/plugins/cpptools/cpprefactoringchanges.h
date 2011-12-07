@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,15 +45,16 @@
 namespace CppTools {
 
 class CppRefactoringChanges;
+class CppRefactoringFile;
+class CppRefactoringChangesData;
+typedef QSharedPointer<CppRefactoringFile> CppRefactoringFilePtr;
+typedef QSharedPointer<const CppRefactoringFile> CppRefactoringFileConstPtr;
 
 class CPPTOOLS_EXPORT CppRefactoringFile: public TextEditor::RefactoringFile
 {
 public:
-    CppRefactoringFile();
-    CppRefactoringFile(const QString &fileName, CppRefactoringChanges *refactoringChanges);
-    CppRefactoringFile(TextEditor::BaseTextEditorWidget *editor, CPlusPlus::Document::Ptr document);
-
     CPlusPlus::Document::Ptr cppDocument() const;
+    void setCppDocument(CPlusPlus::Document::Ptr document);
 
     CPlusPlus::Scope *scopeAt(unsigned index) const;
 
@@ -76,10 +77,17 @@ public:
     using TextEditor::RefactoringFile::textOf;
     QString textOf(const CPlusPlus::AST *ast) const;
 
-private:
-    CppRefactoringChanges *refactoringChanges() const;
+protected:
+    CppRefactoringFile(const QString &fileName, const QSharedPointer<TextEditor::RefactoringChangesData> &data);
+    CppRefactoringFile(QTextDocument *document, const QString &fileName);
+    CppRefactoringFile(TextEditor::BaseTextEditorWidget *editor);
+
+    CppRefactoringChangesData *data() const;
+    virtual void fileChanged();
 
     mutable CPlusPlus::Document::Ptr m_cppDocument;
+
+    friend class CppRefactoringChanges; // for access to constructor
 };
 
 class CPPTOOLS_EXPORT CppRefactoringChanges: public TextEditor::RefactoringChanges
@@ -87,21 +95,16 @@ class CPPTOOLS_EXPORT CppRefactoringChanges: public TextEditor::RefactoringChang
 public:
     CppRefactoringChanges(const CPlusPlus::Snapshot &snapshot);
 
+    static CppRefactoringFilePtr file(TextEditor::BaseTextEditorWidget *editor,
+                                      const CPlusPlus::Document::Ptr &document);
+    CppRefactoringFilePtr file(const QString &fileName) const;
+    // safe to use from non-gui threads
+    CppRefactoringFileConstPtr fileNoEditor(const QString &fileName) const;
+
     const CPlusPlus::Snapshot &snapshot() const;
-    CppRefactoringFile file(const QString &fileName);
 
 private:
-    virtual void indentSelection(const QTextCursor &selection,
-                                 const QString &fileName,
-                                 const TextEditor::BaseTextEditorWidget *textEditor) const;
-    virtual void fileChanged(const QString &fileName);
-
-private:
-    CPlusPlus::Document::Ptr m_thisDocument;
-    CPlusPlus::Snapshot m_snapshot;
-    CPlusPlus::LookupContext m_context;
-    CPlusPlus::CppModelManagerInterface *m_modelManager;
-    CPlusPlus::CppModelManagerInterface::WorkingCopy m_workingCopy;
+    CppRefactoringChangesData *data() const;
 };
 
 } // namespace CppTools

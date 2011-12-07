@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,12 +37,13 @@
 #include "classviewsymbolinformation.h"
 
 #include <QtCore/QSharedPointer>
-#include <QtCore/QScopedPointer>
 
 QT_FORWARD_DECLARE_CLASS(QStandardItem)
 
 namespace ClassView {
 namespace Internal {
+
+class ParserTreeItemPrivate;
 
 /*!
    \class ParserTreeItem
@@ -184,7 +185,7 @@ protected:
 
 private:
     //! Private class data pointer
-    QScopedPointer<struct ParserTreeItemPrivate> d_ptr;
+    ParserTreeItemPrivate *d;
 };
 
 } // namespace Internal

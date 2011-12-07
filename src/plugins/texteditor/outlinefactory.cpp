@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -178,11 +178,6 @@ void OutlineWidgetStack::updateCurrentEditor(Core::IEditor *editor)
     }
 }
 
-OutlineFactory::OutlineFactory() :
-    Core::INavigationWidgetFactory()
-{
-}
-
 QList<IOutlineWidgetFactory*> OutlineFactory::widgetFactories() const
 {
     return m_factories;
@@ -203,9 +198,9 @@ int OutlineFactory::priority() const
     return 600;
 }
 
-QString OutlineFactory::id() const
+Core::Id OutlineFactory::id() const
 {
-    return QLatin1String("Outline");
+    return Core::Id("Outline");
 }
 
 QKeySequence OutlineFactory::activationSequence() const

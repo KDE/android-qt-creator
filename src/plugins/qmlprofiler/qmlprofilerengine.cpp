@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,15 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmlprofilerengine.h"
 
-#include "canvas/qdeclarativecanvas_p.h"
-#include "canvas/qdeclarativecontext2d_p.h"
-#include "canvas/qdeclarativetiledcanvas_p.h"
 #include "codaqmlprofilerrunner.h"
 #include "localqmlprofilerrunner.h"
 #include "remotelinuxqmlprofilerrunner.h"
@@ -51,6 +48,7 @@
 #include <projectexplorer/applicationrunconfiguration.h>
 #include <qt4projectmanager/qt-s60/s60devicedebugruncontrol.h>
 #include <qt4projectmanager/qt-s60/s60devicerunconfiguration.h>
+#include <qmljsdebugclient/qdeclarativeoutputparser.h>
 
 #include <QtGui/QMainWindow>
 #include <QtGui/QMessageBox>
@@ -85,6 +83,8 @@ public:
     bool m_fetchDataFromStart;
     bool m_delayedDelete;
     QTimer m_noDebugOutputTimer;
+    QmlJsDebugClient::QDeclarativeOutputParser m_outputParser;
+    QTimer m_runningTimer;
 };
 
 AbstractQmlProfilerRunner *
@@ -92,6 +92,8 @@ QmlProfilerEngine::QmlProfilerEnginePrivate::createRunner(ProjectExplorer::RunCo
                                                           QObject *parent)
 {
     AbstractQmlProfilerRunner *runner = 0;
+    if (!runConfiguration) // attaching
+        return 0;
     if (QmlProjectManager::QmlProjectRunConfiguration *rc1 =
             qobject_cast<QmlProjectManager::QmlProjectRunConfiguration *>(runConfiguration)) {
         // This is a "plain" .qmlproject.
@@ -129,8 +131,9 @@ QmlProfilerEngine::QmlProfilerEnginePrivate::createRunner(ProjectExplorer::RunCo
 //
 
 QmlProfilerEngine::QmlProfilerEngine(IAnalyzerTool *tool,
-         ProjectExplorer::RunConfiguration *runConfiguration)
-    : IAnalyzerEngine(tool, runConfiguration)
+                                     const Analyzer::AnalyzerStartParameters &sp,
+                                     ProjectExplorer::RunConfiguration *runConfiguration)
+    : IAnalyzerEngine(tool, sp, runConfiguration)
     , d(new QmlProfilerEnginePrivate(this))
 {
     d->m_running = false;
@@ -143,6 +146,17 @@ QmlProfilerEngine::QmlProfilerEngine(IAnalyzerTool *tool,
     d->m_noDebugOutputTimer.setSingleShot(true);
     d->m_noDebugOutputTimer.setInterval(4000);
     connect(&d->m_noDebugOutputTimer, SIGNAL(timeout()), this, SLOT(processIsRunning()));
+
+    d->m_outputParser.setNoOutputText(ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput());
+    connect(&d->m_outputParser, SIGNAL(waitingForConnectionMessage()),
+            this, SLOT(processIsRunning()));
+    connect(&d->m_outputParser, SIGNAL(noOutputMessage()),
+            this, SLOT(processIsRunning()));
+    connect(&d->m_outputParser, SIGNAL(errorMessage(QString)),
+            this, SLOT(wrongSetupMessageBox(QString)));
+
+    d->m_runningTimer.setInterval(100); // ten times per second
+    connect(&d->m_runningTimer, SIGNAL(timeout()), this, SIGNAL(timeUpdate()));
 }
 
 QmlProfilerEngine::~QmlProfilerEngine()
@@ -178,21 +192,26 @@ bool QmlProfilerEngine::start()
         }
     }
 
-    connect(d->m_runner, SIGNAL(stopped()), this, SLOT(stopped()));
-    connect(d->m_runner, SIGNAL(appendMessage(QString,Utils::OutputFormat)),
-            this, SLOT(logApplicationMessage(QString,Utils::OutputFormat)));
+    if (d->m_runner) {
+        connect(d->m_runner, SIGNAL(stopped()), this, SLOT(stopped()));
+        connect(d->m_runner, SIGNAL(appendMessage(QString,Utils::OutputFormat)),
+                this, SLOT(logApplicationMessage(QString,Utils::OutputFormat)));
+        d->m_runner->start();
+        d->m_noDebugOutputTimer.start();
+    } else {
+        emit processRunning(startParameters().connParams.port);
+    }
 
-    d->m_noDebugOutputTimer.start();
-    d->m_runner->start();
 
     d->m_running = true;
     d->m_delayedDelete = false;
+    d->m_runningTimer.start();
 
     if (d->m_fetchDataFromStart) {
         d->m_fetchingData = true;
     }
 
-    AnalyzerManager::handleToolStarted();
+    emit starting(this);
     return true;
 }
 
@@ -222,6 +241,7 @@ void QmlProfilerEngine::stopped()
     }
 
     d->m_running = false;
+    d->m_runningTimer.stop();
     AnalyzerManager::stopTool(); // FIXME: Needed?
     emit finished();
 }
@@ -245,73 +265,41 @@ void QmlProfilerEngine::finishProcess()
     // user stop?
     if (d->m_running) {
         d->m_running = false;
-        d->m_runner->stop();
+        d->m_runningTimer.stop();
+        if (d->m_runner)
+            d->m_runner->stop();
         emit finished();
-    }
-}
-
-void QmlProfilerEngine::filterApplicationMessage(const QString &msg)
-{
-    static const QString qddserver = QLatin1String("QDeclarativeDebugServer: ");
-    static const QString cannotRetrieveDebuggingOutput = ProjectExplorer::ApplicationLauncher::msgWinCannotRetrieveDebuggingOutput();
-
-    const int index = msg.indexOf(qddserver);
-    if (index != -1) {
-        // we're actually getting debug output
-        d->m_noDebugOutputTimer.stop();
-
-        QString status = msg;
-        status.remove(0, index + qddserver.length()); // chop of 'QDeclarativeDebugServer: '
-
-        static QString waitingForConnection = QLatin1String("Waiting for connection ");
-        static QString unableToListen = QLatin1String("Unable to listen ");
-        static QString debuggingNotEnabled = QLatin1String("Ignoring \"-qmljsdebugger=");
-        static QString debuggingNotEnabled2 = QLatin1String("Ignoring\"-qmljsdebugger="); // There is (was?) a bug in one of the error strings - safest to handle both
-        static QString connectionEstablished = QLatin1String("Connection established");
-
-        QString errorMessage;
-        if (status.startsWith(waitingForConnection)) {
-            processIsRunning();
-        } else if (status.startsWith(unableToListen)) {
-            //: Error message shown after 'Could not connect ... debugger:"
-            errorMessage = tr("The port seems to be in use.");
-        } else if (status.startsWith(debuggingNotEnabled) || status.startsWith(debuggingNotEnabled2)) {
-            //: Error message shown after 'Could not connect ... debugger:"
-            errorMessage = tr("The application is not set up for QML/JS debugging.");
-        } else if (status.startsWith(connectionEstablished)) {
-            // nothing to do
-        } else {
-            qWarning() << "Unknown QDeclarativeDebugServer status message: " << status;
-        }
-
-        if (!errorMessage.isEmpty()) {
-            Core::ICore * const core = Core::ICore::instance();
-            QMessageBox *infoBox = new QMessageBox(core->mainWindow());
-            infoBox->setIcon(QMessageBox::Critical);
-            infoBox->setWindowTitle(tr("Qt Creator"));
-            //: %1 is detailed error message
-            infoBox->setText(tr("Could not connect to the in-process QML debugger:\n%1")
-                             .arg(errorMessage));
-            infoBox->setStandardButtons(QMessageBox::Ok | QMessageBox::Help);
-            infoBox->setDefaultButton(QMessageBox::Ok);
-            infoBox->setModal(true);
-
-            connect(infoBox, SIGNAL(finished(int)),
-                    this, SLOT(wrongSetupMessageBoxFinished(int)));
-
-            infoBox->show();
-        }
-    } else if (msg.contains(cannotRetrieveDebuggingOutput)) {
-        // we won't get debugging output, so just try to connect ...
-        processIsRunning();
     }
 }
 
 void QmlProfilerEngine::logApplicationMessage(const QString &msg, Utils::OutputFormat format)
 {
     emit outputReceived(msg, format);
+    d->m_outputParser.processOutput(msg);
+}
 
-    filterApplicationMessage(msg);
+void QmlProfilerEngine::wrongSetupMessageBox(const QString &errorMessage)
+{
+    Core::ICore * const core = Core::ICore::instance();
+    QMessageBox *infoBox = new QMessageBox(core->mainWindow());
+    infoBox->setIcon(QMessageBox::Critical);
+    infoBox->setWindowTitle(tr("Qt Creator"));
+    //: %1 is detailed error message
+    infoBox->setText(tr("Could not connect to the in-process QML debugger:\n%1")
+                     .arg(errorMessage));
+    infoBox->setStandardButtons(QMessageBox::Ok | QMessageBox::Help);
+    infoBox->setDefaultButton(QMessageBox::Ok);
+    infoBox->setModal(true);
+
+    connect(infoBox, SIGNAL(finished(int)),
+            this, SLOT(wrongSetupMessageBoxFinished(int)));
+
+    infoBox->show();
+
+    d->m_running = false;
+    d->m_runningTimer.stop();
+    AnalyzerManager::stopTool();
+    emit finished();
 }
 
 void QmlProfilerEngine::wrongSetupMessageBoxFinished(int button)

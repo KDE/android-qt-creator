@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -87,18 +87,18 @@ void NodeAbstractProperty::reparentHere(const ModelNode &modelNode,  bool isNode
         throw InvalidReparentingException(__LINE__, __FUNCTION__, __FILE__);
 
     if (internalNode()->hasProperty(name()) && !internalNode()->property(name())->isNodeAbstractProperty())
-        model()->m_d->removeProperty(internalNode()->property(name()));
+        model()->d->removeProperty(internalNode()->property(name()));
 
     if (modelNode.hasParentProperty()) {
         Internal::InternalNodeAbstractProperty::Pointer oldParentProperty = modelNode.internalNode()->parentProperty();
 
-        model()->m_d->reparentNode(internalNode(), name(), modelNode.internalNode(), isNodeList);
+        model()->d->reparentNode(internalNode(), name(), modelNode.internalNode(), isNodeList);
 
         Q_ASSERT(!oldParentProperty.isNull());
 
 
     } else {
-        model()->m_d->reparentNode(internalNode(), name(), modelNode.internalNode(), isNodeList);
+        model()->d->reparentNode(internalNode(), name(), modelNode.internalNode(), isNodeList);
     }
 }
 

@@ -41,11 +41,11 @@ static const char *token_names[] = {
     ("]"), (")"), (";"), ("*"), ("*="), ("~"), ("~="),
 
     ("asm"), ("auto"), ("bool"), ("break"), ("case"), ("catch"), ("char"),
-    ("class"), ("const"), ("const_cast"), ("continue"), ("default"),
+    ("class"), ("const"), ("const_cast"), ("constexpr"), ("continue"), ("default"),
     ("delete"), ("do"), ("double"), ("dynamic_cast"), ("else"), ("enum"),
     ("explicit"), ("export"), ("extern"), ("false"), ("float"), ("for"),
     ("friend"), ("goto"), ("if"), ("inline"), ("int"), ("long"),
-    ("mutable"), ("namespace"), ("new"), ("operator"), ("private"),
+    ("mutable"), ("namespace"), ("new"), ("nullptr"), ("operator"), ("private"),
     ("protected"), ("public"), ("register"), ("reinterpret_cast"),
     ("return"), ("short"), ("signed"), ("sizeof"), ("static"),
     ("static_cast"), ("struct"), ("switch"), ("template"), ("this"),
@@ -66,7 +66,8 @@ static const char *token_names[] = {
     // Qt keywords
     ("SIGNAL"), ("SLOT"), ("Q_SIGNAL"), ("Q_SLOT"), ("signals"), ("slots"),
     ("Q_FOREACH"), ("Q_D"), ("Q_Q"),
-    ("Q_INVOKABLE"), ("Q_PROPERTY"), ("Q_INTERFACES"), ("Q_ENUMS"), ("Q_FLAGS"),
+    ("Q_INVOKABLE"), ("Q_PROPERTY"), ("T_Q_PRIVATE_PROPERTY"),
+    ("Q_INTERFACES"), ("Q_ENUMS"), ("Q_FLAGS"),
     ("Q_PRIVATE_SLOT"), ("Q_DECLARE_INTERFACE"), ("Q_OBJECT"), ("Q_GADGET"),
 
 };

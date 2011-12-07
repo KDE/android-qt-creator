@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -57,7 +57,7 @@ Qt4UiCodeModelSupport::~Qt4UiCodeModelSupport()
 
 QString Qt4UiCodeModelSupport::uicCommand() const
 {
-    Qt4BuildConfiguration *qt4bc = m_project->activeTarget()->activeBuildConfiguration();
+    Qt4BuildConfiguration *qt4bc = m_project->activeTarget()->activeQt4BuildConfiguration();
     if (!qt4bc->qtVersion())
         return QString();
     return qt4bc->qtVersion()->uicCommand();
@@ -65,6 +65,6 @@ QString Qt4UiCodeModelSupport::uicCommand() const
 
 QStringList Qt4UiCodeModelSupport::environment() const
 {
-    Qt4BuildConfiguration *qt4bc = m_project->activeTarget()->activeBuildConfiguration();
+    Qt4BuildConfiguration *qt4bc = m_project->activeTarget()->activeQt4BuildConfiguration();
     return qt4bc->environment().toStringList();
 }

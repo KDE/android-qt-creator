@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,6 @@
 #include "genericproject.h"
 
 #include <coreplugin/icore.h>
-#include <coreplugin/messagemanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/projectexplorerconstants.h>
 #include <projectexplorer/session.h>
@@ -52,7 +51,7 @@ QString Manager::mimeType() const
     return QLatin1String(Constants::GENERICMIMETYPE);
 }
 
-ProjectExplorer::Project *Manager::openProject(const QString &fileName)
+ProjectExplorer::Project *Manager::openProject(const QString &fileName, QString *errorString)
 {
     if (!QFileInfo(fileName).isFile())
         return 0;
@@ -60,9 +59,9 @@ ProjectExplorer::Project *Manager::openProject(const QString &fileName)
     ProjectExplorer::ProjectExplorerPlugin *projectExplorer = ProjectExplorer::ProjectExplorerPlugin::instance();
     foreach (ProjectExplorer::Project *pi, projectExplorer->session()->projects()) {
         if (fileName == pi->file()->fileName()) {
-            Core::MessageManager *messageManager = Core::ICore::instance()->messageManager();
-            messageManager->printToOutputPanePopup(tr("Failed opening project '%1': Project already open")
-                                                   .arg(QDir::toNativeSeparators(fileName)));
+            if (errorString)
+                *errorString = tr("Failed opening project '%1': Project already open")
+                    .arg(QDir::toNativeSeparators(fileName));
             return 0;
         }
     }
@@ -79,16 +78,4 @@ void Manager::registerProject(GenericProject *project)
 void Manager::unregisterProject(GenericProject *project)
 {
     m_projects.removeAll(project);
-}
-
-void Manager::notifyChanged(const QString &fileName)
-{
-    foreach (GenericProject *project, m_projects) {
-        if (fileName == project->filesFileName()) {
-            project->refresh(GenericProject::Files);
-        } else if (fileName == project->includesFileName()
-                   || fileName == project->configFileName()) {
-            project->refresh(GenericProject::Configuration);
-        }
-    }
 }

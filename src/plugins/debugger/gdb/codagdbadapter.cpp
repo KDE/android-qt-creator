@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,6 +36,8 @@
 #include "codadevice.h"
 #include "codautils.h"
 #include "gdbmi.h"
+#include "hostutils.h"
+
 #include "symbiandevicemanager.h"
 
 #include "registerhandler.h"
@@ -57,9 +59,7 @@
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
 
-#ifdef Q_OS_WIN
-#  include "dbgwinutils.h"
-#else
+#ifndef Q_OS_WIN
 #  include <sys/types.h>
 #  include <unistd.h>
 #endif
@@ -203,7 +203,7 @@ static QPair<QString, unsigned short> splitIpAddressSpec(const QString &addressS
     const QString address = addressSpec.left(pos);
     bool ok;
     const unsigned short port = addressSpec.mid(pos + 1).toUShort(&ok);
-    if(!ok) {
+    if (!ok) {
         qWarning("Invalid IP address specification: '%s', defaulting to port %hu.", qPrintable(addressSpec), defaultPort);
         return QPair<QString, unsigned short>(addressSpec, defaultPort);
     }
@@ -1349,7 +1349,7 @@ void CodaGdbAdapter::handleReadRegisters(const CodaCommandResult &result)
         logMessage("ERROR: " + result.errorString(), LogError);
         return;
     }
-    if (result.values.isEmpty() || result.values.front().type() != JsonValue::String) {
+    if (result.values.isEmpty() || result.values.front().type() != Json::JsonValue::String) {
         logMessage(_("Format error in register message: ") + result.toString(),
             LogError);
         return;

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,6 +40,7 @@
 
 #include <QtCore/QFutureInterface>
 #include <QtCore/QFutureWatcher>
+#include <QtCore/QPointer>
 #include <QtGui/QWidget>
 #include <QtGui/QCheckBox>
 #include <QtGui/QRadioButton>
@@ -63,8 +64,6 @@ public:
     QString id() const;
     QString displayName() const;
     bool isEnabled() const;
-    bool canCancel() const;
-    void cancel();
     Find::FindFlags supportedFindFlags() const;
 
     void findAll(const QString &txt, Find::FindFlags findFlags);
@@ -87,14 +86,19 @@ private slots:
 
     void addResults(int begin, int end);
     void finish();
+    void cancel();
     void onTaskStarted(const QString &type);
     void onAllTasksFinished(const QString &type);
 
 private:
+    QString label() const;
+    QString toolTip(Find::FindFlags findFlags) const;
+
     CppModelManager *m_manager;
     bool m_isRunning;
     bool m_enabled;
     QFutureWatcher<Find::SearchResultItem> m_watcher;
+    QPointer<Find::SearchResult> m_currentSearch;
     SearchSymbols::SymbolTypes m_symbolsToSearch;
     SearchSymbols m_search;
     SearchScope m_scope;

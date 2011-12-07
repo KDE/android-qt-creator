@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,20 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef LINUXDEVICECONFIGURATION_H
 #define LINUXDEVICECONFIGURATION_H
 
-#include "portlist.h"
 #include "remotelinux_export.h"
-
-#include <utils/ssh/sshconnection.h>
 
 #include <QtCore/QSharedPointer>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
+#include <QtCore/QVariantHash>
 #include <QtGui/QWizard>
 
 QT_BEGIN_NAMESPACE
@@ -47,38 +45,41 @@ class QDialog;
 class QSettings;
 QT_END_NAMESPACE
 
+namespace Utils {
+class SshConnectionParameters;
+}
 
 namespace RemoteLinux {
-namespace Internal {
 class LinuxDeviceConfigurations;
-}
+class PortList;
+
+namespace Internal {
+class LinuxDeviceConfigurationPrivate;
+} // namespace Internal
 
 class REMOTELINUX_EXPORT LinuxDeviceConfiguration
 {
-    friend class Internal::LinuxDeviceConfigurations;
+    friend class LinuxDeviceConfigurations;
 public:
     typedef QSharedPointer<LinuxDeviceConfiguration> Ptr;
     typedef QSharedPointer<const LinuxDeviceConfiguration> ConstPtr;
 
     typedef quint64 Id;
 
-    static const QString Maemo5OsType;
-    static const QString HarmattanOsType;
-    static const QString MeeGoOsType;
-    static const QString GenericLinuxOsType;
-
-    enum DeviceType { Physical, Emulator };
+    enum DeviceType { Hardware, Emulator };
+    enum Origin { ManuallyAdded, AutoDetected };
 
     ~LinuxDeviceConfiguration();
 
-    PortList freePorts() const { return m_freePorts; }
-    Utils::SshConnectionParameters sshParameters() const { return m_sshParameters; }
-    QString name() const { return m_name; }
-    void setName(const QString &name) { m_name = name; }
-    QString osType() const { return m_osType; }
-    DeviceType type() const { return m_type; }
-    Id internalId() const { return m_internalId; }
-    bool isDefault() const { return m_isDefault; }
+    PortList freePorts() const;
+    Utils::SshConnectionParameters sshParameters() const;
+    QString displayName() const;
+    QString osType() const;
+    DeviceType deviceType() const;
+    Id internalId() const;
+    bool isDefault() const;
+    bool isAutoDetected() const;
+    QVariantHash attributes() const;
 
     static QString defaultPrivateKeyFilePath();
     static QString defaultPublicKeyFilePath();
@@ -86,11 +87,12 @@ public:
     static const Id InvalidId;
 
     static Ptr create(const QString &name, const QString &osType, DeviceType deviceType,
-        const PortList &freePorts, const Utils::SshConnectionParameters &sshParams);
+        const PortList &freePorts, const Utils::SshConnectionParameters &sshParams,
+        const QVariantHash &attributes = QVariantHash(), Origin origin = ManuallyAdded);
 private:
     LinuxDeviceConfiguration(const QString &name, const QString &osType, DeviceType deviceType,
-        const PortList &freePorts, const Utils::SshConnectionParameters &sshParams);
-
+        const PortList &freePorts, const Utils::SshConnectionParameters &sshParams,
+        const QVariantHash &attributes, Origin origin);
     LinuxDeviceConfiguration(const QSettings &settings, Id &nextId);
     LinuxDeviceConfiguration(const ConstPtr &other);
 
@@ -100,15 +102,14 @@ private:
     static Ptr create(const QSettings &settings, Id &nextId);
     static Ptr create(const ConstPtr &other);
 
+    void setDisplayName(const QString &name);
+    void setInternalId(Id id);
+    void setDefault(bool isDefault);
+    void setSshParameters(const Utils::SshConnectionParameters &sshParameters);
+    void setFreePorts(const PortList &freePorts);
     void save(QSettings &settings) const;
 
-    Utils::SshConnectionParameters m_sshParameters;
-    QString m_name;
-    QString m_osType;
-    DeviceType m_type;
-    PortList m_freePorts;
-    bool m_isDefault;
-    Id m_internalId;
+    Internal::LinuxDeviceConfigurationPrivate *d;
 };
 
 
@@ -124,9 +125,9 @@ private:
 class REMOTELINUX_EXPORT ILinuxDeviceConfigurationWizard : public QWizard
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ILinuxDeviceConfigurationWizard)
+
 public:
-    virtual LinuxDeviceConfiguration::Ptr deviceConfiguration()=0;
+    virtual LinuxDeviceConfiguration::Ptr deviceConfiguration() = 0;
 
 protected:
     ILinuxDeviceConfigurationWizard(QWidget *parent) : QWizard(parent) {}
@@ -147,42 +148,48 @@ protected:
 class REMOTELINUX_EXPORT ILinuxDeviceConfigurationFactory : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ILinuxDeviceConfigurationFactory)
+
 public:
     /*!
       A short, one-line description of what kind of device this factory supports.
     */
-    virtual QString displayName() const=0;
+    virtual QString displayName() const = 0;
 
     /*!
       A wizard that can create the types of device configuration this factory supports.
     */
-    virtual ILinuxDeviceConfigurationWizard *createWizard(QWidget *parent = 0) const=0;
+    virtual ILinuxDeviceConfigurationWizard *createWizard(QWidget *parent = 0) const = 0;
 
 
     /*!
       Returns true iff this factory supports the given device type.
     */
-    virtual bool supportsOsType(const QString &osType) const=0;
+    virtual bool supportsOsType(const QString &osType) const = 0;
 
     /*!
       Returns a human-readable string for the given OS type, if this factory supports that type.
     */
-    virtual QString displayNameForOsType(const QString &osType) const=0;
+    virtual QString displayNameForOsType(const QString &osType) const = 0;
 
     /*!
       Returns a list of ids representing actions that can be run on device configurations
       that this factory supports. These actions will be available in the "Linux Devices"
       options page.
     */
-    virtual QStringList supportedDeviceActionIds() const=0;
+    virtual QStringList supportedDeviceActionIds() const = 0;
 
     /*!
       A human-readable string for the given id. Will be displayed on a button which, when clicked,
       will start the respective action.
     */
-    virtual QString displayNameForActionId(const QString &actionId) const=0;
+    virtual QString displayNameForActionId(const QString &actionId) const = 0;
 
+    /*!
+      True iff the user should be allowed to edit the device configurations created by this
+      factory. Returns true by default. Override if your factory creates fixed configurations
+      for which later editing makes no sense.
+    */
+    bool isUserEditable() const { return true; }
 
     /*!
       Produces a dialog implementing the respective action. The dialog is supposed to be
@@ -190,7 +197,7 @@ public:
       block the UI.
     */
     virtual QDialog *createDeviceAction(const QString &actionId,
-        const LinuxDeviceConfiguration::ConstPtr &deviceConfig, QWidget *parent = 0) const=0;
+        const LinuxDeviceConfiguration::ConstPtr &deviceConfig, QWidget *parent = 0) const = 0;
 
 protected:
     ILinuxDeviceConfigurationFactory(QObject *parent) : QObject(parent) {}

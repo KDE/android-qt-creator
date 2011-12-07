@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "indenter.h"
-#include "basetexteditor.h"
 #include "tabsettings.h"
+
+#include <QtGui/QTextDocument>
+#include <QtGui/QTextCursor>
 
 using namespace TextEditor;
 
@@ -50,64 +52,66 @@ bool Indenter::isElectricCharacter(const QChar &) const
 void Indenter::indentBlock(QTextDocument *doc,
                              const QTextBlock &block,
                              const QChar &typedChar,
-                             BaseTextEditorWidget *editor)
+                             const TextEditor::TabSettings &tabSettings)
 {
     Q_UNUSED(doc);
     Q_UNUSED(block);
     Q_UNUSED(typedChar);
-    Q_UNUSED(editor);
+    Q_UNUSED(tabSettings);
 }
 
 void Indenter::indent(QTextDocument *doc,
                       const QTextCursor &cursor,
                       const QChar &typedChar,
-                      BaseTextEditorWidget *editor)
+                      const TextEditor::TabSettings &tabSettings)
 {
     if (cursor.hasSelection()) {
         QTextBlock block = doc->findBlock(cursor.selectionStart());
         const QTextBlock end = doc->findBlock(cursor.selectionEnd()).next();
         do {
-            indentBlock(doc, block, typedChar, editor);
+            indentBlock(doc, block, typedChar, tabSettings);
             block = block.next();
         } while (block.isValid() && block != end);
     } else {
-        indentBlock(doc, cursor.block(), typedChar, editor);
+        indentBlock(doc, cursor.block(), typedChar, tabSettings);
     }
 }
 
-void Indenter::reindent(QTextDocument *doc, const QTextCursor &cursor, BaseTextEditorWidget *editor)
+void Indenter::reindent(QTextDocument *doc, const QTextCursor &cursor, const TextEditor::TabSettings &tabSettings)
 {
     if (cursor.hasSelection()) {
         QTextBlock block = doc->findBlock(cursor.selectionStart());
         const QTextBlock end = doc->findBlock(cursor.selectionEnd()).next();
 
-        const TabSettings &ts = editor->tabSettings();
-
         // skip empty blocks
         while (block.isValid() && block != end) {
             QString bt = block.text();
-            if (ts.firstNonSpace(bt) < bt.size())
+            if (tabSettings.firstNonSpace(bt) < bt.size())
                 break;
-            indentBlock(doc, block, QChar::Null, editor);
+            indentBlock(doc, block, QChar::Null, tabSettings);
             block = block.next();
         }
 
-        int previousIndentation = ts.indentationColumn(block.text());
-        indentBlock(doc, block, QChar::Null, editor);
-        int currentIndentation = ts.indentationColumn(block.text());
+        int previousIndentation = tabSettings.indentationColumn(block.text());
+        indentBlock(doc, block, QChar::Null, tabSettings);
+        int currentIndentation = tabSettings.indentationColumn(block.text());
         int delta = currentIndentation - previousIndentation;
 
         block = block.next();
         while (block.isValid() && block != end) {
-            ts.reindentLine(block, delta);
+            tabSettings.reindentLine(block, delta);
             block = block.next();
         }
     } else {
-        indentBlock(doc, cursor.block(), QChar::Null, editor);
+        indentBlock(doc, cursor.block(), QChar::Null, tabSettings);
     }
 }
 
-void Indenter::setCodeStylePreferences(IFallbackPreferences *)
+void Indenter::setCodeStylePreferences(ICodeStylePreferences *)
 {
 
+}
+
+void Indenter::invalidateCache(QTextDocument *)
+{
 }

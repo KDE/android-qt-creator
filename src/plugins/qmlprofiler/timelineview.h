@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 
 #include <QtDeclarative/QDeclarativeItem>
 #include <QtScript/QScriptValue>
+#include <qmljsdebugclient/qmlprofilereventlist.h>
 
 namespace QmlProfiler {
 namespace Internal {
@@ -42,19 +43,16 @@ namespace Internal {
 class TimelineView : public QDeclarativeItem
 {
     Q_OBJECT
-    Q_PROPERTY(QDeclarativeComponent *delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
     Q_PROPERTY(qint64 startTime READ startTime WRITE setStartTime NOTIFY startTimeChanged)
     Q_PROPERTY(qint64 endTime READ endTime WRITE setEndTime NOTIFY endTimeChanged)
-    Q_PROPERTY(qreal startX READ startX WRITE setStartX NOTIFY startXChanged)
-    Q_PROPERTY(qreal totalWidth READ totalWidth NOTIFY totalWidthChanged)
+    Q_PROPERTY(QObject* eventList READ eventList WRITE setEventList NOTIFY eventListChanged)
+    Q_PROPERTY(bool selectionLocked READ selectionLocked WRITE setSelectionLocked NOTIFY selectionLockedChanged)
+    Q_PROPERTY(int selectedItem READ selectedItem WRITE setSelectedItem NOTIFY selectedItemChanged)
+    Q_PROPERTY(int startDragArea READ startDragArea WRITE setStartDragArea NOTIFY startDragAreaChanged)
+    Q_PROPERTY(int endDragArea READ endDragArea WRITE setEndDragArea NOTIFY endDragAreaChanged)
 
 public:
     explicit TimelineView(QDeclarativeItem *parent = 0);
-
-    QDeclarativeComponent * delegate() const
-    {
-        return m_delegate;
-    }
 
     qint64 startTime() const
     {
@@ -66,35 +64,61 @@ public:
         return m_endTime;
     }
 
-    qreal startX() const
+    bool selectionLocked() const
     {
-        return m_startX;
+        return m_selectionLocked;
     }
 
-    qreal totalWidth() const
+    int selectedItem() const
     {
-        return m_totalWidth;
+        return m_selectedItem;
     }
+
+    int startDragArea() const
+    {
+        return m_startDragArea;
+    }
+
+    int endDragArea() const
+    {
+        return m_endDragArea;
+    }
+
+    QmlJsDebugClient::QmlProfilerEventList *eventList() const { return m_eventList; }
+    void setEventList(QObject *eventList)
+    {
+        m_eventList = qobject_cast<QmlJsDebugClient::QmlProfilerEventList *>(eventList);
+        emit eventListChanged(m_eventList);
+    }
+
+    Q_INVOKABLE qint64 getDuration(int index) const;
+    Q_INVOKABLE QString getFilename(int index) const;
+    Q_INVOKABLE int getLine(int index) const;
+    Q_INVOKABLE QString getDetails(int index) const;
+
+    Q_INVOKABLE void setRowExpanded(int rowIndex, bool expanded);
+
+    Q_INVOKABLE void selectNext();
+    Q_INVOKABLE void selectPrev();
+    Q_INVOKABLE int nextItemFromId(int eventId) const;
+    Q_INVOKABLE int prevItemFromId(int eventId) const;
+    Q_INVOKABLE void selectNextFromId(int eventId);
+    Q_INVOKABLE void selectPrevFromId(int eventId);
 
 signals:
-    void delegateChanged(QDeclarativeComponent * arg);
     void startTimeChanged(qint64 arg);
     void endTimeChanged(qint64 arg);
-    void startXChanged(qreal arg);
-    void totalWidthChanged(qreal arg);
+    void eventListChanged(QmlJsDebugClient::QmlProfilerEventList *list);
+    void selectionLockedChanged(bool locked);
+    void selectedItemChanged(int itemIndex);
+    void startDragAreaChanged(int startDragArea);
+    void endDragAreaChanged(int endDragArea);
+    void itemPressed(int pressedItem);
 
 public slots:
     void clearData();
-    void setRanges(const QScriptValue &value);
-    void updateTimeline(bool updateStartX = true);
+    void requestPaint();
 
-    void setDelegate(QDeclarativeComponent * arg)
-    {
-        if (m_delegate != arg) {
-            m_delegate = arg;
-            emit delegateChanged(arg);
-        }
-    }
 
     void setStartTime(qint64 arg)
     {
@@ -112,33 +136,81 @@ public slots:
         }
     }
 
-    void setStartX(qreal arg);
+    void setSelectionLocked(bool locked)
+    {
+        if (m_selectionLocked != locked) {
+            m_selectionLocked = locked;
+            update();
+            emit selectionLockedChanged(locked);
+        }
+    }
+
+    void setSelectedItem(int itemIndex)
+    {
+        if (m_selectedItem != itemIndex) {
+            m_selectedItem = itemIndex;
+            update();
+            emit selectedItemChanged(itemIndex);
+        }
+    }
+
+    void setStartDragArea(int startDragArea)
+    {
+        if (m_startDragArea != startDragArea) {
+            m_startDragArea = startDragArea;
+            emit startDragAreaChanged(startDragArea);
+        }
+    }
+
+    void setEndDragArea(int endDragArea)
+    {
+        if (m_endDragArea != endDragArea) {
+            m_endDragArea = endDragArea;
+            emit endDragAreaChanged(endDragArea);
+        }
+    }
 
 protected:
-    void componentComplete();
+    virtual void paint(QPainter *, const QStyleOptionGraphicsItem *, QWidget *);
+    virtual void componentComplete();
+    virtual void mousePressEvent(QGraphicsSceneMouseEvent *event);
+    virtual void mouseReleaseEvent(QGraphicsSceneMouseEvent *event);
+    virtual void mouseMoveEvent(QGraphicsSceneMouseEvent *event);
+    virtual void hoverMoveEvent(QGraphicsSceneHoverEvent *event);
 
 private:
-    QDeclarativeComponent * m_delegate;
-    QScriptValue m_ranges;
-    typedef QList<QScriptValue> ValueList;
-    QList<ValueList> m_rangeList;
-    QHash<int,QDeclarativeItem*> m_items;
+    QColor colorForItem(int itemIndex);
+    void drawItemsToPainter(QPainter *p, int fromIndex, int toIndex);
+    void drawSelectionBoxes(QPainter *p);
+
+    void manageClicked();
+    void manageHovered(int x, int y);
+
+private:
     qint64 m_startTime;
     qint64 m_endTime;
-    qreal m_startX;
-    int prevMin;
-    int prevMax;
-    QList<qreal> m_starts;
-    QList<qreal> m_ends;
+    qreal m_spacing;
+    qint64 m_lastStartTime;
+    qint64 m_lastEndTime;
 
-    struct PrevLimits {
-        PrevLimits(int _min, int _max) : min(_min), max(_max) {}
-        int min;
-        int max;
-    };
+    QmlJsDebugClient::QmlProfilerEventList *m_eventList;
 
-    QList<PrevLimits> m_prevLimits;
-    qreal m_totalWidth;
+    QList<int> m_rowLastX;
+    QList<int> m_rowStarts;
+    QList<int> m_rowWidths;
+    QList<bool> m_rowsExpanded;
+
+    struct {
+        qint64 startTime;
+        qint64 endTime;
+        int row;
+        int eventIndex;
+    } m_currentSelection;
+
+    int m_selectedItem;
+    bool m_selectionLocked;
+    int m_startDragArea;
+    int m_endDragArea;
 };
 
 } // namespace Internal

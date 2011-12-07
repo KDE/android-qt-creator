@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -83,6 +83,8 @@ public:
     qint32 parentId() const;
     qint32 instanceId() const;
 
+    QPixmap renderPixmap() const;
+
 protected:
     void setProperty(const QString &name, const QVariant &value);
     InformationName setInformation(InformationName name,
@@ -108,7 +110,7 @@ protected:
     InformationName setInformationHasBindingForProperty(const QString &property, bool hasProperty);
 
     void setParentId(qint32 instanceId);
-    void setRenderImage(const QImage &image);
+    void setRenderPixmap(const QImage &image);
     NodeInstance(ProxyNodeInstanceData *d);
 
 private:

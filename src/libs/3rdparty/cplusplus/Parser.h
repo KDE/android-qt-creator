@@ -153,6 +153,7 @@ public:
     bool parseThisExpression(ExpressionAST *&node);
     bool parseBoolLiteral(ExpressionAST *&node);
     bool parseNumericLiteral(ExpressionAST *&node);
+    bool parsePointerLiteral(ExpressionAST *&node);
     bool parseStringLiteral(ExpressionAST *&node);
     bool parseSwitchStatement(StatementAST *&node);
     bool parseTemplateArgument(ExpressionAST *&node);
@@ -315,6 +316,7 @@ private:
     bool _inObjCImplementationContext: 1;
     bool _inExpressionStatement: 1;
     int _expressionDepth;
+    int _statementDepth;
 
     MemoryPool _expressionStatementTempPool;
     std::map<unsigned, TemplateArgumentListEntry> _templateArgumentList;

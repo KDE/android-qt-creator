@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,20 +26,18 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef QT4TARGET_H
 #define QT4TARGET_H
 
-#include "qt4buildconfiguration.h"
 #include "qt4targetsetupwidget.h"
 
-#include <qtsupport/qtversionmanager.h>
+#include <qtsupport/baseqtversion.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/task.h>
-#include <projectexplorer/projectnodes.h>
 
 namespace Utils {
 class DetailsWidget;
@@ -55,37 +53,46 @@ class QComboBox;
 class QPushButton;
 QT_END_NAMESPACE
 
+namespace ProjectExplorer {
+class Node;
+}
+
 namespace Qt4ProjectManager {
 class Qt4Project;
 class Qt4BaseTargetFactory;
 class Qt4ProFileNode;
+class Qt4BuildConfiguration;
 
 class QT4PROJECTMANAGER_EXPORT Qt4BaseTarget : public ProjectExplorer::Target
 {
     Q_OBJECT
 public:
-    explicit Qt4BaseTarget(Qt4Project *parent, const QString &id);
+    Qt4BaseTarget(Qt4Project *parent, const QString &id);
     virtual ~Qt4BaseTarget();
 
     ProjectExplorer::BuildConfigWidget *createConfigWidget();
 
-    Qt4BuildConfiguration *activeBuildConfiguration() const;
+    Qt4BuildConfiguration *activeQt4BuildConfiguration() const;
     Qt4ProjectManager::Qt4Project *qt4Project() const;
 
     // This is the same for almost all Qt4Targets
     // so for now offer a convience function
     Qt4BuildConfiguration *addQt4BuildConfiguration(QString defaultDisplayName,
-                                                            QString displayName,
-                                                            QtSupport::BaseQtVersion *qtversion,
-                                                            QtSupport::BaseQtVersion::QmakeBuildConfigs qmakeBuildConfiguration,
-                                                            QString additionalArguments,
-                                                            QString directory);
+                                                    QString displayName,
+                                                    QtSupport::BaseQtVersion *qtversion,
+                                                    QtSupport::BaseQtVersion::QmakeBuildConfigs qmakeBuildConfiguration,
+                                                    QString additionalArguments,
+                                                    QString directory,
+                                                    bool importing);
 
     virtual void createApplicationProFiles() = 0;
 
     virtual QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n) = 0;
 
     QList<ProjectExplorer::ToolChain *> possibleToolChains(ProjectExplorer::BuildConfiguration *bc) const;
+    ProjectExplorer::ToolChain *preferredToolChain(ProjectExplorer::BuildConfiguration *) const;
+
+    virtual Utils::FileName mkspec(const Qt4BuildConfiguration *bc) const;
 
 signals:
     void buildDirectoryInitialized();
@@ -112,6 +119,7 @@ public:
                                 const QString &proFilePath,
                                 const QList<BuildConfigurationInfo> &info,
                                 const QtSupport::QtVersionNumber &minimumQtVersion,
+                                const QtSupport::QtVersionNumber &maximumQtVersion,
                                 bool importEnabled,
                                 const QList<BuildConfigurationInfo> &importInfos,
                                 ShadowBuildOption shadowBuild);
@@ -154,6 +162,7 @@ private:
     Qt4BaseTargetFactory *m_factory;
     QString m_proFilePath;
     QtSupport::QtVersionNumber m_minimumQtVersion;
+    QtSupport::QtVersionNumber m_maximumQtVersion;
     Utils::DetailsWidget *m_detailsWidget;
     QGridLayout *m_importLayout;
     QGridLayout *m_newBuildsLayout;

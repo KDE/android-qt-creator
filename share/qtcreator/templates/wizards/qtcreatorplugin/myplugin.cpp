@@ -33,9 +33,9 @@ bool %PluginName%Plugin::initialize(const QStringList &arguments, QString *error
     // Register objects in the plugin manager's object pool
     // Load settings
     // Add actions to menus
-    // connect to other plugins' signals
-    // "In the initialize method, a plugin can be sure that the plugins it
-    //  depends on have initialized their members."
+    // Connect to other plugins' signals
+    // In the initialize method, a plugin can be sure that the plugins it
+    // depends on have initialized their members.
 
     Q_UNUSED(arguments)
     Q_UNUSED(errorString)
@@ -58,8 +58,8 @@ bool %PluginName%Plugin::initialize(const QStringList &arguments, QString *error
 void %PluginName%Plugin::extensionsInitialized()
 {
     // Retrieve objects from the plugin manager's object pool
-    // "In the extensionsInitialized method, a plugin can be sure that all
-    //  plugins that depend on it are completely initialized."
+    // In the extensionsInitialized method, a plugin can be sure that all
+    // plugins that depend on it are completely initialized.
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag %PluginName%Plugin::aboutToShutdown()

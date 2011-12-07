@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -122,6 +122,10 @@ static QString typeToString(BreakpointType type)
             return BreakHandler::tr("Watchpoint at Address");
         case WatchpointAtExpression:
             return BreakHandler::tr("Watchpoint at Expression");
+        case BreakpointOnQmlSignalHandler:
+            return BreakHandler::tr("Breakpoint on QML Signal Handler");
+        case BreakpointAtJavaScriptThrow:
+            return BreakHandler::tr("Breakpoint at JavaScript throw");
         case UnknownType:
             break;
     }
@@ -392,7 +396,11 @@ void BreakHandler::loadBreakpoints()
         v = map.value(_("message"));
         if (v.isValid())
             data.message = v.toString();
-        appendBreakpoint(data);
+        if (data.isValid()) {
+            appendBreakpoint(data);
+        } else {
+            qWarning("Not restoring invalid breakpoint: %s", qPrintable(data.toString()));
+        }
     }
     //qDebug() << "LOADED BREAKPOINTS" << this << list.size();
 }
@@ -840,7 +848,8 @@ static bool isAllowedTransition(BreakpointState from, BreakpointState to)
     case BreakpointInsertProceeding:
         return to == BreakpointInserted
             || to == BreakpointDead
-            || to == BreakpointChangeRequested;
+            || to == BreakpointChangeRequested
+            || to == BreakpointRemoveRequested;
     case BreakpointChangeRequested:
         return to == BreakpointChangeProceeding;
     case BreakpointChangeProceeding:
@@ -1008,7 +1017,10 @@ void BreakHandler::removeBreakpoint(BreakpointModelId id)
     Iterator it = m_storage.find(id);
     BREAK_ASSERT(it != m_storage.end(), return);
     switch (it->state) {
+    case BreakpointRemoveRequested:
+        break;
     case BreakpointInserted:
+    case BreakpointInsertProceeding:
         setState(id, BreakpointRemoveRequested);
         scheduleSynchronization();
         break;
@@ -1030,7 +1042,11 @@ static int currentId = 0;
 
 void BreakHandler::appendBreakpoint(const BreakpointParameters &data)
 {
-    QTC_ASSERT(data.type != UnknownType, return);
+    if (!data.isValid()) {
+        qWarning("Not adding invalid breakpoint: %s", qPrintable(data.toString()));
+        return;
+    }
+
     BreakpointModelId id(++currentId);
     const int row = m_storage.size();
     beginInsertRows(QModelIndex(), row, row);
@@ -1214,7 +1230,6 @@ void BreakHandler::gotoLocation(BreakpointModelId id) const
 void BreakHandler::updateLineNumberFromMarker(BreakpointModelId id, int lineNumber)
 {
     Iterator it = m_storage.find(id);
-    it->response.pending = false;
     BREAK_ASSERT(it != m_storage.end(), return);
     // Ignore updates to the "real" line number while the debugger is
     // running, as this can be triggered by moving the breakpoint to
@@ -1225,10 +1240,6 @@ void BreakHandler::updateLineNumberFromMarker(BreakpointModelId id, int lineNumb
         it->data.lineNumber += lineNumber - it->response.lineNumber;
     else
         it->data.lineNumber = lineNumber;
-    if (it->response.lineNumber != lineNumber) {
-        // FIXME: Should we tell gdb about the change?
-        it->response.lineNumber = lineNumber;
-    }
     it->updateMarker(id);
     emit layoutChanged();
 }
@@ -1255,6 +1266,19 @@ BreakpointModelIds BreakHandler::engineBreakpointIds(DebuggerEngine *engine) con
         if (it->engine == engine)
             ids.append(it.key());
     return ids;
+}
+
+QStringList BreakHandler::engineBreakpointPaths(DebuggerEngine *engine) const
+{
+    QSet<QString> set;
+    ConstIterator it = m_storage.constBegin(), et = m_storage.constEnd();
+    for ( ; it != et; ++it) {
+        if (it->engine == engine) {
+            if (it->data.type == BreakpointByFileAndLine)
+                set.insert(QFileInfo(it->data.fileName).dir().path());
+        }
+    }
+    return set.toList();
 }
 
 void BreakHandler::cleanupBreakpoint(BreakpointModelId id)
@@ -1301,16 +1325,16 @@ void BreakHandler::setResponse(BreakpointModelId id,
 void BreakHandler::changeBreakpointData(BreakpointModelId id,
     const BreakpointParameters &data, BreakpointParts parts)
 {
+    Q_UNUSED(parts);
     Iterator it = m_storage.find(id);
     BREAK_ASSERT(it != m_storage.end(), return);
     if (data == it->data)
         return;
     it->data = data;
-    if (parts == NoParts) {
-        it->destroyMarker();
-        it->updateMarker(id);
-        layoutChanged();
-    } else if (it->needsChange() && it->engine && it->state != BreakpointNew) {
+    it->destroyMarker();
+    it->updateMarker(id);
+    layoutChanged();
+    if (it->needsChange() && it->engine && it->state != BreakpointNew) {
         setState(id, BreakpointChangeRequested);
         scheduleSynchronization();
     }
@@ -1382,6 +1406,8 @@ bool BreakHandler::BreakpointItem::needsChange() const
         return true;
     if (data.command != response.command)
         return true;
+    if (data.lineNumber != response.lineNumber)
+        return true;
     return false;
 }
 
@@ -1427,7 +1453,7 @@ QString BreakHandler::BreakpointItem::toToolTip() const
     QString rc;
     QTextStream str(&rc);
     str << "<html><body><table>"
-        //<< "<tr><td>" << tr("Id:") << "</td><td>" << m_id << "</td></tr>"
+        //<< "<tr><td>" << tr("ID:") << "</td><td>" << m_id << "</td></tr>"
         << "<tr><td>" << tr("State:")
         << "</td><td>" << (data.enabled ? tr("Enabled") : tr("Disabled"));
     if (response.pending)

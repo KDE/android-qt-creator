@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,13 +40,11 @@ namespace Utils {
 
 class  QTCREATOR_UTILS_EXPORT LineColumnLabel : public QLabel
 {
-    Q_DISABLE_COPY(LineColumnLabel)
     Q_OBJECT
     Q_PROPERTY(QString maxText READ maxText WRITE setMaxText DESIGNABLE true)
 
 public:
     explicit LineColumnLabel(QWidget *parent = 0);
-    virtual ~LineColumnLabel();
 
     void setText(const QString &text, const QString &maxText);
     QSize sizeHint() const;

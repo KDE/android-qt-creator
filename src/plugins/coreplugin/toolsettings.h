@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef TOOLSETTINGS_H
 #define TOOLSETTINGS_H
-
-#include "dialogs/externaltoolconfig.h"
 
 #include "ioptionspage.h"
 
@@ -42,12 +40,14 @@
 namespace Core {
 namespace Internal {
 
+class ExternalToolConfig;
+
 class ToolSettings : public IOptionsPage
 {
     Q_OBJECT
 public:
     explicit ToolSettings(QObject *parent = 0);
-    ~ToolSettings() {}
+    ~ToolSettings();
 
     QString id() const;
     QString displayName() const;

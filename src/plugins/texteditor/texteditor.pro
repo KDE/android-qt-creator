@@ -2,6 +2,7 @@ TEMPLATE = lib
 TARGET = TextEditor
 DEFINES += TEXTEDITOR_LIBRARY
 QT += xml network
+greaterThan(QT_MAJOR_VERSION, 4): QT += printsupport
 include(../../qtcreatorplugin.pri)
 include(texteditor_dependencies.pri)
 INCLUDEPATH += generichighlighter \
@@ -101,12 +102,15 @@ SOURCES += texteditorplugin.cpp \
     codeassist/basicproposalitemlistmodel.cpp \
     codeassist/iassistproposalmodel.cpp \
     tabsettingswidget.cpp \
-    codestylepreferencesmanager.cpp \
-    ifallbackpreferences.cpp \
-    tabpreferences.cpp \
+    simplecodestylepreferences.cpp \
+    simplecodestylepreferenceswidget.cpp \
     icodestylepreferencesfactory.cpp \
-    tabpreferenceswidget.cpp \
-    fallbackselectorwidget.cpp
+    semantichighlighter.cpp \
+    codestyleselectorwidget.cpp \
+    typingsettings.cpp \
+    icodestylepreferences.cpp \
+    codestylepool.cpp \
+    codestyleeditor.cpp
 
 HEADERS += texteditorplugin.h \
     textfilewizard.h \
@@ -212,12 +216,15 @@ HEADERS += texteditorplugin.h \
     codeassist/basicproposalitemlistmodel.h \
     codeassist/iassistproposalmodel.h \
     tabsettingswidget.h \
-    codestylepreferencesmanager.h \
-    ifallbackpreferences.h \
-    tabpreferences.h \
+    simplecodestylepreferences.h \
+    simplecodestylepreferenceswidget.h \
     icodestylepreferencesfactory.h \
-    tabpreferenceswidget.h \
-    fallbackselectorwidget.h
+    semantichighlighter.h \
+    codestyleselectorwidget.h \
+    typingsettings.h \
+    icodestylepreferences.h \
+    codestylepool.h \
+    codestyleeditor.h
 
 FORMS += \
     displaysettingspage.ui \
@@ -229,6 +236,16 @@ FORMS += \
     behaviorsettingswidget.ui \
     behaviorsettingspage.ui \
     tabsettingswidget.ui \
-    tabpreferenceswidget.ui
+    codestyleselectorwidget.ui
 RESOURCES += texteditor.qrc
 OTHER_FILES += TextEditor.mimetypes.xml
+
+
+
+
+
+
+
+
+
+

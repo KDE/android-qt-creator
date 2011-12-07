@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -76,6 +76,7 @@ public:
     void initProfiling();
     void profilingReport(const char *what, const PluginSpec *spec = 0);
     void setSettings(QSettings *settings);
+    void setGlobalSettings(QSettings *settings);
     void readSettings();
     void writeSettings();
     void disablePluginIndirectly(PluginSpec *spec);
@@ -86,6 +87,7 @@ public:
     QStringList pluginPaths;
     QString extension;
     QList<QObject *> allObjects; // ### make this a QList<QPointer<QObject> > > ?
+    QStringList defaultDisabledPlugins;
     QStringList disabledPlugins;
     QStringList forceEnabledPlugins;
     QList<PluginSpec *> asynchronousPlugins; // plugins that have requested async shutdown
@@ -96,6 +98,7 @@ public:
     int m_profileElapsedMS;
     unsigned m_profilingVerbosity;
     QSettings *settings;
+    QSettings *globalSettings;
 
     // Look in argument descriptions of the specs for the option.
     PluginSpec *pluginForOption(const QString &option, bool *requiresArgument) const;

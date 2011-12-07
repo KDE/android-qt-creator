@@ -22,7 +22,7 @@ defineReplace(qdoc) {
 QHP_FILE = $$OUT_PWD/doc/html/qtcreator.qhp
 QCH_FILE = $$IDE_DOC_PATH/qtcreator.qch
 
-HELP_DEP_FILES = $$PWD/qtcreator.qdoc \
+HELP_DEP_FILES = $$PWD/src/qtcreator.qdoc \
                  $$PWD/addressbook-sdk.qdoc \
                  $$PWD/config/compat.qdocconf \
                  $$PWD/config/macros.qdocconf \
@@ -51,6 +51,11 @@ DEV_HELP_DEP_FILES = \
     $$PWD/api/external-tool-spec.qdoc \
     $$PWD/api/qtcreator-dev.qdoc \
     $$PWD/api/qtcreator-dev-wizards.qdoc \
+    $$PWD/api/creating-plugins.qdoc \
+    $$PWD/api/getting-and-building.qdoc \
+    $$PWD/api/first-plugin.qdoc \
+    $$PWD/api/plugin-specifications.qdoc \
+    $$PWD/api/plugin-lifecycle.qdoc \
     $$PWD/api/qtcreator-dev.qdocconf
 
 dev_html_docs.commands = $$qdoc($$OUT_PWD/doc/html-dev) $$PWD/api/qtcreator-dev.qdocconf
@@ -65,13 +70,16 @@ dev_qch_docs.depends += dev_html_docs
 unix:!macx {
     inst_qch_docs.files = $$QCH_FILE
     inst_qch_docs.path = /share/doc/qtcreator
-    inst_qch_docs.CONFIG += no_check_exist
+    inst_qch_docs.CONFIG += no_check_exist no_default_install
     INSTALLS += inst_qch_docs
 
     inst_dev_qch_docs.files = $$DEV_QCH_FILE
     inst_dev_qch_docs.path = /share/doc/qtcreator
-    inst_dev_qch_docs.CONFIG += no_check_exist
+    inst_dev_qch_docs.CONFIG += no_check_exist no_default_install
     INSTALLS += inst_dev_qch_docs
+
+    install_docs.depends = install_inst_qch_docs install_inst_dev_qch_docs
+    QMAKE_EXTRA_TARGETS += install_docs
 }
 
 docs_online.depends = html_docs_online dev_html_docs_online
@@ -82,6 +90,5 @@ OTHER_FILES = $$HELP_DEP_FILES $$DEV_HELP_DEP_FILES
 
 fixnavi.commands = \
     cd $$targetPath($$PWD) && \
-    perl fixnavi.pl -Dqcmanual -Dqtquick \
-        qtcreator.qdoc maemodev.qdoc symbiandev.qdoc qtcreator-faq.qdoc linuxdev.qdoc meegodev.qdoc
+    perl fixnavi.pl -Dqcmanual -Dqtquick src
 QMAKE_EXTRA_TARGETS += fixnavi

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -50,6 +50,7 @@
 #include <utils/pathchooser.h>
 #include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/toolchain.h>
+#include <projectexplorer/projectexplorerconstants.h>
 #include <qtconcurrent/runextensions.h>
 
 #include <QtCore/QDir>
@@ -84,17 +85,18 @@ QString QtOptionsPage::displayName() const
 
 QString QtOptionsPage::category() const
 {
-    return QLatin1String(Constants::QT_SETTINGS_CATEGORY);
+    return QLatin1String(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
 }
 
 QString QtOptionsPage::displayCategory() const
 {
-    return QCoreApplication::translate("Qt4ProjectManager", Constants::QT_SETTINGS_TR_CATEGORY);
+    return QCoreApplication::translate("ProjectExplorer",
+                                       ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_TR_CATEGORY);
 }
 
 QIcon QtOptionsPage::categoryIcon() const
 {
-    return QIcon(QLatin1String(Constants::QT_SETTINGS_CATEGORY_ICON));
+    return QIcon(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON);
 }
 
 QWidget *QtOptionsPage::createPage(QWidget *parent)
@@ -151,6 +153,8 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent, QList<BaseQtVersion *>
     m_ui->versionInfoWidget->setState(Utils::DetailsWidget::NoSummary);
 
     m_ui->debuggingHelperWidget->setWidget(debuggingHelperDetailsWidget);
+    connect(m_ui->debuggingHelperWidget, SIGNAL(expanded(bool)),
+            this, SLOT(handleDebuggingHelperExpanded(bool)));
 
     // setup parent items for auto-detected and manual versions
     m_ui->qtdirList->header()->setResizeMode(QHeaderView::ResizeToContents);
@@ -170,7 +174,7 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent, QList<BaseQtVersion *>
         BaseQtVersion *version = m_versions.at(i);
         QTreeWidgetItem *item = new QTreeWidgetItem(version->isAutodetected()? autoItem : manualItem);
         item->setText(0, version->displayName());
-        item->setText(1, QDir::toNativeSeparators(version->qmakeCommand()));
+        item->setText(1, version->qmakeCommand().toUserOutput());
         item->setData(0, VersionIdRole, version->uniqueId());
         item->setData(0, ToolChainIdRole, defaultToolChainId(version));
         const ValidityInfo info = validInformation(version);
@@ -212,8 +216,8 @@ QtOptionsPageWidget::QtOptionsPageWidget(QWidget *parent, QList<BaseQtVersion *>
     userChangedCurrentVersion();
     updateCleanUpButton();
 
-    connect(QtVersionManager::instance(), SIGNAL(dumpUpdatedFor(QString)),
-            this, SLOT(qtVersionsDumpUpdated(QString)));
+    connect(QtVersionManager::instance(), SIGNAL(dumpUpdatedFor(Utils::FileName)),
+            this, SLOT(qtVersionsDumpUpdated(Utils::FileName)));
 
     connect(ProjectExplorer::ToolChainManager::instance(), SIGNAL(toolChainsChanged()),
             this, SLOT(toolChainsUpdated()));
@@ -355,7 +359,7 @@ void QtOptionsPageWidget::selectedToolChainChanged(int comboIndex)
     item->setData(0, ToolChainIdRole, toolChainId);
 }
 
-void QtOptionsPageWidget::qtVersionsDumpUpdated(const QString &qmakeCommand)
+void QtOptionsPageWidget::qtVersionsDumpUpdated(const Utils::FileName &qmakeCommand)
 {
     foreach (BaseQtVersion *version, m_versions) {
         if (version->qmakeCommand() == qmakeCommand)
@@ -367,6 +371,11 @@ void QtOptionsPageWidget::qtVersionsDumpUpdated(const QString &qmakeCommand)
         updateDescriptionLabel();
         updateDebuggingHelperUi();
     }
+}
+
+void QtOptionsPageWidget::handleDebuggingHelperExpanded(bool expanded)
+{
+    m_ui->versionInfoWidget->setVisible(!expanded);
 }
 
 QtOptionsPageWidget::ValidityInfo QtOptionsPageWidget::validInformation(const BaseQtVersion *version)
@@ -457,6 +466,9 @@ void QtOptionsPageWidget::buildDebuggingHelper(DebuggingHelperBuildTask::Tools t
     const int index = currentIndex();
     if (index < 0)
         return;
+
+    // remove tools that cannot be build
+    tools &= DebuggingHelperBuildTask::availableTools(currentVersion());
 
     QTreeWidgetItem *item = treeItemForIndex(index);
     QTC_ASSERT(item, return);
@@ -580,9 +592,11 @@ static QString filterForQmakeFileDialog()
 
 void QtOptionsPageWidget::addQtDir()
 {
-    QString qtVersion = QFileDialog::getOpenFileName(this,
-                                                     tr("Select a qmake executable"),
-                                                     QString(), filterForQmakeFileDialog());
+    Utils::FileName qtVersion = Utils::FileName::fromString(
+                QFileDialog::getOpenFileName(this,
+                                             tr("Select a qmake executable"),
+                                             QString(),
+                                             filterForQmakeFileDialog()));
     if (qtVersion.isNull())
         return;
     if (QtVersionManager::instance()->qtVersionForQMakeBinary(qtVersion)) {
@@ -595,7 +609,7 @@ void QtOptionsPageWidget::addQtDir()
 
         QTreeWidgetItem *item = new QTreeWidgetItem(m_ui->qtdirList->topLevelItem(1));
         item->setText(0, version->displayName());
-        item->setText(1, QDir::toNativeSeparators(version->qmakeCommand()));
+        item->setText(1, version->qmakeCommand().toUserOutput());
         item->setData(0, VersionIdRole, version->uniqueId());
         item->setData(0, ToolChainIdRole, defaultToolChainId(version));
         item->setIcon(0, version->isValid()? m_validVersionIcon : m_invalidVersionIcon);
@@ -624,10 +638,11 @@ void QtOptionsPageWidget::removeQtDir()
 void QtOptionsPageWidget::editPath()
 {
     BaseQtVersion *current = currentVersion();
-    QString dir = QFileInfo(currentVersion()->qmakeCommand()).absolutePath();
-    QString qtVersion = QFileDialog::getOpenFileName(this,
-                                                     tr("Select a qmake executable"),
-                                                     dir, filterForQmakeFileDialog());
+    QString dir = currentVersion()->qmakeCommand().toFileInfo().absolutePath();
+    Utils::FileName qtVersion = Utils::FileName::fromString(
+                QFileDialog::getOpenFileName(this,
+                                             tr("Select a qmake executable"),
+                                             dir, filterForQmakeFileDialog()));
     if (qtVersion.isNull())
         return;
     BaseQtVersion *version = QtVersionFactory::createQtVersionFromQMakePath(qtVersion);
@@ -653,7 +668,7 @@ void QtOptionsPageWidget::editPath()
     userChangedCurrentVersion();
     QTreeWidgetItem *item = m_ui->qtdirList->currentItem();
     item->setText(0, version->displayName());
-    item->setText(1, QDir::toNativeSeparators(version->qmakeCommand()));
+    item->setText(1, version->qmakeCommand().toUserOutput());
     item->setData(0, VersionIdRole, version->uniqueId());
     item->setData(0, ToolChainIdRole, defaultToolChainId(version));
     item->setIcon(0, version->isValid()? m_validVersionIcon : m_invalidVersionIcon);
@@ -922,7 +937,7 @@ void QtOptionsPageWidget::updateWidgets()
     BaseQtVersion *version = currentVersion();
     if (version) {
         m_versionUi->nameEdit->setText(version->displayName());
-        m_versionUi->qmakePath->setText(QDir::toNativeSeparators(version->qmakeCommand()));
+        m_versionUi->qmakePath->setText(version->qmakeCommand().toUserOutput());
         m_configurationWidget = version->createConfigurationWidget();
         if (m_configurationWidget) {
             m_versionUi->formLayout->addRow(m_configurationWidget);

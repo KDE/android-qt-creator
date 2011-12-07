@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -131,10 +131,9 @@ private slots:
     void disableLivePreview();
     void crumblePathElementClicked(const QVariant &data);
 
-    void currentDebugProjectRemoved();
     void updatePendingPreviewDocuments(QmlJS::Document::Ptr doc);
     void showDebuggerTooltip(const QPoint &mousePos, TextEditor::ITextEditor *editor, int cursorPos);
-    void debugQueryUpdated(QDeclarativeDebugQuery::State);
+    void debugQueryUpdated(QmlJsDebugClient::QDeclarativeDebugQuery::State);
 
 private:
     bool addQuotesForData(const QVariant &value) const;
@@ -166,9 +165,6 @@ private:
     // Qml/JS integration
     QHash<QString, QmlJSLiveTextPreview *> m_textPreviews;
     QmlJS::Snapshot m_loadedSnapshot; //the snapshot loaded by the viewer
-
-    // project is needed for matching filenames, esp. with shadow builds.
-    ProjectExplorer::Project *m_debugProject;
 
     QStringList m_pendingPreviewDocumentNames;
     Utils::FileInProjectFinder m_projectFinder;

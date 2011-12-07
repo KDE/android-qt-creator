@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -67,7 +67,6 @@ private:
 
 class QTCREATOR_UTILS_EXPORT FancyLineEdit : public QLineEdit
 {
-    Q_DISABLE_COPY(FancyLineEdit)
     Q_OBJECT
     Q_ENUMS(Side)
 
@@ -114,7 +113,7 @@ private:
     void updateButtonPositions();
     friend class Utils::FancyLineEditPrivate;
 
-    FancyLineEditPrivate *m_d;
+    FancyLineEditPrivate *d;
     QString m_oldText;
 };
 

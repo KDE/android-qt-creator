@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -45,28 +45,29 @@ class FindPlugin;
 
 namespace Internal {
 
-class FindToolWindow : public QDialog
+class FindToolWindow : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit FindToolWindow(FindPlugin *plugin);
+    explicit FindToolWindow(FindPlugin *plugin, QWidget *parent = 0);
     ~FindToolWindow();
+    static FindToolWindow *instance();
 
     void setFindFilters(const QList<IFindFilter *> &filters);
 
     void setFindText(const QString &text);
-    void open(IFindFilter *filter);
+    void setCurrentFilter(IFindFilter *filter);
     void readSettings();
     void writeSettings();
 
 protected:
+    bool event(QEvent *event);
     bool eventFilter(QObject *obj, QEvent *event);
 
 private slots:
     void search();
     void replace();
-    void cancelSearch();
     void setCurrentFilter(int index);
     void updateButtonStates();
 

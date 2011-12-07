@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,17 +26,44 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "submitfilemodel.h"
 #include "vcsbaseconstants.h"
 
+#include <coreplugin/fileiconprovider.h>
+
 #include <QtGui/QStandardItem>
+#include <QtCore/QFileInfo>
 #include <QtCore/QDebug>
 
 namespace VCSBase {
+
+// --------------------------------------------------------------------------
+// Helpers:
+// --------------------------------------------------------------------------
+
+static QList<QStandardItem *> createFileRow(const QString &fileName, const QString &status,
+                                            bool checked, const QVariant &v)
+{
+    QStandardItem *statusItem = new QStandardItem(status);
+    statusItem->setCheckable(true);
+    statusItem->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+    statusItem->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable|Qt::ItemIsEnabled);
+    statusItem->setData(v);
+    QStandardItem *fileItem = new QStandardItem(fileName);
+    fileItem->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+    fileItem->setIcon(Core::FileIconProvider::instance()->icon(QFileInfo(fileName)));
+    QList<QStandardItem *> row;
+    row << statusItem << fileItem;
+    return row;
+}
+
+// --------------------------------------------------------------------------
+// SubmitFileModel:
+// --------------------------------------------------------------------------
 
 /*!
     \class VCSBase::SubmitFileModel
@@ -54,24 +81,10 @@ SubmitFileModel::SubmitFileModel(QObject *parent) :
     setHorizontalHeaderLabels(headerLabels);
 }
 
-QList<QStandardItem *> SubmitFileModel::createFileRow(const QString &fileName, const QString &status, bool checked)
+QList<QStandardItem *> SubmitFileModel::addFile(const QString &fileName, const QString &status, bool checked,
+                                                const QVariant &v)
 {
-    if (VCSBase::Constants::Internal::debug)
-        qDebug() << Q_FUNC_INFO << fileName << status << checked;
-    QStandardItem *statusItem = new QStandardItem(status);
-    statusItem->setCheckable(true);
-    statusItem->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
-    statusItem->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable|Qt::ItemIsEnabled);
-    QStandardItem *fileItem = new QStandardItem(fileName);
-    fileItem->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
-    QList<QStandardItem *> row;
-    row << statusItem << fileItem;
-    return row;
-}
-
-QList<QStandardItem *> SubmitFileModel::addFile(const QString &fileName, const QString &status, bool checked)
-{
-    const QList<QStandardItem *> row = createFileRow(fileName, status, checked);
+    const QList<QStandardItem *> row = createFileRow(fileName, status, checked, v);
     appendRow(row);
     return row;
 }
@@ -83,6 +96,43 @@ QList<QStandardItem *> SubmitFileModel::rowAt(int row) const
     for (int c = 0; c < colCount; c++)
         rc.push_back(item(row, c));
     return rc;
+}
+
+QString SubmitFileModel::state(int row) const
+{
+    if (row < 0 || row >= rowCount())
+        return QString();
+    return item(row)->text();
+}
+
+QString SubmitFileModel::file(int row) const
+{
+    if (row < 0 || row >= rowCount())
+        return QString();
+    return item(row, 1)->text();
+}
+
+bool SubmitFileModel::checked(int row) const
+{
+    if (row < 0 || row >= rowCount())
+        return false;
+    return (item(row)->checkState() == Qt::Checked);
+}
+
+QVariant SubmitFileModel::data(int row) const
+{
+    if (row < 0 || row >= rowCount())
+        return false;
+    return item(row)->data();
+}
+
+bool SubmitFileModel::hasCheckedFiles() const
+{
+    for (int i = 0; i < rowCount(); ++i) {
+        if (checked(i))
+            return true;
+    }
+    return false;
 }
 
 QList<QStandardItem *> SubmitFileModel::findRow(const QString &text, int column) const
@@ -108,4 +158,5 @@ unsigned SubmitFileModel::filter(const QStringList &filter, int column)
         qDebug() << Q_FUNC_INFO << " deleted " << rc << " items using " << filter << " , remaining " << rowCount();
     return rc;
 }
+
 }

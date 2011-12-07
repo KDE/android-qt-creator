@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -144,6 +144,7 @@ class DEBUGGER_EXPORT DebuggerEngine : public QObject
 
 public:
     explicit DebuggerEngine(const DebuggerStartParameters &sp,
+        DebuggerLanguages languages,
         DebuggerEngine *parentEngine = 0);
     virtual ~DebuggerEngine();
 
@@ -193,8 +194,6 @@ public:
     virtual void setRegisterValue(int regnr, const QString &value);
     virtual void addOptionPages(QList<Core::IOptionsPage*> *) const;
     virtual unsigned debuggerCapabilities() const;
-    virtual bool canWatchWidgets() const;
-    virtual bool acceptsWatchesWhileRunning() const;
 
     virtual bool isSynchronous() const;
     virtual QByteArray qtNamespace() const;
@@ -265,14 +264,17 @@ public:
         int timeout = -1) const;
     Q_SLOT void showStatusMessage(const QString &msg, int timeout = -1) const;
 
-    void resetLocation();
+    virtual void resetLocation();
     virtual void gotoLocation(const Internal::Location &location);
     virtual void quitDebugger(); // called by DebuggerRunControl
+    virtual void abortDebugger(); // called by DebuggerPlugin
 
     virtual void updateViews();
     bool isSlaveEngine() const;
     bool isMasterEngine() const;
     DebuggerEngine *masterEngine() const;
+
+    DebuggerLanguages languages() const;
 
     virtual bool setupQmlStep(bool /*on*/) { return false; }
     virtual void readyToExecuteQmlStep() {}
@@ -341,7 +343,7 @@ protected:
     virtual void detachDebugger();
     virtual void exitDebugger();
     virtual void executeStep();
-    virtual void executeStepOut() ;
+    virtual void executeStepOut();
     virtual void executeNext();
     virtual void executeStepI();
     virtual void executeNextI();
@@ -391,6 +393,8 @@ protected:
 
     virtual void slaveEngineStateChanged(DebuggerEngine *engine,
         DebuggerState state);
+
+    virtual void handleAutoTests();
 
 private:
     // Wrapper engine needs access to state of its subengines.

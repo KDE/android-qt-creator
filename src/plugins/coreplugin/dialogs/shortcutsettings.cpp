@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,7 +38,7 @@
 #include "coreconstants.h"
 #include "filemanager.h"
 #include "icore.h"
-#include "uniqueidmanager.h"
+#include "id.h"
 
 #include <utils/treewidgetcolumnstretcher.h>
 
@@ -218,8 +218,6 @@ void ShortcutSettings::removeTargetIdentifier()
 
 void ShortcutSettings::importAction()
 {
-    UniqueIDManager *uidm = UniqueIDManager::instance();
-
     QString fileName = QFileDialog::getOpenFileName(0, tr("Import Keyboard Mapping Scheme"),
         ICore::instance()->resourcePath() + "/schemes/",
         tr("Keyboard Mapping Scheme (*.kms)"));
@@ -229,7 +227,7 @@ void ShortcutSettings::importAction()
         QMap<QString, QKeySequence> mapping = cf.importCommands();
 
         foreach (ShortcutItem *item, m_scitems) {
-            QString sid = uidm->stringForUniqueIdentifier(item->m_cmd->id());
+            QString sid = item->m_cmd->id().toString();
             if (mapping.contains(sid)) {
                 item->m_key = mapping.value(sid);
                 item->m_item->setText(2, item->m_key);
@@ -268,7 +266,7 @@ void ShortcutSettings::defaultAction()
 
 void ShortcutSettings::exportAction()
 {
-    QString fileName = ICore::instance()->fileManager()->getSaveFileNameWithExtension(
+    QString fileName = FileManager::instance()->getSaveFileNameWithExtension(
         tr("Export Keyboard Mapping Scheme"),
         ICore::instance()->resourcePath() + "/schemes/",
         tr("Keyboard Mapping Scheme (*.kms)"));
@@ -294,8 +292,6 @@ void ShortcutSettings::initialize()
         return;
     clear();
     Core::Internal::ActionManagerPrivate *am = ActionManagerPrivate::instance();
-    UniqueIDManager *uidm = UniqueIDManager::instance();
-
     QMap<QString, QTreeWidgetItem *> sections;
 
     foreach (Command *c, am->commands()) {
@@ -311,10 +307,10 @@ void ShortcutSettings::initialize()
         s->m_cmd = c;
         s->m_item = item;
 
-        const QString identifier = uidm->stringForUniqueIdentifier(c->id());
+        const QString identifier = c->id().toString();
         int pos = identifier.indexOf(QLatin1Char('.'));
         const QString section = identifier.left(pos);
-        const QString subId = identifier.mid(pos+1);
+        const QString subId = identifier.mid(pos + 1);
         if (!sections.contains(section)) {
             QTreeWidgetItem *categoryItem = new QTreeWidgetItem(commandList(), QStringList() << section);
             QFont f = categoryItem->font(0);

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,8 +44,8 @@
 using namespace Bazaar::Internal;
 using namespace Bazaar;
 
-OptionsPageWidget::OptionsPageWidget(QWidget *parent) :
-    QWidget(parent)
+OptionsPageWidget::OptionsPageWidget(QWidget *parent)
+    : QWidget(parent)
 {
     m_ui.setupUi(this);
     m_ui.commandChooser->setExpectedKind(Utils::PathChooser::ExistingCommand);
@@ -54,24 +54,24 @@ OptionsPageWidget::OptionsPageWidget(QWidget *parent) :
 
 BazaarSettings OptionsPageWidget::settings() const
 {
-    BazaarSettings rc;
-    rc.setBinary(m_ui.commandChooser->path());
-    rc.setUserName(m_ui.defaultUsernameLineEdit->text().trimmed());
-    rc.setEmail(m_ui.defaultEmailLineEdit->text().trimmed());
-    rc.setLogCount(m_ui.logEntriesCount->value());
-    rc.setTimeoutSeconds(m_ui.timeout->value());
-    rc.setPrompt(m_ui.promptOnSubmitCheckBox->isChecked());
-    return rc;
+    BazaarSettings s = BazaarPlugin::instance()->settings();
+    s.setValue(BazaarSettings::binaryPathKey, m_ui.commandChooser->path());
+    s.setValue(BazaarSettings::userNameKey, m_ui.defaultUsernameLineEdit->text().trimmed());
+    s.setValue(BazaarSettings::userEmailKey, m_ui.defaultEmailLineEdit->text().trimmed());
+    s.setValue(BazaarSettings::logCountKey, m_ui.logEntriesCount->value());
+    s.setValue(BazaarSettings::timeoutKey, m_ui.timeout->value());
+    s.setValue(BazaarSettings::promptOnSubmitKey, m_ui.promptOnSubmitCheckBox->isChecked());
+    return s;
 }
 
 void OptionsPageWidget::setSettings(const BazaarSettings &s)
 {
-    m_ui.commandChooser->setPath(s.binary());
-    m_ui.defaultUsernameLineEdit->setText(s.userName());
-    m_ui.defaultEmailLineEdit->setText(s.email());
-    m_ui.logEntriesCount->setValue(s.logCount());
-    m_ui.timeout->setValue(s.timeoutSeconds());
-    m_ui.promptOnSubmitCheckBox->setChecked(s.prompt());
+    m_ui.commandChooser->setPath(s.stringValue(BazaarSettings::binaryPathKey));
+    m_ui.defaultUsernameLineEdit->setText(s.stringValue(BazaarSettings::userNameKey));
+    m_ui.defaultEmailLineEdit->setText(s.stringValue(BazaarSettings::userEmailKey));
+    m_ui.logEntriesCount->setValue(s.intValue(BazaarSettings::logCountKey));
+    m_ui.timeout->setValue(s.intValue(BazaarSettings::timeoutKey));
+    m_ui.promptOnSubmitCheckBox->setChecked(s.boolValue(BazaarSettings::promptOnSubmitKey));
 }
 
 QString OptionsPageWidget::searchKeywords() const

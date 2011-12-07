@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,7 +62,7 @@ class DebuggingHelper;
 class QtOptionsPageWidget : public QWidget
 {
     Q_OBJECT
-    Q_DISABLE_COPY(QtOptionsPageWidget)
+
 public:
     QtOptionsPageWidget(QWidget *parent, QList<BaseQtVersion *> versions);
     ~QtOptionsPageWidget();
@@ -117,7 +117,8 @@ private slots:
     void toolChainsUpdated();
     void selectedToolChainChanged(int index);
 
-    void qtVersionsDumpUpdated(const QString &qmakeCommand);
+    void qtVersionsDumpUpdated(const Utils::FileName &qmakeCommand);
+    void handleDebuggingHelperExpanded(bool expanded);
 
 private:
     struct ValidityInfo {

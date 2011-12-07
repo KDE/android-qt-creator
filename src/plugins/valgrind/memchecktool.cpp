@@ -6,7 +6,7 @@
 **
 ** Author: Nicolas Arnaud-Cormos, KDAB (nicolas.arnaud-cormos@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,7 +63,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <texteditor/basetexteditor.h>
 
@@ -285,7 +285,7 @@ void MemcheckTool::maybeActiveRunConfigurationChanged()
     m_errorProxyModel->setFilterExternalIssues(memcheckSettings->filterExternalIssues());
 }
 
-QByteArray MemcheckTool::id() const
+Core::Id MemcheckTool::id() const
 {
     return "Memcheck";
 }

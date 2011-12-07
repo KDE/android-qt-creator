@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -116,7 +116,7 @@ void QmlContextPane::apply(TextEditor::BaseTextEditorEditable *editor, Document:
     m_blockWriting = true;
 
     LookupContext::Ptr lookupContext = LookupContext::create(doc, snapshot, QList<Node*>());
-    const Interpreter::ObjectValue *scopeObject = doc->bind()->findQmlObject(node);
+    const ObjectValue *scopeObject = doc->bind()->findQmlObject(node);
 
     QStringList prototypes;
     while (scopeObject) {
@@ -213,7 +213,7 @@ bool QmlContextPane::isAvailable(TextEditor::BaseTextEditorEditable *, Document:
         return false;
 
         LookupContext::Ptr lookupContext = LookupContext::create(doc, snapshot, QList<Node*>());
-        const Interpreter::ObjectValue *scopeObject = doc->bind()->findQmlObject(node);
+        const ObjectValue *scopeObject = doc->bind()->findQmlObject(node);
 
         QStringList prototypes;
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DocSettingsPage</class>
- <widget class="QWidget" name="DocSettingsPage">
+ <class>Help::Internal::DocSettingsPage</class>
+ <widget class="QWidget" name="Help::Internal::DocSettingsPage">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -28,6 +28,9 @@
         <property name="uniformItemSizes">
          <bool>true</bool>
         </property>
+        <property name="sortingEnabled">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>
@@ -41,7 +44,7 @@
         <item>
          <widget class="QPushButton" name="addButton">
           <property name="text">
-           <string>Add</string>
+           <string>Add...</string>
           </property>
          </widget>
         </item>

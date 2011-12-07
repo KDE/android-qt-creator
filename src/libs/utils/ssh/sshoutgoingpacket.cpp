@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -179,6 +179,12 @@ void SshOutgoingPacket::generateExecPacket(quint32 remoteChannel,
         .appendBool(true).appendString(command).finalize();
 }
 
+void SshOutgoingPacket::generateShellPacket(quint32 remoteChannel)
+{
+    init(SSH_MSG_CHANNEL_REQUEST).appendInt(remoteChannel).appendString("shell")
+        .appendBool(true).finalize();
+}
+
 void SshOutgoingPacket::generateSftpPacket(quint32 remoteChannel)
 {
     init(SSH_MSG_CHANNEL_REQUEST).appendInt(remoteChannel)
@@ -291,6 +297,9 @@ void SshOutgoingPacket::finalize()
     qDebug("Encrypting packet of type %u", m_data.at(TypeOffset));
 #endif
     encrypt();
+#ifdef CREATOR_SSH_DEBUG
+    qDebug("Sending packet of size %d", rawData().count());
+#endif
     Q_ASSERT(isComplete());
 }
 

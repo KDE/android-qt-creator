@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -165,6 +165,11 @@ SshConnectionParameters SshConnection::connectionParameters() const
     return d->m_connParams;
 }
 
+QAbstractSocket::NetworkLayerProtocol SshConnection::ipProtocolVersion() const
+{
+    return d->m_socket->localAddress().protocol();
+}
+
 SshConnection::~SshConnection()
 {
     disconnect();
@@ -176,6 +181,12 @@ QSharedPointer<SshRemoteProcess> SshConnection::createRemoteProcess(const QByteA
 {
     QTC_ASSERT(state() == Connected, return QSharedPointer<SshRemoteProcess>());
     return d->createRemoteProcess(command);
+}
+
+QSharedPointer<SshRemoteProcess> SshConnection::createRemoteShell()
+{
+    QTC_ASSERT(state() == Connected, return QSharedPointer<SshRemoteProcess>());
+    return d->createRemoteShell();
 }
 
 QSharedPointer<SftpChannel> SshConnection::createSftpChannel()
@@ -442,12 +453,6 @@ void SshConnectionPrivate::handleServiceAcceptPacket()
         m_sendFacility.sendUserAuthByPwdRequestPacket(m_connParams.userName.toUtf8(),
             SshCapabilities::SshConnectionService, m_connParams.password.toUtf8());
     } else {
-        Utils::FileReader reader;
-        if (!reader.fetch(m_connParams.privateKeyFile))
-            throw SshClientException(SshKeyFileError,
-                tr("Private key error: %1").arg(reader.errorString()));
-
-        m_sendFacility.createAuthenticationKey(reader.data());
         m_sendFacility.sendUserAuthByKeyRequestPacket(m_connParams.userName.toUtf8(),
             SshCapabilities::SshConnectionService);
     }
@@ -626,6 +631,17 @@ void SshConnectionPrivate::connectToHost()
     m_error = SshNoError;
     m_ignoreNextPacket = false;
     m_errorString.clear();
+
+    try {
+        if (m_connParams.authenticationType == SshConnectionParameters::AuthenticationByKey)
+            createPrivateKey();
+    } catch (const SshClientException &ex) {
+        m_error = ex.error;
+        m_errorString = ex.errorString;
+        emit error(m_error);
+        return;
+    }
+
     connect(m_socket, SIGNAL(connected()), this, SLOT(handleSocketConnected()));
     connect(m_socket, SIGNAL(readyRead()), this, SLOT(handleIncomingData()));
     connect(m_socket, SIGNAL(error(QAbstractSocket::SocketError)), this,
@@ -670,12 +686,28 @@ void SshConnectionPrivate::closeConnection(SshErrorCode sshError,
 bool SshConnectionPrivate::canUseSocket() const
 {
     return m_socket->isValid()
-        && m_socket->state() == QAbstractSocket::ConnectedState;
+            && m_socket->state() == QAbstractSocket::ConnectedState;
+}
+
+void SshConnectionPrivate::createPrivateKey()
+{
+    Utils::FileReader reader;
+    if (m_connParams.privateKeyFile.isEmpty())
+        throw SshClientException(SshKeyFileError, tr("No private key file given."));
+    if (!reader.fetch(m_connParams.privateKeyFile))
+        throw SshClientException(SshKeyFileError,
+            tr("Private key file error: %1").arg(reader.errorString()));
+    m_sendFacility.createAuthenticationKey(reader.data());
 }
 
 QSharedPointer<SshRemoteProcess> SshConnectionPrivate::createRemoteProcess(const QByteArray &command)
 {
     return m_channelManager->createRemoteProcess(command);
+}
+
+QSharedPointer<SshRemoteProcess> SshConnectionPrivate::createRemoteShell()
+{
+    return m_channelManager->createRemoteShell();
 }
 
 QSharedPointer<SftpChannel> SshConnectionPrivate::createSftpChannel()

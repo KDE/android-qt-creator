@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,36 +26,78 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-#ifndef QMLJSDEBUGGERCLIENT_H
-#define QMLJSDEBUGGERCLIENT_H
+#ifndef QMLDEBUGGERCLIENT_H
+#define QMLDEBUGGERCLIENT_H
 
 #include "qmljsprivateapi.h"
 
 namespace Debugger {
 namespace Internal {
 
+class WatchData;
+class BreakHandler;
+class BreakpointModelId;
+class QmlEngine;
+class QmlDebuggerClientPrivate;
+
 class QmlDebuggerClient : public QDeclarativeDebugClient
 {
     Q_OBJECT
 
 public:
-    QmlDebuggerClient(QmlJsDebugClient::QDeclarativeDebugConnection *client);
+    QmlDebuggerClient(QmlJsDebugClient::QDeclarativeDebugConnection* client, QLatin1String clientName);
     virtual ~QmlDebuggerClient();
+
+    virtual void startSession() = 0;
+    virtual void endSession() = 0;
+
+    virtual void executeStep() = 0;
+    virtual void executeStepOut() = 0;
+    virtual void executeNext() = 0;
+    virtual void executeStepI() = 0;
+
+    virtual void continueInferior() = 0;
+    virtual void interruptInferior() = 0;
+
+    virtual void activateFrame(int index) = 0;
+
+    virtual bool acceptsBreakpoint(const BreakpointModelId &id);
+    virtual void insertBreakpoint(const BreakpointModelId &id) = 0;
+    virtual void removeBreakpoint(const BreakpointModelId &id) = 0;
+    virtual void changeBreakpoint(const BreakpointModelId &id) = 0;
+    virtual void synchronizeBreakpoints() = 0;
+
+    virtual void assignValueInDebugger(const QByteArray expr, const quint64 &id,
+                                       const QString &property, const QString &value) = 0;
+
+    virtual void updateWatchData(const WatchData &data) = 0;
+    virtual void executeDebuggerCommand(const QString &command) = 0;
+
+    virtual void synchronizeWatchers(const QStringList &watchers) = 0;
+
+    virtual void expandObject(const QByteArray &iname, quint64 objectId) = 0;
+
+    virtual void setEngine(QmlEngine *engine) = 0;
+
+    void flushSendBuffer();
 
 signals:
     void newStatus(QDeclarativeDebugClient::Status status);
-    void messageWasReceived(const QByteArray &data);
 
 protected:
     virtual void statusChanged(Status status);
-    virtual void messageReceived(const QByteArray &data);
+    void sendMessage(const QByteArray &msg);
+
+private:
+    QmlDebuggerClientPrivate *d;
+    friend class QmlDebuggerClientPrivate;
 };
 
 } // Internal
-} // QmlJSInspector
+} // Debugger
 
-#endif // QMLJSDEBUGGERCLIENT_H
+#endif // QMLDEBUGGERCLIENT_H

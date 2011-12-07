@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -54,7 +54,7 @@
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/icore.h>
@@ -91,6 +91,11 @@ public:
     void resetIncrementalSearch()
     {
         m_incrementalStartPos = m_contPos = -1;
+    }
+
+    virtual void highlightAll(const QString &txt, Find::FindFlags findFlags)
+    {
+        m_editor->highlightSearchResults(txt.toLatin1(), Find::textDocumentFlagsForFindFlags(findFlags));
     }
 
     void clearResults() { m_editor->highlightSearchResults(QByteArray()); }
@@ -369,7 +374,7 @@ public:
         return m_file->open(errorString, fileName);
     }
     Core::IFile *file() { return m_file; }
-    QString id() const { return QLatin1String(Core::Constants::K_DEFAULT_BINARY_EDITOR_ID); }
+    Core::Id id() const { return Core::Constants::K_DEFAULT_BINARY_EDITOR_ID; }
     QString displayName() const { return m_displayName; }
     void setDisplayName(const QString &title) { m_displayName = title; emit changed(); }
 
@@ -411,9 +416,9 @@ BinEditorFactory::BinEditorFactory(BinEditorPlugin *owner) :
 {
 }
 
-QString BinEditorFactory::id() const
+Core::Id BinEditorFactory::id() const
 {
-    return QLatin1String(Core::Constants::K_DEFAULT_BINARY_EDITOR_ID);
+    return Core::Constants::K_DEFAULT_BINARY_EDITOR_ID;
 }
 
 QString BinEditorFactory::displayName() const
@@ -472,7 +477,7 @@ BinEditorPlugin::~BinEditorPlugin()
 QAction *BinEditorPlugin::registerNewAction(const QString &id, const QString &title)
 {
     QAction *result = new QAction(title, this);
-    Core::ICore::instance()->actionManager()->registerAction(result, id, m_context);
+    Core::ICore::instance()->actionManager()->registerAction(result, Core::Id(id), m_context);
     return result;
 }
 

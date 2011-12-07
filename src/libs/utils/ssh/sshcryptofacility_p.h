@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -75,15 +75,15 @@ private:
     SshAbstractCryptoFacility(const SshAbstractCryptoFacility &);
     SshAbstractCryptoFacility &operator=(const SshAbstractCryptoFacility &);
 
-    virtual QByteArray cryptAlgoName(const SshKeyExchange &kex) const=0;
-    virtual QByteArray hMacAlgoName(const SshKeyExchange &kex) const=0;
+    virtual QByteArray cryptAlgoName(const SshKeyExchange &kex) const = 0;
+    virtual QByteArray hMacAlgoName(const SshKeyExchange &kex) const = 0;
     virtual Botan::BlockCipherMode *makeCipherMode(Botan::BlockCipher *cipher,
         Botan::BlockCipherModePaddingMethod *paddingMethod,
         const Botan::InitializationVector &iv,
-        const Botan::SymmetricKey &key)=0;
-    virtual char ivChar() const=0;
-    virtual char keyChar() const=0;
-    virtual char macChar() const=0;
+        const Botan::SymmetricKey &key) = 0;
+    virtual char ivChar() const = 0;
+    virtual char keyChar() const = 0;
+    virtual char macChar() const = 0;
 
     QByteArray generateHash(const SshKeyExchange &kex, char c, quint32 length);
     void checkInvariant() const;
@@ -118,10 +118,10 @@ private:
     virtual char keyChar() const { return 'C'; }
     virtual char macChar() const { return 'E'; }
 
-    void createAuthenticationKeyFromPKCS8(const QByteArray &privKeyFileContents,
-        QList<Botan::BigInt> &pubKeyParams, QList<Botan::BigInt> &allKeyParams);
-    void createAuthenticationKeyFromOpenSSL(const QByteArray &privKeyFileContents,
-        QList<Botan::BigInt> &pubKeyParams, QList<Botan::BigInt> &allKeyParams);
+    bool createAuthenticationKeyFromPKCS8(const QByteArray &privKeyFileContents,
+        QList<Botan::BigInt> &pubKeyParams, QList<Botan::BigInt> &allKeyParams, QString &error);
+    bool createAuthenticationKeyFromOpenSSL(const QByteArray &privKeyFileContents,
+        QList<Botan::BigInt> &pubKeyParams, QList<Botan::BigInt> &allKeyParams, QString &error);
 
     static const QByteArray PrivKeyFileStartLineRsa;
     static const QByteArray PrivKeyFileStartLineDsa;

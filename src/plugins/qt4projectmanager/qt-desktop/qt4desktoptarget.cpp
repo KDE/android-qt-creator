@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qt4desktoptarget.h"
 #include "qt4project.h"
+#include "qt4nodes.h"
 #include "qt4runconfiguration.h"
+#include "qt4buildconfiguration.h"
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/customexecutablerunconfiguration.h>
 #include <QtGui/QApplication>
@@ -58,7 +60,7 @@ QString Qt4DesktopTarget::defaultDisplayName()
     return QApplication::translate("Qt4ProjectManager::Qt4Target", "Desktop", "Qt4 Desktop target display name");
 }
 
-Qt4BuildConfigurationFactory *Qt4DesktopTarget::buildConfigurationFactory() const
+ProjectExplorer::IBuildConfigurationFactory *Qt4DesktopTarget::buildConfigurationFactory() const
 {
     return m_buildConfigurationFactory;
 }

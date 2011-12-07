@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -54,9 +54,9 @@ public:
     {}
 
     QList<AST *> operator()(const QTextCursor &cursor)
-    { return this->operator()(cursor.blockNumber(), cursor.positionInBlock()); }
+    { return this->operator()(cursor.blockNumber() + 1, cursor.positionInBlock() + 1); }
 
-    /// line and column are 0-based!
+    /// line and column are 1-based!
     QList<AST *> operator()(int line, int column);
 
 #ifdef DEBUG_AST_PATH

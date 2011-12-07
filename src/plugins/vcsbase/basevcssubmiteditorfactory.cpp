@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,7 +42,7 @@ struct BaseVCSSubmitEditorFactoryPrivate
     BaseVCSSubmitEditorFactoryPrivate(const VCSBaseSubmitEditorParameters *parameters);
 
     const VCSBaseSubmitEditorParameters *m_parameters;
-    const QString m_id;
+    const Core::Id m_id;
     const QString m_displayName;
     const QStringList m_mimeTypes;
 };
@@ -56,34 +56,34 @@ BaseVCSSubmitEditorFactoryPrivate::BaseVCSSubmitEditorFactoryPrivate(const VCSBa
 }
 
 BaseVCSSubmitEditorFactory::BaseVCSSubmitEditorFactory(const VCSBaseSubmitEditorParameters *parameters) :
-    m_d(new BaseVCSSubmitEditorFactoryPrivate(parameters))
+    d(new BaseVCSSubmitEditorFactoryPrivate(parameters))
 {
 }
 
 BaseVCSSubmitEditorFactory::~BaseVCSSubmitEditorFactory()
 {
-    delete m_d;
+    delete d;
 }
 
 Core::IEditor *BaseVCSSubmitEditorFactory::createEditor(QWidget *parent)
 {
-    return createBaseSubmitEditor(m_d->m_parameters, parent);
+    return createBaseSubmitEditor(d->m_parameters, parent);
 }
 
-QString BaseVCSSubmitEditorFactory::id() const
+Core::Id BaseVCSSubmitEditorFactory::id() const
 {
-    return m_d->m_id;
+    return d->m_id;
 }
 
 QString BaseVCSSubmitEditorFactory::displayName() const
 {
-    return m_d->m_displayName;
+    return d->m_displayName;
 }
 
 
 QStringList BaseVCSSubmitEditorFactory::mimeTypes() const
 {
-    return m_d->m_mimeTypes;
+    return d->m_mimeTypes;
 }
 
 Core::IFile *BaseVCSSubmitEditorFactory::open(const QString &fileName)

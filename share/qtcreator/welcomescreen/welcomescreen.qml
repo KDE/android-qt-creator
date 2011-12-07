@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,105 +26,65 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 import QtQuick 1.0
 import "widgets"
-import qtcomponents 1.0 as Components
 
 Rectangle {
+    width: 920
+    height: 600
     id: root
-    color: "white"
-    // work around the fact that we can't use
-    // a property alias to welcomeMode.activePlugin
-    property int current: 0
-    onCurrentChanged: welcomeMode.activePlugin = current
-    Component.onCompleted: current = welcomeMode.activePlugin
+
+    Item {
+        id: canvas
+
+
+        opacity: 0
+
+        Component.onCompleted: canvas.opacity = 1
+
+        Behavior on opacity {
+            PropertyAnimation {
+                duration: 450
+            }
+        }
+
+        width: Math.min(1024, parent.width)
+        anchors.topMargin: (root.height > 700) ? 32 : 0
+
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+
+        CustomTab {
+            id: tab
+            x: 578
+            y: 64
+            anchors.right: parent.right
+            anchors.rightMargin: 36
+            model: pagesModel
+
+        }
+        PageLoader {
+            anchors.fill: parent
+            anchors.topMargin: 100
+            model: pagesModel
+        }
+
+        Logo {
+            x: 25
+            y: 38
+        }
+
+    }
 
     BorderImage {
-        id: inner_background
-        Image {
-            id: header;
-            source: "qrc:welcome/images/center_frame_header.png";
-            anchors.verticalCenter: parent.verticalCenter;
-            anchors.horizontalCenter: parent.horizontalCenter;
-            anchors.topMargin: 2
-        }
-        anchors.top: root.top
-        source: "qrc:welcome/images/background_center_frame_v2.png"
-        width: parent.width
-        height: 60
-        border.right: 2
-        border.left: 2
-        border.top: 2
-        border.bottom: 10
-    }
-
-    LinksBar {
-        id: navigationAndDevLinks
-        property alias current: root.current
-        anchors.top: inner_background.bottom
-        anchors.left: news.right
         anchors.right: parent.right
-        anchors.bottomMargin: 4
-        anchors.topMargin: -2
-        model: tabs.model
-    }
-
-    Rectangle {
-        color: "#eee"
-        id: news
-        opacity: 0.7
-        anchors.top: navigationAndDevLinks.top
-        anchors.bottom: feedback.top
         anchors.left: parent.left
-        width: 270
-        FeaturedAndNewsListing {
-            anchors.fill: parent
-        }
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            height: 1
-            color: "black"
-        }
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.topMargin: 1
-            height: 1
-            color: "#ccc"
-        }
-        Rectangle{
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width:1
-            color: "black"
-        }
+        border.right: 1
+        source: "widgets/images/creatorbar.png"
     }
-
-    TabWidget {
-        id: tabs
-        property int current: root.current
-        model: pagesModel
-        anchors.top: navigationAndDevLinks.bottom
-        anchors.bottom: feedback.top
-        anchors.left: news.right
-        anchors.right: parent.right
-        anchors.leftMargin: 0
-        anchors.rightMargin: 0
-        anchors.margins: 4
-    }
-
-    Feedback {
-        id: feedback
-        anchors.bottom: parent.bottom
-        width: parent.width
-    }
-
 }

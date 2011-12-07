@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,9 @@
 #define OPENEDITORSMODEL_H
 
 #include "../core_global.h"
+#include "../id.h"
 
 #include <QtCore/QAbstractItemModel>
-#include <QtCore/QScopedPointer>
 
 QT_FORWARD_DECLARE_CLASS(QIcon)
 
@@ -49,6 +49,7 @@ class IFile;
 class CORE_EXPORT OpenEditorsModel : public QAbstractItemModel
 {
     Q_OBJECT
+
 public:
     explicit OpenEditorsModel(QObject *parent);
     virtual ~OpenEditorsModel();
@@ -63,7 +64,7 @@ public:
     QModelIndex index(int row, int column = 0, const QModelIndex &parent = QModelIndex()) const;
 
     void addEditor(IEditor *editor, bool isDuplicate = false);
-    void addRestoredEditor(const QString &fileName, const QString &displayName, const QString &id);
+    void addRestoredEditor(const QString &fileName, const QString &displayName, const Id &id);
     QModelIndex firstRestoredEditor() const;
 
     struct CORE_EXPORT Entry {
@@ -71,10 +72,10 @@ public:
         IEditor *editor;
         QString fileName() const;
         QString displayName() const;
-        QString id() const;
+        Id id() const;
         QString m_fileName;
         QString m_displayName;
-        QString m_id;
+        Id m_id;
     };
     QList<Entry> entries() const;
 
@@ -106,7 +107,7 @@ private:
     int findFileName(const QString &filename) const;
     void removeEditor(int idx);
 
-    QScopedPointer<OpenEditorsModelPrivate> d;
+    OpenEditorsModelPrivate *d;
 };
 
 } // namespace Core

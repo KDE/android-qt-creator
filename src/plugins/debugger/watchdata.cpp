@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -66,13 +66,6 @@ static QString htmlEscape(const QString &plain)
 bool isPointerType(const QByteArray &type)
 {
     return type.endsWith('*') || type.endsWith("* const");
-}
-
-bool isVTablePointer(const QByteArray &type)
-{
-    // FIXME: That is cdb only.
-    // But no user type can be named like this, so this is safe.
-    return type.startsWith("__fptr()");
 }
 
 bool isCharPointerType(const QByteArray &type)
@@ -163,6 +156,14 @@ bool WatchData::isEqual(const WatchData &other) const
       && valueEnabled == other.valueEnabled
       && valueEditable == other.valueEditable
       && error == other.error;
+}
+
+bool WatchData::isVTablePointer() const
+{
+    // First case: Cdb only. No user type can be named like this, this is safe.
+    // Second case: Python dumper only.
+    return type.startsWith("__fptr()")
+        || (type.isEmpty() && name == QLatin1String("[vptr]"));
 }
 
 void WatchData::setError(const QString &msg)
@@ -383,8 +384,7 @@ QString WatchData::toToolTip() const
         formatToolTipRow(str, tr("Referencing Address"),
                          QString::fromAscii(hexReferencingAddress()));
     if (size)
-        formatToolTipRow(str, tr("Size"),
-                         QString::number(size));
+        formatToolTipRow(str, tr("Size"), QString::number(size));
     formatToolTipRow(str, tr("Internal ID"), iname);
     formatToolTipRow(str, tr("Generation"),
         QString::number(generation));
@@ -435,6 +435,11 @@ QByteArray WatchData::hexReferencingAddress() const
     if (referencingAddress)
         return QByteArray("0x") + QByteArray::number(referencingAddress, 16);
     return QByteArray();
+}
+
+bool WatchData::hasChanged(const WatchData &old) const
+{
+    return !value.isEmpty() && value != old.value && value != msgNotInScope();
 }
 
 } // namespace Internal

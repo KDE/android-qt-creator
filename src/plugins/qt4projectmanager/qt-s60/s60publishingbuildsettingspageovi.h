@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,12 +34,6 @@
 #define S60PUBLISHINGBUILDSETTINGSPAGEOVI_H
 
 #include <QtGui/QWizardPage>
-
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class S60PublishingBuildSettingsPageOvi;
-}
-QT_END_NAMESPACE
 
 namespace ProjectExplorer {
 class Project;
@@ -49,13 +43,19 @@ class ToolChain;
 
 namespace Qt4ProjectManager {
 namespace Internal {
+
+namespace Ui { class S60PublishingBuildSettingsPageOvi; }
+
 class S60PublisherOvi;
+
 
 class S60PublishingBuildSettingsPageOvi : public QWizardPage
 {
     Q_OBJECT
+
 public:
-    explicit S60PublishingBuildSettingsPageOvi(S60PublisherOvi *publisher, const ProjectExplorer::Project *project, QWidget *parent = 0);
+    explicit S60PublishingBuildSettingsPageOvi(S60PublisherOvi *publisher,
+        const ProjectExplorer::Project *project, QWidget *parent = 0);
     ~S60PublishingBuildSettingsPageOvi();
 
     virtual bool isComplete() const;
@@ -74,7 +74,7 @@ private:
 private:
     ProjectExplorer::BuildConfiguration *m_bc;
     ProjectExplorer::ToolChain *m_toolchain;
-    Ui::S60PublishingBuildSettingsPageOvi * m_ui;
+    Ui::S60PublishingBuildSettingsPageOvi *m_ui;
     S60PublisherOvi * const m_publisher;
 };
 

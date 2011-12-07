@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,9 +37,12 @@
 #include "qmlprojectrunconfiguration.h"
 #include "qmlprojecttarget.h"
 #include "qmlprojectconstants.h"
+#include "qmlprojectnodes.h"
+#include "qmlprojectmanager.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/messagemanager.h>
+#include <coreplugin/filemanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <qtsupport/qmldumptool.h>
 #include <qtsupport/baseqtversion.h>
@@ -58,10 +61,8 @@ namespace QmlProjectManager {
 QmlProject::QmlProject(Internal::Manager *manager, const QString &fileName)
     : m_manager(manager),
       m_fileName(fileName),
-      m_modelManager(ExtensionSystem::PluginManager::instance()->getObject<QmlJS::ModelManagerInterface>()),
-      m_fileWatcher(new Utils::FileSystemWatcher(this))
+      m_modelManager(ExtensionSystem::PluginManager::instance()->getObject<QmlJS::ModelManagerInterface>())
 {
-    m_fileWatcher->setObjectName(QLatin1String("QmlProjectWatcher"));
     setProjectContext(Core::Context(QmlProjectManager::Constants::PROJECTCONTEXT));
     setProjectLanguage(Core::Context(QmlProjectManager::Constants::LANG_QML));
 
@@ -71,9 +72,7 @@ QmlProject::QmlProject(Internal::Manager *manager, const QString &fileName)
     m_file = new Internal::QmlProjectFile(this, fileName);
     m_rootNode = new Internal::QmlProjectNode(this, m_file);
 
-    m_fileWatcher->addFile(fileName, Utils::FileSystemWatcher::WatchModifiedDate);
-    connect(m_fileWatcher, SIGNAL(fileChanged(QString)),
-            this, SLOT(refreshProjectFile()));
+    Core::FileManager::instance()->addFile(m_file, true);
 
     m_manager->registerProject(this);
 }
@@ -81,6 +80,8 @@ QmlProject::QmlProject(Internal::Manager *manager, const QString &fileName)
 QmlProject::~QmlProject()
 {
     m_manager->unregisterProject(this);
+
+    Core::FileManager::instance()->removeFile(m_file);
 
     delete m_projectItem.data();
     delete m_rootNode;
@@ -150,9 +151,12 @@ void QmlProject::refresh(RefreshOptions options)
         QList<ProjectExplorer::ToolChain *> tcList;
         if (version && !version->qtAbis().isEmpty())
               tcList = ProjectExplorer::ToolChainManager::instance()->findToolChains(version->qtAbis().at(0));
-        if (tcList.isEmpty())
-            return;
-        QtSupport::QmlDumpTool::pathAndEnvironment(this, version, tcList.first(), false, &pinfo.qmlDumpPath, &pinfo.qmlDumpEnvironment);
+        if (!tcList.isEmpty())
+            QtSupport::QmlDumpTool::pathAndEnvironment(this, version, tcList.first(), false, &pinfo.qmlDumpPath, &pinfo.qmlDumpEnvironment);
+    }
+    if (version) {
+        pinfo.qtImportsPath = version->versionInfo().value("QT_INSTALL_IMPORTS");
+        pinfo.qtVersionString = version->qtVersionString();
     }
     m_modelManager->updateProjectInfo(pinfo);
 }
@@ -252,7 +256,7 @@ Core::IFile *QmlProject::file() const
     return m_file;
 }
 
-Internal::Manager *QmlProject::projectManager() const
+ProjectExplorer::IProjectManager *QmlProject::projectManager() const
 {
     return m_manager;
 }
@@ -272,7 +276,7 @@ Internal::QmlProjectTarget *QmlProject::activeTarget() const
     return static_cast<Internal::QmlProjectTarget *>(Project::activeTarget());
 }
 
-Internal::QmlProjectNode *QmlProject::rootProjectNode() const
+ProjectExplorer::ProjectNode *QmlProject::rootProjectNode() const
 {
     return m_rootNode;
 }

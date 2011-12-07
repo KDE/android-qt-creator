@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,12 +34,8 @@
 #define GLSLEDITOR_H
 
 #include "glsleditor_global.h"
-#include "glsleditoreditable.h"
-
-#include <glsl/glsl.h>
 
 #include <texteditor/basetexteditor.h>
-#include <texteditor/quickfix.h>
 
 #include <QtCore/QSharedPointer>
 #include <QtCore/QSet>
@@ -49,12 +45,21 @@ class QComboBox;
 class QTimer;
 QT_END_NAMESPACE
 
+namespace GLSL {
+class Engine;
+class TranslationUnitAST;
+class Scope;
+}
+
 namespace Core {
 class ICore;
 }
 
 namespace GLSLEditor {
 class GLSLTextEditorWidget;
+namespace Internal {
+class GLSLEditorEditable;
+}
 
 class GLSLEDITOR_EXPORT Document
 {

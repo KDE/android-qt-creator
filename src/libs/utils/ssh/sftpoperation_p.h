@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,13 +53,13 @@ struct AbstractSftpOperation
 {
     typedef QSharedPointer<AbstractSftpOperation> Ptr;
     enum Type {
-        ListDir, MakeDir, RmDir, Rm, Rename, CreateFile, Download, UploadFile
+        ListDir, MakeDir, RmDir, Rm, Rename, CreateLink, CreateFile, Download, UploadFile
     };
 
     AbstractSftpOperation(SftpJobId jobId);
     virtual ~AbstractSftpOperation();
-    virtual Type type() const=0;
-    virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet)=0;
+    virtual Type type() const = 0;
+    virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet) = 0;
 
     const SftpJobId jobId;
 
@@ -115,6 +115,18 @@ struct SftpRename : public AbstractSftpOperation
 
     const QString oldPath;
     const QString newPath;
+};
+
+struct SftpCreateLink : public AbstractSftpOperation
+{
+    typedef QSharedPointer<SftpCreateLink> Ptr;
+
+    SftpCreateLink(SftpJobId jobId, const QString &filePath, const QString &target);
+    virtual Type type() const { return CreateLink; }
+    virtual SftpOutgoingPacket &initialPacket(SftpOutgoingPacket &packet);
+
+    const QString filePath;
+    const QString target;
 };
 
 

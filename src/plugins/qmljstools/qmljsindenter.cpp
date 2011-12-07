@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "qmljsindenter.h"
 
 #include <qmljstools/qmljsqtstylecodeformatter.h>
-#include <texteditor/basetexteditor.h>
 #include <texteditor/tabsettings.h>
 
 #include <QtCore/QChar>
@@ -63,24 +62,30 @@ bool Indenter::isElectricCharacter(const QChar &ch) const
 void Indenter::indentBlock(QTextDocument *doc,
                            const QTextBlock &block,
                            const QChar &typedChar,
-                           TextEditor::BaseTextEditorWidget *editor)
+                           const TextEditor::TabSettings &tabSettings)
 {
     Q_UNUSED(doc)
-    Q_UNUSED(editor)
 
-    const TextEditor::TabSettings &ts = editor->tabSettings();
-    QmlJSTools::QtStyleCodeFormatter codeFormatter(ts);
+    QmlJSTools::CreatorCodeFormatter codeFormatter(tabSettings);
 
     codeFormatter.updateStateUntil(block);
     const int depth = codeFormatter.indentFor(block);
+    if (depth == -1)
+        return;
 
     if (isElectricCharacter(typedChar)) {
         // only reindent the current line when typing electric characters if the
         // indent is the same it would be if the line were empty
         const int newlineIndent = codeFormatter.indentForNewLineAfter(block.previous());
-        if (ts.indentationColumn(block.text()) != newlineIndent)
+        if (tabSettings.indentationColumn(block.text()) != newlineIndent)
             return;
     }
 
-    ts.indentLine(block, depth);
+    tabSettings.indentLine(block, depth);
+}
+
+void Indenter::invalidateCache(QTextDocument *doc)
+{
+    QmlJSTools::CreatorCodeFormatter codeFormatter;
+    codeFormatter.invalidateCache(doc);
 }

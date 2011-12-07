@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 
 #include <QtCore/QList>
 #include <QtCore/QPair>
+#include <QtCore/QProcess>
 
 namespace Utils {
 class SshRemoteProcess;
@@ -52,7 +53,7 @@ class SshRemoteProcessPrivate : public AbstractSshChannel
     friend class Utils::SshRemoteProcess;
 public:
     enum ProcessState {
-        NotYetStarted, ExecRequested, StartFailed,Running, Exited
+        NotYetStarted, ExecRequested, StartFailed, Running, Exited
     };
 
     virtual void handleChannelSuccess();
@@ -60,25 +61,33 @@ public:
 
     virtual void closeHook();
 
+    QByteArray &data();
+
 signals:
     void started();
-    void outputAvailable(const QByteArray &output);
-    void errorOutputAvailable(const QByteArray &output);
+    void readyRead();
+    void readyReadStandardOutput();
+    void readyReadStandardError();
     void closed(int exitStatus);
 
 private:
     SshRemoteProcessPrivate(const QByteArray &command, quint32 channelId,
         SshSendFacility &sendFacility, SshRemoteProcess *proc);
+    SshRemoteProcessPrivate(quint32 channelId, SshSendFacility &sendFacility,
+        SshRemoteProcess *proc);
 
     virtual void handleOpenSuccessInternal();
-    virtual void handleOpenFailureInternal();
+    virtual void handleOpenFailureInternal(const QString &reason);
     virtual void handleChannelDataInternal(const QByteArray &data);
     virtual void handleChannelExtendedDataInternal(quint32 type,
         const QByteArray &data);
     virtual void handleExitStatus(const SshChannelExitStatus &exitStatus);
     virtual void handleExitSignal(const SshChannelExitSignal &signal);
 
+    void init();
     void setProcState(ProcessState newState);
+
+    QProcess::ProcessChannel m_readChannel;
 
     ProcessState m_procState;
     bool m_wasRunning;
@@ -86,11 +95,15 @@ private:
     int m_exitCode;
 
     const QByteArray m_command;
+    const bool m_isShell;
 
     typedef QPair<QByteArray, QByteArray> EnvVar;
     QList<EnvVar> m_env;
     bool m_useTerminal;
     SshPseudoTerminal m_terminal;
+
+    QByteArray m_stdout;
+    QByteArray m_stderr;
 
     SshRemoteProcess *m_proc;
 };

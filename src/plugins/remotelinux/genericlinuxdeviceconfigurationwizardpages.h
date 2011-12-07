@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef GENERICLINUXDEVICECONFIGURATIONWIZARDSETUPPAGE_H
@@ -37,19 +37,15 @@
 
 #include <QtGui/QWizardPage>
 
-QT_BEGIN_NAMESPACE
-class QLabel;
-QT_END_NAMESPACE
-
 namespace RemoteLinux {
 namespace Internal {
 class GenericLinuxDeviceConfigurationWizardSetupPagePrivate;
+class GenericLinuxDeviceConfigurationWizardFinalPagePrivate;
 } // namespace Internal
 
 class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationWizardSetupPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(GenericLinuxDeviceConfigurationWizardSetupPage)
 
 public:
     explicit GenericLinuxDeviceConfigurationWizardSetupPage(QWidget *parent = 0);
@@ -65,6 +61,7 @@ public:
     QString password() const;
     QString privateKeyFilePath() const;
 
+    virtual QString defaultConfigurationName() const;
     virtual QString defaultHostName() const;
     virtual QString defaultUserName() const;
     virtual QString defaultPassWord() const;
@@ -72,7 +69,7 @@ public:
 private:
     Q_SLOT void handleAuthTypeChanged();
 
-    Internal::GenericLinuxDeviceConfigurationWizardSetupPagePrivate * const m_d;
+    Internal::GenericLinuxDeviceConfigurationWizardSetupPagePrivate * const d;
 };
 
 
@@ -81,6 +78,7 @@ class REMOTELINUX_EXPORT GenericLinuxDeviceConfigurationWizardFinalPage : public
     Q_OBJECT
 public:
     GenericLinuxDeviceConfigurationWizardFinalPage(QWidget *parent);
+    ~GenericLinuxDeviceConfigurationWizardFinalPage();
 
     void initializePage();
 
@@ -88,7 +86,7 @@ protected:
     virtual QString infoText() const;
 
 private:
-    QLabel * const m_infoLabel;
+    Internal::GenericLinuxDeviceConfigurationWizardFinalPagePrivate * const d;
 };
 
 } // namespace RemoteLinux

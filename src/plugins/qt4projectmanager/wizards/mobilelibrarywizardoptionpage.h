@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,7 +41,6 @@ namespace Internal {
 class MobileLibraryWizardOptionPage : public QWizardPage
 {
     Q_OBJECT
-    Q_DISABLE_COPY(MobileLibraryWizardOptionPage)
 
 public:
     explicit MobileLibraryWizardOptionPage(QWidget *parent = 0);
@@ -56,7 +55,7 @@ public:
     void setLibraryType(int type);
 
 private:
-    class MobileLibraryWizardOptionPagePrivate *m_d;
+    class MobileLibraryWizardOptionPagePrivate *d;
 };
 
 } // namespace Internal

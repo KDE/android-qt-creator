@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Nicolas Arnaud-Cormos.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,7 +40,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/coreconstants.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/icontext.h>
 
 #include <QtCore/QObject>
@@ -73,7 +73,7 @@ ActionMacroHandler::ActionMacroHandler():
     QList<Core::Command *> commands = am->commands();
     foreach (Core::Command *command, commands) {
         if (command->isScriptable()) {
-            QString id = Core::UniqueIDManager::instance()->stringForUniqueIdentifier(command->id());
+            QString id = command->id().toString();
             registerCommand(id);
         }
     }
@@ -89,7 +89,7 @@ bool ActionMacroHandler::executeEvent(const MacroEvent &macroEvent)
     const Core::ICore *core = Core::ICore::instance();
     const Core::ActionManager *am = core->actionManager();
 
-    QAction *action = am->command(macroEvent.value(ACTIONNAME).toString())->action();
+    QAction *action = am->command(Core::Id(macroEvent.value(ACTIONNAME).toString()))->action();
     if (!action)
         return false;
 
@@ -104,7 +104,7 @@ void ActionMacroHandler::addActionEvent(const QString &id)
 
     const Core::ICore *core = Core::ICore::instance();
     const Core::ActionManager *am = core->actionManager();
-    const Core::Command *cmd = am->command(id);
+    const Core::Command *cmd = am->command(Core::Id(id));
     if (cmd->isScriptable(cmd->context())) {
         MacroEvent e;
         e.setId(EVENTNAME);
@@ -119,13 +119,13 @@ void ActionMacroHandler::registerCommand(const QString &id)
         m_commandIds.insert(id);
         const Core::ICore *core = Core::ICore::instance();
         const Core::ActionManager *am = core->actionManager();
-        QAction* action = am->command(id)->action();
+        QAction* action = am->command(Core::Id(id))->action();
         if (action) {
             connect(action, SIGNAL(triggered()), m_mapper, SLOT(map()));
             m_mapper->setMapping(action, id);
             return;
         }
-        QShortcut* shortcut = am->command(id)->shortcut();
+        QShortcut* shortcut = am->command(Core::Id(id))->shortcut();
         if (shortcut) {
             connect(shortcut, SIGNAL(activated()), m_mapper, SLOT(map()));
             m_mapper->setMapping(shortcut, id);
@@ -137,6 +137,6 @@ void ActionMacroHandler::addCommand(const QString &id)
 {
     const Core::ICore *core = Core::ICore::instance();
     const Core::ActionManager *am = core->actionManager();
-    if (am->command(id)->isScriptable())
+    if (am->command(Core::Id(id))->isScriptable())
         registerCommand(id);
 }

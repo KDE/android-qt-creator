@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -59,7 +59,9 @@ public:
 
     QString shadowBuildDirectory(const QString &profilePath, const QString &id, const QString &suffix);
     QList<ProjectExplorer::Task> reportIssues(const QString &proFile);
-    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath, const QtSupport::QtVersionNumber &minimumQtVersion);
+    QList<BuildConfigurationInfo> availableBuildConfigurations(const QString &id, const QString &proFilePath,
+                                                               const QtSupport::QtVersionNumber &minimumQtVersion,
+                                                               const QtSupport::QtVersionNumber &maximumQtVersion);
 
     bool selectByDefault(const QString &id) const;
     QSet<QString> targetFeatures(const QString &id) const;

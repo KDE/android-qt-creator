@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Nicolas Arnaud-Cormos.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,21 +36,20 @@
 namespace Macros {
 namespace Constants {
 
-const char * const M_TOOLS_MACRO = "Macros.Tools.Menu";
+const char M_TOOLS_MACRO[] = "Macros.Tools.Menu";
 
-const char * const START_MACRO = "Macros.StartMacro";
-const char * const END_MACRO = "Macros.EndMacro";
-const char * const EXECUTE_LAST_MACRO = "Macros.ExecuteLastMacro";
-const char * const SAVE_LAST_MACRO = "Macros.SaveLastMacro";
-const char * const PREFIX_MACRO = "Macros.";
+const char START_MACRO[] = "Macros.StartMacro";
+const char END_MACRO[] = "Macros.EndMacro";
+const char EXECUTE_LAST_MACRO[] = "Macros.ExecuteLastMacro";
+const char SAVE_LAST_MACRO[] = "Macros.SaveLastMacro";
+const char PREFIX_MACRO[] = "Macros.";
 
-const char * const M_OPTIONS_PAGE = "Macros";
-const char * const M_OPTIONS_TR_PAGE =
-    QT_TRANSLATE_NOOP("Macros", "Macros");
+const char M_OPTIONS_PAGE[] = "Macros";
+const char M_OPTIONS_TR_PAGE[] = QT_TRANSLATE_NOOP("Macros", "Macros");
 
-const char * const M_STATUS_BUFFER = "Macros.Status";
+const char M_STATUS_BUFFER[] = "Macros.Status";
 
-const char * const M_EXTENSION = "mac";
+const char M_EXTENSION[] = "mac";
 
 } // namespace Constants
 } // namespace Macros

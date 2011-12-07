@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -66,7 +66,7 @@ private:
 };
 
 QtQuickAppWizardDialog::QtQuickAppWizardDialog(QWidget *parent)
-    : AbstractMobileAppWizardDialog(parent, QtSupport::QtVersionNumber(4, 7, 0))
+    : AbstractMobileAppWizardDialog(parent, QtSupport::QtVersionNumber(4, 7, 0), QtSupport::QtVersionNumber(4, INT_MAX, INT_MAX))
 {
     setWindowTitle(tr("New Qt Quick Application"));
     setIntroDescription(tr("This wizard generates a Qt Quick application project."));
@@ -85,9 +85,9 @@ bool QtQuickAppWizardDialog::validateCurrentPage()
 {
     if (currentPage() == m_componentOptionsPage) {
         setIgnoreGenericOptionsPage(false);
-        if (m_componentOptionsPage->componentSet() == QtQuickApp::Symbian10Components) {
+        if (m_componentOptionsPage->componentSet() == QtQuickApp::Symbian11Components) {
             setIgnoreGenericOptionsPage(true);
-            targetsPage()->setMinimumQtVersion(QtSupport::QtVersionNumber(4, 7, 3));
+            targetsPage()->setMinimumQtVersion(QtSupport::QtVersionNumber(4, 7, 4));
             QSet<QString> requiredFeatures;
             requiredFeatures << Constants::QTQUICKCOMPONENTS_SYMBIAN_TARGETFEATURE_ID;
             targetsPage()->setRequiredFeatures(requiredFeatures);
@@ -114,16 +114,16 @@ class QtQuickAppWizardPrivate
 
 QtQuickAppWizard::QtQuickAppWizard()
     : AbstractMobileAppWizard(parameters())
-    , m_d(new QtQuickAppWizardPrivate)
+    , d(new QtQuickAppWizardPrivate)
 {
-    m_d->app = new QtQuickApp;
-    m_d->wizardDialog = 0;
+    d->app = new QtQuickApp;
+    d->wizardDialog = 0;
 }
 
 QtQuickAppWizard::~QtQuickAppWizard()
 {
-    delete m_d->app;
-    delete m_d;
+    delete d->app;
+    delete d;
 }
 
 Core::BaseFileWizardParameters QtQuickAppWizard::parameters()
@@ -139,7 +139,7 @@ Core::BaseFileWizardParameters QtQuickAppWizard::parameters()
                                  "Symbian Installation System (SIS) packages for this type of "
                                  "projects. Moreover, you can select to use a set of premade "
                                  "UI components in your Qt Quick application. "
-                                 "To utilize the components, Qt 4.7.3 or newer is required."));
+                                 "To utilize the components, Qt 4.7.4 or newer is required."));
     parameters.setCategory(QLatin1String(QtSupport::Constants::QML_WIZARD_CATEGORY));
     parameters.setDisplayCategory(QCoreApplication::translate(QtSupport::Constants::QML_WIZARD_TR_SCOPE,
                                                               QtSupport::Constants::QML_WIZARD_TR_CATEGORY));
@@ -148,14 +148,14 @@ Core::BaseFileWizardParameters QtQuickAppWizard::parameters()
 
 AbstractMobileAppWizardDialog *QtQuickAppWizard::createWizardDialogInternal(QWidget *parent) const
 {
-    m_d->wizardDialog = new QtQuickAppWizardDialog(parent);
-    m_d->wizardDialog->m_componentOptionsPage->setComponentSet(m_d->app->componentSet());
-    return m_d->wizardDialog;
+    d->wizardDialog = new QtQuickAppWizardDialog(parent);
+    d->wizardDialog->m_componentOptionsPage->setComponentSet(d->app->componentSet());
+    return d->wizardDialog;
 }
 
 void QtQuickAppWizard::projectPathChanged(const QString &path) const
 {
-    m_d->wizardDialog->targetsPage()->setProFilePath(path);
+    d->wizardDialog->targetsPage()->setProFilePath(path);
 }
 
 void QtQuickAppWizard::prepareGenerateFiles(const QWizard *w,
@@ -164,29 +164,29 @@ void QtQuickAppWizard::prepareGenerateFiles(const QWizard *w,
     Q_UNUSED(errorMessage)
     const QtQuickAppWizardDialog *wizard = qobject_cast<const QtQuickAppWizardDialog*>(w);
     if (wizard->m_componentOptionsPage->mainQmlMode() == QtQuickApp::ModeGenerate) {
-        m_d->app->setMainQml(QtQuickApp::ModeGenerate);
+        d->app->setMainQml(QtQuickApp::ModeGenerate);
     } else {
         const QString mainQmlFile = wizard->m_componentOptionsPage->mainQmlFile();
-        m_d->app->setMainQml(QtQuickApp::ModeImport, mainQmlFile);
+        d->app->setMainQml(QtQuickApp::ModeImport, mainQmlFile);
     }
-    m_d->app->setComponentSet(wizard->m_componentOptionsPage->componentSet());
-    if (m_d->app->componentSet() == QtQuickApp::Symbian10Components)
-        m_d->app->setOrientation(AbstractMobileApp::ScreenOrientationImplicit);
+    d->app->setComponentSet(wizard->m_componentOptionsPage->componentSet());
+    if (d->app->componentSet() == QtQuickApp::Symbian11Components)
+        d->app->setOrientation(AbstractMobileApp::ScreenOrientationImplicit);
 }
 
 QString QtQuickAppWizard::fileToOpenPostGeneration() const
 {
-    return m_d->app->path(QtQuickApp::MainQml);
+    return d->app->path(QtQuickApp::MainQml);
 }
 
 AbstractMobileApp *QtQuickAppWizard::app() const
 {
-    return m_d->app;
+    return d->app;
 }
 
 AbstractMobileAppWizardDialog *QtQuickAppWizard::wizardDialog() const
 {
-    return m_d->wizardDialog;
+    return d->wizardDialog;
 }
 
 } // namespace Internal

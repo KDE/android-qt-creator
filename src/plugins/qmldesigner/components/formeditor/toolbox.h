@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,10 @@ QT_BEGIN_NAMESPACE
 class QToolBar;
 QT_END_NAMESPACE
 
+namespace Utils {
+class CrumblePath;
+}
+
 namespace QmlDesigner {
 
 class ToolBox : public Utils::StyledBar
@@ -50,10 +54,13 @@ public:
     void addLeftSideAction(QAction *action);
     void addRightSideAction(QAction *action);
     QList<QAction*> actions() const;
+    Utils::CrumblePath *crumblePath() const;
+
 
 private:
     QToolBar *m_leftToolBar;
     QToolBar *m_rightToolBar;
+    Utils::CrumblePath *m_crumblePath;
 };
 
 } // namespace QmlDesigner

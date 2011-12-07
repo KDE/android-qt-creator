@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,35 +42,42 @@ namespace VCSBase {
 
 namespace Internal {
 
-struct SettingMappingData
+class SettingMappingData
 {
+public:
     enum Type
     {
         Invalid,
         Bool,
-        String
+        String,
+        Int
     };
 
-    SettingMappingData() : boolSetting(0), stringSetting(0)
+    SettingMappingData() : boolSetting(0), m_type(Invalid)
     { }
 
-    SettingMappingData(bool *setting) : boolSetting(setting), stringSetting(0)
+    SettingMappingData(bool *setting) : boolSetting(setting), m_type(Bool)
     { }
 
-    SettingMappingData(QString *setting) : boolSetting(0), stringSetting(setting)
+    SettingMappingData(QString *setting) : stringSetting(setting), m_type(String)
+    { }
+
+    SettingMappingData(int *setting) : intSetting(setting), m_type(Int)
     { }
 
     Type type() const
     {
-        if (boolSetting)
-            return Bool;
-        if (stringSetting)
-            return String;
-        return Invalid;
+        return m_type;
     }
 
-    bool *boolSetting;
-    QString *stringSetting;
+    union {
+        bool *boolSetting;
+        QString *stringSetting;
+        int *intSetting;
+    };
+
+private:
+    Type m_type;
 };
 
 } // namespace Internal
@@ -122,6 +129,7 @@ VCSBaseEditorParameterWidget::VCSBaseEditorParameterWidget(QWidget *parent) :
 
 VCSBaseEditorParameterWidget::~VCSBaseEditorParameterWidget()
 {
+    delete d;
 }
 
 QStringList VCSBaseEditorParameterWidget::baseArguments() const
@@ -187,12 +195,27 @@ void VCSBaseEditorParameterWidget::mapSetting(QComboBox *comboBox, QString *sett
         d->m_settingMapping.insert(comboBox, Internal::SettingMappingData(setting));
         if (setting) {
             comboBox->blockSignals(true);
-            const int itemIndex = comboBox->findData(*setting);
+            const int itemIndex = setting ? comboBox->findData(*setting) : -1;
             if (itemIndex != -1)
                 comboBox->setCurrentIndex(itemIndex);
             comboBox->blockSignals(false);
         }
     }
+}
+
+void VCSBaseEditorParameterWidget::mapSetting(QComboBox *comboBox, int *setting)
+{
+    if (d->m_settingMapping.contains(comboBox) || !comboBox)
+        return;
+
+    d->m_settingMapping.insert(comboBox, Internal::SettingMappingData(setting));
+
+    if (!setting || *setting < 0 || *setting >= comboBox->count())
+        return;
+
+    comboBox->blockSignals(true);
+    comboBox->setCurrentIndex(*setting);
+    comboBox->blockSignals(false);
 }
 
 /*!
@@ -247,8 +270,12 @@ const QList<VCSBaseEditorParameterWidget::OptionMapping> &VCSBaseEditorParameter
 QStringList VCSBaseEditorParameterWidget::argumentsForOption(const OptionMapping &mapping) const
 {
     const QToolButton *tb = qobject_cast<const QToolButton *>(mapping.widget);
-    if (tb && tb->isChecked())
-        return QStringList(mapping.optionName);
+    if (tb && tb->isChecked()) {
+        if (!mapping.optionName.isEmpty())
+            return QStringList(mapping.optionName);
+        else
+            return QStringList();
+    }
 
     const QComboBox *cb = qobject_cast<const QComboBox *>(mapping.widget);
     if (cb) {
@@ -284,6 +311,13 @@ void VCSBaseEditorParameterWidget::updateMappedSettings()
                 const QComboBox *cb = qobject_cast<const QComboBox *>(optMapping.widget);
                 if (cb && cb->currentIndex() != -1)
                     *settingData.stringSetting = cb->itemData(cb->currentIndex()).toString();
+                break;
+            }
+            case Internal::SettingMappingData::Int:
+            {
+                const QComboBox *cb = qobject_cast<const QComboBox *>(optMapping.widget);
+                if (cb && cb->currentIndex() != -1)
+                    *settingData.intSetting = cb->currentIndex();
                 break;
             }
             case Internal::SettingMappingData::Invalid : break;

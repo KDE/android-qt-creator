@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,10 +51,6 @@ namespace CPlusPlus {
 
 namespace ProjectExplorer {
     class Project;
-}
-
-namespace TextEditor {
-    class ITextEditor;
 }
 
 namespace CppTools {
@@ -117,6 +113,12 @@ public:
         Table _elements;
     };
 
+    enum ExtraDiagnosticKind
+    {
+        AllExtraDiagnostics = -1,
+        ExportedQmlTypesDiagnostic
+    };
+
 public:
     CppModelManagerInterface(QObject *parent = 0);
     virtual ~CppModelManagerInterface();
@@ -144,10 +146,15 @@ public:
 
     virtual void findMacroUsages(const CPlusPlus::Macro &macro) = 0;
 
-    virtual QList<LanguageUtils::FakeMetaObject::ConstPtr> exportedQmlObjects(const CPlusPlus::Document::Ptr &doc) const = 0;
+    virtual void setExtraDiagnostics(const QString &fileName, int key,
+                                     const QList<CPlusPlus::Document::DiagnosticMessage> &diagnostics) = 0;
+    virtual QList<CPlusPlus::Document::DiagnosticMessage> extraDiagnostics(
+            const QString &fileName, int key = AllExtraDiagnostics) const = 0;
 
 Q_SIGNALS:
     void documentUpdated(CPlusPlus::Document::Ptr doc);
+    void sourceFilesRefreshed(const QStringList &files);
+    void extraDiagnosticsUpdated(QString fileName);
 
 public Q_SLOTS:
     virtual void updateModifiedSourceFiles() = 0;

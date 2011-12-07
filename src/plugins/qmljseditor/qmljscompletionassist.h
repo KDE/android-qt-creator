@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,9 +48,7 @@
 #include <QtGui/QIcon>
 
 namespace QmlJS {
-namespace Interpreter {
 class Value;
-}
 }
 
 namespace QmlJSEditor {
@@ -82,7 +80,7 @@ public:
 class QmlJSCompletionAssistProvider : public TextEditor::CompletionAssistProvider
 {
 public:
-    virtual bool supportsEditor(const QString &editorId) const;
+    virtual bool supportsEditor(const Core::Id &editorId) const;
     virtual TextEditor::IAssistProcessor *createProcessor() const;
 
     virtual int activationCharSequenceLength() const;
@@ -101,8 +99,9 @@ public:
 
 private:
     TextEditor::IAssistProposal *createContentProposal() const;
-    TextEditor::IAssistProposal *createHintProposal(const QString &functionName,
-                                                    const QStringList &signature) const;
+    TextEditor::IAssistProposal *createHintProposal(
+            const QString &functionName, const QStringList &namedArguments,
+            int optionalNamedArguments, bool isVariadic) const;
 
     bool acceptsIdleEditor() const;
 
@@ -110,20 +109,6 @@ private:
     bool completeFileName(const QString &relativeBasePath,
                           const QString &fileName,
                           const QStringList &patterns = QStringList());
-
-    void addCompletion(const QString &text,
-                       const QIcon &icon,
-                       int order,
-                       const QVariant &data = QVariant());
-    void addCompletions(const QHash<QString, const QmlJS::Interpreter::Value *> &newCompletions,
-                        const QIcon &icon,
-                        int order);
-    void addCompletions(const QStringList &newCompletions, const QIcon &icon, int order);
-    void addCompletionsPropertyLhs(const QHash<QString,
-                                        const QmlJS::Interpreter::Value *> &newCompletions,
-                                   const QIcon &icon,
-                                   int order,
-                                   bool afterOn);
 
     int m_startPosition;
     QScopedPointer<const QmlJSCompletionAssistInterface> m_interface;

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,6 +49,7 @@
 #include <texteditor/texteditoractionhandler.h>
 
 #include <projectexplorer/taskhub.h>
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <qtsupport/qtsupportconstants.h>
 
@@ -116,7 +117,7 @@ void QmlProjectPlugin::showQmlObserverToolWarning()
     dialog.exec();
     if (dialog.clickedButton() == qtPref) {
         Core::ICore::instance()->showOptionsDialog(
-                    QtSupport::Constants::QT_SETTINGS_CATEGORY,
+                    ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY,
                     QtSupport::Constants::QTVERSION_SETTINGS_PAGE_ID);
     }
 }

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,14 +46,13 @@ class ModelManagerInterface;
 namespace QmlJSTools {
 
 class QmlJSRefactoringChanges;
+class QmlJSRefactoringFile;
+class QmlJSRefactoringChangesData;
+typedef QSharedPointer<QmlJSRefactoringFile> QmlJSRefactoringFilePtr;
 
 class QMLJSTOOLS_EXPORT QmlJSRefactoringFile: public TextEditor::RefactoringFile
 {
 public:
-    QmlJSRefactoringFile();
-    QmlJSRefactoringFile(const QString &fileName, QmlJSRefactoringChanges *refactoringChanges);
-    QmlJSRefactoringFile(TextEditor::BaseTextEditorWidget *editor, QmlJS::Document::Ptr document);
-
     QmlJS::Document::Ptr qmljsDocument() const;
 
     /*!
@@ -64,11 +63,18 @@ public:
 
     bool isCursorOn(QmlJS::AST::UiObjectMember *ast) const;
     bool isCursorOn(QmlJS::AST::UiQualifiedId *ast) const;
+    bool isCursorOn(QmlJS::AST::SourceLocation loc) const;
 
-private:
-    QmlJSRefactoringChanges *refactoringChanges() const;
+protected:
+    QmlJSRefactoringFile(const QString &fileName, const QSharedPointer<TextEditor::RefactoringChangesData> &data);
+    QmlJSRefactoringFile(TextEditor::BaseTextEditorWidget *editor, QmlJS::Document::Ptr document);
+
+    QmlJSRefactoringChangesData *data() const;
+    virtual void fileChanged();
 
     mutable QmlJS::Document::Ptr m_qmljsDocument;
+
+    friend class QmlJSRefactoringChanges;
 };
 
 
@@ -78,19 +84,14 @@ public:
     QmlJSRefactoringChanges(QmlJS::ModelManagerInterface *modelManager,
                             const QmlJS::Snapshot &snapshot);
 
+    static QmlJSRefactoringFilePtr file(TextEditor::BaseTextEditorWidget *editor,
+                                        const QmlJS::Document::Ptr &document);
+    QmlJSRefactoringFilePtr file(const QString &fileName) const;
+
     const QmlJS::Snapshot &snapshot() const;
 
-    QmlJSRefactoringFile file(const QString &fileName);
-
 private:
-    virtual void indentSelection(const QTextCursor &selection,
-                                 const QString &fileName,
-                                 const TextEditor::BaseTextEditorWidget *textEditor) const;
-    virtual void fileChanged(const QString &fileName);
-
-private:
-    QmlJS::ModelManagerInterface *m_modelManager;
-    QmlJS::Snapshot m_snapshot;
+    QmlJSRefactoringChangesData *data() const;
 };
 
 } // namespace QmlJSTools

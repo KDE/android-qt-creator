@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -70,9 +70,9 @@ CppQuickFixOperation::~CppQuickFixOperation()
 void CppQuickFixOperation::perform()
 {
     CppRefactoringChanges refactoring(m_interface->snapshot());
-    CppRefactoringFile current = refactoring.file(fileName());
+    CppRefactoringFilePtr current = refactoring.file(fileName());
 
-    performChanges(&current, &refactoring);
+    performChanges(current, refactoring);
 }
 
 const CppQuickFixAssistInterface *CppQuickFixOperation::assistInterface() const

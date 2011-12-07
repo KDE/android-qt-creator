@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -138,6 +138,8 @@ bool UiCodeModelSupport::runUic(const QString &ui) const
 {
     QProcess process;
     const QString uic = uicCommand();
+    if (uic.isEmpty())
+        return false;
     process.setEnvironment(environment());
 
     if (debug)
@@ -146,18 +148,22 @@ bool UiCodeModelSupport::runUic(const QString &ui) const
     if (!process.waitForStarted())
         return false;
     process.write(ui.toUtf8());
+    if (!process.waitForBytesWritten(3000))
+        goto error;
     process.closeWriteChannel();
-    if (process.waitForFinished() && process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0) {
-        m_contents = process.readAllStandardOutput();
-        m_cacheTime = QDateTime::currentDateTime();
-        if (debug)
-            qDebug() << "ok" << m_contents.size() << "bytes.";
-        return true;
-    } else {
-        if (debug)
-            qDebug() << "failed" << process.readAllStandardError();
-        process.kill();
-    }
+    if (!process.waitForFinished(3000) && process.exitStatus() != QProcess::NormalExit && process.exitCode() != 0)
+        goto error;
+
+    m_contents = process.readAllStandardOutput();
+    m_cacheTime = QDateTime::currentDateTime();
+    if (debug)
+        qDebug() << "ok" << m_contents.size() << "bytes.";
+    return true;
+
+error:
+    if (debug)
+        qDebug() << "failed" << process.readAllStandardError();
+    process.kill();
     return false;
 }
 

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Free Documentation License
@@ -15,14 +15,13 @@
 ** file.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 ****************************************************************************/
 
 /*!
     \page index.html
     \title Extending Qt Creator Manual
-    \nextpage
 
     Qt Creator is a cross-platform integrated development environment (IDE)
     tailored to the needs of Qt developers.
@@ -215,11 +214,11 @@
     file, which is then opened within Qt Creator. You provide
     an editor (probably read-only) for handling this file.
     For lists of issues, consider creating task list files which are shown in
-    the \gui {Build Issues} output
+    the \gui {Issues} output
     pane.
     \list
     \o \l{http://doc.qt.nokia.com/qtcreator/creator-task-lists.html}
-         {Showing Task List Files in the Build Issues Pane}
+         {Showing Task List Files in the Issues Pane}
     \o \l{Creating Plugins}
     \o \l{Qt Creator Coding Rules}
     \o \l{Menus and Menu Items}

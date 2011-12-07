@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -107,13 +107,6 @@
     \brief Returns the application's file manager.
 
     The file manager keeps track of files for changes outside the application.
-*/
-
-/*!
-    \fn UniqueIDManager *ICore::uniqueIDManager() const
-    \brief Returns the application's id manager.
-
-    The unique ID manager transforms strings in unique integers and the other way round.
 */
 
 /*!

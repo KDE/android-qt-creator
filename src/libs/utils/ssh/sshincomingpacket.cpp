@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -377,6 +377,7 @@ SshChannelExitStatus SshIncomingPacket::extractChannelExitStatus() const
         exitStatus.localChannel = SshPacketParser::asUint32(m_data, &offset);
         const QByteArray &type = SshPacketParser::asString(m_data, &offset);
         Q_ASSERT(type == ExitStatusType);
+        Q_UNUSED(type);
         if (SshPacketParser::asBool(m_data, &offset))
             throw SshPacketParseException();
         exitStatus.exitStatus = SshPacketParser::asUint32(m_data, &offset);
@@ -398,6 +399,7 @@ SshChannelExitSignal SshIncomingPacket::extractChannelExitSignal() const
         exitSignal.localChannel = SshPacketParser::asUint32(m_data, &offset);
         const QByteArray &type = SshPacketParser::asString(m_data, &offset);
         Q_ASSERT(type == ExitSignalType);
+        Q_UNUSED(type);
         if (SshPacketParser::asBool(m_data, &offset))
             throw SshPacketParseException();
         exitSignal.signal = SshPacketParser::asString(m_data, &offset);

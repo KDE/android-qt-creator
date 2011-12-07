@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,11 +63,21 @@ ClientProxy::ClientProxy(Debugger::QmlAdapter *adapter, QObject *parent)
     connectToServer();
 }
 
+ClientProxy::~ClientProxy()
+{
+    m_adapter.data()->setEngineDebugClient(0);
+    m_adapter.data()->setCurrentSelectedDebugInfo(-1);
+}
+
 void ClientProxy::connectToServer()
 {
     m_engineClient = new QDeclarativeEngineDebug(m_adapter.data()->connection(), this);
 
     connect(m_engineClient, SIGNAL(newObjects()), this, SLOT(newObjects()));
+    connect(m_engineClient, SIGNAL(statusChanged(QDeclarativeDebugClient::Status)),
+            this, SLOT(clientStatusChanged(QDeclarativeDebugClient::Status)));
+    connect(m_engineClient, SIGNAL(statusChanged(QDeclarativeDebugClient::Status)),
+            this, SLOT(engineClientStatusChanged(QDeclarativeDebugClient::Status)));
 
     m_inspectorClient = new QmlJSInspectorClient(m_adapter.data()->connection(), this);
 
@@ -104,14 +114,21 @@ void ClientProxy::connectToServer()
 void ClientProxy::clientStatusChanged(QDeclarativeDebugClient::Status status)
 {
     QString serviceName;
-    if (QDeclarativeDebugClient *client = qobject_cast<QDeclarativeDebugClient*>(sender())) {
-        serviceName = client->name();
+    if (sender()) {
+        serviceName = sender()->objectName();
     }
 
     if (m_adapter)
         m_adapter.data()->logServiceStatusChange(serviceName, status);
 
     updateConnected();
+}
+
+void ClientProxy::engineClientStatusChanged(QDeclarativeDebugClient::Status status)
+{
+    if (status == QDeclarativeDebugClient::Enabled) {
+        m_adapter.data()->setEngineDebugClient(qobject_cast<QDeclarativeEngineDebug *>(sender()));
+    }
 }
 
 void ClientProxy::refreshObjectTree()
@@ -432,7 +449,7 @@ void ClientProxy::queryEngineContext(int id)
     if (!m_contextQuery->isWaiting())
         contextChanged();
     else
-        connect(m_contextQuery, SIGNAL(stateChanged(QDeclarativeDebugQuery::State)),
+        connect(m_contextQuery, SIGNAL(stateChanged(QmlJsDebugClient::QDeclarativeDebugQuery::State)),
                 this, SLOT(contextChanged()));
 }
 
@@ -469,8 +486,8 @@ void ClientProxy::fetchContextObjectRecursive(const QDeclarativeDebugContextRefe
         } else {
             m_objectTreeQuery << query;
             connect(query,
-                    SIGNAL(stateChanged(QDeclarativeDebugQuery::State)),
-                    SLOT(objectTreeFetched(QDeclarativeDebugQuery::State)));
+                    SIGNAL(stateChanged(QmlJsDebugClient::QDeclarativeDebugQuery::State)),
+                    SLOT(objectTreeFetched(QmlJsDebugClient::QDeclarativeDebugQuery::State)));
         }
     }
     foreach (const QDeclarativeDebugContextReference& child, context.contexts()) {
@@ -479,7 +496,7 @@ void ClientProxy::fetchContextObjectRecursive(const QDeclarativeDebugContextRefe
 }
 
 
-void ClientProxy::objectTreeFetched(QDeclarativeDebugQuery::State state)
+void ClientProxy::objectTreeFetched(QmlJsDebugClient::QDeclarativeDebugQuery::State state)
 {
     QDeclarativeDebugObjectQuery *query = qobject_cast<QDeclarativeDebugObjectQuery *>(sender());
     if (!query || state == QDeclarativeDebugQuery::Error) {
@@ -613,7 +630,7 @@ void ClientProxy::reparentQmlObject(int debugId, int newParent)
 void ClientProxy::updateConnected()
 {
     bool isConnected = m_inspectorClient && m_inspectorClient->status() == QDeclarativeDebugClient::Enabled
-            && m_engineClient && m_engineClient->status() == QDeclarativeEngineDebug::Enabled;
+            && m_engineClient && m_engineClient->status() == QDeclarativeDebugClient::Enabled;
 
     if (isConnected != m_isConnected) {
         m_isConnected = isConnected;
@@ -644,7 +661,7 @@ void ClientProxy::reloadEngines()
     if (!m_engineQuery->isWaiting()) {
         updateEngineList();
     } else {
-        connect(m_engineQuery, SIGNAL(stateChanged(QDeclarativeDebugQuery::State)),
+        connect(m_engineQuery, SIGNAL(stateChanged(QmlJsDebugClient::QDeclarativeDebugQuery::State)),
                          this, SLOT(updateEngineList()));
     }
 }

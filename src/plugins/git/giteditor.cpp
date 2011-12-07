@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -71,8 +71,6 @@ GitEditor::GitEditor(const VCSBase::VCSBaseEditorParameters *type,
     QTC_ASSERT(m_changeNumberPattern40.isValid(), return);
     setAnnotateRevisionTextFormat(tr("Blame %1"));
     setAnnotatePreviousRevisionTextFormat(tr("Blame parent revision %1"));
-    if (Git::Constants::debug)
-        qDebug() << "GitEditor::GitEditor" << type->type << type->id;
 }
 
 QSet<QString> GitEditor::annotationChanges() const
@@ -82,11 +80,11 @@ QSet<QString> GitEditor::annotationChanges() const
     if (txt.isEmpty())
         return changes;
     // Hunt for first change number in annotation: "<change>:"
-    QRegExp r(QLatin1String("^("CHANGE_PATTERN_8C") "));
+    QRegExp r(QLatin1String("^(" CHANGE_PATTERN_8C ") "));
     QTC_ASSERT(r.isValid(), return changes);
     if (r.indexIn(txt) != -1) {
         changes.insert(r.cap(1));
-        r.setPattern(QLatin1String("\n("CHANGE_PATTERN_8C") "));
+        r.setPattern(QLatin1String("\n(" CHANGE_PATTERN_8C ") "));
         QTC_ASSERT(r.isValid(), return changes);
         int pos = 0;
         while ((pos = r.indexIn(txt, pos)) != -1) {
@@ -94,8 +92,6 @@ QSet<QString> GitEditor::annotationChanges() const
             changes.insert(r.cap(1));
         }
     }
-    if (Git::Constants::debug)
-        qDebug() << "GitEditor::annotationChanges() returns #" << changes.size();
     return changes;
 }
 
@@ -107,8 +103,6 @@ QString GitEditor::changeUnderCursor(const QTextCursor &c) const
     if (!cursor.hasSelection())
         return QString();
     const QString change = cursor.selectedText();
-    if (Git::Constants::debug > 1)
-        qDebug() << "GitEditor:::changeUnderCursor:" << change;
     if (m_changeNumberPattern8.exactMatch(change))
         return change;
     if (m_changeNumberPattern40.exactMatch(change))
@@ -157,35 +151,42 @@ static QByteArray removeAnnotationDate(const QByteArray &b)
         return QByteArray(b);
     int datePos = parenPos;
 
-    // Go back from paren for 5 spaces: That is where the date starts.
+    int i = parenPos;
+    while (i >= 0 && b.at(i) != ' ')
+        --i;
+    while (i >= 0 && b.at(i) == ' ')
+        --i;
     int spaceCount = 0;
-    for (int i = parenPos; i >= 0; --i) {
+    // i is now on timezone. Go back 3 spaces: That is where the date starts.
+    while (i >= 0) {
         if (b.at(i) == ' ')
             ++spaceCount;
-        if (spaceCount == 5) {
-            datePos = i + 1;
+        if (spaceCount == 3) {
+            datePos = i;
             break;
         }
+        --i;
     }
     if (datePos == 0)
         return QByteArray(b);
 
     // Copy over the parts that have not changed into a new byte array
     Q_ASSERT(b.size() >= parenPos);
-    QByteArray result(b.constData(), datePos);
+    QByteArray result;
     int prevPos = 0;
-    int pos = parenPos;
+    int pos = b.indexOf('\n', 0) + 1;
     forever {
         Q_ASSERT(prevPos < pos);
-        if (prevPos != 0)
-            result.append(b.constData() + prevPos, pos - prevPos);
+        int afterParen = prevPos + parenPos;
+        result.append(b.constData() + prevPos, datePos);
+        result.append(b.constData() + afterParen, pos - afterParen);
         prevPos = pos;
         Q_ASSERT(prevPos != 0);
         if (pos == b.size())
             break;
 
-        pos = b.indexOf('\n', pos + 1);
-        if (pos == -1)
+        pos = b.indexOf('\n', pos) + 1;
+        if (pos == 0) // indexOf returned -1
             pos = b.size();
     }
     return result;
@@ -196,7 +197,7 @@ void GitEditor::setPlainTextDataFiltered(const QByteArray &a)
     QByteArray array = a;
     // If desired, filter out the date from annotation
     const bool omitAnnotationDate = contentType() == VCSBase::AnnotateOutput
-                                    && GitPlugin::instance()->settings().omitAnnotationDate;
+                                    && GitPlugin::instance()->settings().boolValue(GitSettings::omitAnnotationDateKey);
     if (omitAnnotationDate)
         array = removeAnnotationDate(a);
     setPlainTextData(array);

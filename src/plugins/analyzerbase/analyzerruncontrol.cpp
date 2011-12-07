@@ -6,7 +6,7 @@
 **
 ** Author: Andreas Hartmetz, KDAB (andreas.hartmetz@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -80,7 +80,7 @@ AnalyzerRunControl::Private::Private()
 
 AnalyzerRunControl::AnalyzerRunControl(IAnalyzerTool *tool,
         const AnalyzerStartParameters &sp, RunConfiguration *runConfiguration)
-    : RunControl(runConfiguration, tool->id()),
+    : RunControl(runConfiguration, tool->id().toString()),
       d(new Private)
 {
     d->m_engine = tool->createEngine(sp, runConfiguration);
@@ -94,7 +94,6 @@ AnalyzerRunControl::AnalyzerRunControl(IAnalyzerTool *tool,
             SLOT(addTask(ProjectExplorer::Task::TaskType,QString,QString,int)));
     connect(d->m_engine, SIGNAL(finished()),
             SLOT(engineFinished()));
-    connect(this, SIGNAL(finished()), SLOT(runControlFinished()), Qt::QueuedConnection);
 }
 
 AnalyzerRunControl::~AnalyzerRunControl()
@@ -113,6 +112,8 @@ void AnalyzerRunControl::start()
         emit finished();
         return;
     }
+
+    AnalyzerManager::handleToolStarted();
 
     // clear about-to-be-outdated tasks
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
@@ -145,12 +146,8 @@ void AnalyzerRunControl::stopIt()
 void AnalyzerRunControl::engineFinished()
 {
     d->m_isRunning = false;
-    emit finished();
-}
-
-void AnalyzerRunControl::runControlFinished()
-{
     AnalyzerManager::handleToolFinished();
+    emit finished();
 }
 
 bool AnalyzerRunControl::isRunning() const
@@ -184,15 +181,7 @@ void AnalyzerRunControl::addTask(Task::TaskType type, const QString &description
     ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
     TaskHub *hub = pm->getObject<TaskHub>();
     hub->addTask(Task(type, description, file, line, Constants::ANALYZERTASK_ID));
-
-    ///FIXME: get a better API for this into Qt Creator
-    QList<Core::IOutputPane *> panes = pm->getObjects<Core::IOutputPane>();
-    foreach (Core::IOutputPane *pane, panes) {
-        if (pane->displayName() == tr("Build Issues")) {
-            pane->popup(false);
-            break;
-        }
-    }
+    hub->popup(false);
 }
 
 } // namespace Analyzer

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,45 +44,23 @@
 namespace ClassView {
 namespace Internal {
 
-///////////////////////////////// NavigationWidget //////////////////////////////////
-
-/*!
-   \struct NavigationWidgetFactoryPrivate
-   \brief Private class data for \a NavigationWidgetFactory
-   \sa NavigationWidgetFactory
- */
-struct NavigationWidgetFactoryPrivate
-{
-    //! constructor
-    NavigationWidgetFactoryPrivate() : naviPaneEnabled(false) {}
-
-    //! NavigationWidgetFactory instance
-    static NavigationWidgetFactory *instance;
-
-    //! Navigation pane visibility
-    bool naviPaneEnabled;
-};
-
-// static variable initialization
-NavigationWidgetFactory *NavigationWidgetFactoryPrivate::instance = 0;
+static NavigationWidgetFactory *factoryInstance;
 
 ///////////////////////////////// NavigationWidgetFactory //////////////////////////////////
 
 NavigationWidgetFactory::NavigationWidgetFactory()
-    : d_ptr(new NavigationWidgetFactoryPrivate())
 {
+    factoryInstance = this;
 }
 
 NavigationWidgetFactory::~NavigationWidgetFactory()
 {
-    NavigationWidgetFactoryPrivate::instance = 0;
+    factoryInstance = 0;
 }
 
 NavigationWidgetFactory *NavigationWidgetFactory::instance()
 {
-    if (!NavigationWidgetFactoryPrivate::instance)
-        NavigationWidgetFactoryPrivate::instance = new NavigationWidgetFactory();
-    return NavigationWidgetFactoryPrivate::instance;
+    return factoryInstance;
 }
 
 QString NavigationWidgetFactory::displayName() const
@@ -92,12 +70,12 @@ QString NavigationWidgetFactory::displayName() const
 
 int NavigationWidgetFactory::priority() const
 {
-    return Constants::CLASSVIEWNAVIGATION_PRIORITY;
+    return 500;
 }
 
-QString NavigationWidgetFactory::id() const
+Core::Id NavigationWidgetFactory::id() const
 {
-    return QLatin1String(Constants::CLASSVIEWNAVIGATION_ID);
+    return Core::Id("Class View");
 }
 
 QKeySequence NavigationWidgetFactory::activationSequence() const
@@ -115,14 +93,18 @@ Core::NavigationView NavigationWidgetFactory::createWidget()
     return navigationView;
 }
 
-QString NavigationWidgetFactory::settingsPrefix(int position) const
+
+/*!
+   \brief Get a settings prefix for the specified position
+   \param position Position
+   \return Settings prefix
+ */
+static QString settingsPrefix(int position)
 {
-    QChar sep('/');
-    QString group = QLatin1String(Constants::CLASSVIEW_SETTINGS_GROUP) + sep;
-    group += QLatin1String(Constants::CLASSVIEW_SETTINGS_TREEWIDGET_PREFIX)
-             + QString::number(position) + sep;
-    return  group;
+    return QString::fromLatin1("ClassView/Treewidget.%1/FlatMode").arg(position);
 }
+
+//! Flat mode settings
 
 void NavigationWidgetFactory::saveSettings(int position, QWidget *widget)
 {
@@ -136,7 +118,7 @@ void NavigationWidgetFactory::saveSettings(int position, QWidget *widget)
     QString group = settingsPrefix(position);
 
     // save settings
-    settings->setValue(group + Constants::CLASSVIEW_SETTINGS_FLATMODE, pw->flatMode());
+    settings->setValue(group, pw->flatMode());
 }
 
 void NavigationWidgetFactory::restoreSettings(int position, QWidget *widget)
@@ -151,7 +133,7 @@ void NavigationWidgetFactory::restoreSettings(int position, QWidget *widget)
     QString group = settingsPrefix(position);
 
     // load settings
-    pw->setFlatMode(settings->value(group + Constants::CLASSVIEW_SETTINGS_FLATMODE, false).toBool());
+    pw->setFlatMode(settings->value(group, false).toBool());
 }
 
 } // namespace Internal

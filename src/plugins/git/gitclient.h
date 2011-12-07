@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,10 +34,11 @@
 #define GITCLIENT_H
 
 #include "gitsettings.h"
-#include "gitcommand.h"
 
 #include <coreplugin/editormanager/ieditor.h>
+#include <vcsbase/command.h>
 
+#include <QtCore/QObject>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtGui/QWidget>
@@ -56,6 +57,7 @@ namespace Core {
 
 namespace VCSBase {
     class VCSBaseEditorWidget;
+    class SubmitFileModel;
 }
 
 namespace Utils {
@@ -67,8 +69,7 @@ namespace Internal {
 
 class GitPlugin;
 class GitOutputWindow;
-class GitCommand;
-struct CommitData;
+class CommitData;
 struct GitSubmitEditorPanelData;
 class Stash;
 
@@ -79,8 +80,12 @@ class GitClient : public QObject
 public:
     static const char *stashNamePrefix;
 
-    explicit GitClient(GitPlugin *plugin);
+    explicit GitClient(GitSettings *settings);
     ~GitClient();
+
+    QString gitBinaryPath(bool *ok = 0, QString *errorMessage = 0) const;
+    unsigned gitVersion(bool silent, QString *errorMessage = 0) const;
+    QString gitVersionString(bool silent, QString *errorMessage = 0) const;
 
     static QString findRepositoryForDirectory(const QString &dir);
 
@@ -94,7 +99,7 @@ public:
     void status(const QString &workingDirectory);
     void graphLog(const QString &workingDirectory) { graphLog(workingDirectory, QString()); }
     void graphLog(const QString &workingDirectory, const QString &branch);
-    void log(const QString &workingDirectory, const QStringList &fileNames,
+    void log(const QString &workingDirectory, const QStringList &fileNames = QStringList(),
              bool enableAnnotationContextMenu = false);
     void blame(const QString &workingDirectory, const QStringList &args, const QString &fileName,
                const QString &revision = QString(), int lineNumber = -1);
@@ -160,10 +165,6 @@ public:
                                       QStringList *descriptions, QString *errorMessage);
     bool synchronousTopRevision(const QString &workingDirectory, QString *revision = 0,
                                 QString *branch = 0, QString *errorMessage = 0);
-    // determine version as '(major << 16) + (minor << 8) + patch' or 0
-    // with some smart caching.
-    unsigned gitVersion(bool silent, QString *errorMessage = 0);
-    QString gitVersionString(bool silent, QString *errorMessage = 0);
 
     bool cloneRepository(const QString &directory, const QByteArray &url);
     QString vcsGetRepositoryURL(const QString &directory);
@@ -187,9 +188,9 @@ public:
                               const QString &messge, QString *name,
                               QString *errorMessage = 0);
 
-    QString readConfig(const QString &workingDirectory, const QStringList &configVar);
+    QString readConfig(const QString &workingDirectory, const QStringList &configVar) const;
 
-    QString readConfigValue(const QString &workingDirectory, const QString &configVar);
+    QString readConfigValue(const QString &workingDirectory, const QString &configVar) const;
 
     enum StashResult { StashUnchanged, StashCanceled, StashFailed,
                        Stashed, NotStashed /* User did not want it */ };
@@ -204,33 +205,29 @@ public:
                       const GitSubmitEditorPanelData &data,
                       const QString &amendSHA1,
                       const QString &messageFile,
-                      const QStringList &checkedFiles,
-                      const QStringList &origCommitFiles,
-                      const QStringList &origDeletedFiles);
+                      VCSBase::SubmitFileModel *model);
 
     enum StatusResult { StatusChanged, StatusUnchanged, StatusFailed };
     StatusResult gitStatus(const QString &workingDirectory,
                            bool untracked = false,
                            QString *output = 0,
-                           QString *errorMessage = 0,
-                           bool *onBranch = 0);
+                           QString *errorMessage = 0, bool *onBranch = 0);
 
     void launchGitK(const QString &workingDirectory);
     QStringList synchronousRepositoryBranches(const QString &repositoryURL);
 
-    GitSettings  settings() const;
-    void setSettings(const GitSettings &s);
+    GitSettings *settings() const;
 
-    QString binary() const; // Executable + basic arguments
     QProcessEnvironment processEnvironment() const;
-    static QString fakeWinHome(const QProcessEnvironment &e);
 
     static QString msgNoChangedFiles();
 
     static const char *noColorOption;
+    static const char *decorateOption;
 
 public slots:
     void show(const QString &source, const QString &id, const QStringList &args = QStringList());
+    void saveSettings();
 
 private slots:
     void slotBlameRevisionRequested(const QString &source, QString change, int lineNumber);
@@ -238,24 +235,25 @@ private slots:
 private:
     VCSBase::VCSBaseEditorWidget *findExistingVCSEditor(const char *registerDynamicProperty,
                                                   const QString &dynamicPropertyValue) const;
-    VCSBase::VCSBaseEditorWidget *createVCSEditor(const QString &kind,
+    enum CodecType { CodecSource, CodecLogOutput, CodecNone };
+    VCSBase::VCSBaseEditorWidget *createVCSEditor(const Core::Id &kind,
                                             QString title,
                                             const QString &source,
-                                            bool setSourceCodec,
+                                            CodecType codecType,
                                             const char *registerDynamicProperty,
                                             const QString &dynamicPropertyValue,
                                             QWidget *configWidget) const;
 
-    GitCommand *createCommand(const QString &workingDirectory,
+    VCSBase::Command *createCommand(const QString &workingDirectory,
                              VCSBase::VCSBaseEditorWidget* editor = 0,
-                             bool outputToWindow = false,
+                             bool useOutputToWindow = false,
                              int editorLineNumber = -1);
 
-    GitCommand *executeGit(const QString &workingDirectory,
+    VCSBase::Command *executeGit(const QString &workingDirectory,
                            const QStringList &arguments,
                            VCSBase::VCSBaseEditorWidget* editor = 0,
-                           bool outputToWindow = false,
-                           GitCommand::TerminationReportMode tm = GitCommand::NoReport,
+                           bool useOutputToWindow = false,
+                           VCSBase::Command::TerminationReportMode tm = VCSBase::Command::NoReport,
                            int editorLineNumber = -1,
                            bool unixTerminalDisabled = false);
 
@@ -264,7 +262,7 @@ private:
                         const QStringList &arguments,
                         QByteArray* outputText,
                         QByteArray* errorText,
-                        bool logCommandToWindow = true);
+                        bool logCommandToWindow = true) const;
 
     // Synchronous git execution using Utils::SynchronousProcess, with
     // log windows updating (using VCSBasePlugin::runVCS with flags).
@@ -273,14 +271,14 @@ private:
                            unsigned flags = 0, QTextCodec *outputCodec = 0);
 
     // determine version as '(major << 16) + (minor << 8) + patch' or 0.
-    unsigned synchronousGitVersion(bool silent, QString *errorMessage = 0);
+    unsigned synchronousGitVersion(bool silent, QString *errorMessage = 0) const;
 
     enum RevertResult { RevertOk, RevertUnchanged, RevertCanceled, RevertFailed };
     RevertResult revertI(QStringList files,
                          bool *isDirectory,
                          QString *errorMessage,
                          bool revertStaging);
-    void connectRepositoryChanged(const QString & repository, GitCommand *cmd);
+    void connectRepositoryChanged(const QString & repository, VCSBase::Command *cmd);
     bool synchronousPull(const QString &workingDirectory, bool rebase);
     void syncAbortPullRebase(const QString &workingDir);
     bool tryLauchingGitK(const QProcessEnvironment &env,
@@ -288,37 +286,12 @@ private:
                          const QString &gitBinDirectory,
                          bool silent);
 
+    mutable QString m_gitVersionForBinary;
+    mutable unsigned m_cachedGitVersion;
+
     const QString m_msgWait;
-    GitPlugin     *m_plugin;
-    Core::ICore   *m_core;
-    GitSettings   m_settings;
-    QString m_binaryPath;
+    Core::ICore *m_core;
     QSignalMapper *m_repositoryChangedSignalMapper;
-    unsigned      m_cachedGitVersion;
-    bool          m_hasCachedGitVersion;
-};
-
-class BaseGitArgumentsWidget : public QWidget {
-    Q_OBJECT
-
-public:
-    BaseGitArgumentsWidget(GitSettings *settings,
-                           GitClient *client, const QString &directory,
-                           const QStringList &args);
-
-    virtual QStringList arguments() const = 0;
-
-public slots:
-    virtual void redoCommand() = 0;
-
-protected slots:
-    virtual void testForArgumentsChanged() = 0;
-
-protected:
-    GitClient *m_client;
-
-    const QString m_workingDirectory;
-    QStringList m_diffArgs;
     GitSettings *m_settings;
 };
 

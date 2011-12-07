@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -112,6 +112,7 @@ static inline QByteArray encodeUsbSerialMessage(const QByteArray &dataIn)
     return frame;
 }
 
+using namespace Json;
 namespace Coda {
 // ------------- CodaCommandError
 
@@ -944,12 +945,12 @@ void CodaDevice::sendProcessStartCommand(const CodaCallback &callBack,
     QByteArray setData;
     JsonInputStream setStr(setData);
     setStr << "" << '\0'
-            << '[' << "exeToLaunch" << ',' << "addExecutables" << ',' << "addLibraries" << ',' << "logUserTraces" << ']'
-            << '\0' << '['
+           << '[' << "exeToLaunch" << ',' << "addExecutables" << ',' << "addLibraries" << ',' << "logUserTraces" << ',' << "attachAllWithLibraries" << ']'
+           << '\0' << '['
                 << binaryFileName << ','
                 << '{' << binaryFileName << ':' << QString::number(uid, 16) << '}' << ','
-                << additionalLibraries << ',' << true
-            << ']';
+                << additionalLibraries << ',' << true << ',' << false
+           << ']';
     sendCodaMessage(
 #if 1
                 MessageWithReply,    // CODA 4.0.5 onwards

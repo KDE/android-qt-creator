@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,6 +49,7 @@
 
 #include <qmljs/qmljsicons.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
+#include <qmljs/qmljsreformatter.h>
 #include <qmljstools/qmljstoolsconstants.h>
 
 #include <qmldesigner/qmldesignerconstants.h>
@@ -56,7 +57,7 @@
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/mimedatabase.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/fileiconprovider.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -64,8 +65,6 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <projectexplorer/taskhub.h>
 #include <extensionsystem/pluginmanager.h>
-#include <texteditor/fontsettings.h>
-#include <texteditor/storagesettings.h>
 #include <texteditor/texteditorconstants.h>
 #include <texteditor/texteditorsettings.h>
 #include <texteditor/textfilewizard.h>
@@ -95,10 +94,11 @@ QmlJSEditorPlugin *QmlJSEditorPlugin::m_instance = 0;
 
 QmlJSEditorPlugin::QmlJSEditorPlugin() :
         m_modelManager(0),
-    m_wizard(0),
     m_editor(0),
     m_actionHandler(0),
-    m_quickFixAssistProvider(0)
+    m_quickFixAssistProvider(0),
+    m_reformatFileAction(0),
+    m_currentEditor(0)
 {
     m_instance = this;
 }
@@ -122,14 +122,28 @@ Core::Command *createSeparator(Core::ActionManager *am,
     return am->registerAction(separator, Core::Id(id), context);
 }
 
-bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *error_message)
+bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *errorMessage)
 {
     Core::ICore *core = Core::ICore::instance();
-    if (!core->mimeDatabase()->addMimeTypes(QLatin1String(":/qmljseditor/QmlJSEditor.mimetypes.xml"), error_message))
+    if (!core->mimeDatabase()->addMimeTypes(QLatin1String(":/qmljseditor/QmlJSEditor.mimetypes.xml"), errorMessage))
         return false;
 
     m_modelManager = QmlJS::ModelManagerInterface::instance();
     addAutoReleasedObject(new QmlJSSnippetProvider);
+
+    // QML task updating manager
+    m_qmlTaskManager = new QmlTaskManager;
+    addAutoReleasedObject(m_qmlTaskManager);
+    connect(m_modelManager, SIGNAL(documentChangedOnDisk(QmlJS::Document::Ptr)),
+            m_qmlTaskManager, SLOT(updateMessages()));
+    // recompute messages when information about libraries changes
+    connect(m_modelManager, SIGNAL(libraryInfoUpdated(QString,QmlJS::LibraryInfo)),
+            m_qmlTaskManager, SLOT(updateMessages()));
+    // recompute messages when project data changes (files added or removed)
+    connect(m_modelManager, SIGNAL(projectInfoUpdated(ProjectInfo)),
+            m_qmlTaskManager, SLOT(updateMessages()));
+    connect(m_modelManager, SIGNAL(aboutToRemoveFiles(QStringList)),
+            m_qmlTaskManager, SLOT(documentsRemoved(QStringList)));
 
     Core::Context context(QmlJSEditor::Constants::C_QMLJSEDITOR_ID);
 
@@ -180,6 +194,24 @@ bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *e
     contextMenu->addAction(cmd);
     qmlToolsMenu->addAction(cmd);
 
+    QAction *renameUsagesAction = new QAction(tr("Rename Symbol Under Cursor"), this);
+    cmd = am->registerAction(renameUsagesAction, Constants::RENAME_USAGES, context);
+    cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+R")));
+    connect(renameUsagesAction, SIGNAL(triggered()), this, SLOT(renameUsages()));
+    contextMenu->addAction(cmd);
+    qmlToolsMenu->addAction(cmd);
+
+    QAction *semanticScan = new QAction(tr("Run Checks"), this);
+    cmd = am->registerAction(semanticScan, Core::Id(Constants::RUN_SEMANTIC_SCAN), globalContext);
+    cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+Shift+C")));
+    connect(semanticScan, SIGNAL(triggered()), this, SLOT(runSemanticScan()));
+    qmlToolsMenu->addAction(cmd);
+
+    m_reformatFileAction = new QAction(tr("Reformat File"), this);
+    cmd = am->registerAction(m_reformatFileAction, Core::Id(Constants::REFORMAT_FILE), globalContext);
+    connect(m_reformatFileAction, SIGNAL(triggered()), this, SLOT(reformatFile()));
+    qmlToolsMenu->addAction(cmd);
+
     QAction *showQuickToolbar = new QAction(tr("Show Qt Quick Toolbar"), this);
     cmd = am->registerAction(showQuickToolbar, Constants::SHOW_QT_QUICK_HELPER, context);
 #ifdef Q_WS_MACX
@@ -211,7 +243,7 @@ bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *e
 
     addAutoReleasedObject(new HoverHandler);
 
-    error_message->clear();
+    errorMessage->clear();
 
     Core::FileIconProvider *iconProvider = Core::FileIconProvider::instance();
     iconProvider->registerIconOverlayForSuffix(QIcon(QLatin1String(":/qmljseditor/images/qmlfile.png")), "qml");
@@ -219,20 +251,6 @@ bool QmlJSEditorPlugin::initialize(const QStringList & /*arguments*/, QString *e
     registerQuickFixes(this);
 
     addAutoReleasedObject(new QmlJSOutlineWidgetFactory);
-
-    m_qmlTaskManager = new QmlTaskManager;
-    addAutoReleasedObject(m_qmlTaskManager);
-
-    connect(m_modelManager, SIGNAL(documentChangedOnDisk(QmlJS::Document::Ptr)),
-            m_qmlTaskManager, SLOT(updateMessages()));
-    // recompute messages when information about libraries changes
-    connect(m_modelManager, SIGNAL(libraryInfoUpdated(QString,QmlJS::LibraryInfo)),
-            m_qmlTaskManager, SLOT(updateMessages()));
-    // recompute messages when project data changes (files added or removed)
-    connect(m_modelManager, SIGNAL(projectInfoUpdated(ProjectInfo)),
-            m_qmlTaskManager, SLOT(updateMessages()));
-    connect(m_modelManager, SIGNAL(aboutToRemoveFiles(QStringList)),
-            m_qmlTaskManager, SLOT(documentsRemoved(QStringList)));
 
     addAutoReleasedObject(new QuickToolBar);
     addAutoReleasedObject(new Internal::QuickToolBarSettingsPage);
@@ -247,6 +265,7 @@ void QmlJSEditorPlugin::extensionsInitialized()
     ProjectExplorer::TaskHub *taskHub =
         ExtensionSystem::PluginManager::instance()->getObject<ProjectExplorer::TaskHub>();
     taskHub->addCategory(Constants::TASK_CATEGORY_QML, tr("QML"));
+    taskHub->addCategory(Constants::TASK_CATEGORY_QML_ANALYSIS, tr("QML Analysis"), false);
 }
 
 ExtensionSystem::IPlugin::ShutdownFlag QmlJSEditorPlugin::aboutToShutdown()
@@ -281,6 +300,27 @@ void QmlJSEditorPlugin::findUsages()
         editor->findUsages();
 }
 
+void QmlJSEditorPlugin::renameUsages()
+{
+    Core::EditorManager *em = Core::EditorManager::instance();
+    if (QmlJSTextEditorWidget *editor = qobject_cast<QmlJSTextEditorWidget*>(em->currentEditor()->widget()))
+        editor->renameUsages();
+}
+
+void QmlJSEditorPlugin::reformatFile()
+{
+    Core::EditorManager *em = Core::EditorManager::instance();
+    if (QmlJSTextEditorWidget *editor = qobject_cast<QmlJSTextEditorWidget*>(em->currentEditor()->widget())) {
+        QTC_ASSERT(!editor->isSemanticInfoOutdated(), return);
+
+        const QString &newText = QmlJS::reformat(editor->semanticInfo().document);
+        QTextCursor tc(editor->textCursor());
+        tc.movePosition(QTextCursor::Start);
+        tc.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        tc.insertText(newText);
+    }
+}
+
 void QmlJSEditorPlugin::showContextPane()
 {
     Core::EditorManager *em = Core::EditorManager::instance();
@@ -291,10 +331,10 @@ void QmlJSEditorPlugin::showContextPane()
 }
 
 Core::Command *QmlJSEditorPlugin::addToolAction(QAction *a, Core::ActionManager *am,
-                                          Core::Context &context, const QString &name,
+                                          Core::Context &context, const Core::Id &id,
                                           Core::ActionContainer *c1, const QString &keySequence)
 {
-    Core::Command *command = am->registerAction(a, name, context);
+    Core::Command *command = am->registerAction(a, id, context);
     if (!keySequence.isEmpty())
         command->setDefaultKeySequence(QKeySequence(keySequence));
     c1->addAction(command);
@@ -308,12 +348,38 @@ QmlJSQuickFixAssistProvider *QmlJSEditorPlugin::quickFixAssistProvider() const
 
 void QmlJSEditorPlugin::currentEditorChanged(Core::IEditor *editor)
 {
-    if (! editor)
-        return;
+    QmlJSTextEditorWidget *newTextEditor = 0;
+    if (editor)
+        newTextEditor = qobject_cast<QmlJSTextEditorWidget *>(editor->widget());
 
-    else if (QmlJSTextEditorWidget *textEditor = qobject_cast<QmlJSTextEditorWidget *>(editor->widget())) {
-        textEditor->forceSemanticRehighlight();
+    if (m_currentEditor) {
+        disconnect(m_currentEditor.data(), SIGNAL(contentsChanged()),
+                   this, SLOT(checkCurrentEditorSemanticInfoUpToDate()));
+        disconnect(m_currentEditor.data(), SIGNAL(semanticInfoUpdated()),
+                   this, SLOT(checkCurrentEditorSemanticInfoUpToDate()));
     }
+    m_currentEditor = newTextEditor;
+    if (newTextEditor) {
+        connect(newTextEditor, SIGNAL(contentsChanged()),
+                this, SLOT(checkCurrentEditorSemanticInfoUpToDate()));
+        connect(newTextEditor, SIGNAL(semanticInfoUpdated()),
+                this, SLOT(checkCurrentEditorSemanticInfoUpToDate()));
+        newTextEditor->reparseDocumentNow();
+    }
+}
+
+void QmlJSEditorPlugin::runSemanticScan()
+{
+    m_qmlTaskManager->updateSemanticMessagesNow();
+    ProjectExplorer::TaskHub *hub = ExtensionSystem::PluginManager::instance()->getObject<ProjectExplorer::TaskHub>();
+    hub->setCategoryVisibility(Constants::TASK_CATEGORY_QML_ANALYSIS, true);
+    hub->popup(false);
+}
+
+void QmlJSEditorPlugin::checkCurrentEditorSemanticInfoUpToDate()
+{
+    const bool semanticInfoUpToDate = m_currentEditor && !m_currentEditor->isSemanticInfoOutdated();
+    m_reformatFileAction->setEnabled(semanticInfoUpToDate);
 }
 
 Q_EXPORT_PLUGIN(QmlJSEditorPlugin)

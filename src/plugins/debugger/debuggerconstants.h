@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,42 +39,49 @@ namespace Debugger {
 namespace Constants {
 
 // Debug mode
-const char * const MODE_DEBUG           = "Mode.Debug";
+const char MODE_DEBUG[]             = "Mode.Debug";
 
 // Contexts
-const char * const C_DEBUGMODE          = "Debugger.DebugMode";
-const char * const C_CPPDEBUGGER        = "Gdb Debugger";
-const char * const C_QMLDEBUGGER        = "Qml/JavaScript Debugger";
+const char C_DEBUGMODE[]            = "Debugger.DebugMode";
+const char C_CPPDEBUGGER[]          = "Gdb Debugger";
+const char C_QMLDEBUGGER[]          = "Qml/JavaScript Debugger";
+
+// Menu Groups
+const char G_START_LOCAL[]          = "Debugger.Group.Start.Local";
+const char G_MANUAL_REMOTE[]        = "Debugger.Group.Manual.Remote";
+const char G_AUTOMATIC_REMOTE[]     = "Debugger.Group.Automatic.Remote";
+const char G_START_QML[]            = "Debugger.Group.Start.Qml";
 
 // Project Explorer run mode (RUN/DEBUG)
-const char * const DEBUGMODE            = "Debugger.DebugMode";
-const char * const DEBUGMODE2           = "Debugger.DebugMode2"; // Breaks on main.
+const char DEBUGMODE[]              = "Debugger.DebugMode";
+const char DEBUGMODE2[]             = "Debugger.DebugMode2"; // Breaks on main.
 
 // Common actions (accessed by QML inspector)
-const char * const INTERRUPT            = "Debugger.Interrupt";
-const char * const CONTINUE             = "Debugger.Continue";
-const char * const STOP                 = "Debugger.Stop";
-const char * const RESET                = "Debugger.Reset";
-const char * const STEP                 = "Debugger.StepLine";
-const char * const STEPOUT              = "Debugger.StepOut";
-const char * const NEXT                 = "Debugger.NextLine";
-const char * const REVERSE              = "Debugger.ReverseDirection";
-const char * const OPERATE_BY_INSTRUCTION   = "Debugger.OperateByInstruction";
+const char INTERRUPT[]              = "Debugger.Interrupt";
+const char CONTINUE[]               = "Debugger.Continue";
+const char STOP[]                   = "Debugger.Stop";
+const char HIDDEN_STOP[]            = "Debugger.HiddenStop";
+const char ABORT[]                  = "Debugger.Abort";
+const char STEP[]                   = "Debugger.StepLine";
+const char STEPOUT[]                = "Debugger.StepOut";
+const char NEXT[]                   = "Debugger.NextLine";
+const char REVERSE[]                = "Debugger.ReverseDirection";
+const char OPERATE_BY_INSTRUCTION[] = "Debugger.OperateByInstruction";
 
 // DebuggerMainWindow dock widget names
-const char * const DOCKWIDGET_BREAK      = "Debugger.Docks.Break";
-const char * const DOCKWIDGET_MODULES    = "Debugger.Docks.Modules";
-const char * const DOCKWIDGET_REGISTER   = "Debugger.Docks.Register";
-const char * const DOCKWIDGET_OUTPUT     = "Debugger.Docks.Output";
-const char * const DOCKWIDGET_SNAPSHOTS  = "Debugger.Docks.Snapshots";
-const char * const DOCKWIDGET_STACK      = "Debugger.Docks.Stack";
-const char * const DOCKWIDGET_SOURCE_FILES = "Debugger.Docks.SourceFiles";
-const char * const DOCKWIDGET_THREADS    = "Debugger.Docks.Threads";
-const char * const DOCKWIDGET_WATCHERS   = "Debugger.Docks.LocalsAndWatchers";
+const char DOCKWIDGET_BREAK[]        = "Debugger.Docks.Break";
+const char DOCKWIDGET_MODULES[]      = "Debugger.Docks.Modules";
+const char DOCKWIDGET_REGISTER[]     = "Debugger.Docks.Register";
+const char DOCKWIDGET_OUTPUT[]       = "Debugger.Docks.Output";
+const char DOCKWIDGET_SNAPSHOTS[]    = "Debugger.Docks.Snapshots";
+const char DOCKWIDGET_STACK[]        = "Debugger.Docks.Stack";
+const char DOCKWIDGET_SOURCE_FILES[] = "Debugger.Docks.SourceFiles";
+const char DOCKWIDGET_THREADS[]      = "Debugger.Docks.Threads";
+const char DOCKWIDGET_WATCHERS[]     = "Debugger.Docks.LocalsAndWatchers";
 
-const char * const DOCKWIDGET_QML_INSPECTOR = "Debugger.Docks.QmlInspector";
-const char * const DOCKWIDGET_QML_SCRIPTCONSOLE = "Debugger.Docks.ScriptConsole";
-const char * const DOCKWIDGET_DEFAULT_AREA = "Debugger.Docks.DefaultArea";
+const char DOCKWIDGET_QML_INSPECTOR[]     = "Debugger.Docks.QmlInspector";
+const char DOCKWIDGET_QML_SCRIPTCONSOLE[] = "Debugger.Docks.ScriptConsole";
+const char DOCKWIDGET_DEFAULT_AREA[]      = "Debugger.Docks.DefaultArea";
 
 } // namespace Constants
 
@@ -124,7 +131,10 @@ enum DebuggerStartMode
     AttachExternal,        // Attach to running process by process id
     AttachCrashedExternal, // Attach to crashed process by process id
     AttachCore,            // Attach to a core file
-    AttachToRemote,        // Start and attach to a remote process
+    AttachToRemoteServer,  // Attach to a running gdbserver
+    AttachToRemoteProcess, // Attach to a running remote process
+    StartRemoteProcess,    // Start and attach to a remote process
+    AttachToQmlPort,       // Attach to QML debugging port
     StartRemoteGdb,        // Start gdb itself remotely
     StartRemoteEngine      // Start ipc guest engine on other machine
 };
@@ -147,12 +157,15 @@ enum DebuggerCapabilities
     ReturnFromFunctionCapability = 0x2000,
     CreateFullBacktraceCapability = 0x4000,
     AddWatcherCapability = 0x8000,
-    WatchpointByAddressCapability = 0x10000,
-    WatchpointByExpressionCapability = 0x20000,
-    ShowModuleSymbolsCapability = 0x40000,
-    CatchCapability = 0x80000, //!< fork, vfork, syscall
-    OperateByInstructionCapability = 0x100000,
-    RunToLineCapability = 0x200000,
+    AddWatcherWhileRunningCapability = 0x10000,
+    WatchWidgetsCapability = 0x20000,
+    WatchpointByAddressCapability = 0x40000,
+    WatchpointByExpressionCapability = 0x80000,
+    ShowModuleSymbolsCapability = 0x100000,
+    CatchCapability = 0x200000, //!< fork, vfork, syscall
+    OperateByInstructionCapability = 0x400000,
+    RunToLineCapability = 0x800000,
+    MemoryAddressCapability = 0x1000000,
     AllDebuggerCapabilities = 0xFFFFFFFF
 };
 

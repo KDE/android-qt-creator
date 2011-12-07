@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,20 +63,20 @@ public:
     virtual ~AppOutputPane();
 
     QWidget *outputWidget(QWidget *);
-    QList<QWidget*> toolBarWidgets() const;
+    QList<QWidget *> toolBarWidgets() const;
     QString displayName() const;
     int priorityInStatusBar() const;
     void clearContents();
     void visibilityChanged(bool);
-    bool canFocus();
-    bool hasFocus();
+    bool canFocus() const;
+    bool hasFocus() const;
     void setFocus();
 
-    bool canNext();
-    bool canPrevious();
+    bool canNext() const;
+    bool canPrevious() const;
     void goToNext();
     void goToPrev();
-    bool canNavigate();
+    bool canNavigate() const;
 
     void createNewOutputWindow(RunControl *rc);
     void showTabFor(RunControl *rc);
@@ -84,8 +84,12 @@ public:
     bool aboutToClose() const;
     bool closeTabs(CloseTabMode mode);
 
+    QList<RunControl *> runControls() const;
+
 signals:
      void allRunControlsFinished();
+     void runControlStarted(ProjectExplorer::RunControl *rc);
+     void runControlFinished(ProjectExplorer::RunControl *rc);
 
 public slots:
     // ApplicationOutput specifics
@@ -100,8 +104,10 @@ private slots:
     void attachToRunControl();
     bool closeTab(int index);
     void tabChanged(int);
-    void runControlStarted();
-    void runControlFinished();
+    void contextMenuRequested(const QPoint &pos, int index);
+    void slotRunControlStarted();
+    void slotRunControlFinished();
+    void slotRunControlFinished2(ProjectExplorer::RunControl *sender);
 
     void aboutToUnloadSession();
     void updateFromSettings();
@@ -129,11 +135,15 @@ private:
     RunControl *currentRunControl() const;
     int tabWidgetIndexOf(int runControlIndex) const;
     void handleOldOutput(Core::OutputWindow *window) const;
+    void updateCloseActions();
 
     QWidget *m_mainWidget;
-    QTabWidget *m_tabWidget;
+    class TabWidget *m_tabWidget;
     QList<RunControlTab> m_runControlTabs;
     QAction *m_stopAction;
+    QAction *m_closeCurrentTabAction;
+    QAction *m_closeAllTabsAction;
+    QAction *m_closeOtherTabsAction;
     QToolButton *m_reRunButton;
     QToolButton *m_stopButton;
     QToolButton *m_attachButton;

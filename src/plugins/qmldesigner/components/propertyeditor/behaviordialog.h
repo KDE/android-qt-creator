@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,9 +55,7 @@ class BehaviorWidget : public QPushButton
     Q_OBJECT
 
 public:
-
-    BehaviorWidget();
-    BehaviorWidget(QWidget* parent);
+    explicit BehaviorWidget(QWidget *parent = 0);
 
     ModelNode modelNode() const {return m_modelNode; }
     QString propertyName() const {return m_propertyName; }
@@ -79,7 +77,7 @@ class BehaviorDialog : public QDialog
 {
     Q_OBJECT
 public:
-    BehaviorDialog(QWidget *parent);
+    explicit BehaviorDialog(QWidget *parent = 0);
     void setup(const ModelNode &node, const QString propertyName);
 
 public slots:
@@ -91,7 +89,7 @@ public slots:
 private:
     ModelNode m_modelNode;
     QString m_propertyName;
-    QScopedPointer<Ui_BehaviorDialog> m_ui;
+    QScopedPointer<Internal::Ui::BehaviorDialog> m_ui;
 };
 
 

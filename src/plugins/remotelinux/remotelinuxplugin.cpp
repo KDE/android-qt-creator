@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,33 +26,36 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "remotelinuxplugin.h"
 
+#include "embeddedlinuxqtversionfactory.h"
+#include "embeddedlinuxtargetfactory.h"
 #include "deployablefile.h"
 #include "genericlinuxdeviceconfigurationfactory.h"
-#include "maddedeviceconfigurationfactory.h"
-#include "maemoconstants.h"
-#include "maemodeploystepfactory.h"
+#include "genericremotelinuxdeploystepfactory.h"
 #include "linuxdeviceconfigurations.h"
-#include "maemoglobal.h"
-#include "maemopackagecreationfactory.h"
-#include "maemopublishingwizardfactories.h"
-#include "maemoqemumanager.h"
-#include "maemorunfactories.h"
-#include "maemosettingspages.h"
-#include "maemotoolchain.h"
-#include "qt4maemodeployconfiguration.h"
-#include "maemoqtversionfactory.h"
-#include "qt4maemotargetfactory.h"
 #include "qt4projectmanager/qt4projectmanagerconstants.h"
+#include "remotelinuxdeployconfigurationfactory.h"
 #include "remotelinuxrunconfigurationfactory.h"
 #include "remotelinuxruncontrolfactory.h"
+#include "remotelinuxsettingspages.h"
+#include "startgdbserverdialog.h"
+
+#include <coreplugin/icore.h>
+#include <coreplugin/coreconstants.h>
+#include <coreplugin/actionmanager/actionmanager.h>
+#include <coreplugin/actionmanager/actioncontainer.h>
+
+#include <debugger/debuggerconstants.h>
+
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <QtCore/QtPlugin>
+#include <QtGui/QAction>
 
 namespace RemoteLinux {
 namespace Internal {
@@ -61,42 +64,54 @@ RemoteLinuxPlugin::RemoteLinuxPlugin()
 {
 }
 
-RemoteLinuxPlugin::~RemoteLinuxPlugin()
-{
-}
-
 bool RemoteLinuxPlugin::initialize(const QStringList &arguments,
-    QString *error_message)
+    QString *errorMessage)
 {
     Q_UNUSED(arguments)
-    Q_UNUSED(error_message)
+    Q_UNUSED(errorMessage)
 
-    MaemoQemuManager::instance(this);
     LinuxDeviceConfigurations::instance(this);
 
-    addAutoReleasedObject(new MaemoRunControlFactory);
-    addAutoReleasedObject(new MaemoRunConfigurationFactory);
-    addAutoReleasedObject(new MaemoToolChainFactory);
-    addAutoReleasedObject(new Qt4MaemoDeployConfigurationFactory);
-    addAutoReleasedObject(new MaemoPackageCreationFactory);
-    addAutoReleasedObject(new MaemoDeployStepFactory);
-    addAutoReleasedObject(new MaemoDeviceConfigurationsSettingsPage);
-    addAutoReleasedObject(new MaemoQemuSettingsPage);
-    addAutoReleasedObject(new MaemoPublishingWizardFactoryFremantleFree);
-    addAutoReleasedObject(new Qt4MaemoTargetFactory);
-    addAutoReleasedObject(new MaemoQtVersionFactory);
+    addAutoReleasedObject(new LinuxDeviceConfigurationsSettingsPage);
     addAutoReleasedObject(new GenericLinuxDeviceConfigurationFactory);
-    addAutoReleasedObject(new MaddeDeviceConfigurationFactory);
     addAutoReleasedObject(new RemoteLinuxRunConfigurationFactory);
     addAutoReleasedObject(new RemoteLinuxRunControlFactory);
+    addAutoReleasedObject(new RemoteLinuxDeployConfigurationFactory);
+    addAutoReleasedObject(new GenericRemoteLinuxDeployStepFactory);
 
-    qRegisterMetaType<DeployableFile>("DeployableFile");
+    addAutoReleasedObject(new EmbeddedLinuxTargetFactory);
+    addAutoReleasedObject(new EmbeddedLinuxQtVersionFactory);
+
+    qRegisterMetaType<RemoteLinux::DeployableFile>("RemoteLinux::DeployableFile");
 
     return true;
 }
 
 void RemoteLinuxPlugin::extensionsInitialized()
 {
+    using namespace Core;
+    ICore *core = ICore::instance();
+    ActionManager *am = core->actionManager();
+    ActionContainer *mstart =
+        am->actionContainer(ProjectExplorer::Constants::M_DEBUG_STARTDEBUGGING);
+
+    const Context globalcontext(Core::Constants::C_GLOBAL);
+
+    QAction *startGdbServerAction = new QAction(tr("Start Remote Debug Server..."), 0);
+    Command *cmd = am->registerAction(startGdbServerAction, "StartGdbServer", globalcontext);
+    cmd->setDefaultText(tr("Start Gdbserver"));
+    mstart->addAction(cmd, Debugger::Constants::G_MANUAL_REMOTE);
+
+    connect(startGdbServerAction, SIGNAL(triggered()), SLOT(startGdbServer()));
+}
+
+void RemoteLinuxPlugin::startGdbServer()
+{
+    StartGdbServerDialog dlg;
+    int result = dlg.exec();
+    if (result == QDialog::Rejected)
+        return;
+    dlg.startGdbServer();
 }
 
 } // namespace Internal

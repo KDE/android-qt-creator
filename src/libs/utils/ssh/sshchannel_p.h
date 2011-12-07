@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -58,16 +58,13 @@ public:
     ChannelState channelState() const { return m_state; }
     void setChannelState(ChannelState state);
 
-    void setError(const QString &error) { m_errorString = error; }
-    QString errorString() const { return m_errorString; }
-
     quint32 localChannelId() const { return m_localChannel; }
     quint32 remoteChannel() const { return m_remoteChannel; }
 
-    virtual void handleChannelSuccess()=0;
-    virtual void handleChannelFailure()=0;
+    virtual void handleChannelSuccess() = 0;
+    virtual void handleChannelFailure() = 0;
 
-    virtual void closeHook()=0;
+    virtual void closeHook() = 0;
 
     void handleOpenSuccess(quint32 remoteChannelId, quint32 remoteWindowSize,
         quint32 remoteMaxPacketSize);
@@ -100,13 +97,13 @@ protected:
     QTimer * const m_timeoutTimer;
 
 private:
-    virtual void handleOpenSuccessInternal()=0;
-    virtual void handleOpenFailureInternal()=0;
-    virtual void handleChannelDataInternal(const QByteArray &data)=0;
+    virtual void handleOpenSuccessInternal() = 0;
+    virtual void handleOpenFailureInternal(const QString &reason) = 0;
+    virtual void handleChannelDataInternal(const QByteArray &data) = 0;
     virtual void handleChannelExtendedDataInternal(quint32 type,
-        const QByteArray &data)=0;
-    virtual void handleExitStatus(const SshChannelExitStatus &exitStatus)=0;
-    virtual void handleExitSignal(const SshChannelExitSignal &signal)=0;
+        const QByteArray &data) = 0;
+    virtual void handleExitStatus(const SshChannelExitStatus &exitStatus) = 0;
+    virtual void handleExitSignal(const SshChannelExitSignal &signal) = 0;
 
     void setState(ChannelState newState);
     void flushSendBuffer();
@@ -119,7 +116,6 @@ private:
     quint32 m_remoteMaxPacketSize;
     ChannelState m_state;
     QByteArray m_sendBuffer;
-    QString m_errorString;
 };
 
 } // namespace Internal

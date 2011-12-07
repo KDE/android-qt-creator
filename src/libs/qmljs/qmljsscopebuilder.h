@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,11 +34,18 @@
 #define QMLJSSCOPEBUILDER_H
 
 #include <qmljs/qmljsdocument.h>
-#include <qmljs/qmljsinterpreter.h>
 
 #include <QtCore/QList>
+#include <QtCore/QStack>
 
 namespace QmlJS {
+
+class QmlComponentChain;
+class Context;
+typedef QSharedPointer<const Context> ContextPtr;
+class ObjectValue;
+class Value;
+class ScopeChain;
 
 namespace AST {
     class Node;
@@ -47,28 +54,22 @@ namespace AST {
 class QMLJS_EXPORT ScopeBuilder
 {
 public:
-    ScopeBuilder(Interpreter::Context *context, Document::Ptr doc);
+    ScopeBuilder(ScopeChain *scopeChain);
     ~ScopeBuilder();
-
-    void initializeRootScope();
 
     void push(AST::Node *node);
     void push(const QList<AST::Node *> &nodes);
     void pop();
 
-    static const Interpreter::ObjectValue *isPropertyChangesObject(const Interpreter::Context *context, const Interpreter::ObjectValue *object);
+    static const ObjectValue *isPropertyChangesObject(const ContextPtr &context, const ObjectValue *object);
 
 private:
-    void makeComponentChain(Document::Ptr doc, const Snapshot &snapshot,
-                            Interpreter::ScopeChain::QmlComponentChain *target,
-                            QHash<Document *, Interpreter::ScopeChain::QmlComponentChain *> *components);
-
     void setQmlScopeObject(AST::Node *node);
-    const Interpreter::Value *scopeObjectLookup(AST::UiQualifiedId *id);
+    const Value *scopeObjectLookup(AST::UiQualifiedId *id);
 
-    Document::Ptr _doc;
-    Interpreter::Context *_context;
+    ScopeChain *_scopeChain;
     QList<AST::Node *> _nodes;
+    QStack< QList<const ObjectValue *> > _qmlScopeObjects;
 };
 
 } // namespace QmlJS

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -64,6 +64,11 @@ public:
         quint32 requestId);
     SftpOutgoingPacket &generateWriteFile(const QByteArray &handle,
         quint64 offset, const QByteArray &data, quint32 requestId);
+
+    // Note: OpenSSH's SFTP server has a bug that reverses the filePath and target
+    //       arguments, so this operation is not portable.
+    SftpOutgoingPacket &generateCreateLink(const QString &filePath, const QString &target,
+        quint32 requestId);
 
     static const quint32 DefaultPermissions;
 

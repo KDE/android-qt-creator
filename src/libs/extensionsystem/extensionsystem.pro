@@ -6,7 +6,11 @@ include(extensionsystem_dependencies.pri)
 
 unix:!macx:!freebsd*:LIBS += -ldl
 
-DEFINES += IDE_TEST_DIR=\\\"$$IDE_SOURCE_TREE\\\"
+!isEmpty(vcproj) {
+    DEFINES += IDE_TEST_DIR=\"$$IDE_SOURCE_TREE\"
+} else {
+    DEFINES += IDE_TEST_DIR=\\\"$$IDE_SOURCE_TREE\\\"
+}
 
 HEADERS += pluginerrorview.h \
     plugindetailsview.h \
@@ -21,7 +25,8 @@ HEADERS += pluginerrorview.h \
     pluginview.h \
     pluginview_p.h \
     optionsparser.h \
-    plugincollection.h
+    plugincollection.h \
+    pluginerroroverview.h
 SOURCES += pluginerrorview.cpp \
     plugindetailsview.cpp \
     invoker.cpp \
@@ -30,8 +35,13 @@ SOURCES += pluginerrorview.cpp \
     pluginspec.cpp \
     pluginview.cpp \
     optionsparser.cpp \
-    plugincollection.cpp
+    plugincollection.cpp \
+    pluginerroroverview.cpp
 FORMS += pluginview.ui \
     pluginerrorview.ui \
-    plugindetailsview.ui
+    plugindetailsview.ui \
+    pluginerroroverview.ui
 RESOURCES += pluginview.qrc
+
+
+

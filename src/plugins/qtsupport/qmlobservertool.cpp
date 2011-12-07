@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -66,6 +66,11 @@ bool QmlObserverTool::canBuild(const BaseQtVersion *qtVersion, QString *reason)
     if (qtVersion->qtVersion() < QtVersionNumber(4, 7, 1)) {
         if (reason)
             *reason = QCoreApplication::translate("Qt4ProjectManager::QmlObserverTool", "Only available for Qt 4.7.1 or newer.");
+        return false;
+    }
+    if (qtVersion->qtVersion() >= QtVersionNumber(4, 8, 0)) {
+        if (reason)
+            *reason = QCoreApplication::translate("Qt4ProjectManager::QmlObserverTool", "Not needed.");
         return false;
     }
     return true;

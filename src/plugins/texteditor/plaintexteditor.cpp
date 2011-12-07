@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -92,9 +92,9 @@ Core::IEditor *PlainTextEditor::duplicate(QWidget *parent)
     return newWidget->editor();
 }
 
-QString PlainTextEditor::id() const
+Core::Id PlainTextEditor::id() const
 {
-    return QLatin1String(Core::Constants::K_DEFAULT_TEXT_EDITOR_ID);
+    return Core::Constants::K_DEFAULT_TEXT_EDITOR_ID;
 }
 
 void PlainTextEditorWidget::unCommentSelection()

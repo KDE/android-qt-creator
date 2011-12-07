@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,7 +34,6 @@
 #define QMLJSHOVERHANDLER_H
 
 #include <qmljs/qmljsmodelmanagerinterface.h>
-#include <qmljs/qmljslookupcontext.h>
 #include <texteditor/basehoverhandler.h>
 
 #include <QtGui/QColor>
@@ -49,6 +48,13 @@ class IEditor;
 
 namespace TextEditor {
 class ITextEditor;
+}
+
+namespace QmlJS {
+class ScopeChain;
+class Context;
+typedef QSharedPointer<const Context> ContextPtr;
+class Value;
 }
 
 namespace QmlJSEditor {
@@ -70,19 +76,19 @@ private:
     virtual void operateTooltip(TextEditor::ITextEditor *editor, const QPoint &point);
 
     bool matchDiagnosticMessage(QmlJSEditor::QmlJSTextEditorWidget *qmlEditor, int pos);
-    bool matchColorItem(const QmlJS::LookupContext::Ptr &lookupContext,
+    bool matchColorItem(const QmlJS::ScopeChain &lookupContext,
                         const QmlJS::Document::Ptr &qmlDocument,
                         const QList<QmlJS::AST::Node *> &astPath,
                         unsigned pos);
-    void handleOrdinaryMatch(const QmlJS::LookupContext::Ptr &lookupContext,
+    void handleOrdinaryMatch(const QmlJS::ScopeChain &lookupContext,
                              QmlJS::AST::Node *node);
-    void handleImport(const QmlJS::LookupContext::Ptr &lookupContext,
+    void handleImport(const QmlJS::ScopeChain &lookupContext,
                       QmlJS::AST::UiImport *node);
 
-    void prettyPrintTooltip(const QmlJS::Interpreter::Value *value,
-                            const QmlJS::Interpreter::Context *context);
+    void prettyPrintTooltip(const QmlJS::Value *value,
+                            const QmlJS::ContextPtr &context);
 
-    TextEditor::HelpItem qmlHelpItem(const QmlJS::LookupContext::Ptr &lookupContext,
+    TextEditor::HelpItem qmlHelpItem(const QmlJS::ScopeChain &lookupContext,
                                      QmlJS::AST::Node *node) const;
 
     QmlJS::ModelManagerInterface *m_modelManager;

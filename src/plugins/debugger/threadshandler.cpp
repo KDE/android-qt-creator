@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,11 @@
 #include "gdb/gdbmi.h"
 
 #include "debuggerconstants.h"
+#include "debuggercore.h"
 
 #include <QtCore/QDebug>
 #include <QtCore/QTextStream>
+#include <QtGui/QSortFilterProxyModel>
 
 namespace Debugger {
 namespace Internal {
@@ -106,6 +108,8 @@ ThreadsHandler::ThreadsHandler()
 {
     m_resetLocationScheduled = false;
     m_contentsValid = false;
+    m_proxyModel = new QSortFilterProxyModel(this);
+    m_proxyModel->setSourceModel(this);
 }
 
 int ThreadsHandler::rowCount(const QModelIndex &parent) const
@@ -124,7 +128,7 @@ QVariant ThreadsHandler::data(const QModelIndex &index, int role) const
     if (!index.isValid())
         return QVariant();
     const int row = index.row();
-    if (row  >= m_threads.size())
+    if (row >= m_threads.size())
         return QVariant();
     const ThreadData &thread = m_threads.at(row);
 
@@ -148,14 +152,14 @@ QVariant ThreadsHandler::data(const QModelIndex &index, int role) const
             return thread.core;
         case ThreadData::StateColumn:
             return thread.state;
-        case ThreadData::NameColumn: {
-            QString s;
-            if (!thread.name.isEmpty())
-                s += ' ' + thread.name;
-            if (!thread.targetId.isEmpty())
-                s += ' ' + thread.targetId;
-            return s;
-            }
+        case ThreadData::TargetIdColumn:
+            if (thread.targetId.startsWith(QLatin1String("Thread ")))
+                return thread.targetId.mid(7);
+            return thread.targetId;
+        case ThreadData::NameColumn:
+            return thread.name;
+        case ThreadData::ComboNameColumn:
+            return QString("#%1 %2").arg(thread.id).arg(thread.name);
         }
     case Qt::ToolTipRole:
         return threadToolTip(thread);
@@ -177,7 +181,7 @@ QVariant ThreadsHandler::headerData
         return QVariant();
     switch (section) {
     case ThreadData::IdColumn:
-        return tr("Thread ID");
+        return QString(QLatin1String("  ") + tr("ID") + QLatin1String("  "));
     case ThreadData::FunctionColumn:
         return tr("Function");
     case ThreadData::FileColumn:
@@ -190,6 +194,8 @@ QVariant ThreadsHandler::headerData
         return tr("Core");
     case ThreadData::StateColumn:
         return tr("State");
+    case ThreadData::TargetIdColumn:
+        return tr("Target ID");
     case ThreadData::NameColumn:
         return tr("Name");
     }
@@ -219,19 +225,20 @@ void ThreadsHandler::setCurrentThread(int index)
 
     m_currentIndex = index;
 
-    // Emit changed for new frame
+    // Emit changed for new frame.
     i = ThreadsHandler::index(m_currentIndex, 0);
     emit dataChanged(i, i);
+
+    updateThreadBox();
 }
 
 void ThreadsHandler::setCurrentThreadId(int id)
 {
     const int index = indexOf(id);
-    if (index != -1) {
+    if (index != -1)
         setCurrentThread(index);
-    } else {
+    else
         qWarning("ThreadsHandler::setCurrentThreadId: No such thread %d.", id);
-    }
 }
 
 int ThreadsHandler::indexOf(quint64 threadId) const
@@ -251,6 +258,15 @@ void ThreadsHandler::setThreads(const Threads &threads)
     m_resetLocationScheduled = false;
     m_contentsValid = true;
     reset();
+    updateThreadBox();
+}
+
+void ThreadsHandler::updateThreadBox()
+{
+    QStringList list;
+    foreach (const ThreadData &thread, m_threads)
+        list.append(QString("#%1 %2").arg(thread.id).arg(thread.name));
+    debuggerCore()->setThreads(list, m_currentIndex);
 }
 
 Threads ThreadsHandler::threads() const
@@ -324,6 +340,11 @@ void ThreadsHandler::resetLocation()
         m_resetLocationScheduled = false;
         reset();
     }
+}
+
+QAbstractItemModel *ThreadsHandler::model()
+{
+    return m_proxyModel;
 }
 
 } // namespace Internal

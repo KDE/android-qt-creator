@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -62,21 +62,21 @@ public:
     ~CompileOutputWindow();
 
     QWidget *outputWidget(QWidget *);
-    QList<QWidget*> toolBarWidgets() const { return QList<QWidget *>(); }
+    QList<QWidget *> toolBarWidgets() const { return QList<QWidget *>(); }
     QString displayName() const { return tr("Compile Output"); }
     int priorityInStatusBar() const;
     void clearContents();
     void visibilityChanged(bool visible);
     void appendText(const QString &text, ProjectExplorer::BuildStep::OutputFormat format);
-    bool canFocus();
-    bool hasFocus();
+    bool canFocus() const;
+    bool hasFocus() const;
     void setFocus();
 
-    bool canNext();
-    bool canPrevious();
+    bool canNext() const;
+    bool canPrevious() const;
     void goToNext();
     void goToPrev();
-    bool canNavigate();
+    bool canNavigate() const;
 
     void registerPositionOf(const Task &task);
     bool knowsPositionOf(const Task &task);

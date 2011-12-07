@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -60,7 +60,8 @@ CorePlugin::~CorePlugin()
     }
 
     if (m_designMode) {
-        removeObject(m_designMode);
+        if (m_designMode->designModeIsRequired())
+            removeObject(m_designMode);
         delete m_designMode;
     }
 
@@ -72,12 +73,14 @@ CorePlugin::~CorePlugin()
 
 void CorePlugin::parseArguments(const QStringList &arguments)
 {
-    for (int i = 0; i < arguments.size() - 1; i++) {
+    for (int i = 0; i < arguments.size(); ++i) {
         if (arguments.at(i) == QLatin1String("-color")) {
             const QString colorcode(arguments.at(i + 1));
             m_mainWindow->setOverrideColor(QColor(colorcode));
             i++; // skip the argument
         }
+        if (arguments.at(i) == QLatin1String("-presentationMode"))
+            m_mainWindow->setPresentationModeEnabled(true);
     }
 }
 
@@ -90,7 +93,6 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
         addObject(m_editMode);
         m_mainWindow->modeManager()->activateMode(m_editMode->id());
         m_designMode = new DesignMode;
-        addObject(m_designMode);
     }
     return success;
 }
@@ -98,6 +100,8 @@ bool CorePlugin::initialize(const QStringList &arguments, QString *errorMessage)
 void CorePlugin::extensionsInitialized()
 {
     m_mainWindow->mimeDatabase()->syncUserModifiedMimeTypes();
+    if (m_designMode->designModeIsRequired())
+        addObject(m_designMode);
     m_mainWindow->extensionsInitialized();
 }
 

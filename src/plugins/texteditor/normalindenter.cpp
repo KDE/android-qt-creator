@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "normalindenter.h"
 #include "tabsettings.h"
-#include "basetexteditor.h"
 
 #include <QtGui/QTextDocument>
 
@@ -66,7 +65,7 @@ NormalIndenter::~NormalIndenter()
 void NormalIndenter::indentBlock(QTextDocument *doc,
                                  const QTextBlock &block,
                                  const QChar &typedChar,
-                                 BaseTextEditorWidget *editor)
+                                 const TextEditor::TabSettings &tabSettings)
 {
     Q_UNUSED(typedChar)
 
@@ -82,11 +81,10 @@ void NormalIndenter::indentBlock(QTextDocument *doc,
 
     // Just use previous line.
     // Skip blank characters when determining the indentation
-    const TabSettings &ts = editor->tabSettings();
     int i = 0;
     while (i < previousText.size()) {
         if (!previousText.at(i).isSpace()) {
-            ts.indentLine(block, ts.columnAt(previousText, i));
+            tabSettings.indentLine(block, tabSettings.columnAt(previousText, i));
             break;
         }
         ++i;

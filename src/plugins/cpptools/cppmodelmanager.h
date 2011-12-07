@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 #define CPPMODELMANAGER_H
 
 #include "cpptools_global.h"
+#include "cpptoolsconstants.h"
 #include <cplusplus/ModelManagerInterface.h>
 #ifndef ICHECK_BUILD
 #  include <projectexplorer/project.h>
@@ -128,7 +129,13 @@ public:
 
     virtual void findMacroUsages(const CPlusPlus::Macro &macro);
 
-    virtual QList<LanguageUtils::FakeMetaObject::ConstPtr> exportedQmlObjects(const CPlusPlus::Document::Ptr &doc) const;
+    virtual void setExtraDiagnostics(const QString &fileName, int key,
+                                     const QList<CPlusPlus::Document::DiagnosticMessage> &diagnostics);
+    virtual QList<CPlusPlus::Document::DiagnosticMessage> extraDiagnostics(
+            const QString &fileName, int key = AllExtraDiagnostics) const;
+
+
+    void finishedRefreshingSourceFiles(const QStringList &files);
 
 Q_SIGNALS:
     void projectPathChanged(const QString &projectPath);
@@ -143,6 +150,7 @@ public Q_SLOTS:
 private Q_SLOTS:
     // this should be executed in the GUI thread.
     void onDocumentUpdated(CPlusPlus::Document::Ptr doc);
+    void onExtraDiagnosticsUpdated(const QString &fileName);
     void onAboutToRemoveProject(ProjectExplorer::Project *project);
     void onAboutToUnloadSession();
     void onProjectAdded(ProjectExplorer::Project *project);
@@ -150,6 +158,8 @@ private Q_SLOTS:
     void updateEditorSelections();
 
 private:
+    void updateEditor(CPlusPlus::Document::Ptr doc);
+
     WorkingCopy buildWorkingCopyList();
 
     QStringList projectFiles()
@@ -226,6 +236,9 @@ private:
 
     CppFindReferences *m_findReferences;
     bool m_indexerEnabled;
+
+    mutable QMutex protectExtraDiagnostics;
+    QHash<QString, QHash<int, QList<CPlusPlus::Document::DiagnosticMessage> > > m_extraDiagnostics;
 };
 #endif
 
@@ -253,6 +266,9 @@ public:
 
     const QSet<QString> &todo() const
     { return m_todo; }
+
+    CppModelManager *modelManager() const
+    { return m_modelManager.data(); }
 
 public: // attributes
     CPlusPlus::Snapshot snapshot;

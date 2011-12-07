@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,54 +26,44 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef GITSETTINGS_H
 #define GITSETTINGS_H
 
-#include <QtCore/QStringList>
+#include <vcsbase/vcsbaseclientsettings.h>
 
-QT_BEGIN_NAMESPACE
-class QSettings;
-QT_END_NAMESPACE
+#include <QtCore/QStringList>
 
 namespace Git {
 namespace Internal {
 
 // Todo: Add user name and password?
-struct GitSettings
+class GitSettings : public VCSBase::VCSBaseClientSettings
 {
+public:
     GitSettings();
 
-    void fromSettings(QSettings *);
-    void toSettings(QSettings *) const;
+    static const QLatin1String adoptPathKey;
+    static const QLatin1String pathKey;
+    static const QLatin1String pullRebaseKey;
+    static const QLatin1String omitAnnotationDateKey;
+    static const QLatin1String ignoreSpaceChangesInDiffKey;
+    static const QLatin1String ignoreSpaceChangesInBlameKey;
+    static const QLatin1String diffPatienceKey;
+    static const QLatin1String winSetHomeEnvironmentKey;
+    static const QLatin1String showPrettyFormatKey;
+    static const QLatin1String gitkOptionsKey;
 
-    /** Return the full path to the git executable */
     QString gitBinaryPath(bool *ok = 0, QString *errorMessage = 0) const;
 
-    bool equals(const GitSettings &s) const;
+    GitSettings &operator = (const GitSettings &s);
 
-    bool adoptPath;
-    QString path;
-    int logCount;
-    int timeoutSeconds;
-    bool pullRebase;
-    bool promptToSubmit;
-    bool omitAnnotationDate;
-    bool ignoreSpaceChangesInDiff;
-    bool ignoreSpaceChangesInBlame;
-    bool diffPatience;
-    bool winSetHomeEnvironment;
-    int showPrettyFormat;
-    QString gitkOptions;
+private:
+    mutable QString m_binaryPath;
 };
-
-inline bool operator==(const GitSettings &p1, const GitSettings &p2)
-    { return p1.equals(p2); }
-inline bool operator!=(const GitSettings &p1, const GitSettings &p2)
-    { return !p1.equals(p2); }
 
 } // namespace Internal
 } // namespace Git

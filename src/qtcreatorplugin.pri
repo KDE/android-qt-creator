@@ -7,7 +7,23 @@ isEmpty(PROVIDER) {
     PROVIDER = Nokia
 }
 
-DESTDIR = $$IDE_PLUGIN_PATH/$$PROVIDER
+isEmpty(USE_USER_DESTDIR) {
+    DESTDIR = $$IDE_PLUGIN_PATH/$$PROVIDER
+} else {
+    win32 {
+        DESTDIRAPPNAME = "qtcreator"
+        DESTDIRBASE = "$$(LOCALAPPDATA)"
+        isEmpty(DESTDIRBASE):DESTDIRBASE="$$(USERPROFILE)\Local Settings\Application Data"
+    } else:macx {
+        DESTDIRAPPNAME = "Qt Creator"
+        DESTDIRBASE = "$$(HOME)/Library/Application Support"
+    } else:unix {
+        DESTDIRAPPNAME = "qtcreator"
+        DESTDIRBASE = "$$(XDG_DATA_HOME)"
+        isEmpty(DESTDIRBASE):DESTDIRBASE = "$$(HOME)/.local/share"
+    }
+    DESTDIR = "$$DESTDIRBASE/Nokia/$$DESTDIRAPPNAME/plugins/$$QTCREATOR_VERSION/$$PROVIDER"
+}
 LIBS += -L$$DESTDIR
 
 # copy the plugin spec
@@ -24,8 +40,8 @@ PLUGINSPEC = $$_PRO_FILE_PWD_/$${TARGET}.pluginspec
 PLUGINSPEC_IN = $${PLUGINSPEC}.in
 exists($$PLUGINSPEC_IN) {
     OTHER_FILES += $$PLUGINSPEC_IN
+    QMAKE_SUBSTITUTES += $$PLUGINSPEC_IN
     PLUGINSPEC = $$OUT_PWD/$${TARGET}.pluginspec
-    QMAKE_SUBSTITUTES += $${PLUGINSPEC}.in
     copy2build.output = $$DESTDIR/${QMAKE_FUNC_FILE_IN_stripOutDir}
 } else {
     # need to support that for external plugins
@@ -44,7 +60,7 @@ macx {
         QMAKE_LFLAGS_SONAME = -Wl,-install_name,@executable_path/../PlugIns/$${PROVIDER}/
     } else {
         QMAKE_LFLAGS_SONAME = -Wl,-install_name,@rpath/PlugIns/$${PROVIDER}/
-        QMAKE_LFLAGS += -Wl,-rpath,@loader_path/../../
+        QMAKE_LFLAGS += -Wl,-rpath,@loader_path/../../,-rpath,@executable_path/../
     }
 } else:linux-* {
     #do the rpath by hand since it's not possible to use ORIGIN in QMAKE_RPATHDIR

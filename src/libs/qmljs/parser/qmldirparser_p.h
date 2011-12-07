@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,6 +63,9 @@ public:
     QUrl url() const;
     void setUrl(const QUrl &url);
 
+    QString fileSource() const;
+    void setFileSource(const QString &filePath);
+
     QString source() const;
     void setSource(const QString &source);
 
@@ -70,7 +73,7 @@ public:
     bool parse();
 
     bool hasError() const;
-    QList<QmlError> errors() const;
+    QList<QmlError> errors(const QString &uri) const;
 
     struct Plugin
     {
@@ -122,6 +125,7 @@ private:
     QList<QmlError> _errors;
     QUrl _url;
     QString _source;
+    QString _filePathSouce;
     QList<Component> _components;
     QList<Plugin> _plugins;
 #ifdef QT_CREATOR

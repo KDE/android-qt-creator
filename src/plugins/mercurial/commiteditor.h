@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Brian McGillion
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,13 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef COMMITEDITOR_H
 #define COMMITEDITOR_H
 
+#include <vcsbase/vcsbaseclient.h>
 #include <vcsbase/vcsbasesubmiteditor.h>
 
 #include <QtCore/QFileInfo>
@@ -55,7 +56,7 @@ public:
 
     void setFields(const QFileInfo &repositoryRoot, const QString &branch,
                    const QString &userName, const QString &email,
-                   const QList<QPair<QString, QString> > &repoStatus);
+                   const QList<VCSBase::VCSBaseClient::StatusItem> &repoStatus);
 
     QString committerInfo();
     QString repoRoot();

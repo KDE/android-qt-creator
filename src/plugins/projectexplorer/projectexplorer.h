@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,18 +26,17 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef PROJECTEXPLORER_H
 #define PROJECTEXPLORER_H
 
-#include <QtCore/QPair>
-
 #include "projectexplorer_export.h"
 
 #include <extensionsystem/iplugin.h>
+
 #include <QtCore/QPair>
 
 QT_BEGIN_NAMESPACE
@@ -48,10 +47,6 @@ QT_END_NAMESPACE
 
 namespace Core {
 class IMode;
-}
-
-namespace Utils {
-class ParameterAction;
 }
 
 namespace ProjectExplorer {
@@ -66,7 +61,6 @@ class BuildConfiguration;
 class ProjectNode;
 
 namespace Internal {
-class ProjectFileFactory;
 struct ProjectExplorerSettings;
 }
 
@@ -83,8 +77,9 @@ public:
 
     static ProjectExplorerPlugin *instance();
 
-    Q_SLOT bool openProject(const QString &fileName);
-    QList<Project *> openProjects(const QStringList &fileNames);
+    bool openProject(const QString &fileName, QString *error);
+    QList<Project *> openProjects(const QStringList &fileNames, QString *error);
+    Q_SLOT void openProjectWelcomePage(const QString &fileName);
 
     SessionManager *session() const;
 
@@ -100,12 +95,12 @@ public:
 
     bool saveModifiedFiles();
 
-    void showContextMenu(const QPoint &globalPos, Node *node);
+    void showContextMenu(QWidget *view, const QPoint &globalPos, Node *node);
     static void populateOpenWithMenu(QMenu *menu, const QString &fileName);
     static void openEditorFromAction(QAction *action, const QString &fileName);
 
     //PluginInterface
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
@@ -122,15 +117,22 @@ public:
 
     bool canRun(Project *pro, const QString &runMode);
     QString cannotRunReason(Project *project, const QString &runMode);
-    void runProject(Project *pro, const QString &mode);
-    void runRunConfiguration(ProjectExplorer::RunConfiguration *rc, const QString &mode);
+    void runProject(Project *pro, const QString &mode, const bool forceSkipDeploy = false);
+    void runRunConfiguration(ProjectExplorer::RunConfiguration *rc, const QString &mode,
+                             const bool forceSkipDeploy = false);
 
     void addExistingFiles(ProjectExplorer::ProjectNode *projectNode, const QStringList &filePaths);
     void addExistingFiles(const QStringList &filePaths);
 
     void buildProject(ProjectExplorer::Project *p);
 
+    QList<RunControl *> runControls() const;
+
+    static QString displayNameForStepId(const QString &stepId);
+
 signals:
+    void runControlStarted(ProjectExplorer::RunControl *rc);
+    void runControlFinished(ProjectExplorer::RunControl *rc);
     void aboutToShowContextMenu(ProjectExplorer::Project *project,
                                 ProjectExplorer::Node *node);
 
@@ -184,6 +186,7 @@ private slots:
     void restoreSession();
     void loadSession(const QString &session);
     void runProject();
+    void runProjectWithoutDeploy();
     void runProjectContextMenu();
     void savePersistentSettings();
 
@@ -192,6 +195,7 @@ private slots:
     void addNewSubproject();
     void removeProject();
     void openFile();
+    void searchOnFileSystem();
     void showInGraphicalShell();
     void removeFile();
     void deleteFile();
@@ -223,6 +227,7 @@ private slots:
     void updateActions();
     void loadCustomWizards();
     void updateVariable(const QString &variable);
+    void updateRunWithoutDeployMenu();
 
     void publishProject();
     void updateWelcomePage();
@@ -242,10 +247,8 @@ private slots:
     void testGnuMakeParserTaskMangling_data();
     void testGnuMakeParserTaskMangling();
 
-#ifdef Q_OS_WIN
     void testMsvcOutputParsers_data();
     void testMsvcOutputParsers();
-#endif
 
     void testGccAbiGuessing_data();
     void testGccAbiGuessing();

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,7 +44,7 @@
 using namespace Bazaar::Internal;
 
 BazaarControl::BazaarControl(BazaarClient *client)
-    :   m_bazaarClient(client)
+    : m_bazaarClient(client)
 {
 }
 
@@ -69,7 +69,7 @@ bool BazaarControl::managesDirectory(const QString &directory, QString *topLevel
 
 bool BazaarControl::isConfigured() const
 {
-    const QString binary = m_bazaarClient->settings()->binary();
+    const QString binary = m_bazaarClient->settings()->stringValue(BazaarSettings::binaryPathKey);
     if (binary.isEmpty())
         return false;
     QFileInfo fi(binary);
@@ -120,8 +120,8 @@ bool BazaarControl::vcsMove(const QString &from, const QString &to)
     const QFileInfo fromInfo(from);
     const QFileInfo toInfo(to);
     return m_bazaarClient->synchronousMove(fromInfo.absolutePath(),
-                                         fromInfo.absoluteFilePath(),
-                                         toInfo.absoluteFilePath());
+                                           fromInfo.absoluteFilePath(),
+                                           toInfo.absoluteFilePath());
 }
 
 bool BazaarControl::vcsCreateRepository(const QString &directory)

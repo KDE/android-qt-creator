@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 
 #include "basetextdocumentlayout.h"
 #include "basetexteditor.h"
+#include "typingsettings.h"
 #include "storagesettings.h"
 #include "tabsettings.h"
 #include "extraencodingsettings.h"
@@ -57,23 +58,6 @@
 #include <utils/qtcassert.h>
 #include <utils/fileutils.h>
 #include <utils/reloadpromptutils.h>
-
-namespace {
-bool verifyDecodingError(const QString &text,
-                         QTextCodec *codec,
-                         const char *data,
-                         const int dataSize,
-                         const bool possibleHeader)
-{
-    QByteArray verifyBuf = codec->fromUnicode(text); // slow
-    // the minSize trick lets us ignore unicode headers
-    int minSize = qMin(verifyBuf.size(), dataSize);
-    return (minSize < dataSize - (possibleHeader? 4 : 0)
-            || memcmp(verifyBuf.constData() + verifyBuf.size() - minSize,
-                      data + dataSize - minSize,
-                      minSize));
-}
-}
 
 namespace TextEditor {
 namespace Internal {
@@ -205,6 +189,7 @@ public:
     QString m_defaultPath;
     QString m_suggestedFileName;
     QString m_mimeType;
+    TypingSettings m_typingSettings;
     StorageSettings m_storageSettings;
     TabSettings m_tabSettings;
     ExtraEncodingSettings m_extraEncodingSettings;
@@ -212,40 +197,17 @@ public:
     Internal::DocumentMarker *m_documentMarker;
     SyntaxHighlighter *m_highlighter;
 
-    enum LineTerminatorMode {
-        LFLineTerminator,
-        CRLFLineTerminator,
-        NativeLineTerminator =
-#if defined (Q_OS_WIN)
-        CRLFLineTerminator
-#else
-        LFLineTerminator
-#endif
-    };
-    LineTerminatorMode m_lineTerminatorMode;
-    QTextCodec *m_codec;
-    bool m_fileHasUtf8Bom;
-
     bool m_fileIsReadOnly;
-    bool m_hasDecodingError;
     bool m_hasHighlightWarning;
-    QByteArray m_decodingErrorSample;
-    static const int kChunkSize;
 
     int m_autoSaveRevision;
 };
-
-const int BaseTextDocumentPrivate::kChunkSize = 65536;
 
 BaseTextDocumentPrivate::BaseTextDocumentPrivate(BaseTextDocument *q) :
     m_document(new QTextDocument(q)),
     m_documentMarker(new Internal::DocumentMarker(m_document)),
     m_highlighter(0),
-    m_lineTerminatorMode(NativeLineTerminator),
-    m_codec(Core::EditorManager::instance()->defaultTextCodec()),
-    m_fileHasUtf8Bom(false),
     m_fileIsReadOnly(false),
-    m_hasDecodingError(false),
     m_hasHighlightWarning(false),
     m_autoSaveRevision(-1)
 {
@@ -273,9 +235,19 @@ void BaseTextDocument::setMimeType(const QString &mt)
     d->m_mimeType = mt;
 }
 
+void BaseTextDocument::setTypingSettings(const TypingSettings &typingSettings)
+{
+    d->m_typingSettings = typingSettings;
+}
+
 void BaseTextDocument::setStorageSettings(const StorageSettings &storageSettings)
 {
     d->m_storageSettings = storageSettings;
+}
+
+const TypingSettings &BaseTextDocument::typingSettings() const
+{
+    return d->m_typingSettings;
 }
 
 const StorageSettings &BaseTextDocument::storageSettings() const
@@ -343,26 +315,6 @@ SyntaxHighlighter *BaseTextDocument::syntaxHighlighter() const
     return d->m_highlighter;
 }
 
-bool BaseTextDocument::hasDecodingError() const
-{
-    return d->m_hasDecodingError;
-}
-
-QTextCodec *BaseTextDocument::codec() const
-{
-    return d->m_codec;
-}
-
-void BaseTextDocument::setCodec(QTextCodec *c)
-{
-    d->m_codec = c;
-}
-
-QByteArray BaseTextDocument::decodingErrorSample() const
-{
-    return d->m_decodingErrorSample;
-}
-
 ITextMarkable *BaseTextDocument::documentMarker() const
 {
     return d->m_documentMarker;
@@ -403,22 +355,21 @@ bool BaseTextDocument::save(QString *errorString, const QString &fileName, bool 
     if (!fileName.isEmpty())
         fName = fileName;
 
-    Utils::FileSaver saver(fName);
-    if (!saver.hasError()) {
-        QString plainText = d->m_document->toPlainText();
-
-        if (d->m_lineTerminatorMode == BaseTextDocumentPrivate::CRLFLineTerminator)
-            plainText.replace(QLatin1Char('\n'), QLatin1String("\r\n"));
-
-        if (d->m_codec->name() == "UTF-8"
-                && (d->m_extraEncodingSettings.m_utf8BomSetting == ExtraEncodingSettings::AlwaysAdd
-                    || (d->m_extraEncodingSettings.m_utf8BomSetting == ExtraEncodingSettings::OnlyKeep
-                        && d->m_fileHasUtf8Bom))) {
-            saver.write("\xef\xbb\xbf", 3);
+    Utils::TextFileFormat saveFormat = format();
+    if (saveFormat.codec->name() == "UTF-8") {
+        switch (d->m_extraEncodingSettings.m_utf8BomSetting) {
+        case TextEditor::ExtraEncodingSettings::AlwaysAdd:
+            saveFormat.hasUtf8Bom = true;
+            break;
+        case TextEditor::ExtraEncodingSettings::OnlyKeep:
+            break;
+        case TextEditor::ExtraEncodingSettings::AlwaysDelete:
+            saveFormat.hasUtf8Bom = false;
+            break;
         }
+    } // "UTF-8"
 
-        saver.write(d->m_codec->fromUnicode(plainText));
-    }
+    const bool ok = write(fName, saveFormat, d->m_document->toPlainText(), errorString);
 
     if (autoSave && undos < d->m_document->availableUndoSteps()) {
         d->m_document->undo();
@@ -430,7 +381,7 @@ bool BaseTextDocument::save(QString *errorString, const QString &fileName, bool 
         }
     }
 
-    if (!saver.finalize(errorString))
+    if (!ok)
         return false;
     d->m_autoSaveRevision = d->m_document->revision();
     if (autoSave)
@@ -442,10 +393,6 @@ bool BaseTextDocument::save(QString *errorString, const QString &fileName, bool 
     d->m_document->setModified(false);
     emit titleChanged(fi.fileName());
     emit changed();
-
-    d->m_hasDecodingError = false;
-    d->m_decodingErrorSample.clear();
-
     return true;
 }
 
@@ -464,7 +411,7 @@ void BaseTextDocument::rename(const QString &newName)
 
 bool BaseTextDocument::isReadOnly() const
 {
-    if (d->m_hasDecodingError)
+    if (hasDecodingError())
         return true;
     if (d->m_fileName.isEmpty()) //have no corresponding file, so editing is ok
         return false;
@@ -492,109 +439,23 @@ void BaseTextDocument::checkPermissions()
 bool BaseTextDocument::open(QString *errorString, const QString &fileName, const QString &realFileName)
 {
     QString title = tr("untitled");
+    QStringList content;
+
+    ReadResult readResult = Utils::TextFileFormat::ReadIOError;
+
     if (!fileName.isEmpty()) {
         const QFileInfo fi(fileName);
         d->m_fileIsReadOnly = !fi.isWritable();
         d->m_fileName = QDir::cleanPath(fi.absoluteFilePath());
 
         title = fi.fileName();
-
-        QByteArray buf;
-        try {
-            Utils::FileReader reader;
-            if (!reader.fetch(realFileName, errorString))
-                return false;
-            buf = reader.data();
-        } catch (std::bad_alloc) {
-            *errorString = tr("Out of memory");
-            return false;
-        }
-        int bytesRead = buf.size();
-
-        QTextCodec *codec = d->m_codec;
-        d->m_fileHasUtf8Bom = false;
-
-        // code taken from qtextstream
-        if (bytesRead >= 4 && ((uchar(buf[0]) == 0xff && uchar(buf[1]) == 0xfe && uchar(buf[2]) == 0 && uchar(buf[3]) == 0)
-                               || (uchar(buf[0]) == 0 && uchar(buf[1]) == 0 && uchar(buf[2]) == 0xfe && uchar(buf[3]) == 0xff))) {
-            codec = QTextCodec::codecForName("UTF-32");
-        } else if (bytesRead >= 2 && ((uchar(buf[0]) == 0xff && uchar(buf[1]) == 0xfe)
-                                      || (uchar(buf[0]) == 0xfe && uchar(buf[1]) == 0xff))) {
-            codec = QTextCodec::codecForName("UTF-16");
-        } else if (bytesRead >= 3 && ((uchar(buf[0]) == 0xef && uchar(buf[1]) == 0xbb) && uchar(buf[2]) == 0xbf)) {
-            codec = QTextCodec::codecForName("UTF-8");
-            d->m_fileHasUtf8Bom = true;
-        } else if (!codec) {
-            codec = QTextCodec::codecForLocale();
-        }
-        // end code taken from qtextstream
-
-        d->m_codec = codec;
-
-        // An alternative to the code below would be creating a decoder from the codec,
-        // but failure detection doesn't seem be working reliably.
-        QStringList content;
-        if (bytesRead <= BaseTextDocumentPrivate::kChunkSize) {
-            QString text = d->m_codec->toUnicode(buf);
-            d->m_hasDecodingError = verifyDecodingError(
-                text, d->m_codec, buf.constData(), bytesRead, true);
-            content.append(text);
-        } else {
-            // Avoid large allocation of contiguous memory.
-            QTextCodec::ConverterState state;
-            int offset = 0;
-            while (offset < bytesRead) {
-                int currentSize = qMin(BaseTextDocumentPrivate::kChunkSize, bytesRead - offset);
-                QString text = d->m_codec->toUnicode(buf.constData() + offset, currentSize, &state);
-                if (state.remainingChars) {
-                    if (currentSize < BaseTextDocumentPrivate::kChunkSize && !d->m_hasDecodingError)
-                        d->m_hasDecodingError = true;
-
-                    // Process until the end of the current multi-byte character. Remaining might
-                    // actually contain more than needed so try one-be-one.
-                    while (state.remainingChars) {
-                        text.append(d->m_codec->toUnicode(
-                            buf.constData() + offset + currentSize, 1, &state));
-                        ++currentSize;
-                    }
-                }
-
-                if (!d->m_hasDecodingError) {
-                    d->m_hasDecodingError = verifyDecodingError(
-                        text, d->m_codec, buf.constData() + offset, currentSize, offset == 0);
-                }
-
-                offset += currentSize;
-                content.append(text);
-            }
-        }
-
-        if (d->m_hasDecodingError) {
-            int p = buf.indexOf('\n', 16384);
-            if (p < 0)
-                d->m_decodingErrorSample = buf;
-            else
-                d->m_decodingErrorSample = buf.left(p);
-        } else {
-            d->m_decodingErrorSample.clear();
-        }
-        buf.clear();
-
-        foreach (const QString &text, content) {
-            int lf = text.indexOf('\n');
-            if (lf >= 0) {
-                if (lf > 0 && text.at(lf-1) == QLatin1Char('\r')) {
-                    d->m_lineTerminatorMode = BaseTextDocumentPrivate::CRLFLineTerminator;
-                } else {
-                    d->m_lineTerminatorMode = BaseTextDocumentPrivate::LFLineTerminator;
-                }
-                break;
-            }
-        }
+        readResult = read(realFileName, &content, errorString);
 
         d->m_document->setModified(false);
         const int chunks = content.size();
-        if (chunks == 1) {
+        if (chunks == 0) {
+            d->m_document->setPlainText(QString());
+        } else if (chunks == 1) {
             d->m_document->setPlainText(content.at(0));
         } else {
             QFutureInterface<void> interface;
@@ -623,13 +484,14 @@ bool BaseTextDocument::open(QString *errorString, const QString &fileName, const
         emit titleChanged(title);
         emit changed();
     }
-    return true;
+    return readResult == Utils::TextFileFormat::ReadSuccess
+           || readResult == Utils::TextFileFormat::ReadEncodingError;
 }
 
 bool BaseTextDocument::reload(QString *errorString, QTextCodec *codec)
 {
     QTC_ASSERT(codec, return false);
-    d->m_codec = codec;
+    setCodec(codec);
     return reload(errorString);
 }
 

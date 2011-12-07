@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -65,20 +65,15 @@ GLSLEditorFactory::GLSLEditorFactory(QObject *parent)
             ;
 }
 
-GLSLEditorFactory::~GLSLEditorFactory()
+Core::Id GLSLEditorFactory::id() const
 {
-}
-
-QString GLSLEditorFactory::id() const
-{
-    return QLatin1String(C_GLSLEDITOR_ID);
+    return C_GLSLEDITOR_ID;
 }
 
 QString GLSLEditorFactory::displayName() const
 {
     return tr(C_GLSLEDITOR_DISPLAY_NAME);
 }
-
 
 Core::IFile *GLSLEditorFactory::open(const QString &fileName)
 {

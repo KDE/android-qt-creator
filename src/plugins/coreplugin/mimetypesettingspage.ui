@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MimeTypeSettingsPage</class>
- <widget class="QWidget" name="MimeTypeSettingsPage">
+ <class>Core::Internal::MimeTypeSettingsPage</class>
+ <widget class="QWidget" name="Core::Internal::MimeTypeSettingsPage">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -125,14 +125,14 @@
           <item>
            <widget class="QPushButton" name="addMagicButton">
             <property name="text">
-             <string>Add</string>
+             <string>Add...</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QPushButton" name="editMagicButton">
             <property name="text">
-             <string>Edit</string>
+             <string>Edit...</string>
             </property>
            </widget>
           </item>

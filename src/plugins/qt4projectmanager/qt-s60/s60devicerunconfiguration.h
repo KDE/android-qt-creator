@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,6 @@
 #include <qt4projectmanager/qt4projectmanager_global.h>
 
 #include <QtCore/QFutureInterface>
-#include <QtCore/QScopedPointer>
 #include <QtCore/QStringList>
 
 QT_BEGIN_NAMESPACE
@@ -55,7 +54,8 @@ class Qt4SymbianTarget;
 
 class S60DeviceRunConfigurationFactory;
 
-class QT4PROJECTMANAGER_EXPORT S60DeviceRunConfiguration : public ProjectExplorer::RunConfiguration {
+class QT4PROJECTMANAGER_EXPORT S60DeviceRunConfiguration : public ProjectExplorer::RunConfiguration
+{
     Q_OBJECT
     friend class S60DeviceRunConfigurationFactory;
 

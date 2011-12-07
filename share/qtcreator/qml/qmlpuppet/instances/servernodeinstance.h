@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,6 +46,9 @@ class QStyleOptionGraphicsItem;
 class QDeclarativeContext;
 class QGraphicsItem;
 class QGraphicsTransform;
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+class QSGItem;
+#endif
 QT_END_NAMESPACE
 
 namespace QmlDesigner {
@@ -198,6 +201,9 @@ private: // functions
 
 
     QObject *internalObject() const; // should be not used outside of the nodeinstances!!!!
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+    QSGItem *internalSGItem() const;
+#endif
 
 private: // variables
     QSharedPointer<Internal::ObjectNodeInstance> m_nodeInstance;

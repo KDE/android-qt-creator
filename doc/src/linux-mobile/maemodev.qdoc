@@ -1,0 +1,438 @@
+/****************************************************************************
+**
+** This file is part of Qt Creator
+**
+** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+**
+** Contact: Nokia Corporation (qt-info@nokia.com)
+**
+**
+** GNU Free Documentation License
+**
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of this
+** file.
+**
+** If you have questions regarding the use of this file, please contact
+** Nokia at qt-info@nokia.com.
+**
+****************************************************************************/
+
+    /*!
+
+    \contentspage index.html
+    \if defined(qcmanual)
+    \previouspage creator-developing-generic-linux.html
+    \else
+    \previouspage creator-developing-meego.html
+    \endif
+    \page creator-developing-maemo.html
+    \if defined(qcmanual)
+    \nextpage creator-developing-symbian.html
+    \else
+    \nextpage smartinstaller.html
+    \endif
+
+    \title Connecting Maemo Devices
+
+    Maemo 5 (Fremantle) is a Linux-based software platform developed by Nokia
+    for mobile devices. It allows developers to create
+    applications using the Qt framework.
+    You can install the whole tool chain that you need to create, build, debug,
+    run, and deploy Maemo 5 applications as a part of the custom installation
+    in the \QSDK online installer.
+
+    \if defined(qcmanual)
+    For more
+    information about the Maemo 5 platform, see
+    \l{http://maemo.org/intro/platform/}{Software Platform} on the Maemo web site.
+    \endif
+
+    For more information about developing applications for the Maemo 5
+    platform, select \gui {Help > Index} and look for \gui {Platform Notes},
+    or see
+    \l{http://doc.qt.nokia.com/qt-maemo/platform-notes-maemo5.html}{Platform Notes - Maemo 5}.
+
+    \section1 Hardware and Software Requirements for Maemo Target
+
+    To build and run Qt applications for Maemo 5, you need the following:
+    \list
+
+        \o  Maemo 5 device: Nokia N900 with software update release 1.3
+                    (V20.2010.36-2) or later installed.
+       \if defined(qcmanual)
+       \o  MADDE cross-platform Maemo development
+           tool (installed as part of the \QSDK).
+       \endif
+
+       \o Nokia USB drivers.
+
+       Only needed if you develop on Windows and if you use a USB connection
+       to run applications on the device. The drivers are
+       installed as part of the \QSDK. You can also download them from
+       \l{https://garage.maemo.org/frs/?group_id=801&release_id=2655}{PC Connectivity}
+       on the Maemo web site. Download and install the latest
+       PC_Connectivity_<version>.exe (at the time of writing,
+       PC_Connectivity_0.9.4.exe).
+
+    \endlist
+
+    \note The only supported build system for Maemo 5 in \QC is qmake.
+
+    \section1 Setting Up Connectivity in Maemo Devices
+
+    You can connect your device to your development PC using either a USB or
+    WLAN connection.
+
+    For the device, you need to use a connectivity tool (Mad Developer) to
+    create the
+    device-side end point for USB and WLAN connections. It provides no
+    diagnostics functions but is essential for creating connections between the
+    device and your development PC.
+
+    To use a WLAN connection, you must activate WLAN on the device and connect
+    it to the same WLAN as the development PC. The network address is displayed
+    in the connectivity tool.
+
+    To use a USB connection, you need to set up the device as a network device
+    on the development PC.
+
+    \note If you plan to connect your development PC to the device only over
+    WLAN, you can
+    ignore the USB-specific parts in the following sections.
+
+    \section2 Installing and Configuring Mad Developer
+
+    Install Mad Developer on a Nokia N900 device and configure
+    a connection between the development PC and a device.
+
+    \note The following instructions describe Mad Developer 2.1. The process and
+    text labels might differ on other Mad Developer versions.
+
+    To install and configure Mad Developer:
+
+     \list 1
+         \o On the Nokia N900, select \gui{App Manager > Download} > \gui{Development} > \gui{mad-developer}
+         to install the Mad Developer software package.
+         \o Click \gui {Mad Developer} to start the Mad Developer application.
+
+         \o To use a WLAN connection, activate WLAN on the device and connect
+         to the same network as the development PC. You can see the network
+         address in the \gui wlan0 field.
+
+         \o To use a USB connection:
+
+         \list a
+
+         \o If you are using Microsoft Windows as development host, you must
+         change the driver loaded for instantiating the connection.
+         In the Mad Developer, select \gui{Manage USB} and select \gui{Load g_ether}.
+
+         \o To set up the USB settings, click \gui Edit on the \gui usb0 row and
+         confirm by clicking \gui Configure.
+
+          \note By default, you do not need to make changes. The \gui usb0 row
+          displays the IP address 192.168.2.15.
+
+          \endlist
+
+       \o Select \gui{Developer Password} to generate a password for a freshly
+          created user called \bold developer. The password stays valid for as long
+          as the password generation dialog is open. You enter the password when
+          you configure the connection in \QC.
+
+          \image qtcreator-mad-developer-screenshot.png
+    \endlist
+
+    \section1 Installing Qt Mobility Libraries
+
+    To develop applications for the Nokia N900 devices that use the Qt Mobility
+    APIs, you must install the
+    Qt Mobility Libraries on the devices. The libraries are not available in the
+    device package
+    manager, and therefore, you must install them from the command line as the
+    root user:
+
+    \list 1
+
+        \o On the device, in \gui Programs, select \c {X Terminal} to open a
+        terminal window.
+
+        \o To install Qt Mobility libraries, enter the following command:
+        \c{/usr/lib/mad-developer/devrootsh apt-get install libqtm-*}
+
+        \o To confirm the installation, enter: \c Y
+
+        \o Close the terminal.
+
+    \endlist
+
+    \section1 Setting Up USB Connections to Maemo Devices
+
+    Use the network configuration tools on your platform to specify the USB
+    connection to the device on the development PC. You do not need to do this
+    if you use a WLAN connection.
+
+    \section2 Linux
+
+    The device uses the IP address 192.168.2.15 with the subnet 255.255.255.0
+    for its USB connection by default, so you can create the network interface
+    with a different address inside the same subnet too.
+
+    \note If you have changed the IP address of the device in the connectivity
+    tool, you need to reflect those changes in your development PC USB
+    network settings.
+
+    Run the following command in a shell as root user:
+                  \c{ifconfig usb0 192.168.2.14 up}
+
+    \section2 Windows
+
+    When you connect the device to your Windows PC, Windows tries to install a
+    driver for the Linux USB Ethernet connection. In the
+    \gui{Found New Hardware Wizard}, select \gui{No, not this time} in the
+    first dialog and \gui{Install the software automatically} in the second
+    dialog.
+
+    To specify a network connection:
+
+    \list 1
+
+    \o Open the Network Connections window.
+
+    \o Select the Linux USB Ethernet
+    connection that is displayed as a new Local Area Connection.
+
+    \o Edit the \gui {Internet Protocol Version 4 (TCP/IPv4)} properties
+    to specify the IP address for the connection.
+    In the \gui {Use the following IP address} field, enter the following values:
+    \list
+       \o  \gui {IP Address}: \bold {192.168.2.14}
+       \o  \gui SubnetMask: \bold {255.255.255.0}
+       \o  \gui {Default gateway}: leave this field empty
+    \endlist
+
+    \endlist
+
+    Depending on
+    your version of Microsoft Windows you may have to unplug and re-plug the
+    device to reload the driver with its configuration accordingly.
+
+    \section1 Configuring Connections to Maemo Devices
+
+    To be able to run and debug applications on the Maemo
+    emulator and devices, you must set up connections to the emulator and
+    devices in the \QC build and run settings. If you install \QSDK, the
+    connection to the emulator is configured automatically and you
+    only need to configure a connection to the device.
+
+    You use a wizard to create the connections. You can edit the settings later
+    in \gui {Tools > Options > Linux Devices > Device Configurations}.
+
+    \image qtcreator-maemo-device-configurations.png "Maemo Device Configurations dialog"
+
+    By default, you create the connection as the \e developer user. This
+    protects real user data on the device from getting corrupted during
+    testing. If you write applications that use Qt Mobility APIs, you might want
+    to test them with real user data. To create a connection as a user, specify
+    the \gui Username and \gui Password in \QC. For more information, see
+    \if defined(qcmanual)
+    \l{Testing with User Data on Maemo Devices}.
+    \else
+    \l{http://doc.qt.nokia.com/qtcreator/creator-developing-maemo.html#testing-with-user-data-on-maemo-devices}
+    {Testing with User Data on Maemo Devices}.
+    \endif
+
+
+    You can protect the connections between \QC and
+    a device by using either a password or an SSH key. If you use a password, you
+    must generate it in the connectivity tool and enter it in \QC every time
+    you start the connectivity tool.
+
+    If you do not have an SSH key, you can create it in \QC.
+    Encrypted keys are not supported. For more
+    information, see
+    \if defined(qcmanual)
+    \l{Generating SSH Keys}.
+    \else
+    \l{http://doc.qt.nokia.com/qtcreator/creator-developing-meego.html#generating-ssh-keys}
+    {Generating SSH Keys}.
+    \endif
+
+
+    You can view processes running on devices and kill them. For more
+    information, see
+    \if defined(qcmanual)
+    \l{Managing Device Processes}.
+    \else
+    \l{http://doc.qt.nokia.com/qtcreator/creator-developing-meego.html#managing-device-processes}
+    {Managing Device Processes}.
+    \endif
+
+
+    To configure connections between \QC and a
+    device:
+
+    \list 1
+
+        \o  To deploy applications and run them remotely on devices,
+            specify parameters for accessing devices:
+
+            \list a
+
+            \o Connect your device to the development PC via a USB cable or
+            a WLAN. For a USB connection, you are prompted to select the mode
+            to use. Choose \gui{PC suite mode}.
+
+            \note If you experience connection problems due to a USB port issue,
+            switch to a different port or use WLAN to connect to the device.
+
+            \o Select \gui {Tools > Options > Linux Devices > Device
+                Configurations > Add}.
+
+            \o  Select \gui {Device with MADDE support (Fremantle, Harmattan,
+                MeeGo) > Start Wizard}, and add a new configuration for a
+                hardware device.
+
+            \image qtcreator-dev-conf-maemo.png "Maemo device configuration"
+
+            \o In the \gui {The name to identify this configuration} field,
+            enter a name for the connection.
+
+            \o In the \gui {The system running on the device} field, select
+            the software platform of the device.
+
+            \o In the \gui {The kind of device} field, select
+            \gui {Hardware device}.
+
+            \o In the \gui {The device's host name or IP address} field, enter
+            the IP address from the connectivity tool on the device.
+
+            \o In the \gui {The SSH server port} field, enter the port number to
+            use for SSH connections.
+
+            \o Click \gui Next.
+
+            \o Follow the instructions of the wizard to create the connection.
+
+            \endlist
+
+        \if defined(qcmanual)
+
+        \o To test applications on the emulator (QEMU) separately, you must
+           create a connection to it from the development PC. If you installed
+           \QSDK, the connection is created automatically and you can omit this
+           step.
+
+            \list a
+
+                \o In \QC, select \gui {Tools > Options > Linux
+                Devices > Device Configurations > Add} to add a new
+                configuration.
+
+                \image qtcreator-maemo-emulator-connection.png "Maemo emulator configuration"
+
+                \o In the \gui {The name to identify this configuration} field,
+                enter a name for
+                the connection.
+
+                \o In the \gui {The system running on the device} field, select
+                the software platform to emulate.
+
+                \o In the \gui {The kind of device} field, select
+                \gui {Emulator (Qemu)}.
+
+                \o Click \gui Next.
+
+                \o Follow the instructions of the wizard to create and test the
+                connection.
+
+            \endlist
+    \endif
+
+            \o To specify build and run settings:
+
+            \list a
+
+                \o Open a project for an application you want to develop for your
+                device.
+
+                \o Click \gui Projects to open the projects mode.
+
+                \o In the \gui{Build Settings} section, choose the MADDE Qt version
+                that was registered by the installation program.
+
+                 \image qtcreator-build-settings-maemo.png "Maemo build settings"
+
+                 \o In the \gui{Run Settings} section, in the
+                 \gui {Device configuration} field, select the device
+                 connection or the emulator connection.
+                 \image qtcreator-run-settings-maemo.png "Maemo run settings"
+
+                 \o Click \gui {<no target path set>} in \gui {Remote Directory}
+                 to specify the folder where the file is installed on the device.
+                 For example, \c {/opt/usr/bin}.
+
+             \endlist
+
+        \endlist
+
+    \section2 Testing with User Data on Maemo Devices
+
+    To run your application as the default user, you must first assign a
+    password for the user account and then create the connection to the device
+    as the user:
+
+    \list 1
+
+        \o  On the device, in \gui Programs, select \c {X Terminal} to open a
+            terminal window.
+
+        \o  To specify the password, enter the following command:
+            \c{/usr/lib/mad-developer/devrootsh passwd user}
+
+        \o  In \QC, select \gui {Tools > Options Linux Devices >
+            Device Configurations}.
+
+        \o  Specify the username \c user and the password in the device
+            configuration.
+
+    \endlist
+
+    \section1 Troubleshooting Connections to Maemo Devices
+
+    The addresses used in this example might be reserved by some other application
+    in your network. If you cannot establish a connection, try the following optional
+    configurations:
+
+    \table
+
+        \header
+            \o IP Address and Network on Device
+            \o USB Network on Development PC
+            \o Host Name in \QC Build Settings
+
+        \row
+            \o 172.30.7.15 255.255.255.0
+            \o 172.30.7.14 255.255.255.0
+            \o 172.30.7.15
+
+        \row
+            \o 10.133.133.15
+            \o 10.133.133.14
+            \o 10.133.133.15
+
+        \row
+            \o 192.168.133.15
+            \o 192.168.133.14
+            \o 192.168.133.15
+
+            \note You cannot use the value localhost for connections to a device.
+
+        \endtable
+
+    \note VPN connections might block the device connection.
+
+*/
+

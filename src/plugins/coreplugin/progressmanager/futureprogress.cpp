@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -159,8 +159,8 @@ FutureProgress::FutureProgress(QWidget *parent) :
     connect(&d->m_watcher, SIGNAL(finished()), this, SLOT(setFinished()));
     connect(&d->m_watcher, SIGNAL(progressRangeChanged(int,int)), this, SLOT(setProgressRange(int,int)));
     connect(&d->m_watcher, SIGNAL(progressValueChanged(int)), this, SLOT(setProgressValue(int)));
-    connect(&d->m_watcher, SIGNAL(progressTextChanged(const QString&)),
-            this, SLOT(setProgressText(const QString&)));
+    connect(&d->m_watcher, SIGNAL(progressTextChanged(QString)),
+            this, SLOT(setProgressText(QString)));
     connect(d->m_progress, SIGNAL(clicked()), this, SLOT(cancel()));    
 }
 
@@ -170,8 +170,8 @@ FutureProgress::FutureProgress(QWidget *parent) :
 */
 FutureProgress::~FutureProgress()
 {
-    if (d->m_widget)
-        delete d->m_widget;
+    delete d->m_widget;
+    delete d;
 }
 
 /*!
@@ -182,8 +182,7 @@ FutureProgress::~FutureProgress()
 */
 void FutureProgress::setWidget(QWidget *widget)
 {
-    if (d->m_widget)
-        delete d->m_widget;
+    delete d->m_widget;
     QSizePolicy sp = widget->sizePolicy();
     sp.setHorizontalPolicy(QSizePolicy::Ignored);
     widget->setSizePolicy(sp);

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -60,6 +60,8 @@ class TEXTEDITOR_EXPORT FormatDescription
 public:
     FormatDescription(const QString &id, const QString &displayName,
                       const QColor &foreground = Qt::black);
+    FormatDescription(const QString &id, const QString &displayName,
+                      const Format &format);
 
     QString id() const
     { return m_id; }

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,35 +26,37 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "cdbengine.h"
-#include "debuggerstartparameters.h"
-#include "disassemblerlines.h"
+
+#include "breakhandler.h"
+#include "breakpoint.h"
+#include "bytearrayinputstream.h"
 #include "cdboptions.h"
 #include "cdboptionspage.h"
-#include "bytearrayinputstream.h"
-#include "breakpoint.h"
-#include "breakhandler.h"
+#include "cdbparsehelpers.h"
+#include "debuggeractions.h"
+#include "debuggercore.h"
+#include "debuggerinternalconstants.h"
+#include "debuggerrunner.h"
+#include "debuggerstartparameters.h"
+#include "debuggertooltipmanager.h"
+#include "disassembleragent.h"
+#include "disassemblerlines.h"
+#include "memoryagent.h"
+#include "moduleshandler.h"
+#include "registerhandler.h"
 #include "stackframe.h"
 #include "stackhandler.h"
-#include "watchhandler.h"
 #include "threadshandler.h"
-#include "moduleshandler.h"
-#include "debuggeractions.h"
-#include "debuggerinternalconstants.h"
-#include "debuggercore.h"
-#include "registerhandler.h"
-#include "disassembleragent.h"
-#include "memoryagent.h"
-#include "debuggerrunner.h"
-#include "debuggertooltipmanager.h"
-#include "cdbparsehelpers.h"
+#include "watchhandler.h"
 #include "watchutils.h"
 #include "gdb/gdbmi.h"
 #include "shared/cdbsymbolpathlisteditor.h"
+#include "shared/hostutils.h"
 
 #include <TranslationUnit.h>
 
@@ -83,11 +85,6 @@
 #include <QtGui/QToolTip>
 #include <QtGui/QMainWindow>
 #include <QtGui/QMessageBox>
-
-#ifdef Q_OS_WIN
-#    include <utils/winutils.h>
-#    include "dbgwinutils.h"
-#endif
 
 #include <cctype>
 
@@ -316,7 +313,6 @@ static inline bool validMode(DebuggerStartMode sm)
 {
     switch (sm) {
     case NoStartMode:
-    case AttachCore:
     case StartRemoteGdb:
         return false;
     default:
@@ -353,19 +349,24 @@ bool isCdbEngineEnabled()
 #endif
 }
 
-static inline QString msgNoCdbBinaryForToolChain(const ProjectExplorer::Abi &tc)
+static inline QString msgNoCdbBinaryForToolChain(const Abi &tc)
 {
     return CdbEngine::tr("There is no CDB binary available for binaries in format '%1'").arg(tc.toString());
+}
+
+static inline bool isMsvcFlavor(Abi::OSFlavor osf)
+{
+  return osf == Abi::WindowsMsvc2005Flavor
+      || osf == Abi::WindowsMsvc2008Flavor
+      || osf == Abi::WindowsMsvc2010Flavor;
 }
 
 static QString cdbBinary(const DebuggerStartParameters &sp)
 {
     if (!sp.debuggerCommand.isEmpty()) {
         // Do not use a GDB binary if we got started for a project with MinGW runtime.
-        const bool abiMatch = sp.toolChainAbi.os() == ProjectExplorer::Abi::WindowsOS
-                    && (sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2005Flavor
-                        || sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2008Flavor
-                        || sp.toolChainAbi.osFlavor() == ProjectExplorer::Abi::WindowsMsvc2010Flavor);
+        const bool abiMatch = sp.toolChainAbi.os() == Abi::WindowsOS
+                   && isMsvcFlavor(sp.toolChainAbi.osFlavor());
         if (abiMatch)
             return sp.debuggerCommand;
     }
@@ -394,10 +395,15 @@ bool checkCdbConfiguration(const DebuggerStartParameters &sp, ConfigurationCheck
         return false;
     }
 
+    if (sp.startMode == AttachCore && !isMsvcFlavor(sp.toolChainAbi.osFlavor())) {
+        check->errorDetails.push_back(CdbEngine::tr("The CDB debug engine cannot debug gdb core files."));
+        return false;
+    }
+
     if (cdbBinary(sp).isEmpty()) {
         check->errorDetails.push_back(msgNoCdbBinaryForToolChain(sp.toolChainAbi));
-        check->settingsCategory = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
-        check->settingsPage = QLatin1String(ProjectExplorer::Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+        check->settingsCategory = QLatin1String(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
+        check->settingsPage = QLatin1String(ProjectExplorer::Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
         return false;
     }
 
@@ -427,7 +433,7 @@ static inline Utils::SavedAction *theAssemblerAction()
 
 CdbEngine::CdbEngine(const DebuggerStartParameters &sp,
         DebuggerEngine *masterEngine, const OptionsPtr &options) :
-    DebuggerEngine(sp, masterEngine),
+    DebuggerEngine(sp, CppLanguage, masterEngine),
     m_creatorExtPrefix("<qtcreatorcdbext>|"),
     m_tokenPrefix("<token>"),
     m_options(options),
@@ -436,7 +442,7 @@ CdbEngine::CdbEngine(const DebuggerStartParameters &sp,
     m_specialStopMode(NoSpecialStop),
     m_nextCommandToken(0),
     m_currentBuiltinCommandIndex(-1),
-    m_extensionCommandPrefixBA("!"QT_CREATOR_CDB_EXT"."),
+    m_extensionCommandPrefixBA("!" QT_CREATOR_CDB_EXT "."),
     m_operateByInstructionPending(true),
     m_operateByInstruction(true), // Default CDB setting
     m_notifyEngineShutdownOnTermination(false),
@@ -479,6 +485,7 @@ void CdbEngine::init()
     m_pendingBreakpointMap.clear();
     m_customSpecialStopData.clear();
     m_symbolAddressCache.clear();
+    m_coreStopReason.reset();
 
     // Create local list of mappings in native separators
     m_sourcePathMappings.clear();
@@ -566,7 +573,7 @@ QString CdbEngine::extensionLibraryName(bool is64Bit)
     // Determine extension lib name and path to use
     QString rc;
     QTextStream(&rc) << QFileInfo(QCoreApplication::applicationDirPath()).path()
-                     << "/lib/" << (is64Bit ? QT_CREATOR_CDB_EXT"64" : QT_CREATOR_CDB_EXT"32")
+                     << "/lib/" << (is64Bit ? QT_CREATOR_CDB_EXT "64" : QT_CREATOR_CDB_EXT "32")
                      << '/' << QT_CREATOR_CDB_EXT << ".dll";
     return rc;
 }
@@ -731,7 +738,7 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
     const QString extensionFileName = extensionFi.fileName();
     // Prepare arguments
     QStringList arguments;
-    const bool isRemote = sp.startMode == AttachToRemote;
+    const bool isRemote = sp.startMode == AttachToRemoteServer;
     if (isRemote) { // Must be first
         arguments << QLatin1String("-remote") << sp.remoteChannel;
     } else {
@@ -757,7 +764,7 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
             nativeArguments.push_back(blank);
         nativeArguments += QDir::toNativeSeparators(sp.executable);
         break;
-    case AttachToRemote:
+    case AttachToRemoteServer:
         break;
     case AttachExternal:
     case AttachCrashedExternal:
@@ -768,6 +775,9 @@ bool CdbEngine::launchCDB(const DebuggerStartParameters &sp, QString *errorMessa
             if (isCreatorConsole(startParameters(), *m_options))
                 arguments << QLatin1String("-pr") << QLatin1String("-pb");
         }
+        break;
+    case AttachCore:
+        arguments << QLatin1String("-z") << sp.coreFile;
         break;
     default:
         *errorMessage = QString::fromLatin1("Internal error: Unsupported start mode %1.").arg(sp.startMode);
@@ -827,15 +837,13 @@ void CdbEngine::setupInferior()
 {
     if (debug)
         qDebug("setupInferior");
-    if (!isSlaveEngine()) {
-        // QmlCppEngine expects the QML engine to be connected before any breakpoints are hit
-        // (attemptBreakpointSynchronization() will be directly called then)
-        attemptBreakpointSynchronization();
-        if (startParameters().breakOnMain) {
-            const BreakpointParameters bp(BreakpointAtMain);
-            postCommand(cdbAddBreakpointCommand(bp, m_sourcePathMappings,
-                                                BreakpointModelId(-1), true), 0);
-        }
+    // QmlCppEngine expects the QML engine to be connected before any breakpoints are hit
+    // (attemptBreakpointSynchronization() will be directly called then)
+    attemptBreakpointSynchronization();
+    if (startParameters().breakOnMain) {
+        const BreakpointParameters bp(BreakpointAtMain);
+        postCommand(cdbAddBreakpointCommand(bp, m_sourcePathMappings,
+                                            BreakpointModelId(-1), true), 0);
     }
     postCommand("sxn 0x4000001f", 0); // Do not break on WowX86 exceptions.
     postCommand(".asm source_line", 0); // Source line in assembly
@@ -848,7 +856,13 @@ void CdbEngine::runEngine()
         qDebug("runEngine");
     foreach (const QString &breakEvent, m_options->breakEvents)
             postCommand(QByteArray("sxe ") + breakEvent.toAscii(), 0);
-    postCommand("g", 0);
+    if (startParameters().startMode == AttachCore) {
+        QTC_ASSERT(!m_coreStopReason.isNull(), return; );
+        notifyInferiorUnrunnable();
+        processStop(*m_coreStopReason, false);
+    } else {
+        postCommand("g", 0);
+    }
 }
 
 bool CdbEngine::commandsPending() const
@@ -923,7 +937,7 @@ void CdbEngine::shutdownEngine()
         if (startParameters().startMode == AttachExternal || startParameters().startMode == AttachCrashedExternal)
             detachDebugger();
         // Remote requires a bit more force to quit.
-        if (m_effectiveStartMode == AttachToRemote) {
+        if (m_effectiveStartMode == AttachToRemoteServer) {
             postCommand(m_extensionCommandPrefixBA + "shutdownex", 0);
             postCommand("qq", 0);
         } else {
@@ -1077,18 +1091,14 @@ void CdbEngine::updateLocalVariable(const QByteArray &iname)
 unsigned CdbEngine::debuggerCapabilities() const
 {
     return DisassemblerCapability | RegisterCapability | ShowMemoryCapability
-           |WatchpointByAddressCapability|JumpToLineCapability|AddWatcherCapability
+           |WatchpointByAddressCapability|JumpToLineCapability|AddWatcherCapability|WatchWidgetsCapability
            |ReloadModuleCapability
            |BreakOnThrowAndCatchCapability // Sort-of: Can break on throw().
            |BreakConditionCapability|TracePointCapability
            |BreakModuleCapability
            |OperateByInstructionCapability
-           |RunToLineCapability;
-}
-
-bool CdbEngine::canWatchWidgets() const
-{
-    return true;
+           |RunToLineCapability
+           |MemoryAddressCapability;
 }
 
 void CdbEngine::executeStep()
@@ -1138,7 +1148,7 @@ void CdbEngine::doContinueInferior()
 
 bool CdbEngine::canInterruptInferior() const
 {
-    return m_effectiveStartMode != AttachToRemote && inferiorPid();
+    return m_effectiveStartMode != AttachToRemoteServer && inferiorPid();
 }
 
 void CdbEngine::interruptInferior()
@@ -1774,8 +1784,10 @@ void CdbEngine::reloadFullStack()
 
 void CdbEngine::handlePid(const CdbExtensionCommandPtr &reply)
 {
-    if (reply->success) {
+    // Fails for core dumps.
+    if (reply->success)
         notifyInferiorPid(reply->reply.toULongLong());
+    if (reply->success || startParameters().startMode == AttachCore) {
         STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSetupOk")
         notifyInferiorSetupOk();
     }  else {
@@ -1786,8 +1798,8 @@ void CdbEngine::handlePid(const CdbExtensionCommandPtr &reply)
     }
 }
 
-// Parse CDB gdbmi register syntax
-static inline Register parseRegister(const GdbMi &gdbmiReg)
+// Parse CDB gdbmi register syntax.
+static Register parseRegister(const GdbMi &gdbmiReg)
 {
     Register reg;
     reg.name = gdbmiReg.findChild("name").data();
@@ -1797,7 +1809,7 @@ static inline Register parseRegister(const GdbMi &gdbmiReg)
         reg.name += description.data();
         reg.name += ')';
     }
-    reg.value = QString::fromAscii(gdbmiReg.findChild("value").data());
+    reg.value = gdbmiReg.findChild("value").data();
     return reg;
 }
 
@@ -2115,8 +2127,14 @@ void CdbEngine::handleSessionIdle(const QByteArray &messageBA)
     if (state() == EngineSetupRequested) { // Temporary stop at beginning
         STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyEngineSetupOk")
         notifyEngineSetupOk();
+        // Store stop reason to be handled in runEngine().
+        if (startParameters().startMode == AttachCore) {
+            m_coreStopReason.reset(new GdbMi);
+            m_coreStopReason->fromString(messageBA);
+        }
         return;
     }
+
     GdbMi stopReason;
     stopReason.fromString(messageBA);
     processStop(stopReason, false);
@@ -2144,12 +2162,14 @@ void CdbEngine::processStop(const GdbMi &stopReason, bool conditionalBreakPointT
     }
     // Notify about state and send off command sequence to get stack, etc.
     if (stopFlags & StopNotifyStop) {
-        if (state() == InferiorStopRequested) {
-            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorStopOk")
-            notifyInferiorStopOk();
-        } else {
-            STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSpontaneousStop")
-            notifyInferiorSpontaneousStop();
+        if (startParameters().startMode != AttachCore) {
+            if (state() == InferiorStopRequested) {
+                STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorStopOk")
+                        notifyInferiorStopOk();
+            } else {
+                STATE_DEBUG(state(), Q_FUNC_INFO, __LINE__, "notifyInferiorSpontaneousStop")
+                        notifyInferiorSpontaneousStop();
+            }
         }
         // Prevent further commands from being sent if shutdown is in progress
         if (stopFlags & StopShutdownInProgress) {
@@ -2528,6 +2548,8 @@ bool CdbEngine::acceptsBreakpoint(BreakpointModelId id) const
     case BreakpointAtFork:
     case WatchpointAtExpression:
     case BreakpointAtSysCall:
+    case BreakpointOnQmlSignalHandler:
+    case BreakpointAtJavaScriptThrow:
         return false;
     case WatchpointAtAddress:
     case BreakpointByFileAndLine:
@@ -2663,7 +2685,8 @@ void CdbEngine::attemptBreakpointSynchronization()
         }
         switch (handler->state(id)) {
         case BreakpointInsertRequested:
-            if (parameters.type == BreakpointByFileAndLine) {
+            if (parameters.type == BreakpointByFileAndLine
+                && m_options->breakpointCorrection) {
                 if (lineCorrection.isNull())
                     lineCorrection.reset(new BreakpointCorrectionContext(debuggerCore()->cppCodeModelSnapshot(),
                                                                          CPlusPlus::CppModelManagerInterface::instance()->workingCopy()));

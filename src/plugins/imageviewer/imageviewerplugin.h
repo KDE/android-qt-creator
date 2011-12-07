@@ -5,7 +5,7 @@
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,6 @@
 #include <extensionsystem/iplugin.h>
 
 #include <QtCore/QtPlugin>
-#include <QtCore/QScopedPointer>
 
 namespace ImageViewer {
 
@@ -52,11 +51,11 @@ public:
     ImageViewerPlugin();
     ~ImageViewerPlugin();
 
-    bool initialize(const QStringList &arguments, QString *error_message = 0);
+    bool initialize(const QStringList &arguments, QString *errorMessage = 0);
     void extensionsInitialized();
 
 private:
-    QScopedPointer<struct ImageViewerPluginPrivate> d_ptr;
+    struct ImageViewerPluginPrivate *d;
 };
 
 } // namespace Internal

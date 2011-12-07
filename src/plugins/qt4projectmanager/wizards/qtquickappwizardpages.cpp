@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -50,39 +50,39 @@ class QtQuickComponentSetOptionsPagePrivate
 
 QtQuickComponentSetOptionsPage::QtQuickComponentSetOptionsPage(QWidget *parent)
     : QWizardPage(parent)
-    , m_d(new QtQuickComponentSetOptionsPagePrivate)
+    , d(new QtQuickComponentSetOptionsPagePrivate)
 {
-    m_d->ui.setupUi(this);
+    d->ui.setupUi(this);
 
-    m_d->ui.importLineEdit->setExpectedKind(Utils::PathChooser::File);
-    m_d->ui.importLineEdit->setPromptDialogFilter(QLatin1String("*.qml"));
-    m_d->ui.importLineEdit->setPromptDialogTitle(tr("Select QML File"));
-    connect(m_d->ui.importLineEdit, SIGNAL(changed(QString)), SIGNAL(completeChanged()));
-    connect(m_d->ui.importRadioButton,
+    d->ui.importLineEdit->setExpectedKind(Utils::PathChooser::File);
+    d->ui.importLineEdit->setPromptDialogFilter(QLatin1String("*.qml"));
+    d->ui.importLineEdit->setPromptDialogTitle(tr("Select QML File"));
+    connect(d->ui.importLineEdit, SIGNAL(changed(QString)), SIGNAL(completeChanged()));
+    connect(d->ui.importRadioButton,
             SIGNAL(toggled(bool)), SIGNAL(completeChanged()));
 
-    connect(m_d->ui.importRadioButton, SIGNAL(toggled(bool)),
-            m_d->ui.importLineEdit, SLOT(setEnabled(bool)));
+    connect(d->ui.importRadioButton, SIGNAL(toggled(bool)),
+            d->ui.importLineEdit, SLOT(setEnabled(bool)));
 
-    m_d->ui.buttonGroup->setId(m_d->ui.qtquick10RadioButton, 0);
-    m_d->ui.buttonGroup->setId(m_d->ui.symbian10RadioButton, 1);
-    m_d->ui.buttonGroup->setId(m_d->ui.meego10RadioButton, 2);
-    m_d->ui.buttonGroup->setId(m_d->ui.importRadioButton, 3);
-    connect(m_d->ui.buttonGroup, SIGNAL(buttonClicked(int)), this, SLOT(radioButtonChecked(int)));
+    d->ui.buttonGroup->setId(d->ui.qtquick10RadioButton, 0);
+    d->ui.buttonGroup->setId(d->ui.symbian10RadioButton, 1);
+    d->ui.buttonGroup->setId(d->ui.meego10RadioButton, 2);
+    d->ui.buttonGroup->setId(d->ui.importRadioButton, 3);
+    connect(d->ui.buttonGroup, SIGNAL(buttonClicked(int)), this, SLOT(radioButtonChecked(int)));
 
     setTitle(tr("Qt Quick Application Type"));
 }
 
 QtQuickComponentSetOptionsPage::~QtQuickComponentSetOptionsPage()
 {
-    delete m_d;
+    delete d;
 }
 
 QtQuickApp::ComponentSet QtQuickComponentSetOptionsPage::componentSet() const
 {
-    switch (m_d->ui.buttonGroup->checkedId()) {
+    switch (d->ui.buttonGroup->checkedId()) {
     case 2: return QtQuickApp::Meego10Components;
-    case 1: return QtQuickApp::Symbian10Components;
+    case 1: return QtQuickApp::Symbian11Components;
     case 0:
     default: return QtQuickApp::QtQuick10Components;
     }
@@ -91,34 +91,34 @@ QtQuickApp::ComponentSet QtQuickComponentSetOptionsPage::componentSet() const
 void QtQuickComponentSetOptionsPage::setComponentSet(QtQuickApp::ComponentSet componentSet)
 {
     switch (componentSet) {
-    case QtQuickApp::Meego10Components: m_d->ui.meego10RadioButton->click(); break;
-    case QtQuickApp::Symbian10Components: m_d->ui.symbian10RadioButton->click(); break;
+    case QtQuickApp::Meego10Components: d->ui.meego10RadioButton->click(); break;
+    case QtQuickApp::Symbian11Components: d->ui.symbian10RadioButton->click(); break;
     case QtQuickApp::QtQuick10Components:
-    default: m_d->ui.qtquick10RadioButton->click(); break;
+    default: d->ui.qtquick10RadioButton->click(); break;
     }
 }
 
 void QtQuickComponentSetOptionsPage::radioButtonChecked(int index)
 {
-    m_d->ui.descriptionStackedWidget->setCurrentIndex(index);
+    d->ui.descriptionStackedWidget->setCurrentIndex(index);
 }
 
 QtQuickApp::Mode QtQuickComponentSetOptionsPage::mainQmlMode() const
 {
-    return  m_d->ui.importRadioButton->isChecked() ? QtQuickApp::ModeImport
-                                                     : QtQuickApp::ModeGenerate;
+    return  d->ui.importRadioButton->isChecked() ? QtQuickApp::ModeImport
+                                                 : QtQuickApp::ModeGenerate;
 }
 
 QString QtQuickComponentSetOptionsPage::mainQmlFile() const
 {
     return mainQmlMode() == QtQuickApp::ModeImport ?
-                m_d->ui.importLineEdit->path() : QString();
+                d->ui.importLineEdit->path() : QString();
 }
 
 bool QtQuickComponentSetOptionsPage::isComplete() const
 {
     return mainQmlMode() != QtQuickApp::ModeImport
-            || m_d->ui.importLineEdit->isValid();
+            || d->ui.importLineEdit->isValid();
 }
 
 } // namespace Internal

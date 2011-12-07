@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,7 +47,7 @@
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/findplaceholder.h>
 #include <coreplugin/editormanager/ieditor.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 
 #include <extensionsystem/pluginmanager.h>
 
@@ -97,6 +97,8 @@ void OutputPaneManager::updateStatusButtons(bool visible)
     int idx = m_widgetComboBox->itemData(m_widgetComboBox->currentIndex()).toInt();
     if (m_buttons.value(idx))
         m_buttons.value(idx)->setChecked(visible);
+    if (m_pageMap.value(idx))
+        m_pageMap.value(idx)->visibilityChanged(visible);
     m_minMaxAction->setVisible(OutputPanePlaceHolder::getCurrent()
                                && OutputPanePlaceHolder::getCurrent()->canMaximizeOrMinimize());
 }
@@ -252,7 +254,7 @@ void OutputPaneManager::init()
         const int idx = m_outputWidgetPane->addWidget(outPane->outputWidget(this));
 
         m_pageMap.insert(idx, outPane);
-        connect(outPane, SIGNAL(showPage(bool)), this, SLOT(showPage(bool)));
+        connect(outPane, SIGNAL(showPage(bool,bool)), this, SLOT(showPage(bool,bool)));
         connect(outPane, SIGNAL(hidePage()), this, SLOT(slotHide()));
         connect(outPane, SIGNAL(togglePage(bool)), this, SLOT(togglePage(bool)));
         connect(outPane, SIGNAL(navigateStateUpdate()), this, SLOT(updateNavigateState()));
@@ -272,7 +274,7 @@ void OutputPaneManager::init()
         actionId.remove(QLatin1Char(' '));
         QAction *action = new QAction(outPane->displayName(), this);
 
-        Command *cmd = am->registerAction(action, actionId, Context(Constants::C_GLOBAL));
+        Command *cmd = am->registerAction(action, Id(actionId), Context(Constants::C_GLOBAL));
 
         mpanes->addAction(cmd, "Coreplugin.OutputPane.PanesGroup");
         m_actions.insert(cmd->action(), idx);
@@ -382,8 +384,14 @@ void OutputPaneManager::slotHide()
         int idx = m_widgetComboBox->itemData(m_widgetComboBox->currentIndex()).toInt();
         if (m_buttons.value(idx))
             m_buttons.value(idx)->setChecked(false);
-        if (IEditor *editor = Core::EditorManager::instance()->currentEditor())
-            editor->widget()->setFocus();
+        if (m_pageMap.value(idx))
+            m_pageMap.value(idx)->visibilityChanged(false);
+        if (IEditor *editor = Core::EditorManager::instance()->currentEditor()) {
+            QWidget *w = editor->widget()->focusWidget();
+            if (!w)
+                w = editor->widget();
+            w->setFocus();
+        }
     }
 }
 
@@ -427,10 +435,12 @@ void OutputPaneManager::updateNavigateState()
 }
 
 // Slot connected to showPage signal of each page
-void OutputPaneManager::showPage(bool focus)
+void OutputPaneManager::showPage(bool focus, bool ensureSizeHint)
 {
     int idx = findIndexForPage(qobject_cast<IOutputPane*>(sender()));
     showPage(idx, focus);
+    if (ensureSizeHint && OutputPanePlaceHolder::getCurrent())
+        OutputPanePlaceHolder::getCurrent()->ensureSizeHintAsMinimum();
 }
 
 void OutputPaneManager::showPage(int idx, bool focus)
@@ -440,7 +450,7 @@ void OutputPaneManager::showPage(int idx, bool focus)
         if (!OutputPanePlaceHolder::getCurrent()) {
             // In this mode we don't have a placeholder
             // switch to the output mode and switch the page
-            ICore::instance()->modeManager()->activateMode(Constants::MODE_EDIT);
+            ModeManager::instance()->activateMode(Constants::MODE_EDIT);
         }
         if (OutputPanePlaceHolder::getCurrent()) {
             // make the page visible

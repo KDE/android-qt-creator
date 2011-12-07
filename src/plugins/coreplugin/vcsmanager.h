@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,10 +37,6 @@
 
 #include <QtCore/QString>
 #include <QtCore/QObject>
-
-QT_BEGIN_NAMESPACE
-class QDebug;
-QT_END_NAMESPACE
 
 namespace Core {
 
@@ -62,12 +58,14 @@ class IVersionControl;
 class CORE_EXPORT VcsManager : public QObject
 {
     Q_OBJECT
+
 public:
     explicit VcsManager(QObject *parent = 0);
     virtual ~VcsManager();
 
     void extensionsInitialized();
 
+    void resetVersionControlForDirectory(const QString &inputDirectory);
     IVersionControl *findVersionControlForDirectory(const QString &directory,
                                                     QString *topLevelDirectory = 0);
     IVersionControl *checkout(const QString &versionControlType,
@@ -88,7 +86,7 @@ signals:
     void repositoryChanged(const QString &repository);
 
 private:
-    VcsManagerPrivate *m_d;
+    VcsManagerPrivate *d;
 };
 
 } // namespace Core

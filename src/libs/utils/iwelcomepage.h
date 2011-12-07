@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,23 +26,19 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef IWELCOMEPAGE_H
 #define IWELCOMEPAGE_H
 
-
-#include <QtCore/QObject>
-#include <QtCore/QMetaType>
-#include <QtCore/QUrl>
-
 #include "utils_global.h"
 
-QT_BEGIN_NAMESPACE
-class QDeclarativeEngine;
-QT_END_NAMESPACE
+#include <QtCore/QObject>
+#include <QtCore/QUrl>
+
+QT_FORWARD_DECLARE_CLASS(QDeclarativeEngine)
 
 namespace Utils {
 
@@ -55,6 +51,7 @@ class QTCREATOR_UTILS_EXPORT IWelcomePage : public QObject
     Q_PROPERTY(QString title READ title CONSTANT)
     Q_PROPERTY(QUrl pageLocation READ pageLocation CONSTANT)
     Q_PROPERTY(int priority READ priority CONSTANT)
+    Q_PROPERTY(bool hasSearchBar READ hasSearchBar CONSTANT)
 
 public:
     IWelcomePage();
@@ -64,10 +61,11 @@ public:
     virtual QString title() const = 0;
     virtual int priority() const { return 0; }
     virtual void facilitateQml(QDeclarativeEngine *) {}
+    virtual bool hasSearchBar() const { return false; }
 
 private:
     // not used atm
-    IWelcomePagePrivate *m_d;
+    IWelcomePagePrivate *d;
 };
 
 }

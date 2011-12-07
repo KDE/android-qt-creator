@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,7 +25,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,12 +55,13 @@
 
 #include <extensionsystem/pluginmanager.h>
 
-#include <QtCore/QDebug>
-#include <QtCore/QTime>
-#include <QtCore/QStringList>
 #include <QtCore/QCoreApplication>
-#include <QtCore/QTextStream>
+#include <QtCore/QDateTime>
+#include <QtCore/QDebug>
 #include <QtCore/QHash>
+#include <QtCore/QStringList>
+#include <QtCore/QTextStream>
+#include <QtCore/QTime>
 
 #include <QtGui/QTextCursor>
 #include <QtGui/QPlainTextEdit>
@@ -518,6 +519,16 @@ QString quoteUnprintableLatin1(const QByteArray &ba)
     return res;
 }
 
+static QDate dateFromData(int jd)
+{
+    return jd ? QDate::fromJulianDay(jd) : QDate();
+}
+
+static QTime timeFromData(int ms)
+{
+    return ms == -1 ? QTime() : QTime(0, 0, 0, 0).addMSecs(ms);
+}
+
 QString decodeData(const QByteArray &ba, int encoding)
 {
     switch (encoding) {
@@ -556,30 +567,26 @@ QString decodeData(const QByteArray &ba, int encoding)
         case Base64Encoded8Bit: { // 5, without quotes (see 1)
             return quoteUnprintableLatin1(QByteArray::fromBase64(ba));
         }
-        case Hex2EncodedLatin1: { // 6, %02x encoded 8 bit Latin1 data
+        case Hex2EncodedLatin1WithQuotes: { // 6, %02x encoded 8 bit Latin1 data
             const QChar doubleQuote(QLatin1Char('"'));
             const QByteArray decodedBa = QByteArray::fromHex(ba);
-            //qDebug() << quoteUnprintableLatin1(decodedBa) << "\n\n";
             return doubleQuote + QString::fromLatin1(decodedBa) + doubleQuote;
         }
-        case Hex4EncodedLittleEndian: { // 7, %04x encoded 16 bit data
+        case Hex4EncodedLittleEndianWithQuotes: { // 7, %04x encoded 16 bit data
             const QChar doubleQuote(QLatin1Char('"'));
             const QByteArray decodedBa = QByteArray::fromHex(ba);
-            //qDebug() << quoteUnprintableLatin1(decodedBa) << "\n\n";
             return doubleQuote + QString::fromUtf16(reinterpret_cast<const ushort *>
                 (decodedBa.data()), decodedBa.size() / 2) + doubleQuote;
         }
-        case Hex8EncodedLittleEndian: { // 8, %08x encoded 32 bit data
+        case Hex8EncodedLittleEndianWithQuotes: { // 8, %08x encoded 32 bit data
             const QChar doubleQuote(QLatin1Char('"'));
             const QByteArray decodedBa = QByteArray::fromHex(ba);
-            //qDebug() << quoteUnprintableLatin1(decodedBa) << "\n\n";
             return doubleQuote + QString::fromUcs4(reinterpret_cast<const uint *>
                 (decodedBa.data()), decodedBa.size() / 4) + doubleQuote;
         }
-        case Hex2EncodedUtf8: { // 9, %02x encoded 8 bit Utf-8 data
+        case Hex2EncodedUtf8WithQuotes: { // 9, %02x encoded 8 bit UTF-8 data
             const QChar doubleQuote(QLatin1Char('"'));
             const QByteArray decodedBa = QByteArray::fromHex(ba);
-            //qDebug() << quoteUnprintableLatin1(decodedBa) << "\n\n";
             return doubleQuote + QString::fromUtf8(decodedBa) + doubleQuote;
         }
         case Hex8EncodedBigEndian: { // 10, %08x encoded 32 bit data
@@ -593,11 +600,10 @@ QString decodeData(const QByteArray &ba, int encoding)
                 decodedBa[i + 1] = decodedBa.at(i + 2);
                 decodedBa[i + 2] = c;
             }
-            //qDebug() << quoteUnprintableLatin1(decodedBa) << "\n\n";
             return doubleQuote + QString::fromUcs4(reinterpret_cast<const uint *>
                 (decodedBa.data()), decodedBa.size() / 4) + doubleQuote;
         }
-        case Hex4EncodedBigEndian: { // 11, %04x encoded 16 bit data
+        case Hex4EncodedBigEndianWithQuotes: { // 11, %04x encoded 16 bit data
             const QChar doubleQuote(QLatin1Char('"'));
             QByteArray decodedBa = QByteArray::fromHex(ba);
             for (int i = 0; i < decodedBa.size(); i += 2) {
@@ -605,15 +611,32 @@ QString decodeData(const QByteArray &ba, int encoding)
                 decodedBa[i] = decodedBa.at(i + 1);
                 decodedBa[i + 1] = c;
             }
-            //qDebug() << quoteUnprintableLatin1(decodedBa) << "\n\n";
             return doubleQuote + QString::fromUtf16(reinterpret_cast<const ushort *>
                 (decodedBa.data()), decodedBa.size() / 2) + doubleQuote;
         }
         case Hex4EncodedLittleEndianWithoutQuotes: { // 12, see 7, without quotes
             const QByteArray decodedBa = QByteArray::fromHex(ba);
-            //qDebug() << quoteUnprintableLatin1(decodedBa) << "\n\n";
             return QString::fromUtf16(reinterpret_cast<const ushort *>
                 (decodedBa.data()), decodedBa.size() / 2);
+        }
+        case Hex2EncodedLocal8BitWithQuotes: { // 13, %02x encoded 8 bit UTF-8 data
+            const QChar doubleQuote(QLatin1Char('"'));
+            const QByteArray decodedBa = QByteArray::fromHex(ba);
+            return doubleQuote + QString::fromLocal8Bit(decodedBa) + doubleQuote;
+        }
+        case JulianDate: { // 14, an integer count
+            const QDate date = dateFromData(ba.toInt());
+            return date.toString(Qt::TextDate);
+        }
+        case MillisecondsSinceMidnight: {
+            const QTime time = timeFromData(ba.toInt());
+            return time.toString(Qt::TextDate);
+        }
+        case JulianDateAndMillisecondsSinceMidnight: {
+            const int p = ba.indexOf('/');
+            const QDate date = dateFromData(ba.left(p).toInt());
+            const QTime time = timeFromData(ba.mid(p + 1 ).toInt());
+            return QDateTime(date, time).toString(Qt::TextDate);
         }
     }
     qDebug() << "ENCODING ERROR: " << encoding;
@@ -839,7 +862,7 @@ void parseWatchData(const QSet<QByteArray> &expandedINames,
 
     bool ok = false;
     qulonglong addressBase = item.findChild("addrbase").data().toULongLong(&ok, 0);
-    qulonglong addressStep = item.findChild("addrstep").data().toULongLong();
+    qulonglong addressStep = item.findChild("addrstep").data().toULongLong(&ok, 0);
 
     // Try not to repeat data too often.
     WatchData childtemplate;

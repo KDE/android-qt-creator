@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,8 +39,10 @@
 
 namespace TextEditor {
 
-class IFallbackPreferences;
-class TabPreferences;
+class ICodeStylePreferences;
+class CodeStylePool;
+class Indenter;
+class ISnippetProvider;
 
 class TEXTEDITOR_EXPORT ICodeStylePreferencesFactory : public QObject
 {
@@ -50,8 +52,11 @@ public:
 
     virtual QString languageId() = 0;
     virtual QString displayName() = 0;
-    virtual IFallbackPreferences *createPreferences(const QList<IFallbackPreferences *> &fallbacks) const = 0;
-    virtual QWidget *createEditor(IFallbackPreferences *preferences, TabPreferences *tabSettings, QWidget *parent) const = 0;
+    virtual ICodeStylePreferences *createCodeStyle() const = 0;
+    virtual QWidget *createEditor(ICodeStylePreferences *preferences, QWidget *parent) const = 0;
+    virtual TextEditor::Indenter *createIndenter() const = 0;
+    virtual ISnippetProvider *snippetProvider() const = 0;
+    virtual QString previewText() const = 0;
 };
 
 } // namespace TextEditor

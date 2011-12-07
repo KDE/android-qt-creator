@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,14 +38,20 @@
 
 #include "threaddata.h"
 
-namespace Debugger {
-namespace Internal {
-class GdbMi;
+QT_BEGIN_NAMESPACE
+class QSortFilterProxyModel;
+QT_END_NAMESPACE
+
 ////////////////////////////////////////////////////////////////////////
 //
 // ThreadsHandler
 //
 ////////////////////////////////////////////////////////////////////////
+
+namespace Debugger {
+namespace Internal {
+
+class GdbMi;
 
 class ThreadsHandler : public QAbstractTableModel
 {
@@ -63,7 +69,7 @@ public:
     void setThreads(const Threads &threads);
     void removeAll();
     Threads threads() const;
-    QAbstractItemModel *model() { return this; }
+    QAbstractItemModel *model();
 
     // Clear out all frame information
     void notifyRunning();
@@ -80,6 +86,7 @@ private:
     QVariant headerData(int section, Qt::Orientation orientation,
         int role = Qt::DisplayRole) const;
     Qt::ItemFlags flags(const QModelIndex &index) const;
+    void updateThreadBox();
 
     Threads m_threads;
     int m_currentIndex;
@@ -88,6 +95,8 @@ private:
 
     bool m_resetLocationScheduled;
     bool m_contentsValid;
+
+    QSortFilterProxyModel *m_proxyModel;
 };
 
 } // namespace Internal

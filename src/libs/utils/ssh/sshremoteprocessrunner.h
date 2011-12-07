@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,34 +44,49 @@ class SshRemoteProcessRunnerPrivate;
 class QTCREATOR_UTILS_EXPORT SshRemoteProcessRunner : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(SshRemoteProcessRunner)
+
 public:
-    typedef QSharedPointer<SshRemoteProcessRunner> Ptr;
+    SshRemoteProcessRunner(QObject *parent = 0);
+    ~SshRemoteProcessRunner();
 
-    static Ptr create(const SshConnectionParameters &params);
-    static Ptr create(const SshConnection::Ptr &connection);
-
-    void run(const QByteArray &command);
-    void runInTerminal(const QByteArray &command,
-        const SshPseudoTerminal &terminal);
+    void run(const QByteArray &command, const SshConnectionParameters &sshParams);
+    void runInTerminal(const QByteArray &command, const SshPseudoTerminal &terminal,
+        const SshConnectionParameters &sshParams);
     QByteArray command() const;
 
-    SshConnection::Ptr connection() const;
-    SshRemoteProcess::Ptr process() const;
+    Utils::SshError lastConnectionError() const;
+    QString lastConnectionErrorString() const;
+
+    bool isProcessRunning() const;
+    void writeDataToProcess(const QByteArray &data);
+    void sendSignalToProcess(const QByteArray &signal); // No effect with OpenSSH server.
+    void cancel(); // Does not stop remote process, just frees SSH-related process resources.
+    SshRemoteProcess::ExitStatus processExitStatus() const;
+    QByteArray processExitSignal() const;
+    int processExitCode() const;
+    QString processErrorString() const;
+
+private slots:
+    void handleConnected();
+    void handleConnectionError(Utils::SshError error);
+    void handleDisconnected();
+    void handleProcessStarted();
+    void handleProcessFinished(int exitStatus);
+    void handleStdout();
+    void handleStderr();
 
 signals:
-    void connectionError(Utils::SshError);
+    void connectionError();
     void processStarted();
     void processOutputAvailable(const QByteArray &output);
     void processErrorOutputAvailable(const QByteArray &output);
     void processClosed(int exitStatus); // values are of type SshRemoteProcess::ExitStatus
 
 private:
-    SshRemoteProcessRunner(const SshConnectionParameters &params);
-    SshRemoteProcessRunner(const SshConnection::Ptr &connection);
-    void init();
+    void runInternal(const QByteArray &command, const Utils::SshConnectionParameters &sshParams);
+    void setState(int newState);
 
-    Internal::SshRemoteProcessRunnerPrivate *d;
+    Internal::SshRemoteProcessRunnerPrivate * const d;
 };
 
 } // namespace Utils

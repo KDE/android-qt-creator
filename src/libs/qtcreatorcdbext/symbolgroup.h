@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -74,6 +74,7 @@ public:
     // Expand a single node "locals.A.B" requiring that "locals.A.B" is already visible
     // (think mkdir without -p).
     bool expand(const std::string &node, std::string *errorMessage);
+    bool collapse(const std::string &node, std::string *errorMessage);
     bool expandRunComplexDumpers(const std::string &node, const SymbolGroupValueContext &ctx, std::string *errorMessage);
     // Expand a node list "locals.i1,locals.i2", expanding all nested child nodes
     // (think mkdir -p).
@@ -173,6 +174,7 @@ private:
     InameExpressionMap currentInameExpressionMap() const;
     inline SymbolGroupNode *rootChildByIname(const std::string &iname) const;
     static inline std::string fixWatchExpressionI(CIDebugSymbols *s, const std::string &ex);
+    bool collapsePointerItems(std::string *errorMessage);
 };
 
 #endif // SYMBOLGROUP_H

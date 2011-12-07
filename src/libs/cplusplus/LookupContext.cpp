@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -157,50 +157,40 @@ QList<const Name *> LookupContext::path(Symbol *symbol)
     return names;
 }
 
-
-const Name *LookupContext::minimalName(const Name *name,
-                                       Scope *scope,
-                                       ClassOrNamespace *target) const
+static bool symbolIdentical(Symbol *s1, Symbol *s2)
 {
-    Q_UNUSED(name);
-    Q_UNUSED(scope);
-    Q_UNUSED(target);
+    if (!s1 || !s2)
+        return false;
+    if (s1->line() != s2->line())
+        return false;
+    if (s1->column() != s2->column())
+        return false;
 
-    qWarning() << "TODO:" << Q_FUNC_INFO;
-    return name;
+    return QByteArray(s1->fileName()) == QByteArray(s2->fileName());
+}
 
-#if 0
-    Q_ASSERT(name);
-    Q_ASSERT(source);
-    Q_ASSERT(target);
+const Name *LookupContext::minimalName(Symbol *symbol, ClassOrNamespace *target, Control *control)
+{
+    const Name *n = 0;
+    QList<const Name *> names = LookupContext::fullyQualifiedName(symbol);
 
-    QList<Symbol *> symbols = lookup(name, source);
-    if (symbols.isEmpty())
-        return 0;
-
-    Symbol *canonicalSymbol = symbols.first();
-    std::vector<const Name *> fqNames = fullyQualifiedName(canonicalSymbol).toVector().toStdVector();
-    if (const QualifiedNameId *qId = name->asQualifiedNameId())
-        fqNames.push_back(qId->name());
-    else
-        fqNames.push_back(name);
-
-    const QualifiedNameId *lastWorking = 0;
-    for (unsigned i = 0; i < fqNames.size(); ++i) {
-        const QualifiedNameId *newName = control()->qualifiedNameId(&fqNames[i],
-                                                                    fqNames.size() - i);
-        QList<Symbol *> candidates = target->lookup(newName);
-        if (candidates.contains(canonicalSymbol))
-            lastWorking = newName;
+    for (int i = names.size() - 1; i >= 0; --i) {
+        if (! n)
+            n = names.at(i);
         else
-            break;
+            n = control->qualifiedNameId(names.at(i), n);
+
+        // once we're qualified enough to get the same symbol, break
+        if (target) {
+            const QList<LookupItem> tresults = target->lookup(n);
+            foreach (const LookupItem &tr, tresults) {
+                if (symbolIdentical(tr.declaration(), symbol))
+                    return n;
+            }
+        }
     }
 
-    if (lastWorking && lastWorking->nameCount() == 1)
-        return lastWorking->nameAt(0);
-    else
-        return lastWorking;
-#endif
+    return n;
 }
 
 
@@ -361,13 +351,18 @@ ClassOrNamespace *LookupContext::lookupParent(Symbol *symbol) const
 }
 
 ClassOrNamespace::ClassOrNamespace(CreateBindings *factory, ClassOrNamespace *parent)
-    : _factory(factory), _parent(parent), _templateId(0)
+    : _factory(factory), _parent(parent), _templateId(0), _instantiationOrigin(0)
 {
 }
 
 const TemplateNameId *ClassOrNamespace::templateId() const
 {
     return _templateId;
+}
+
+ClassOrNamespace *ClassOrNamespace::instantiationOrigin() const
+{
+    return _instantiationOrigin;
 }
 
 ClassOrNamespace *ClassOrNamespace::parent() const
@@ -490,8 +485,6 @@ void CreateBindings::lookupInScope(const Name *name, Scope *scope,
                                    const TemplateNameId *templateId,
                                    ClassOrNamespace *binding)
 {
-    Q_UNUSED(templateId);
-
     if (! name) {
         return;
 
@@ -525,6 +518,14 @@ void CreateBindings::lookupInScope(const Name *name, Scope *scope,
             item.setDeclaration(s);
             item.setBinding(binding);
 
+            if (s->asNamespaceAlias() && binding) {
+                ClassOrNamespace *targetNamespaceBinding = binding->lookupType(name);
+                if (targetNamespaceBinding && targetNamespaceBinding->symbols().size() == 1) {
+                    Symbol *resolvedSymbol = targetNamespaceBinding->symbols().first();
+                    item.setType(resolvedSymbol->type()); // override the type
+                }
+            }
+
             if (templateId && (s->isDeclaration() || s->isFunction())) {
                 FullySpecifiedType ty = DeprecatedGenTemplateInstance::instantiate(templateId, s, _control);
                 item.setType(ty); // override the type.
@@ -541,26 +542,30 @@ ClassOrNamespace *ClassOrNamespace::lookupType(const Name *name)
         return 0;
 
     QSet<ClassOrNamespace *> processed;
-    return lookupType_helper(name, &processed, /*searchInEnclosingScope =*/ true);
+    return lookupType_helper(name, &processed, /*searchInEnclosingScope =*/ true, this);
 }
 
 ClassOrNamespace *ClassOrNamespace::findType(const Name *name)
 {
     QSet<ClassOrNamespace *> processed;
-    return lookupType_helper(name, &processed, /*searchInEnclosingScope =*/ false);
+    return lookupType_helper(name, &processed, /*searchInEnclosingScope =*/ false, this);
 }
 
 ClassOrNamespace *ClassOrNamespace::lookupType_helper(const Name *name,
                                                       QSet<ClassOrNamespace *> *processed,
-                                                      bool searchInEnclosingScope)
+                                                      bool searchInEnclosingScope,
+                                                      ClassOrNamespace *origin)
 {
     if (const QualifiedNameId *q = name->asQualifiedNameId()) {
 
-        if (! q->base())
-            return globalNamespace()->findType(q->name());
+        QSet<ClassOrNamespace *> innerProcessed;
+        if (! q->base()) {
+            return globalNamespace()->lookupType_helper(q->name(), &innerProcessed, true, origin);
+        }
 
-        else if (ClassOrNamespace *binding = lookupType(q->base()))
-            return binding->findType(q->name());
+        if (ClassOrNamespace *binding = lookupType_helper(q->base(), processed, true, origin)) {
+            return binding->lookupType_helper(q->name(), &innerProcessed, false, origin);
+        }
 
         return 0;
 
@@ -577,14 +582,14 @@ ClassOrNamespace *ClassOrNamespace::lookupType_helper(const Name *name,
                 }
             }
 
-            if (ClassOrNamespace *e = nestedType(name))
+            if (ClassOrNamespace *e = nestedType(name, origin))
                 return e;
 
             else if (_templateId) {
                 if (_usings.size() == 1) {
                     ClassOrNamespace *delegate = _usings.first();
 
-                    if (ClassOrNamespace *r = delegate->lookupType_helper(name, processed, /*searchInEnclosingScope = */ true))
+                    if (ClassOrNamespace *r = delegate->lookupType_helper(name, processed, /*searchInEnclosingScope = */ true, origin))
                         return r;
                 } else {
                     if (debug)
@@ -593,19 +598,19 @@ ClassOrNamespace *ClassOrNamespace::lookupType_helper(const Name *name,
             }
 
             foreach (ClassOrNamespace *u, usings()) {
-                if (ClassOrNamespace *r = u->lookupType_helper(name, processed, /*searchInEnclosingScope =*/ false))
+                if (ClassOrNamespace *r = u->lookupType_helper(name, processed, /*searchInEnclosingScope =*/ false, origin))
                     return r;
             }
         }
 
         if (_parent && searchInEnclosingScope)
-            return _parent->lookupType_helper(name, processed, searchInEnclosingScope);
+            return _parent->lookupType_helper(name, processed, searchInEnclosingScope, origin);
     }
 
     return 0;
 }
 
-ClassOrNamespace *ClassOrNamespace::nestedType(const Name *name) const
+ClassOrNamespace *ClassOrNamespace::nestedType(const Name *name, ClassOrNamespace *origin) const
 {
     Q_ASSERT(name != 0);
     Q_ASSERT(name->isNameId() || name->isTemplateNameId());
@@ -622,6 +627,7 @@ ClassOrNamespace *ClassOrNamespace::nestedType(const Name *name) const
     if (const TemplateNameId *templId = name->asTemplateNameId()) {
         ClassOrNamespace *i = _factory->allocClassOrNamespace(c);
         i->_templateId = templId;
+        i->_instantiationOrigin = origin;
         i->_usings.append(c);
         return i;
     }
@@ -665,19 +671,21 @@ void ClassOrNamespace::addNestedType(const Name *alias, ClassOrNamespace *e)
     _classOrNamespaces[alias] = e;
 }
 
-ClassOrNamespace *ClassOrNamespace::findOrCreateType(const Name *name)
+ClassOrNamespace *ClassOrNamespace::findOrCreateType(const Name *name, ClassOrNamespace *origin)
 {
     if (! name)
         return this;
+    if (! origin)
+        origin = this;
 
     if (const QualifiedNameId *q = name->asQualifiedNameId()) {
         if (! q->base())
-            return globalNamespace()->findOrCreateType(q->name());
+            return globalNamespace()->findOrCreateType(q->name(), origin);
 
-        return findOrCreateType(q->base())->findOrCreateType(q->name());
+        return findOrCreateType(q->base(), origin)->findOrCreateType(q->name(), origin);
 
     } else if (name->isNameId() || name->isTemplateNameId()) {
-        ClassOrNamespace *e = nestedType(name);
+        ClassOrNamespace *e = nestedType(name, origin);
 
         if (! e) {
             e = _factory->allocClassOrNamespace(this);

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,10 +34,8 @@
 #define GETTINGSTARTEDWELCOMEPLUGIN_H
 
 #include <utils/iwelcomepage.h>
-#include <coreplugin/icore.h>
 
-#include <QtGui/QStringListModel>
-#include <QtDeclarative/QDeclarativeItem>
+#include <QtCore/QStringList>
 
 QT_BEGIN_NAMESPACE
 class QDeclarativeEngine;
@@ -50,31 +48,52 @@ namespace Internal {
 class ExamplesListModel;
 class GettingStartedWelcomePageWidget;
 
-
 class GettingStartedWelcomePage : public Utils::IWelcomePage
 {
     Q_OBJECT
+
 public:
     GettingStartedWelcomePage();
+    QUrl pageLocation() const;
+    QString title() const;
+    int priority() const;
+    void facilitateQml(QDeclarativeEngine *);
 
-    QUrl pageLocation() const { return QUrl::fromLocalFile(Core::ICore::instance()->resourcePath() + QLatin1String("/welcomescreen/gettingstarted.qml")); }
-    QString title() const { return tr("Getting Started");}
-    int priority() const { return 10; }
+private:
+    QDeclarativeEngine *m_engine;
+};
+
+
+class ExamplesWelcomePage : public Utils::IWelcomePage
+{
+    Q_OBJECT
+public:
+    ExamplesWelcomePage();
+
+    void setShowExamples(bool showExamples);
+    QUrl pageLocation() const;
+    QString title() const;
+    int priority() const;
+    bool hasSearchBar() const;
     void facilitateQml(QDeclarativeEngine *);
     Q_INVOKABLE QStringList tagList() const;
+    Q_INVOKABLE void openUrl(const QUrl &url);
 
 signals:
     void tagsUpdated();
 
 public slots:
     void openSplitHelp(const QUrl &help);
-    void openProject(const QString& projectFile, const QStringList& additionalFilesToOpen, const QUrl& help);
+    void openHelp(const QUrl &help);
+    void openProject(const QString& projectFile, const QStringList& additionalFilesToOpen,
+                     const QUrl& help, const QStringList &dependencies);
     void updateTagsModel();
 
 private:
-    QString copyToAlternativeLocation(const QFileInfo &fileInfo, QStringList &filesToOpen);
-    ExamplesListModel *m_examplesModel;
+    ExamplesListModel *examplesModel() const;
+    QString copyToAlternativeLocation(const QFileInfo &fileInfo, QStringList &filesToOpen, const QStringList &dependencies);
     QDeclarativeEngine *m_engine;
+    bool m_showExamples;
 };
 
 } // namespace Internal

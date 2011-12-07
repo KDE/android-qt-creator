@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,13 +53,11 @@ public:
     void setBackup(bool backup) { m_backup = backup; }
 
 private:
-    Q_DISABLE_COPY(SaveFile)
-
-    QString m_finalFileName;
+    const QString m_finalFileName;
     bool m_finalized;
     bool m_backup;
 };
 
-}
+} // namespace Utils
 
 #endif // SAVEFILE_H

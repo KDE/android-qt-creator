@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -83,6 +83,7 @@ OutputPanePlaceHolder::~OutputPanePlaceHolder()
             om->hide();
         }
     }
+    delete d;
 }
 
 void OutputPanePlaceHolder::currentModeChanged(Core::IMode *mode)
@@ -140,6 +141,28 @@ void OutputPanePlaceHolder::maximizeOrMinimize(bool maximize)
 bool OutputPanePlaceHolder::isMaximized() const
 {
     return Internal::OutputPaneManager::instance()->isMaximized();
+}
+
+void OutputPanePlaceHolder::ensureSizeHintAsMinimum()
+{
+    if (!d->m_splitter)
+        return;
+    int idx = d->m_splitter->indexOf(this);
+    if (idx < 0)
+        return;
+
+    QList<int> sizes = d->m_splitter->sizes();
+    Internal::OutputPaneManager *om = Internal::OutputPaneManager::instance();
+    int minimum = (d->m_splitter->orientation() == Qt::Vertical
+                   ? om->sizeHint().height() : om->sizeHint().width());
+    int difference = minimum - sizes.at(idx);
+    if (difference <= 0) // is already larger
+        return;
+    for (int i = 0; i < sizes.count(); ++i) {
+        sizes[i] += difference / (sizes.count()-1);
+    }
+    sizes[idx] = minimum;
+    d->m_splitter->setSizes(sizes);
 }
 
 void OutputPanePlaceHolder::unmaximize()

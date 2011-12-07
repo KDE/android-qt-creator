@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -104,7 +104,8 @@ public:
     static MatchType checkClosedParenthesis(QTextCursor *cursor, QChar c);
     static MatchType matchCursorBackward(QTextCursor *cursor);
     static MatchType matchCursorForward(QTextCursor *cursor);
-    static bool findPreviousOpenParenthesis(QTextCursor *cursor, bool select = false);
+    static bool findPreviousOpenParenthesis(QTextCursor *cursor, bool select = false,
+                                            bool onlyInCurrentBlock = false);
     static bool findNextClosingParenthesis(QTextCursor *cursor, bool select = false);
 
     static bool findPreviousBlockOpenParenthesis(QTextCursor *cursor, bool checkStartPosition = false);

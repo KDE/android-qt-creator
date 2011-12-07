@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Nicolas Arnaud-Cormos.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,7 +48,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/icore.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/icontext.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
@@ -167,7 +167,7 @@ void MacroManager::MacroManagerPrivate::addMacro(Macro *macro)
     Core::ActionManager *am = core->actionManager();
     QShortcut *shortcut = new QShortcut(core->mainWindow());
     shortcut->setWhatsThis(macro->description());
-    const QString macroId = QLatin1String(Constants::PREFIX_MACRO) + macro->displayName();
+    const Core::Id macroId(QLatin1String(Constants::PREFIX_MACRO) + macro->displayName());
     am->registerShortcut(shortcut, macroId, context);
     connect(shortcut, SIGNAL(activated()), mapper, SLOT(map()));
     mapper->setMapping(shortcut, macro->displayName());

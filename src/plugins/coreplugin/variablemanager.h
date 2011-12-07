@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,29 +36,25 @@
 #include "core_global.h"
 
 #include <QtCore/QObject>
-#include <QtCore/QScopedPointer>
 #include <QtCore/QString>
-
-QT_BEGIN_NAMESPACE
-class QFileInfo;
-QT_END_NAMESPACE
 
 namespace Utils {
 class AbstractMacroExpander;
 }
 
 namespace Core {
+
 class VariableManagerPrivate;
 
 class CORE_EXPORT VariableManager : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(VariableManager)
+
 public:
     VariableManager();
     ~VariableManager();
 
-    static VariableManager* instance();
+    static VariableManager *instance();
 
     void insert(const QString &variable, const QString &value);
     bool remove(const QString &variable);
@@ -75,7 +71,7 @@ signals:
     void variableUpdateRequested(const QString &variable);
 
 private:
-    QScopedPointer<VariableManagerPrivate> d;
+    VariableManagerPrivate *d;
 };
 
 } // namespace Core

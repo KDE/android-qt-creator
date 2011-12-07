@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,8 +46,7 @@
 
 #include <coreplugin/icore.h>
 #include <coreplugin/basefilewizard.h>
-#include <coreplugin/messagemanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/variablemanager.h>
@@ -153,7 +152,7 @@ void Qt4Manager::editorChanged(Core::IEditor *editor)
         if (m_dirty) {
             const QString contents = formWindowEditorContents(m_lastEditor);
             foreach(Qt4Project *project, m_projects)
-                project->rootProjectNode()->updateCodeModelSupportFromEditor(m_lastEditor->file()->fileName(), contents);
+                project->rootQt4ProjectNode()->updateCodeModelSupportFromEditor(m_lastEditor->file()->fileName(), contents);
             m_dirty = false;
         }
     }
@@ -175,7 +174,7 @@ void Qt4Manager::editorAboutToClose(Core::IEditor *editor)
             if (m_dirty) {
                 const QString contents = formWindowEditorContents(m_lastEditor);
                 foreach(Qt4Project *project, m_projects)
-                    project->rootProjectNode()->updateCodeModelSupportFromEditor(m_lastEditor->file()->fileName(), contents);
+                    project->rootQt4ProjectNode()->updateCodeModelSupportFromEditor(m_lastEditor->file()->fileName(), contents);
                 m_dirty = false;
             }
         }
@@ -192,7 +191,7 @@ void Qt4Manager::updateVariable(const QString &variable)
             return;
         }
         QString value;
-        QtSupport::BaseQtVersion *qtv = qt4pro->activeTarget()->activeBuildConfiguration()->qtVersion();
+        QtSupport::BaseQtVersion *qtv = qt4pro->activeTarget()->activeQt4BuildConfiguration()->qtVersion();
         if (qtv)
             value = qtv->versionInfo().value(QLatin1String("QT_INSTALL_BINS"));
         Core::VariableManager::instance()->insert(QLatin1String(kInstallBins), value);
@@ -232,10 +231,8 @@ static void updateBoilerPlateCodeFiles(const AbstractMobileApp *app, const QStri
     }
 }
 
-ProjectExplorer::Project *Qt4Manager::openProject(const QString &fileName)
+ProjectExplorer::Project *Qt4Manager::openProject(const QString &fileName, QString *errorString)
 {
-    Core::MessageManager *messageManager = Core::ICore::instance()->messageManager();
-
     // TODO Make all file paths relative & remove this hack
     // We convert the path to an absolute one here because qt4project.cpp
     // && profileevaluator use absolute/canonical file paths all over the place
@@ -243,13 +240,15 @@ ProjectExplorer::Project *Qt4Manager::openProject(const QString &fileName)
     QString canonicalFilePath = QFileInfo(fileName).canonicalFilePath();
 
     if (canonicalFilePath.isEmpty()) {
-        messageManager->printToOutputPane(tr("Failed opening project '%1': Project file does not exist").arg(QDir::toNativeSeparators(canonicalFilePath)));
+        if (errorString)
+         *errorString = tr("Failed opening project '%1': Project file does not exist").arg(QDir::toNativeSeparators(fileName));
         return 0;
     }
 
     foreach (ProjectExplorer::Project *pi, projectExplorer()->session()->projects()) {
         if (canonicalFilePath == pi->file()->fileName()) {
-            messageManager->printToOutputPane(tr("Failed opening project '%1': Project already open").arg(QDir::toNativeSeparators(canonicalFilePath)));
+            if (errorString)
+                *errorString = tr("Failed opening project '%1': Project already open").arg(QDir::toNativeSeparators(canonicalFilePath));
             return 0;
         }
     }
@@ -355,7 +354,7 @@ void Qt4Manager::runQMake(ProjectExplorer::Project *p, ProjectExplorer::Node *no
         !qt4pro->activeTarget()->activeBuildConfiguration())
     return;
 
-    Qt4BuildConfiguration *bc = qt4pro->activeTarget()->activeBuildConfiguration();
+    Qt4BuildConfiguration *bc = qt4pro->activeTarget()->activeQt4BuildConfiguration();
     QMakeStep *qs = bc->qmakeStep();
 
     if (!qs)
@@ -367,7 +366,7 @@ void Qt4Manager::runQMake(ProjectExplorer::Project *p, ProjectExplorer::Node *no
         if (Qt4ProFileNode *profile = qobject_cast<Qt4ProFileNode *>(node))
             bc->setSubNodeBuild(profile);
 
-    projectExplorer()->buildManager()->appendStep(qs);
+    projectExplorer()->buildManager()->appendStep(qs, tr("QMake"));
     bc->setSubNodeBuild(0);
 }
 
@@ -395,21 +394,27 @@ void Qt4Manager::handleSubDirContexMenu(Qt4Manager::Action action)
         !qt4pro->activeTarget()->activeBuildConfiguration())
     return;
 
-    Qt4BuildConfiguration *bc = qt4pro->activeTarget()->activeBuildConfiguration();
+    Qt4BuildConfiguration *bc = qt4pro->activeTarget()->activeQt4BuildConfiguration();
     if (m_contextNode != 0 && m_contextNode != qt4pro->rootProjectNode())
         if (Qt4ProFileNode *profile = qobject_cast<Qt4ProFileNode *>(m_contextNode))
             bc->setSubNodeBuild(profile);
 
     if (projectExplorer()->saveModifiedFiles()) {
         if (action == BUILD) {
-            projectExplorer()->buildManager()->buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD));
+            QString name = ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+            projectExplorer()->buildManager()->buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD), name);
         } else if (action == CLEAN) {
-            projectExplorer()->buildManager()->buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
+            QString name = ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN);
+            projectExplorer()->buildManager()->buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN), name);
         } else if (action == REBUILD) {
+            QStringList names;
+            names << ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN)
+                  << ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
+
             QList<ProjectExplorer::BuildStepList *> stepLists;
             stepLists << bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN);
             stepLists << bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_BUILD);
-            projectExplorer()->buildManager()->buildLists(stepLists);
+            projectExplorer()->buildManager()->buildLists(stepLists, names);
         }
     }
 

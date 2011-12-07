@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 
 #include "ilocatorfilter.h"
 #include "directoryfilter.h"
+#include "executefilter.h"
 
 #include <extensionsystem/iplugin.h>
 #include <coreplugin/actionmanager/command.h>
@@ -60,7 +61,7 @@ public:
     LocatorPlugin();
     ~LocatorPlugin();
 
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
 
     QList<ILocatorFilter*> filters();
@@ -95,6 +96,7 @@ private:
     QTimer m_refreshTimer;
     OpenDocumentsFilter *m_openDocumentsFilter;
     FileSystemFilter *m_fileSystemFilter;
+    ExecuteFilter *m_executeFilter;
     QFutureWatcher<void> m_loadWatcher;
 };
 

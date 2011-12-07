@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -249,7 +249,7 @@ QWidget *S60DeployConfigurationWidget::createCommunicationChannel()
     m_ipAddress->setMinimumWidth(30);
     m_ipAddress->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Ignored);
 
-    if(!m_deployConfiguration->deviceAddress().isEmpty())
+    if( !m_deployConfiguration->deviceAddress().isEmpty())
         m_ipAddress->setText(QString("%1:%2")
                              .arg(m_deployConfiguration->deviceAddress())
                              .arg(m_deployConfiguration->devicePort()));

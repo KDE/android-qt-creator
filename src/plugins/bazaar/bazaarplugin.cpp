@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -46,7 +46,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/vcsmanager.h>
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
@@ -120,16 +120,16 @@ static const VCSBase::VCSBaseSubmitEditorParameters submitEditorParameters = {
 
 BazaarPlugin *BazaarPlugin::m_instance = 0;
 
-BazaarPlugin::BazaarPlugin() :
-    VCSBase::VCSBasePlugin(QLatin1String(Constants::COMMIT_ID)),
-    m_optionsPage(0),
-    m_client(0),
-    m_core(0),
-    m_commandLocator(0),
-    m_changeLog(0),
-    m_addAction(0),
-    m_deleteAction(0),
-    m_menuAction(0)
+BazaarPlugin::BazaarPlugin()
+    : VCSBase::VCSBasePlugin(QLatin1String(Constants::COMMIT_ID)),
+      m_optionsPage(0),
+      m_client(0),
+      m_core(0),
+      m_commandLocator(0),
+      m_changeLog(0),
+      m_addAction(0),
+      m_deleteAction(0),
+      m_menuAction(0)
 {
     m_instance = this;
 }
@@ -163,7 +163,6 @@ bool BazaarPlugin::initialize(const QStringList &arguments, QString *errorMessag
     addAutoReleasedObject(m_optionsPage);
     m_bazaarSettings.readSettings(m_core->settings());
 
-    connect(m_optionsPage, SIGNAL(settingsChanged()), m_client, SLOT(settingsChanged()));
     connect(m_client, SIGNAL(changed(QVariant)), versionControl(), SLOT(changed(QVariant)));
 
     static const char *describeSlot = SLOT(view(QString,QString));
@@ -391,7 +390,7 @@ void BazaarPlugin::logRepository()
     const VCSBase::VCSBasePluginState state = currentState();
     QTC_ASSERT(state.hasTopLevel(), return);
     QStringList extraOptions;
-    extraOptions += QString("--limit=%1").arg(settings().logCount());
+    extraOptions += QString("--limit=%1").arg(settings().intValue(BazaarSettings::logCountKey));
     m_client->log(state.topLevel(), QStringList(), extraOptions);
 }
 
@@ -449,7 +448,7 @@ void BazaarPlugin::createRepositoryActions(const Core::Context &context)
     m_bazaarContainer->addAction(command);
     m_commandLocator->appendCommand(command);
 
-    QAction* createRepositoryAction = new QAction(tr("Create Repository..."), this);
+    QAction *createRepositoryAction = new QAction(tr("Create Repository..."), this);
     command = m_actionManager->registerAction(createRepositoryAction, Core::Id(Constants::CREATE_REPOSITORY), context);
     connect(createRepositoryAction, SIGNAL(triggered()), this, SLOT(createRepository()));
     m_bazaarContainer->addAction(command);
@@ -541,17 +540,18 @@ void BazaarPlugin::commit()
 
     m_submitRepository = state.topLevel();
 
-    connect(m_client, SIGNAL(parsedStatus(QList<QPair<QString,QString> >)),
-            this, SLOT(showCommitWidget(QList<QPair<QString,QString> >)));
-    m_client->statusWithSignal(m_submitRepository);
+    connect(m_client, SIGNAL(parsedStatus(QList<VCSBase::VCSBaseClient::StatusItem>)),
+            this, SLOT(showCommitWidget(QList<VCSBase::VCSBaseClient::StatusItem>)));
+    // The "--short" option allows to easily parse status output
+    m_client->emitParsedStatus(m_submitRepository, QStringList(QLatin1String("--short")));
 }
 
-void BazaarPlugin::showCommitWidget(const QList<QPair<QString, QString> > &status)
+void BazaarPlugin::showCommitWidget(const QList<VCSBase::VCSBaseClient::StatusItem> &status)
 {
     VCSBase::VCSBaseOutputWindow *outputWindow = VCSBase::VCSBaseOutputWindow::instance();
     //Once we receive our data release the connection so it can be reused elsewhere
-    disconnect(m_client, SIGNAL(parsedStatus(QList<QPair<QString,QString> >)),
-               this, SLOT(showCommitWidget(QList<QPair<QString,QString> >)));
+    disconnect(m_client, SIGNAL(parsedStatus(QList<VCSBase::VCSBaseClient::StatusItem>)),
+               this, SLOT(showCommitWidget(QList<VCSBase::VCSBaseClient::StatusItem>)));
 
     if (status.isEmpty()) {
         outputWindow->appendError(tr("There are no changes to commit."));
@@ -561,18 +561,18 @@ void BazaarPlugin::showCommitWidget(const QList<QPair<QString, QString> > &statu
     deleteCommitLog();
 
     // Open commit log
-    QString m_changeLogPattern = QDir::tempPath();
-    if (!m_changeLogPattern.endsWith(QLatin1Char('/')))
-        m_changeLogPattern += QLatin1Char('/');
-    m_changeLogPattern += QLatin1String("qtcreator-bzr-XXXXXX.msg");
-    m_changeLog = new QTemporaryFile(m_changeLogPattern, this);
+    QString changeLogPattern = QDir::tempPath();
+    if (!changeLogPattern.endsWith(QLatin1Char('/')))
+        changeLogPattern += QLatin1Char('/');
+    changeLogPattern += QLatin1String("qtcreator-bzr-XXXXXX.msg");
+    m_changeLog = new QTemporaryFile(changeLogPattern, this);
     if (!m_changeLog->open()) {
         outputWindow->appendError(tr("Unable to generate a temporary file for the commit editor."));
         return;
     }
 
     Core::IEditor *editor = m_core->editorManager()->openEditor(m_changeLog->fileName(),
-                                                                QLatin1String(Constants::COMMIT_ID),
+                                                                Constants::COMMIT_ID,
                                                                 Core::EditorManager::ModeSwitch);
     if (!editor) {
         outputWindow->appendError(tr("Unable to create an editor for the commit."));
@@ -586,18 +586,18 @@ void BazaarPlugin::showCommitWidget(const QList<QPair<QString, QString> > &statu
         return;
     }
 
+    commitEditor->registerActions(m_editorUndo, m_editorRedo, m_editorCommit, m_editorDiff);
+    connect(commitEditor, SIGNAL(diffSelectedFiles(QStringList)),
+            this, SLOT(diffFromEditorSelected(QStringList)));
+    commitEditor->setCheckScriptWorkingDirectory(m_submitRepository);
+
     const QString msg = tr("Commit changes for \"%1\".").
             arg(QDir::toNativeSeparators(m_submitRepository));
     commitEditor->setDisplayName(msg);
 
     const BranchInfo branch = m_client->synchronousBranchQuery(m_submitRepository);
-    commitEditor->setFields(branch, m_bazaarSettings.userName(),
-                            m_bazaarSettings.email(), status);
-
-    commitEditor->registerActions(m_editorUndo, m_editorRedo, m_editorCommit, m_editorDiff);
-    connect(commitEditor, SIGNAL(diffSelectedFiles(QStringList)),
-            this, SLOT(diffFromEditorSelected(QStringList)));
-    commitEditor->setCheckScriptWorkingDirectory(m_submitRepository);
+    commitEditor->setFields(branch, m_bazaarSettings.stringValue(BazaarSettings::userNameKey),
+                            m_bazaarSettings.stringValue(BazaarSettings::userEmailKey), status);
 }
 
 void BazaarPlugin::diffFromEditorSelected(const QStringList &files)
@@ -623,11 +623,11 @@ bool BazaarPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submit
     if (!editorFile || !commitEditor)
         return true;
 
-    bool dummyPrompt = m_bazaarSettings.prompt();
+    bool dummyPrompt = m_bazaarSettings.boolValue(BazaarSettings::promptOnSubmitKey);
     const VCSBase::VCSBaseSubmitEditor::PromptSubmitResult response =
             commitEditor->promptSubmit(tr("Close Commit Editor"), tr("Do you want to commit the changes?"),
                                        tr("Message check failed. Do you want to proceed?"),
-                                       &dummyPrompt, m_bazaarSettings.prompt());
+                                       &dummyPrompt, dummyPrompt);
 
     switch (response) {
     case VCSBase::VCSBaseSubmitEditor::SubmitCanceled:
@@ -653,7 +653,7 @@ bool BazaarPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submit
                 *iFile = parts.last();
         }
 
-        const BazaarCommitWidget* commitWidget = commitEditor->commitWidget();
+        const BazaarCommitWidget *commitWidget = commitEditor->commitWidget();
         QStringList extraOptions;
         // Author
         if (!commitWidget->committer().isEmpty())

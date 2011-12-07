@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,16 +26,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "remotelinuxrunconfigurationwidget.h"
 
-#include "maemodeviceenvreader.h"
-#include "maemoglobal.h"
+#include "linuxdeviceconfiguration.h"
 #include "remotelinuxrunconfiguration.h"
-#include "maemosettingspages.h"
-#include "qt4maemodeployconfiguration.h"
+#include "remotelinuxenvironmentreader.h"
+#include "remotelinuxsettingspages.h"
+#include "remotelinuxutils.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/icore.h>
@@ -44,9 +44,9 @@
 #include <qt4projectmanager/qt4target.h>
 #include <utils/detailswidget.h>
 
-#include <QtGui/QButtonGroup>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
+#include <QtGui/QCheckBox>
 #include <QtGui/QComboBox>
 #include <QtGui/QFormLayout>
 #include <QtGui/QGroupBox>
@@ -55,206 +55,265 @@
 #include <QtGui/QLineEdit>
 #include <QtGui/QMessageBox>
 #include <QtGui/QPushButton>
-#include <QtGui/QRadioButton>
 
 using namespace Qt4ProjectManager;
 
 namespace RemoteLinux {
+namespace Internal {
 namespace {
 const QString FetchEnvButtonText
     = QCoreApplication::translate("RemoteLinux::RemoteLinuxRunConfigurationWidget",
           "Fetch Device Environment");
 } // anonymous namespace
 
+class RemoteLinuxRunConfigurationWidgetPrivate
+{
+public:
+    RemoteLinuxRunConfigurationWidgetPrivate(RemoteLinuxRunConfiguration *runConfig)
+        : runConfiguration(runConfig), deviceEnvReader(runConfiguration), ignoreChange(false)
+    {
+    }
+
+    RemoteLinuxRunConfiguration * const runConfiguration;
+    RemoteLinuxEnvironmentReader deviceEnvReader;
+    bool ignoreChange;
+
+    QWidget topWidget;
+    QLabel disabledIcon;
+    QLabel disabledReason;
+    QLineEdit argsLineEdit;
+    QLineEdit workingDirLineEdit;
+    QLabel localExecutableLabel;
+    QLabel remoteExecutableLabel;
+    QCheckBox useAlternateCommandBox;
+    QLineEdit alternateCommand;
+    QLabel devConfLabel;
+    QLabel debuggingLanguagesLabel;
+    QCheckBox debugCppButton;
+    QCheckBox debugQmlButton;
+    QPushButton fetchEnvButton;
+    QComboBox baseEnvironmentComboBox;
+    ProjectExplorer::EnvironmentWidget *environmentWidget;
+    QFormLayout genericWidgetsLayout;
+};
+
+} // namespace Internal
+
 using namespace Internal;
 
 RemoteLinuxRunConfigurationWidget::RemoteLinuxRunConfigurationWidget(RemoteLinuxRunConfiguration *runConfiguration,
         QWidget *parent)
-    : QWidget(parent),
-    m_runConfiguration(runConfiguration),
-    m_ignoreChange(false),
-    m_deviceEnvReader(new MaemoDeviceEnvReader(this, runConfiguration))
+    : QWidget(parent), d(new RemoteLinuxRunConfigurationWidgetPrivate(runConfiguration))
 {
     QVBoxLayout *topLayout = new QVBoxLayout(this);
     topLayout->setMargin(0);
     addDisabledLabel(topLayout);
-    topWidget = new QWidget;
-    topLayout->addWidget(topWidget);
-    QVBoxLayout *mainLayout = new QVBoxLayout(topWidget);
+    topLayout->addWidget(&d->topWidget);
+    QVBoxLayout *mainLayout = new QVBoxLayout(&d->topWidget);
     mainLayout->setMargin(0);
     addGenericWidgets(mainLayout);
     addEnvironmentWidgets(mainLayout);
-    connect(m_runConfiguration,
-        SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
-        this, SLOT(handleCurrentDeviceConfigChanged()));
-    handleCurrentDeviceConfigChanged();
 
-    connect(m_runConfiguration, SIGNAL(isEnabledChanged(bool)),
-            this, SLOT(runConfigurationEnabledChange(bool)));
-    runConfigurationEnabledChange(m_runConfiguration->isEnabled());
+    connect(d->runConfiguration, SIGNAL(deviceConfigurationChanged(ProjectExplorer::Target*)),
+        SLOT(handleCurrentDeviceConfigChanged()));
+    handleCurrentDeviceConfigChanged();
+    connect(d->runConfiguration, SIGNAL(isEnabledChanged(bool)),
+        SLOT(runConfigurationEnabledChange(bool)));
+    runConfigurationEnabledChange(d->runConfiguration->isEnabled());
+}
+
+RemoteLinuxRunConfigurationWidget::~RemoteLinuxRunConfigurationWidget()
+{
+    delete d;
+}
+
+void RemoteLinuxRunConfigurationWidget::addFormLayoutRow(QWidget *label, QWidget *field)
+{
+    d->genericWidgetsLayout.addRow(label, field);
 }
 
 void RemoteLinuxRunConfigurationWidget::addDisabledLabel(QVBoxLayout *topLayout)
 {
-    QHBoxLayout *hl = new QHBoxLayout;
+    QHBoxLayout * const hl = new QHBoxLayout;
     hl->addStretch();
-    m_disabledIcon = new QLabel(this);
-    m_disabledIcon->setPixmap(QPixmap(QString::fromUtf8(":/projectexplorer/images/compile_warning.png")));
-    hl->addWidget(m_disabledIcon);
-    m_disabledReason = new QLabel(this);
-    m_disabledReason->setVisible(false);
-    hl->addWidget(m_disabledReason);
+    d->disabledIcon.setPixmap(QPixmap(QString::fromUtf8(":/projectexplorer/images/compile_warning.png")));
+    hl->addWidget(&d->disabledIcon);
+    d->disabledReason.setVisible(false);
+    hl->addWidget(&d->disabledReason);
     hl->addStretch();
     topLayout->addLayout(hl);
 }
 
 void RemoteLinuxRunConfigurationWidget::suppressQmlDebuggingOptions()
 {
-    m_debuggingLanguagesLabel->hide();
-    m_debugCppOnlyButton->hide();
-    m_debugQmlOnlyButton->hide();
-    m_debugCppAndQmlButton->hide();
+    d->debuggingLanguagesLabel.hide();
+    d->debugCppButton.hide();
+    d->debugQmlButton.hide();
 }
 
 void RemoteLinuxRunConfigurationWidget::runConfigurationEnabledChange(bool enabled)
-{    topWidget->setEnabled(enabled);
-    m_disabledIcon->setVisible(!enabled);
-    m_disabledReason->setVisible(!enabled);
-    m_disabledReason->setText(m_runConfiguration->disabledReason());
+{
+    d->topWidget.setEnabled(enabled);
+    d->disabledIcon.setVisible(!enabled);
+    d->disabledReason.setVisible(!enabled);
+    d->disabledReason.setText(d->runConfiguration->disabledReason());
 }
 
 void RemoteLinuxRunConfigurationWidget::addGenericWidgets(QVBoxLayout *mainLayout)
 {
-    QFormLayout *formLayout = new QFormLayout;
-    mainLayout->addLayout(formLayout);
-    formLayout->setFormAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    Utils::DetailsWidget *detailsContainer = new Utils::DetailsWidget(this);
+    detailsContainer->setState(Utils::DetailsWidget::NoSummary);
 
-    QWidget *devConfWidget = new QWidget;
-    QHBoxLayout *devConfLayout = new QHBoxLayout(devConfWidget);
-    m_devConfLabel = new QLabel;
+    QWidget *details = new QWidget(this);
+    details->setLayout(&d->genericWidgetsLayout);
+    detailsContainer->setWidget(details);
+
+    mainLayout->addWidget(detailsContainer);
+
+    d->genericWidgetsLayout.setFormAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    QWidget * const devConfWidget = new QWidget;
+    QHBoxLayout * const devConfLayout = new QHBoxLayout(devConfWidget);
     devConfLayout->setMargin(0);
-    devConfLayout->addWidget(m_devConfLabel);
-    QLabel *addDevConfLabel= new QLabel(tr("<a href=\"%1\">Manage device configurations</a>")
+    devConfLayout->addWidget(&d->devConfLabel);
+    QLabel * const addDevConfLabel= new QLabel(tr("<a href=\"%1\">Manage device configurations</a>")
         .arg(QLatin1String("deviceconfig")));
     addDevConfLabel->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
     devConfLayout->addWidget(addDevConfLabel);
 
-    QLabel *debuggerConfLabel = new QLabel(tr("<a href=\"%1\">Set Debugger</a>")
+    QLabel * const debuggerConfLabel = new QLabel(tr("<a href=\"%1\">Set Debugger</a>")
         .arg(QLatin1String("debugger")));
     debuggerConfLabel->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
     devConfLayout->addWidget(debuggerConfLabel);
 
-    formLayout->addRow(new QLabel(tr("Device configuration:")), devConfWidget);
-    m_localExecutableLabel
-        = new QLabel(m_runConfiguration->localExecutableFilePath());
-    formLayout->addRow(tr("Executable on host:"), m_localExecutableLabel);
-    m_remoteExecutableLabel = new QLabel;
-    formLayout->addRow(tr("Executable on device:"), m_remoteExecutableLabel);
-    m_argsLineEdit = new QLineEdit(m_runConfiguration->arguments());
-    formLayout->addRow(tr("Arguments:"), m_argsLineEdit);
+    d->genericWidgetsLayout.addRow(new QLabel(tr("Device configuration:")), devConfWidget);
+    d->localExecutableLabel.setText(d->runConfiguration->localExecutableFilePath());
+    d->genericWidgetsLayout.addRow(tr("Executable on host:"), &d->localExecutableLabel);
+    d->genericWidgetsLayout.addRow(tr("Executable on device:"), &d->remoteExecutableLabel);
+    QWidget * const altRemoteExeWidget = new QWidget;
+    QHBoxLayout * const altRemoteExeLayout = new QHBoxLayout(altRemoteExeWidget);
+    altRemoteExeLayout->setContentsMargins(0, 0, 0, 0);
+    d->alternateCommand.setText(d->runConfiguration->alternateRemoteExecutable());
+    altRemoteExeLayout->addWidget(&d->alternateCommand);
+    d->useAlternateCommandBox.setText(tr("Use this command instead"));
+    d->useAlternateCommandBox.setChecked(d->runConfiguration->useAlternateExecutable());
+    altRemoteExeLayout->addWidget(&d->useAlternateCommandBox);
+    d->genericWidgetsLayout.addRow(tr("Alternate executable on device:"), altRemoteExeWidget);
+
+    d->argsLineEdit.setText(d->runConfiguration->arguments());
+    d->genericWidgetsLayout.addRow(tr("Arguments:"), &d->argsLineEdit);
+
+    d->workingDirLineEdit.setPlaceholderText(tr("<default>"));
+    d->workingDirLineEdit.setText(d->runConfiguration->workingDirectory());
+    d->genericWidgetsLayout.addRow(tr("Working directory:"), &d->workingDirLineEdit);
 
     QHBoxLayout * const debugButtonsLayout = new QHBoxLayout;
-    m_debugCppOnlyButton = new QRadioButton(tr("C++ only"));
-    m_debugQmlOnlyButton = new QRadioButton(tr("QML only"));
-    m_debugCppAndQmlButton = new QRadioButton(tr("C++ and QML"));
-    m_debuggingLanguagesLabel = new QLabel(tr("Debugging type:"));
-    QButtonGroup * const buttonGroup = new QButtonGroup;
-    buttonGroup->addButton(m_debugCppOnlyButton);
-    buttonGroup->addButton(m_debugQmlOnlyButton);
-    buttonGroup->addButton(m_debugCppAndQmlButton);
-    debugButtonsLayout->addWidget(m_debugCppOnlyButton);
-    debugButtonsLayout->addWidget(m_debugQmlOnlyButton);
-    debugButtonsLayout->addWidget(m_debugCppAndQmlButton);
+    d->debugCppButton.setText(tr("C++"));
+    d->debugQmlButton.setText(tr("QML"));
+    d->debuggingLanguagesLabel.setText(tr("Debugging type:"));
+    debugButtonsLayout->addWidget(&d->debugCppButton);
+    debugButtonsLayout->addWidget(&d->debugQmlButton);
     debugButtonsLayout->addStretch(1);
-    formLayout->addRow(m_debuggingLanguagesLabel, debugButtonsLayout);
-    if (m_runConfiguration->useCppDebugger()) {
-        if (m_runConfiguration->useQmlDebugger())
-            m_debugCppAndQmlButton->setChecked(true);
-        else
-            m_debugCppOnlyButton->setChecked(true);
-    } else {
-        m_debugQmlOnlyButton->setChecked(true);
-    }
+    d->genericWidgetsLayout.addRow(&d->debuggingLanguagesLabel, debugButtonsLayout);
+    d->debugCppButton.setChecked(d->runConfiguration->useCppDebugger());
+    d->debugQmlButton.setChecked(d->runConfiguration->useQmlDebugger());
 
     connect(addDevConfLabel, SIGNAL(linkActivated(QString)), this,
         SLOT(showDeviceConfigurationsDialog(QString)));
     connect(debuggerConfLabel, SIGNAL(linkActivated(QString)), this,
         SLOT(showDeviceConfigurationsDialog(QString)));
-    connect(m_argsLineEdit, SIGNAL(textEdited(QString)), this,
-        SLOT(argumentsEdited(QString)));
-    connect(m_debugCppOnlyButton, SIGNAL(toggled(bool)), this,
-        SLOT(handleDebuggingTypeChanged()));
-    connect(m_debugQmlOnlyButton, SIGNAL(toggled(bool)), this,
-        SLOT(handleDebuggingTypeChanged()));
-    connect(m_debugCppAndQmlButton, SIGNAL(toggled(bool)), this,
-        SLOT(handleDebuggingTypeChanged()));
-    connect(m_runConfiguration, SIGNAL(targetInformationChanged()), this,
+    connect(&d->argsLineEdit, SIGNAL(textEdited(QString)), SLOT(argumentsEdited(QString)));
+    connect(&d->debugCppButton, SIGNAL(toggled(bool)), SLOT(handleDebuggingTypeChanged()));
+    connect(&d->debugQmlButton, SIGNAL(toggled(bool)), SLOT(handleDebuggingTypeChanged()));
+    connect(d->runConfiguration, SIGNAL(targetInformationChanged()), this,
         SLOT(updateTargetInformation()));
-    connect(m_runConfiguration, SIGNAL(deploySpecsChanged()), SLOT(handleDeploySpecsChanged()));
+    connect(d->runConfiguration, SIGNAL(deploySpecsChanged()), SLOT(handleDeploySpecsChanged()));
+    connect(&d->useAlternateCommandBox, SIGNAL(toggled(bool)),
+        SLOT(handleUseAlternateCommandChanged()));
+    connect(&d->alternateCommand, SIGNAL(textEdited(QString)),
+        SLOT(handleAlternateCommandChanged()));
+    connect(&d->workingDirLineEdit, SIGNAL(textEdited(QString)),
+        SLOT(handleWorkingDirectoryChanged()));
     handleDeploySpecsChanged();
+    handleUseAlternateCommandChanged();
 }
 
 void RemoteLinuxRunConfigurationWidget::addEnvironmentWidgets(QVBoxLayout *mainLayout)
 {
-    QWidget *baseEnvironmentWidget = new QWidget;
-    QHBoxLayout *baseEnvironmentLayout = new QHBoxLayout(baseEnvironmentWidget);
+    QWidget * const baseEnvironmentWidget = new QWidget;
+    QHBoxLayout * const baseEnvironmentLayout = new QHBoxLayout(baseEnvironmentWidget);
     baseEnvironmentLayout->setMargin(0);
-    QLabel *label = new QLabel(tr("Base environment for this run configuration:"), this);
+    QLabel * const label = new QLabel(tr("Base environment for this run configuration:"), this);
     baseEnvironmentLayout->addWidget(label);
-    m_baseEnvironmentComboBox = new QComboBox(this);
-    m_baseEnvironmentComboBox->addItems(QStringList() << tr("Clean Environment")
+    d->baseEnvironmentComboBox.addItems(QStringList() << tr("Clean Environment")
         << tr("System Environment"));
-    m_baseEnvironmentComboBox->setCurrentIndex(m_runConfiguration->baseEnvironmentType());
-    baseEnvironmentLayout->addWidget(m_baseEnvironmentComboBox);
+    d->baseEnvironmentComboBox.setCurrentIndex(d->runConfiguration->baseEnvironmentType());
+    baseEnvironmentLayout->addWidget(&d->baseEnvironmentComboBox);
 
-    m_fetchEnv = new QPushButton(FetchEnvButtonText);
-    baseEnvironmentLayout->addWidget(m_fetchEnv);
+    d->fetchEnvButton.setText(FetchEnvButtonText);
+    baseEnvironmentLayout->addWidget(&d->fetchEnvButton);
     baseEnvironmentLayout->addStretch(10);
 
-    m_environmentWidget = new ProjectExplorer::EnvironmentWidget(this, baseEnvironmentWidget);
-    m_environmentWidget->setBaseEnvironment(m_deviceEnvReader->deviceEnvironment());
-    m_environmentWidget->setBaseEnvironmentText(m_runConfiguration->baseEnvironmentText());
-    m_environmentWidget->setUserChanges(m_runConfiguration->userEnvironmentChanges());
-    mainLayout->addWidget(m_environmentWidget);
+    d->environmentWidget = new ProjectExplorer::EnvironmentWidget(this, baseEnvironmentWidget);
+    d->environmentWidget->setBaseEnvironment(d->deviceEnvReader.remoteEnvironment());
+    d->environmentWidget->setBaseEnvironmentText(d->runConfiguration->baseEnvironmentText());
+    d->environmentWidget->setUserChanges(d->runConfiguration->userEnvironmentChanges());
+    mainLayout->addWidget(d->environmentWidget);
 
-    connect(m_environmentWidget, SIGNAL(userChangesChanged()), this,
-        SLOT(userChangesEdited()));
-    connect(m_baseEnvironmentComboBox, SIGNAL(currentIndexChanged(int)),
+    connect(d->environmentWidget, SIGNAL(userChangesChanged()), SLOT(userChangesEdited()));
+    connect(&d->baseEnvironmentComboBox, SIGNAL(currentIndexChanged(int)),
         this, SLOT(baseEnvironmentSelected(int)));
-    connect(m_runConfiguration, SIGNAL(baseEnvironmentChanged()),
+    connect(d->runConfiguration, SIGNAL(baseEnvironmentChanged()),
         this, SLOT(baseEnvironmentChanged()));
-    connect(m_runConfiguration, SIGNAL(systemEnvironmentChanged()),
-        this, SLOT(systemEnvironmentChanged()));
-    connect(m_runConfiguration,
+    connect(d->runConfiguration, SIGNAL(remoteEnvironmentChanged()),
+        this, SLOT(remoteEnvironmentChanged()));
+    connect(d->runConfiguration,
         SIGNAL(userEnvironmentChangesChanged(QList<Utils::EnvironmentItem>)),
-        this, SLOT(userEnvironmentChangesChanged(QList<Utils::EnvironmentItem>)));
-    connect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
-    connect(m_deviceEnvReader, SIGNAL(finished()), this, SLOT(fetchEnvironmentFinished()));
-    connect(m_deviceEnvReader, SIGNAL(error(QString)), this,
-        SLOT(fetchEnvironmentError(QString)));
+        SLOT(userEnvironmentChangesChanged(QList<Utils::EnvironmentItem>)));
+    connect(&d->fetchEnvButton, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
+    connect(&d->deviceEnvReader, SIGNAL(finished()), this, SLOT(fetchEnvironmentFinished()));
+    connect(&d->deviceEnvReader, SIGNAL(error(QString)), SLOT(fetchEnvironmentError(QString)));
 }
 
 void RemoteLinuxRunConfigurationWidget::argumentsEdited(const QString &text)
 {
-    m_runConfiguration->setArguments(text);
+    d->runConfiguration->setArguments(text);
 }
 
 void RemoteLinuxRunConfigurationWidget::updateTargetInformation()
 {
-    m_localExecutableLabel
-        ->setText(QDir::toNativeSeparators(m_runConfiguration->localExecutableFilePath()));
+    d->localExecutableLabel
+        .setText(QDir::toNativeSeparators(d->runConfiguration->localExecutableFilePath()));
 }
 
 void RemoteLinuxRunConfigurationWidget::handleDeploySpecsChanged()
 {
-    m_remoteExecutableLabel->setText(m_runConfiguration->remoteExecutableFilePath());
+    d->remoteExecutableLabel.setText(d->runConfiguration->defaultRemoteExecutableFilePath());
+}
+
+void RemoteLinuxRunConfigurationWidget::handleUseAlternateCommandChanged()
+{
+    const bool useAltExe = d->useAlternateCommandBox.isChecked();
+    d->remoteExecutableLabel.setEnabled(!useAltExe);
+    d->alternateCommand.setEnabled(useAltExe);
+    d->runConfiguration->setUseAlternateExecutable(useAltExe);
+}
+
+void RemoteLinuxRunConfigurationWidget::handleAlternateCommandChanged()
+{
+    d->runConfiguration->setAlternateRemoteExecutable(d->alternateCommand.text().trimmed());
+}
+
+void RemoteLinuxRunConfigurationWidget::handleWorkingDirectoryChanged()
+{
+    d->runConfiguration->setWorkingDirectory(d->workingDirLineEdit.text().trimmed());
 }
 
 void RemoteLinuxRunConfigurationWidget::showDeviceConfigurationsDialog(const QString &link)
 {
     if (link == QLatin1String("deviceconfig")) {
-        Core::ICore::instance()->showOptionsDialog(MaemoDeviceConfigurationsSettingsPage::Category,
-            MaemoDeviceConfigurationsSettingsPage::Id);
+        Core::ICore::instance()->showOptionsDialog(LinuxDeviceConfigurationsSettingsPage::pageCategory(),
+            LinuxDeviceConfigurationsSettingsPage::pageId());
     } else if (link == QLatin1String("debugger")) {
         Core::ICore::instance()->showOptionsDialog(QLatin1String("O.Debugger"),
             QLatin1String("M.Gdb"));
@@ -263,83 +322,79 @@ void RemoteLinuxRunConfigurationWidget::showDeviceConfigurationsDialog(const QSt
 
 void RemoteLinuxRunConfigurationWidget::handleCurrentDeviceConfigChanged()
 {
-    m_devConfLabel->setText(MaemoGlobal::deviceConfigurationName(m_runConfiguration->deviceConfig()));
+    d->devConfLabel.setText(RemoteLinuxUtils::deviceConfigurationName(d->runConfiguration->deviceConfig()));
 }
 
 void RemoteLinuxRunConfigurationWidget::fetchEnvironment()
 {
-    disconnect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
-    connect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(stopFetchEnvironment()));
-    m_fetchEnv->setText(tr("Cancel Fetch Operation"));
-    m_deviceEnvReader->start();
+    disconnect(&d->fetchEnvButton, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
+    connect(&d->fetchEnvButton, SIGNAL(clicked()), this, SLOT(stopFetchEnvironment()));
+    d->fetchEnvButton.setText(tr("Cancel Fetch Operation"));
+    d->deviceEnvReader.start(d->runConfiguration->environmentPreparationCommand());
 }
 
 void RemoteLinuxRunConfigurationWidget::stopFetchEnvironment()
 {
-    m_deviceEnvReader->stop();
+    d->deviceEnvReader.stop();
     fetchEnvironmentFinished();
 }
 
 void RemoteLinuxRunConfigurationWidget::fetchEnvironmentFinished()
 {
-    disconnect(m_fetchEnv, SIGNAL(clicked()), this,
-        SLOT(stopFetchEnvironment()));
-    connect(m_fetchEnv, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
-    m_fetchEnv->setText(FetchEnvButtonText);
-    m_runConfiguration->setSystemEnvironment(m_deviceEnvReader->deviceEnvironment());
+    disconnect(&d->fetchEnvButton, SIGNAL(clicked()), this, SLOT(stopFetchEnvironment()));
+    connect(&d->fetchEnvButton, SIGNAL(clicked()), this, SLOT(fetchEnvironment()));
+    d->fetchEnvButton.setText(FetchEnvButtonText);
+    d->runConfiguration->setRemoteEnvironment(d->deviceEnvReader.remoteEnvironment());
 }
 
 void RemoteLinuxRunConfigurationWidget::fetchEnvironmentError(const QString &error)
 {
-    QMessageBox::warning(this, tr("Device error"),
+    QMessageBox::warning(this, tr("Device Error"),
         tr("Fetching environment failed: %1").arg(error));
 }
 
 void RemoteLinuxRunConfigurationWidget::userChangesEdited()
 {
-    m_ignoreChange = true;
-    m_runConfiguration->setUserEnvironmentChanges(m_environmentWidget->userChanges());
-    m_ignoreChange = false;
+    d->ignoreChange = true;
+    d->runConfiguration->setUserEnvironmentChanges(d->environmentWidget->userChanges());
+    d->ignoreChange = false;
 }
 
 void RemoteLinuxRunConfigurationWidget::baseEnvironmentSelected(int index)
 {
-    m_ignoreChange = true;
-    m_runConfiguration->setBaseEnvironmentType(RemoteLinuxRunConfiguration::BaseEnvironmentType(index));
-
-    m_environmentWidget->setBaseEnvironment(m_runConfiguration->baseEnvironment());
-    m_environmentWidget->setBaseEnvironmentText(m_runConfiguration->baseEnvironmentText());
-    m_ignoreChange = false;
+    d->ignoreChange = true;
+    d->runConfiguration->setBaseEnvironmentType(RemoteLinuxRunConfiguration::BaseEnvironmentType(index));
+    d->environmentWidget->setBaseEnvironment(d->runConfiguration->baseEnvironment());
+    d->environmentWidget->setBaseEnvironmentText(d->runConfiguration->baseEnvironmentText());
+    d->ignoreChange = false;
 }
 
 void RemoteLinuxRunConfigurationWidget::baseEnvironmentChanged()
 {
-    if (m_ignoreChange)
+    if (d->ignoreChange)
         return;
 
-    m_baseEnvironmentComboBox->setCurrentIndex(m_runConfiguration->baseEnvironmentType());
-    m_environmentWidget->setBaseEnvironment(m_runConfiguration->baseEnvironment());
-    m_environmentWidget->setBaseEnvironmentText(m_runConfiguration->baseEnvironmentText());
+    d->baseEnvironmentComboBox.setCurrentIndex(d->runConfiguration->baseEnvironmentType());
+    d->environmentWidget->setBaseEnvironment(d->runConfiguration->baseEnvironment());
+    d->environmentWidget->setBaseEnvironmentText(d->runConfiguration->baseEnvironmentText());
 }
 
-void RemoteLinuxRunConfigurationWidget::systemEnvironmentChanged()
+void RemoteLinuxRunConfigurationWidget::remoteEnvironmentChanged()
 {
-    m_environmentWidget->setBaseEnvironment(m_runConfiguration->systemEnvironment());
+    d->environmentWidget->setBaseEnvironment(d->runConfiguration->remoteEnvironment());
 }
 
 void RemoteLinuxRunConfigurationWidget::userEnvironmentChangesChanged(const QList<Utils::EnvironmentItem> &userChanges)
 {
-    if (m_ignoreChange)
+    if (d->ignoreChange)
         return;
-    m_environmentWidget->setUserChanges(userChanges);
+    d->environmentWidget->setUserChanges(userChanges);
 }
 
 void RemoteLinuxRunConfigurationWidget::handleDebuggingTypeChanged()
 {
-    m_runConfiguration->setUseCppDebugger(m_debugCppOnlyButton->isChecked()
-        || m_debugCppAndQmlButton->isChecked());
-    m_runConfiguration->setUseQmlDebugger(m_debugQmlOnlyButton->isChecked()
-        || m_debugCppAndQmlButton->isChecked());
+    d->runConfiguration->setUseCppDebugger(d->debugCppButton.isChecked());
+    d->runConfiguration->setUseQmlDebugger(d->debugQmlButton.isChecked());
 }
 
 } // namespace RemoteLinux

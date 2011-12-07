@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,8 +42,8 @@ namespace Internal {
 class Register
 {
 public:
-    Register() : changed(true) {}
-    Register(const QByteArray &name_) : name(name_), changed(true) {}
+    Register() : type(0), changed(true) {}
+    Register(const QByteArray &name_);
 
     QVariant editValue() const;
     QString displayValue(int base, int strlen) const;
@@ -54,7 +54,8 @@ public:
      * base=0 to QString::toULongLong() should work (C-language conventions).
      * Values that cannot be converted (such as 128bit MMX-registers) are
      * passed through. */
-    QString value;
+    QByteArray value;
+    int type;
     bool changed;
 };
 
@@ -85,8 +86,10 @@ signals:
 
 private:
     void calculateWidth();
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const;
+    int rowCount(const QModelIndex &idx = QModelIndex()) const;
+    int columnCount(const QModelIndex &idx = QModelIndex()) const;
+    QModelIndex index(int row, int col, const QModelIndex &parent) const;
+    QModelIndex parent(const QModelIndex &idx) const;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
     QVariant headerData(int section, Qt::Orientation orientation,
         int role = Qt::DisplayRole) const;

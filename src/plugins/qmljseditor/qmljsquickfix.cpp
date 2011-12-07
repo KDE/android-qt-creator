@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -66,11 +66,10 @@ QmlJSQuickFixOperation::~QmlJSQuickFixOperation()
 void QmlJSQuickFixOperation::perform()
 {
     QmlJSRefactoringChanges refactoring(ExtensionSystem::PluginManager::instance()->getObject<QmlJS::ModelManagerInterface>(),
-                                    //_state.snapshot());
                                         m_interface->semanticInfo().snapshot);
-    QmlJSRefactoringFile current = refactoring.file(fileName());
+    QmlJSRefactoringFilePtr current = refactoring.file(fileName());
 
-    performChanges(&current, &refactoring);
+    performChanges(current, refactoring);
 }
 
 const QmlJSQuickFixAssistInterface *QmlJSQuickFixOperation::assistInterface() const

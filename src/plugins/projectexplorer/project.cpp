@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,11 +38,12 @@
 #include "projectexplorerconstants.h"
 #include "projectnodes.h"
 #include "target.h"
-#include "userfileaccessor.h"
+#include "settingsaccessor.h"
 
 #include <coreplugin/ifile.h>
 #include <coreplugin/icontext.h>
 #include <extensionsystem/pluginmanager.h>
+#include <projectexplorer/buildmanager.h>
 #include <limits>
 #include <utils/qtcassert.h>
 
@@ -72,7 +73,7 @@ const char * const TARGET_KEY_PREFIX("ProjectExplorer.Project.Target.");
 const char * const TARGET_COUNT_KEY("ProjectExplorer.Project.TargetCount");
 
 const char * const EDITOR_SETTINGS_KEY("ProjectExplorer.Project.EditorSettings");
-
+const char * const PLUGIN_SETTINGS_KEY("ProjectExplorer.Project.PluginSettings");
 } // namespace
 
 namespace ProjectExplorer {
@@ -89,6 +90,7 @@ public:
     EditorConfiguration *m_editorConfiguration;
     Core::Context m_projectContext;
     Core::Context m_projectLanguage;
+    QVariantMap m_pluginSettings;
 };
 
 ProjectPrivate::ProjectPrivate() :
@@ -105,12 +107,12 @@ Project::~Project()
 {
     qDeleteAll(d->m_targets);
     delete d->m_editorConfiguration;
+    delete d;
 }
 
 bool Project::hasActiveBuildSettings() const
 {
-    return activeTarget() &&
-           activeTarget()->buildConfigurationFactory();
+    return activeTarget() && activeTarget()->buildConfigurationFactory();
 }
 
 QString Project::makeUnique(const QString &preferredName, const QStringList &usedNames)
@@ -165,22 +167,32 @@ void Project::addTarget(Target *t)
         setActiveTarget(t);
 }
 
-void Project::removeTarget(Target *target)
+bool Project::removeTarget(Target *target)
 {
-    QTC_ASSERT(target && d->m_targets.contains(target), return);
+    if (!target || !d->m_targets.contains(target))
+        return false;
+
+    ProjectExplorer::BuildManager *bm =
+            ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
+    if (bm->isBuilding(target))
+        return false;
+
+    if (target == activeTarget()) {
+        if (d->m_targets.size() == 1) {
+            setActiveTarget(0);
+        } else if (d->m_targets.first() == target) {
+            setActiveTarget(d->m_targets.at(1));
+        } else {
+            setActiveTarget(d->m_targets.at(0));
+        }
+    }
 
     emit aboutToRemoveTarget(target);
-
     d->m_targets.removeOne(target);
-
     emit removedTarget(target);
-    if (target == activeTarget()) {
-        if (d->m_targets.isEmpty())
-            setActiveTarget(0);
-        else
-            setActiveTarget(d->m_targets.at(0));
-    }
+
     delete target;
+    return true;
 }
 
 QList<Target *> Project::targets() const
@@ -215,15 +227,17 @@ Target *Project::target(const QString &id) const
 
 void Project::saveSettings()
 {
-    UserFileAccessor accessor;
-    accessor.saveSettings(this, toMap());
+    emit aboutToSaveSettings();
+    SettingsAccessor::instance()->saveSettings(this, toMap());
 }
 
 bool Project::restoreSettings()
 {
-    UserFileAccessor accessor;
-    QVariantMap map(accessor.restoreSettings(this));
-    return fromMap(map);
+    QVariantMap map(SettingsAccessor::instance()->restoreSettings(this));
+    bool ok = fromMap(map);
+    if (ok)
+        emit settingsLoaded();
+    return ok;
 }
 
 QList<BuildConfigWidget*> Project::subConfigWidgets()
@@ -253,6 +267,7 @@ QVariantMap Project::toMap() const
         map.insert(QString::fromLatin1(TARGET_KEY_PREFIX) + QString::number(i), ts.at(i)->toMap());
 
     map.insert(QLatin1String(EDITOR_SETTINGS_KEY), d->m_editorConfiguration->toMap());
+    map.insert(QLatin1String(PLUGIN_SETTINGS_KEY), d->m_pluginSettings);
 
     return map;
 }
@@ -277,6 +292,9 @@ bool Project::fromMap(const QVariantMap &map)
         QVariantMap values(map.value(QLatin1String(EDITOR_SETTINGS_KEY)).toMap());
         d->m_editorConfiguration->fromMap(values);
     }
+
+    if (map.contains(QLatin1String(PLUGIN_SETTINGS_KEY)))
+        d->m_pluginSettings = map.value(QLatin1String(PLUGIN_SETTINGS_KEY)).toMap();
 
     bool ok;
     int maxI(map.value(QLatin1String(TARGET_COUNT_KEY), 0).toInt(&ok));
@@ -353,6 +371,16 @@ Core::Context Project::projectContext() const
 Core::Context Project::projectLanguage() const
 {
     return d->m_projectLanguage;
+}
+
+QVariant Project::namedSettings(const QString &name) const
+{
+    return d->m_pluginSettings.value(name);
+}
+
+void Project::setNamedSettings(const QString &name, QVariant &value)
+{
+    d->m_pluginSettings.insert(name, value);
 }
 
 } // namespace ProjectExplorer

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,6 +34,7 @@
 #include "ui_behaviorsettingswidget.h"
 
 #include <texteditor/tabsettings.h>
+#include <texteditor/typingsettings.h>
 #include <texteditor/storagesettings.h>
 #include <texteditor/behaviorsettings.h>
 #include <texteditor/extraencodingsettings.h>
@@ -51,15 +52,15 @@ namespace TextEditor {
 
 struct BehaviorSettingsWidgetPrivate
 {
-    ::Ui::BehaviorSettingsWidget m_ui;
+    Internal::Ui::BehaviorSettingsWidget m_ui;
     QList<QTextCodec *> m_codecs;
 };
 
 BehaviorSettingsWidget::BehaviorSettingsWidget(QWidget *parent)
     : QWidget(parent)
-    , m_d(new BehaviorSettingsWidgetPrivate)
+    , d(new BehaviorSettingsWidgetPrivate)
 {
-    m_d->m_ui.setupUi(this);
+    d->m_ui.setupUi(this);
 
     QList<int> mibs = QTextCodec::availableMibs();
     qSort(mibs);
@@ -74,46 +75,57 @@ BehaviorSettingsWidget::BehaviorSettingsWidget(QWidget *parent)
             compoundName += QLatin1String(" / ");
             compoundName += QString::fromLatin1(alias);
         }
-        m_d->m_ui.encodingBox->addItem(compoundName);
-        m_d->m_codecs.append(codec);
+        d->m_ui.encodingBox->addItem(compoundName);
+        d->m_codecs.append(codec);
     }
 
-    connect(m_d->m_ui.cleanWhitespace, SIGNAL(clicked(bool)),
+    connect(d->m_ui.autoIndent, SIGNAL(toggled(bool)),
+            this, SLOT(slotTypingSettingsChanged()));
+    connect(d->m_ui.smartBackspaceBehavior, SIGNAL(currentIndexChanged(int)),
+            this, SLOT(slotTypingSettingsChanged()));
+    connect(d->m_ui.tabKeyBehavior, SIGNAL(currentIndexChanged(int)),
+            this, SLOT(slotTypingSettingsChanged()));
+    connect(d->m_ui.cleanWhitespace, SIGNAL(clicked(bool)),
             this, SLOT(slotStorageSettingsChanged()));
-    connect(m_d->m_ui.inEntireDocument, SIGNAL(clicked(bool)),
+    connect(d->m_ui.inEntireDocument, SIGNAL(clicked(bool)),
             this, SLOT(slotStorageSettingsChanged()));
-    connect(m_d->m_ui.addFinalNewLine, SIGNAL(clicked(bool)),
+    connect(d->m_ui.addFinalNewLine, SIGNAL(clicked(bool)),
             this, SLOT(slotStorageSettingsChanged()));
-    connect(m_d->m_ui.cleanIndentation, SIGNAL(clicked(bool)),
+    connect(d->m_ui.cleanIndentation, SIGNAL(clicked(bool)),
             this, SLOT(slotStorageSettingsChanged()));
-    connect(m_d->m_ui.mouseNavigation, SIGNAL(clicked()),
+    connect(d->m_ui.mouseNavigation, SIGNAL(clicked()),
             this, SLOT(slotBehaviorSettingsChanged()));
-    connect(m_d->m_ui.scrollWheelZooming, SIGNAL(clicked(bool)),
+    connect(d->m_ui.scrollWheelZooming, SIGNAL(clicked(bool)),
             this, SLOT(slotBehaviorSettingsChanged()));
-    connect(m_d->m_ui.utf8BomBox, SIGNAL(currentIndexChanged(int)),
+    connect(d->m_ui.constrainTooltips, SIGNAL(clicked()),
+            this, SLOT(slotBehaviorSettingsChanged()));
+    connect(d->m_ui.camelCaseNavigation, SIGNAL(clicked()),
+            this, SLOT(slotBehaviorSettingsChanged()));
+    connect(d->m_ui.utf8BomBox, SIGNAL(currentIndexChanged(int)),
             this, SLOT(slotExtraEncodingChanged()));
-    connect(m_d->m_ui.encodingBox, SIGNAL(currentIndexChanged(int)),
+    connect(d->m_ui.encodingBox, SIGNAL(currentIndexChanged(int)),
             this, SLOT(slotEncodingBoxChanged(int)));
 }
 
 BehaviorSettingsWidget::~BehaviorSettingsWidget()
 {
-    delete m_d;
+    delete d;
 }
 
 void BehaviorSettingsWidget::setActive(bool active)
 {
-    m_d->m_ui.tabPreferencesWidget->setEnabled(active);
-    m_d->m_ui.groupBoxEncodings->setEnabled(active);
-    m_d->m_ui.groupBoxMouse->setEnabled(active);
-    m_d->m_ui.groupBoxStorageSettings->setEnabled(active);
+    d->m_ui.tabPreferencesWidget->setEnabled(active);
+    d->m_ui.groupBoxTyping->setEnabled(active);
+    d->m_ui.groupBoxEncodings->setEnabled(active);
+    d->m_ui.groupBoxMouse->setEnabled(active);
+    d->m_ui.groupBoxStorageSettings->setEnabled(active);
 }
 
 void BehaviorSettingsWidget::setAssignedCodec(QTextCodec *codec)
 {
-    for (int i = 0; i < m_d->m_codecs.size(); ++i) {
-        if (codec == m_d->m_codecs.at(i)) {
-            m_d->m_ui.encodingBox->setCurrentIndex(i);
+    for (int i = 0; i < d->m_codecs.size(); ++i) {
+        if (codec == d->m_codecs.at(i)) {
+            d->m_ui.encodingBox->setCurrentIndex(i);
             break;
         }
     }
@@ -121,53 +133,73 @@ void BehaviorSettingsWidget::setAssignedCodec(QTextCodec *codec)
 
 QTextCodec *BehaviorSettingsWidget::assignedCodec() const
 {
-    return m_d->m_codecs.at(m_d->m_ui.encodingBox->currentIndex());
+    return d->m_codecs.at(d->m_ui.encodingBox->currentIndex());
 }
 
-void BehaviorSettingsWidget::setTabPreferences(TabPreferences *tabPreferences)
+void BehaviorSettingsWidget::setCodeStyle(ICodeStylePreferences *preferences)
 {
-    m_d->m_ui.tabPreferencesWidget->setTabPreferences(tabPreferences);
+    d->m_ui.tabPreferencesWidget->setPreferences(preferences);
+}
+
+void BehaviorSettingsWidget::setAssignedTypingSettings(const TypingSettings &typingSettings)
+{
+    d->m_ui.autoIndent->setChecked(typingSettings.m_autoIndent);
+    d->m_ui.smartBackspaceBehavior->setCurrentIndex(typingSettings.m_smartBackspaceBehavior);
+    d->m_ui.tabKeyBehavior->setCurrentIndex(typingSettings.m_tabKeyBehavior);
+}
+
+void BehaviorSettingsWidget::assignedTypingSettings(TypingSettings *typingSettings) const
+{
+    typingSettings->m_autoIndent = d->m_ui.autoIndent->isChecked();
+    typingSettings->m_smartBackspaceBehavior =
+        (TypingSettings::SmartBackspaceBehavior)(d->m_ui.smartBackspaceBehavior->currentIndex());
+    typingSettings->m_tabKeyBehavior =
+        (TypingSettings::TabKeyBehavior)(d->m_ui.tabKeyBehavior->currentIndex());
 }
 
 void BehaviorSettingsWidget::setAssignedStorageSettings(const StorageSettings &storageSettings)
 {
-    m_d->m_ui.cleanWhitespace->setChecked(storageSettings.m_cleanWhitespace);
-    m_d->m_ui.inEntireDocument->setChecked(storageSettings.m_inEntireDocument);
-    m_d->m_ui.cleanIndentation->setChecked(storageSettings.m_cleanIndentation);
-    m_d->m_ui.addFinalNewLine->setChecked(storageSettings.m_addFinalNewLine);
+    d->m_ui.cleanWhitespace->setChecked(storageSettings.m_cleanWhitespace);
+    d->m_ui.inEntireDocument->setChecked(storageSettings.m_inEntireDocument);
+    d->m_ui.cleanIndentation->setChecked(storageSettings.m_cleanIndentation);
+    d->m_ui.addFinalNewLine->setChecked(storageSettings.m_addFinalNewLine);
 }
 
 void BehaviorSettingsWidget::assignedStorageSettings(StorageSettings *storageSettings) const
 {
-    storageSettings->m_cleanWhitespace = m_d->m_ui.cleanWhitespace->isChecked();
-    storageSettings->m_inEntireDocument = m_d->m_ui.inEntireDocument->isChecked();
-    storageSettings->m_cleanIndentation = m_d->m_ui.cleanIndentation->isChecked();
-    storageSettings->m_addFinalNewLine = m_d->m_ui.addFinalNewLine->isChecked();
+    storageSettings->m_cleanWhitespace = d->m_ui.cleanWhitespace->isChecked();
+    storageSettings->m_inEntireDocument = d->m_ui.inEntireDocument->isChecked();
+    storageSettings->m_cleanIndentation = d->m_ui.cleanIndentation->isChecked();
+    storageSettings->m_addFinalNewLine = d->m_ui.addFinalNewLine->isChecked();
 }
 
 void BehaviorSettingsWidget::setAssignedBehaviorSettings(const BehaviorSettings &behaviorSettings)
 {
-    m_d->m_ui.mouseNavigation->setChecked(behaviorSettings.m_mouseNavigation);
-    m_d->m_ui.scrollWheelZooming->setChecked(behaviorSettings.m_scrollWheelZooming);
+    d->m_ui.mouseNavigation->setChecked(behaviorSettings.m_mouseNavigation);
+    d->m_ui.scrollWheelZooming->setChecked(behaviorSettings.m_scrollWheelZooming);
+    d->m_ui.constrainTooltips->setChecked(behaviorSettings.m_constrainTooltips);
+    d->m_ui.camelCaseNavigation->setChecked(behaviorSettings.m_camelCaseNavigation);
 }
 
 void BehaviorSettingsWidget::assignedBehaviorSettings(BehaviorSettings *behaviorSettings) const
 {
-    behaviorSettings->m_mouseNavigation = m_d->m_ui.mouseNavigation->isChecked();
-    behaviorSettings->m_scrollWheelZooming = m_d->m_ui.scrollWheelZooming->isChecked();
+    behaviorSettings->m_mouseNavigation = d->m_ui.mouseNavigation->isChecked();
+    behaviorSettings->m_scrollWheelZooming = d->m_ui.scrollWheelZooming->isChecked();
+    behaviorSettings->m_constrainTooltips = d->m_ui.constrainTooltips->isChecked();
+    behaviorSettings->m_camelCaseNavigation = d->m_ui.camelCaseNavigation->isChecked();
 }
 
 void BehaviorSettingsWidget::setAssignedExtraEncodingSettings(
     const ExtraEncodingSettings &encodingSettings)
 {
-    m_d->m_ui.utf8BomBox->setCurrentIndex(encodingSettings.m_utf8BomSetting);
+    d->m_ui.utf8BomBox->setCurrentIndex(encodingSettings.m_utf8BomSetting);
 }
 
 void BehaviorSettingsWidget::assignedExtraEncodingSettings(
     ExtraEncodingSettings *encodingSettings) const
 {
     encodingSettings->m_utf8BomSetting =
-        (ExtraEncodingSettings::Utf8BomSetting)m_d->m_ui.utf8BomBox->currentIndex();
+        (ExtraEncodingSettings::Utf8BomSetting)d->m_ui.utf8BomBox->currentIndex();
 }
 
 QString BehaviorSettingsWidget::collectUiKeywords() const
@@ -175,25 +207,32 @@ QString BehaviorSettingsWidget::collectUiKeywords() const
     static const QLatin1Char sep(' ');
     QString keywords;
     QTextStream(&keywords)
-        << sep << m_d->m_ui.tabPreferencesWidget->searchKeywords()
-        << sep << m_d->m_ui.cleanWhitespace->text()
-        << sep << m_d->m_ui.inEntireDocument->text()
-        << sep << m_d->m_ui.cleanIndentation->text()
-        << sep << m_d->m_ui.addFinalNewLine->text()
-        << sep << m_d->m_ui.encodingLabel->text()
-        << sep << m_d->m_ui.utf8BomLabel->text()
-        << sep << m_d->m_ui.mouseNavigation->text()
-        << sep << m_d->m_ui.scrollWheelZooming->text()
-        << sep << m_d->m_ui.groupBoxStorageSettings->title()
-        << sep << m_d->m_ui.groupBoxEncodings->title()
-        << sep << m_d->m_ui.groupBoxMouse->title();
+        << sep << d->m_ui.tabPreferencesWidget->searchKeywords()
+        << sep << d->m_ui.autoIndent->text()
+        << sep << d->m_ui.smartBackspaceLabel->text()
+        << sep << d->m_ui.tabKeyBehaviorLabel->text()
+        << sep << d->m_ui.cleanWhitespace->text()
+        << sep << d->m_ui.inEntireDocument->text()
+        << sep << d->m_ui.cleanIndentation->text()
+        << sep << d->m_ui.addFinalNewLine->text()
+        << sep << d->m_ui.encodingLabel->text()
+        << sep << d->m_ui.utf8BomLabel->text()
+        << sep << d->m_ui.mouseNavigation->text()
+        << sep << d->m_ui.scrollWheelZooming->text()
+        << sep << d->m_ui.constrainTooltips->text()
+        << sep << d->m_ui.camelCaseNavigation->text()
+        << sep << d->m_ui.groupBoxStorageSettings->title()
+        << sep << d->m_ui.groupBoxEncodings->title()
+        << sep << d->m_ui.groupBoxMouse->title();
     keywords.remove(QLatin1Char('&'));
     return keywords;
 }
 
-void BehaviorSettingsWidget::setFallbacksVisible(bool on)
+void BehaviorSettingsWidget::slotTypingSettingsChanged()
 {
-    m_d->m_ui.tabPreferencesWidget->setFallbacksVisible(on);
+    TypingSettings settings;
+    assignedTypingSettings(&settings);
+    emit typingSettingsChanged(settings);
 }
 
 void BehaviorSettingsWidget::slotStorageSettingsChanged()
@@ -219,7 +258,7 @@ void BehaviorSettingsWidget::slotExtraEncodingChanged()
 
 void BehaviorSettingsWidget::slotEncodingBoxChanged(int index)
 {
-    emit textCodecChanged(m_d->m_codecs.at(index));
+    emit textCodecChanged(d->m_codecs.at(index));
 }
 
 } // TextEditor

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,6 +56,8 @@
 #include <QtGui/QVBoxLayout>
 #include <QtGui/QTabWidget>
 #include <QtGui/QToolButton>
+#include <QtGui/QTabBar>
+#include <QtGui/QMenu>
 
 #include <QtCore/QDebug>
 
@@ -76,6 +78,36 @@ static QString msgAttachDebuggerTooltip(const QString &handleDescription = QStri
            AppOutputPane::tr("Attach debugger to %1").arg(handleDescription);
 }
 
+namespace ProjectExplorer {
+namespace Internal {
+
+class TabWidget : public QTabWidget
+{
+    Q_OBJECT
+public:
+    TabWidget(QWidget *parent = 0);
+signals:
+    void contextMenuRequested(const QPoint &pos, const int index);
+private slots:
+    void slotContextMenuRequested(const QPoint &pos);
+};
+
+}
+}
+
+TabWidget::TabWidget(QWidget *parent)
+    : QTabWidget(parent)
+{
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, SIGNAL(customContextMenuRequested(QPoint)),
+            this, SLOT(slotContextMenuRequested(QPoint)));
+}
+
+void TabWidget::slotContextMenuRequested(const QPoint &pos)
+{
+    emit contextMenuRequested(pos, tabBar()->tabAt(pos));
+}
+
 AppOutputPane::RunControlTab::RunControlTab(RunControl *rc, Core::OutputWindow *w) :
     runControl(rc), window(w), asyncClosing(false)
 {
@@ -83,8 +115,11 @@ AppOutputPane::RunControlTab::RunControlTab(RunControl *rc, Core::OutputWindow *
 
 AppOutputPane::AppOutputPane() :
     m_mainWidget(new QWidget),
-    m_tabWidget(new QTabWidget),
+    m_tabWidget(new TabWidget),
     m_stopAction(new QAction(tr("Stop"), this)),
+    m_closeCurrentTabAction(new QAction(tr("Close Tab"), this)),
+    m_closeAllTabsAction(new QAction(tr("Close All Tabs"), this)),
+    m_closeOtherTabsAction(new QAction(tr("Close Other Tabs"), this)),
     m_reRunButton(new QToolButton),
     m_stopButton(new QToolButton),
     m_attachButton(new QToolButton)
@@ -135,6 +170,7 @@ AppOutputPane::AppOutputPane() :
     layout->addWidget(m_tabWidget);
 
     connect(m_tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabChanged(int)));
+    connect(m_tabWidget, SIGNAL(contextMenuRequested(QPoint,int)), this, SLOT(contextMenuRequested(QPoint,int)));
 
     m_mainWidget->setLayout(layout);
 
@@ -192,6 +228,14 @@ int AppOutputPane::tabWidgetIndexOf(int runControlIndex) const
     return -1;
 }
 
+void AppOutputPane::updateCloseActions()
+{
+    const int tabCount = m_tabWidget->count();
+    m_closeCurrentTabAction->setEnabled(tabCount > 0);
+    m_closeAllTabsAction->setEnabled(tabCount > 0);
+    m_closeOtherTabsAction->setEnabled(tabCount > 1);
+}
+
 bool AppOutputPane::aboutToClose() const
 {
     foreach (const RunControlTab &rt, m_runControlTabs)
@@ -236,12 +280,12 @@ void AppOutputPane::visibilityChanged(bool /* b */)
 {
 }
 
-bool AppOutputPane::hasFocus()
+bool AppOutputPane::hasFocus() const
 {
     return m_tabWidget->currentWidget() && m_tabWidget->currentWidget()->hasFocus();
 }
 
-bool AppOutputPane::canFocus()
+bool AppOutputPane::canFocus() const
 {
     return m_tabWidget->currentWidget();
 }
@@ -255,9 +299,9 @@ void AppOutputPane::setFocus()
 void AppOutputPane::createNewOutputWindow(RunControl *rc)
 {
     connect(rc, SIGNAL(started()),
-            this, SLOT(runControlStarted()));
+            this, SLOT(slotRunControlStarted()));
     connect(rc, SIGNAL(finished()),
-            this, SLOT(runControlFinished()));
+            this, SLOT(slotRunControlFinished()));
     connect(rc, SIGNAL(applicationProcessHandleChanged()),
             this, SLOT(enableButtons()));
     connect(rc, SIGNAL(appendMessage(ProjectExplorer::RunControl*,QString,Utils::OutputFormat)),
@@ -298,6 +342,7 @@ void AppOutputPane::createNewOutputWindow(RunControl *rc)
     m_tabWidget->addTab(ow, rc->displayName());
     if (debug)
         qDebug() << "OutputPane::createNewOutputWindow: Adding tab for " << rc;
+    updateCloseActions();
 }
 
 void AppOutputPane::handleOldOutput(Core::OutputWindow *window) const
@@ -382,7 +427,7 @@ bool AppOutputPane::closeTab(int index)
 
 bool AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
 {
-    const int index = indexOf(m_tabWidget->widget(tabIndex));
+    int index = indexOf(m_tabWidget->widget(tabIndex));
     QTC_ASSERT(index != -1, return true;)
 
     RunControlTab &tab = m_runControlTabs[index];
@@ -396,24 +441,37 @@ bool AppOutputPane::closeTab(int tabIndex, CloseTabMode closeTabMode)
         case CloseTabNoPrompt:
             break;
         case CloseTabWithPrompt:
+            QWidget *tabWidget = m_tabWidget->widget(tabIndex);
             if (!tab.runControl->promptToStop())
                 return false;
+            // The event loop has run, thus the ordering might have changed, a tab might
+            // have been closed, so do some strange things...
+            tabIndex = m_tabWidget->indexOf(tabWidget);
+            index = indexOf(tabWidget);
+            if (tabIndex == -1 || index == -1)
+                return false;
+            tab = m_runControlTabs[index];
             break;
         }
-        if (tab.runControl->stop() == RunControl::AsynchronousStop) {
-            tab.asyncClosing = true;
-            return false;
+        if (tab.runControl->isRunning()) { // yes it might have stopped already, then just close
+            QWidget *tabWidget = m_tabWidget->widget(tabIndex);
+            if (tab.runControl->stop() == RunControl::AsynchronousStop) {
+                tab.asyncClosing = true;
+                return false;
+            }
+            tabIndex = m_tabWidget->indexOf(tabWidget);
+            index = indexOf(tabWidget);
+            if (tabIndex == -1 || index == -1)
+                return false;
+            tab = m_runControlTabs[index];
         }
     }
 
     m_tabWidget->removeTab(tabIndex);
-    if (tab.asyncClosing) { // We were invoked from its finished() signal.
-        tab.runControl->deleteLater();
-    } else {
-        delete tab.runControl;
-    }
+    delete tab.runControl;
     delete tab.window;
     m_runControlTabs.removeAt(index);
+    updateCloseActions();
     return true;
 }
 
@@ -472,17 +530,41 @@ void AppOutputPane::tabChanged(int i)
     }
 }
 
-void AppOutputPane::runControlStarted()
+void AppOutputPane::contextMenuRequested(const QPoint &pos, int index)
+{
+    QList<QAction *> actions = QList<QAction *>() << m_closeCurrentTabAction << m_closeAllTabsAction << m_closeOtherTabsAction;
+    QAction *action = QMenu::exec(actions, m_tabWidget->mapToGlobal(pos), 0, m_tabWidget);
+    const int currentIdx = index != -1 ? index : currentIndex();
+    if (action == m_closeCurrentTabAction) {
+        if (currentIdx >= 0)
+            closeTab(currentIdx);
+    } else if (action == m_closeAllTabsAction) {
+        closeTabs(AppOutputPane::CloseTabWithPrompt);
+    } else if (action == m_closeOtherTabsAction) {
+        for (int t = m_tabWidget->count() - 1; t >= 0; t--)
+            if (t != currentIdx)
+                closeTab(t);
+    }
+}
+
+void AppOutputPane::slotRunControlStarted()
 {
     RunControl *current = currentRunControl();
     if (current && current == sender())
         enableButtons(current, true); // RunControl::isRunning() cannot be trusted in signal handler.
+    emit runControlStarted(current);
 }
 
-void AppOutputPane::runControlFinished()
+void AppOutputPane::slotRunControlFinished()
 {
-    RunControl *senderRunControl = qobject_cast<RunControl *>(sender());
-    const int senderIndex = indexOf(senderRunControl);
+    ProjectExplorer::RunControl *rc = qobject_cast<RunControl *>(sender());
+    QMetaObject::invokeMethod(this, "slotRunControlFinished2", Qt::QueuedConnection,
+                              Q_ARG(ProjectExplorer::RunControl *, rc));
+}
+
+void AppOutputPane::slotRunControlFinished2(RunControl *sender)
+{
+    const int senderIndex = indexOf(sender);
 
     QTC_ASSERT(senderIndex != -1, return; )
 
@@ -490,15 +572,17 @@ void AppOutputPane::runControlFinished()
     RunControl *current = currentRunControl();
 
     if (debug)
-        qDebug() << "OutputPane::runControlFinished"  << senderRunControl << senderIndex
+        qDebug() << "OutputPane::runControlFinished"  << sender << senderIndex
                     << " current " << current << m_runControlTabs.size();
 
-    if (current && current == sender())
+    if (current && current == sender)
         enableButtons(current, false); // RunControl::isRunning() cannot be trusted in signal handler.
 
     // Check for asynchronous close. Close the tab.
     if (m_runControlTabs.at(senderIndex).asyncClosing)
         closeTab(tabWidgetIndexOf(senderIndex), CloseTabNoPrompt);
+
+    emit runControlFinished(sender);
 
     if (!isRunning())
         emit allRunControlsFinished();
@@ -512,12 +596,12 @@ bool AppOutputPane::isRunning() const
     return false;
 }
 
-bool AppOutputPane::canNext()
+bool AppOutputPane::canNext() const
 {
     return false;
 }
 
-bool AppOutputPane::canPrevious()
+bool AppOutputPane::canPrevious() const
 {
     return false;
 }
@@ -532,7 +616,18 @@ void AppOutputPane::goToPrev()
 
 }
 
-bool AppOutputPane::canNavigate()
+bool AppOutputPane::canNavigate() const
 {
     return false;
 }
+
+QList<RunControl *> AppOutputPane::runControls() const
+{
+    QList<RunControl *> result;
+    foreach (const RunControlTab& tab, m_runControlTabs)
+        result << tab.runControl;
+    return result;
+}
+
+#include "appoutputpane.moc"
+

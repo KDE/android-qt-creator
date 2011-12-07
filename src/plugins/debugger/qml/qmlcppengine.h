@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,6 @@
 #define QMLGDBENGINE_H
 
 #include "debuggerengine.h"
-
-#include <QtCore/QScopedPointer>
 
 namespace Debugger {
 namespace Internal {
@@ -74,8 +72,6 @@ public:
 
     void setRegisterValue(int regnr, const QString &value);
     unsigned debuggerCapabilities() const;
-    virtual bool canWatchWidgets() const;
-    virtual bool acceptsWatchesWhileRunning() const;
 
     bool isSynchronous() const;
     QByteArray qtNamespace() const;
@@ -91,11 +87,14 @@ public:
         const QString &expr, const QVariant &value);
 
     DebuggerEngine *cppEngine() const;
+    DebuggerEngine *qmlEngine() const;
+
     void handleRemoteSetupDone(int gdbServerPort, int qmlPort);
     void handleRemoteSetupFailed(const QString &message);
 
     void showMessage(const QString &msg, int channel = LogDebug,
         int timeout = -1) const;
+    void resetLocation();
 
 protected:
     void detachDebugger();
@@ -133,7 +132,7 @@ private:
     void readyToExecuteQmlStep();
 
 private:
-    QScopedPointer<QmlCppEnginePrivate> d;
+    QmlCppEnginePrivate *d;
 };
 
 } // namespace Internal

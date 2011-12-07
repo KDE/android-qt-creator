@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "MatchingText.h"
@@ -54,6 +54,15 @@ static bool shouldOverrideChar(QChar ch)
         return false;
     }
 }
+
+// disable gcc warning:
+//
+//   qstring.h:1175:39: warning: assuming signed overflow does not occur when assuming that (X - c) > X is always false
+//
+// caused by Q_ASSERT in QStringRef::at()
+#ifdef Q_CC_GNU
+#    pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
 
 static bool isCompleteStringLiteral(const BackwardsScanner &tk, int index)
 {

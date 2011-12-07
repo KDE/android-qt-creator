@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,19 +34,19 @@
 #define CPPSETTINGSPAGE_H
 
 #include <coreplugin/dialogs/ioptionspage.h>
+
 #include <QtCore/QPointer>
 #include <QtCore/QSharedPointer>
 #include <QtGui/QWidget>
 
 QT_BEGIN_NAMESPACE
-namespace Ui {
-    class CppFileSettingsPage;
-}
 class QSettings;
 QT_END_NAMESPACE
 
 namespace CppTools {
 namespace Internal {
+
+namespace Ui { class CppFileSettingsPage; }
 
 struct CppFileSettings
 {
@@ -66,10 +66,9 @@ struct CppFileSettings
     static QString licenseTemplate(const QString &file = QString(), const QString &className = QString());
 
     bool equals(const CppFileSettings &rhs) const;
+    bool operator==(const CppFileSettings &s) const { return equals(s); }
+    bool operator!=(const CppFileSettings &s) const { return !equals(s); }
 };
-
-inline bool operator==(const CppFileSettings &s1, const CppFileSettings &s2) { return s1.equals(s2); }
-inline bool operator!=(const CppFileSettings &s1, const CppFileSettings &s2) { return !s1.equals(s2); }
 
 class CppFileSettingsWidget : public QWidget
 {
@@ -96,8 +95,6 @@ private:
 
 class CppFileSettingsPage : public Core::IOptionsPage
 {
-    Q_DISABLE_COPY(CppFileSettingsPage)
-
 public:
     explicit CppFileSettingsPage(QSharedPointer<CppFileSettings> &settings,
                                  QObject *parent = 0);

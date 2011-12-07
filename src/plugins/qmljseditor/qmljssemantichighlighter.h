@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,91 +26,77 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-#ifndef SEMANTICHIGHLIGHTER_H
-#define SEMANTICHIGHLIGHTER_H
+#ifndef QMLJSSEMANTICHIGHLIGHTER_H
+#define QMLJSSEMANTICHIGHLIGHTER_H
 
-#include "qmljseditor.h"
+#include <texteditor/semantichighlighter.h>
+#include <QtCore/QFutureWatcher>
 
-#include <QtCore/QWaitCondition>
-#include <QtCore/QModelIndex>
-#include <QtCore/QMutex>
-#include <QtCore/QThread>
+namespace QmlJS {
+class ScopeChain;
+namespace AST {
+class SourceLocation;
+}
+}
+
+namespace TextEditor {
+class FontSettings;
+}
 
 namespace QmlJSEditor {
+
+class QmlJSTextEditorWidget;
+
 namespace Internal {
 
-struct SemanticHighlighterSource
-{
-    QmlJS::Snapshot snapshot;
-    QString fileName;
-    QString code;
-    int line;
-    int column;
-    int revision;
-    bool force;
-
-    SemanticHighlighterSource()
-        : line(0), column(0), revision(0), force(false)
-    { }
-
-    SemanticHighlighterSource(const QmlJS::Snapshot &snapshot,
-           const QString &fileName,
-           const QString &code,
-           int line, int column,
-           int revision)
-        : snapshot(snapshot), fileName(fileName),
-          code(code), line(line), column(column),
-          revision(revision), force(false)
-    { }
-
-    void clear()
-    {
-        snapshot = QmlJS::Snapshot();
-        fileName.clear();
-        code.clear();
-        line = 0;
-        column = 0;
-        revision = 0;
-        force = false;
-    }
-};
-
-class SemanticHighlighter: public QThread
+class SemanticHighlighter : public QObject
 {
     Q_OBJECT
-
 public:
-    SemanticHighlighter(QObject *parent = 0);
-    virtual ~SemanticHighlighter();
+    enum UseType
+    {
+        UnknownType,
+        LocalIdType, // ids in the same file
+        ExternalIdType, // ids from instantiating files
+        QmlTypeType, // qml types
+        RootObjectPropertyType, // property in root object
+        ScopeObjectPropertyType, // property in scope object
+        ExternalObjectPropertyType, // property in root object of instantiating file
+        JsScopeType, // var or function in local js scope
+        JsImportType, // name of js import
+        JsGlobalType, // in global scope
+        LocalStateNameType, // name of a state in the current file
+        BindingNameType, // name on the left hand side of a binding
+        FieldType // member of an object
+    };
 
-    void abort();
-    void rehighlight(const SemanticHighlighterSource &source);
-    void setModelManager(QmlJS::ModelManagerInterface *modelManager);
+    typedef TextEditor::SemanticHighlighter::Result Use;
 
-Q_SIGNALS:
-    void changed(const QmlJSEditor::SemanticInfo &semanticInfo);
+    SemanticHighlighter(QmlJSTextEditorWidget *editor);
 
-protected:
-    virtual void run();
+    void rerun(const QmlJS::ScopeChain &scopeChain);
+    void cancel();
+
+    int startRevision() const;
+
+    void updateFontSettings(const TextEditor::FontSettings &fontSettings);
+
+private slots:
+    void applyResults(int from, int to);
+    void finished();
 
 private:
-    bool isOutdated();
-    SemanticInfo semanticInfo(const SemanticHighlighterSource &source);
-
-private:
-    QMutex m_mutex;
-    QWaitCondition m_condition;
-    bool m_done;
-    SemanticHighlighterSource m_source;
-    SemanticInfo m_lastSemanticInfo;
-    QmlJS::ModelManagerInterface *m_modelManager;
+    QFutureWatcher<Use>  m_watcher;
+    QmlJSTextEditorWidget *m_editor;
+    int m_startRevision;
+    QHash<int, QTextCharFormat> m_formats;
 };
 
 } // namespace Internal
 } // namespace QmlJSEditor
 
-#endif // SEMANTICHIGHLIGHTER_H
+#endif // QMLJSSEMANTICHIGHLIGHTER_H

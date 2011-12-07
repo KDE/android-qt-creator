@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,6 +49,7 @@ struct BuildManagerPrivate;
 class PROJECTEXPLORER_EXPORT BuildManager : public QObject
 {
     Q_OBJECT
+
 public:
     explicit BuildManager(ProjectExplorerPlugin *parent);
     virtual ~BuildManager();
@@ -59,13 +60,18 @@ public:
 
     bool tasksAvailable() const;
 
-    bool buildLists(QList<BuildStepList *> bsls);
-    bool buildList(BuildStepList *bsl);
+    bool buildLists(QList<BuildStepList *> bsls, const QStringList &stepListNames);
+    bool buildList(BuildStepList *bsl, const QString &stepListName);
+
     bool isBuilding(Project *p);
+    bool isBuilding(Target *t);
+    bool isBuilding(ProjectConfiguration *p);
     bool isBuilding(BuildStep *step);
 
     // Append any build step to the list of build steps (currently only used to add the QMakeStep)
-    void appendStep(BuildStep *step);
+    void appendStep(BuildStep *step, const QString &name);
+
+    int getErrorTaskCount() const;
 
 public slots:
     void cancel();
@@ -87,6 +93,7 @@ private slots:
     void addToOutputWindow(const QString &string, ProjectExplorer::BuildStep::OutputFormat,
         ProjectExplorer::BuildStep::OutputNewlineSetting = BuildStep::DoAppendNewline);
 
+    void buildStepFinishedAsync();
     void nextBuildQueue();
     void progressChanged();
     void progressTextChanged();
@@ -99,12 +106,12 @@ private:
     void startBuildQueue();
     void nextStep();
     void clearBuildQueue();
-    bool buildQueueAppend(QList<BuildStep *> steps);
-    void incrementActiveBuildSteps(Project *pro);
-    void decrementActiveBuildSteps(Project *pro);
+    bool buildQueueAppend(QList<BuildStep *> steps, const QStringList &names);
+    void incrementActiveBuildSteps(BuildStep *bs);
+    void decrementActiveBuildSteps(BuildStep *bs);
     void disconnectOutput(BuildStep *bs);
 
-    QScopedPointer<BuildManagerPrivate> d;
+    BuildManagerPrivate *d;
 };
 } // namespace ProjectExplorer
 

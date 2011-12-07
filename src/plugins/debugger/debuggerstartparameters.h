@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,6 +39,7 @@
 #include <utils/ssh/sshconnection.h>
 #include <utils/environment.h>
 #include <projectexplorer/abi.h>
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <QtCore/QMetaType>
 
@@ -65,7 +66,7 @@ public:
         useTerminal(false),
         breakOnMain(false),
         qmlServerAddress(QLatin1String("127.0.0.1")),
-        qmlServerPort(0),
+        qmlServerPort(ProjectExplorer::Constants::QML_DEFAULT_DEBUG_SERVER_PORT),
         useServerStartScript(false),
         connParams(Utils::SshConnectionParameters::NoProxy),
         startMode(NoStartMode),
@@ -107,6 +108,8 @@ public:
     bool useServerStartScript;
     QString serverStartScript;
     QString sysroot;
+    QString debugInfoLocation; // Gdb "set-debug-file-directory".
+    QStringList debugSourceLocation; // Gdb "directory"
     QByteArray remoteDumperLib;
     QByteArray remoteSourcesDir;
     QString remoteMountPoint;

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 
 #include <qmljs/parser/qmljsastvisitor_p.h>
 #include <qmljs/qmljsinterpreter.h>
+#include <qmljs/qmljsvalueowner.h>
 
 #include <QtCore/QHash>
 #include <QtCore/QStringList>
@@ -51,22 +52,22 @@ class QMLJS_EXPORT Bind: protected AST::Visitor
     Q_DECLARE_TR_FUNCTIONS(QmlJS::Bind)
 
 public:
-    Bind(Document *doc, QList<DiagnosticMessage> *messages);
+    Bind(Document *doc, QList<DiagnosticMessage> *messages,
+         bool isJsLibrary, const QList<ImportInfo> &jsImports);
     virtual ~Bind();
 
-    QList<Interpreter::ImportInfo> imports() const;
+    bool isJsLibrary() const;
+    QList<ImportInfo> imports() const;
 
-    Interpreter::ObjectValue *idEnvironment() const;
-    Interpreter::ObjectValue *rootObjectValue() const;
+    ObjectValue *idEnvironment() const;
+    ObjectValue *rootObjectValue() const;
 
-    Interpreter::ObjectValue *findQmlObject(AST::Node *node) const;
-    bool usesQmlPrototype(Interpreter::ObjectValue *prototype,
-                          const Interpreter::Context *context) const;
+    ObjectValue *findQmlObject(AST::Node *node) const;
+    bool usesQmlPrototype(ObjectValue *prototype,
+                          const ContextPtr &context) const;
 
-    Interpreter::ObjectValue *findAttachedJSScope(AST::Node *node) const;
+    ObjectValue *findAttachedJSScope(AST::Node *node) const;
     bool isGroupedPropertyBinding(AST::Node *node) const;
-
-    static QString toString(AST::UiQualifiedId *qualifiedId, QChar delimiter = QChar('.'));
 
 protected:
     using AST::Visitor::visit;
@@ -89,23 +90,24 @@ protected:
     virtual bool visit(AST::FunctionExpression *ast);
     virtual bool visit(AST::VariableDeclaration *ast);
 
-    Interpreter::ObjectValue *switchObjectValue(Interpreter::ObjectValue *newObjectValue);
-    Interpreter::ObjectValue *bindObject(AST::UiQualifiedId *qualifiedTypeNameId, AST::UiObjectInitializer *initializer);
+    ObjectValue *switchObjectValue(ObjectValue *newObjectValue);
+    ObjectValue *bindObject(AST::UiQualifiedId *qualifiedTypeNameId, AST::UiObjectInitializer *initializer);
 
 private:
     Document *_doc;
-    Interpreter::Engine _engine;
+    ValueOwner _valueOwner;
 
-    Interpreter::ObjectValue *_currentObjectValue;
-    Interpreter::ObjectValue *_idEnvironment;
-    Interpreter::ObjectValue *_rootObjectValue;
+    ObjectValue *_currentObjectValue;
+    ObjectValue *_idEnvironment;
+    ObjectValue *_rootObjectValue;
 
-    QHash<AST::Node *, Interpreter::ObjectValue *> _qmlObjects;
+    QHash<AST::Node *, ObjectValue *> _qmlObjects;
+    QMultiHash<QString, const ObjectValue *> _qmlObjectsByPrototypeName;
     QSet<AST::Node *> _groupedPropertyBindings;
-    QHash<AST::Node *, Interpreter::ObjectValue *> _attachedJSScopes;
-    QStringList _includedScripts;
+    QHash<AST::Node *, ObjectValue *> _attachedJSScopes;
 
-    QList<Interpreter::ImportInfo> _imports;
+    bool _isJsLibrary;
+    QList<ImportInfo> _imports;
 
     QList<DiagnosticMessage> *_diagnosticMessages;
 };

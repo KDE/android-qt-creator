@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,12 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef CPPTYPEHIERARCHY_H
 #define CPPTYPEHIERARCHY_H
-
-#include "cppelementevaluator.h"
 
 #include <coreplugin/inavigationwidgetfactory.h>
 
@@ -45,6 +43,7 @@ QT_BEGIN_NAMESPACE
 class QStandardItemModel;
 class QStandardItem;
 class QModelIndex;
+template <class> class QVector;
 QT_END_NAMESPACE
 
 namespace Core {
@@ -60,6 +59,7 @@ namespace CppEditor {
 namespace Internal {
 
 class CPPEditorWidget;
+class CppClass;
 
 class CppTypeHierarchyWidget : public QWidget
 {
@@ -77,12 +77,8 @@ private slots:
     void onItemClicked(const QModelIndex &index);
 
 private:
-    enum ItemRole {
-        AnnotationRole = Qt::UserRole + 1,
-        LinkRole
-    };
-
-    void buildModel(const CppClass &cppClass, QStandardItem *item);
+    void buildDerivedHierarchy(const CppClass &cppClass, QStandardItem *parent);
+    void buildBaseHierarchy(QVector<CppClass> *s);
 
     CPPEditorWidget *m_cppEditor;
     Utils::NavigationTreeView *m_treeView;
@@ -115,7 +111,7 @@ public:
 
     virtual QString displayName() const;
     virtual int priority() const;
-    virtual QString id() const;
+    virtual Core::Id id() const;
     virtual QKeySequence activationSequence() const;
     virtual Core::NavigationView createWidget();
 };

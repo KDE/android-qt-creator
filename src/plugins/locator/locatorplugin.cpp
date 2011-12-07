@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,7 +47,7 @@
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <extensionsystem/pluginmanager.h>
 #include <qtconcurrent/QtConcurrentTools>
 #include <utils/qtcassert.h>
@@ -93,9 +93,11 @@ LocatorPlugin::~LocatorPlugin()
 {
     removeObject(m_openDocumentsFilter);
     removeObject(m_fileSystemFilter);
+    removeObject(m_executeFilter);
     removeObject(m_settingsPage);
     delete m_openDocumentsFilter;
     delete m_fileSystemFilter;
+    delete m_executeFilter;
     delete m_settingsPage;
     qDeleteAll(m_customFilters);
 }
@@ -132,6 +134,9 @@ bool LocatorPlugin::initialize(const QStringList &, QString *)
 
     m_fileSystemFilter = new FileSystemFilter(core->editorManager(), m_locatorWidget);
     addObject(m_fileSystemFilter);
+
+    m_executeFilter = new ExecuteFilter();
+    addObject(m_executeFilter);
 
     addAutoReleasedObject(new LocatorFiltersFilter(this, m_locatorWidget));
 

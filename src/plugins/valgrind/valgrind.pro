@@ -3,7 +3,9 @@ TARGET = Valgrind
 
 include(../../qtcreatorplugin.pri)
 include(valgrind_dependencies.pri)
-include(valgrind/valgrind.pri)
+include(callgrind/callgrind.pri)
+include(memcheck/memcheck.pri)
+include(xmlprotocol/xmlprotocol.pri)
 QT *= network
 
 INCLUDEPATH *= $$PWD
@@ -13,6 +15,8 @@ HEADERS += \
     valgrindengine.h \
     valgrindconfigwidget.h \
     valgrindsettings.h \
+    valgrindrunner.h \
+    valgrindprocess.h \
     callgrindcostdelegate.h \
     callgrindcostview.h \
     callgrindhelper.h \
@@ -33,6 +37,8 @@ SOURCES += \
     valgrindengine.cpp \
     valgrindconfigwidget.cpp \
     valgrindsettings.cpp \
+    valgrindrunner.cpp \
+    valgrindprocess.cpp \
     \
     callgrindcostdelegate.cpp \
     callgrindcostview.cpp \

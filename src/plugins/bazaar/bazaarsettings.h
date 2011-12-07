@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,16 +41,15 @@ namespace Internal {
 class BazaarSettings : public VCSBase::VCSBaseClientSettings
 {
 public:
+    static const QLatin1String diffIgnoreWhiteSpaceKey;
+    static const QLatin1String diffIgnoreBlankLinesKey;
+    static const QLatin1String logVerboseKey;
+    static const QLatin1String logForwardKey;
+    static const QLatin1String logIncludeMergesKey;
+    static const QLatin1String logFormatKey;
+
     BazaarSettings();
-    BazaarSettings& operator=(const BazaarSettings& other);
-    bool sameUserId(const BazaarSettings& other) const;
-
-    virtual void writeSettings(QSettings *settings) const;
-    virtual void readSettings(const QSettings *settings);
-    virtual bool equals(const VCSBaseClientSettings &rhs) const;
-
-    bool diffIgnoreWhiteSpace;
-    bool diffIgnoreBlankLines;
+    bool sameUserId(const BazaarSettings &other) const;
 };
 
 } // namespace Internal

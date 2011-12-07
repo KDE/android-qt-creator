@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -52,7 +52,6 @@
 #include <invalidmodelnodeexception.h>
 
 namespace QmlDesigner {
-
 
 
 FormEditorScene *FormEditorItem::scene() const {
@@ -240,8 +239,12 @@ void FormEditorItem::paintBoundingRect(QPainter *painter) const
         || (QGraphicsItem::parentItem() == scene()->formLayerItem() && qFuzzyIsNull(m_borderWidth)))
           return;
 
+     if (boundingRect().width() < 8 || boundingRect().height() < 8)
+         return;
+
     QPen pen;
     pen.setJoinStyle(Qt::MiterJoin);
+    pen.setStyle(Qt::DotLine);
 
     switch(scene()->paintMode()) {
         case FormEditorScene::AnchorMode: {
@@ -273,6 +276,58 @@ void FormEditorItem::paintBoundingRect(QPainter *painter) const
     painter->drawRect(boundingRect().adjusted(0., 0., -1., -1.));
 }
 
+void FormEditorItem::paintPlaceHolderForInvisbleItem(QPainter *painter) const
+{
+    qreal stripesWidth = 12;
+
+    QRegion innerRegion = QRegion(boundingRect().adjusted(stripesWidth, stripesWidth, -stripesWidth, -stripesWidth).toRect());
+    QRegion outerRegion  = QRegion(boundingRect().toRect()) - innerRegion;
+
+    painter->setClipRegion(outerRegion);
+    painter->setClipping(true);
+    painter->fillRect(boundingRect().adjusted(1, 1, -1, -1), Qt::BDiagPattern);
+    painter->setClipping(false);
+
+    QString displayText = qmlItemNode().id();
+
+    if (displayText.isEmpty())
+        displayText = qmlItemNode().simplifiedTypeName();
+
+    QTextOption textOption;
+    textOption.setAlignment(Qt::AlignTop);
+    textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+
+    if (boundingRect().height() > 60) {
+        painter->save();
+
+        QFont font;
+        font.setStyleHint(QFont::SansSerif);
+        font.setBold(true);
+        font.setPixelSize(12);
+        painter->setFont(font);
+
+        QFontMetrics fm(font);
+        painter->rotate(90);
+        if (fm.width(displayText) > (boundingRect().height() - 32) && displayText.length() > 4) {
+
+            displayText = fm.elidedText(displayText, Qt::ElideRight, boundingRect().height() - 32, Qt::TextShowMnemonic);
+        }
+
+        QRectF rotatedBoundingBox;
+        rotatedBoundingBox.setWidth(boundingRect().height());
+        rotatedBoundingBox.setHeight(12);
+        rotatedBoundingBox.setY(-boundingRect().width() + 12);
+        rotatedBoundingBox.setX(20);
+
+        painter->setFont(font);
+        painter->setPen(QColor(48, 48, 96, 255));
+        painter->drawText(rotatedBoundingBox, displayText, textOption);
+
+        painter->restore();
+    }
+}
+
+
 void FormEditorItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     if (!qmlItemNode().isValid())
@@ -280,8 +335,12 @@ void FormEditorItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, 
 
     painter->save();
 
-    if (isContentVisible())
+    if (qmlItemNode().instanceIsRenderPixmapNull()) {
+        if (scene()->showBoundingRects() && boundingRect().width() > 15 && boundingRect().height() > 15)
+            paintPlaceHolderForInvisbleItem(painter);
+    } else {
         qmlItemNode().paintInstance(painter);
+    }
 
     if (!qmlItemNode().isRootModelNode())
         paintBoundingRect(painter);

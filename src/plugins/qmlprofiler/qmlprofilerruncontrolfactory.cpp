@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -126,7 +126,7 @@ RunControl *QmlProfilerRunControlFactory::create(RunConfiguration *runConfigurat
         QTC_ASSERT(false, return 0);
     }
 
-    IAnalyzerTool *tool = AnalyzerManager::toolFromId(mode.toLatin1());
+    IAnalyzerTool *tool = AnalyzerManager::toolFromId(Core::Id(mode));
     AnalyzerRunControl *rc = new AnalyzerRunControl(tool, sp, runConfiguration);
     QObject::connect(AnalyzerManager::stopAction(), SIGNAL(triggered()), rc, SLOT(stopIt()));
     return rc;

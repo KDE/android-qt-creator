@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,7 +37,8 @@
 
 #include <QtCore/QHash>
 #include <QtCore/QStringList>
-#include <QtCore/QUrl>
+
+QT_FORWARD_DECLARE_CLASS(QUrl)
 
 namespace Utils {
 
@@ -50,11 +51,13 @@ public:
     QString projectDirectory() const;
 
     void setProjectFiles(const QStringList &projectFiles);
+    void setSysroot(const QString &sysroot);
 
     QString findFile(const QUrl &fileUrl, bool *success = 0) const;
 
 private:
     QString m_projectDir;
+    QString m_sysroot;
     QStringList m_projectFiles;
     mutable QHash<QString,QString> m_cache;
 };

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,9 +34,11 @@
 
 #include "qt4project.h"
 #include "qt4target.h"
+#include "qt4nodes.h"
 #include "s60manager.h"
 #include "qt4symbiantarget.h"
 #include "qt4projectmanagerconstants.h"
+#include "qt4buildconfiguration.h"
 
 #include <projectexplorer/projectexplorerconstants.h>
 
@@ -160,7 +162,7 @@ QVariantMap S60EmulatorRunConfiguration::toMap() const
 bool S60EmulatorRunConfiguration::fromMap(const QVariantMap &map)
 {
     const QDir projectDir = QDir(target()->project()->projectDirectory());
-    m_proFilePath = projectDir.filePath(map.value(QLatin1String(PRO_FILE_KEY)).toString());
+    m_proFilePath = QDir::cleanPath(projectDir.filePath(map.value(QLatin1String(PRO_FILE_KEY)).toString()));
 
     if (m_proFilePath.isEmpty())
         return false;
@@ -176,15 +178,21 @@ bool S60EmulatorRunConfiguration::fromMap(const QVariantMap &map)
 
 QString S60EmulatorRunConfiguration::executable() const
 {
-    Qt4BuildConfiguration *qt4bc = qt4Target()->activeBuildConfiguration();
+    if (!qt4Target()) 
+        return QString();
+    Qt4BuildConfiguration *qt4bc = qt4Target()->activeQt4BuildConfiguration();
+    if (!qt4bc) 
+        return QString();
     QtSupport::BaseQtVersion *qtVersion = qt4bc->qtVersion();
+    if (!qtVersion) 
+        return QString();
     QString baseDir = qtVersion->systemRoot();
     QString qmakeBuildConfig = "urel";
     if (qt4bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild)
         qmakeBuildConfig = "udeb";
     baseDir += "/epoc32/release/winscw/" + qmakeBuildConfig;
 
-    TargetInformation ti = qt4Target()->qt4Project()->rootProjectNode()->targetInformation(m_proFilePath);
+    TargetInformation ti = qt4Target()->qt4Project()->rootQt4ProjectNode()->targetInformation(m_proFilePath);
     if (!ti.valid)
         return QString();
     QString executable = QDir::toNativeSeparators(QDir::cleanPath(baseDir + QLatin1Char('/') + ti.target));

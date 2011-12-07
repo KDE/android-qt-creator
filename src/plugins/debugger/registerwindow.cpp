@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -93,6 +93,7 @@ public:
         lineEdit->setBase(big ? 16 : base);
         lineEdit->setSigned(false);
         lineEdit->setAlignment(Qt::AlignRight);
+        lineEdit->setFrame(false);
         return lineEdit;
     }
 
@@ -110,7 +111,11 @@ public:
             return;
         IntegerWatchLineEdit *lineEdit = qobject_cast<IntegerWatchLineEdit*>(editor);
         QTC_ASSERT(lineEdit, return);
-        currentEngine()->setRegisterValue(index.row(), lineEdit->text());
+        const int base = currentHandler()->numberBase();
+        QString value = lineEdit->text();
+        if (base == 16 && !value.startsWith("0x"))
+            value = "0x" + value;
+        currentEngine()->setRegisterValue(index.row(), value);
     }
 
     void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
@@ -159,21 +164,11 @@ public:
 ///////////////////////////////////////////////////////////////////////
 
 RegisterWindow::RegisterWindow(QWidget *parent)
-  : QTreeView(parent)
+    : BaseWindow(parent)
 {
-    QAction *act = debuggerCore()->action(UseAlternatingRowColors);
-    setFrameStyle(QFrame::NoFrame);
     setWindowTitle(tr("Registers"));
-    setAttribute(Qt::WA_MacShowFocusRect, false);
-    setAlternatingRowColors(act->isChecked());
-    setRootIsDecorated(false);
+    setAlwaysAdjustColumnsAction(debuggerCore()->action(UseAlternatingRowColors));
     setItemDelegate(new RegisterDelegate(this));
-
-    connect(act, SIGNAL(toggled(bool)),
-        SLOT(setAlternatingRowColorsHelper(bool)));
-    connect(debuggerCore()->action(AlwaysAdjustRegistersColumnWidths),
-        SIGNAL(toggled(bool)),
-        SLOT(setAlwaysResizeColumnsToContents(bool)));
     setObjectName(QLatin1String("RegisterWindow"));
 }
 
@@ -199,7 +194,8 @@ void RegisterWindow::contextMenuEvent(QContextMenuEvent *ev)
         return;
     const Register &aRegister = handler->registers().at(idx.row());
     const QVariant addressV = aRegister.editValue();
-    const quint64 address = addressV.type() == QVariant::ULongLong ? addressV.toULongLong() : 0;
+    const quint64 address = addressV.type() == QVariant::ULongLong
+        ? addressV.toULongLong() : 0;
     QAction *actViewMemory = menu.addAction(QString());
     QAction *actEditMemory = menu.addAction(QString());
 
@@ -212,8 +208,9 @@ void RegisterWindow::contextMenuEvent(QContextMenuEvent *ev)
         actEditMemory->setText(tr("Open Memory Editor at 0x%1").arg(address, 0, 16));
         actEditMemory->setEnabled(canShow);
         actViewMemory->setText(tr("Open Memory View at Value of Register %1 0x%2")
-                               .arg(QString::fromAscii(aRegister.name)).arg(address, 0, 16));
-        actShowDisassemblerAt->setText(tr("Open Disassembler at 0x%1").arg(address, 0, 16));
+            .arg(QString::fromAscii(aRegister.name)).arg(address, 0, 16));
+        actShowDisassemblerAt->setText(tr("Open Disassembler at 0x%1")
+            .arg(address, 0, 16));
         actShowDisassemblerAt->setEnabled(engineCapabilities & DisassemblerCapability);
     } else {
         actEditMemory->setText(tr("Open Memory Editor"));
@@ -238,28 +235,23 @@ void RegisterWindow::contextMenuEvent(QContextMenuEvent *ev)
     QAction *act2 = menu.addAction(tr("Binary"));
     act2->setCheckable(true);
     act2->setChecked(base == 2);
-    menu.addSeparator();
 
-    QAction *actAdjust = menu.addAction(tr("Adjust Column Widths to Contents"));
-    menu.addAction(debuggerCore()->action(AlwaysAdjustRegistersColumnWidths));
-    menu.addSeparator();
-
-    menu.addAction(debuggerCore()->action(SettingsDialog));
+    addBaseContextActions(&menu);
 
     const QPoint position = ev->globalPos();
     QAction *act = menu.exec(position);
 
-    if (act == actAdjust)
-        resizeColumnsToContents();
-    else if (act == actReload)
+    if (act == actReload)
         engine->reloadRegisters();
     else if (act == actEditMemory) {
-        const QString registerName = QString::fromAscii(aRegister.name, address);
-        engine->openMemoryView(address, 0, RegisterMemoryView::registerMarkup(address, registerName),
-                               QPoint(), RegisterMemoryView::title(registerName), 0);
+        const QString registerName = QString::fromAscii(aRegister.name);
+        engine->openMemoryView(address, 0,
+            RegisterMemoryView::registerMarkup(address, registerName),
+            QPoint(), RegisterMemoryView::title(registerName), 0);
     } else if (act == actViewMemory) {
-        engine->openMemoryView(idx.row(), DebuggerEngine::MemoryTrackRegister|DebuggerEngine::MemoryView,
-                               QList<MemoryMarkup>(), position, QString(), this);
+        engine->openMemoryView(idx.row(),
+            DebuggerEngine::MemoryTrackRegister|DebuggerEngine::MemoryView,
+            QList<MemoryMarkup>(), position, QString(), this);
     } else if (act == actShowDisassembler) {
         AddressDialog dialog;
         if (address)
@@ -276,30 +268,8 @@ void RegisterWindow::contextMenuEvent(QContextMenuEvent *ev)
         handler->setNumberBase(8);
     else if (act == act2)
         handler->setNumberBase(2);
-}
-
-void RegisterWindow::resizeColumnsToContents()
-{
-    resizeColumnToContents(0);
-    resizeColumnToContents(1);
-}
-
-void RegisterWindow::setAlwaysResizeColumnsToContents(bool on)
-{
-    QHeaderView::ResizeMode mode = on
-        ? QHeaderView::ResizeToContents : QHeaderView::Interactive;
-    header()->setResizeMode(0, mode);
-    header()->setResizeMode(1, mode);
-}
-
-void RegisterWindow::setModel(QAbstractItemModel *model)
-{
-    QTreeView::setModel(model);
-    setAlwaysResizeColumnsToContents(true);
-    if (header()) {
-        bool adjust = debuggerCore()->boolSetting(AlwaysAdjustRegistersColumnWidths);
-        setAlwaysResizeColumnsToContents(adjust);
-    }
+    else
+        handleBaseContextAction(act);
 }
 
 void RegisterWindow::reloadRegisters()

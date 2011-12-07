@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -54,6 +54,7 @@ using namespace Qt4ProjectManager;
 TargetSetupPage::TargetSetupPage(QWidget *parent) :
     QWizardPage(parent),
     m_importSearch(false),
+    m_maximumQtVersionNumber(INT_MAX, INT_MAX, INT_MAX),
     m_spacer(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)),
     m_ui(new Internal::Ui::TargetSetupPage)
 {
@@ -112,6 +113,11 @@ void TargetSetupPage::setMinimumQtVersion(const QtSupport::QtVersionNumber &numb
     m_minimumQtVersionNumber = number;
 }
 
+void TargetSetupPage::setMaximumQtVersion(const QtSupport::QtVersionNumber &number)
+{
+    m_maximumQtVersionNumber = number;
+}
+
 void TargetSetupPage::setImportSearch(bool b)
 {
     m_importSearch = b;
@@ -129,7 +135,9 @@ void TargetSetupPage::setupWidgets()
 
             QList<BuildConfigurationInfo> infos = BuildConfigurationInfo::filterBuildConfigurationInfos(m_importInfos, id);
             Qt4TargetSetupWidget *widget =
-                    factory->createTargetSetupWidget(id, m_proFilePath, m_minimumQtVersionNumber, m_importSearch, infos);
+                    factory->createTargetSetupWidget(id, m_proFilePath,
+                                                     m_minimumQtVersionNumber, m_maximumQtVersionNumber,
+                                                     m_importSearch, infos);
             if (widget) {
                 bool selectTarget = false;
                 if (!m_importInfos.isEmpty()) {

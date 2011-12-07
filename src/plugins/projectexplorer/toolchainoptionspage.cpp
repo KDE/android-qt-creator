@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,13 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "toolchainoptionspage.h"
-
+#include "toolchain.h"
+#include "abi.h"
 #include "projectexplorerconstants.h"
 #include "toolchainconfigwidget.h"
 #include "toolchainmanager.h"
@@ -466,17 +467,18 @@ QString ToolChainOptionsPage::displayName() const
 
 QString ToolChainOptionsPage::category() const
 {
-    return QLatin1String(Constants::TOOLCHAIN_SETTINGS_CATEGORY);
+    return QLatin1String(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY);
 }
 
 QString ToolChainOptionsPage::displayCategory() const
 {
-    return tr("Tool Chains");
+    return QCoreApplication::translate("ProjectExplorer",
+                                       Constants::PROJECTEXPLORER_SETTINGS_TR_CATEGORY);
 }
 
 QIcon ToolChainOptionsPage::categoryIcon() const
 {
-    return QIcon(QLatin1String(Constants::ICON_TOOLCHAIN_SETTINGS_CATEGORY));
+    return QIcon(Constants::PROJECTEXPLORER_SETTINGS_CATEGORY_ICON);
 }
 
 QWidget *ToolChainOptionsPage::createPage(QWidget *parent)

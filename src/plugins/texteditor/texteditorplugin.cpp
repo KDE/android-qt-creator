@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,7 +41,6 @@
 #include "textfilewizard.h"
 #include "plaintexteditorfactory.h"
 #include "plaintexteditor.h"
-#include "storagesettings.h"
 #include "manager.h"
 #include "outlinefactory.h"
 #include "snippets/plaintextsnippetprovider.h"
@@ -54,8 +53,8 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/editormanager/editormanager.h>
-#include <coreplugin/uniqueidmanager.h>
-#include <coreplugin/externaltool.h>
+#include <coreplugin/id.h>
+#include <coreplugin/externaltoolmanager.h>
 #include <extensionsystem/pluginmanager.h>
 #include <texteditor/texteditoractionhandler.h>
 #include <find/searchresultwindow.h>
@@ -182,8 +181,8 @@ void TextEditorPlugin::extensionsInitialized()
 
     updateSearchResultsFont(m_settings->fontSettings());
 
-    addAutoReleasedObject(new FindInFiles(Find::SearchResultWindow::instance()));
-    addAutoReleasedObject(new FindInCurrentFile(Find::SearchResultWindow::instance()));
+    addAutoReleasedObject(new FindInFiles);
+    addAutoReleasedObject(new FindInCurrentFile);
 
     Core::VariableManager *vm = Core::VariableManager::instance();
     vm->registerVariable(QLatin1String(kCurrentDocumentSelection),

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@ namespace Bazaar {
 namespace Internal {
 
 namespace Ui {
-    class CloneOptionsPanel;
+class CloneOptionsPanel;
 }
 
 class CloneOptionsPanel : public QWidget
@@ -58,6 +58,7 @@ public:
     bool isHardLinkOptionEnabled() const;
     bool isNoTreeOptionEnabled() const;
     QString revision() const;
+
 private:
     Ui::CloneOptionsPanel *m_ui;
 };

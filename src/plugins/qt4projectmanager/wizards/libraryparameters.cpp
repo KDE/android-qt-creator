@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,18 +43,18 @@
 #define LIBRARY_MACRO_VARIABLE "<LIBRARY_MACRO>"
 
 static const char *globalHeaderContentsC =
-"#ifndef "GUARD_VARIABLE"\n"
-"#define "GUARD_VARIABLE"\n"
+"#ifndef " GUARD_VARIABLE "\n"
+"#define " GUARD_VARIABLE "\n"
 "\n"
 "#include <QtCore/qglobal.h>\n"
 "\n"
-"#if defined("LIBRARY_MACRO_VARIABLE")\n"
-"#  define "EXPORT_MACRO_VARIABLE" Q_DECL_EXPORT\n"
+"#if defined(" LIBRARY_MACRO_VARIABLE ")\n"
+"#  define " EXPORT_MACRO_VARIABLE " Q_DECL_EXPORT\n"
 "#else\n"
-"#  define "EXPORT_MACRO_VARIABLE" Q_DECL_IMPORT\n"
+"#  define " EXPORT_MACRO_VARIABLE " Q_DECL_IMPORT\n"
 "#endif\n"
 "\n"
-"#endif // "GUARD_VARIABLE"\n";
+"#endif // " GUARD_VARIABLE "\n";
 
 namespace Qt4ProjectManager {
 namespace Internal {

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,16 +26,15 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "msvcparser.h"
 #include "projectexplorerconstants.h"
 
-namespace {
-const char * const FILE_POS_PATTERN = "(cl|LINK|.+) : ";
-const char * const ERROR_PATTERN = "[A-Z]+\\d\\d\\d\\d ?:";
+static const char FILE_POS_PATTERN[] = "(cl|LINK|.+) : ";
+static const char ERROR_PATTERN[] = "[A-Z]+\\d\\d\\d\\d ?:";
 
 static QPair<QString, int> parseFileName(const QString &input)
 {
@@ -59,8 +58,6 @@ static QPair<QString, int> parseFileName(const QString &input)
     }
     return qMakePair(fileName, linenumber);
 }
-
-} // namespace
 
 using namespace ProjectExplorer;
 
@@ -333,5 +330,5 @@ void ProjectExplorerPlugin::testMsvcOutputParsers()
                           tasks, childStdOutLines, childStdErrLines,
                           outputLines);
 }
-#endif
 
+#endif // WITH_TEST

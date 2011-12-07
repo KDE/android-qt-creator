@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Brian McGillion
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,53 +38,16 @@
 namespace Mercurial {
 namespace Internal {
 
-    const QLatin1String diffIgnoreWhiteSpaceKey("diffIgnoreWhiteSpace");
-    const QLatin1String diffIgnoreBlankLinesKey("diffIgnoreBlankLines");
+    const QLatin1String MercurialSettings::diffIgnoreWhiteSpaceKey("diffIgnoreWhiteSpace");
+    const QLatin1String MercurialSettings::diffIgnoreBlankLinesKey("diffIgnoreBlankLines");
 
-    MercurialSettings::MercurialSettings() :
-        diffIgnoreWhiteSpace(false),
-        diffIgnoreBlankLines(false)
+    MercurialSettings::MercurialSettings()
     {
         setSettingsGroup(QLatin1String("Mercurial"));
-        setBinary(QLatin1String(Constants::MERCURIALDEFAULT));
+        // Override default binary path
+        declareKey(binaryPathKey, QLatin1String(Constants::MERCURIALDEFAULT));
+        declareKey(diffIgnoreWhiteSpaceKey, false);
+        declareKey(diffIgnoreBlankLinesKey, false);
     }
-
-    MercurialSettings& MercurialSettings::operator=(const MercurialSettings& other)
-    {
-        VCSBase::VCSBaseClientSettings::operator=(other);
-        if (this != &other) {
-            diffIgnoreWhiteSpace = other.diffIgnoreWhiteSpace;
-            diffIgnoreBlankLines = other.diffIgnoreBlankLines;
-        }
-        return *this;
-    }
-
-    void MercurialSettings::writeSettings(QSettings *settings) const
-    {
-        VCSBaseClientSettings::writeSettings(settings);
-        settings->beginGroup(this->settingsGroup());
-        settings->setValue(diffIgnoreWhiteSpaceKey, diffIgnoreWhiteSpace);
-        settings->setValue(diffIgnoreBlankLinesKey, diffIgnoreBlankLines);
-        settings->endGroup();
-    }
-
-    void MercurialSettings::readSettings(const QSettings *settings)
-    {
-        VCSBaseClientSettings::readSettings(settings);
-        const QString keyRoot = this->settingsGroup() + QLatin1Char('/');
-        diffIgnoreWhiteSpace = settings->value(keyRoot + diffIgnoreWhiteSpaceKey, false).toBool();
-        diffIgnoreBlankLines = settings->value(keyRoot + diffIgnoreBlankLinesKey, false).toBool();
-    }
-
-    bool MercurialSettings::equals(const VCSBaseClientSettings &rhs) const
-    {
-        const MercurialSettings *hgRhs = dynamic_cast<const MercurialSettings *>(&rhs);
-        if (hgRhs == 0)
-            return false;
-        return VCSBaseClientSettings::equals(rhs)
-                && diffIgnoreWhiteSpace == hgRhs->diffIgnoreWhiteSpace
-                && diffIgnoreBlankLines == hgRhs->diffIgnoreBlankLines;
-    }
-
 } // namespace Internal
 } // namespace Mercurial

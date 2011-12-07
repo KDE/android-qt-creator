@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -51,17 +51,18 @@ class VCSBaseEditorParameterWidgetPrivate;
 class VCSBASE_EXPORT VCSBaseEditorParameterWidget : public QWidget
 {
     Q_OBJECT
+
 public:
-    struct ComboBoxItem
+    explicit VCSBaseEditorParameterWidget(QWidget *parent = 0);
+    ~VCSBaseEditorParameterWidget();
+
+    struct VCSBASE_EXPORT ComboBoxItem
     {
         ComboBoxItem();
         ComboBoxItem(const QString &text, const QVariant &val);
         QString displayText;
         QVariant value;
     };
-
-    explicit VCSBaseEditorParameterWidget(QWidget *parent = 0);
-    ~VCSBaseEditorParameterWidget();
 
     QStringList baseArguments() const;
     void setBaseArguments(const QStringList &);
@@ -72,6 +73,7 @@ public:
 
     void mapSetting(QToolButton *button, bool *setting);
     void mapSetting(QComboBox *comboBox, QString *setting);
+    void mapSetting(QComboBox *comboBox, int *setting);
 
     QStringList comboBoxOptionTemplate() const;
     void setComboBoxOptionTemplate(const QStringList &optTemplate) const;
@@ -102,7 +104,7 @@ protected:
 
 private:
     friend class VCSBaseEditorParameterWidgetPrivate;
-    QScopedPointer<VCSBaseEditorParameterWidgetPrivate> d;
+    VCSBaseEditorParameterWidgetPrivate *d;
 };
 
 } // namespace VCSBase

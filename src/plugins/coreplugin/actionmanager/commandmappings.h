@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,7 +41,6 @@ QT_BEGIN_NAMESPACE
 class QLineEdit;
 class QTreeWidget;
 class QTreeWidgetItem;
-class Ui_CommandMappings;
 QT_END_NAMESPACE
 
 namespace Core {
@@ -49,6 +48,8 @@ namespace Core {
 class Command;
 
 namespace Internal {
+
+namespace Ui { class CommandMappings; }
 
 class ActionManagerPrivate;
 class MainWindow;
@@ -92,7 +93,7 @@ protected:
     virtual void markPossibleCollisions(QTreeWidgetItem *) {}
     virtual void resetCollisionMarkers() {}
 private:
-    Ui_CommandMappings *m_page;
+    Internal::Ui::CommandMappings *m_page;
 };
 
 } // namespace Core

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -281,10 +281,8 @@ void ConsoleProcess::stubExited()
 
 QString ConsoleProcess::defaultTerminalEmulator()
 {
-// FIXME: enable this once runInTerminal works nicely
-#if 0 //def Q_OS_MAC
-    return QDir::cleanPath(QCoreApplication::applicationDirPath()
-                           + QLatin1String("/../Resources/runInTerminal.command"));
+#ifdef Q_OS_MAC
+    return QLatin1String("/usr/X11/bin/xterm");
 #else
     return QLatin1String("xterm");
 #endif

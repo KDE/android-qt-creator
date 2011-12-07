@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,6 +36,7 @@
 #include "ioutputparser.h"
 #include "project.h"
 #include "target.h"
+#include "task.h"
 
 #include <utils/qtcassert.h>
 #include <utils/qtcprocess.h>
@@ -151,6 +152,11 @@ ProjectExplorer::IOutputParser *AbstractProcessStep::outputParser() const
     return m_outputParserChain;
 }
 
+bool AbstractProcessStep::ignoreReturnValue()
+{
+    return m_ignoreReturnValue;
+}
+
 /*!
     \brief If ignoreReturnValue is set to true, then the abstractprocess step will
     return success even if the return value indicates otherwise.
@@ -189,6 +195,9 @@ void AbstractProcessStep::run(QFutureInterface<bool> &fi)
         wd.mkpath(wd.absolutePath());
 
     m_process = new Utils::QtcProcess();
+#ifdef Q_OS_WIN
+    m_process->setUseCtrlCStub(true);
+#endif
     m_process->setWorkingDirectory(wd.absolutePath());
     m_process->setEnvironment(m_param.environment());
 
@@ -372,7 +381,7 @@ void AbstractProcessStep::taskAdded(const ProjectExplorer::Task &task)
 
         QList<QFileInfo> possibleFiles;
         QString fileName = QFileInfo(filePath).fileName();
-        foreach (const QString &file, buildConfiguration()->target()->project()->files(ProjectExplorer::Project::AllFiles)) {
+        foreach (const QString &file, project()->files(ProjectExplorer::Project::AllFiles)) {
             QFileInfo candidate(file);
             if (candidate.fileName() == fileName)
                 possibleFiles << candidate;

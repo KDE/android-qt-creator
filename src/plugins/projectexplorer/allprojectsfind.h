@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -49,7 +49,7 @@ class AllProjectsFind : public TextEditor::BaseFileFind
     Q_OBJECT
 
 public:
-    AllProjectsFind(ProjectExplorerPlugin *plugin, Find::SearchResultWindow *resultWindow);
+    AllProjectsFind(ProjectExplorerPlugin *plugin);
 
     QString id() const;
     QString displayName() const;
@@ -63,6 +63,9 @@ public:
 protected:
     virtual QList<Project *> projects() const;
     Utils::FileIterator *files() const;
+    QString label() const;
+    QString toolTip() const;
+
 
 private:
     ProjectExplorerPlugin *m_plugin;

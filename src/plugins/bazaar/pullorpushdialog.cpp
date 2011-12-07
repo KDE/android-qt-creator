@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,10 +36,10 @@
 
 using namespace Bazaar::Internal;
 
-PullOrPushDialog::PullOrPushDialog(Mode mode, QWidget *parent) :
-    QDialog(parent),
-    m_mode(mode),
-    m_ui(new Ui::PullOrPushDialog)
+PullOrPushDialog::PullOrPushDialog(Mode mode, QWidget *parent)
+    : QDialog(parent),
+      m_mode(mode),
+      m_ui(new Ui::PullOrPushDialog)
 {
     m_ui->setupUi(this);
     m_ui->localPathChooser->setExpectedKind(Utils::PathChooser::Directory);

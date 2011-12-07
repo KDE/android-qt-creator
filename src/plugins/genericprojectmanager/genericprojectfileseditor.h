@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -48,7 +48,6 @@ namespace Internal {
 class Manager;
 class ProjectFilesEditor;
 class ProjectFilesEditorWidget;
-class ProjectFilesDocument;
 class ProjectFilesFactory;
 
 class ProjectFilesFactory: public Core::IEditorFactory
@@ -58,17 +57,14 @@ class ProjectFilesFactory: public Core::IEditorFactory
 public:
     ProjectFilesFactory(Manager *manager, TextEditor::TextEditorActionHandler *handler);
 
-    Manager *manager() const;
-
     virtual Core::IEditor *createEditor(QWidget *parent);
 
     virtual QStringList mimeTypes() const;
-    virtual QString id() const;
+    virtual Core::Id id() const;
     virtual QString displayName() const;
     virtual Core::IFile *open(const QString &fileName);
 
 private:
-    Manager *m_manager;
     TextEditor::TextEditorActionHandler *m_actionHandler;
     QStringList m_mimeTypes;
 };
@@ -80,7 +76,7 @@ class ProjectFilesEditor : public TextEditor::BaseTextEditor
 public:
     ProjectFilesEditor(ProjectFilesEditorWidget *editorWidget);
 
-    virtual QString id() const;
+    virtual Core::Id id() const;
     virtual bool duplicateSupported() const;
     virtual Core::IEditor *duplicate(QWidget *parent);
     virtual bool isTemporary() const { return false; }
@@ -103,20 +99,6 @@ public:
 private:
     ProjectFilesFactory *m_factory;
     TextEditor::TextEditorActionHandler *m_actionHandler;
-};
-
-class ProjectFilesDocument: public TextEditor::BaseTextDocument
-{
-    Q_OBJECT
-
-public:
-    ProjectFilesDocument(Manager *manager);
-    virtual ~ProjectFilesDocument();
-
-    virtual bool save(QString *errorString, const QString &name, bool autoSave);
-
-private:
-    Manager *m_manager;
 };
 
 } // namespace Internal

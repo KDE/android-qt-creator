@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -41,7 +41,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <extensionsystem/pluginmanager.h>
 #include <texteditor/itexteditor.h>
 #include <texteditor/texteditorconstants.h>
@@ -179,6 +179,13 @@ void BookmarksPlugin::editorOpened(Core::IEditor *editor)
     if (qobject_cast<ITextEditor *>(editor)) {
         connect(editor, SIGNAL(markContextMenuRequested(TextEditor::ITextEditor*,int,QMenu*)),
                 this, SLOT(requestContextMenu(TextEditor::ITextEditor*,int,QMenu*)));
+
+        connect(editor,
+                SIGNAL(markRequested(TextEditor::ITextEditor*,int,
+                                     TextEditor::ITextEditor::MarkRequestKind)),
+                m_bookmarkManager,
+                SLOT(handleBookmarkRequest(TextEditor::ITextEditor*,int,
+                                           TextEditor::ITextEditor::MarkRequestKind)));
     }
 }
 

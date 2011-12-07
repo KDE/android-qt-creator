@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -42,6 +42,8 @@
 #include <coreplugin/coreconstants.h>
 #include <extensionsystem/pluginmanager.h>
 #include <utils/qtcassert.h>
+#include <projectexplorer/projectexplorer.h>
+#include <projectexplorer/buildmanager.h>
 
 #include <QtCore/QMargins>
 #include <QtCore/QTimer>
@@ -79,7 +81,13 @@ bool BuildSettingsPanelFactory::supports(Target *target)
 PropertiesPanel *BuildSettingsPanelFactory::createPanel(Target *target)
 {
     PropertiesPanel *panel = new PropertiesPanel;
-    panel->setWidget(new BuildSettingsWidget(target));
+    QWidget *w = new QWidget();
+    QVBoxLayout *l = new QVBoxLayout(w);
+    QWidget *b = new BuildSettingsWidget(target);
+    l->addWidget(b);
+    l->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
+    l->setContentsMargins(QMargins());
+    panel->setWidget(w);
     panel->setIcon(QIcon(":/projectexplorer/images/BuildSettings.png"));
     panel->setDisplayName(QCoreApplication::translate("BuildSettingsPanel", "Build Settings"));
     return panel;
@@ -108,13 +116,11 @@ void BuildSettingsWidget::setupUi()
     vbox->setContentsMargins(0, 0, 0, 0);
 
     if (!m_target->buildConfigurationFactory()) {
-        QLabel * noSettingsLabel(new QLabel(this));
+        QLabel *noSettingsLabel = new QLabel(this);
         noSettingsLabel->setText(tr("No build settings available"));
-        {
-            QFont f(noSettingsLabel->font());
-            f.setPointSizeF(f.pointSizeF() * 1.2);
-            noSettingsLabel->setFont(f);
-        }
+        QFont f = noSettingsLabel->font();
+        f.setPointSizeF(f.pointSizeF() * 1.2);
+        noSettingsLabel->setFont(f);
         vbox->addWidget(noSettingsLabel);
         return;
     }
@@ -141,7 +147,7 @@ void BuildSettingsWidget::setupUi()
         hbox->addWidget(m_removeButton);
 
         m_renameButton = new QPushButton(this);
-        m_renameButton->setText(tr("Rename"));
+        m_renameButton->setText(tr("Rename..."));
         m_renameButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         hbox->addWidget(m_renameButton);
 
@@ -293,14 +299,6 @@ void BuildSettingsWidget::cloneConfiguration()
 
 void BuildSettingsWidget::deleteConfiguration()
 {
-    QMessageBox msgBox(QMessageBox::Question, tr("Remove Build Configuration"),
-                       tr("Do you really want to delete the build configuration <b>%1</b>?").arg(m_buildConfiguration->displayName()),
-                       QMessageBox::Yes|QMessageBox::No, this);
-    msgBox.setDefaultButton(QMessageBox::No);
-    msgBox.setEscapeButton(QMessageBox::No);
-    if (!this || msgBox.exec() == QMessageBox::No)
-        return;
-
     deleteConfiguration(m_buildConfiguration);
 }
 
@@ -327,7 +325,7 @@ void BuildSettingsWidget::renameConfiguration()
                                             arg(m_buildConfiguration->displayName()),
                                          QLineEdit::Normal,
                                          m_buildConfiguration->displayName(), &ok);
-    if (!ok || !this)
+    if (!ok)
         return;
 
     name = uniqueName(name);
@@ -365,6 +363,29 @@ void BuildSettingsWidget::deleteConfiguration(BuildConfiguration *deleteConfigur
     if (!deleteConfiguration ||
         m_target->buildConfigurations().size() <= 1)
         return;
+
+    ProjectExplorer::BuildManager *bm = ProjectExplorerPlugin::instance()->buildManager();
+    if (bm->isBuilding(deleteConfiguration)) {
+        QMessageBox box;
+        QPushButton *closeAnyway = box.addButton(tr("Cancel Build && Remove Build Configuration"), QMessageBox::AcceptRole);
+        QPushButton *cancelClose = box.addButton(tr("Do Not Remove"), QMessageBox::RejectRole);
+        box.setDefaultButton(cancelClose);
+        box.setWindowTitle(tr("Remove Build Configuration %1?").arg(deleteConfiguration->displayName()));
+        box.setText(tr("The build configuration <b>%1</b> is currently being built.").arg(deleteConfiguration->displayName()));
+        box.setInformativeText(tr("Do you want to cancel the build process and remove the Build Configuration anyway?"));
+        box.exec();
+        if (box.clickedButton() != closeAnyway)
+            return;
+        bm->cancel();
+    } else {
+        QMessageBox msgBox(QMessageBox::Question, tr("Remove Build Configuration?"),
+                           tr("Do you really want to delete build configuration <b>%1</b>?").arg(deleteConfiguration->displayName()),
+                           QMessageBox::Yes|QMessageBox::No, this);
+        msgBox.setDefaultButton(QMessageBox::No);
+        msgBox.setEscapeButton(QMessageBox::No);
+        if (msgBox.exec() == QMessageBox::No)
+            return;
+    }
 
     m_target->removeBuildConfiguration(deleteConfiguration);
 

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,7 +35,6 @@
 #include <cpptools/cppcodeformatter.h>
 #include <cpptools/cpptoolssettings.h>
 #include <cpptools/cppcodestylepreferences.h>
-#include <texteditor/basetexteditor.h>
 #include <texteditor/tabsettings.h>
 
 #include <QtCore/QChar>
@@ -66,14 +65,13 @@ bool GLSLIndenter::isElectricCharacter(const QChar &ch) const
 void GLSLIndenter::indentBlock(QTextDocument *doc,
                                const QTextBlock &block,
                                const QChar &typedChar,
-                               TextEditor::BaseTextEditorWidget *editor)
+                               const TextEditor::TabSettings &tabSettings)
 {
     Q_UNUSED(doc)
 
-    const TextEditor::TabSettings &ts = editor->tabSettings();
     // TODO: do something with it
-    CppTools::QtStyleCodeFormatter codeFormatter(ts,
-              CppTools::CppToolsSettings::instance()->cppCodeStylePreferences()->settings());
+    CppTools::QtStyleCodeFormatter codeFormatter(tabSettings,
+              CppTools::CppToolsSettings::instance()->cppCodeStyle()->codeStyleSettings());
 
     codeFormatter.updateStateUntil(block);
     int indent;
@@ -86,40 +84,39 @@ void GLSLIndenter::indentBlock(QTextDocument *doc,
         int newlineIndent;
         int newlinePadding;
         codeFormatter.indentForNewLineAfter(block.previous(), &newlineIndent, &newlinePadding);
-        if (ts.indentationColumn(block.text()) != newlineIndent + newlinePadding)
+        if (tabSettings.indentationColumn(block.text()) != newlineIndent + newlinePadding)
             return;
     }
 
-    ts.indentLine(block, indent + padding, padding);
+    tabSettings.indentLine(block, indent + padding, padding);
 }
 
 void GLSLIndenter::indent(QTextDocument *doc,
                           const QTextCursor &cursor,
                           const QChar &typedChar,
-                          TextEditor::BaseTextEditorWidget *editor)
+                          const TextEditor::TabSettings &tabSettings)
 {
     if (cursor.hasSelection()) {
         QTextBlock block = doc->findBlock(cursor.selectionStart());
         const QTextBlock end = doc->findBlock(cursor.selectionEnd()).next();
 
-        const TextEditor::TabSettings &ts = editor->tabSettings();
         // TODO: do something with it
-        CppTools::QtStyleCodeFormatter codeFormatter(ts,
-                  CppTools::CppToolsSettings::instance()->cppCodeStylePreferences()->settings());
+        CppTools::QtStyleCodeFormatter codeFormatter(tabSettings,
+                  CppTools::CppToolsSettings::instance()->cppCodeStyle()->codeStyleSettings());
         codeFormatter.updateStateUntil(block);
 
-        QTextCursor tc = editor->textCursor();
+        QTextCursor tc = cursor;
         tc.beginEditBlock();
         do {
             int indent;
             int padding;
             codeFormatter.indentFor(block, &indent, &padding);
-            ts.indentLine(block, indent + padding, padding);
+            tabSettings.indentLine(block, indent + padding, padding);
             codeFormatter.updateLineStateChange(block);
             block = block.next();
         } while (block.isValid() && block != end);
         tc.endEditBlock();
     } else {
-        indentBlock(doc, cursor.block(), typedChar, editor);
+        indentBlock(doc, cursor.block(), typedChar, tabSettings);
     }
 }

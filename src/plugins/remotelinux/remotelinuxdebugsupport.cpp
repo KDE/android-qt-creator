@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 ** GNU Lesser General Public License Usage
 **
@@ -25,47 +25,87 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
-
 #include "remotelinuxdebugsupport.h"
 
-#include "maemoglobal.h"
-#include "maemousedportsgatherer.h"
-#include "qt4maemotarget.h"
+#include "linuxdeviceconfiguration.h"
 #include "remotelinuxapplicationrunner.h"
+#include "remotelinuxrunconfiguration.h"
+#include "remotelinuxusedportsgatherer.h"
 
 #include <debugger/debuggerengine.h>
+#include <debugger/debuggerstartparameters.h>
 #include <projectexplorer/abi.h>
 #include <projectexplorer/project.h>
+#include <projectexplorer/target.h>
 #include <projectexplorer/toolchain.h>
+#include <qt4projectmanager/qt4buildconfiguration.h>
+#include <utils/qtcassert.h>
 
-#define ASSERT_STATE(state) ASSERT_STATE_GENERIC(State, state, m_state)
+#include <QtCore/QPointer>
+#include <QtCore/QSharedPointer>
 
 using namespace Utils;
 using namespace Debugger;
 using namespace ProjectExplorer;
 
 namespace RemoteLinux {
+namespace Internal {
+namespace {
+enum State { Inactive, StartingRunner, StartingRemoteProcess, Debugging };
+} // anonymous namespace
+
+class AbstractRemoteLinuxDebugSupportPrivate
+{
+public:
+    AbstractRemoteLinuxDebugSupportPrivate(RemoteLinuxRunConfiguration *runConfig,
+            DebuggerEngine *engine)
+        : engine(engine), deviceConfig(runConfig->deviceConfig()),
+          qmlDebugging(runConfig->useQmlDebugger()),
+          cppDebugging(runConfig->useCppDebugger()),
+          state(Inactive),
+          gdbServerPort(-1), qmlPort(-1)
+    {
+    }
+
+    const QPointer<Debugger::DebuggerEngine> engine;
+    const LinuxDeviceConfiguration::ConstPtr deviceConfig;
+    bool qmlDebugging;
+    bool cppDebugging;
+    QByteArray gdbserverOutput;
+    State state;
+    int gdbServerPort;
+    int qmlPort;
+};
+
+class RemoteLinuxDebugSupportPrivate
+{
+public:
+    RemoteLinuxDebugSupportPrivate(RemoteLinuxRunConfiguration *runConfig) : runner(runConfig) {}
+
+    GenericRemoteLinuxApplicationRunner runner;
+};
+
+} // namespace Internal
+
 using namespace Internal;
 
 DebuggerStartParameters AbstractRemoteLinuxDebugSupport::startParameters(const RemoteLinuxRunConfiguration *runConfig)
 {
     DebuggerStartParameters params;
     const LinuxDeviceConfiguration::ConstPtr &devConf = runConfig->deviceConfig();
-    const RemoteLinuxRunConfiguration::DebuggingType debuggingType
-        = runConfig->debuggingType();
-    if (debuggingType != RemoteLinuxRunConfiguration::DebugCppOnly) {
+    if (runConfig->useQmlDebugger()) {
         params.qmlServerAddress = runConfig->deviceConfig()->sshParameters().host;
         params.qmlServerPort = -1;
     }
-    if (debuggingType != RemoteLinuxRunConfiguration::DebugQmlOnly) {
+    if (runConfig->useCppDebugger()) {
         params.processArgs = runConfig->arguments();
         if (runConfig->activeQt4BuildConfiguration()->qtVersion())
             params.sysroot = runConfig->activeQt4BuildConfiguration()->qtVersion()->systemRoot();
         params.toolChainAbi = runConfig->abi();
-        params.startMode = AttachToRemote;
+        params.startMode = AttachToRemoteServer;
         params.executable = runConfig->localExecutableFilePath();
         params.debuggerCommand = runConfig->gdbCmd();
         params.remoteChannel = devConf->sshParameters().host + QLatin1String(":-1");
@@ -78,7 +118,7 @@ DebuggerStartParameters AbstractRemoteLinuxDebugSupport::startParameters(const R
         params.gnuTarget = QLatin1String(abi.architecture() == ProjectExplorer::Abi::ArmArchitecture
             ? "arm-none-linux-gnueabi": "i386-unknown-linux-gnu");
     } else {
-        params.startMode = AttachToRemote;
+        params.startMode = AttachToRemoteServer;
     }
     params.displayName = runConfig->displayName();
 
@@ -93,31 +133,30 @@ DebuggerStartParameters AbstractRemoteLinuxDebugSupport::startParameters(const R
     return params;
 }
 
-AbstractRemoteLinuxDebugSupport::AbstractRemoteLinuxDebugSupport(RemoteLinuxRunConfiguration *runConfig, DebuggerEngine *engine)
-    : QObject(engine), m_engine(engine), m_runConfig(runConfig),
-      m_deviceConfig(m_runConfig->deviceConfig()),
-      m_debuggingType(runConfig->debuggingType()),
-      m_state(Inactive), m_gdbServerPort(-1), m_qmlPort(-1)
+AbstractRemoteLinuxDebugSupport::AbstractRemoteLinuxDebugSupport(RemoteLinuxRunConfiguration *runConfig,
+        DebuggerEngine *engine)
+    : QObject(engine), d(new AbstractRemoteLinuxDebugSupportPrivate(runConfig, engine))
 {
-    connect(m_engine, SIGNAL(requestRemoteSetup()), this, SLOT(handleAdapterSetupRequested()));
+    connect(d->engine, SIGNAL(requestRemoteSetup()), this, SLOT(handleAdapterSetupRequested()));
 }
 
 AbstractRemoteLinuxDebugSupport::~AbstractRemoteLinuxDebugSupport()
 {
-    setState(Inactive);
+    setFinished();
+    delete d;
 }
 
 void AbstractRemoteLinuxDebugSupport::showMessage(const QString &msg, int channel)
 {
-    if (m_engine)
-        m_engine->showMessage(msg, channel);
+    if (d->engine)
+        d->engine->showMessage(msg, channel);
 }
 
 void AbstractRemoteLinuxDebugSupport::handleAdapterSetupRequested()
 {
-    ASSERT_STATE(Inactive);
+    QTC_ASSERT(d->state == Inactive, return);
 
-    setState(StartingRunner);
+    d->state = StartingRunner;
     showMessage(tr("Preparing remote side ...\n"), AppStuff);
     disconnect(runner(), 0, this, 0);
     connect(runner(), SIGNAL(error(QString)), this, SLOT(handleSshError(QString)));
@@ -128,52 +167,48 @@ void AbstractRemoteLinuxDebugSupport::handleAdapterSetupRequested()
 
 void AbstractRemoteLinuxDebugSupport::handleSshError(const QString &error)
 {
-    if (m_state == Debugging) {
+    if (d->state == Debugging) {
         showMessage(error, AppError);
-        if (m_engine)
-            m_engine->notifyInferiorIll();
-    } else if (m_state != Inactive) {
+        if (d->engine)
+            d->engine->notifyInferiorIll();
+    } else if (d->state != Inactive) {
         handleAdapterSetupFailed(error);
     }
 }
 
 void AbstractRemoteLinuxDebugSupport::startExecution()
 {
-    if (m_state == Inactive)
+    if (d->state == Inactive)
         return;
 
-    ASSERT_STATE(StartingRunner);
+    QTC_ASSERT(d->state == StartingRunner, return);
 
-    if (m_debuggingType != RemoteLinuxRunConfiguration::DebugQmlOnly) {
-        if (!setPort(m_gdbServerPort))
+    if (d->cppDebugging && !setPort(d->gdbServerPort))
+        return;
+    if (d->qmlDebugging && !setPort(d->qmlPort))
             return;
-    }
-    if (m_debuggingType != RemoteLinuxRunConfiguration::DebugCppOnly) {
-        if (!setPort(m_qmlPort))
-            return;
-    }
 
-    setState(StartingRemoteProcess);
-    m_gdbserverOutput.clear();
+    d->state = StartingRemoteProcess;
+    d->gdbserverOutput.clear();
     connect(runner(), SIGNAL(remoteErrorOutput(QByteArray)), this,
         SLOT(handleRemoteErrorOutput(QByteArray)));
     connect(runner(), SIGNAL(remoteOutput(QByteArray)), this,
         SLOT(handleRemoteOutput(QByteArray)));
-    if (m_debuggingType == RemoteLinuxRunConfiguration::DebugQmlOnly) {
+    if (d->qmlDebugging && !d->cppDebugging) {
         connect(runner(), SIGNAL(remoteProcessStarted()),
             SLOT(handleRemoteProcessStarted()));
     }
     const QString &remoteExe = runner()->remoteExecutable();
     QString args = runner()->arguments();
-    if (m_debuggingType != RemoteLinuxRunConfiguration::DebugCppOnly) {
+    if (d->qmlDebugging) {
         args += QString(QLatin1String(" -qmljsdebugger=port:%1,block"))
-            .arg(m_qmlPort);
+            .arg(d->qmlPort);
     }
 
-    const QString remoteCommandLine = m_debuggingType == RemoteLinuxRunConfiguration::DebugQmlOnly
+    const QString remoteCommandLine = (d->qmlDebugging && !d->cppDebugging)
         ? QString::fromLocal8Bit("%1 %2 %3").arg(runner()->commandPrefix()).arg(remoteExe).arg(args)
         : QString::fromLocal8Bit("%1 gdbserver :%2 %3 %4").arg(runner()->commandPrefix())
-              .arg(m_gdbServerPort).arg(remoteExe).arg(args);
+              .arg(d->gdbServerPort).arg(remoteExe).arg(args);
     connect(runner(), SIGNAL(remoteProcessFinished(qint64)),
         SLOT(handleRemoteProcessFinished(qint64)));
     runner()->startExecution(remoteCommandLine.toUtf8());
@@ -181,49 +216,50 @@ void AbstractRemoteLinuxDebugSupport::startExecution()
 
 void AbstractRemoteLinuxDebugSupport::handleRemoteProcessFinished(qint64 exitCode)
 {
-    if (!m_engine || m_state == Inactive)
+    if (!d->engine || d->state == Inactive)
         return;
 
-    if (m_state == Debugging) {
+    if (d->state == Debugging) {
         // The QML engine does not realize on its own that the application has finished.
-        if (m_debuggingType == RemoteLinuxRunConfiguration::DebugQmlOnly)
-            m_engine->quitDebugger();
+        if (d->qmlDebugging && !d->cppDebugging)
+            d->engine->quitDebugger();
         else if (exitCode != 0)
-            m_engine->notifyInferiorIll();
+            d->engine->notifyInferiorIll();
 
     } else {
-        const QString errorMsg = m_debuggingType == RemoteLinuxRunConfiguration::DebugQmlOnly
+        const QString errorMsg = (d->qmlDebugging && !d->cppDebugging)
             ? tr("Remote application failed with exit code %1.").arg(exitCode)
             : tr("The gdbserver process closed unexpectedly.");
-        m_engine->handleRemoteSetupFailed(errorMsg);
+        d->engine->handleRemoteSetupFailed(errorMsg);
     }
 }
 
 void AbstractRemoteLinuxDebugSupport::handleDebuggingFinished()
 {
-    setState(Inactive);
+    setFinished();
 }
 
 void AbstractRemoteLinuxDebugSupport::handleRemoteOutput(const QByteArray &output)
 {
-    ASSERT_STATE(QList<State>() << Inactive << Debugging);
+    QTC_ASSERT(d->state == Inactive || d->state == Debugging, return);
+
     showMessage(QString::fromUtf8(output), AppOutput);
 }
 
 void AbstractRemoteLinuxDebugSupport::handleRemoteErrorOutput(const QByteArray &output)
 {
-    ASSERT_STATE(QList<State>() << Inactive << StartingRemoteProcess << Debugging);
+    QTC_ASSERT(d->state == Inactive || d->state == StartingRemoteProcess || d->state == Debugging,
+        return);
 
-    if (!m_engine)
+    if (!d->engine)
         return;
 
     showMessage(QString::fromUtf8(output), AppOutput);
-    if (m_state == StartingRemoteProcess
-            && m_debuggingType != RemoteLinuxRunConfiguration::DebugQmlOnly) {
-        m_gdbserverOutput += output;
-        if (m_gdbserverOutput.contains("Listening on port")) {
+    if (d->state == StartingRemoteProcess && d->cppDebugging) {
+        d->gdbserverOutput += output;
+        if (d->gdbserverOutput.contains("Listening on port")) {
             handleAdapterSetupDone();
-            m_gdbserverOutput.clear();
+            d->gdbserverOutput.clear();
         }
     }
 }
@@ -235,30 +271,30 @@ void AbstractRemoteLinuxDebugSupport::handleProgressReport(const QString &progre
 
 void AbstractRemoteLinuxDebugSupport::handleAdapterSetupFailed(const QString &error)
 {
-    setState(Inactive);
-    m_engine->handleRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
+    setFinished();
+    d->engine->handleRemoteSetupFailed(tr("Initial setup failed: %1").arg(error));
 }
 
 void AbstractRemoteLinuxDebugSupport::handleAdapterSetupDone()
 {
-    setState(Debugging);
-    m_engine->handleRemoteSetupDone(m_gdbServerPort, m_qmlPort);
+    d->state = Debugging;
+    d->engine->handleRemoteSetupDone(d->gdbServerPort, d->qmlPort);
 }
 
 void AbstractRemoteLinuxDebugSupport::handleRemoteProcessStarted()
 {
-    Q_ASSERT(m_debuggingType == RemoteLinuxRunConfiguration::DebugQmlOnly);
-    ASSERT_STATE(StartingRemoteProcess);
+    Q_ASSERT(d->qmlDebugging && !d->cppDebugging);
+    QTC_ASSERT(d->state == StartingRemoteProcess, return);
+
     handleAdapterSetupDone();
 }
 
-void AbstractRemoteLinuxDebugSupport::setState(State newState)
+void AbstractRemoteLinuxDebugSupport::setFinished()
 {
-    if (m_state == newState)
+    if (d->state == Inactive)
         return;
-    m_state = newState;
-    if (m_state == Inactive)
-        runner()->stop();
+    d->state = Inactive;
+    runner()->stop();
 }
 
 bool AbstractRemoteLinuxDebugSupport::setPort(int &port)
@@ -275,12 +311,18 @@ bool AbstractRemoteLinuxDebugSupport::setPort(int &port)
 RemoteLinuxDebugSupport::RemoteLinuxDebugSupport(RemoteLinuxRunConfiguration *runConfig,
         DebuggerEngine *engine)
     : AbstractRemoteLinuxDebugSupport(runConfig, engine),
-      m_runner(new RemoteLinuxApplicationRunner(this, runConfig))
+      d(new RemoteLinuxDebugSupportPrivate(runConfig))
 {
 }
 
 RemoteLinuxDebugSupport::~RemoteLinuxDebugSupport()
 {
+    delete d;
+}
+
+AbstractRemoteLinuxApplicationRunner *RemoteLinuxDebugSupport::runner() const
+{
+    return &d->runner;
 }
 
 } // namespace RemoteLinux

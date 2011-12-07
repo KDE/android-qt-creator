@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -366,7 +366,7 @@ int main(int argc, char *argv[])
             qWarning() << "Usage: " << qPrintable(args.at(0))
                 << " [-f] [-o out.pro] [dir...]"
                 << "\n\n"
-                << "Argumnents:\n"
+                << "Arguments:\n"
                 << "  -f, --force             overwrite existing files\n"
                 << "  -d, --depth <n>         recursion depth for sub-projects\n"
                 << "  -s, --separator <char>  separator for sub-project names\n"

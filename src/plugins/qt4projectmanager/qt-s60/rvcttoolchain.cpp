@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -225,9 +225,9 @@ void RvctToolChain::addToEnvironment(Utils::Environment &env) const
     env.set(QLatin1String("LANG"), QString(QLatin1Char('C')));
 }
 
-QString RvctToolChain::mkspec() const
+Utils::FileName RvctToolChain::mkspec() const
 {
-    return QString(); // Always use default from Qt version
+    return Utils::FileName(); // Always use default from Qt version
 }
 
 QString RvctToolChain::makeCommand() const
@@ -407,6 +407,11 @@ RvctToolChainConfigWidget::RvctToolChainConfigWidget(RvctToolChain *tc) :
     connect(m_ui->versionComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(emitDirty()));
 
     setFromToolChain();
+}
+
+RvctToolChainConfigWidget::~RvctToolChainConfigWidget()
+{
+    delete m_ui;
 }
 
 void RvctToolChainConfigWidget::apply()

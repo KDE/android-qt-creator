@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,12 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef SEARCHSYMBOLS_H
 #define SEARCHSYMBOLS_H
+
+#include "cpptools_global.h"
 
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/Icons.h>
@@ -48,9 +50,8 @@
 #include <functional>
 
 namespace CppTools {
-namespace Internal {
 
-struct ModelItemInfo
+struct CPPTOOLS_EXPORT ModelItemInfo
 {
     enum ItemType { Enum, Class, Method, Declaration };
 
@@ -180,10 +181,9 @@ private:
     bool separateScope;
 };
 
-} // namespace Internal
 } // namespace CppTools
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(CppTools::Internal::SearchSymbols::SymbolTypes)
-Q_DECLARE_METATYPE(CppTools::Internal::ModelItemInfo)
+Q_DECLARE_OPERATORS_FOR_FLAGS(CppTools::SearchSymbols::SymbolTypes)
+Q_DECLARE_METATYPE(CppTools::ModelItemInfo)
 
 #endif // SEARCHSYMBOLS_H

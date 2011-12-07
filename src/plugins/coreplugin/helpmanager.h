@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,8 +34,6 @@
 #define HELPMANAGER_H
 
 #include "core_global.h"
-
-#include <QtCore/QScopedPointer>
 
 #include <QtCore/QObject>
 #include <QtCore/QStringList>
@@ -51,7 +49,6 @@ struct HelpManagerPrivate;
 class CORE_EXPORT HelpManager : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(HelpManager)
 
 public:
     typedef QHash<QString, QStringList> Filters;
@@ -96,12 +93,10 @@ signals:
 
 private slots:
     void setupHelpManager();
-    void collectionFileModified();
 
 private:
     void verifyDocumenation();
-
-    QScopedPointer<HelpManagerPrivate> d;
+    HelpManagerPrivate *d;
 };
 
 }   // Core

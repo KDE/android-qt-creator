@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,8 +38,6 @@
 
 #include <extensionsystem/iplugin.h>
 
-#include <QtGui/QTextDocument>
-
 QT_BEGIN_NAMESPACE
 class QStringListModel;
 QT_END_NAMESPACE
@@ -50,7 +48,6 @@ struct FindPluginPrivate;
 
 namespace Internal {
 class FindToolBar;
-class FindToolWindow;
 class CurrentDocumentFind;
 } // namespace Internal
 
@@ -69,7 +66,7 @@ public:
     };
 
     // IPlugin
-    bool initialize(const QStringList &arguments, QString *error_message);
+    bool initialize(const QStringList &arguments, QString *errorMessage);
     void extensionsInitialized();
     ShutdownFlag aboutToShutdown();
 
@@ -81,6 +78,7 @@ public:
     QStringListModel *replaceCompletionModel() const;
     void setUseFakeVim(bool on);
     void openFindToolBar(FindDirection direction);
+    void openFindDialog(IFindFilter *filter);
 
 public slots:
     void setCaseSensitive(bool sensitive);

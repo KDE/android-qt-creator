@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -61,6 +61,7 @@ class ToolChain;
 
 namespace GenericProjectManager {
 namespace Internal {
+
 class GenericBuildConfiguration;
 class GenericProject;
 class GenericTarget;
@@ -97,6 +98,7 @@ public:
     bool addFiles(const QStringList &filePaths);
     bool removeFiles(const QStringList &filePaths);
     bool setFiles(const QStringList &filePaths);
+    bool renameFile(const QString &filePath, const QString &newFilePath);
 
     enum RefreshOptions {
         Files         = 0x01,
@@ -136,9 +138,11 @@ private:
     QString m_filesFileName;
     QString m_includesFileName;
     QString m_configFileName;
-    GenericProjectFile *m_file;
     QString m_projectName;
-
+    GenericProjectFile *m_creatorIFile;
+    GenericProjectFile *m_filesIFile;
+    GenericProjectFile *m_includesIFile;
+    GenericProjectFile *m_configIFile;
     QStringList m_rawFileList;
     QStringList m_files;
     QHash<QString, QString> m_rawListEntries;
@@ -157,7 +161,7 @@ class GenericProjectFile : public Core::IFile
     Q_OBJECT
 
 public:
-    GenericProjectFile(GenericProject *parent, QString fileName);
+    GenericProjectFile(GenericProject *parent, QString fileName, GenericProject::RefreshOptions options);
     virtual ~GenericProjectFile();
 
     virtual bool save(QString *errorString, const QString &fileName, bool autoSave);
@@ -178,6 +182,7 @@ public:
 private:
     GenericProject *m_project;
     QString m_fileName;
+    GenericProject::RefreshOptions m_options;
 };
 
 class GenericBuildSettingsWidget : public ProjectExplorer::BuildConfigWidget

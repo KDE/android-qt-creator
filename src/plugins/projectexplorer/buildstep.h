@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,13 +35,12 @@
 
 #include "projectconfiguration.h"
 #include "projectexplorer_export.h"
-#include "task.h"
 
 #include <QtCore/QFutureInterface>
 #include <QtGui/QWidget>
 
 namespace ProjectExplorer {
-
+class Task;
 class BuildConfiguration;
 class BuildStepList;
 class DeployConfiguration;
@@ -68,10 +67,14 @@ public:
     virtual BuildStepConfigWidget *createConfigWidget() = 0;
 
     virtual bool immutable() const;
+    virtual bool runInGuiThread() const;
+    virtual void cancel();
 
     BuildConfiguration *buildConfiguration() const;
     DeployConfiguration *deployConfiguration() const;
+    ProjectConfiguration *projectConfiguration() const;
     Target *target() const;
+    Project *project() const;
 
     enum OutputFormat { NormalOutput, ErrorOutput, MessageOutput, ErrorMessageOutput };
     enum OutputNewlineSetting { DoAppendNewline, DontAppendNewline };
@@ -81,6 +84,8 @@ signals:
 
     void addOutput(const QString &string, ProjectExplorer::BuildStep::OutputFormat format,
         ProjectExplorer::BuildStep::OutputNewlineSetting newlineSetting = DoAppendNewline) const;
+
+    void finished();
 };
 
 class PROJECTEXPLORER_EXPORT IBuildStepFactory :
@@ -133,9 +138,12 @@ public:
         : QWidget()
         {}
     virtual QString summaryText() const = 0;
+    virtual QString additionalSummaryText() const { return QString(); }
     virtual QString displayName() const = 0;
+
 signals:
     void updateSummary();
+    void updateAdditionalSummary();
 };
 
 } // namespace ProjectExplorer

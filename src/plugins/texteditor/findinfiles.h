@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,7 +36,6 @@
 #include "basefilefind.h"
 
 #include <find/ifindfilter.h>
-#include <find/searchresultwindow.h>
 
 #include <QtCore/QPointer>
 #include <QtGui/QLabel>
@@ -45,14 +44,13 @@
 
 
 namespace TextEditor {
-namespace Internal {
 
-class FindInFiles : public BaseFileFind
+class TEXTEDITOR_EXPORT FindInFiles : public BaseFileFind
 {
     Q_OBJECT
 
 public:
-    explicit FindInFiles(Find::SearchResultWindow *resultWindow);
+    FindInFiles();
 
     QString id() const;
     QString displayName() const;
@@ -61,8 +59,12 @@ public:
     void writeSettings(QSettings *settings);
     void readSettings(QSettings *settings);
 
+    void setDirectory(const QString &directory);
+
 protected:
     Utils::FileIterator *files() const;
+    QString label() const;
+    QString toolTip() const;
 
 private slots:
     void openFileBrowser();
@@ -74,7 +76,6 @@ private:
     QPointer<QComboBox> m_directory;
 };
 
-} // namespace Internal
 } // namespace TextEditor
 
 #endif // FINDINFILES_H

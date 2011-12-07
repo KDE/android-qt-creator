@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -61,9 +61,9 @@ FormEditorFactory::FormEditorFactory()
                                                QLatin1String("ui"));
 }
 
-QString FormEditorFactory::id() const
+Core::Id FormEditorFactory::id() const
 {
-    return QLatin1String(K_DESIGNER_XML_EDITOR_ID);
+    return K_DESIGNER_XML_EDITOR_ID;
 }
 
 QString FormEditorFactory::displayName() const
@@ -98,7 +98,7 @@ QStringList FormEditorFactory::mimeTypes() const
 
 void FormEditorFactory::designerModeClicked()
 {
-    Core::ICore::instance()->modeManager()->activateMode(QLatin1String(Core::Constants::MODE_DESIGN));
+    Core::ModeManager::instance()->activateMode(QLatin1String(Core::Constants::MODE_DESIGN));
 }
 
 } // namespace Internal

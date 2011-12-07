@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef PORTLIST_H
@@ -34,17 +34,24 @@
 
 #include "remotelinux_export.h"
 
-#include <QtCore/QPair>
-#include <QtCore/QString>
+QT_FORWARD_DECLARE_CLASS(QString)
 
 namespace RemoteLinux {
+namespace Internal {
+class PortListPrivate;
+} // namespace Internal
 
 class REMOTELINUX_EXPORT PortList
 {
 public:
+    PortList();
+    PortList(const PortList &other);
+    PortList &operator=(const PortList &other);
+
     void addPort(int port);
     void addRange(int startPort, int endPort);
     bool hasMore() const;
+    bool contains(int port) const;
     int count() const;
     int getNext();
     QString toString() const;
@@ -53,8 +60,7 @@ public:
     static QString regularExpression();
 
 private:
-    typedef QPair<int, int> Range;
-    QList<Range> m_ranges;
+    Internal::PortListPrivate * const d;
 };
 
 } // namespace RemoteLinux

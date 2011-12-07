@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@
 #include <utils/qtcprocess.h>
 
 #include <coreplugin/icore.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
@@ -49,6 +49,7 @@
 #include <QtCore/QtConcurrentRun>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QSettings>
+#include <QtCore/QDateTime>
 #include <QtGui/QFormLayout>
 #include <QtGui/QBoxLayout>
 #include <QtGui/QDesktopServices>
@@ -131,8 +132,9 @@ void CMakeManager::runCMake(ProjectExplorer::Project *project)
     }
 }
 
-ProjectExplorer::Project *CMakeManager::openProject(const QString &fileName)
+ProjectExplorer::Project *CMakeManager::openProject(const QString &fileName, QString *errorString)
 {
+    Q_UNUSED(errorString)
     // TODO check whether this project is already opened
     return new CMakeProject(this, fileName);
 }
@@ -199,11 +201,18 @@ QString CMakeManager::findCbpFile(const QDir &directory)
     //   TODO the cbp file is named like the project() command in the CMakeList.txt file
     //   so this method below could find the wrong cbp file, if the user changes the project()
     //   2name
+    QDateTime t;
+    QString file;
     foreach (const QString &cbpFile , directory.entryList()) {
-        if (cbpFile.endsWith(QLatin1String(".cbp")))
-            return directory.path() + QLatin1Char('/') + cbpFile;
+        if (cbpFile.endsWith(QLatin1String(".cbp"))) {
+            QFileInfo fi(directory.path() + QLatin1Char('/') + cbpFile);
+            if (t.isNull() || fi.lastModified() > t) {
+                file = directory.path() + QLatin1Char('/') + cbpFile;
+                t = fi.lastModified();
+            }
+        }
     }
-    return QString();
+    return file;
 }
 
 // This code is duplicated from qtversionmanager

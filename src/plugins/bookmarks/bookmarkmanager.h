@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,8 @@
 
 #include <coreplugin/icontext.h>
 #include <coreplugin/inavigationwidgetfactory.h>
+
+#include <texteditor/itexteditor.h>
 
 #include <QtCore/QAbstractItemModel>
 #include <QtCore/QMultiMap>
@@ -49,10 +51,6 @@ class SessionManager;
 
 namespace Core {
 class IEditor;
-}
-
-namespace TextEditor {
-class ITextEditor;
 }
 
 namespace Bookmarks {
@@ -115,6 +113,9 @@ signals:
 private slots:
     void updateActionStatus();
     void loadBookmarks();
+    void handleBookmarkRequest(TextEditor::ITextEditor * textEditor,
+                               int line,
+                               TextEditor::ITextEditor::MarkRequestKind kind);
 
 private:
     TextEditor::ITextEditor *currentTextEditor() const;
@@ -172,7 +173,7 @@ public:
     BookmarkViewFactory(BookmarkManager *bm);
     QString displayName() const;
     int priority() const;
-    QString id() const;
+    Core::Id id() const;
     QKeySequence activationSequence() const;
     Core::NavigationView createWidget();
 private:

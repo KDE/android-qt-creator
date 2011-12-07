@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,22 +26,20 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #include "gccparser.h"
 #include "ldparser.h"
-#include "taskwindow.h"
+#include "task.h"
 #include "projectexplorerconstants.h"
 
 using namespace ProjectExplorer;
 
-namespace {
-    // opt. drive letter + filename: (2 brackets)
-    const char * const FILE_PATTERN = "(<command[ -]line>|([A-Za-z]:)?[^:]+\\.[^:]+):";
-    const char * const COMMAND_PATTERN = "^(.*[\\\\/])?([a-z0-9]+-[a-z0-9]+-[a-z0-9]+-)?(gcc|g\\+\\+)(-[0-9\\.]+)?(\\.exe)?: ";
-}
+// opt. drive letter + filename: (2 brackets)
+static const char FILE_PATTERN[] = "(<command[ -]line>|([A-Za-z]:)?[^:]+\\.[^:]+):";
+static const char COMMAND_PATTERN[] = "^(.*[\\\\/])?([a-z0-9]+-[a-z0-9]+-[a-z0-9]+-)?(gcc|g\\+\\+)(-[0-9\\.]+)?(\\.exe)?: ";
 
 GccParser::GccParser()
 {
@@ -671,7 +669,16 @@ void ProjectExplorerPlugin::testGccOutputParsers_data()
                         QLatin1String("file.h"), 21,
                         Constants::TASK_CATEGORY_COMPILE))
             << QString();
-
+    QTest::newRow("linker error") // QTCREATORBUG-3107
+            << QString::fromLatin1("cns5k_ins_parser_tests.cpp:(.text._ZN20CNS5kINSParserEngine21DropBytesUntilStartedEP14CircularBufferIhE[CNS5kINSParserEngine::DropBytesUntilStarted(CircularBuffer<unsigned char>*)]+0x6d): undefined reference to `CNS5kINSPacket::SOH_BYTE'")
+            << OutputParserTester::STDERR
+            << QString() << QString()
+            << ( QList<ProjectExplorer::Task>()
+                << Task(Task::Error,
+                        QLatin1String("undefined reference to `CNS5kINSPacket::SOH_BYTE'"),
+                        QLatin1String("cns5k_ins_parser_tests.cpp"), -1,
+                        Constants::TASK_CATEGORY_COMPILE))
+            << QString();
 }
 
 void ProjectExplorerPlugin::testGccOutputParsers()

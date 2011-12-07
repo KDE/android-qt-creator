@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,10 +35,12 @@
 
 #include "../core_global.h"
 
+#include <coreplugin/id.h>
 #include <coreplugin/ifile.h> // enumerations
 
-#include <QtGui/QWidget>
 #include <QtCore/QList>
+#include <QtGui/QWidget>
+#include <QtGui/QMenu>
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -98,13 +100,13 @@ class CORE_EXPORT EditorManager : public QWidget
     Q_OBJECT
 
 public:
-    typedef QList<IEditorFactory*> EditorFactoryList;
-    typedef QList<IExternalEditor*> ExternalEditorList;
+    typedef QList<IEditorFactory *> EditorFactoryList;
+    typedef QList<IExternalEditor *> ExternalEditorList;
 
     explicit EditorManager(ICore *core, QWidget *parent);
     virtual ~EditorManager();
     void init();
-    static EditorManager *instance() { return m_instance; }
+    static EditorManager *instance();
 
     static EditorToolBar *createToolBar(QWidget *parent = 0);
 
@@ -116,18 +118,15 @@ public:
     };
     Q_DECLARE_FLAGS(OpenEditorFlags, OpenEditorFlag)
 
-    IEditor *openEditor(const QString &fileName,
-                        const QString &editorId = QString(),
-                        OpenEditorFlags flags = 0,
-                        bool *newEditor = 0);
-    IEditor *openEditorWithContents(const QString &editorId,
-                     QString *titlePattern = 0,
-                     const QString &contents = QString());
+    IEditor *openEditor(const QString &fileName, const Id &editorId = Id(),
+        OpenEditorFlags flags = 0, bool *newEditor = 0);
+    IEditor *openEditorWithContents(const Id &editorId,
+        QString *titlePattern = 0, const QString &contents = QString());
 
-    bool openExternalEditor(const QString &fileName, const QString &editorId);
+    bool openExternalEditor(const QString &fileName, const Id &editorId);
 
     QStringList getOpenFileNames() const;
-    QString getOpenWithEditorId(const QString &fileName, bool *isExternalEditor = 0) const;
+    Id getOpenWithEditorId(const QString &fileName, bool *isExternalEditor = 0) const;
 
     bool hasEditor(const QString &fileName) const;
     QList<IEditor *> editorsForFileName(const QString &filename) const;
@@ -139,13 +138,13 @@ public:
 
     void activateEditor(IEditor *editor, OpenEditorFlags flags = 0);
     void activateEditorForIndex(const QModelIndex &index, OpenEditorFlags = 0);
-    IEditor *activateEditorForFile(Core::Internal::EditorView *view, Core::IFile*file, OpenEditorFlags flags = 0);
+    IEditor *activateEditorForFile(Internal::EditorView *view, IFile *file, OpenEditorFlags flags = 0);
 
     OpenEditorsModel *openedEditorsModel() const;
     void closeEditor(const QModelIndex &index);
     void closeOtherEditors(IEditor *editor);
 
-    QList<IEditor*> editorsForFiles(QList<IFile*> files) const;
+    QList<IEditor*> editorsForFiles(QList<IFile *> files) const;
     void addCurrentPositionToNavigationHistory(IEditor *editor = 0, const QByteArray &saveState = QByteArray());
     void cutForwardNavigationHistory();
 
@@ -190,6 +189,9 @@ public:
     void setWindowTitleAddition(const QString &addition);
     QString windowTitleAddition() const;
 
+    void addCloseEditorActions(QMenu *contextMenu, const QModelIndex &editorIndex);
+    void addNativeDirActions(QMenu *contextMenu, const QModelIndex &editorIndex);
+
 signals:
     void currentEditorChanged(Core::IEditor *editor);
     void currentEditorStateChanged(Core::IEditor *editor);
@@ -213,10 +215,17 @@ private slots:
     void handleContextChange(Core::IContext *context);
     void updateActions();
     void makeCurrentEditorWritable();
+    void vcsOpenCurrentEditor();
     void updateWindowTitle();
     void handleEditorStateChange();
     void updateVariable(const QString &variable);
     void autoSave();
+
+    void closeEditorFromContextMenu();
+    void closeOtherEditorsFromContextMenu();
+
+    void showInGraphicalShell();
+    void openTerminal();
 
 public slots:
     void goBackInNavigationHistory();
@@ -230,37 +239,35 @@ public slots:
 
 private:
     QList<IFile *> filesForEditors(QList<IEditor *> editors) const;
-    IEditor *createEditor(const QString &mimeType = QString(),
-                          const QString &fileName = QString());
+    IEditor *createEditor(const Id &id = Id(), const QString &fileName = QString());
     void addEditor(IEditor *editor, bool isDuplicate = false);
     void removeEditor(IEditor *editor);
 
     void restoreEditorState(IEditor *editor);
 
-    IEditor *placeEditor(Core::Internal::EditorView *view, Core::IEditor *editor);
-    Core::IEditor *duplicateEditor(IEditor *editor);
+    IEditor *placeEditor(Internal::EditorView *view, IEditor *editor);
+    IEditor *duplicateEditor(IEditor *editor);
     void setCurrentEditor(IEditor *editor, bool ignoreNavigationHistory = false);
-    void setCurrentView(Core::Internal::SplitterOrView *view);
-    IEditor *activateEditor(Core::Internal::EditorView *view, Core::IEditor *editor, OpenEditorFlags flags = 0);
+    void setCurrentView(Internal::SplitterOrView *view);
+    IEditor *activateEditor(Internal::EditorView *view, IEditor *editor, OpenEditorFlags flags = 0);
     void activateEditorForIndex(Internal::EditorView *view, const QModelIndex &index, OpenEditorFlags = 0);
-    IEditor *openEditor(Core::Internal::EditorView *view, const QString &fileName,
-                        const QString &editorId = QString(),
-                        OpenEditorFlags flags = 0,
-                        bool *newEditor = 0);
-    Core::Internal::SplitterOrView *currentSplitterOrView() const;
+    IEditor *openEditor(Internal::EditorView *view, const QString &fileName,
+        const Id &id = Id(), OpenEditorFlags flags = 0, bool *newEditor = 0);
+    Internal::SplitterOrView *currentSplitterOrView() const;
+    Internal::SplitterOrView *topSplitterOrView() const;
 
-    void closeEditor(Core::IEditor *editor);
-    void closeDuplicate(Core::IEditor *editor);
-    void closeView(Core::Internal::EditorView *view);
-    void emptyView(Core::Internal::EditorView *view);
-    Core::Internal::EditorView *currentEditorView() const;
+    void closeEditor(IEditor *editor);
+    void closeDuplicate(IEditor *editor);
+    void closeView(Internal::EditorView *view);
+    void emptyView(Internal::EditorView *view);
+    Internal::EditorView *currentEditorView() const;
     IEditor *pickUnusedEditor() const;
     void addFileToRecentFiles(IFile *file);
     void switchToPreferedMode();
     void updateAutoSave();
+    void setCloseSplitEnabled(Internal::SplitterOrView *splitterOrView, bool enable);
 
-    static EditorManager *m_instance;
-    EditorManagerPrivate *m_d;
+    EditorManagerPrivate *d;
 
     friend class Core::Internal::SplitterOrView;
     friend class Core::Internal::EditorView;
@@ -270,4 +277,5 @@ private:
 } // namespace Core
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Core::EditorManager::OpenEditorFlags)
+
 #endif // EDITORMANAGER_H

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -55,7 +55,7 @@ struct BaseVCSEditorFactoryPrivate
     BaseVCSEditorFactoryPrivate(const VCSBaseEditorParameters *t);
 
     const VCSBaseEditorParameters *m_type;
-    const QString m_id;
+    const Core::Id m_id;
     QString m_displayName;
     const QStringList m_mimeTypes;
     TextEditor::TextEditorActionHandler *m_editorHandler;
@@ -70,29 +70,29 @@ BaseVCSEditorFactoryPrivate::BaseVCSEditorFactoryPrivate(const VCSBaseEditorPara
 }
 
 BaseVCSEditorFactory::BaseVCSEditorFactory(const VCSBaseEditorParameters *t)
-  : m_d(new BaseVCSEditorFactoryPrivate(t))
+  : d(new BaseVCSEditorFactoryPrivate(t))
 {
-    m_d->m_displayName = QCoreApplication::translate("VCS", t->displayName);
+    d->m_displayName = QCoreApplication::translate("VCS", t->displayName);
 }
 
 BaseVCSEditorFactory::~BaseVCSEditorFactory()
 {
-    delete m_d;
+    delete d;
 }
 
 QStringList BaseVCSEditorFactory::mimeTypes() const
 {
-    return m_d->m_mimeTypes;
+    return d->m_mimeTypes;
 }
 
-QString BaseVCSEditorFactory::id() const
+Core::Id BaseVCSEditorFactory::id() const
 {
-    return m_d->m_id;
+    return d->m_id;
 }
 
 QString BaseVCSEditorFactory::displayName() const
 {
-    return m_d->m_displayName;
+    return d->m_displayName;
 }
 
 Core::IFile *BaseVCSEditorFactory::open(const QString &fileName)
@@ -103,10 +103,10 @@ Core::IFile *BaseVCSEditorFactory::open(const QString &fileName)
 
 Core::IEditor *BaseVCSEditorFactory::createEditor(QWidget *parent)
 {
-    VCSBaseEditorWidget *vcsEditor = createVCSBaseEditor(m_d->m_type, parent);
+    VCSBaseEditorWidget *vcsEditor = createVCSBaseEditor(d->m_type, parent);
 
-    vcsEditor ->setMimeType(m_d->m_mimeTypes.front());
-    m_d->m_editorHandler->setupActions(vcsEditor);
+    vcsEditor ->setMimeType(d->m_mimeTypes.front());
+    d->m_editorHandler->setupActions(vcsEditor);
 
     // Wire font settings and set initial values
     TextEditor::TextEditorSettings *settings = TextEditor::TextEditorSettings::instance();

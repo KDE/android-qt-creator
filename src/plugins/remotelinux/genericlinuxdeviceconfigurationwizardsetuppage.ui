@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>GenericLinuxDeviceConfigurationWizardSetupPage</class>
- <widget class="QWizardPage" name="GenericLinuxDeviceConfigurationWizardSetupPage">
+ <class>RemoteLinux::Internal::GenericLinuxDeviceConfigurationWizardSetupPage</class>
+ <widget class="QWizardPage" name="RemoteLinux::Internal::GenericLinuxDeviceConfigurationWizardSetupPage">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -25,19 +25,6 @@
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QLineEdit" name="nameLineEdit"/>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_5">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </item>
@@ -174,7 +161,7 @@
    <item row="5" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_6">
      <item>
-      <widget class="Utils::PathChooser" name="privateKeyPathChooser"/>
+      <widget class="Utils::PathChooser" name="privateKeyPathChooser" native="true"/>
      </item>
      <item>
       <spacer name="horizontalSpacer">

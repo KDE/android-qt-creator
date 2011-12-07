@@ -6,7 +6,7 @@
 **
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,16 +28,16 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
-#ifndef ANALYZER_VALGRIND_INTERNAL_SUPPRESSIONDIALOG_H
-#define ANALYZER_VALGRIND_INTERNAL_SUPPRESSIONDIALOG_H
+#ifndef ANALYZER_VALGRIND_SUPPRESSIONDIALOG_H
+#define ANALYZER_VALGRIND_SUPPRESSIONDIALOG_H
+
+#include "xmlprotocol/error.h"
 
 #include <QtGui/QDialog>
-
-#include <valgrind/xmlprotocol/error.h>
 
 namespace Analyzer {
 class AnalyzerSettings;
@@ -57,8 +57,9 @@ class SuppressionDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SuppressionDialog(MemcheckErrorView *view, QWidget *parent = 0,
-                               Qt::WindowFlags f = 0);
+    SuppressionDialog(MemcheckErrorView *view);
+    ~SuppressionDialog();
+
     virtual void accept();
     virtual void reject();
 
@@ -72,10 +73,10 @@ private:
     Ui::SuppressionDialog *m_ui;
     Analyzer::AnalyzerSettings *m_settings;
     bool m_cleanupIfCanceled;
-    QList<Valgrind::XmlProtocol::Error> m_errors;
+    QList<XmlProtocol::Error> m_errors;
 };
 
 } // namespace Internal
 } // namespace Valgrind
 
-#endif // ANALYZER_VALGRIND_INTERNAL_SUPPRESSIONDIALOG_H
+#endif // ANALYZER_VALGRIND_SUPPRESSIONDIALOG_H

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,15 +35,14 @@
 
 #include "analyzerbase_global.h"
 
-#include <utils/ssh/sshconnection.h>
-
 #include <QtGui/QDialog>
+
+namespace Utils { class SshConnectionParameters; }
 
 namespace Analyzer {
 
-namespace Ui {
-class StartRemoteDialog;
-}
+namespace Internal { namespace Ui { class StartRemoteDialog; } }
+
 
 class ANALYZER_EXPORT StartRemoteDialog : public QDialog
 {
@@ -63,7 +62,7 @@ private slots:
     virtual void accept();
 
 private:
-    Ui::StartRemoteDialog *m_ui;
+    Internal::Ui::StartRemoteDialog *m_ui;
 };
 
 } // namespace Analyzer

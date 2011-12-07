@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #ifndef QMLJSCLIENTPROXY_H
@@ -58,6 +58,7 @@ class ClientProxy : public QObject
 
 public:
     explicit ClientProxy(Debugger::QmlAdapter *adapter, QObject *parent = 0);
+    ~ClientProxy();
 
     bool setBindingForObject(int objectDebugId,
                              const QString &propertyName,
@@ -137,12 +138,13 @@ public slots:
 private slots:
     void connectToServer();
     void clientStatusChanged(QDeclarativeDebugClient::Status status);
+    void engineClientStatusChanged(QDeclarativeDebugClient::Status status);
 
     void contextChanged();
 
     void onCurrentObjectsChanged(const QList<int> &debugIds, bool requestIfNeeded = true);
     void updateEngineList();
-    void objectTreeFetched(QDeclarativeDebugQuery::State state = QDeclarativeDebugQuery::Completed);
+    void objectTreeFetched(QmlJsDebugClient::QDeclarativeDebugQuery::State state = QmlJsDebugClient::QDeclarativeDebugQuery::Completed);
     void fetchContextObjectRecursive(const QmlJsDebugClient::QDeclarativeDebugContextReference& context);
     void newObjects();
     void objectWatchTriggered(const QByteArray &propertyName, const QVariant &propertyValue);
@@ -162,7 +164,6 @@ private:
 
 
 private:
-    Q_DISABLE_COPY(ClientProxy)
     void buildDebugIdHashRecursive(const QDeclarativeDebugObjectReference &ref);
 
     QWeakPointer<Debugger::QmlAdapter> m_adapter;

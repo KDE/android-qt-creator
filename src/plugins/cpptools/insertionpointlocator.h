@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -37,13 +37,11 @@
 
 #include <ASTfwd.h>
 #include <CPlusPlusForwardDeclarations.h>
-#include <Symbols.h>
 
 #include <cplusplus/CppDocument.h>
+#include <cpptools/cpprefactoringchanges.h>
 
 namespace CppTools {
-
-class CppRefactoringChanges;
 
 class CPPTOOLS_EXPORT InsertionLocation
 {
@@ -101,7 +99,7 @@ public:
     };
 
 public:
-    InsertionPointLocator(CppRefactoringChanges *refactoringChanges);
+    InsertionPointLocator(const CppRefactoringChanges &refactoringChanges);
 
     InsertionLocation methodDeclarationInClass(const QString &fileName,
                                                const CPlusPlus::Class *clazz,
@@ -110,7 +108,7 @@ public:
     QList<InsertionLocation> methodDefinition(CPlusPlus::Declaration *declaration) const;
 
 private:
-    CppRefactoringChanges *m_refactoringChanges;
+    CppRefactoringChanges m_refactoringChanges;
 };
 
 } // namespace CppTools

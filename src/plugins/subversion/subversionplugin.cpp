@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -57,7 +57,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 
 #include <locator/commandlocator.h>
@@ -72,45 +72,45 @@
 #include <QtCore/QtPlugin>
 #include <QtCore/QProcessEnvironment>
 #include <QtCore/QUrl>
+#include <QtCore/QXmlStreamReader>
 #include <QtGui/QAction>
 #include <QtGui/QFileDialog>
 #include <QtGui/QMainWindow>
 #include <QtGui/QMenu>
 #include <QtGui/QMessageBox>
 #include <QtGui/QInputDialog>
-#include <QtXml/QXmlStreamReader>
 #include <limits.h>
 
 namespace Subversion {
 namespace Internal {
 
-static const char * const CMD_ID_SUBVERSION_MENU    = "Subversion.Menu";
-static const char * const CMD_ID_ADD                = "Subversion.Add";
-static const char * const CMD_ID_DELETE_FILE        = "Subversion.Delete";
-static const char * const CMD_ID_REVERT             = "Subversion.Revert";
-static const char * const CMD_ID_SEPARATOR0         = "Subversion.Separator0";
-static const char * const CMD_ID_DIFF_PROJECT       = "Subversion.DiffAll";
-static const char * const CMD_ID_DIFF_CURRENT       = "Subversion.DiffCurrent";
-static const char * const CMD_ID_SEPARATOR1         = "Subversion.Separator1";
-static const char * const CMD_ID_COMMIT_ALL         = "Subversion.CommitAll";
-static const char * const CMD_ID_REVERT_ALL         = "Subversion.RevertAll";
-static const char * const CMD_ID_COMMIT_CURRENT     = "Subversion.CommitCurrent";
-static const char * const CMD_ID_SEPARATOR2         = "Subversion.Separator2";
-static const char * const CMD_ID_FILELOG_CURRENT    = "Subversion.FilelogCurrent";
-static const char * const CMD_ID_ANNOTATE_CURRENT   = "Subversion.AnnotateCurrent";
-static const char * const CMD_ID_SEPARATOR3         = "Subversion.Separator3";
-static const char * const CMD_ID_SEPARATOR4         = "Subversion.Separator4";
-static const char * const CMD_ID_STATUS             = "Subversion.Status";
-static const char * const CMD_ID_PROJECTLOG         = "Subversion.ProjectLog";
-static const char * const CMD_ID_REPOSITORYLOG      = "Subversion.RepositoryLog";
-static const char * const CMD_ID_REPOSITORYUPDATE   = "Subversion.RepositoryUpdate";
-static const char * const CMD_ID_REPOSITORYDIFF     = "Subversion.RepositoryDiff";
-static const char * const CMD_ID_REPOSITORYSTATUS   = "Subversion.RepositoryStatus";
-static const char * const CMD_ID_UPDATE             = "Subversion.Update";
-static const char * const CMD_ID_COMMIT_PROJECT     = "Subversion.CommitProject";
-static const char * const CMD_ID_DESCRIBE           = "Subversion.Describe";
+static const char CMD_ID_SUBVERSION_MENU[]    = "Subversion.Menu";
+static const char CMD_ID_ADD[]                = "Subversion.Add";
+static const char CMD_ID_DELETE_FILE[]        = "Subversion.Delete";
+static const char CMD_ID_REVERT[]             = "Subversion.Revert";
+static const char CMD_ID_SEPARATOR0[]         = "Subversion.Separator0";
+static const char CMD_ID_DIFF_PROJECT[]       = "Subversion.DiffAll";
+static const char CMD_ID_DIFF_CURRENT[]       = "Subversion.DiffCurrent";
+static const char CMD_ID_SEPARATOR1[]         = "Subversion.Separator1";
+static const char CMD_ID_COMMIT_ALL[]         = "Subversion.CommitAll";
+static const char CMD_ID_REVERT_ALL[]         = "Subversion.RevertAll";
+static const char CMD_ID_COMMIT_CURRENT[]     = "Subversion.CommitCurrent";
+static const char CMD_ID_SEPARATOR2[]         = "Subversion.Separator2";
+static const char CMD_ID_FILELOG_CURRENT[]    = "Subversion.FilelogCurrent";
+static const char CMD_ID_ANNOTATE_CURRENT[]   = "Subversion.AnnotateCurrent";
+static const char CMD_ID_SEPARATOR3[]         = "Subversion.Separator3";
+static const char CMD_ID_SEPARATOR4[]         = "Subversion.Separator4";
+static const char CMD_ID_STATUS[]             = "Subversion.Status";
+static const char CMD_ID_PROJECTLOG[]         = "Subversion.ProjectLog";
+static const char CMD_ID_REPOSITORYLOG[]      = "Subversion.RepositoryLog";
+static const char CMD_ID_REPOSITORYUPDATE[]   = "Subversion.RepositoryUpdate";
+static const char CMD_ID_REPOSITORYDIFF[]     = "Subversion.RepositoryDiff";
+static const char CMD_ID_REPOSITORYSTATUS[]   = "Subversion.RepositoryStatus";
+static const char CMD_ID_UPDATE[]             = "Subversion.Update";
+static const char CMD_ID_COMMIT_PROJECT[]     = "Subversion.CommitProject";
+static const char CMD_ID_DESCRIBE[]           = "Subversion.Describe";
 
-static const char *nonInteractiveOptionC = "--non-interactive";
+static const char nonInteractiveOptionC[] = "--non-interactive";
 
 
 
@@ -637,7 +637,7 @@ void SubversionPlugin::svnDiff(const Subversion::Internal::SubversionDiffParamet
 SubversionSubmitEditor *SubversionPlugin::openSubversionSubmitEditor(const QString &fileName)
 {
     Core::IEditor *editor = Core::EditorManager::instance()->openEditor(fileName,
-                                                                        QLatin1String(Constants::SUBVERSIONCOMMITEDITOR_ID),
+                                                                        Constants::SUBVERSIONCOMMITEDITOR_ID,
                                                                         Core::EditorManager::ModeSwitch);
     SubversionSubmitEditor *submitEditor = qobject_cast<SubversionSubmitEditor*>(editor);
     QTC_CHECK(submitEditor);
@@ -1162,15 +1162,16 @@ SubversionResponse SubversionPlugin::runSvn(const QString &workingDir,
     return response;
 }
 
-Core::IEditor * SubversionPlugin::showOutputInEditor(const QString& title, const QString &output,
+Core::IEditor *SubversionPlugin::showOutputInEditor(const QString &title, const QString &output,
                                                      int editorType, const QString &source,
                                                      QTextCodec *codec)
 {
     const VCSBase::VCSBaseEditorParameters *params = findType(editorType);
     QTC_ASSERT(params, return 0);
-    const QString id = params->id;
+    const Core::Id id = params->id;
     if (Subversion::Constants::debug)
-        qDebug() << "SubversionPlugin::showOutputInEditor" << title << id <<  "Size= " << output.size() <<  " Type=" << editorType << debugCodec(codec);
+        qDebug() << "SubversionPlugin::showOutputInEditor" << title << id.name()
+                 <<  "Size= " << output.size() <<  " Type=" << editorType << debugCodec(codec);
     QString s = title;
     Core::IEditor *editor = Core::EditorManager::instance()->openEditorWithContents(id, &s, output);
     connect(editor, SIGNAL(annotateRevisionRequested(QString,QString,int)),
@@ -1298,8 +1299,7 @@ bool SubversionPlugin::vcsCheckout(const QString &directory, const QByteArray &u
     QStringList args = QStringList(QLatin1String("checkout"));
     args << QLatin1String(nonInteractiveOptionC) ;
 
-    if(!username.isEmpty() && !password.isEmpty())
-    {
+    if (!username.isEmpty() && !password.isEmpty()) {
         // If url contains username and password we have to use separate username and password
         // arguments instead of passing those in the url. Otherwise the subversion 'non-interactive'
         // authentication will always fail (if the username and password data are not stored locally),
@@ -1358,49 +1358,56 @@ QString SubversionPlugin::vcsGetRepositoryURL(const QString &directory)
     return QString();
 }
 
-/* Subversion has ".svn" directory in each directory
- * it manages. The top level is the first directory
- * under the directory that does not have a  ".svn". */
 bool SubversionPlugin::managesDirectory(const QString &directory, QString *topLevel /* = 0 */) const
 {
     const QDir dir(directory);
+    if (!dir.exists())
+        return false;
+
     if (topLevel)
         topLevel->clear();
-    bool manages = false;
-    do {
-        if (!dir.exists() || !checkSVNSubDir(dir))
-            break;
-        manages = true;
-        if (!topLevel)
-            break;
-        /* Recursing up, the top level is a child of the first directory that does
-         * not have a  ".svn" directory. The starting directory must be a managed
-         * one. Go up and try to find the first unmanaged parent dir. */
-        QDir lastDirectory = dir;
-        for (QDir parentDir = lastDirectory; parentDir.cdUp() ; lastDirectory = parentDir) {
-            if (!checkSVNSubDir(parentDir)) {
-                *topLevel = lastDirectory.absolutePath();
-                break;
+
+    /* Subversion >= 1.7 has ".svn" directory in the root of the working copy. Check for
+     * furthest parent containing ".svn/wc.db". Need to check for furthest parent as closer
+     * parents may be svn:externals. */
+    QDir parentDir = dir;
+    while (parentDir.cdUp()) {
+        if (checkSVNSubDir(parentDir, QLatin1String("wc.db"))) {
+            if (topLevel)
+                *topLevel = parentDir.absolutePath();
+            return true;
+        }
+    }
+
+    /* Subversion < 1.7 has ".svn" directory in each directory
+     * it manages. The top level is the first directory
+     * under the directory that does not have a  ".svn".*/
+    if (!checkSVNSubDir(dir))
+        return false;
+
+     if (topLevel) {
+         QDir lastDirectory = dir;
+         for (parentDir = lastDirectory; parentDir.cdUp() ; lastDirectory = parentDir) {
+             if (!checkSVNSubDir(parentDir)) {
+                 *topLevel = lastDirectory.absolutePath();
+                 break;
             }
         }
-    } while (false);
-    if (Subversion::Constants::debug) {
-        QDebug nsp = qDebug().nospace();
-        nsp << "SubversionPlugin::managesDirectory" << directory << manages;
-        if (topLevel)
-            nsp << *topLevel;
     }
-    return manages;
+    return true;
 }
 
 // Check whether SVN management subdirs exist.
-bool SubversionPlugin::checkSVNSubDir(const QDir &directory) const
+bool SubversionPlugin::checkSVNSubDir(const QDir &directory, const QString &fileName) const
 {
     const int dirCount = m_svnDirectories.size();
     for (int i = 0; i < dirCount; i++) {
         const QString svnDir = directory.absoluteFilePath(m_svnDirectories.at(i));
-        if (QFileInfo(svnDir).isDir())
-            return true;
+        if (!QFileInfo(svnDir).isDir())
+            continue;
+        if (!fileName.isEmpty() && !QDir(svnDir).exists(fileName))
+            continue;
+        return true;
     }
     return false;
 }

@@ -5,7 +5,7 @@
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 ** Copyright (c) 2010 Denis Mingulov.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -27,7 +27,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -40,8 +40,10 @@
 #include <QtCore/QScopedPointer>
 #include <QtCore/QStringList>
 
-QT_FORWARD_DECLARE_CLASS(QAbstractButton)
-QT_FORWARD_DECLARE_CLASS(QAction)
+QT_BEGIN_NAMESPACE
+class QAbstractButton;
+class QAction;
+QT_END_NAMESPACE
 
 namespace ImageViewer {
 namespace Internal {
@@ -50,7 +52,7 @@ class ImageViewerFile;
 class ImageViewer : public Core::IEditor
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ImageViewer)
+
 public:
     explicit ImageViewer(QWidget *parent = 0);
     ~ImageViewer();
@@ -58,7 +60,7 @@ public:
     bool createNew(const QString &contents = QString());
     bool open(QString *errorString, const QString &fileName, const QString &realFileName);
     Core::IFile *file();
-    QString id() const;
+    Core::Id id() const;
     QString displayName() const;
     void setDisplayName(const QString &title);
 
@@ -95,7 +97,7 @@ private:
     bool updateButtonIconByTheme(QAbstractButton *button, const QString &name);
 
 private:
-    QScopedPointer<struct ImageViewerPrivate> d_ptr;
+    struct ImageViewerPrivate *d;
 };
 
 } // namespace Internal

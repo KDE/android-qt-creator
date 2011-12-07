@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -149,7 +149,7 @@ ProjectTreeWidget::ProjectTreeWidget(QWidget *parent)
     connect(m_explorer->session(), SIGNAL(startupProjectChanged(ProjectExplorer::Project *)),
             this, SLOT(startupProjectChanged(ProjectExplorer::Project *)));
 
-    connect(m_explorer->session(), SIGNAL(aboutToLoadSession()),
+    connect(m_explorer->session(), SIGNAL(aboutToLoadSession(QString)),
             this, SLOT(disableAutoExpand()));
     connect(m_explorer->session(), SIGNAL(sessionLoaded()),
             this, SLOT(loadExpandData()));
@@ -270,6 +270,11 @@ void ProjectTreeWidget::setAutoSynchronization(bool sync, bool syncNow)
     }
 }
 
+void ProjectTreeWidget::collapseAll()
+{
+    m_view->collapseAll();
+}
+
 void ProjectTreeWidget::editCurrentItem()
 {
     if (m_view->selectionModel()->currentIndex().isValid())
@@ -313,7 +318,7 @@ void ProjectTreeWidget::showContextMenu(const QPoint &pos)
 {
     QModelIndex index = m_view->indexAt(pos);
     Node *node = m_model->nodeForIndex(index);
-    m_explorer->showContextMenu(m_view->mapToGlobal(pos), node);
+    m_explorer->showContextMenu(this, m_view->mapToGlobal(pos), node);
 }
 
 void ProjectTreeWidget::handleProjectAdded(ProjectExplorer::Project *project)
@@ -357,7 +362,7 @@ void ProjectTreeWidget::openItem(const QModelIndex &mainIndex)
     Node *node = m_model->nodeForIndex(mainIndex);
     if (node->nodeType() == FileNodeType) {
         Core::EditorManager *editorManager = Core::EditorManager::instance();
-        editorManager->openEditor(node->path(), QString(), Core::EditorManager::ModeSwitch);
+        editorManager->openEditor(node->path(), Core::Id(), Core::EditorManager::ModeSwitch);
     }
 }
 
@@ -402,9 +407,9 @@ int ProjectTreeWidgetFactory::priority() const
     return 100;
 }
 
-QString ProjectTreeWidgetFactory::id() const
+Core::Id ProjectTreeWidgetFactory::id() const
 {
-    return QLatin1String("Projects");
+    return Core::Id("Projects");
 }
 
 QKeySequence ProjectTreeWidgetFactory::activationSequence() const

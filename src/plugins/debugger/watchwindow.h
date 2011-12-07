@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,14 +26,14 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef DEBUGGER_WATCHWINDOW_H
 #define DEBUGGER_WATCHWINDOW_H
 
-#include <QtGui/QTreeView>
+#include "basewindow.h"
 
 namespace Debugger {
 namespace Internal {
@@ -44,7 +44,7 @@ namespace Internal {
 //
 /////////////////////////////////////////////////////////////////////
 
-class WatchWindow : public QTreeView
+class WatchWindow : public BaseWindow
 {
     Q_OBJECT
 
@@ -55,9 +55,6 @@ public:
     Type type() const { return m_type; }
 
 public slots:
-    void resizeColumnsToContents();
-    void setModel(QAbstractItemModel *model);
-    void setAlternatingRowColorsHelper(bool on) { setAlternatingRowColors(on); }
     void watchExpression(const QString &exp);
     void removeWatchExpression(const QString &exp);
 
@@ -66,8 +63,8 @@ private:
     Q_SLOT void expandNode(const QModelIndex &idx);
     Q_SLOT void collapseNode(const QModelIndex &idx);
     Q_SLOT void setUpdatesEnabled(bool enable);
-    Q_SLOT void setAlwaysResizeColumnsToContents(bool on);
 
+    void setModel(QAbstractItemModel *model);
     void keyPressEvent(QKeyEvent *ev);
     void contextMenuEvent(QContextMenuEvent *ev);
     void dragEnterEvent(QDragEnterEvent *ev);

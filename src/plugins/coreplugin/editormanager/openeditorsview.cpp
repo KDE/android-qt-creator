@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,7 +39,7 @@
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/filemanager.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <utils/qtcassert.h>
 
@@ -204,33 +204,12 @@ void OpenEditorsWidget::closeEditor(const QModelIndex &index)
 
 void OpenEditorsWidget::contextMenuRequested(QPoint pos)
 {
-    const QModelIndex index = m_ui.editorList->indexAt(pos);
     QMenu contextMenu;
-    QAction *closeEditor = contextMenu.addAction(
-            index.isValid() ?  tr("Close \"%1\"").arg(index.data().toString())
-                            :  tr("Close Editor"));
-    QAction *closeOtherEditors = contextMenu.addAction(
-            index.isValid() ? tr("Close All Except \"%1\"").arg(index.data().toString())
-                            : tr("Close Other Editors"));
-    QAction *closeAllEditors = contextMenu.addAction(tr("Close All Editors"));
-
-    if (!index.isValid()) {
-        closeEditor->setEnabled(false);
-        closeOtherEditors->setEnabled(false);
-    }
-
-    if (EditorManager::instance()->openedEditors().isEmpty())
-        closeAllEditors->setEnabled(false);
-
-    QAction *action = contextMenu.exec(m_ui.editorList->mapToGlobal(pos));
-    if (action == 0)
-        return;
-    if (action == closeEditor)
-        EditorManager::instance()->closeEditor(index);
-    else if (action == closeAllEditors)
-        EditorManager::instance()->closeAllEditors();
-    else if (action == closeOtherEditors)
-        EditorManager::instance()->closeOtherEditors(index.data(Qt::UserRole).value<Core::IEditor*>());
+    QModelIndex editorIndex = m_ui.editorList->indexAt(pos);
+    EditorManager::instance()->addCloseEditorActions(&contextMenu, editorIndex);
+    contextMenu.addSeparator();
+    EditorManager::instance()->addNativeDirActions(&contextMenu, editorIndex);
+    contextMenu.exec(m_ui.editorList->mapToGlobal(pos));
 }
 
 ///
@@ -254,9 +233,9 @@ int OpenEditorsViewFactory::priority() const
     return 200;
 }
 
-QString OpenEditorsViewFactory::id() const
+Core::Id OpenEditorsViewFactory::id() const
 {
-    return QLatin1String("Open Documents");
+    return Core::Id("Open Documents");
 }
 
 QKeySequence OpenEditorsViewFactory::activationSequence() const

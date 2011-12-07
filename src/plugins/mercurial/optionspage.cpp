@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2009 Brian McGillion
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,24 +53,24 @@ OptionsPageWidget::OptionsPageWidget(QWidget *parent) :
 
 MercurialSettings OptionsPageWidget::settings() const
 {
-    MercurialSettings rc;
-    rc.setBinary(m_ui.commandChooser->path());
-    rc.setUserName(m_ui.defaultUsernameLineEdit->text().trimmed());
-    rc.setEmail(m_ui.defaultEmailLineEdit->text().trimmed());
-    rc.setLogCount(m_ui.logEntriesCount->value());
-    rc.setTimeoutSeconds(m_ui.timeout->value());
-    rc.setPrompt(m_ui.promptOnSubmitCheckBox->isChecked());
-    return rc;
+    MercurialSettings s = MercurialPlugin::instance()->settings();
+    s.setValue(MercurialSettings::binaryPathKey, m_ui.commandChooser->path());
+    s.setValue(MercurialSettings::userNameKey, m_ui.defaultUsernameLineEdit->text().trimmed());
+    s.setValue(MercurialSettings::userEmailKey, m_ui.defaultEmailLineEdit->text().trimmed());
+    s.setValue(MercurialSettings::logCountKey, m_ui.logEntriesCount->value());
+    s.setValue(MercurialSettings::timeoutKey, m_ui.timeout->value());
+    s.setValue(MercurialSettings::promptOnSubmitKey, m_ui.promptOnSubmitCheckBox->isChecked());
+    return s;
 }
 
 void OptionsPageWidget::setSettings(const MercurialSettings &s)
 {
-    m_ui.commandChooser->setPath(s.binary());
-    m_ui.defaultUsernameLineEdit->setText(s.userName());
-    m_ui.defaultEmailLineEdit->setText(s.email());
-    m_ui.logEntriesCount->setValue(s.logCount());
-    m_ui.timeout->setValue(s.timeoutSeconds());
-    m_ui.promptOnSubmitCheckBox->setChecked(s.prompt());
+    m_ui.commandChooser->setPath(s.stringValue(MercurialSettings::binaryPathKey));
+    m_ui.defaultUsernameLineEdit->setText(s.stringValue(MercurialSettings::userNameKey));
+    m_ui.defaultEmailLineEdit->setText(s.stringValue(MercurialSettings::userEmailKey));
+    m_ui.logEntriesCount->setValue(s.intValue(MercurialSettings::logCountKey));
+    m_ui.timeout->setValue(s.intValue(MercurialSettings::timeoutKey));
+    m_ui.promptOnSubmitCheckBox->setChecked(s.boolValue(MercurialSettings::promptOnSubmitKey));
 }
 
 QString OptionsPageWidget::searchKeywords() const

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -152,6 +152,13 @@ AbstractSshChannel *SshChannelManager::lookupChannel(quint32 channelId,
 Utils::SshRemoteProcess::Ptr SshChannelManager::createRemoteProcess(const QByteArray &command)
 {
     SshRemoteProcess::Ptr proc(new SshRemoteProcess(command, m_nextLocalChannelId++, m_sendFacility));
+    insertChannel(proc->d, proc);
+    return proc;
+}
+
+Utils::SshRemoteProcess::Ptr SshChannelManager::createRemoteShell()
+{
+    SshRemoteProcess::Ptr proc(new SshRemoteProcess(m_nextLocalChannelId++, m_sendFacility));
     insertChannel(proc->d, proc);
     return proc;
 }

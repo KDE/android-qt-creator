@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2010 Hugues Delorme
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -43,6 +43,7 @@ namespace Internal {
 class BazaarEditor : public VCSBase::VCSBaseEditorWidget
 {
     Q_OBJECT
+
 public:
     explicit BazaarEditor(const VCSBase::VCSBaseEditorParameters *type, QWidget *parent);
 
@@ -59,4 +60,5 @@ private:
 
 } // namespace Internal
 } // namespace Bazaar
+
 #endif // BAZAAREDITOR_H

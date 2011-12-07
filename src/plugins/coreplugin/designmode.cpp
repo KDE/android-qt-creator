@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,6 +53,8 @@
 #include <QtGui/QAction>
 #include <QtGui/QPlainTextEdit>
 #include <QtGui/QStackedWidget>
+
+static Core::DesignMode *m_instance = 0;
 
 namespace Core {
 
@@ -103,6 +105,7 @@ public:
     Internal::DesignModeCoreListener *m_coreListener;
     QWeakPointer<Core::IEditor> m_currentEditor;
     bool m_isActive;
+    bool m_isRequired;
     QList<DesignEditorInfo*> m_editors;
     QStackedWidget *m_stackWidget;
     Context m_activeContext;
@@ -111,6 +114,7 @@ public:
 DesignModePrivate::DesignModePrivate(DesignMode *q)
   : m_coreListener(new Internal::DesignModeCoreListener(q)),
     m_isActive(false),
+    m_isRequired(false),
     m_stackWidget(new QStackedWidget)
 {
 }
@@ -118,6 +122,7 @@ DesignModePrivate::DesignModePrivate(DesignMode *q)
 DesignMode::DesignMode()
     : d(new DesignModePrivate(this))
 {
+    m_instance = this;
     setObjectName(QLatin1String("DesignMode"));
     setEnabled(false);
     setContext(Context(Constants::C_DESIGN_MODE));
@@ -146,6 +151,21 @@ DesignMode::~DesignMode()
     delete d;
 }
 
+DesignMode *DesignMode::instance()
+{
+    return m_instance;
+}
+
+void DesignMode::setDesignModeIsRequired()
+{
+    d->m_isRequired = true;
+}
+
+bool DesignMode::designModeIsRequired() const
+{
+    return d->m_isRequired;
+}
+
 QStringList DesignMode::registeredMimeTypes() const
 {
     QStringList rc;
@@ -163,6 +183,7 @@ void DesignMode::registerDesignWidget(QWidget *widget,
                                       const QStringList &mimeTypes,
                                       const Context &context)
 {
+    setDesignModeIsRequired();
     int index = d->m_stackWidget->addWidget(widget);
 
     DesignEditorInfo *info = new DesignEditorInfo;
@@ -191,7 +212,6 @@ void DesignMode::currentEditorChanged(Core::IEditor *editor)
         return;
 
     bool mimeEditorAvailable = false;
-    Core::ICore *core = Core::ICore::instance();
 
     if (editor && editor->file()) {
         const QString mimeType = editor->file()->mimeType();
@@ -216,8 +236,8 @@ void DesignMode::currentEditorChanged(Core::IEditor *editor)
 
     if (!mimeEditorAvailable) {
         setActiveContext(Context());
-        if (core->modeManager()->currentMode() == this)
-            core->modeManager()->activateMode(Core::Constants::MODE_EDIT);
+        if (ModeManager::instance()->currentMode() == this)
+            ModeManager::instance()->activateMode(Core::Constants::MODE_EDIT);
         setEnabled(false);
         d->m_currentEditor = QWeakPointer<Core::IEditor>();
         emit actionsUpdated(d->m_currentEditor.data());

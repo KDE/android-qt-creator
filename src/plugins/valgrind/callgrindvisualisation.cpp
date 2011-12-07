@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,7 +56,7 @@
 // Margin from hardcoded value in:
 // QGraphicsView::fitInView(const QRectF &rect,
 //                          Qt::AspectRatioMode aspectRatioMode)
-// Bug report here: http://bugreports.qt.nokia.com/browse/QTBUG-11945
+// Bug report here: https://bugreports.qt.nokia.com/browse/QTBUG-11945
 static const int FIT_IN_VIEW_MARGIN = 2;
 
 using namespace Valgrind::Callgrind;
@@ -160,8 +160,7 @@ QRectF FunctionGraphicsTextItem::boundingRect() const
 }
 
 FunctionGraphicsItem::FunctionGraphicsItem(const QString &text,
-                                           qreal x, qreal y, qreal width,
-                                           qreal height, QGraphicsItem *parent)
+        qreal x, qreal y, qreal width, qreal height, QGraphicsItem *parent)
     : QGraphicsRectItem(x, y, width, height, parent)
     , m_text(0)
 {
@@ -180,8 +179,7 @@ FunctionGraphicsTextItem *FunctionGraphicsItem::textItem() const
 }
 
 void FunctionGraphicsItem::paint(QPainter *painter,
-                                 const QStyleOptionGraphicsItem *option,
-                                 QWidget *)
+    const QStyleOptionGraphicsItem *option, QWidget *)
 {
     painter->save();
 

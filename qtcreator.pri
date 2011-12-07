@@ -1,7 +1,7 @@
 !isEmpty(QTCREATOR_PRI_INCLUDED):error("qtcreator.pri already included")
 QTCREATOR_PRI_INCLUDED = 1
 
-QTCREATOR_VERSION = 2.3.1
+QTCREATOR_VERSION = 2.4.81
 
 defineReplace(cleanPath) {
     win32:1 ~= s|\\\\|/|g
@@ -50,6 +50,9 @@ defineTest(minQtVersion) {
             return(true)
         }
     }
+    greaterThan(QT_MAJOR_VERSION, $$maj) {
+        return(true)
+    }
     return(false)
 }
 
@@ -75,8 +78,6 @@ isEmpty(TEST):CONFIG(debug, debug|release) {
 isEmpty(IDE_LIBRARY_BASENAME) {
     IDE_LIBRARY_BASENAME = lib
 }
-
-DEFINES += IDE_LIBRARY_BASENAME=\\\"$$IDE_LIBRARY_BASENAME\\\"
 
 equals(TEST, 1) {
     QT +=testlib
@@ -107,12 +108,8 @@ macx {
         QMAKE_LFLAGS *= -mmacosx-version-min=10.5
     }
 } else {
-    win32 {
-        contains(TEMPLATE, vc.*)|contains(TEMPLATE_PREFIX, vc):vcproj = 1
-        IDE_APP_TARGET   = qtcreator
-    } else {
-        IDE_APP_TARGET   = qtcreator
-    }
+    contains(TEMPLATE, vc.*):vcproj = 1
+    IDE_APP_TARGET   = qtcreator
     IDE_LIBRARY_PATH = $$IDE_BUILD_TREE/$$IDE_LIBRARY_BASENAME/qtcreator
     IDE_PLUGIN_PATH  = $$IDE_LIBRARY_PATH/plugins
     IDE_LIBEXEC_PATH = $$IDE_APP_PATH # FIXME
@@ -123,6 +120,7 @@ macx {
 }
 
 INCLUDEPATH += \
+    $$IDE_BUILD_TREE/src \ # for <app/app_version.h>
     $$IDE_SOURCE_TREE/src/libs \
     $$IDE_SOURCE_TREE/tools \
     $$IDE_SOURCE_TREE/src/plugins
@@ -130,6 +128,12 @@ INCLUDEPATH += \
 CONFIG += depend_includepath
 
 LIBS += -L$$IDE_LIBRARY_PATH
+
+!isEmpty(vcproj) {
+    DEFINES += IDE_LIBRARY_BASENAME=\"$$IDE_LIBRARY_BASENAME\"
+} else {
+    DEFINES += IDE_LIBRARY_BASENAME=\\\"$$IDE_LIBRARY_BASENAME\\\"
+}
 
 #DEFINES += QT_NO_CAST_FROM_ASCII
 DEFINES += QT_NO_CAST_TO_ASCII
@@ -151,4 +155,9 @@ unix {
 win32-msvc* { 
     #Don't warn about sprintf, fopen etc being 'unsafe'
     DEFINES += _CRT_SECURE_NO_WARNINGS
+}
+
+qt:greaterThan(QT_MAJOR_VERSION, 4) {
+    contains(QT, gui): QT += widgets
+    contains(QT, declarative): QT += qtquick1
 }

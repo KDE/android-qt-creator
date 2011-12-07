@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -69,13 +69,18 @@
     \fn void ProjectExplorer::BuildStep::run(QFutureInterface<bool> &fi)
 
     Reimplement this. This function is called when the target is build.
-    This function is NOT run in the gui thread. It runs in its own thread
-    If you need an event loop, you need to create one.
+    By default this function is NOT run in the gui thread. It runs in its
+    own thread. If you need an event loop, you need to create one.
+    This function should block until the task is done
 
     The absolute minimal implementation is:
     \code
     fi.reportResult(true);
     \endcode
+
+    By returning true from \sa runInGuiThread() this function is called in the
+    gui thread. Then the function should not block and instead the
+    finished() signal should be emitted.
 */
 
 /*!
@@ -106,6 +111,17 @@
     It should be in plain text, with the format in the parameter.
 */
 
+/*!
+    \fn void ProjectExplorer::BuildStep::cancel() const
+
+    This function needs to be reimplemented only for BuildSteps that return false from \sa runInGuiThread.
+*/
+
+/*!
+    \fn  void ProjectExplorer::BuildStep::finished()
+    \brief This signal needs to be emitted if the BuildStep runs in the gui thread.
+*/
+
 using namespace ProjectExplorer;
 
 BuildStep::BuildStep(BuildStepList *bsl, const QString &id) :
@@ -126,18 +142,17 @@ BuildStep::~BuildStep()
 
 BuildConfiguration *BuildStep::buildConfiguration() const
 {
-    BuildConfiguration *bc = qobject_cast<BuildConfiguration *>(parent()->parent());
-    if (!bc)
-        bc = target()->activeBuildConfiguration();
-    return bc;
+    return qobject_cast<BuildConfiguration *>(parent()->parent());
 }
 
 DeployConfiguration *BuildStep::deployConfiguration() const
 {
-    DeployConfiguration *dc = qobject_cast<DeployConfiguration *>(parent()->parent());
-    if (!dc)
-        dc = target()->activeDeployConfiguration();
-    return dc;
+    return qobject_cast<DeployConfiguration *>(parent()->parent());
+}
+
+ProjectConfiguration *BuildStep::projectConfiguration() const
+{
+    return static_cast<ProjectConfiguration *>(parent()->parent());
 }
 
 Target *BuildStep::target() const
@@ -145,9 +160,24 @@ Target *BuildStep::target() const
     return qobject_cast<Target *>(parent()->parent()->parent());
 }
 
+Project *BuildStep::project() const
+{
+    return target()->project();
+}
+
 bool BuildStep::immutable() const
 {
     return false;
+}
+
+bool BuildStep::runInGuiThread() const
+{
+    return false;
+}
+
+void BuildStep::cancel()
+{
+    // Do nothing
 }
 
 IBuildStepFactory::IBuildStepFactory(QObject *parent) :

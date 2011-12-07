@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -38,6 +38,8 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QIODevice>
 #include <QtCore/QXmlStreamWriter> // Mac.
+#include <QtCore/QFileInfo>
+#include <QtCore/QMetaType>
 
 QT_BEGIN_NAMESPACE
 class QFile;
@@ -57,6 +59,7 @@ public:
                          const QString &tgtFilePath, QString *error = 0);
     static bool isFileNewerThan(const QString &filePath,
                             const QDateTime &timeStamp);
+    static QString resolveSymlinks(const QString &path);
 };
 
 class QTCREATOR_UTILS_EXPORT FileReader
@@ -120,7 +123,6 @@ public:
     QFile *file() { return m_file; }
 
 private:
-    Q_DISABLE_COPY(FileSaver)
     bool m_isSafe;
 };
 
@@ -136,10 +138,52 @@ public:
     void setAutoRemove(bool on) { m_autoRemove = on; }
 
 private:
-    Q_DISABLE_COPY(TempFileSaver)
     bool m_autoRemove;
 };
 
-}
+class QTCREATOR_UTILS_EXPORT FileName : private QString
+{
+public:
+    FileName();
+    explicit FileName(const QFileInfo &info);
+    QFileInfo toFileInfo() const;
+    static FileName fromString(const QString &filename);
+    static FileName fromUserInput(const QString &filename);
+    QString toString() const;
+    QString toUserOutput() const;
+
+    bool operator==(const FileName &other) const;
+    bool operator!=(const FileName &other) const;
+    bool operator<(const FileName &other) const;
+    bool operator<=(const FileName &other) const;
+    bool operator>(const FileName &other) const;
+    bool operator>=(const FileName &other) const;
+
+    bool isChildOf(const FileName &s) const;
+    bool endsWith(const QString &s) const;
+
+    Utils::FileName relativeChildPath(const FileName &parent) const;
+    Utils::FileName &appendPath(const QString &s);
+    Utils::FileName &append(const QString &str);
+    Utils::FileName &append(QChar str);
+
+    using QString::size;
+    using QString::count;
+    using QString::length;
+    using QString::isEmpty;
+    using QString::isNull;
+    using QString::clear;
+private:
+    static Qt::CaseSensitivity cs;
+    FileName(const QString &string);
+};
+
+} // namespace Utils
+
+QT_BEGIN_NAMESPACE
+QTCREATOR_UTILS_EXPORT uint qHash(const Utils::FileName &a);
+QT_END_NAMESPACE
+
+Q_DECLARE_METATYPE(Utils::FileName)
 
 #endif // FILEUTILS_H

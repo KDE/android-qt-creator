@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -92,9 +92,9 @@ QTCREATOR_UTILS_EXPORT Utils::FileDeletedPromptAnswer
         msg = QCoreApplication::translate("Utils::fileDeletedPrompt",
                                           "The file %1 was removed. Do you want to save it under a different name, or close the editor?").arg(QDir::toNativeSeparators(fileName));
     QMessageBox box(QMessageBox::Question, title, msg, QMessageBox::NoButton, parent);
-    QPushButton *close = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "Close"), QMessageBox::RejectRole);
-    QPushButton *saveas = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "Save as..."), QMessageBox::ActionRole);
-    QPushButton *save = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "Save"), QMessageBox::AcceptRole);
+    QPushButton *close = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "&Close"), QMessageBox::RejectRole);
+    QPushButton *saveas = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "Save &as..."), QMessageBox::ActionRole);
+    QPushButton *save = box.addButton(QCoreApplication::translate("Utils::fileDeletedPrompt", "&Save"), QMessageBox::AcceptRole);
     box.setDefaultButton(saveas);
     box.exec();
     QAbstractButton *clickedbutton = box.clickedButton();

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 #include "s60manager.h"
 #include "qt4project.h"
 #include "qt4target.h"
+#include "qt4nodes.h"
 #include "qt4projectmanagerconstants.h"
 #include "qt4buildconfiguration.h"
 #include "qt4symbiantarget.h"
@@ -56,17 +57,16 @@ using namespace Qt4ProjectManager;
 using namespace Qt4ProjectManager::Internal;
 
 namespace {
-const char * const S60_DC_ID("Qt4ProjectManager.S60DeployConfiguration");
-const char * const S60_DC_PREFIX("Qt4ProjectManager.S60DeployConfiguration.");
+const char S60_DC_PREFIX[] = "Qt4ProjectManager.S60DeployConfiguration.";
 
-const char * const SERIAL_PORT_NAME_KEY("Qt4ProjectManager.S60DeployConfiguration.SerialPortName");
-const char * const INSTALLATION_DRIVE_LETTER_KEY("Qt4ProjectManager.S60DeployConfiguration.InstallationDriveLetter");
-const char * const SILENT_INSTALL_KEY("Qt4ProjectManager.S60DeployConfiguration.SilentInstall");
-const char * const DEVICE_ADDRESS_KEY("Qt4ProjectManager.S60DeployConfiguration.DeviceAddress");
-const char * const DEVICE_PORT_KEY("Qt4ProjectManager.S60DeployConfiguration.DevicePort");
-const char * const COMMUNICATION_CHANNEL_KEY("Qt4ProjectManager.S60DeployConfiguration.CommunicationChannel");
+const char SERIAL_PORT_NAME_KEY[] = "Qt4ProjectManager.S60DeployConfiguration.SerialPortName";
+const char INSTALLATION_DRIVE_LETTER_KEY[] = "Qt4ProjectManager.S60DeployConfiguration.InstallationDriveLetter";
+const char SILENT_INSTALL_KEY[] = "Qt4ProjectManager.S60DeployConfiguration.SilentInstall";
+const char DEVICE_ADDRESS_KEY[] = "Qt4ProjectManager.S60DeployConfiguration.DeviceAddress";
+const char DEVICE_PORT_KEY[] = "Qt4ProjectManager.S60DeployConfiguration.DevicePort";
+const char COMMUNICATION_CHANNEL_KEY[] = "Qt4ProjectManager.S60DeployConfiguration.CommunicationChannel";
 
-const char * const DEFAULT_CODA_TCP_PORT("65029");
+const char DEFAULT_CODA_TCP_PORT[] = "65029";
 
 QString pathFromId(const QString &id)
 {
@@ -80,7 +80,7 @@ QString pathFromId(const QString &id)
 // ======== S60DeployConfiguration
 
 S60DeployConfiguration::S60DeployConfiguration(Target *parent) :
-    DeployConfiguration(parent,  QLatin1String(S60_DC_ID)),
+    DeployConfiguration(parent,  QLatin1String(S60_DEPLOYCONFIGURATION_ID)),
     m_activeBuildConfiguration(0),
 #ifdef Q_OS_WIN
     m_serialPortName(QLatin1String("COM5")),
@@ -267,7 +267,7 @@ ProjectExplorer::ToolChain *S60DeployConfiguration::toolChain() const
 
 bool S60DeployConfiguration::isDebug() const
 {
-    const Qt4BuildConfiguration *qt4bc = qt4Target()->activeBuildConfiguration();
+    const Qt4BuildConfiguration *qt4bc = qt4Target()->activeQt4BuildConfiguration();
     return (qt4bc->qmakeBuildConfiguration() & QtSupport::BaseQtVersion::DebugBuild);
 }
 
@@ -278,7 +278,7 @@ QString S60DeployConfiguration::symbianTarget() const
 
 const QtSupport::BaseQtVersion *S60DeployConfiguration::qtVersion() const
 {
-    if (const Qt4BuildConfiguration *qt4bc = qt4Target()->activeBuildConfiguration())
+    if (const Qt4BuildConfiguration *qt4bc = qt4Target()->activeQt4BuildConfiguration())
         return qt4bc->qtVersion();
     return 0;
 }
@@ -478,18 +478,18 @@ DeployConfiguration *S60DeployConfigurationFactory::create(Target *parent, const
     return dc;
 }
 
-bool S60DeployConfigurationFactory::canCreate(Target *parent, const QString& /*id*/) const
+bool S60DeployConfigurationFactory::canCreate(Target *parent, const QString& id) const
 {
     Qt4SymbianTarget * t = qobject_cast<Qt4SymbianTarget *>(parent);
-    if (!t || t->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID))
+    if (!t || t->id() != QLatin1String(Constants::S60_DEVICE_TARGET_ID)
+            || !id.startsWith(QLatin1String(S60_DEPLOYCONFIGURATION_ID)))
         return false;
     return true;
 }
 
-bool S60DeployConfigurationFactory::canRestore(Target *parent, const QVariantMap& /*map*/) const
+bool S60DeployConfigurationFactory::canRestore(Target *parent, const QVariantMap& map) const
 {
-    Qt4SymbianTarget * t = qobject_cast<Qt4SymbianTarget *>(parent);
-    return t && t->id() == QLatin1String(Constants::S60_DEVICE_TARGET_ID);
+    return canCreate(parent, idFromMap(map));
 }
 
 DeployConfiguration *S60DeployConfigurationFactory::restore(Target *parent, const QVariantMap &map)
@@ -509,7 +509,7 @@ bool S60DeployConfigurationFactory::canClone(Target *parent, DeployConfiguration
 {
     if (!qobject_cast<Qt4SymbianTarget *>(parent))
         return false;
-    return source->id() == QLatin1String(S60_DC_ID);
+    return source->id() == QLatin1String(S60_DEPLOYCONFIGURATION_ID);
 }
 
 DeployConfiguration *S60DeployConfigurationFactory::clone(Target *parent, DeployConfiguration *source)

@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -53,8 +53,8 @@ struct CommandLocatorPrivate;
 
 class LOCATOR_EXPORT CommandLocator : public Locator::ILocatorFilter
 {
-    Q_DISABLE_COPY(CommandLocator)
     Q_OBJECT
+
 public:
     explicit CommandLocator(const QString &prefix,
                             const QString &displayName,
@@ -70,9 +70,6 @@ public:
     virtual QList<FilterEntry> matchesFor(QFutureInterface<Locator::FilterEntry> &future, const QString &entry);
     virtual void accept(FilterEntry selection) const;
     virtual void refresh(QFutureInterface<void> &future);
-
-public slots:
-    void setEnabled(bool e);
 
 private:
     CommandLocatorPrivate *d;

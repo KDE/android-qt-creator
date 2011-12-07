@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -56,7 +56,7 @@ public:
     virtual ~BaseVCSSubmitEditorFactory();
 
     virtual Core::IEditor *createEditor(QWidget *parent);
-    virtual QString id() const;
+    virtual Core::Id id() const;
     virtual QString displayName() const;
     virtual QStringList mimeTypes() const;
     Core::IFile *open(const QString &fileName);
@@ -66,7 +66,7 @@ private:
         *createBaseSubmitEditor(const VCSBaseSubmitEditorParameters *parameters,
                                 QWidget *parent) = 0;
 
-    BaseVCSSubmitEditorFactoryPrivate *m_d;
+    BaseVCSSubmitEditorFactoryPrivate *d;
 };
 
 // Utility template to create an editor that has a constructor taking the

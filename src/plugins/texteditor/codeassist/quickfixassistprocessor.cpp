@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -58,26 +58,12 @@ IAssistProposal *QuickFixAssistProcessor::perform(const IAssistInterface *interf
 
     QSharedPointer<const IAssistInterface> assistInterface(interface);
 
+    QList<QuickFixOperation::Ptr> quickFixes;
+
     const QuickFixAssistProvider *quickFixProvider =
             static_cast<const QuickFixAssistProvider *>(provider());
-    QMap<int, QList<QuickFixOperation::Ptr> > matchedOps;
-    foreach (QuickFixFactory *factory, quickFixProvider->quickFixFactories()) {
-        QList<QuickFixOperation::Ptr> ops = factory->matchingOperations(assistInterface);
-
-        foreach (QuickFixOperation::Ptr op, ops) {
-            const int priority = op->priority();
-            if (priority != -1)
-                matchedOps[priority].append(op);
-        }
-    }
-
-    QList<QuickFixOperation::Ptr> quickFixes;
-    QMapIterator<int, QList<QuickFixOperation::Ptr> > it(matchedOps);
-    it.toBack();
-    if (it.hasPrevious()) {
-        it.previous();
-        quickFixes = it.value();
-    }
+    foreach (QuickFixFactory *factory, quickFixProvider->quickFixFactories())
+        quickFixes += factory->matchingOperations(assistInterface);
 
     if (!quickFixes.isEmpty()) {
         QList<BasicProposalItem *> items;
@@ -87,6 +73,7 @@ IAssistProposal *QuickFixAssistProcessor::perform(const IAssistInterface *interf
             BasicProposalItem *item = new BasicProposalItem;
             item->setText(op->description());
             item->setData(v);
+            item->setOrder(op->priority());
             items.append(item);
         }
         return new GenericProposal(interface->position(), new BasicProposalItemListModel(items));

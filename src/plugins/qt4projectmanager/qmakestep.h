@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -34,12 +34,7 @@
 #define QMAKESTEP_H
 
 #include "qt4projectmanager_global.h"
-#include <QtCore/qglobal.h>
-
-QT_BEGIN_NAMESPACE
-namespace Ui { class QMakeStep; }
-QT_END_NAMESPACE
-
+#include <utils/fileutils.h>
 #include <projectexplorer/abstractprocessstep.h>
 
 #include <QtCore/QStringList>
@@ -56,6 +51,8 @@ class Qt4BuildConfiguration;
 class Qt4Project;
 
 namespace Internal {
+
+namespace Ui { class QMakeStep; }
 
 class QMakeStepFactory : public ProjectExplorer::IBuildStepFactory
 {
@@ -103,9 +100,10 @@ public:
     // TODO clean up those functions
     QString allArguments(bool shorted = false);
     QStringList moreArguments();
+    QStringList moreArgumentsAfter();
     QStringList parserArguments();
     QString userArguments();
-    QString mkspec();
+    Utils::FileName mkspec();
     void setUserArguments(const QString &arguments);
     bool linkQmlDebuggingLibrary() const;
     void setLinkQmlDebuggingLibrary(bool enable);
@@ -116,9 +114,6 @@ public:
 signals:
     void userArgumentsChanged();
     void linkQmlDebuggingLibraryChanged();
-
-private slots:
-    void recompileMessageBoxFinished(int button);
 
 protected:
     QMakeStep(ProjectExplorer::BuildStepList *parent, QMakeStep *source);
@@ -132,7 +127,6 @@ private:
     void ctor();
 
     // last values
-    QStringList m_lastEnv;
     bool m_forced;
     bool m_needToRunQMake; // set in init(), read in run()
     QString m_userArgs;
@@ -149,11 +143,12 @@ public:
     QMakeStepConfigWidget(QMakeStep *step);
     ~QMakeStepConfigWidget();
     QString summaryText() const;
+    QString additionalSummaryText() const;
     QString displayName() const;
 private slots:
     // slots for handling buildconfiguration/step signals
     void qtVersionChanged();
-    void qtVersionsDumpUpdated(const QString &qmakeCommand);
+    void qtVersionsDumpUpdated(const Utils::FileName &qmakeCommand);
     void qmakeBuildConfigChanged();
     void userArgumentsChanged();
     void linkQmlDebuggingLibraryChanged();
@@ -166,13 +161,21 @@ private slots:
     // other
     void buildQmlDebuggingHelper();
 
+private slots:
+    void recompileMessageBoxFinished(int button);
+
 private:
     void updateSummaryLabel();
     void updateQmlDebuggingOption();
     void updateEffectiveQMakeCall();
-    Ui::QMakeStep *m_ui;
+
+    void setSummaryText(const QString &);
+    void setAdditionalSummaryText(const QString &);
+
+    Internal::Ui::QMakeStep *m_ui;
     QMakeStep *m_step;
     QString m_summaryText;
+    QString m_additionalSummaryText;
     bool m_ignoreChange;
 };
 

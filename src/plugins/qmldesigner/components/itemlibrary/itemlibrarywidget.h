@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -47,7 +47,6 @@ class Model;
 class ItemLibraryWidget : public QFrame
 {
     Q_OBJECT
-    Q_DISABLE_COPY(ItemLibraryWidget)
 
     enum FilterChangeFlag {
       QtBasic = 0x0,
@@ -97,7 +96,7 @@ signals:
     void symbianChecked(bool b);
 
 private:
-    ItemLibraryWidgetPrivate *m_d;
+    ItemLibraryWidgetPrivate *d;
     FilterChangeFlag m_filterFlag;
 };
 

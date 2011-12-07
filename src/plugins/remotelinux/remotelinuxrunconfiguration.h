@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,41 +26,31 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
 #ifndef REMOTELINUXRUNCONFIGURATION_H
 #define REMOTELINUXRUNCONFIGURATION_H
 
-#include "maemoconstants.h"
-#include "portlist.h"
 #include "remotelinux_export.h"
 
-#include <utils/environment.h>
-
 #include <projectexplorer/runconfiguration.h>
-
-#include <QtCore/QDateTime>
-#include <QtCore/QStringList>
-
-QT_FORWARD_DECLARE_CLASS(QWidget)
+#include <utils/environment.h>
 
 namespace Qt4ProjectManager {
 class Qt4BuildConfiguration;
-class Qt4Project;
 class Qt4BaseTarget;
 class Qt4ProFileNode;
 } // namespace Qt4ProjectManager
 
 namespace RemoteLinux {
 class LinuxDeviceConfiguration;
+class PortList;
 class RemoteLinuxRunConfigurationWidget;
-class Qt4MaemoDeployConfiguration;
+class RemoteLinuxDeployConfiguration;
 
 namespace Internal {
-class AbstractLinuxDeviceDeployStep;
-class MaemoDeviceConfigListModel;
 class RemoteLinuxRunConfigurationPrivate;
 class RemoteLinuxRunConfigurationFactory;
 } // namespace Internal
@@ -68,13 +58,14 @@ class RemoteLinuxRunConfigurationFactory;
 class REMOTELINUX_EXPORT RemoteLinuxRunConfiguration : public ProjectExplorer::RunConfiguration
 {
     Q_OBJECT
+    Q_DISABLE_COPY(RemoteLinuxRunConfiguration)
     friend class Internal::RemoteLinuxRunConfigurationFactory;
     friend class RemoteLinuxRunConfigurationWidget;
 
 public:
     enum BaseEnvironmentType {
         CleanBaseEnvironment = 0,
-        SystemBaseEnvironment = 1
+        RemoteBaseEnvironment = 1
     };
 
     enum DebuggingType { DebugCppOnly, DebugQmlOnly, DebugCppAndQml };
@@ -90,16 +81,23 @@ public:
     Qt4ProjectManager::Qt4BaseTarget *qt4Target() const;
     Qt4ProjectManager::Qt4BuildConfiguration *activeQt4BuildConfiguration() const;
 
-    Qt4MaemoDeployConfiguration *deployConfig() const;
+    RemoteLinuxDeployConfiguration *deployConfig() const;
 
+    virtual QString environmentPreparationCommand() const;
     virtual QString commandPrefix() const;
     virtual PortList freePorts() const;
-    virtual DebuggingType debuggingType() const;
 
     QString localExecutableFilePath() const;
+    QString defaultRemoteExecutableFilePath() const;
     QString remoteExecutableFilePath() const;
     QString arguments() const;
     void setArguments(const QString &args);
+    QString workingDirectory() const;
+    void setWorkingDirectory(const QString &wd);
+    void setAlternateRemoteExecutable(const QString &exe);
+    QString alternateRemoteExecutable() const;
+    void setUseAlternateExecutable(bool useAlternate);
+    bool useAlternateExecutable() const;
     QSharedPointer<const LinuxDeviceConfiguration> deviceConfig() const;
     QString gdbCmd() const;
 
@@ -110,7 +108,7 @@ public:
     Utils::Environment environment() const;
     Utils::Environment baseEnvironment() const;
     QList<Utils::EnvironmentItem> userEnvironmentChanges() const;
-    Utils::Environment systemEnvironment() const;
+    Utils::Environment remoteEnvironment() const;
 
     int portsUsedByDebuggers() const;
 
@@ -123,7 +121,7 @@ signals:
     void deploySpecsChanged();
     void targetInformationChanged() const;
     void baseEnvironmentChanged();
-    void systemEnvironmentChanged();
+    void remoteEnvironmentChanged();
     void userEnvironmentChangesChanged(const QList<Utils::EnvironmentItem> &diff);
 
 protected:
@@ -146,9 +144,9 @@ private:
 
     void setBaseEnvironmentType(BaseEnvironmentType env);
     void setUserEnvironmentChanges(const QList<Utils::EnvironmentItem> &diff);
-    void setSystemEnvironment(const Utils::Environment &environment);
+    void setRemoteEnvironment(const Utils::Environment &environment);
 
-    Internal::RemoteLinuxRunConfigurationPrivate * const m_d;
+    Internal::RemoteLinuxRunConfigurationPrivate * const d;
 };
 
 } // namespace RemoteLinux

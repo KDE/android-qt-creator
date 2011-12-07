@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,9 +63,10 @@ typedef QHash<int, QmlDumpBuildTask *> QmlDumpByVersion;
 Q_GLOBAL_STATIC(QmlDumpByVersion, qmlDumpBuilds)
 
 // A task suitable to be run by QtConcurrent to build qmldump.
-class QmlDumpBuildTask : public QObject {
-    Q_DISABLE_COPY(QmlDumpBuildTask)
+class QmlDumpBuildTask : public QObject
+{
     Q_OBJECT
+
 public:
     explicit QmlDumpBuildTask(BaseQtVersion *version, ToolChain *toolChain)
         : m_buildTask(new DebuggingHelperBuildTask(version, toolChain,
@@ -208,6 +209,12 @@ bool QmlDumpTool::canBuild(const BaseQtVersion *qtVersion, QString *reason)
             *reason = QCoreApplication::translate("Qt4ProjectManager::QmlDumpTool", "Only available for Qt 4.7.1 or newer.");
         return false;
     }
+    if (qtVersion->qtVersion() >= QtVersionNumber(4, 8, 0)) {
+        if (reason)
+            *reason = QCoreApplication::translate("Qt4ProjectManager::QmlDumpTool", "Not needed.");
+        return false;
+    }
+
 
     if (!hasPrivateHeaders(installHeaders)) {
         if (reason)

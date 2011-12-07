@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -184,8 +184,9 @@ void ResourceEditorFile::rename(const QString &newName)
     emit changed();
 }
 
-QString ResourceEditorW::id() const {
-    return QLatin1String(ResourceEditor::Constants::RESOURCEEDITOR_ID);
+Core::Id ResourceEditorW::id() const
+{
+    return Core::Id(ResourceEditor::Constants::RESOURCEEDITOR_ID);
 }
 
 QString ResourceEditorFile::fileName() const

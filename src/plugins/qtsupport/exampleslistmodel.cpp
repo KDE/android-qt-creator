@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -65,12 +65,26 @@ ExamplesListModel::ExamplesListModel(QObject *parent) :
     roleNames[Difficulty] = "difficulty";
     roleNames[Type] = "type";
     roleNames[HasSourceCode] = "hasSourceCode";
+    roleNames[Dependencies] = "dependencies";
+    roleNames[IsVideo] = "isVideo";
+    roleNames[VideoUrl] = "videoUrl";
+    roleNames[VideoLength] = "videoLength";
     setRoleNames(roleNames);
 
     connect(QtVersionManager::instance(), SIGNAL(updateExamples(QString,QString,QString)),
             SLOT(cacheExamplesPath(QString,QString,QString)));
     connect(Core::HelpManager::instance(), SIGNAL(setupFinished()),
             SLOT(helpInitialized()));
+}
+
+static inline QString fixStringForTags(const QString &string)
+{
+    QString returnString = string;
+    returnString.remove(QLatin1String("<i>"));
+    returnString.remove(QLatin1String("</i>"));
+    returnString.remove(QLatin1String("<tt>"));
+    returnString.remove(QLatin1String("</tt>"));
+    return returnString;
 }
 
 QList<ExampleItem> ExamplesListModel::parseExamples(QXmlStreamReader* reader, const QString& projectsOffset)
@@ -94,7 +108,9 @@ QList<ExampleItem> ExamplesListModel::parseExamples(QXmlStreamReader* reader, co
             } else if (reader->name() == QLatin1String("fileToOpen")) {
                 item.filesToOpen.append(projectsOffset + '/' + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("description")) {
-                item.description =  reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement);
+                item.description =  fixStringForTags(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
+            } else if (reader->name() == QLatin1String("dependency")) {
+                item.dependencies.append(projectsOffset + '/' + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(",");
                 m_tags.append(item.tags);
@@ -134,7 +150,9 @@ QList<ExampleItem> ExamplesListModel::parseDemos(QXmlStreamReader* reader, const
             } else if (reader->name() == QLatin1String("fileToOpen")) {
                 item.filesToOpen.append(projectsOffset + '/' + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("description")) {
-                item.description =  reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement);
+                item.description =  fixStringForTags(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
+            } else if (reader->name() == QLatin1String("dependency")) {
+                item.dependencies.append(projectsOffset + '/' + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(",");
             }
@@ -168,12 +186,22 @@ QList<ExampleItem> ExamplesListModel::parseTutorials(QXmlStreamReader* reader, c
                 item.hasSourceCode = !item.projectPath.isEmpty();
                 item.projectPath.prepend('/');
                 item.projectPath.prepend(projectsOffset);
-                item.imageUrl = attributes.value(QLatin1String("imageUrl")).toString();
-                item.docUrl = attributes.value(QLatin1String("docUrl")).toString();
+                if (attributes.hasAttribute(QLatin1String("imageUrl")))
+                    item.imageUrl = attributes.value(QLatin1String("imageUrl")).toString();
+                if (attributes.hasAttribute(QLatin1String("docUrl")))
+                    item.docUrl = attributes.value(QLatin1String("docUrl")).toString();
+                if (attributes.hasAttribute(QLatin1String("isVideo")))
+                    item.isVideo = attributes.value(QLatin1String("isVideo")).toString() == QLatin1String("true");
+                if (attributes.hasAttribute(QLatin1String("videoUrl")))
+                    item.videoUrl = attributes.value(QLatin1String("videoUrl")).toString();
+                if (attributes.hasAttribute(QLatin1String("videoLength")))
+                    item.videoLength = attributes.value(QLatin1String("videoLength")).toString();
             } else if (reader->name() == QLatin1String("fileToOpen")) {
                 item.filesToOpen.append(projectsOffset + '/' + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("description")) {
-                item.description =  reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement);
+                item.description =  fixStringForTags(reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
+            } else if (reader->name() == QLatin1String("dependency")) {
+                item.dependencies.append(projectsOffset + '/' + reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement));
             } else if (reader->name() == QLatin1String("tags")) {
                 item.tags = reader->readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).split(",");
             }
@@ -209,10 +237,8 @@ void ExamplesListModel::readNewsItems(const QString &examplesPath, const QString
         if (offsetPath.startsWith(Core::ICore::instance()->resourcePath())) {
             // Try to get dir from first Qt Version, based on the Qt source directory
             // at first, since examplesPath / demosPath points at the build directory
-            QString sourceBasedExamplesPath = sourcePath + QLatin1String("/examples");
-            QString sourceBasedDemosPath = sourcePath + QLatin1String("/demos");
-            examplesDir = sourceBasedExamplesPath;
-            demosDir = sourceBasedDemosPath;
+            examplesDir = sourcePath + QLatin1String("/examples");
+            demosDir = sourcePath + QLatin1String("/demos");
             // SDK case, folders might be called sth else (e.g. 'Examples' with uppercase E)
             // but examplesPath / demosPath is correct
             if (!examplesDir.exists() || !demosDir.exists()) {
@@ -259,14 +285,21 @@ QStringList ExamplesListModel::exampleSources() const
     }
     settings->endArray();
 
+
+    bool anyQtVersionHasExamplesFolder = false;
     if (sources.isEmpty()) {
         // Try to get dir from first Qt Version
         QtVersionManager *versionManager = QtVersionManager::instance();
         foreach (BaseQtVersion *version, versionManager->validVersions()) {
+            // There is no good solution for Qt 5 yet
+            if (version->qtVersion().majorVersion != 4)
+                continue;
 
             QDir examplesDir(version->examplesPath());
-            if (examplesDir.exists())
+            if (examplesDir.exists()) {
                 sources << examplesDir.entryInfoList(pattern);
+                anyQtVersionHasExamplesFolder = true;
+            }
 
             QDir demosDir(version->demosPath());
             if (demosDir.exists())
@@ -280,7 +313,7 @@ QStringList ExamplesListModel::exampleSources() const
     QString resourceDir = Core::ICore::instance()->resourcePath() + QLatin1String("/welcomescreen/");
 
     // Try Creator-provided XML file only
-    if (sources.isEmpty()) {
+    if (sources.isEmpty() && anyQtVersionHasExamplesFolder) {
         // qDebug() << Q_FUNC_INFO << "falling through to Creator-provided XML file";
         sources << QString(resourceDir + QLatin1String("/examples_fallback.xml"));
     }
@@ -345,10 +378,18 @@ QVariant ExamplesListModel::data(const QModelIndex &index, int role) const
         return item.tags;
     case Difficulty:
         return item.difficulty;
+    case Dependencies:
+        return item.dependencies;
     case HasSourceCode:
         return item.hasSourceCode;
     case Type:
         return item.type;
+    case IsVideo:
+        return item.isVideo;
+    case VideoUrl:
+        return item.videoUrl;
+    case VideoLength:
+        return item.videoLength;
     default:
         qDebug() << Q_FUNC_INFO << "role type not supported";
         return QVariant();
@@ -396,6 +437,12 @@ bool ExamplesListModelFilter::filterAcceptsRow(int sourceRow, const QModelIndex 
     if (m_showTutorialsOnly) {
         int type = sourceModel()->index(sourceRow, 0, sourceParent).data(Type).toInt();
         if (type != Tutorial)
+            return false;
+    }
+
+    if (!m_showTutorialsOnly) {
+        int type = sourceModel()->index(sourceRow, 0, sourceParent).data(Type).toInt();
+        if (type != Example)
             return false;
     }
 

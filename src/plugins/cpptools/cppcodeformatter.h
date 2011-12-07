@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -120,6 +120,8 @@ public: // must be public to make Q_GADGET introspection work
 
         class_start, // after the 'class' token
         class_open, // Brace that opens a class definition.
+
+        access_specifier_start, // after 'private', 'protected' etc.
 
         member_init_open, // After ':' that starts a member initialization list.
         member_init, // At the start and after every ',' in member_init_open

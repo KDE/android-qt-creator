@@ -6,7 +6,7 @@
 **
 ** Author: Milian Wolff, KDAB (milian.wolff@kdab.com)
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -28,7 +28,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -176,24 +176,20 @@ void ValgrindConfigWidget::updateUi()
 
 void ValgrindConfigWidget::slotAddSuppression()
 {
-    QFileDialog dialog;
-    dialog.setNameFilter(tr("Valgrind Suppression File (*.supp);;All Files (*)"));
-    dialog.setAcceptMode(QFileDialog::AcceptOpen);
-    dialog.setFileMode(QFileDialog::ExistingFiles);
     ValgrindGlobalSettings *conf = Analyzer::AnalyzerGlobalSettings::instance()->subConfig<ValgrindGlobalSettings>();
     QTC_ASSERT(conf, return);
-    dialog.setDirectory(conf->lastSuppressionDialogDirectory());
-    dialog.setHistory(conf->lastSuppressionDialogHistory());
-
-    if (dialog.exec() == QDialog::Accepted) {
-        foreach (const QString &file, dialog.selectedFiles())
+    QStringList files = QFileDialog::getOpenFileNames(this,
+        tr("Valgrind Suppression Files"),
+        conf->lastSuppressionDialogDirectory(),
+        tr("Valgrind Suppression File (*.supp);;All Files (*)"));
+    //dialog.setHistory(conf->lastSuppressionDialogHistory());
+    if (!files.isEmpty()) {
+        foreach (const QString &file, files)
             m_model->appendRow(new QStandardItem(file));
-
-        m_settings->addSuppressionFiles(dialog.selectedFiles());
+        m_settings->addSuppressionFiles(files);
+        conf->setLastSuppressionDialogDirectory(QFileInfo(files.at(0)).absolutePath());
+        //conf->setLastSuppressionDialogHistory(dialog.history());
     }
-
-    conf->setLastSuppressionDialogDirectory(dialog.directory().absolutePath());
-    conf->setLastSuppressionDialogHistory(dialog.history());
 }
 
 void ValgrindConfigWidget::slotSuppressionsAdded(const QStringList &files)

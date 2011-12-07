@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,32 +26,40 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
-
-#ifndef MAEMODEVICECONFIGURATIONS_H
-#define MAEMODEVICECONFIGURATIONS_H
+#ifndef LINUXDEVICECONFIGURATIONS_H
+#define LINUXDEVICECONFIGURATIONS_H
 
 #include "linuxdeviceconfiguration.h"
+#include "remotelinux_export.h"
 
 #include <QtCore/QAbstractListModel>
-#include <QtCore/QList>
-#include <QtCore/QSharedPointer>
-#include <QtCore/QString>
 
+QT_FORWARD_DECLARE_CLASS(QString)
 
 namespace RemoteLinux {
 namespace Internal {
+class LinuxDeviceConfigurationsPrivate;
+class LinuxDeviceConfigurationsSettingsWidget;
+} // namespace Internal
 
-class LinuxDeviceConfigurations : public QAbstractListModel
+class REMOTELINUX_EXPORT LinuxDeviceConfigurations : public QAbstractListModel
 {
     Q_OBJECT
-    Q_DISABLE_COPY(LinuxDeviceConfigurations)
-    friend class MaemoDeviceConfigurationsSettingsWidget;
+    friend class Internal::LinuxDeviceConfigurationsSettingsWidget;
 public:
+    ~LinuxDeviceConfigurations();
+
     static LinuxDeviceConfigurations *instance(QObject *parent = 0);
 
+    // If you want to edit the list of device configurations programatically
+    // (e.g. when doing device auto-detection), call cloneInstance() to get a copy,
+    // do the changes there and then call replaceInstance() to write them back.
+    // Callers must be prepared to deal with cloneInstance() temporarily returning null,
+    // which happens if the settings dialog is currently open.
+    // All other callers are required to do the clone/replace operation synchronously!
     static void replaceInstance(const LinuxDeviceConfigurations *other);
     static LinuxDeviceConfigurations *cloneInstance();
 
@@ -62,9 +70,10 @@ public:
     int indexForInternalId(LinuxDeviceConfiguration::Id internalId) const;
     LinuxDeviceConfiguration::Id internalId(LinuxDeviceConfiguration::ConstPtr devConf) const;
 
-    void setDefaultSshKeyFilePath(const QString &path) { m_defaultSshKeyFilePath = path; }
-    QString defaultSshKeyFilePath() const { return m_defaultSshKeyFilePath; }
+    void setDefaultSshKeyFilePath(const QString &path);
+    QString defaultSshKeyFilePath() const;
 
+    void addConfiguration(const LinuxDeviceConfiguration::Ptr &devConfig);
     void removeConfiguration(int index);
     void setConfigurationName(int i, const QString &name);
     void setSshParameters(int i, const Utils::SshConnectionParameters &params);
@@ -77,23 +86,23 @@ public:
 
 signals:
     void updated();
+    void cloningPossible();
 
 private:
     LinuxDeviceConfigurations(QObject *parent);
+
+    static void blockCloning();
+    static void unblockCloning();
+
     void load();
     void save();
     static void copy(const LinuxDeviceConfigurations *source,
         LinuxDeviceConfigurations *target, bool deep);
-    void addConfiguration(const LinuxDeviceConfiguration::Ptr &devConfig);
-    void ensureDefaultExists(const QString &osType);
+    void ensureOneDefaultConfigurationPerOsType();
 
-    static LinuxDeviceConfigurations *m_instance;
-    LinuxDeviceConfiguration::Id m_nextId;
-    QList<LinuxDeviceConfiguration::Ptr> m_devConfigs;
-    QString m_defaultSshKeyFilePath;
+    Internal::LinuxDeviceConfigurationsPrivate * const d;
 };
 
-} // namespace Internal
 } // namespace RemoteLinux
 
-#endif // MAEMODEVICECONFIGURATIONS_H
+#endif // LINUXDEVICECONFIGURATIONS_H

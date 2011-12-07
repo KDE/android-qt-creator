@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,8 +36,12 @@
 #include <analyzerbase/ianalyzertool.h>
 #include <analyzerbase/ianalyzerengine.h>
 
+#include <QtCore/QPoint>
+
 namespace QmlProfiler {
 namespace Internal {
+
+#define TraceFileExtension ".qtd"
 
 class QmlProfilerTool : public Analyzer::IAnalyzerTool
 {
@@ -47,7 +51,7 @@ public:
     explicit QmlProfilerTool(QObject *parent);
     ~QmlProfilerTool();
 
-    QByteArray id() const;
+    Core::Id id() const;
     QString displayName() const;
     QString description() const;
     ToolMode toolMode() const;
@@ -68,22 +72,32 @@ public slots:
     void stopRecording();
     void setRecording(bool recording);
 
+    void setAppIsRunning();
+    void setAppIsStopped();
+
     void gotoSourceLocation(const QString &fileUrl, int lineNumber);
-    void updateTimer(qreal elapsedSeconds);
-    void correctTimer();
+    void updateTimers();
+    void profilerStateChanged(bool qmlActive, bool v8active);
 
     void clearDisplay();
 
+    void showContextMenu(const QPoint &position);
+
 signals:
     void setTimeLabel(const QString &);
+    void setStatusLabel(const QString &);
     void fetchingData(bool);
     void connectionFailed();
+    void cancelRun();
 
 private slots:
-    void updateProjectFileList();
-    void attach();
     void tryToConnect();
     void connectionStateChanged();
+    void showSaveOption();
+    void showSaveDialog();
+    void showLoadDialog();
+    void showErrorDialog(const QString &error);
+    void retryMessageBoxFinished(int result);
 
 private:
     void connectToClient();

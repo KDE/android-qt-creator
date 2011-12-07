@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -44,6 +44,7 @@
 #include "clonewizard.h"
 #include "gitoriousclonewizard.h"
 #include "stashdialog.h"
+#include "settingspage.h"
 
 #include <coreplugin/icore.h>
 #include <coreplugin/coreconstants.h>
@@ -52,7 +53,7 @@
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/command.h>
-#include <coreplugin/uniqueidmanager.h>
+#include <coreplugin/id.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/filemanager.h>
@@ -62,6 +63,7 @@
 #include <utils/fileutils.h>
 
 #include <vcsbase/basevcseditorfactory.h>
+#include <vcsbase/submitfilemodel.h>
 #include <vcsbase/vcsbaseeditor.h>
 #include <vcsbase/basevcssubmiteditorfactory.h>
 #include <vcsbase/vcsbaseoutputwindow.h>
@@ -192,7 +194,7 @@ static Core::Command *createSeparator(Core::ActionManager *am,
 ParameterActionCommandPair
         GitPlugin::createParameterAction(Core::ActionManager *am, Core::ActionContainer *ac,
                                          const QString &defaultText, const QString &parameterText,
-                                         const QString &id, const Core::Context &context,
+                                         const Core::Id &id, const Core::Context &context,
                                          bool addToLocator)
 {
     Utils::ParameterAction *action = new Utils::ParameterAction(defaultText, parameterText,
@@ -210,7 +212,7 @@ ParameterActionCommandPair
 ParameterActionCommandPair
         GitPlugin::createFileAction(Core::ActionManager *am, Core::ActionContainer *ac,
                                     const QString &defaultText, const QString &parameterText,
-                                    const QString &id, const Core::Context &context, bool addToLocator,
+                                    const Core::Id &id, const Core::Context &context, bool addToLocator,
                                     const char *pluginSlot)
 {
     const ParameterActionCommandPair rc = createParameterAction(am, ac, defaultText, parameterText, id, context, addToLocator);
@@ -223,7 +225,7 @@ ParameterActionCommandPair
 ParameterActionCommandPair
         GitPlugin::createProjectAction(Core::ActionManager *am, Core::ActionContainer *ac,
                                        const QString &defaultText, const QString &parameterText,
-                                       const QString &id, const Core::Context &context, bool addToLocator,
+                                       const Core::Id &id, const Core::Context &context, bool addToLocator,
                                        const char *pluginSlot)
 {
     const ParameterActionCommandPair rc = createParameterAction(am, ac, defaultText, parameterText, id, context, addToLocator);
@@ -235,7 +237,7 @@ ParameterActionCommandPair
 // Create an action to act on the repository
 ActionCommandPair
         GitPlugin::createRepositoryAction(Core::ActionManager *am, Core::ActionContainer *ac,
-                                          const QString &text, const QString &id,
+                                          const QString &text, const Core::Id &id,
                                           const Core::Context &context, bool addToLocator)
 {
     QAction  *action = new QAction(text, this);
@@ -250,7 +252,7 @@ ActionCommandPair
 // Create an action to act on the repository with slot
 ActionCommandPair
         GitPlugin::createRepositoryAction(Core::ActionManager *am, Core::ActionContainer *ac,
-                                          const QString &text, const QString &id,
+                                          const QString &text, const Core::Id &id,
                                           const Core::Context &context, bool addToLocator,
                                           const char *pluginSlot)
 {
@@ -263,7 +265,7 @@ ActionCommandPair
 // taking the directory. Store the member function as data on the action.
 ActionCommandPair
         GitPlugin::createRepositoryAction(Core::ActionManager *am, Core::ActionContainer *ac,
-                                          const QString &text, const QString &id,
+                                          const QString &text, const Core::Id &id,
                                           const Core::Context &context, bool addToLocator,
                                           GitClientMemberFunc func)
 {
@@ -280,7 +282,9 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     Q_UNUSED(errorMessage)
 
     m_core = Core::ICore::instance();
-    m_gitClient = new GitClient(this);
+    m_settings.readSettings(m_core->settings());
+
+    m_gitClient = new GitClient(&m_settings);
 
     typedef VCSBase::VCSEditorFactory<GitEditor> GitEditorFactory;
     typedef VCSBase::VCSSubmitEditorFactory<GitSubmitEditor> GitSubmitEditorFactory;
@@ -313,30 +317,29 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     Core::ActionContainer *toolsContainer =
         actionManager->actionContainer(Core::Constants::M_TOOLS);
 
-    Core::ActionContainer *gitContainer =
-        actionManager->createMenu(description);
+    Core::ActionContainer *gitContainer = actionManager->createMenu("Git");
     gitContainer->menu()->setTitle(tr("&Git"));
     toolsContainer->addMenu(gitContainer);
     m_menuAction = gitContainer->menu()->menuAction();
 
     ParameterActionCommandPair parameterActionCommand
             = createFileAction(actionManager, gitContainer,
-                               tr("Blame"), tr("Blame for \"%1\""),
-                               QLatin1String("Git.Blame"),
+                               tr("Blame Current File"), tr("Blame for \"%1\""),
+                               Core::Id("Git.Blame"),
                                globalcontext, true, SLOT(blameFile()));
     parameterActionCommand.second->setDefaultKeySequence(QKeySequence(tr("Alt+G,Alt+B")));
 
     parameterActionCommand
             = createFileAction(actionManager, gitContainer,
                                tr("Diff Current File"), tr("Diff of \"%1\""),
-                               QLatin1String("Git.Diff"), globalcontext, true,
+                               Core::Id("Git.Diff"), globalcontext, true,
                                SLOT(diffCurrentFile()));
     parameterActionCommand.second->setDefaultKeySequence(QKeySequence(tr("Alt+G,Alt+D")));
 
     parameterActionCommand
             = createFileAction(actionManager, gitContainer,
                                tr("Log Current File"), tr("Log of \"%1\""),
-                               QLatin1String("Git.Log"), globalcontext, true, SLOT(logFile()));
+                               Core::Id("Git.Log"), globalcontext, true, SLOT(logFile()));
     parameterActionCommand.second->setDefaultKeySequence(QKeySequence(tr("Alt+G,Alt+L")));
 
 
@@ -346,24 +349,24 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     parameterActionCommand
             = createFileAction(actionManager, gitContainer,
                                tr("Stage File for Commit"), tr("Stage \"%1\" for Commit"),
-                               QLatin1String("Git.Stage"), globalcontext, true, SLOT(stageFile()));
+                               Core::Id("Git.Stage"), globalcontext, true, SLOT(stageFile()));
     parameterActionCommand.second->setDefaultKeySequence(QKeySequence(tr("Alt+G,Alt+A")));
 
     parameterActionCommand
             = createFileAction(actionManager, gitContainer,
                                tr("Unstage File from Commit"), tr("Unstage \"%1\" from Commit"),
-                               QLatin1String("Git.Unstage"), globalcontext, true, SLOT(unstageFile()));
+                               Core::Id("Git.Unstage"), globalcontext, true, SLOT(unstageFile()));
 
     parameterActionCommand
             = createFileAction(actionManager, gitContainer,
                                tr("Undo Unstaged Changes"), tr("Undo Unstaged Changes for \"%1\""),
-                               QLatin1String("Git.UndoUnstaged"), globalcontext,
+                               Core::Id("Git.UndoUnstaged"), globalcontext,
                                true, SLOT(undoUnstagedFileChanges()));
 
     parameterActionCommand
             = createFileAction(actionManager, gitContainer,
                                tr("Undo Uncommitted Changes"), tr("Undo Uncommitted Changes for \"%1\""),
-                               QLatin1String("Git.Undo"), globalcontext,
+                               Core::Id("Git.Undo"), globalcontext,
                                true, SLOT(undoFileChanges()));
     parameterActionCommand.second->setDefaultKeySequence(QKeySequence(tr("Alt+G,Alt+U")));
 
@@ -374,7 +377,7 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     parameterActionCommand
             = createProjectAction(actionManager, gitContainer,
                                   tr("Diff Current Project"), tr("Diff Project \"%1\""),
-                                  QLatin1String("Git.DiffProject"),
+                                  Core::Id("Git.DiffProject"),
                                   globalcontext, true,
                                   SLOT(diffCurrentProject()));
     parameterActionCommand.second->setDefaultKeySequence(QKeySequence("Alt+G,Alt+Shift+D"));
@@ -382,14 +385,14 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     parameterActionCommand
             = createProjectAction(actionManager, gitContainer,
                                   tr("Log Project"), tr("Log Project \"%1\""),
-                                  QLatin1String("Git.LogProject"), globalcontext, true,
+                                  Core::Id("Git.LogProject"), globalcontext, true,
                                   SLOT(logProject()));
     parameterActionCommand.second->setDefaultKeySequence(QKeySequence(tr("Alt+G,Alt+K")));
 
     parameterActionCommand
                 = createProjectAction(actionManager, gitContainer,
                                       tr("Clean Project..."), tr("Clean Project \"%1\"..."),
-                                      QLatin1String("Git.CleanProject"), globalcontext,
+                                      Core::Id("Git.CleanProject"), globalcontext,
                                       true, SLOT(cleanProject()));
 
 
@@ -397,24 +400,24 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     gitContainer->addAction(createSeparator(actionManager, globalcontext, Core::Id("Git.Sep.Repository"), this));
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Diff"), QLatin1String("Git.DiffRepository"),
+                           tr("Diff"), Core::Id("Git.DiffRepository"),
                            globalcontext, true, SLOT(diffRepository()));
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Log"), QLatin1String("Git.LogRepository"),
+                           tr("Log"), Core::Id("Git.LogRepository"),
                            globalcontext, true, &GitClient::graphLog);
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Status"), QLatin1String("Git.StatusRepository"),
+                           tr("Status"), Core::Id("Git.StatusRepository"),
                            globalcontext, true, &GitClient::status);
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Undo Uncommited Changes..."), QLatin1String("Git.UndoRepository"),
+                           tr("Undo Uncommitted Changes..."), Core::Id("Git.UndoRepository"),
                            globalcontext, false, SLOT(undoRepositoryChanges()));
 
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Clean..."), QLatin1String("Git.CleanRepository"),
+                           tr("Clean..."), Core::Id("Git.CleanRepository"),
                            globalcontext, true, SLOT(cleanRepository()));
 
     m_createRepositoryAction = new QAction(tr("Create Repository..."), this);
@@ -426,15 +429,15 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     gitContainer->addAction(createSeparator(actionManager, globalcontext, Core::Id("Git.Sep.Info"), this));
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Launch gitk"), QLatin1String("Git.LaunchGitK"),
+                           tr("Launch gitk"), Core::Id("Git.LaunchGitK"),
                            globalcontext, true, &GitClient::launchGitK);
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Branches..."), QLatin1String("Git.BranchList"),
-                           globalcontext, false, SLOT(branchList()));
+                           tr("Branches..."), Core::Id("Git.BranchList"),
+                           globalcontext, true, SLOT(branchList()));
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Remotes..."), QLatin1String("Git.RemoteList"),
+                           tr("Remotes..."), Core::Id("Git.RemoteList"),
                            globalcontext, false, SLOT(remoteList()));
 
     m_showAction = new QAction(tr("Show Commit..."), this);
@@ -454,14 +457,14 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     parameterActionCommand =
             createParameterAction(actionManager, patchMenu,
                                   tr("Apply from Editor"), tr("Apply \"%1\""),
-                                  QLatin1String("Git.ApplyCurrentFilePatch"),
+                                  Core::Id("Git.ApplyCurrentFilePatch"),
                                   globalcontext, true);
     m_applyCurrentFilePatchAction = parameterActionCommand.first;
     connect(m_applyCurrentFilePatchAction, SIGNAL(triggered()), this,
             SLOT(applyCurrentFilePatch()));
 
     createRepositoryAction(actionManager, patchMenu,
-                           tr("Apply from File..."), QLatin1String("Git.ApplyPatch"),
+                           tr("Apply from File..."), Core::Id("Git.ApplyPatch"),
                            globalcontext, true, SLOT(promptApplyPatch()));
 
     Core::ActionContainer *stashMenu = actionManager->createMenu(Core::Id("Git.StashMenu"));
@@ -469,26 +472,26 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     gitContainer->addMenu(stashMenu);
 
     createRepositoryAction(actionManager, stashMenu,
-                           tr("Stashes..."), QLatin1String("Git.StashList"),
+                           tr("Stashes..."), Core::Id("Git.StashList"),
                            globalcontext, false, SLOT(stashList()));
 
     stashMenu->addAction(createSeparator(actionManager, globalcontext, Core::Id("Git.Sep.StashMenuPush"), this));
 
     ActionCommandPair actionCommand =
             createRepositoryAction(actionManager, stashMenu,
-                                   tr("Stash"), QLatin1String("Git.Stash"),
+                                   tr("Stash"), Core::Id("Git.Stash"),
                                    globalcontext, true, SLOT(stash()));
     actionCommand.first->setToolTip(tr("Saves the current state of your work and resets the repository."));
 
     actionCommand = createRepositoryAction(actionManager, stashMenu,
-                                           tr("Take Snapshot..."), QLatin1String("Git.StashSnapshot"),
+                                           tr("Take Snapshot..."), Core::Id("Git.StashSnapshot"),
                                            globalcontext, true, SLOT(stashSnapshot()));
     actionCommand.first->setToolTip(tr("Saves the current state of your work."));
 
     stashMenu->addAction(createSeparator(actionManager, globalcontext, Core::Id("Git.Sep.StashMenuPop"), this));
 
     actionCommand = createRepositoryAction(actionManager, stashMenu,
-                                           tr("Stash Pop"), QLatin1String("Git.StashPop"),
+                                           tr("Stash Pop"), Core::Id("Git.StashPop"),
                                            globalcontext, true, &GitClient::stashPop);
     actionCommand.first->setToolTip(tr("Restores changes saved to the stash list using \"Stash\"."));
 
@@ -497,11 +500,11 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     gitContainer->addMenu(subversionMenu);
 
     createRepositoryAction(actionManager, subversionMenu,
-                           tr("Log"), QLatin1String("Git.Subversion.Log"),
+                           tr("Log"), Core::Id("Git.Subversion.Log"),
                            globalcontext, false, &GitClient::subversionLog);
 
     createRepositoryAction(actionManager, subversionMenu,
-                           tr("Fetch"), QLatin1String("Git.Subversion.Fetch"),
+                           tr("Fetch"), Core::Id("Git.Subversion.Fetch"),
                            globalcontext, false, &GitClient::synchronousSubversionFetch);
 
     gitContainer->addAction(createSeparator(actionManager, globalcontext, Core::Id("Git.Sep.PushPull"), this));
@@ -509,24 +512,24 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
     gitContainer->addAction(createSeparator(actionManager, globalcontext, Core::Id("Git.Sep.Global"), this));
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Fetch"), QLatin1String("Git.Fetch"),
+                           tr("Fetch"), Core::Id("Git.Fetch"),
                            globalcontext, true, SLOT(fetch()));
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Pull"), QLatin1String("Git.Pull"),
+                           tr("Pull"), Core::Id("Git.Pull"),
                            globalcontext, true, SLOT(pull()));
 
     actionCommand = createRepositoryAction(actionManager, gitContainer,
-                                           tr("Push"), QLatin1String("Git.Push"),
+                                           tr("Push"), Core::Id("Git.Push"),
                                            globalcontext, true, SLOT(push()));
 
     actionCommand = createRepositoryAction(actionManager, gitContainer,
-                                           tr("Commit..."), QLatin1String("Git.Commit"),
+                                           tr("Commit..."), Core::Id("Git.Commit"),
                                            globalcontext, true, SLOT(startCommit()));
     actionCommand.second->setDefaultKeySequence(QKeySequence(tr("Alt+G,Alt+C")));
 
     createRepositoryAction(actionManager, gitContainer,
-                           tr("Amend Last Commit..."), QLatin1String("Git.AmendCommit"),
+                           tr("Amend Last Commit..."), Core::Id("Git.AmendCommit"),
                            globalcontext, true, SLOT(startAmendCommit()));
 
     // Subversion in a submenu.
@@ -538,7 +541,7 @@ bool GitPlugin::initialize(const QStringList &arguments, QString *errorMessage)
         for (int i = 0; i < count; i++) {
             Core::Command *tCommand
                     = actionManager->registerAction(snapShotActions.at(i),
-                                                    QString(QLatin1String("Git.Snapshot.") + QString::number(i)),
+                                                    Core::Id(QLatin1String("Git.Snapshot.") + QString::number(i)),
                                                     globalcontext);
             gitContainer->addAction(tCommand);
         }
@@ -670,7 +673,6 @@ void GitPlugin::startCommit()
 
 void GitPlugin::startCommit(bool amend)
 {
-
     if (VCSBase::VCSBaseSubmitEditor::raiseSubmitEditor())
         return;
     if (isCommitEditorOpen()) {
@@ -692,11 +694,6 @@ void GitPlugin::startCommit(bool amend)
     // files to be able to unstage files the user unchecks
     m_submitRepository = data.panelInfo.repository;
     m_commitAmendSHA1 = data.amendSHA1;
-    m_submitOrigCommitFiles = data.stagedFileNames();
-    m_submitOrigDeleteFiles = data.stagedFileNames("deleted");
-
-    if (Git::Constants::debug)
-        qDebug() << Q_FUNC_INFO << data << commitTemplate;
 
     // Start new temp file with message template
     Utils::TempFileSaver saver;
@@ -713,10 +710,8 @@ void GitPlugin::startCommit(bool amend)
 
 Core::IEditor *GitPlugin::openSubmitEditor(const QString &fileName, const CommitData &cd, bool amend)
 {
-    Core::IEditor *editor = m_core->editorManager()->openEditor(fileName, QLatin1String(Constants::GITSUBMITEDITOR_ID),
+    Core::IEditor *editor = m_core->editorManager()->openEditor(fileName, Constants::GITSUBMITEDITOR_ID,
                                                                 Core::EditorManager::ModeSwitch);
-    if (Git::Constants::debug)
-        qDebug() << Q_FUNC_INFO << fileName << editor;
     GitSubmitEditor *submitEditor = qobject_cast<GitSubmitEditor*>(editor);
     QTC_ASSERT(submitEditor, return 0);
     // The actions are for some reason enabled by the context switching
@@ -758,13 +753,12 @@ bool GitPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submitEdi
         return true;
     // Prompt user. Force a prompt unless submit was actually invoked (that
     // is, the editor was closed or shutdown).
-    GitSettings settings = m_gitClient->settings();
-    const bool wantedPrompt = settings.promptToSubmit;
+    bool *promptData = m_settings.boolPointer(GitSettings::promptOnSubmitKey);
     const VCSBase::VCSBaseSubmitEditor::PromptSubmitResult answer =
             editor->promptSubmit(tr("Closing Git Editor"),
                                  tr("Do you want to commit the change?"),
                                  tr("Git will not accept this commit. Do you want to continue to edit it?"),
-                                 &settings.promptToSubmit, !m_submitActionTriggered, false);
+                                 promptData, !m_submitActionTriggered, false);
     m_submitActionTriggered = false;
     switch (answer) {
     case VCSBase::VCSBaseSubmitEditor::SubmitCanceled:
@@ -775,25 +769,18 @@ bool GitPlugin::submitEditorAboutToClose(VCSBase::VCSBaseSubmitEditor *submitEdi
     default:
         break;
     }
-    if (wantedPrompt != settings.promptToSubmit)
-        m_gitClient->setSettings(settings);
+
+
     // Go ahead!
-    const QStringList fileList = editor->checkedFiles();
-    if (Git::Constants::debug)
-        qDebug() << Q_FUNC_INFO << fileList;
+    VCSBase::SubmitFileModel *model = qobject_cast<VCSBase::SubmitFileModel *>(editor->fileModel());
     bool closeEditor = true;
-    if (!fileList.empty() || !m_commitAmendSHA1.isEmpty()) {
+    if (model->hasCheckedFiles() || !m_commitAmendSHA1.isEmpty()) {
         // get message & commit
         if (!m_core->fileManager()->saveFile(fileIFace))
             return false;
 
-        closeEditor = m_gitClient->addAndCommit(m_submitRepository,
-                                                editor->panelData(),
-                                                m_commitAmendSHA1,
-                                                m_commitMessageFileName,
-                                                fileList,
-                                                m_submitOrigCommitFiles,
-                                                m_submitOrigDeleteFiles);
+        closeEditor = m_gitClient->addAndCommit(m_submitRepository, editor->panelData(),
+                                                m_commitAmendSHA1, m_commitMessageFileName, model);
     }
     if (closeEditor)
         cleanCommitMessageFile();
@@ -1066,14 +1053,19 @@ void GitPlugin::showCommit()
     m_gitClient->show(m_changeSelectionDialog->repository(), change);
 }
 
-GitSettings GitPlugin::settings() const
+const GitSettings &GitPlugin::settings() const
 {
-    return m_gitClient->settings();
+    return m_settings;
 }
 
 void GitPlugin::setSettings(const GitSettings &s)
 {
-    m_gitClient->setSettings(s);
+    if (s == m_settings)
+        return;
+
+    m_settings = s;
+    m_gitClient->saveSettings();
+    static_cast<GitVersionControl *>(versionControl())->emitConfigurationChanged();
 }
 
 GitClient *GitPlugin::gitClient() const

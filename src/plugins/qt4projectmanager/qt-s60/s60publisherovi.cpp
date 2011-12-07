@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 #include "s60publisherovi.h"
@@ -39,6 +39,7 @@
 #include "qmakestep.h"
 #include "makestep.h"
 #include "qt4project.h"
+#include "qt4nodes.h"
 
 #include <projectexplorer/buildsteplist.h>
 #include <projectexplorer/buildstep.h>
@@ -138,7 +139,7 @@ void S60PublisherOvi::completeCreation()
     m_qt4project = m_activeTargetOfProject->qt4Project();
 
     // set up pro file reader
-    m_reader = m_qt4project->createProFileReader(m_qt4project->rootProjectNode(), m_qt4bc);
+    m_reader = m_qt4project->createProFileReader(m_qt4project->rootQt4ProjectNode(), m_qt4bc);
     //m_reader->setCumulative(false); // todo need to reenable that, after fixing parsing for symbian scopes
 
     ProFile *profile = m_reader->parsedProFile(m_qt4project->rootProjectNode()->path());
@@ -215,7 +216,7 @@ void S60PublisherOvi::completeCreation()
 
 bool S60PublisherOvi::isDynamicLibrary(const Qt4Project &project) const
 {
-    Qt4ProFileNode *proFile = project.rootProjectNode();
+    Qt4ProFileNode *proFile = project.rootQt4ProjectNode();
     if (proFile->projectType() == LibraryTemplate) {
         const QStringList &config(proFile->variableValue(ConfigVar));
         if (!config.contains(QLatin1String("static")) && !config.contains(QLatin1String("staticlib")))

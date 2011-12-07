@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -60,18 +60,26 @@ FileInProjectFinder::FileInProjectFinder()
 {
 }
 
+static QString stripTrailingSlashes(const QString &path)
+{
+    QString newPath = path;
+    while (newPath.endsWith(QLatin1Char('/')))
+        newPath.remove(newPath.length() - 1, 1);
+    return newPath;
+}
+
 void FileInProjectFinder::setProjectDirectory(const QString &absoluteProjectPath)
 {
-    QTC_ASSERT(QFileInfo(absoluteProjectPath).exists()
-               && QFileInfo(absoluteProjectPath).isAbsolute(), return);
+    const QString newProjectPath = stripTrailingSlashes(absoluteProjectPath);
 
-    if (absoluteProjectPath == m_projectDir)
+    if (newProjectPath == m_projectDir)
         return;
 
-    m_projectDir = absoluteProjectPath;
-    while (m_projectDir.endsWith(QLatin1Char('/')))
-        m_projectDir.remove(m_projectDir.length() - 1, 1);
+    const QFileInfo infoPath(newProjectPath);
+    QTC_CHECK(newProjectPath.isEmpty()
+              || (infoPath.exists() && infoPath.isAbsolute()));
 
+    m_projectDir = newProjectPath;
     m_cache.clear();
 }
 
@@ -82,7 +90,23 @@ QString FileInProjectFinder::projectDirectory() const
 
 void FileInProjectFinder::setProjectFiles(const QStringList &projectFiles)
 {
+    if (m_projectFiles == projectFiles)
+        return;
+
     m_projectFiles = projectFiles;
+    m_cache.clear();
+}
+
+void FileInProjectFinder::setSysroot(const QString &sysroot)
+{
+    QString newsys = sysroot;
+    while (newsys.endsWith(QLatin1Char('/')))
+        newsys.remove(newsys.length() - 1, 1);
+
+    if (m_sysroot == newsys)
+        return;
+
+    m_sysroot = newsys;
     m_cache.clear();
 }
 
@@ -91,10 +115,9 @@ void FileInProjectFinder::setProjectFiles(const QStringList &projectFiles)
 
   The method first checks whether the file inside the project directory exists.
   If not, the leading directory in the path is stripped, and the - now shorter - path is
-  checked for existence. This continues until either the file is found, or the relative path
-  does not contain any directories any more: In this case the path of the url is returned.
-
-  Second, we walk the list of project files, and search for a file name match there.
+  checked for existence, and so on. Second, it tries to locate the file in the sysroot
+  folder specified. Third, we walk the list of project files, and search for a file name match
+  there. If all fails, it returns the original path from the file url.
   */
 QString FileInProjectFinder::findFile(const QUrl &fileUrl, bool *success) const
 {
@@ -104,7 +127,7 @@ QString FileInProjectFinder::findFile(const QUrl &fileUrl, bool *success) const
 
     if (originalPath.isEmpty()) {
         if (success)
-            success = false;
+            *success = false;
         return originalPath;
     }
 
@@ -167,6 +190,7 @@ QString FileInProjectFinder::findFile(const QUrl &fileUrl, bool *success) const
         }
     }
 
+    // find (solely by filename) in project files
     const QString fileName = QFileInfo(originalPath).fileName();
     foreach (const QString &f, m_projectFiles) {
         if (QFileInfo(f).fileName() == fileName) {
@@ -174,6 +198,17 @@ QString FileInProjectFinder::findFile(const QUrl &fileUrl, bool *success) const
             if (success)
                 *success = true;
             return f;
+        }
+    }
+
+    // check if absolute path is found in sysroot
+    if (!m_sysroot.isEmpty()) {
+        const QString sysrootPath = m_sysroot + originalPath;
+        if (QFileInfo(sysrootPath).exists() && QFileInfo(sysrootPath).isFile()) {
+            if (success)
+                *success = true;
+            m_cache.insert(originalPath, sysrootPath);
+            return sysrootPath;
         }
     }
 

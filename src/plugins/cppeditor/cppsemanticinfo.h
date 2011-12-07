@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,6 +35,7 @@
 
 #include <cplusplus/CppDocument.h>
 #include <cplusplus/LookupContext.h>
+#include <texteditor/semantichighlighter.h>
 #include <QtCore/QHash>
 
 namespace CppEditor {
@@ -45,22 +46,13 @@ class CPPEditorWidget;
 class SemanticInfo
 {
 public:
-    struct Use {
-        unsigned line;
-        unsigned column;
-        unsigned length;
-        unsigned kind;
-
-        enum Kind {
-            Type = 0,
-            Local,
-            Field,
-            Static,
-            VirtualMethod
-        };
-
-        Use(unsigned line = 0, unsigned column = 0, unsigned length = 0, unsigned kind = Type)
-            : line(line), column(column), length(length), kind(kind) {}
+    typedef TextEditor::SemanticHighlighter::Result Use;
+    enum UseKind {
+        TypeUse = 0,
+        LocalUse,
+        FieldUse,
+        StaticUse,
+        VirtualMethodUse
     };
 
     typedef QHash<CPlusPlus::Symbol *, QList<Use> > LocalUseMap;
@@ -76,7 +68,6 @@ public:
     CPlusPlus::Document::Ptr doc;
     LocalUseMap localUses;
     QList<Use> objcKeywords;
-    QList<CPlusPlus::Document::DiagnosticMessage> diagnosticMessages;
 };
 
 } // namespace Internal

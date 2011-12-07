@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -39,15 +39,20 @@
 
 namespace VCSBase {
 
+namespace Internal {
 namespace Ui {
-    class BaseCheckoutWizardPage;
-}
+class BaseCheckoutWizardPage;
+} // namespace Ui
+} // namespace Internal
 
 struct BaseCheckoutWizardPagePrivate;
 
-class VCSBASE_EXPORT BaseCheckoutWizardPage : public QWizardPage {
+class VCSBASE_EXPORT BaseCheckoutWizardPage : public QWizardPage
+{
     Q_OBJECT
-    Q_PROPERTY(bool isBranchSelectorVisible READ isBranchSelectorVisible WRITE setBranchSelectorVisible)
+    Q_PROPERTY(bool isBranchSelectorVisible READ isBranchSelectorVisible
+        WRITE setBranchSelectorVisible)
+
 public:
     BaseCheckoutWizardPage(QWidget *parent = 0);
     ~BaseCheckoutWizardPage();
@@ -78,21 +83,21 @@ protected:
     void setDirectoryVisible(bool v);
     void setBranchSelectorVisible(bool v);
 
-    /* Determine a checkout directory name from
-     * repository URL, that is, "protocol:/project" -> "project". */
+    // Determine a checkout directory name from
+    // repository URL, that is, "protocol:/project" -> "project".
     virtual QString directoryFromRepository(const QString &r) const;
 
-    /* Return list of branches of that repository, defaults to empty. */
+    // Return list of branches of that repository, defaults to empty.
     virtual QStringList branches(const QString &repository, int *current);
 
-    /* Add additional controls */
+    // Add additional controls.
     void addLocalControl(QWidget *w);
     void addLocalControl(QString &description, QWidget *w);
 
     void addRepositoryControl(QWidget *w);
     void addRepositoryControl(QString &description, QWidget *w);
 
-    /* Override validity information */
+    // Override validity information.
     virtual bool checkIsValid() const;
 
 private slots:

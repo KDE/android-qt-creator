@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -139,7 +139,9 @@ enum BreakpointType
     //BreakpointAtVFork,
     BreakpointAtSysCall,
     WatchpointAtAddress,
-    WatchpointAtExpression
+    WatchpointAtExpression,
+    BreakpointOnQmlSignalHandler,
+    BreakpointAtJavaScriptThrow
 };
 
 //! \enum Debugger::Internal::BreakpointState
@@ -201,6 +203,7 @@ class BreakpointParameters
 public:
     explicit BreakpointParameters(BreakpointType = UnknownType);
     BreakpointParts differencesTo(const BreakpointParameters &rhs) const;
+    bool isValid() const;
     bool equals(const BreakpointParameters &rhs) const;
     bool conditionsMatch(const QByteArray &other) const;
     bool isWatchpoint() const

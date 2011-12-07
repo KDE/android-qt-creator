@@ -22,12 +22,10 @@ SUBDIRS   = plugin_coreplugin \
             plugin_qt4projectmanager \
             plugin_locator \
             plugin_debugger \
-#            plugin_qtestlib \ # this seems to be dead
-            plugin_helloworld \ # sample plugin
             plugin_help \
-#            plugin_regexp \ # don't know what to do with this
             plugin_cpaster \
             plugin_cmakeprojectmanager \
+            plugin_autotoolsprojectmanager \
             plugin_fakevim \
             plugin_designer \
             plugin_resourceeditor \
@@ -45,8 +43,16 @@ SUBDIRS   = plugin_coreplugin \
             plugin_qmlprofiler \
             plugin_remotelinux \
             plugin_android \
+            plugin_madde \
             plugin_valgrind \
             plugin_updateinfo
+
+isEmpty(IDE_PACKAGE_MODE) {
+    SUBDIRS += plugin_helloworld \
+               plugin_updateinfo
+} else:!isEmpty(UPDATEINFO_ENABLE) {
+    SUBDIRS += plugin_updateinfo
+}
 
 linux-* {
      SUBDIRS += debugger/ptracepreload.pro
@@ -166,6 +172,9 @@ plugin_android.depends += plugin_debugger
 plugin_android.depends += plugin_projectexplorer
 plugin_android.depends += plugin_qt4projectmanager
 
+plugin_madde.subdir = madde
+plugin_madde.depends += plugin_remotelinux
+
 plugin_locator.subdir = locator
 plugin_locator.depends = plugin_coreplugin
 
@@ -215,6 +224,11 @@ plugin_cmakeprojectmanager.subdir = cmakeprojectmanager
 plugin_cmakeprojectmanager.depends = plugin_texteditor
 plugin_cmakeprojectmanager.depends += plugin_projectexplorer
 plugin_cmakeprojectmanager.depends += plugin_cpptools
+
+plugin_autotoolsprojectmanager.subdir = autotoolsprojectmanager
+plugin_autotoolsprojectmanager.depends = plugin_projectexplorer
+plugin_autotoolsprojectmanager.depends += plugin_coreplugin
+plugin_autotoolsprojectmanager.depends += plugin_cpptools
 
 plugin_genericprojectmanager.subdir = genericprojectmanager
 plugin_genericprojectmanager.depends = plugin_texteditor
@@ -293,6 +307,7 @@ plugin_qmljstools.subdir = qmljstools
 plugin_qmljstools.depends = plugin_projectexplorer
 plugin_qmljstools.depends += plugin_coreplugin
 plugin_qmljstools.depends += plugin_texteditor
+plugin_qmljstools.depends += plugin_qtsupport
 
 plugin_macros.subdir = macros
 plugin_macros.depends = plugin_texteditor

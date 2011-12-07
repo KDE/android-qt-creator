@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -35,8 +35,10 @@
 
 #include <utils/ssh/sshremoteprocessrunner.h>
 
-QT_FORWARD_DECLARE_CLASS(QTimer);
 #include <QtCore/QObject>
+
+QT_FORWARD_DECLARE_CLASS(QTextStream)
+QT_FORWARD_DECLARE_CLASS(QTimer)
 
 class RemoteProcessTest : public QObject
 {
@@ -53,14 +55,29 @@ private slots:
     void handleProcessStderr(const QByteArray &output);
     void handleProcessClosed(int exitStatus);
     void handleTimeout();
+    void handleReadyRead();
+    void handleReadyReadStdout();
+    void handleReadyReadStderr();
+    void handleConnected();
 
 private:
-    enum State { Inactive, TestingSuccess, TestingFailure, TestingCrash, TestingTerminal };
+    enum State {
+        Inactive, TestingSuccess, TestingFailure, TestingCrash, TestingTerminal, TestingIoDevice,
+        TestingProcessChannels
+    };
 
+    QString testString() const;
+
+    const Utils::SshConnectionParameters m_sshParams;
     QTimer * const m_timeoutTimer;
-    const Utils::SshRemoteProcessRunner::Ptr m_remoteRunner;
+    QTextStream *m_textStream;
+    Utils::SshRemoteProcessRunner * const m_remoteRunner;
+    Utils::SshRemoteProcess::Ptr m_catProcess;
+    Utils::SshRemoteProcess::Ptr m_echoProcess;
+    Utils::SshConnection::Ptr m_sshConnection;
     QByteArray m_remoteStdout;
     QByteArray m_remoteStderr;
+    QByteArray m_remoteData;
     State m_state;
     bool m_started;
 };

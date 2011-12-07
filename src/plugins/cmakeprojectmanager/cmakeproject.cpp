@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -150,7 +150,7 @@ void CMakeProject::changeActiveBuildConfiguration(ProjectExplorer::BuildConfigur
     if (!cbpFileFi.exists()) {
         mode = CMakeOpenProjectWizard::NeedToCreate;
     } else {
-        foreach(const QString &file, m_watchedFiles) {
+        foreach (const QString &file, m_watchedFiles) {
             if (QFileInfo(file).lastModified() > cbpFileFi.lastModified()) {
                 mode = CMakeOpenProjectWizard::NeedToUpdate;
                 break;
@@ -204,6 +204,11 @@ bool CMakeProject::parseCMakeLists()
     CMakeBuildConfiguration *activeBC = activeTarget()->activeBuildConfiguration();
     QString cbpFile = CMakeManager::findCbpFile(activeBC->buildDirectory());
 
+    if (cbpFile.isEmpty()) {
+        emit buildTargetsChanged();
+        return false;
+    }
+
     // setFolderName
     m_rootNode->setDisplayName(QFileInfo(cbpFile).completeBaseName());
     CMakeCbpParser cbpparser;
@@ -232,7 +237,7 @@ bool CMakeProject::parseCMakeLists()
     QSet<QString> projectFiles;
     if (cbpparser.hasCMakeFiles()) {
         fileList.append(cbpparser.cmakeFileList());
-        foreach(const ProjectExplorer::FileNode *node, cbpparser.cmakeFileList())
+        foreach (const ProjectExplorer::FileNode *node, cbpparser.cmakeFileList())
             projectFiles.insert(node->path());
     } else {
         // Manually add the CMakeLists.txt file
@@ -254,7 +259,7 @@ bool CMakeProject::parseCMakeLists()
     //qDebug()<<"Adding Targets";
     m_buildTargets = cbpparser.buildTargets();
 //        qDebug()<<"Printing targets";
-//        foreach(CMakeBuildTarget ct, m_buildTargets) {
+//        foreach (CMakeBuildTarget ct, m_buildTargets) {
 //            qDebug()<<ct.title<<" with executable:"<<ct.executable;
 //            qDebug()<<"WD:"<<ct.workingDirectory;
 //            qDebug()<<ct.makeCommand<<ct.makeCleanCommand;
@@ -288,7 +293,9 @@ bool CMakeProject::parseCMakeLists()
     allIncludePaths.append(cbpparser.includeFiles());
 
     QStringList allFrameworkPaths;
-    QList<ProjectExplorer::HeaderPath> allHeaderPaths = activeBC->toolChain()->systemHeaderPaths();
+    QList<ProjectExplorer::HeaderPath> allHeaderPaths;
+    if (activeBC->toolChain())
+        allHeaderPaths = activeBC->toolChain()->systemHeaderPaths();
     foreach (const ProjectExplorer::HeaderPath &headerPath, allHeaderPaths) {
         if (headerPath.kind() == ProjectExplorer::HeaderPath::FrameworkHeaderPath)
             allFrameworkPaths.append(headerPath.path());
@@ -302,12 +309,12 @@ bool CMakeProject::parseCMakeLists()
         CPlusPlus::CppModelManagerInterface::ProjectInfo pinfo = modelmanager->projectInfo(this);
         if (pinfo.includePaths != allIncludePaths
             || pinfo.sourceFiles != m_files
-            || pinfo.defines != activeBC->toolChain()->predefinedMacros()
+            || pinfo.defines != (activeBC->toolChain() ? activeBC->toolChain()->predefinedMacros() : QByteArray())
             || pinfo.frameworkPaths != allFrameworkPaths)  {
             pinfo.includePaths = allIncludePaths;
             // TODO we only want C++ files, not all other stuff that might be in the project
             pinfo.sourceFiles = m_files;
-            pinfo.defines = activeBC->toolChain()->predefinedMacros(); // TODO this is to simplistic
+            pinfo.defines =  (activeBC->toolChain() ? activeBC->toolChain()->predefinedMacros() : QByteArray()); // TODO this is to simplistic
             pinfo.frameworkPaths = allFrameworkPaths;
             modelmanager->updateProjectInfo(pinfo);
             m_codeModelFuture.cancel();
@@ -357,9 +364,9 @@ bool CMakeProject::hasBuildTarget(const QString &title) const
 
 void CMakeProject::gatherFileNodes(ProjectExplorer::FolderNode *parent, QList<ProjectExplorer::FileNode *> &list)
 {
-    foreach(ProjectExplorer::FolderNode *folder, parent->subFolderNodes())
+    foreach (ProjectExplorer::FolderNode *folder, parent->subFolderNodes())
         gatherFileNodes(folder, list);
-    foreach(ProjectExplorer::FileNode *file, parent->fileNodes())
+    foreach (ProjectExplorer::FileNode *file, parent->fileNodes())
         list.append(file);
 }
 
@@ -380,8 +387,7 @@ void CMakeProject::buildTree(CMakeProjectNode *rootNode, QList<ProjectExplorer::
     QList<ProjectExplorer::FileNode *> added;
     QList<ProjectExplorer::FileNode *> deleted;
 
-
-    while(oldIt != oldEnd && newIt != newEnd) {
+    while (oldIt != oldEnd && newIt != newEnd) {
         if ( (*oldIt)->path() == (*newIt)->path()) {
             delete *newIt;
             ++oldIt;
@@ -597,7 +603,7 @@ bool CMakeProject::fromMap(const QVariantMap &map)
 
 CMakeBuildTarget CMakeProject::buildTargetForTitle(const QString &title)
 {
-    foreach(const CMakeBuildTarget &ct, m_buildTargets)
+    foreach (const CMakeBuildTarget &ct, m_buildTargets)
         if (ct.title == title)
             return ct;
     return CMakeBuildTarget();
@@ -1013,7 +1019,7 @@ void CMakeCbpParser::parseOption()
         readNext();
         if (isEndElement()) {
             return;
-        } else if(isStartElement()) {
+        } else if (isStartElement()) {
             parseUnknownElement();
         }
     }

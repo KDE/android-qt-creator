@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -63,11 +63,6 @@ TargetSelector::TargetSelector(QWidget *parent) :
     f.setPixelSize(10);
     f.setBold(true);
     setFont(f);
-}
-
-void TargetSelector::addTarget(const QString &name)
-{
-    insertTarget(m_targets.count(), name);
 }
 
 void TargetSelector::insertTarget(int index, const QString &name)
@@ -264,7 +259,7 @@ void TargetSelector::paintEvent(QPaintEvent *event)
             if (buildSelected) {
                 image = m_buildselected;
             } else {
-                image= m_runselected;
+                image = m_runselected;
             }
         } else {
             p.setPen(Qt::black);
@@ -279,8 +274,7 @@ void TargetSelector::paintEvent(QPaintEvent *event)
         int margin = 2; // position centered within the rounded buttons
         QFontMetrics fm = fontMetrics();
         QRect textRect(x + margin, size.height() - fm.height() - 7, targetWidth()/2, fm.height());
-        p.setPen(buildSelected ? Qt::black : Qt::white);
-        if (index!=m_currentTargetIndex)
+        if (index != m_currentTargetIndex)
             p.setPen(QColor(0x555555));
         else
             p.setPen(buildSelected ? Qt::black : Qt::white);
@@ -289,7 +283,7 @@ void TargetSelector::paintEvent(QPaintEvent *event)
 
         // Run
         textRect.moveLeft(x + targetWidth()/2 - 2 * margin);
-        if (index!=m_currentTargetIndex)
+        if (index != m_currentTargetIndex)
             p.setPen(QColor(0x555555));
         else
             p.setPen(buildSelected ? Qt::white: Qt::black);

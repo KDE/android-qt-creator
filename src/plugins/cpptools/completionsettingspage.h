@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -36,12 +36,10 @@
 #include <texteditor/completionsettings.h>
 #include <texteditor/texteditoroptionspage.h>
 
-QT_BEGIN_NAMESPACE
-class Ui_CompletionSettingsPage;
-QT_END_NAMESPACE
-
 namespace CppTools {
 namespace Internal {
+
+namespace Ui { class CompletionSettingsPage; }
 
 // TODO: Move this class to the text editor plugin
 
@@ -65,7 +63,7 @@ private:
     TextEditor::CaseSensitivity caseSensitivity() const;
     TextEditor::CompletionTrigger completionTrigger() const;
 
-    Ui_CompletionSettingsPage *m_page;
+    Ui::CompletionSettingsPage *m_page;
     QString m_searchKeywords;
 };
 

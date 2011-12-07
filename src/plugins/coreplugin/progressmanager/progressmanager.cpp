@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Nokia Corporation (qt-info@nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,7 +26,7 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at info@qt.nokia.com.
+** Nokia at qt-info@nokia.com.
 **
 **************************************************************************/
 
@@ -209,7 +209,11 @@ using namespace Core::Internal;
     progress indicator stay visible after the task has finished.
     Returns an object that represents the created progress indicator,
     which can be used to further customize. The FutureProgress object's
-    life is managed by the ProgressManager and is guaranteed to live
+    life is managed by the ProgressManager and is guaranteed to live only until
+    the next event loop cycle, or until the next call of addTask.
+    If you want to use the returned FutureProgress later than directly after calling this method,
+    you will need to use protective methods (like wrapping the returned object in QPointer and
+    checking for 0 whenever you use it).
 */
 
 /*!
