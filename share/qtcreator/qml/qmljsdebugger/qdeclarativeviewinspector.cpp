@@ -81,7 +81,7 @@ private:
 
 ToolBox::ToolBox(QWidget *parent)
     : QWidget(parent, Qt::Tool)
-    , m_settings(QLatin1String("eu.licentia.necessitas"), QLatin1String("QmlInspector"), this)
+    , m_settings(QLatin1String("org.kde.necessitas"), QLatin1String("QmlInspector"), this)
     , m_toolBar(new QmlToolBar)
 {
     setWindowFlags((windowFlags() & ~Qt::WindowCloseButtonHint) | Qt::CustomizeWindowHint);

@@ -1,7 +1,7 @@
 !isEmpty(QTCREATOR_PRI_INCLUDED):error("qtcreator.pri already included")
 QTCREATOR_PRI_INCLUDED = 1
 
-QTCREATOR_VERSION = 2.2.85
+QTCREATOR_VERSION = 2.3.1
 
 defineReplace(cleanPath) {
     win32:1 ~= s|\\\\|/|g
@@ -134,7 +134,7 @@ LIBS += -L$$IDE_LIBRARY_PATH
 #DEFINES += QT_NO_CAST_FROM_ASCII
 DEFINES += QT_NO_CAST_TO_ASCII
 # This is used to allow easy global swapping with Nokia and QtCreator
-DEFINES += NQTC_SETTINGS_ORG=\\\"eu.licentia.necessitas\\\" NQTC_SETTINGS_APPNAME=\\\"NecessitasQtCreator\\\" NQTC_SETTINGS_DOMAIN=\\\"www.kde.org\\\"
+DEFINES += NQTC_SETTINGS_ORG=\\\"org.kde.necessitas\\\" NQTC_SETTINGS_APPNAME=\\\"NecessitasQtCreator\\\" NQTC_SETTINGS_DOMAIN=\\\"www.kde.org\\\"
 !macx:DEFINES += QT_USE_FAST_OPERATOR_PLUS QT_USE_FAST_CONCATENATION
 
 unix {

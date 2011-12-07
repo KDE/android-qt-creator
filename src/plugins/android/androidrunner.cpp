@@ -142,14 +142,22 @@ void AndroidRunner::start()
 
     if (m_runConfig->deployStep()->useLocalQtLibs()) {
         extraParams+=" -e use_local_qt_libs true";
+        extraParams+=" -e libs_prefix /data/local/qt/";
         extraParams+=" -e load_local_libs " + m_runConfig->androidTarget()->loadLocalLibs(m_runConfig->deployStep()->deviceAPILevel());
+        extraParams+=" -e load_local_jars " + m_runConfig->androidTarget()->loadLocalJars(m_runConfig->deployStep()->deviceAPILevel());
     }
+
+    extraParams = extraParams.trimmed();
     QStringList arguments;
     arguments << "-s" << m_deviceSerialNumber
-              << "shell" << "am" << "start" << "-n" << m_intentName << extraParams.trimmed().split(" ");
+              << "shell" << "am" << "start" << "-n" << m_intentName;
+
+    if (extraParams.length())
+        arguments << extraParams.split(" ");
+
     adbStarProc.start(AndroidConfigurations::instance().adbToolPath(), arguments);
     if (!adbStarProc.waitForStarted()) {
-        emit remoteProcessFinished(tr("Failed to forward debugging ports. Reason: $1").arg(adbStarProc.errorString()));
+        emit remoteProcessFinished(tr("Failed to start the activity. Reason: $1").arg(adbStarProc.errorString()));
         return;
     }
     if (!adbStarProc.waitForFinished(-1)) {
@@ -158,7 +166,7 @@ void AndroidRunner::start()
         return;
     }
     QTime startTime=QTime::currentTime();
-    while (m_processPID == -1 && startTime.secsTo(QTime::currentTime()) < 5) { // wait up to 5 seconds for application to start
+    while (m_processPID == -1 && startTime.secsTo(QTime::currentTime()) < 10) { // wait up to 10 seconds for application to start
         checkPID();
     }
     if (m_processPID == -1) {

@@ -33,13 +33,26 @@ void JavaParser::stdError(const QString &line)
         int lineno = m_javaRegExp.cap(3).toInt(&ok);
         if (!ok)
             lineno = -1;
+        QString file=m_javaRegExp.cap(2);
+        for (int i = 0; i < m_fileList.size(); i++)
+            if ( m_fileList[i].endsWith(file) )
+            {
+                file=m_fileList[i];
+                break;
+            }
+
         Task task(Task::Error,
                   m_javaRegExp.cap(4).trimmed(),
-                  m_javaRegExp.cap(2) /* filename */,
+                  file /* filename */,
                   lineno,
                   ProjectExplorer::Constants::TASK_CATEGORY_COMPILE);
         emit addTask(task);
         return;
     }
     IOutputParser::stdError(line);
+}
+
+void JavaParser::setProjectFileList(const QStringList &fileList)
+{
+    m_fileList=fileList;
 }

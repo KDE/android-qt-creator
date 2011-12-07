@@ -19,6 +19,7 @@ are required by law.
 #include <QtCore/QFileInfo>
 #include <QtCore/QRegExp>
 #include <QtCore/QTextStream>
+#include <QtCore/QProcess>
 
 #include <QtGui/QFileDialog>
 #include <QtGui/QMessageBox>
@@ -48,7 +49,9 @@ QVariant AVDModel::data(const QModelIndex &index, int role) const
         case 0:
             return m_list[index.row()].serialNumber;
         case 1:
-            return QString("android-%1").arg(m_list[index.row()].sdk);
+            return QString("API %1").arg(m_list[index.row()].sdk);
+        case 2:
+            return m_list[index.row()].cpuABI;
     }
     return QVariant();
 }
@@ -61,6 +64,8 @@ QVariant AVDModel::headerData(int section, Qt::Orientation orientation, int role
                 return tr("AVD Name");
             case 1:
                 return tr("AVD Target");
+            case 2:
+                return tr("CPU/ABI");
         }
     }
     return  QAbstractItemModel::headerData(section, orientation, role );
@@ -73,7 +78,7 @@ int AVDModel::rowCount(const QModelIndex & /*parent*/) const
 
 int AVDModel::columnCount(const QModelIndex & /*parent*/) const
 {
-    return 2;
+    return 3;
 }
 
 
@@ -403,6 +408,15 @@ void AndroidSettingsWidget::DataPartitionSizeEditingFinished()
 {
     m_androidConfig.PartitionSize=m_ui->DataPartitionSizeSpinBox->value();
 }
+
+void AndroidSettingsWidget::manageAVD()
+{
+    QProcess *avdProcess = new QProcess();
+    connect(this, SIGNAL(destroyed()), avdProcess, SLOT(deleteLater()));
+    connect(avdProcess, SIGNAL(finished(int)), avdProcess, SLOT(deleteLater()));
+    avdProcess->start(AndroidConfigurations::instance().androidToolPath(), QStringList() << "avd");
+}
+
 
 } // namespace Internal
 } // namespace Android

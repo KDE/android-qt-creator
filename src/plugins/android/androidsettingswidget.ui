@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>688</width>
-    <height>389</height>
+    <width>679</width>
+    <height>441</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -216,23 +216,6 @@
         </attribute>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QPushButton" name="AVDAddPushButton">
-        <property name="text">
-         <string>Add</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QPushButton" name="AVDRemovePushButton">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Remove</string>
-        </property>
-       </widget>
-      </item>
       <item row="3" column="1">
        <widget class="QPushButton" name="AVDStartPushButton">
         <property name="enabled">
@@ -298,7 +281,31 @@
           </property>
          </widget>
         </item>
+        <item>
+         <widget class="QPushButton" name="manageAVDPushButton">
+          <property name="text">
+           <string>Start Android AVD Manager</string>
+          </property>
+         </widget>
+        </item>
        </layout>
+      </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="AVDAddPushButton">
+        <property name="text">
+         <string>Add</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QPushButton" name="AVDRemovePushButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Remove</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
@@ -675,6 +682,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>manageAVDPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>AndroidSettingsWidget</receiver>
+   <slot>manageAVD()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>568</x>
+     <y>268</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>339</x>
+     <y>220</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>SDKLocationEditingFinished()</slot>
@@ -702,5 +725,6 @@
   <slot>KeystoreLocationEditingFinished()</slot>
   <slot>browseKeystoreLocation()</slot>
   <slot>createKeystore()</slot>
+  <slot>manageAVD()</slot>
  </slots>
 </ui>

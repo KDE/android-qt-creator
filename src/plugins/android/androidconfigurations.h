@@ -61,6 +61,7 @@ public:
 
 struct AndroidDevice{
     QString serialNumber;
+    QString cpuABI;
     int sdk;
 };
 

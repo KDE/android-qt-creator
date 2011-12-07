@@ -21,9 +21,10 @@ public:
     JavaParser();
     virtual void stdOutput(const QString &line);
     virtual void stdError(const QString &line);
-
+    virtual void setProjectFileList(const QStringList &fileList);
 private:
     QRegExp m_javaRegExp;
+    QStringList m_fileList;
 };
 
 } // namespace Internal

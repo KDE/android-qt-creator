@@ -78,6 +78,7 @@ private slots:
     void startAVD();
     void avdActivated(QModelIndex);
     void DataPartitionSizeEditingFinished();
+    void manageAVD();
 
 private:
     void initGui();

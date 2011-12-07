@@ -200,7 +200,7 @@ AndroidPackageCreationWidget::AndroidPackageCreationWidget(AndroidPackageCreatio
 
     m_ui->setupUi(this);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    QTimer::singleShot(0, this, SLOT(initGui()));
+    QTimer::singleShot(50, this, SLOT(initGui()));
     connect(m_step, SIGNAL(updateRequiredLibrariesModels()), SLOT(updateRequiredLibrariesModels()));
 
 }
@@ -281,7 +281,7 @@ void AndroidPackageCreationWidget::updateAndroidProjectInfo()
     m_ui->targetComboBox->setCurrentIndex(targets.indexOf(target->targetApplication()));
     if (m_ui->targetComboBox->currentIndex() == -1 && targets.count()) {
         m_ui->targetComboBox->setCurrentIndex(0);
-        m_step->androidTarget()->setTargetApplication(m_ui->targetComboBox->currentText());
+	target->setTargetApplication(m_ui->targetComboBox->currentText());
     }
     m_ui->hIconButton->setIcon(target->highDpiIcon());
     m_ui->mIconButton->setIcon(target->mediumDpiIcon());

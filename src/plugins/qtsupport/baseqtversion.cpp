@@ -1143,6 +1143,7 @@ QString BaseQtVersion::qtCorePath(const QHash<QString,QString> &versionInfo, con
                         staticLibs.append(info);
                     else if (file.endsWith(QLatin1String(".dll"))
                              || file.endsWith(QString::fromLatin1(".so.") + versionString)
+                             || file.endsWith(QString::fromLatin1(".so"))
                              || file.endsWith(QLatin1Char('.') + versionString + QLatin1String(".dylib")))
 
                         return info.absoluteFilePath();

@@ -141,8 +141,8 @@ void AndroidPackageCreationStep::checkRequiredLibraries()
     if (!QFile::exists(appPath)) {
         raiseError(tr("Can't find read elf information"),
                    tr("Can't find '%1'.\n"
-                      "Please make sure your appication is"
-                      " built successfully and is selected in Appplication tab ('Run option') ").arg(appPath) );
+                      "Please make sure your application  "
+                      "built successfully and is selected in Application tab ('Run option') ").arg(appPath) );
         return;
     }
     readelfProc.start(AndroidConfigurations::instance().readelfPath(androidTarget()->activeRunConfiguration()->abi().architecture()),
@@ -260,8 +260,9 @@ bool AndroidPackageCreationStep::createPackage()
     checkRequiredLibraries();
     emit addOutput(tr("Copy Qt app & libs to Android package ..."), MessageOutput);
 
-    const QString androidDir(target->androidDirPath());
+    m_outputParser.setProjectFileList(bc->qt4Target()->qt4Project()->files(Project::AllFiles));
 
+    const QString androidDir(target->androidDirPath());
     QString androidLibPath;
     if (bc->qt4Target()->qt4Project()->rootProjectNode()->variableValue(Qt4ProjectManager::ConfigVar).contains("x86"))
         androidLibPath = androidDir+QLatin1String("/libs/x86");
