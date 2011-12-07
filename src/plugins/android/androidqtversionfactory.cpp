@@ -49,9 +49,9 @@ int AndroidQtVersionFactory::priority() const
     return 90;
 }
 
-QtSupport::BaseQtVersion *AndroidQtVersionFactory::create(const QString &qmakePath, ProFileEvaluator *evaluator, bool isAutoDetected, const QString &autoDetectionSource)
+QtSupport::BaseQtVersion *AndroidQtVersionFactory::create(const Utils::FileName &qmakePath, ProFileEvaluator *evaluator, bool isAutoDetected, const QString &autoDetectionSource)
 {
-    QFileInfo fi(qmakePath);
+    QFileInfo fi(qmakePath.toString());
     if (!fi.exists() || !fi.isExecutable() || !fi.isFile())
         return 0;
     if (!evaluator->values("CONFIG").contains(QLatin1String("android")))

@@ -24,7 +24,7 @@ AndroidQtVersion::AndroidQtVersion()
 
 }
 
-AndroidQtVersion::AndroidQtVersion(const QString &path, bool isAutodetected, const QString &autodetectionSource)
+AndroidQtVersion::AndroidQtVersion(const Utils::FileName &path, bool isAutodetected, const QString &autodetectionSource)
     : QtSupport::BaseQtVersion(path, isAutodetected, autodetectionSource),
       m_qtAbisUpToDate(false)
 {
@@ -75,6 +75,13 @@ QList<ProjectExplorer::Abi> AndroidQtVersion::qtAbis() const
                                                                    32);
     }
     return m_qtAbis;
+}
+
+QList<ProjectExplorer::Abi> AndroidQtVersion::detectQtAbis() const
+{
+    return QList<ProjectExplorer::Abi>()<<ProjectExplorer::Abi(ProjectExplorer::Abi::ArmArchitecture, ProjectExplorer::Abi::LinuxOS,
+                                                               ProjectExplorer::Abi::AndroidLinuxFlavor, ProjectExplorer::Abi::ElfFormat,
+                                                               32);
 }
 
 bool AndroidQtVersion::supportsTargetId(const QString &id) const

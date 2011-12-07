@@ -21,6 +21,7 @@ are required by law.
 #include <projectexplorer/target.h>
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4target.h>
+#include <qt4projectmanager/qt4nodes.h>
 
 #include <qt4projectmanager/qt4buildconfiguration.h>
 
@@ -236,10 +237,10 @@ bool AndroidDeployStep::deployPackage()
         const QString tempPath = QDir::tempPath() + "/android_qt_libs_" + packageName;
         AndroidPackageCreationStep::removeDirectory(tempPath);
         QStringList stripFiles;
-        copyLibs(bc->qtVersion()->sourcePath() +"/lib", tempPath + "/lib", stripFiles, QStringList() << "*.so");
-        copyLibs(bc->qtVersion()->sourcePath() + "/plugins", tempPath + "/plugins", stripFiles);
-        copyLibs(bc->qtVersion()->sourcePath() + "/imports", tempPath + "/imports", stripFiles);
-        copyLibs(bc->qtVersion()->sourcePath() + "/jar", tempPath + "/jar", stripFiles);
+        copyLibs(bc->qtVersion()->sourcePath().toString() +"/lib", tempPath + "/lib", stripFiles, QStringList() << "*.so");
+        copyLibs(bc->qtVersion()->sourcePath().toString() + "/plugins", tempPath + "/plugins", stripFiles);
+        copyLibs(bc->qtVersion()->sourcePath().toString() + "/imports", tempPath + "/imports", stripFiles);
+        copyLibs(bc->qtVersion()->sourcePath().toString() + "/jar", tempPath + "/jar", stripFiles);
         AndroidPackageCreationStep::stripAndroidLibs(stripFiles, target()->activeRunConfiguration()->abi().architecture());
         runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                    QStringList() << "-s" << m_deviceSerialNumber
@@ -280,10 +281,10 @@ bool AndroidDeployStep::deployPackage()
     writeOutput(tr("Pulling files necessary for debugging"));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList() << "-s" << m_deviceSerialNumber << "pull" << "/system/bin/app_process" << QString("%1/app_process")
-                                        .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+                                        .arg(bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->buildDir()));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList() << "-s" << m_deviceSerialNumber << "pull"<<"/system/lib/libc.so" << QString("%1/libc.so")
-                                        .arg(bc->qt4Target()->qt4Project()->rootProjectNode()->buildDir()));
+                                        .arg(bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->buildDir()));
     disconnect(deployProc, 0, this, 0);
     deployProc->deleteLater();
     return true;

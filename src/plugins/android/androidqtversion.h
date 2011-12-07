@@ -19,7 +19,7 @@ class AndroidQtVersion  : public QtSupport::BaseQtVersion
 {
 public:
     AndroidQtVersion();
-    AndroidQtVersion(const QString &path, bool isAutodetected = false, const QString &autodetectionSource = QString());
+    AndroidQtVersion(const Utils::FileName &path, bool isAutodetected = false, const QString &autodetectionSource = QString());
     ~AndroidQtVersion ();
     AndroidQtVersion  *clone() const;
 
@@ -29,6 +29,7 @@ public:
     virtual QString invalidReason() const;
 
     virtual QList<ProjectExplorer::Abi> qtAbis() const;
+    virtual QList<ProjectExplorer::Abi> detectQtAbis() const;
 
     virtual bool supportsTargetId(const QString &id) const;
     virtual QSet<QString> supportedTargetIds() const;

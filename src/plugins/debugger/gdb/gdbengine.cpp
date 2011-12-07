@@ -4582,7 +4582,6 @@ bool GdbEngine::startGdb(const QStringList &args, const QString &settingsIdHint)
         gdbArgs << _("-n");
     gdbArgs += args;
 
-    if (sp.toolChainAbi.osFlavor() == Abi::WindowsMSysFlavor && false) {
     connect(gdbProc(), SIGNAL(error(QProcess::ProcessError)),
         SLOT(handleGdbError(QProcess::ProcessError)));
     connect(gdbProc(), SIGNAL(finished(int, QProcess::ExitStatus)),

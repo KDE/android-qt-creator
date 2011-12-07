@@ -20,6 +20,7 @@ are required by law.
 #include <projectexplorer/toolchainmanager.h>
 #include <projectexplorer/projectexplorer.h>
 #include <qt4projectmanager/qt4project.h>
+#include <qtsupport/qtversionmanager.h>
 
 #include <utils/environment.h>
 
@@ -169,9 +170,9 @@ bool AndroidToolChain::fromMap(const QVariantMap &data)
     return isValid();
 }
 
-QString AndroidToolChain::mkspec() const
+Utils::FileName AndroidToolChain::mkspec() const
 {
-    return "android-g++";
+    return Utils::FileName();//"android-g++"
 }
 
 QString AndroidToolChain::makeCommand() const

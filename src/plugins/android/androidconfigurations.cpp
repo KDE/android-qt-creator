@@ -12,7 +12,7 @@ are required by law.
 #include "ui_addnewavddialog.h"
 
 #include <coreplugin/icore.h>
-#include <projectexplorer/persistentsettings.h>
+#include <utils/persistentsettings.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDateTime>
@@ -34,7 +34,7 @@ are required by law.
 #define sleep(_n) Sleep(1000 * (_n))
 #endif
 
-using namespace ProjectExplorer;
+using namespace Utils;
 
 namespace Android {
 namespace Internal {

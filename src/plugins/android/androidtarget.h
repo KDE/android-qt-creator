@@ -11,6 +11,7 @@ are required by law.
 #define ANDROIDTEMPLATESCREATOR_H
 
 #include "qt4projectmanager/qt4target.h"
+#include "qt4projectmanager/qt4buildconfiguration.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QMap>
@@ -72,6 +73,7 @@ public:
     virtual ~AndroidTarget();
 
     Qt4ProjectManager::Qt4BuildConfigurationFactory *buildConfigurationFactory() const;
+
     void createApplicationProFiles();
 
     QList<ProjectExplorer::RunConfiguration *> runConfigurationsForNode(ProjectExplorer::Node *n);
@@ -174,7 +176,6 @@ private:
     QFileSystemWatcher *const m_androidFilesWatcher;
 
     Qt4ProjectManager::Qt4BuildConfigurationFactory *m_buildConfigurationFactory;
-
 };
 
 } // namespace Internal

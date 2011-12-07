@@ -36,10 +36,10 @@
 #endif
 
 #include <coreplugin/icore.h>
-#include <projectexplorer/persistentsettings.h>
 #include <utils/savedaction.h>
 #include <utils/qtcassert.h>
 #include <utils/pathchooser.h>
+#include <utils/persistentsettings.h>
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDebug>
@@ -49,7 +49,6 @@
 
 
 using namespace Utils;
-using namespace ProjectExplorer;
 
 static const char debugModeSettingsGroupC[] = "DebugMode";
 static const char sourcePathMappingArrayNameC[] = "SourcePathMappings";

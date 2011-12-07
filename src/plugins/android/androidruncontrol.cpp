@@ -18,6 +18,7 @@ are required by law.
 #include <utils/qtcassert.h>
 
 #include <QtGui/QMessageBox>
+#include <QtGui/QIcon>
 
 namespace Android {
 namespace Internal {

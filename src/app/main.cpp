@@ -190,7 +190,6 @@ static inline QStringList getPluginPaths()
     pluginPath += QLatin1String("/plugins/");
     pluginPath += QLatin1String(Core::Constants::IDE_VERSION_LONG);
     rc.push_back(pluginPath);
-#endif
     return rc;
 }
 

@@ -177,10 +177,7 @@ void RemoteGdbServerAdapter::setupInferior()
     const QByteArray remoteArch = sp.remoteArchitecture.toLatin1();
     const QByteArray gnuTarget = sp.gnuTarget.toLatin1();
     const QString args = sp.processArgs;
-
-    if (!solibPath.isEmpty() && !startParameters().solibSearchPath.isEmpty())
-        solibPath += PATHSEP;
-    solibPath += startParameters().solibSearchPath.join(PATHSEP).toLocal8Bit();
+    const QString solibSearchPath = startParameters().solibSearchPath.join(PATHSEP);
 
 
     if (!remoteArch.isEmpty())
@@ -189,6 +186,8 @@ void RemoteGdbServerAdapter::setupInferior()
         m_engine->postCommand("set gnutarget " + gnuTarget);
     if (!sysroot.isEmpty())
         m_engine->postCommand("set sysroot " + sysroot);
+    if (!solibSearchPath.isEmpty())
+        m_engine->postCommand("set solib-search-path " + solibSearchPath.toLocal8Bit());
     if (!args.isEmpty())
         m_engine->postCommand("-exec-arguments " + args.toLocal8Bit());
 

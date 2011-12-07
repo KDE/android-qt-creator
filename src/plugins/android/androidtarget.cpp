@@ -24,6 +24,7 @@ are required by law.
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 #include <qt4projectmanager/qt4target.h>
+#include <qt4projectmanager/qt4buildconfiguration.h>
 
 #include <QtCore/QBuffer>
 #include <QtCore/QDir>
@@ -206,7 +207,7 @@ QString AndroidTarget::localLibsRulesFilePath()
     const Qt4Project *const qt4Project = qobject_cast<const Qt4Project *>(project());
     if (!qt4Project)
         return "";
-    return qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"] + "/rules.xml";
+    return qt4Project->activeTarget()->activeQt4BuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"] + "/rules.xml";
 }
 
 QString AndroidTarget::loadLocal(int apiLevel, ItemType item)
@@ -355,7 +356,7 @@ bool AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
         AndroidPackageCreationStep::removeDirectory(AndroidDirName+QLatin1String("/src"));
 
     QStringList androidFiles;
-    QDirIterator it(qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_PREFIX"]+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
+    QDirIterator it(qt4Project->activeTarget()->activeQt4BuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_PREFIX"]+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
     int pos=it.path().size();
     while (it.hasNext()) {
         it.next();
@@ -696,9 +697,9 @@ QStringList AndroidTarget::availableQtLibs()
     const QString readelfPath = AndroidConfigurations::instance().readelfPath(activeRunConfiguration()->abi().architecture());
     QStringList libs;
     const Qt4Project *const qt4Project = qobject_cast<const Qt4Project *>(project());
-    if (!qt4Project || !qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion())
+    if (!qt4Project || !qt4Project->activeTarget()->activeQt4BuildConfiguration()->qtVersion())
         return libs;
-    QString qtLibsPath = qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"];
+    QString qtLibsPath = qt4Project->activeTarget()->activeQt4BuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_LIBS"];
     if (!QFile::exists(readelfPath)) {
         QDirIterator libsIt(qtLibsPath, QStringList() << "libQt*.so");
         while (libsIt.hasNext()) {

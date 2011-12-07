@@ -20,6 +20,7 @@ are required by law.
 #include <projectexplorer/projectexplorer.h>
 #include <projectexplorer/buildmanager.h>
 #include <projectexplorer/projectexplorerconstants.h>
+#include <projectexplorer/projectexplorer.h>
 #include <qt4projectmanager/qt4buildconfiguration.h>
 #include <qt4projectmanager/qmakestep.h>
 #include <qt4projectmanager/makestep.h>
@@ -309,7 +310,7 @@ void AndroidPackageCreationWidget::setApplicationName()
 void AndroidPackageCreationWidget::setTargetSDK(const QString & target)
 {
     m_step->androidTarget()->setTargetSDK(target);
-    Qt4BuildConfiguration *bc = m_step->androidTarget()->activeBuildConfiguration();
+    Qt4BuildConfiguration *bc = m_step->androidTarget()->activeQt4BuildConfiguration();
     ProjectExplorer::BuildManager * bm = ProjectExplorer::ProjectExplorerPlugin::instance()->buildManager();
     QMakeStep *qs = bc->qmakeStep();
 
@@ -318,8 +319,8 @@ void AndroidPackageCreationWidget::setTargetSDK(const QString & target)
 
     qs->setForced(true);
 
-    bm->buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
-    bm->appendStep(qs);
+    bm->buildList(bc->stepList(ProjectExplorer::Constants::BUILDSTEPS_CLEAN), ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
+    bm->appendStep(qs, ProjectExplorer::ProjectExplorerPlugin::displayNameForStepId(ProjectExplorer::Constants::BUILDSTEPS_CLEAN));
     bc->setSubNodeBuild(0);
     bool use=bc->useSystemEnvironment();
     bc->setUseSystemEnvironment(!use);
