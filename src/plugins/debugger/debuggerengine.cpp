@@ -1723,13 +1723,13 @@ void DebuggerEnginePrivate::handleAutoTestLine(int line)
     if (cmd == QLatin1String("Expand")) {
         m_engine->showMessage(_("'Expand' found in line %1, but not implemented yet.").arg(line));
         handleAutoTestLine(line + 1);
-    } else if (cmd == QLatin1String("Expand")) {
-        m_engine->showMessage(_("'Expand' found in line %1, but not implemented yet.").arg(line));
-        handleAutoTestLine(line + 1);
     } else if (cmd == QLatin1String("Check")) {
         QString name = s.section(QLatin1Char(' '), 1, 1);
         if (name.isEmpty()) {
             reportTestError(_("'Check'  needs arguments."), line);
+        } else if (name.contains(QChar('.'))) {
+            m_engine->showMessage(_("variable %1 found in line %2 contains '.', but 'Expand' is not implemented yet.").arg(name).arg(line));
+            handleAutoTestLine(line + 1);
         } else {
             QByteArray iname = "local." + name.toLatin1();
             QString found = m_engine->watchHandler()->displayForAutoTest(iname);
@@ -1752,6 +1752,9 @@ void DebuggerEnginePrivate::handleAutoTestLine(int line)
         QString name = s.section(QLatin1Char(' '), 1, 1);
         if (name.isEmpty()) {
             reportTestError(_("'CheckType'  needs arguments."), line);
+        } else if (name.contains(QChar('.'))) {
+            m_engine->showMessage(_("variable %1 found in line %2 contains '.', but 'Expand' is not implemented yet.").arg(name).arg(line));
+            handleAutoTestLine(line + 1);
         } else {
             QByteArray iname = "local." + name.toLatin1();
             QString found = m_engine->watchHandler()->displayForAutoTest(iname);

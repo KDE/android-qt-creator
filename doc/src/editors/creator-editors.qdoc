@@ -347,41 +347,386 @@
 
     \endlist
 
-    \section1 Checking JavaScript Syntax
+    \section1 Checking JavaScript and QML Syntax
 
-    You can run static checks on JavaScript to find common problems, such as:
-
-    \list
-
-        \o  Duplicate or conflicting variable, function, and formal parameter
-            declarations
-
-        \o  Variables and functions that are used before they are declared
-
-        \o  Possibly unsafe uses of the == or != operators
-
-        \o  Comma expressions, except in \c for statements
-
-        \o  Expression statements, except function or method calls, assignments,
-            or \c delete
-
-        \o  Assignments within conditions (such as, \c {if (a = b)})
-
-        \o  Case blocks within a switch that do not end with a return, break,
-            continue, or throw and that are not empty
-
-        \o  Nested block statements
-
-        \o  \c with statements
-
-        \o  \c void expressions
-
-    \endlist
+    You can run static checks on the QML and JavaScript code in your project
+    to find common problems.
 
     To run the checks, select \gui {Tools > QML/JS > Run Checks} or press
     \key Ctrl+Shift+C. The results are shown in the \gui {QML Analysis}
     filter of the \gui {Issues} output pane.
 
+
+    \section1 List of JavaScript and QML Checks
+
+    Many of the JavaScript checks are similar to the ones in Douglas
+    Crockford's JSLint tool and are explained well on
+    \l{http://www.jslint.com/lint.html}{the JSLint website}.
+
+    \table
+    \header
+        \o Id
+        \o Severity
+        \o Message
+        \o Description
+
+    \row
+        \o M1
+        \o Error
+        \o Invalid value for enum
+        \o
+
+    \row
+        \o M2
+        \o Error
+        \o Enum value must be a string or a number
+        \o
+
+    \row
+        \o M3
+        \o Error
+        \o Number value expected
+        \o
+
+    \row
+        \o M4
+        \o Error
+        \o Boolean value expected
+        \o
+
+    \row
+        \o M5
+        \o Error
+        \o String value expected
+        \o
+
+    \row
+        \o M6
+        \o Error
+        \o Invalid URL
+        \o
+
+    \row
+        \o M7
+        \o Warning
+        \o File or directory does not exist
+        \o
+
+    \row
+        \o M8
+        \o Error
+        \o Invalid color
+        \o
+
+    \row
+        \o M9
+        \o Error
+        \o Anchor line expected
+        \o
+
+    \row
+        \o M10
+        \o Error
+        \o Duplicate property binding
+        \o
+
+    \row
+        \o M11
+        \o Error
+        \o Id expected
+        \o
+
+    \row
+        \o M14
+        \o Error
+        \o Invalid id
+        \o
+
+    \row
+        \o M15
+        \o Error
+        \o Duplicate id
+        \o Ids in a file must be unique.
+
+    \row
+        \o M16
+        \o Error
+        \o Invalid property name 'name'
+        \o
+
+    \row
+        \o M17
+        \o Error
+        \o 'Name' does not have members
+        \o
+
+    \row
+        \o M18
+        \o Error
+        \o 'Field' is not a member of 'object'
+        \o
+
+    \row
+        \o M19
+        \o Warning
+        \o Assignment in condition
+        \o It could be a typing error. If it is intentional, wrap the
+           assignment in parentheses.
+
+    \row
+        \o M20
+        \o Warning
+        \o Unterminated non-empty case block
+        \o Case blocks should either be empty or end in a flow control
+           statement such as 'break', 'return' or 'continue'.
+           Alternatively you can indicate intentional fall through by
+           ending with a '// fall through' comment.
+
+    \row
+        \o M23
+        \o Warning
+        \o Do not use 'eval'
+        \o
+
+    \row
+        \o M28
+        \o Warning
+        \o Unreachable
+        \o Indicates that the underlined statement will never be
+           executed.
+
+    \row
+        \o M29
+        \o Warning
+        \o Do not use 'with'
+        \o
+
+    \row
+        \o M30
+        \o Warning
+        \o Do not use comma expressions
+        \o
+
+    \row
+        \o M31
+        \o Warning
+        \o Unnecessary message suppression
+        \o
+
+    \row
+        \o M103
+        \o Warning
+        \o 'Name' is already a formal parameter
+        \o
+
+    \row
+        \o M104
+        \o Warning
+        \o 'Name' is already a function
+        \o
+
+    \row
+        \o M105
+        \o Warning
+        \o Var 'name' is used before its declaration
+        \o
+
+    \row
+        \o M106
+        \o Warning
+        \o 'Name' is already a var
+        \o
+
+    \row
+        \o M107
+        \o Warning
+        \o 'Name' is declared more than once
+        \o Variables declared in a function are always visible everywhere
+           in the function, even when declared in nested blocks or
+           'for' statement conditions. Redeclaring a variable has no
+           effect.
+
+    \row
+        \o M108
+        \o Warning
+        \o Function 'name' is used before its declaration
+        \o
+
+    \row
+        \o M109
+        \o Warning
+        \o Do not use 'Boolean' as a constructor
+        \o
+
+    \row
+        \o M110
+        \o Warning
+        \o Do not use 'String' as a constructor
+        \o
+
+    \row
+        \o M111
+        \o Warning
+        \o Do not use 'Object' as a constructor
+        \o
+
+    \row
+        \o M112
+        \o Warning
+        \o Do not use 'Array' as a constructor
+        \o
+
+    \row
+        \o M113
+        \o Warning
+        \o Do not use 'Function' as a constructor
+        \o
+
+    \row
+        \o M114
+        \o Hint
+        \o The 'function' keyword and the opening parenthesis should be separated by a single space
+        \o
+
+    \row
+        \o M115
+        \o Warning
+        \o Do not use stand-alone blocks
+        \o Blocks do not affect variable scoping. Thus blocks that are
+           not associated to 'if', 'while', etc. have no effect and
+           should be avoided.
+
+    \row
+        \o M116
+        \o Warning
+        \o Do not use void expressions
+        \o
+
+    \row
+        \o M117
+        \o Warning
+        \o Confusing pluses
+        \o
+
+    \row
+        \o M119
+        \o Warning
+        \o Confusing minuses
+        \o
+
+    \row
+        \o M121
+        \o Hint
+        \o Declare all function vars on a single line
+        \o
+
+    \row
+        \o M123
+        \o Hint
+        \o Unnecessary parentheses
+        \o
+
+    \row
+        \o M126
+        \o Warning
+        \o == and != may perform type coercion, use === or !== to avoid
+        \o The non-strict equality comparison is allowed to convert its
+           arguments to a common type. That can lead to unexpected
+           results such as ' \t\r\n' == 0 being true. Prefer to use the
+           strict equality operators === and !== and be explicit about
+           conversions you require.
+    \row
+        \o M305
+        \o Warning
+        \o == and != perform type coercion, use === or !== to avoid
+        \o (see above)
+
+    \row
+        \o M127
+        \o Warning
+        \o Expression statements should be assignments, calls or delete expressions only
+        \o
+
+    \row
+        \o M201
+        \o Hint
+        \o Var declarations should be at the start of a function
+        \o
+
+    \row
+        \o M202
+        \o Hint
+        \o Only use one statement per line
+        \o
+
+    \row
+        \o M300
+        \o Error
+        \o Unknown component
+        \o
+
+    \row
+        \o M301
+        \o Error
+        \o Could not resolve the prototype 'name' of 'object'
+        \o
+
+    \row
+        \o M302
+        \o Error
+        \o Could not resolve the prototype 'name'
+        \o
+
+    \row
+        \o M303
+        \o Error
+        \o Prototype cycle, the last non-repeated component is 'name'
+        \o
+
+    \row
+        \o M304
+        \o Error
+        \o Invalid property type 'name'
+        \o
+
+    \row
+        \o M306
+        \o Warning
+        \o Calls of functions that start with an uppercase letter should use 'new'
+        \o By convention, functions that start with an uppercase letter
+           are constructor functions that should only be used with 'new'.
+
+    \row
+        \o M307
+        \o Warning
+        \o 'new' should only be used with functions that start with an uppercase letter
+        \o
+
+    \row
+        \o M308
+        \o Warning
+        \o Do not use 'Number' as a constructor
+        \o
+
+    \row
+        \o M309
+        \o Hint
+        \o Use spaces around binary operators
+        \o
+
+    \row
+        \o M310
+        \o Warning
+        \o Unintentional empty block, use ({}) for empty object literal
+        \o
+
+    \row
+        \o M311
+        \o Hint
+        \o Use 'type' instead of 'var' or 'variant' to improve performance
+        \o
+
+    \endtable
 */
 
 
@@ -1597,6 +1942,11 @@
             \i  Function signature. When this action is available, a light bulb
                 icon appears:
                 \inlineimage qml-toolbar-indicator.png
+        \row
+            \i  Add #include for undeclared identifier
+            \i  Adds an #include directive to the current file to make the
+                declaration of a symbol available.
+            \i  Undeclared identifier
     \endtable
 
    \section2 Refactoring QML Code
@@ -1629,14 +1979,9 @@
             \i Moves a QML element into a separate file
             \i Element name
         \row
-            \i Rename id
-            \i Renames all instances of an element ID in the currently open file
-            \i Element ID
-        \row
             \i Split Initializer
             \i Reformats a one-line element into a multi-line element. For example,
             rewrites
-
     \code
     Item { x: 10; y: 20; width: 10 }
     \endcode
@@ -1651,6 +1996,16 @@
     }
     \endcode
             \i Element property
+        \row
+            \i Wrap in Loader
+            \i Wraps the element in a Component element and loads it dynamically in
+               a Loader element. This is usually done to improve startup time.
+            \i Element name
+        \row
+            \i Add a message suppression comment
+            \i Prepends the line with an annotation comment that stops the message
+               from being generated.
+            \i Error, warning or hint from static analysis
 
     \endtable
    */

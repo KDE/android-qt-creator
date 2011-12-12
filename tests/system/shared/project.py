@@ -26,7 +26,7 @@ def openQmakeProject(projectPath):
         clickButton(findObject("{text='Open' type='QPushButton'}"))
     waitForObject("{type='Qt4ProjectManager::Internal::ProjectLoadWizard' visible='1' windowTitle='Project Setup'}")
     selectFromCombo(":scrollArea.Create Build Configurations:_QComboBox", "For Each Qt Version One Debug And One Release")
-    clickButton(findObject("{text~='(Finish|Done)' type='QPushButton'}"))
+    clickButton(waitForObject("{text~='(Finish|Done)' type='QPushButton'}"))
 
 def openCmakeProject(projectPath):
     invokeMenuItem("File", "Open File or Project...")
@@ -106,7 +106,7 @@ def createProject_Qt_GUI(path, projectName, qtVersion, checks):
     __createProjectSetNameAndPath__(path, projectName, checks)
     __chooseTargets__()
     selectFromCombo(":scrollArea.Create Build Configurations:_QComboBox_2", "For One Qt Version One Debug And One Release")
-    selectFromCombo(":scrollArea.Qt Version:_QComboBox", qtVersion.replace(".", "\\."))
+    selectFromCombo(":scrollArea.Qt Version:_QComboBox", qtVersion)
     if checks:
         if platform.system() in ('Windows', 'Microsoft'):
             path = os.path.abspath(path)

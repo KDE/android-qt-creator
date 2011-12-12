@@ -54,7 +54,7 @@ public:
     explicit CommitEditor(const VCSBase::VCSBaseSubmitEditorParameters *parameters,
                           QWidget *parent);
 
-    void setFields(const BranchInfo &branch,
+    void setFields(const QString &repositoryRoot, const BranchInfo &branch,
                    const QString &userName, const QString &email,
                    const QList<VCSBase::VCSBaseClient::StatusItem> &repoStatus);
 

@@ -30,11 +30,39 @@
 **
 **************************************************************************/
 
-import QtQuick 1.1
-import qtcomponents 1.0
+#ifndef COMPLETINGTEXTEDIT_H
+#define COMPLETINGTEXTEDIT_H
 
-ScrollArea {
-    horizontalScrollBar.visible: false
-    frame: false
-    clip: true
-}
+#include "utils_global.h"
+
+#include <QtGui/QTextEdit>
+
+QT_BEGIN_NAMESPACE
+class QCompleter;
+QT_END_NAMESPACE
+
+namespace Utils {
+
+class QTCREATOR_UTILS_EXPORT CompletingTextEdit : public QTextEdit
+{
+    Q_OBJECT
+
+public:
+    CompletingTextEdit(QWidget *parent = 0);
+    ~CompletingTextEdit();
+
+    void setCompleter(QCompleter *c);
+    QCompleter *completer() const;
+
+protected:
+    void keyPressEvent(QKeyEvent *e);
+    void focusInEvent(QFocusEvent *e);
+
+private:
+    class CompletingTextEditPrivate *d;
+    Q_PRIVATE_SLOT(d, void insertCompletion(const QString &))
+};
+
+} // namespace Utils
+
+#endif // COMPLETINGTEXTEDIT_H

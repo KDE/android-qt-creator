@@ -37,7 +37,7 @@ def prepareBuildSettings(targetCount, currentTarget, setReleaseBuild=True, disab
             wait = False
             try:
                 if qtCombo.currentText != defaultQtVersion:
-                    selectFromCombo(qtCombo, defaultQtVersion.replace(".", "\\."))
+                    selectFromCombo(qtCombo, defaultQtVersion)
                 if setReleaseBuild:
                     chooseThis = "%s Release" % defaultQtVersion
                 else:
@@ -93,3 +93,13 @@ def switchToBuildOrRunSettingsFor(targetCount, currentTarget, projectSettings, i
     mouseClick(targetSel, xToClick, yToClick, 0, Qt.LeftButton)
     return True
 
+# this function switches "Run in terminal" on or off in a project's run settings
+# param targetCount specifies the number of targets currently defined (must be correct!)
+# param currentTarget specifies the target for which to switch into the specified settings (zero based index)
+# param runInTerminal specifies if "Run in terminal should be turned on (True) or off (False)
+def setRunInTerminal(targetCount, currentTarget, runInTerminal=True):
+    switchViewTo(ViewConstants.PROJECTS)
+    switchToBuildOrRunSettingsFor(targetCount, currentTarget, ProjectSettings.RUN)
+    ensureChecked("{container=':Qt Creator.scrollArea_QScrollArea' text='Run in terminal'\
+                    type='QCheckBox' unnamed='1' visible='1'}", runInTerminal)
+    switchViewTo(ViewConstants.EDIT)
