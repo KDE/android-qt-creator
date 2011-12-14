@@ -159,6 +159,7 @@ void dummyStatement(...) {}
 #if USE_BOOST
 #include <boost/optional.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
 #endif
 
 #if USE_EIGEN
@@ -193,7 +194,7 @@ void dummyStatement(...) {}
 #       define BREAK_HERE asm("int $3; mov %eax, %eax")
 #   endif
 #else
-#   define BREAK_HERE /**/
+#   define BREAK_HERE dummyStatement()
 #endif
 
 #if USE_UNINITIALIZED_AUTOBREAK
@@ -203,7 +204,7 @@ void dummyStatement(...) {}
 #       define BREAK_UNINITIALIZED_HERE asm("int $3; mov %eax, %eax")
 #   endif
 #else
-#   define BREAK_UNINITIALIZED_HERE /**/
+#   define BREAK_UNINITIALIZED_HERE dummyStatement()
 #endif
 
 
@@ -658,6 +659,11 @@ namespace qfileinfo {
         file.setObjectName("A QFile instance");
         QFileInfo fi("/tmp/tt");
         QString s = fi.absoluteFilePath();
+        BREAK_HERE;
+        // Check fi "/tmp/tt" QFileInfo.
+        // Check file "/tmp/t" QFile.
+        // Check s "/tmp/t" QString.
+        // Continue.
         dummyStatement(&file, &s);
     }
 
@@ -5068,11 +5074,52 @@ namespace boost {
         dummyStatement(&s, &j, &sl);
     }
 
+    void testBoostGregorianDate()
+    {
+        using namespace boost;
+        using namespace gregorian;
+        date d(2005, Nov, 29);
+        BREAK_HERE;
+        // Check d Tue Nov 29 2005 boost::gregorian::date.
+        // Continue
+
+        d += months(1);
+        BREAK_HERE;
+        // Check d Thu Dec 29 2005 boost::gregorian::date.
+        // Continue
+
+        d += months(1);
+        BREAK_HERE;
+        // Check d Sun Jan 29 2006 boost::gregorian::date.
+        // Continue
+
+        // snap-to-end-of-month behavior kicks in:
+        d += months(1);
+        BREAK_HERE;
+        // Check d Tue Feb 28 2006 boost::gregorian::date6.
+        // Continue.
+
+        // Also end of the month (expected in boost)
+        d += months(1);
+        BREAK_HERE;
+        // Check d Fri Mar 31 2006 boost::gregorian::date.
+        // Continue.
+
+        // Not where we started (expected in boost)
+        d -= months(4);
+        BREAK_HERE;
+        // Check d Tue Nov 30 2005 boost::gregorian::date.
+        // Continue.
+
+        dummyStatement(&d);
+    }
+
     void testBoost()
     {
         testBoostOptional1();
         testBoostOptional2();
         testBoostSharedPtr();
+        testBoostGregorianDate();
     }
 
     #else
@@ -5319,27 +5366,19 @@ namespace bug4019 {
 } // namespave bug4019
 
 
-namespace bug4497 {
+namespace bug4997 {
 
-    // http://bugreports.qt.nokia.com/browse/QTCREATORBUG-4497
+    // http://bugreports.qt.nokia.com/browse/QTCREATORBUG-4997
 
-    void test4497()
+    void test4997()
     {
         using namespace std;
-        //cin.get(); // if commented out, the debugger doesn't stop at the breakpoint in the next line.
-        cout << "Hello, world!" << endl; BREAK_HERE;
-
-        int sum = 0;
-        for (int i = 1; i <= 10; i++)
-            sum += i;
-
-        cout << sum << endl;
-        cout << "Enter a number: ";
-        int n;
-        cin >> n;
-        cout << "You entered " << n << "!" << endl;
+        // cin.get(); // if commented out, the debugger doesn't stop at the breakpoint
+        // in the next line on Windows when "Run in Terminal" is used.^
+        dummyStatement();
     }
 }
+
 
 namespace bug4904 {
 
@@ -5749,6 +5788,50 @@ namespace gdb13393 {
 } // namespace gdb13393
 
 
+namespace gdb10586 {
+
+    // http://sourceware.org/bugzilla/show_bug.cgi?id=10586. fsf/MI errors out
+    // on -var-list-children on an anonymous union. mac/MI was fixed in 2006.
+    // The proposed fix has been reported to crash gdb steered from eclipse.
+    // http://sourceware.org/ml/gdb-patches/2011-12/msg00420.html
+    // Check we are not harmed by either version.
+    void testmi()
+    {
+        struct test {
+            struct { int a; float b; };
+            struct { int c; float d; };
+        } v = {{1, 2}, {3, 4}};
+        BREAK_HERE;
+        // Expand v.
+        // Check v gdb10586::test.
+        // Check a 1 int.
+        // Continue.
+        dummyStatement(&v);
+    }
+
+    void testeclipse()
+    {
+        struct { int x; struct { int a; }; struct { int b; }; } v = {1, {2}, {3}};
+        struct s { int x, y; } n = {10, 20};
+        BREAK_HERE;
+        // Expand v n.
+        // Check v {...}.
+        // Check n gdb10586.
+        // Check a 2.
+        // Check x 1.
+        // Continue.
+        dummyStatement(&v, &n);
+    }
+
+    void test10586()
+    {
+        testmi();
+        testeclipse();
+    }
+
+} // namespace gdb10586
+
+
 namespace valgrind {
 
     void testLeak()
@@ -5886,12 +5969,13 @@ int main(int argc, char *argv[])
     bug842::test842();
     bug3611::test3611();
     bug4019::test4019();
-    //bug4497::test4497();
+    bug4997::test4997();
     bug5106::test5106();
     bug5184::test5184();
     bug5799::test5799();
     bug6465::test6465();
     gdb13393::test13393();
+    gdb10586::test10586();
 
     final::testFinal(&app);
 

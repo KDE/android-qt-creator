@@ -27,185 +27,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-project-managing-sessions.html
-    \page creator-coding.html
-    \nextpage creator-editor-using.html
-
-    \title Coding
-
-    Writing, editing, and navigating in source code are core tasks in
-    application development. Therefore, the code editor is one of the key
-    components of \QC. You can use the code editor in the \gui Edit
-    mode.
-
-    The following sections describe coding with \QC:
-
-    \list
-
-        \o  \l{Using the Editor} describes how to work in the code editor, use
-            the editor toolbar, split the view, add bookmarks, and move between
-            symbol definitions and declarations.
-
-        \o  \l{Semantic Highlighting} describes highlighting code elements and
-            blocks, as well as using syntax highlighting also for other types
-            of files than C++ or QML.
-
-        \o  \l{Checking Code Syntax} describes how errors are visualized
-            while you write code.
-
-        \o  \l{Completing Code} describes how code and code snippets are
-            completed for elements, properties, an IDs.
-
-        \o  \l{Indenting Code} describes how to specify indentation either
-            globally for all files or separately for: text, C++, or QML files.
-
-        \o  \l{Finding and Replacing} describes the incremental search that
-            highlights the matching strings in the window while typing and the
-            advanced search that allows you to search from currently open
-            projects or files on the file system. In addition, you can search
-            for symbols when you want to refactor code.
-
-        \o  \l{Refactoring} describes the features that help you improve the
-            internal quality or your application, its performance and
-            extendibility, and code readability and maintainability, as well as
-            to simplify code structure.
-
-        \o  \l{Using Qt Quick Toolbars} describes how to use the Qt Quick
-            Toolbars to edit the properties of QML elements in the code editor.
-
-        \o  \l{Searching with the Locator} describes how to browse through
-            projects, files, classes, methods, documentation and file systems.
-
-        \o  \l{Pasting and Fetching Code Snippets} describes how to cooperate
-            with other developers by pasting and fetching snippets of code from
-            a server.
-
-        \o  \l{Using Text Editing Macros} describes how to record and play
-            text editing macros.
-
-        \o  \l{Configuring the Editor} describes how to change the text editor
-            options to suit your specific needs.
-
-        \o  \l{Using FakeVim Mode} describes how to run the main editor in a
-            manner similar to the Vim editor.
-
-    \endlist
-
-*/
-
-
-/*!
-    \contentspage index.html
-    \previouspage creator-coding.html
-    \page creator-editor-using.html
-    \nextpage creator-highlighting.html
-
-    \title Using the Editor
-
-    \QC's code editor is designed to aid you in creating, editing and
-    navigating code.  \QC's code editor is fully equipped with syntax
-    checking, code completion, context sensitive help and in-line error
-    indicators while you are typing.
-
-    \image qtcreator-edit-mode.png "Edit mode"
-
-    \section1 Using the Editor Toolbar
-
-    The editor toolbar is located at the top of the editor view. The editor
-    toolbar is context sensitive and shows items relevant to the file currently
-    open in the editor.
-
-    \image qtcreator-editortoolbar-symbols.png
-
-    Use the toolbar to navigate between open files and symbols in use.
-    To browse forward or backward through your location history, click
-           \inlineimage qtcreator-back.png
-           and \inlineimage qtcreator-forward.png
-           .
-
-    To go to any open file, select it from the \gui{Open files} drop-down menu.
-    Right-click the menu title and select \gui {Copy Full Path to Clipboard} to
-    copy the path and name of the current file to the clipboard.
-
-    To jump to any symbol used in the current file, select it from the
-    \gui Symbols drop-down menu. By default, the symbols are displayed in the
-    order in which they appear in the file. Right-click the menu title and
-    select \gui {Sort Alphabetically} to arrange the symbols in alphabetic
-    order.
-
-    \section1 Splitting the Editor View
-
-    Split the editor view when you want to work on and view multiple files on
-    the same screen.
-
-    \image qtcreator-spliteditorview.png
-
-    You can split the editor view in the following ways:
-
-    \list
-
-        \o  To split the editor view into a top and bottom view, select
-            \gui Window > \gui Split or press \key{Ctrl+E, 2}.
-
-            Split command creates views below the currently active editor view.
-
-        \o  To split the editor view into adjacent views, select
-            \gui Window > \gui{Split Side by Side} or press \key{Ctrl+E, 3}.
-
-           Side by side split command creates views to the right of the
-           currently active editor view.
-
-    \endlist
-
-    To move between split views, select \gui Window > \gui{Go to Next Split} or
-    press \key{Ctrl+E, O}.
-
-    To remove a split view, place the cursor within the view you want to
-    remove and select \gui Window > \gui{Remove Current Split} or press
-    \key{Ctrl+E, 0}. To remove all but the currently selected split view,
-    select \gui Window > \gui{Remove All Splits} or press \key{Ctrl+E, 1}.
-
-    \section1 Using Bookmarks
-
-    To insert or delete a bookmark right-click the line number and select
-    \gui{Toggle Bookmark} or press \key{Ctrl+M}.
-
-    \image qtcreator-togglebookmark.png
-
-    To go to previous bookmark in the current session, press \key{Ctrl+,}.
-
-    To go to next bookmark in the current session, press \key{Ctrl+.}.
-
-    \section1 Moving to Symbol Definition or Declaration
-
-    You can move directly to the definition or the declaration of a symbol by
-    holding the \key Ctrl and clicking the symbol.
-
-    To enable this moving function, in \gui Tools > \gui{Options} >
-    \gui{Text Editor} > \gui Behavior, select \gui{Enable mouse navigation}.
-
-    You can also select the symbol and press \key F2, or right-click the symbol
-    and select \gui {Follow Symbol Under Cursor} to move to its definition or
-    declaration. This feature is supported for namespaces, classes, methods,
-    variables, include statements, and macros.
-
-    To switch between the definition and declaration of a symbol, press
-    \key {Shift+F2} or right-click the symbol and select \gui {Switch Between
-    Method Declaration/Definition}.
-
-    \section1 Using Update Code Model
-
-    To refresh the internal information in \QC pertaining to your code,
-    select \gui{Tools} > \gui{C++} > \gui{Update Code Model}.
-
-    \note In \QC indexing updates the code automatically. Use
-    \gui{Update Code Model} only as an emergency command.
-*/
-
-
-/*!
-    \contentspage index.html
-    \previouspage creator-editor-using.html
+    \previouspage creator-coding-navigating.html
     \page creator-highlighting.html
     \nextpage creator-checking-code-syntax.html
 
@@ -632,7 +454,7 @@
         \o == and != may perform type coercion, use === or !== to avoid
         \o The non-strict equality comparison is allowed to convert its
            arguments to a common type. That can lead to unexpected
-           results such as ' \t\r\n' == 0 being true. Prefer to use the
+           results such as \c {' \t\r\n' == 0} being true. Prefer to use the
            strict equality operators === and !== and be explicit about
            conversions you require.
     \row
@@ -768,62 +590,62 @@
             \o Icon
             \o Description
         \row
-            \i  \inlineimage completion/class.png
-            \i  A class
+            \o  \inlineimage completion/class.png
+            \o  A class
         \row
-            \i  \inlineimage completion/enum.png
-            \i  An enum
+            \o  \inlineimage completion/enum.png
+            \o  An enum
         \row
-            \i  \inlineimage completion/enumerator.png
-            \i  An enumerator (value of an enum)
+            \o  \inlineimage completion/enumerator.png
+            \o  An enumerator (value of an enum)
         \row
-            \i  \inlineimage completion/func.png
-            \i  A function
+            \o  \inlineimage completion/func.png
+            \o  A function
         \row
-            \i  \inlineimage completion/func_priv.png
-            \i  A private function
+            \o  \inlineimage completion/func_priv.png
+            \o  A private function
         \row
-            \i  \inlineimage completion/func_prot.png
-            \i  A protected function
+            \o  \inlineimage completion/func_prot.png
+            \o  A protected function
         \row
-            \i  \inlineimage completion/var.png
-            \i  A variable
+            \o  \inlineimage completion/var.png
+            \o  A variable
         \row
-            \i  \inlineimage completion/var_priv.png
-            \i  A private variable
+            \o  \inlineimage completion/var_priv.png
+            \o  A private variable
         \row
-            \i  \inlineimage completion/var_prot.png
-            \i  A protected variable
+            \o  \inlineimage completion/var_prot.png
+            \o  A protected variable
         \row
-            \i  \inlineimage completion/signal.png
-            \i  A signal
+            \o  \inlineimage completion/signal.png
+            \o  A signal
         \row
-            \i  \inlineimage completion/slot.png
-            \i  A slot
+            \o  \inlineimage completion/slot.png
+            \o  A slot
         \row
-            \i  \inlineimage completion/slot_priv.png
-            \i  A private slot
+            \o  \inlineimage completion/slot_priv.png
+            \o  A private slot
         \row
-            \i  \inlineimage completion/slot_prot.png
-            \i  A protected slot
+            \o  \inlineimage completion/slot_prot.png
+            \o  A protected slot
         \row
-            \i  \inlineimage completion/keyword.png
-            \i  A C++ keyword
+            \o  \inlineimage completion/keyword.png
+            \o  A C++ keyword
         \row
-            \i  \inlineimage completion/snippet.png
-            \i  A C++ code snippet
+            \o  \inlineimage completion/snippet.png
+            \o  A C++ code snippet
         \row
-            \i  \inlineimage completion/element.png
-            \i  A QML element
+            \o  \inlineimage completion/element.png
+            \o  A QML element
         \row
-            \i  \inlineimage completion/qmlsnippet.png
-            \i  A QML code snippet
+            \o  \inlineimage completion/qmlsnippet.png
+            \o  A QML code snippet
         \row
-            \i  \inlineimage completion/macro.png
-            \i  A macro
+            \o  \inlineimage completion/macro.png
+            \o  A macro
         \row
-            \i  \inlineimage completion/namespace.png
-            \i  A namespace
+            \o  \inlineimage completion/namespace.png
+            \o  A namespace
     \endtable
 
     \section2 Completing Code Snippets
@@ -918,7 +740,7 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-editor-locator.html
+    \previouspage qt-quick-toolbars.html
     \page creator-editor-codepasting.html
     \nextpage creator-macros.html
 
@@ -967,14 +789,9 @@
     \contentspage index.html
     \previouspage creator-editor-codepasting.html
     \page creator-macros.html
-    \nextpage creator-editor-options.html
+    \nextpage creator-finding-overview.html
 
     \title Using Text Editing Macros
-
-    When you have a file open in the code editor, you can record a keyboard
-    sequence as a macro. You can then play the macro to repeat the sequence.
-    You can save the latest macro and assign a keyboard shortcut for running
-    it or run it from the locator.
 
     To record a text editing macro, select \gui {Tools > Macros > Record Macro}
     or press \key {Alt+(}. To stop recording, select \gui {Tools > Macros >
@@ -1000,9 +817,9 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-editor-options.html
+    \previouspage creator-editor-options-text.html
     \page creator-editor-fakevim.html
-    \nextpage creator-design-mode.html
+    \nextpage creator-mime-types.html
 
     \title Using FakeVim Mode
 
@@ -1036,116 +853,11 @@
 
     */
 
-
-/*!
-    \contentspage index.html
-    \previouspage creator-macros.html
-    \page creator-editor-options.html
-    \nextpage creator-editor-fakevim.html
-
-    \title Configuring the Editor
-
-    \QC allows you to configure the text editor to suit your specific
-    needs. To configure the editor, select  \gui Tools > \gui{Options} >
-    \gui{Text Editor}.
-
-    These settings apply to all projects. To specify editor behavior for an
-    open project, select \gui {Projects > Editor Settings}. For more
-    information, see \l{Specifying Editor Settings}.
-
-    You can also specify indentation settings separately for C++ and QML files
-    either globally or for the open project. For more information, see
-    \l{Indenting Code}.
-
-    \image qtcreator-font-colors.png "Text editor options"
-
-    You can perform the following configuration actions:
-
-    \list
-
-        \o  Set the font preferences and apply color schemes for syntax
-            highlighting in \gui{Font & Colors}.
-
-        \o  Specify \l{Generic Highlighting}
-            {definition files for syntax highlighting} for other types of files
-             than C++ or QML in \gui{Generic Highlighter}.
-
-        \o  Set tabs, indentation, the handling of whitespace, and mouse
-            operations in \gui Behavior. For more information, see
-            \l{Indenting Code}.
-
-        \o  Set various display properties, for example,
-            \l{Highlighting and folding blocks}
-            {highlighting and folding blocks}, text wrapping or
-            \l{Moving to symbol definition or declaration}
-            {moving to symbol definition or declaration} in \gui Display.
-
-        \o  Add, modify, and remove \l{Editing Code Snippets}{code snippets} in
-            \gui Snippets.
-
-        \o  View and remove \l{Using Text Editing Macros}{text editing macros}
-            in \gui Macros.
-
-        \o  Configure \l{Completing Code}{code completion} in \gui Completion.
-
-    \endlist
-
-    \section2 Configuring Fonts
-
-    You can select the font family and size. You can specify a zoom setting in
-    percentage for viewing the text. You can also zoom in or out by pressing
-    \key {Ctrl++} or \key {Ctrl +-}, or by pressing \key Ctrl and rolling
-    the mouse button up or down. To disable the mouse wheel function, select
-    \gui {Tools > Options > Text Editor > Behavior} and deselect the
-    \gui {Enable scroll wheel zooming} check box.
-
-    Antialiasing is used by default to make text look smoother and more
-    readable on the screen. Deselect the \gui Antialias check box to
-    turn off antialiasing.
-
-    \section2 Defining Color Schemes
-
-    You can select one of the predefined color schemes for syntax highlighting
-    or create customized color schemes. The color schemes apply to highlighting
-    both C++ and QML files and generic files.
-
-    To create a color scheme:
-
-    \list 1
-
-        \o  Select \gui {Tools > Options > Text Editor > Fonts & Color > Copy}.
-
-        \o  Enter a name for the color scheme and click \gui OK.
-
-        \o  In the \gui Foreground field, specify the color of the selected
-            code element.
-
-        \o  In the \gui Background field, select the background
-            color for the code element.
-
-        The backgound of the \gui Text element determines the background of the
-        code editor.
-
-    \endlist
-
-    When you copy code from \QC, it is copied in both plain text and HTML
-    format. The latter makes sure that syntax highlighting is preserved when
-    pasting to a rich-text editor.
-
-    \section2 File Encoding
-
-    To define the default file encoding, select the desired encoding in
-    \gui {Default encoding}. By default, \QC uses the file encoding
-    used by your system.
-
-*/
-
-
 /*!
     \contentspage index.html
     \previouspage creator-completing-code.html
     \page creator-indenting-code.html
-    \nextpage creator-editor-finding.html
+    \nextpage qt-quick-toolbars.html
 
     \title Indenting Code
 
@@ -1353,9 +1065,9 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-indenting-code.html
+    \previouspage creator-finding-overview.html
     \page creator-editor-finding.html
-    \nextpage creator-editor-refactoring.html
+    \nextpage creator-editor-locator.html
 
     \title Finding and Replacing
 
@@ -1479,15 +1191,13 @@
 
 /*!
     \contentspage index.html
-    \previouspage creator-editor-finding.html
+    \previouspage creator-editor-locator.html
     \page creator-editor-refactoring.html
-    \nextpage qt-quick-toolbars.html
+    \nextpage creator-editor-options.html
 
     \title Refactoring
 
-    Code refactoring is the process of changing the code without modifying the
-    existing functionality of your application. By refactoring your code you
-    can:
+    Refactor code to:
 
     \list
 
@@ -1646,12 +1356,12 @@
 
     \table
         \header
-            \i Refactoring Action
-            \i Description
-            \i Activation
+            \o Refactoring Action
+            \o Description
+            \o Activation
         \row
-            \i Add Curly Braces
-            \i Adds curly braces to an if statement that does not contain a
+            \o Add Curly Braces
+            \o Adds curly braces to an if statement that does not contain a
             compound statement. For example, rewrites
 
     \code
@@ -1666,10 +1376,10 @@
         b;
     }
     \endcode
-            \i if
+            \o if
         \row
-            \i Move Declaration out of Condition
-            \i Moves a declaration out of an if or while condition to simplify the
+            \o Move Declaration out of Condition
+            \o Moves a declaration out of an if or while condition to simplify the
             condition. For example, rewrites
 
     \code
@@ -1682,10 +1392,10 @@
     Type name = foo;
     if (name) {}
     \endcode
-            \i Name of the introduced variable
+            \o Name of the introduced variable
         \row
-            \i Rewrite Condition Using ||
-            \i Rewrites the expression according to De Morgan's laws. For example,
+            \o Rewrite Condition Using ||
+            \o Rewrites the expression according to De Morgan's laws. For example,
              rewrites:
     \code
     !a && !b
@@ -1696,10 +1406,10 @@
     \code
     !(a || b)
     \endcode
-            \i &&
+            \o &&
         \row
-            \i Rewrite Using \e operator
-            \i Rewrites an expression negating it and using the inverse operator. For
+            \o Rewrite Using \e operator
+            \o Rewrites an expression negating it and using the inverse operator. For
             example, rewrites:
 
             \list
@@ -1736,10 +1446,10 @@
 
     \endlist
 
-            \i <= < > >= == !=
+            \o <= < > >= == !=
         \row
-            \i Split Declaration
-            \i Splits a simple declaration into several declarations. For example,
+            \o Split Declaration
+            \o Splits a simple declaration into several declarations. For example,
             rewrites:
     \code
     int *a, b;
@@ -1751,10 +1461,10 @@
     int *a;
     int b;
     \endcode
-            \i Type name or variable name
+            \o Type name or variable name
         \row
-            \i Split if Statement
-            \i Splits an if statement into several statements. For example, rewrites:
+            \o Split if Statement
+            \o Splits an if statement into several statements. For example, rewrites:
     \code
     if (something && something_else) {
     }
@@ -1785,10 +1495,10 @@
         x;
     \endcode
 
-            \i && ||
+            \o && ||
         \row
-            \i Swap Operands
-            \i Rewrites an expression in the inverse order using the inverse operator.
+            \o Swap Operands
+            \o Rewrites an expression in the inverse order using the inverse operator.
             For example, rewrites:
     \code
     a op b
@@ -1798,22 +1508,22 @@
     \code
     b flipop a
     \endcode
-            \i <= < > >= == != && ||
+            \o <= < > >= == != && ||
         \row
-            \i Convert to Decimal
-            \i Converts an integer literal to decimal representation
-            \i Numeric literal
+            \o Convert to Decimal
+            \o Converts an integer literal to decimal representation
+            \o Numeric literal
         \row
-            \i Convert to Hexadecimal
-            \i Converts an integer literal to hexadecimal representation
-            \i Numeric literal
+            \o Convert to Hexadecimal
+            \o Converts an integer literal to hexadecimal representation
+            \o Numeric literal
         \row
-            \i Convert to Octal
-            \i Converts an integer literal to octal representation
-            \i Numeric literal
+            \o Convert to Octal
+            \o Converts an integer literal to octal representation
+            \o Numeric literal
         \row
-            \i Convert to Objective-C String Literal
-            \i Converts a string literal to an Objective-C string literal
+            \o Convert to Objective-C String Literal
+            \o Converts a string literal to an Objective-C string literal
             if the file type is Objective-C(++). For example, rewrites the following strings
 
     \code
@@ -1827,10 +1537,10 @@
     \code
     @"abcd"
     \endcode
-            \i String literal
+            \o String literal
         \row
-            \i Enclose in QLatin1Char()
-            \i Sets the encoding for a character to Latin-1, unless the character is
+            \o Enclose in QLatin1Char()
+            \o Sets the encoding for a character to Latin-1, unless the character is
             already enclosed in QLatin1Char, QT_TRANSLATE_NOOP, tr, trUtf8,
             QLatin1Literal, or QLatin1String. For example, rewrites
 
@@ -1843,10 +1553,10 @@
     \code
     QLatin1Char('a')
     \endcode
-            \i String literal
+            \o String literal
         \row
-            \i Enclose in QLatin1String()
-            \i Sets the encoding for a string to Latin-1, unless the string is
+            \o Enclose in QLatin1String()
+            \o Sets the encoding for a string to Latin-1, unless the string is
             already enclosed in QLatin1Char, QT_TRANSLATE_NOOP, tr, trUtf8,
             QLatin1Literal, or QLatin1String. For example, rewrites
     \code
@@ -1859,11 +1569,11 @@
     QLatin1String("abcd")
     \endcode
 
-            \i String literal
+            \o String literal
 
         \row
-            \i Mark as Translatable
-            \i Marks a string translatable. For example, rewrites \c "abcd" with
+            \o Mark as Translatable
+            \o Marks a string translatable. For example, rewrites \c "abcd" with
             one of the following options, depending on which of them is available:
 
     \code
@@ -1872,28 +1582,28 @@
     QT_TRANSLATE_NOOP("GLOBAL", "abcd")
     \endcode
 
-            \i String literal
+            \o String literal
 
         \row
-            \i #include Header File
-            \i Adds the matching #include statement for a forward-declared class or struct
-            \i Forward-declared class or struct
+            \o #include Header File
+            \o Adds the matching #include statement for a forward-declared class or struct
+            \o Forward-declared class or struct
         \row
-            \i Add Definition in 'filename'
-            \i Inserts a definition stub for a member function declaration in the
+            \o Add Definition in 'filename'
+            \o Inserts a definition stub for a member function declaration in the
             implementation file. The definition is placed after that of the
             preceding declaration. Qualified names are minimized when possible,
             instead of always being fully expanded.
 
-            \i Method name
+            \o Method name
         \row
-            \i Add 'Function' Declaration
-            \i Inserts the member function declaration that matches the member function
+            \o Add 'Function' Declaration
+            \o Inserts the member function declaration that matches the member function
             definition into the class declaration. The function can be public,
             protected, private, public slot, protected slot, or private slot.
-            \i Method name
+            \o Method name
         \row
-            \i Add Local Declaration
+            \o Add Local Declaration
             \i
             Adds the type of an assignee, if the type of the right-hand side of the assignment
             is known. For example, rewrites
@@ -1910,43 +1620,43 @@
 
     where Type is the return type of \c {foo()}
 
-            \i Assignee
+            \o Assignee
 
         \row
-            \i Convert to Camel Case
-            \i Converts a symbol name to camel case, where elements of the name are joined
+            \o Convert to Camel Case
+            \o Converts a symbol name to camel case, where elements of the name are joined
             without delimiter characters and the initial character of each element is
             capitalized. For example, rewrites \c an_example_symbol
             as \c anExampleSymbol and \c AN_EXAMPLE_SYMBOL as \c AnExampleSymbol
-            \i Identifier
+            \o Identifier
         \row
-            \i Complete Switch Statement
-            \i Adds all possible cases to a switch statement of the type \c enum
-            \i Switch
+            \o Complete Switch Statement
+            \o Adds all possible cases to a switch statement of the type \c enum
+            \o Switch
         \row
-            \i Generate Missing Q_PROPERTY Members
-            \i Adds missing members to a Q_PROPERTY:
+            \o Generate Missing Q_PROPERTY Members
+            \o Adds missing members to a Q_PROPERTY:
             \list
                 \o \c read method
                 \o \c write method, if there is a WRITE
                 \o \c {onChanged} signal, if there is a NOTIFY
                 \o data member with the name \c {m_<propertyName>}
             \endlist
-            \i Q_PROPERTY
+            \o Q_PROPERTY
         \row
-            \i  Apply Changes
-            \i  Keeps function declarations and definitions synchronized by
+            \o  Apply Changes
+            \o  Keeps function declarations and definitions synchronized by
                 checking for the matching declaration or definition when you
                 edit a function signature and by applying the changes to the
                 matching code.
-            \i  Function signature. When this action is available, a light bulb
+            \o  Function signature. When this action is available, a light bulb
                 icon appears:
                 \inlineimage qml-toolbar-indicator.png
         \row
-            \i  Add #include for undeclared identifier
-            \i  Adds an #include directive to the current file to make the
+            \o  Add #include for undeclared identifier
+            \o  Adds an #include directive to the current file to make the
                 declaration of a symbol available.
-            \i  Undeclared identifier
+            \o  Undeclared identifier
     \endtable
 
    \section2 Refactoring QML Code
@@ -1970,17 +1680,17 @@
 
     \table
         \header
-            \i Refactoring Action
-            \i Description
-            \i Activation
+            \o Refactoring Action
+            \o Description
+            \o Activation
 
         \row
-            \i Move Component into 'filename.qml'
-            \i Moves a QML element into a separate file
-            \i Element name
+            \o Move Component into 'filename.qml'
+            \o Moves a QML element into a separate file
+            \o Element name
         \row
-            \i Split Initializer
-            \i Reformats a one-line element into a multi-line element. For example,
+            \o Split Initializer
+            \o Reformats a one-line element into a multi-line element. For example,
             rewrites
     \code
     Item { x: 10; y: 20; width: 10 }
@@ -1995,17 +1705,17 @@
         width: 10
     }
     \endcode
-            \i Element property
+            \o Element property
         \row
-            \i Wrap in Loader
-            \i Wraps the element in a Component element and loads it dynamically in
+            \o Wrap in Loader
+            \o Wraps the element in a Component element and loads it dynamically in
                a Loader element. This is usually done to improve startup time.
-            \i Element name
+            \o Element name
         \row
-            \i Add a message suppression comment
-            \i Prepends the line with an annotation comment that stops the message
+            \o Add a message suppression comment
+            \o Prepends the line with an annotation comment that stops the message
                from being generated.
-            \i Error, warning or hint from static analysis
+            \o Error, warning or hint from static analysis
 
     \endtable
    */
@@ -2013,16 +1723,13 @@
 
 /*!
     \contentspage index.html
-    \previouspage qt-quick-toolbars.html
+    \previouspage creator-editor-finding.html
     \page creator-editor-locator.html
-    \nextpage creator-editor-codepasting.html
+    \nextpage creator-editor-refactoring.html
 
     \title Searching with the Locator
 
-    The locator provides one of the easiest ways in \QC to browse through
-    projects, files, classes, methods, documentation and file systems. You can
-    find the locator in the bottom left of the \QC window.
-
+    You can find the locator in the bottom left of the \QC window.
     To activate the locator, press \key Ctrl+K (\key Cmd+K on Mac OS X) or
     select \gui Tools > \gui Locate.
 

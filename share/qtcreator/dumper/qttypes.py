@@ -237,7 +237,7 @@ def qdump__QFile(d, value):
 
 def qdump__QFileInfo(d, value):
     try:
-        d.putStringValue(value["d_ptr"]["d"].dereference()["fileName"])
+        d.putStringValue(value["d_ptr"]["d"].dereference()["fileNames"][3])
     except:
         d.putPlainChildren(value)
         return
@@ -2050,6 +2050,11 @@ def qdump__boost__shared_ptr(d, value):
             d.putSubItem("data", val)
             d.putIntItem("weakcount", weakcount)
             d.putIntItem("usecount", usecount)
+
+
+def qdump__boost__gregorian__date(d, value):
+    d.putValue(value["days_"], JulianDate)
+    d.putNumChild(0)
 
 
 #######################################################################

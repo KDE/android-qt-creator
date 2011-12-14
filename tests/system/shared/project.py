@@ -134,13 +134,13 @@ def createProject_Qt_GUI(path, projectName, qtVersion, checks):
 
     expectedFiles = None
     if checks:
-        expectedFiles = [os.path.join(path, projectName), cpp_file, h_file, ui_file, pro_file]
+        path = os.path.join(path, projectName)
+        expectedFiles = [path, cpp_file, h_file, ui_file, pro_file]
     __createProjectHandleLastPage__(expectedFiles)
 
     if checks:
         waitForSignal("{type='CppTools::Internal::CppModelManager' unnamed='1'}", "sourceFilesRefreshed(QStringList)", 20000)
 
-        path = os.path.join(path, projectName)
         cpp_path = os.path.join(path, cpp_file)
         h_path = os.path.join(path, h_file)
         ui_path = os.path.join(path, ui_file)
@@ -277,7 +277,7 @@ def validType(sType, userDef):
     return ty != None and not (ty == "user-defined" and (userDef == None or userDef.strip() == ""))
 
 def __closeSubprocessByPushingStop__(sType):
-    ensureChecked(":Qt Creator_Core::Internal::OutputPaneToggleButton")
+    ensureChecked(":Qt Creator_AppOutput_Core::Internal::OutputPaneToggleButton")
     playButton = verifyEnabled(":Qt Creator.ReRun_QToolButton", False)
     stopButton = verifyEnabled(":Qt Creator.Stop_QToolButton")
     if stopButton.enabled:
@@ -293,7 +293,7 @@ def __closeSubprocessByPushingStop__(sType):
 
 def __closeSubprocessByHookingInto__(executable, port, function, sType, userDefType):
     global processExited
-    ensureChecked(":Qt Creator_Core::Internal::OutputPaneToggleButton")
+    ensureChecked(":Qt Creator_AppOutput_Core::Internal::OutputPaneToggleButton")
     output = waitForObject("{type='Core::OutputWindow' visible='1' windowTitle='Application Output Window'}", 20000)
     if port == None:
         test.warning("I need a port number or attaching might fail.")
