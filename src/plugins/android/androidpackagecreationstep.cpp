@@ -135,7 +135,7 @@ BuildStepConfigWidget *AndroidPackageCreationStep::createConfigWidget()
 
 AndroidTarget *AndroidPackageCreationStep::androidTarget() const
 {
-    return qobject_cast<AndroidTarget *>(buildConfiguration()->target());
+    return qobject_cast<AndroidTarget *>(target());
 }
 
 void AndroidPackageCreationStep::checkRequiredLibraries()

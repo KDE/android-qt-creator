@@ -44,7 +44,7 @@ QString AndroidPackageCreationFactory::displayNameForId(const QString &id) const
 {
     if (id == AndroidPackageCreationStep::CreatePackageId)
         return QCoreApplication::translate("Qt4ProjectManager::Internal::AndroidPackageCreationFactory",
-                                           "Create Debian Package");
+                                           "Create Android (.apk) Package");
     return QString();
 }
 

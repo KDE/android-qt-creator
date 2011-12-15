@@ -15,6 +15,7 @@ are required by law.
 #include "androidpackagecreationstep.h"
 #include "androidrunconfiguration.h"
 #include "androidtarget.h"
+#include "androiddeployconfiguration.h"
 
 #include <projectexplorer/deployconfiguration.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -151,7 +152,7 @@ Qt4BaseTarget *AndroidTargetFactory::create(ProjectExplorer::Project *parent,
                                     info.importing);
     }
 
-    target->addDeployConfiguration(target->createDeployConfiguration(ProjectExplorer::Constants::DEFAULT_DEPLOYCONFIGURATION_ID));
+    target->addDeployConfiguration(target->createDeployConfiguration(ANDROID_DEPLOYCONFIGURATION_ID));
 
     target->createApplicationProFiles();
     if (target->runConfigurations().isEmpty())

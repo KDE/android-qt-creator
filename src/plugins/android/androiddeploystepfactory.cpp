@@ -42,7 +42,7 @@ QString AndroidDeployStepFactory::displayNameForId(const QString &id) const
 {
     if (id == AndroidDeployStep::Id)
         return QCoreApplication::translate("Qt4ProjectManager::Internal::AndroidDeployStepFactory",
-                                           "Deploy to device");
+                                           "Deploy to Android device/emulator");
     return QString();
 }
 
