@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,58 +26,54 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
-#ifndef DEBUGGER_TERMGDBADAPTER_H
-#define DEBUGGER_TERMGDBADAPTER_H
+#include "circularclipboard.h"
 
-#include "abstractgdbadapter.h"
-#include "localgdbprocess.h"
+using namespace TextEditor::Internal;
 
-#include <utils/consoleprocess.h>
+static const int kMaxSize = 10;
 
-namespace Debugger {
-namespace Internal {
+CircularClipboard::CircularClipboard()
+    : m_current(-1)
+{}
 
-///////////////////////////////////////////////////////////////////////
-//
-// TermGdbAdapter
-//
-///////////////////////////////////////////////////////////////////////
-
-class TermGdbAdapter : public AbstractGdbAdapter
+CircularClipboard::~CircularClipboard()
 {
-    Q_OBJECT
+    qDeleteAll(m_items);
+}
 
-public:
-    explicit TermGdbAdapter(GdbEngine *engine);
-    ~TermGdbAdapter();
+CircularClipboard *CircularClipboard::instance()
+{
+    static CircularClipboard clipboard;
+    return &clipboard;
+}
 
-private:
-    DumperHandling dumperHandling() const;
+void CircularClipboard::collect(const QMimeData *mimeData)
+{
+    if (m_items.size() > kMaxSize) {
+        delete m_items.last();
+        m_items.removeLast();
+    }
+    m_items.prepend(mimeData);
+}
 
-    void startAdapter();
-    void setupInferior();
-    void runEngine();
-    void interruptInferior();
-    void shutdownInferior();
-    void shutdownAdapter();
+const QMimeData *CircularClipboard::next() const
+{
+    if (m_items.isEmpty())
+        return 0;
 
-    AbstractGdbProcess *gdbProc() { return &m_gdbProc; }
+    if (m_current == m_items.length() - 1)
+        m_current = 0;
+    else
+        ++m_current;
 
-    void handleStubAttached(const GdbResponse &response);
+    return m_items.at(m_current);
+}
 
-    Q_SLOT void handleInferiorSetupOk();
-    Q_SLOT void stubExited();
-    Q_SLOT void stubError(const QString &msg);
-
-    Utils::ConsoleProcess m_stubProc;
-    LocalGdbProcess m_gdbProc;
-};
-
-} // namespace Internal
-} // namespace Debugger
-
-#endif // DEBUGGER_TERMGDBADAPTER_H
+void CircularClipboard::toLastCollect()
+{
+    m_current = -1;
+}

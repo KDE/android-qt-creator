@@ -4,7 +4,7 @@
 **
 ** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Nokia Corporation (info@qt.nokia.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,58 +26,38 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
-#ifndef DEBUGGER_TERMGDBADAPTER_H
-#define DEBUGGER_TERMGDBADAPTER_H
+#ifndef CIRCULARCLIPBOARD_H
+#define CIRCULARCLIPBOARD_H
 
-#include "abstractgdbadapter.h"
-#include "localgdbprocess.h"
+#include <QtCore/QList>
+#include <QtCore/QMimeData>
 
-#include <utils/consoleprocess.h>
-
-namespace Debugger {
+namespace TextEditor {
 namespace Internal {
 
-///////////////////////////////////////////////////////////////////////
-//
-// TermGdbAdapter
-//
-///////////////////////////////////////////////////////////////////////
-
-class TermGdbAdapter : public AbstractGdbAdapter
+class CircularClipboard
 {
-    Q_OBJECT
-
 public:
-    explicit TermGdbAdapter(GdbEngine *engine);
-    ~TermGdbAdapter();
+    static CircularClipboard *instance();
+
+    void collect(const QMimeData *mimeData);
+    const QMimeData *next() const;
+    void toLastCollect();
 
 private:
-    DumperHandling dumperHandling() const;
+    CircularClipboard();
+    ~CircularClipboard();
+    CircularClipboard &operator=(const CircularClipboard &);
 
-    void startAdapter();
-    void setupInferior();
-    void runEngine();
-    void interruptInferior();
-    void shutdownInferior();
-    void shutdownAdapter();
-
-    AbstractGdbProcess *gdbProc() { return &m_gdbProc; }
-
-    void handleStubAttached(const GdbResponse &response);
-
-    Q_SLOT void handleInferiorSetupOk();
-    Q_SLOT void stubExited();
-    Q_SLOT void stubError(const QString &msg);
-
-    Utils::ConsoleProcess m_stubProc;
-    LocalGdbProcess m_gdbProc;
+    mutable int m_current;
+    QList<const QMimeData *> m_items;
 };
 
 } // namespace Internal
-} // namespace Debugger
+} // namespace TextEditor
 
-#endif // DEBUGGER_TERMGDBADAPTER_H
+#endif // CIRCULARCLIPBOARD_H

@@ -48,7 +48,7 @@ typedef QHash<QString, QmlJsDebugClient::QmlEventData *> QmlEventHash;
 typedef QList<QmlJsDebugClient::QmlEventData *> QmlEventList;
 
 enum ItemRole {
-    LocationRole = Qt::UserRole+1,
+    EventHashStrRole = Qt::UserRole+1,
     FilenameRole = Qt::UserRole+2,
     LineRole = Qt::UserRole+3,
     EventIdRole = Qt::UserRole+4
@@ -79,6 +79,7 @@ signals:
 
 public slots:
     void updateSelectedEvent(int eventId) const;
+    void selectBySourceLocation(const QString &filename, int line);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *ev);
@@ -108,8 +109,6 @@ public:
         MinTime,
         MedianTime,
         Details,
-        Parents,
-        Children,
 
         MaxFields
     };
@@ -135,6 +134,7 @@ public:
     void copyTableToClipboard() const;
     void copyRowToClipboard() const;
 
+    static QString displayTime(double time);
     static QString nameForType(int typeNumber);
 
     void getStatisticsInRange(qint64 rangeStart, qint64 rangeEnd);
@@ -150,6 +150,7 @@ public slots:
     void clear();
     void jumpToItem(const QModelIndex &index);
     void selectEvent(int eventId);
+    void selectEventByLocation(const QString &filename, int line);
     void buildModel();
 
 private:
