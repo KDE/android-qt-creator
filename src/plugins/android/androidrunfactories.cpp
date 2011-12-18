@@ -62,10 +62,13 @@ bool AndroidRunConfigurationFactory::canCreate(Target *parent,
 bool AndroidRunConfigurationFactory::canRestore(Target *parent,
     const QVariantMap &map) const
 {
-    if (!qobject_cast<AndroidTarget *>(parent))
+    // No need to restore any run configurations for android
+    Q_UNUSED(parent)
+    Q_UNUSED(map)
+//    if (!qobject_cast<AndroidTarget *>(parent))
         return false;
-    return ProjectExplorer::idFromMap(map)
-            .startsWith(QLatin1String(ANDROID_RC_ID));
+//    return ProjectExplorer::idFromMap(map)
+//            .startsWith(QLatin1String(ANDROID_RC_ID));
 }
 
 bool AndroidRunConfigurationFactory::canClone(Target *parent,
@@ -159,7 +162,7 @@ RunControl* AndroidRunControlFactory::create(RunConfiguration *runConfig,
 
 QString AndroidRunControlFactory::displayName() const
 {
-    return tr("Run on device");
+    return tr("Run on Android device/emulator");
 }
 
 RunConfigWidget *AndroidRunControlFactory::createConfigurationWidget(RunConfiguration *config)
@@ -168,5 +171,5 @@ RunConfigWidget *AndroidRunControlFactory::createConfigurationWidget(RunConfigur
     return 0;
 }
 
-    } // namespace Internal
+} // namespace Internal
 } // namespace Qt4ProjectManager
