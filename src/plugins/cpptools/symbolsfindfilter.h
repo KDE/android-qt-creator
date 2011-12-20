@@ -89,19 +89,28 @@ private slots:
     void cancel();
     void onTaskStarted(const QString &type);
     void onAllTasksFinished(const QString &type);
+    void searchAgain();
 
 private:
     QString label() const;
     QString toolTip(Find::FindFlags findFlags) const;
+    void startSearch(Find::SearchResult *search);
 
     CppModelManager *m_manager;
-    bool m_isRunning;
     bool m_enabled;
-    QFutureWatcher<Find::SearchResultItem> m_watcher;
+    QMap<QFutureWatcher<Find::SearchResultItem> *, QPointer<Find::SearchResult> > m_watchers;
     QPointer<Find::SearchResult> m_currentSearch;
     SearchSymbols::SymbolTypes m_symbolsToSearch;
-    SearchSymbols m_search;
     SearchScope m_scope;
+};
+
+class SymbolsFindParameters
+{
+public:
+    QString text;
+    Find::FindFlags flags;
+    SearchSymbols::SymbolTypes types;
+    SymbolsFindFilter::SearchScope scope;
 };
 
 class SymbolsFindFilterConfigWidget : public QWidget
@@ -129,5 +138,8 @@ private:
 
 } // Internal
 } // CppTools
+
+Q_DECLARE_METATYPE(CppTools::Internal::SymbolsFindFilter::SearchScope)
+Q_DECLARE_METATYPE(CppTools::Internal::SymbolsFindParameters)
 
 #endif // SYMBOLSFINDFILTER_H

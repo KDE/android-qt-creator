@@ -62,8 +62,13 @@ public:
     void readSettings(QSettings *settings);
 
 protected:
-    QList<Project *> projects() const;
+    Utils::FileIterator *files(const QStringList &nameFilters,
+                               const QVariant &additionalParameters) const;
+    QVariant additionalParameters() const;
     QString label() const;
+
+private slots:
+    void handleProjectChanged();
 
 private:
     ProjectExplorerPlugin *m_plugin;

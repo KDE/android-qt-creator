@@ -1610,24 +1610,12 @@ bool DebuggerPluginPrivate::queryRemoteParameters(DebuggerStartParameters &sp, b
     if (!arches.contains(lastUsed))
         arches.prepend(lastUsed);
     dlg.setRemoteArchitectures(arches);
-    QStringList gnuTargets;
-    gnuTargets.append(_("auto"));
-    gnuTargets.append(_("i686-linux-gnu"));
-    gnuTargets.append(_("x86_64-linux-gnu"));
-    gnuTargets.append(_("arm-none-linux-gnueabi"));
-    gnuTargets.append(_("arm-linux-androideabi"));
-    const QString lastUsedGnuTarget
-        = configValue(_("LastGnuTarget")).toString();
-    if (!gnuTargets.contains(lastUsedGnuTarget))
-        gnuTargets.prepend(lastUsedGnuTarget);
-    dlg.setGnuTargets(gnuTargets);
     dlg.setRemoteChannel(
             configValue(_("LastRemoteChannel")).toString());
     dlg.setLocalExecutable(
             configValue(_("LastLocalExecutable")).toString());
     dlg.setDebugger(configValue(_("LastDebugger")).toString());
     dlg.setRemoteArchitecture(lastUsed);
-    dlg.setGnuTarget(lastUsedGnuTarget);
     dlg.setOverrideStartScript(configValue(_("LastRemoteStartScript")).toString());
     dlg.setServerStartScript(
             configValue(_("LastServerStartScript")).toString());
@@ -1641,7 +1629,6 @@ bool DebuggerPluginPrivate::queryRemoteParameters(DebuggerStartParameters &sp, b
     setConfigValue(_("LastLocalExecutable"), dlg.localExecutable());
     setConfigValue(_("LastDebugger"), dlg.debugger());
     setConfigValue(_("LastRemoteArchitecture"), dlg.remoteArchitecture());
-    setConfigValue(_("LastGnuTarget"), dlg.gnuTarget());
     setConfigValue(_("LastRemoteStartScript"), dlg.overrideStartScript());
     setConfigValue(_("LastServerStartScript"), dlg.serverStartScript());
     setConfigValue(_("LastUseServerStartScript"), dlg.useServerStartScript());
@@ -1649,7 +1636,6 @@ bool DebuggerPluginPrivate::queryRemoteParameters(DebuggerStartParameters &sp, b
     setConfigValue(_("LastDebugInfoLocation"), dlg.debugInfoLocation());
     sp.remoteChannel = dlg.remoteChannel();
     sp.remoteArchitecture = dlg.remoteArchitecture();
-    sp.gnuTarget = dlg.gnuTarget();
     sp.executable = dlg.localExecutable();
     sp.displayName = tr("Remote: \"%1\"").arg(sp.remoteChannel);
     sp.debuggerCommand = dlg.debugger(); // Override toolchain-detection.
@@ -3500,6 +3486,7 @@ void DebuggerPluginPrivate::showModuleSymbols(const QString &moduleName,
     const Symbols &symbols)
 {
     QTreeWidget *w = new QTreeWidget;
+    w->setUniformRowHeights(true);
     w->setColumnCount(5);
     w->setRootIsDecorated(false);
     w->setAlternatingRowColors(true);
