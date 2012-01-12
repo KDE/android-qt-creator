@@ -40,7 +40,7 @@
 #include <QtCore/QPointer>
 #include <QtGui/QWidget>
 
-namespace VCSBase {
+namespace VcsBase {
 namespace Internal {
 
 namespace Ui { class CommonSettingsPage; }
@@ -51,7 +51,7 @@ class CommonSettingsWidget : public QWidget
 
 public:
     explicit CommonSettingsWidget(QWidget *parent = 0);
-    virtual ~CommonSettingsWidget();
+    ~CommonSettingsWidget();
 
     CommonVcsSettings settings() const;
     void setSettings(const CommonVcsSettings &s);
@@ -62,26 +62,25 @@ private:
     Ui::CommonSettingsPage *m_ui;
 };
 
-class CommonOptionsPage : public VCSBaseOptionsPage
+class CommonOptionsPage : public VcsBaseOptionsPage
 {
     Q_OBJECT
 
 public:
     explicit CommonOptionsPage(QObject *parent = 0);
-    virtual ~CommonOptionsPage();
 
-    virtual QString id() const;
-    virtual QString displayName() const;
+    QString id() const;
+    QString displayName() const;
 
-    virtual QWidget *createPage(QWidget *parent);
-    virtual void apply();
-    virtual void finish() { }
-    virtual bool matches(const QString &key) const;
+    QWidget *createPage(QWidget *parent);
+    void apply();
+    void finish() { }
+    bool matches(const QString &key) const;
 
     CommonVcsSettings settings() const { return m_settings; }
 
 signals:
-    void settingsChanged(const VCSBase::Internal::CommonVcsSettings &s);
+    void settingsChanged(const VcsBase::Internal::CommonVcsSettings &s);
 
 private:
     void updateNickNames();
@@ -92,6 +91,6 @@ private:
 };
 
 } // namespace Internal
-} // namespace VCSBase
+} // namespace VcsBase
 
 #endif // COMMONOPTIONSPAGE_H

@@ -513,6 +513,7 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
     m_importLinePath = new Utils::PathChooser();
     m_importLinePath->setExpectedKind(Utils::PathChooser::ExistingDirectory);
     m_importLinePath->setPath(sourceDir);
+    m_importLinePath->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_importLineLayout->addWidget(m_importLinePath);
 
     m_importLineButton = new QPushButton;
@@ -521,7 +522,8 @@ Qt4DefaultTargetSetupWidget::Qt4DefaultTargetSetupWidget(Qt4BaseTargetFactory *f
     // make it in line with import path chooser button on mac
     m_importLineButton->setAttribute(Qt::WA_LayoutUsesWidgetRect);
     m_importLineLayout->addWidget(m_importLineButton);
-    m_importLineLayout->addStretch();
+    m_importLineStretch = new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_importLineLayout->addSpacerItem(m_importLineStretch);
     layout->addWidget(w);
 
     m_importLineLabel->setVisible(false);
@@ -771,8 +773,11 @@ void Qt4DefaultTargetSetupWidget::addImportClicked()
         m_importLineLabel->setVisible(true);
         m_importLinePath->setVisible(true);
         m_importLineButton->setAttribute(Qt::WA_MacNormalSize);
+        m_importLineStretch->changeSize(0,0, QSizePolicy::Fixed, QSizePolicy::Fixed);
+        m_importLineLayout->invalidate();
         return;
     }
+
     QList<BuildConfigurationInfo> infos = BuildConfigurationInfo::checkForBuild(m_importLinePath->path(), m_proFilePath);
     if (infos.isEmpty()) {
         QMessageBox::critical(this,
@@ -798,6 +803,28 @@ void Qt4DefaultTargetSetupWidget::addImportClicked()
             return;
         }
         // show something if we found incompatible builds?
+    }
+
+    // Filter out already imported builds
+    infos = filterdInfos;
+    filterdInfos.clear();
+    foreach (const BuildConfigurationInfo &info, infos) {
+        bool alreadyImported = false;
+        foreach (const BuildConfigurationInfo &existingImport, m_importInfos) {
+            if (info == existingImport) {
+                alreadyImported = true;
+                break;
+            }
+        }
+        if (!alreadyImported)
+            filterdInfos << info;
+    }
+
+    if (filterdInfos.isEmpty() && !infos.isEmpty()) {
+        QMessageBox::critical(this,
+                              tr("Already imported build"),
+                              tr("The build found in %1 is already imported").arg(m_importLinePath->path()));
+        return;
     }
 
     // We switch from to "NONE" on importing if the user has not changed it

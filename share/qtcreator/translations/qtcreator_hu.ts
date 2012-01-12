@@ -646,7 +646,7 @@
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSPlugin</name>
+    <name>Cvs::Internal::CvsPlugin</name>
     <message>
         <source>Parsing of the log output failed</source>
         <translation>A log kimenet elemzése nem sikerült</translation>
@@ -839,7 +839,7 @@
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSSubmitEditor</name>
+    <name>Cvs::Internal::CvsSubmitEditor</name>
     <message>
         <source>Added</source>
         <translation>Hozzáadva</translation>
@@ -858,7 +858,7 @@
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CheckoutWizard</name>
+    <name>Cvs::Internal::CheckoutWizard</name>
     <message>
         <source>Checks out a project from a CVS repository.</source>
         <translation>Egy projekt megnézése egy CVS tárolóból.</translation>
@@ -869,7 +869,7 @@
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CheckoutWizardPage</name>
+    <name>Cvs::Internal::CheckoutWizardPage</name>
     <message>
         <source>Specify repository and path.</source>
         <translation>Határozza meg a tárolót és az útvonalat.</translation>
@@ -880,7 +880,7 @@
     </message>
 </context>
 <context>
-    <name>CVS::Internal::SettingsPage</name>
+    <name>Cvs::Internal::SettingsPage</name>
     <message>
         <source>Prompt to submit</source>
         <translation>Feltöltési prompt</translation>
@@ -911,14 +911,14 @@
     </message>
 </context>
 <context>
-    <name>CVS::Internal::SettingsPageWidget</name>
+    <name>Cvs::Internal::SettingsPageWidget</name>
     <message>
         <source>CVS Command</source>
         <translation>CVS parancs</translation>
     </message>
 </context>
 <context>
-    <name>CVSPlugin</name>
+    <name>CvsPlugin</name>
     <message>
         <source>Cannot find repository for &apos;%1&apos;</source>
         <translation>&apos;%1&apos; tárolóra nem található</translation>
@@ -20025,7 +20025,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase</name>
+    <name>VcsBase</name>
     <message>
         <source>Version Control</source>
         <translation>Verzió követő</translation>
@@ -20036,7 +20036,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::0</name>
+    <name>VcsBase::0</name>
     <message>
         <source>State</source>
         <translation type="obsolete">Státusz</translation>
@@ -20079,7 +20079,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::BaseCheckoutWizard</name>
+    <name>VcsBase::BaseCheckoutWizard</name>
     <message>
         <source>Cannot Open Project</source>
         <translation>Nem lehet megnyitni a Projektet</translation>
@@ -20106,7 +20106,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::BaseCheckoutWizardPage</name>
+    <name>VcsBase::BaseCheckoutWizardPage</name>
     <message>
         <source>WizardPage</source>
         <translation>Varázsló lap</translation>
@@ -20121,7 +20121,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::0</name>
+    <name>VcsBase::Internal::0</name>
     <message>
         <source>Name</source>
         <translation type="obsolete">Név</translation>
@@ -20144,7 +20144,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::CheckoutProgressWizardPage</name>
+    <name>VcsBase::Internal::CheckoutProgressWizardPage</name>
     <message>
         <source>Checkout started...</source>
         <translation>Megnézés elindítva...</translation>
@@ -20159,7 +20159,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::NickNameDialog</name>
+    <name>VcsBase::Internal::NickNameDialog</name>
     <message>
         <source>Name</source>
         <translation>Név</translation>
@@ -20182,7 +20182,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::ProcessCheckoutJob</name>
+    <name>VcsBase::ProcessCheckoutJob</name>
     <message>
         <source>Unable to start %1: %2</source>
         <translation>Nem lehet elindítani a(z) %1-t: %2</translation>
@@ -20205,7 +20205,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::SubmitFileModel</name>
+    <name>VcsBase::SubmitFileModel</name>
     <message>
         <source>State</source>
         <translation>Státusz</translation>
@@ -20216,14 +20216,14 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseEditor</name>
+    <name>VcsBase::VcsBaseEditor</name>
     <message>
         <source>Describe change %1</source>
         <translation>%1 változtatás leírása</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseOutputWindow</name>
+    <name>VcsBase::VcsBaseOutputWindow</name>
     <message>
         <source>Clear</source>
         <translation>Kiürítés</translation>
@@ -20234,7 +20234,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseSubmitEditor</name>
+    <name>VcsBase::VcsBaseSubmitEditor</name>
     <message>
         <source>Check message</source>
         <translation>Üzenet ellenőrzése</translation>
@@ -20269,7 +20269,7 @@ A következő kódolás valószínűleg erre illik:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBaseSettingsPage</name>
+    <name>VcsBaseSettingsPage</name>
     <message>
         <source>Common</source>
         <translation>Közös</translation>
@@ -20306,7 +20306,7 @@ név &lt;email&gt; álnév &lt;email&gt;</translation>
     </message>
 </context>
 <context>
-    <name>VCSManager</name>
+    <name>VcsManager</name>
     <message>
         <source>Version Control</source>
         <translation>Verzió követő</translation>

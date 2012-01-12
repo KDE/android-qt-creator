@@ -35,19 +35,20 @@
 
 #include <coreplugin/iversioncontrol.h>
 
-namespace CVS {
+namespace Cvs {
 namespace Internal {
 
-class CVSPlugin;
+class CvsPlugin;
 
 // Just a proxy for CVSPlugin
-class CVSControl : public Core::IVersionControl
+class CvsControl : public Core::IVersionControl
 {
     Q_OBJECT
+
 public:
-    explicit CVSControl(CVSPlugin *plugin);
+    explicit CvsControl(CvsPlugin *plugin);
     QString displayName() const;
-    QString id() const;
+    Core::Id id() const;
 
     bool managesDirectory(const QString &directory, QString *topLevel = 0) const;
 
@@ -71,10 +72,10 @@ public:
     void emitConfigurationChanged();
 
 private:
-    CVSPlugin *m_plugin;
+    CvsPlugin *m_plugin;
 };
 
 } // namespace Internal
-} // namespace CVS
+} // namespace Cvs
 
 #endif // CVSCONTROL_H

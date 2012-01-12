@@ -35,7 +35,7 @@
 #ifndef MEMCHECKTOOL_H
 #define MEMCHECKTOOL_H
 
-#include <analyzerbase/ianalyzertool.h>
+#include "valgrindtool.h"
 
 #include <QtGui/QSortFilterProxyModel>
 #include <QtCore/QSharedPointer>
@@ -86,7 +86,7 @@ private:
     bool m_filterExternalIssues;
 };
 
-class MemcheckTool : public Analyzer::IAnalyzerTool
+class MemcheckTool : public ValgrindTool
 {
     Q_OBJECT
 
@@ -94,8 +94,13 @@ public:
     MemcheckTool(QObject *parent);
 
     Core::Id id() const;
+    ProjectExplorer::RunMode runMode() const;
     QString displayName() const;
     QString description() const;
+
+    // Create the valgrind settings (for all valgrind tools)
+    Analyzer::AbstractAnalyzerSubConfig *createGlobalSettings();
+    Analyzer::AbstractAnalyzerSubConfig *createProjectSettings();
 
 private slots:
     void settingsDestroyed(QObject *settings);

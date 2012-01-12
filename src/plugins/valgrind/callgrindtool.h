@@ -33,14 +33,14 @@
 #ifndef CALLGRINDTOOL_H
 #define CALLGRINDTOOL_H
 
-#include <analyzerbase/ianalyzertool.h>
+#include "valgrindtool.h"
 
 namespace Valgrind {
 namespace Internal {
 
 class CallgrindToolPrivate;
 
-class CallgrindTool : public Analyzer::IAnalyzerTool
+class CallgrindTool : public ValgrindTool
 {
     Q_OBJECT
 
@@ -49,6 +49,7 @@ public:
     ~CallgrindTool();
 
     Core::Id id() const;
+    ProjectExplorer::RunMode runMode() const;
     QString displayName() const;
     QString description() const;
     ToolMode toolMode() const;

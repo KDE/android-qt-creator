@@ -40,11 +40,9 @@
 #include <QtCore/QVariant>
 #include <QtCore/QProcessEnvironment>
 
-namespace VCSBase {
+namespace VcsBase {
 
-namespace Internal {
-class CommandPrivate;
-} // namespace Internal
+namespace Internal { class CommandPrivate; }
 
 class VCSBASE_EXPORT Command : public QObject
 {
@@ -52,9 +50,12 @@ class VCSBASE_EXPORT Command : public QObject
 
 public:
     // Where to report command termination with exit code if desired
-    enum TerminationReportMode { NoReport,
-                                 ReportStdout,  // This assumes UTF8
-                                 ReportStderr };
+    enum TerminationReportMode
+    {
+        NoReport,
+        ReportStdout,  // This assumes UTF8
+        ReportStderr
+    };
 
     Command(const QString &binary,
             const QString &workingDirectory,
@@ -104,6 +105,6 @@ private:
     class Internal::CommandPrivate *const d;
 };
 
-} //namespace VCSBase
+} // namespace VcsBase
 
 #endif // VCSBASE_COMMAND_H

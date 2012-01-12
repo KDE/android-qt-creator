@@ -41,6 +41,7 @@
 #include "analyzerstartparameters.h"
 #include "analyzerutils.h"
 #include "ianalyzertool.h"
+#include "analyzersettings.h"
 
 #include <coreplugin/coreconstants.h>
 #include <coreplugin/findplaceholder.h>
@@ -183,7 +184,7 @@ public:
     QAction *actionFromToolAndMode(IAnalyzerTool *tool, StartMode mode);
 
     // Convenience.
-    void startLocalTool(IAnalyzerTool *tool, StartMode mode);
+    void startLocalTool(IAnalyzerTool *tool);
     bool isActionRunnable(QAction *action) const;
 
 public slots:
@@ -490,7 +491,7 @@ bool AnalyzerManagerPrivate::showPromptDialog(const QString &title, const QStrin
     return messageBox.clickedStandardButton() == QDialogButtonBox::Yes;
 }
 
-void AnalyzerManagerPrivate::startLocalTool(IAnalyzerTool *tool, StartMode)
+void AnalyzerManagerPrivate::startLocalTool(IAnalyzerTool *tool)
 {
     int index = m_tools.indexOf(tool);
     QTC_ASSERT(index >= 0, return);
@@ -504,11 +505,9 @@ void AnalyzerManagerPrivate::startLocalTool(IAnalyzerTool *tool, StartMode)
 
     // ### not sure if we're supposed to check if the RunConFiguration isEnabled
     Project *pro = pe->startupProject();
-    const RunConfiguration *runConfig = 0;
     BuildConfiguration::BuildType buildType = BuildConfiguration::Unknown;
     if (pro) {
         if (const Target *target = pro->activeTarget()) {
-            runConfig = target->activeRunConfiguration();
             // Build configuration is 0 for QML projects.
             if (const BuildConfiguration *buildConfig = target->activeBuildConfiguration())
                 buildType = buildConfig->buildType();
@@ -561,7 +560,7 @@ void AnalyzerManagerPrivate::startLocalTool(IAnalyzerTool *tool, StartMode)
             return;
     }
 
-    pe->runProject(pro, tool->id().toString());
+    pe->runProject(pro, tool->runMode());
 }
 
 bool AnalyzerManagerPrivate::isActionRunnable(QAction *action) const
@@ -573,7 +572,7 @@ bool AnalyzerManagerPrivate::isActionRunnable(QAction *action) const
 
     IAnalyzerTool *tool = m_toolFromAction.value(action);
     ProjectExplorerPlugin *pe = ProjectExplorerPlugin::instance();
-    return pe->canRun(pe->startupProject(), tool->id().toString());
+    return pe->canRun(pe->startupProject(), tool->runMode());
 }
 
 void AnalyzerManagerPrivate::startTool()
@@ -762,7 +761,7 @@ void AnalyzerManagerPrivate::updateRunActions()
     else if (!m_currentTool)
         disabledReason = tr("No analyzer tool selected.");
     else
-        disabledReason = pe->cannotRunReason(project, m_currentTool->id().toString());
+        disabledReason = pe->cannotRunReason(project, m_currentTool->runMode());
 
     m_startAction->setEnabled(startEnabled);
     m_startAction->setToolTip(disabledReason);
@@ -809,6 +808,7 @@ void AnalyzerManager::shutdown()
 void AnalyzerManager::addTool(IAnalyzerTool *tool, const StartModes &modes)
 {
     m_instance->d->addTool(tool, modes);
+    AnalyzerGlobalSettings::instance()->registerTool(tool);
 }
 
 QDockWidget *AnalyzerManager::createDockWidget(IAnalyzerTool *tool, const QString &title,
@@ -827,6 +827,11 @@ QDockWidget *AnalyzerManager::createDockWidget(IAnalyzerTool *tool, const QStrin
 IAnalyzerTool *AnalyzerManager::currentSelectedTool()
 {
     return m_instance->d->m_currentTool;
+}
+
+QList<IAnalyzerTool *> AnalyzerManager::tools()
+{
+    return m_instance->d->m_tools;
 }
 
 void AnalyzerManager::selectTool(IAnalyzerTool *tool, StartMode mode)
@@ -883,9 +888,9 @@ void AnalyzerManager::stopTool()
     stopAction()->trigger();
 }
 
-void AnalyzerManager::startLocalTool(IAnalyzerTool *tool, StartMode mode)
+void AnalyzerManager::startLocalTool(IAnalyzerTool *tool)
 {
-    m_instance->d->startLocalTool(tool, mode);
+    m_instance->d->startLocalTool(tool);
 }
 
 QAction *AnalyzerManager::stopAction()
@@ -903,12 +908,11 @@ void AnalyzerManager::handleToolFinished()
     m_instance->d->handleToolFinished();
 }
 
-IAnalyzerTool *AnalyzerManager::toolFromId(const Core::Id &id)
+IAnalyzerTool *AnalyzerManager::toolFromRunMode(RunMode runMode)
 {
     foreach (IAnalyzerTool *tool, m_instance->d->m_tools)
-        if (id.name().startsWith(tool->id().name()))
+        if (tool->runMode() == runMode)
             return tool;
-    QTC_ASSERT(false, qDebug() << "NO ANAYLYZER TOOL FOUND FOR ID" << id.name());
     return 0;
 }
 

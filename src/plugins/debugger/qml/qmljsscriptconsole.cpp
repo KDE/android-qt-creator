@@ -42,6 +42,8 @@
 #include <coreplugin/coreconstants.h>
 #include <utils/statuslabel.h>
 
+#include <qmljsdebugclient/qdebugmessageclient.h>
+
 #include <QtGui/QMenu>
 #include <QtGui/QTextBlock>
 #include <QtGui/QHBoxLayout>
@@ -209,8 +211,11 @@ void QmlJSScriptConsole::setInferiorStopped(bool inferiorStopped)
 void QmlJSScriptConsole::setQmlAdapter(QmlAdapter *adapter)
 {
     d->adapter = adapter;
-    if (adapter)
+    if (adapter) {
         connect(adapter, SIGNAL(selectionChanged()), this, SLOT(onSelectionChanged()));
+        connect(adapter->messageClient(), SIGNAL(message(QtMsgType,QString)),
+                this, SLOT(insertDebugOutput(QtMsgType,QString)));
+    }
     clear();
 }
 
@@ -222,27 +227,21 @@ void QmlJSScriptConsole::appendResult(const QString &result)
     QTextCursor cur = textCursor();
     cur.movePosition(QTextCursor::End);
     cur.insertText(_("\n"));
+
     cur.insertText(result);
-    cur.movePosition(QTextCursor::EndOfLine);
     cur.insertText(_("\n"));
-    setTextCursor(cur);
-    displayPrompt();
 
     QTextEdit::ExtraSelection sel;
-
     QTextCharFormat resultFormat;
     resultFormat.setForeground(QBrush(QColor(Qt::darkGray)));
-
-    QTextCursor c(document()->findBlockByNumber(cur.blockNumber()-1));
-    c.movePosition(QTextCursor::StartOfBlock);
-    c.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor);
-
+    cur.movePosition(QTextCursor::PreviousBlock);
+    cur.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
     sel.format = resultFormat;
-    sel.cursor = c;
-
+    sel.cursor = cur;
     d->selections.append(sel);
 
     setExtraSelections(d->selections);
+    displayPrompt();
 }
 
 void QmlJSScriptConsole::clear()
@@ -282,6 +281,46 @@ void QmlJSScriptConsole::onSelectionChanged()
         }
         emit updateStatusMessage(status, 0);
     }
+}
+
+void QmlJSScriptConsole::insertDebugOutput(QtMsgType type, const QString &debugMsg)
+{
+    QString msg(debugMsg);
+    msg.append(_("\n"));
+
+    QTextCursor cursor = textCursor();
+
+    cursor.setPosition(d->startOfEditableArea - d->prompt.length());
+    cursor.insertText(msg);
+
+    QTextEdit::ExtraSelection sel;
+
+    QTextCharFormat resultFormat;
+    switch (type) {
+    case QtDebugMsg:
+        resultFormat.setForeground(QColor(Qt::darkBlue));
+        break;
+    case QtWarningMsg:
+        resultFormat.setForeground(QColor(Qt::darkYellow));
+        break;
+    case QtCriticalMsg:
+        resultFormat.setForeground(QColor(Qt::darkRed));
+        break;
+    default:
+        resultFormat.setForeground(QColor(Qt::black));
+    }
+
+    cursor.movePosition(QTextCursor::PreviousBlock);
+    cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+
+    sel.format = resultFormat;
+    sel.cursor = cursor;
+
+    d->selections.append(sel);
+
+    setExtraSelections(d->selections);
+
+    d->startOfEditableArea += msg.length();
 }
 
 void QmlJSScriptConsole::keyPressEvent(QKeyEvent *e)

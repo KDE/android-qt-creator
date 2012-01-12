@@ -45,17 +45,16 @@ class QAbstractItemModel;
 class QAction;
 QT_END_NAMESPACE
 
-namespace Utils {
-    class SubmitEditorWidget;
-}
+namespace Utils { class SubmitEditorWidget; }
 
-namespace VCSBase {
+namespace VcsBase {
 namespace Internal {
     class CommonVcsSettings;
 }
-struct VCSBaseSubmitEditorPrivate;
+struct VcsBaseSubmitEditorPrivate;
 
-class VCSBASE_EXPORT VCSBaseSubmitEditorParameters {
+class VCSBASE_EXPORT VcsBaseSubmitEditorParameters
+{
 public:
     const char *mimeType;
     const char *id;
@@ -63,7 +62,7 @@ public:
     const char *context;
 };
 
-class VCSBASE_EXPORT VCSBaseSubmitEditor : public Core::IEditor
+class VCSBASE_EXPORT VcsBaseSubmitEditor : public Core::IEditor
 {
     Q_OBJECT
     Q_PROPERTY(int fileNameColumn READ fileNameColumn WRITE setFileNameColumn DESIGNABLE false)
@@ -74,7 +73,7 @@ class VCSBASE_EXPORT VCSBaseSubmitEditor : public Core::IEditor
     Q_PROPERTY(bool emptyFileListEnabled READ isEmptyFileListEnabled WRITE setEmptyFileListEnabled DESIGNABLE true)
 
 protected:
-    explicit VCSBaseSubmitEditor(const VCSBaseSubmitEditorParameters *parameters,
+    explicit VcsBaseSubmitEditor(const VcsBaseSubmitEditorParameters *parameters,
                                  Utils::SubmitEditorWidget *editorWidget);
 
 public:
@@ -84,7 +83,7 @@ public:
     void unregisterActions(QAction *editorUndoAction,  QAction *editorRedoAction,
                            QAction *submitAction = 0, QAction *diffAction = 0);
 
-    virtual ~VCSBaseSubmitEditor();
+    ~VcsBaseSubmitEditor();
 
     // A utility routine to be called when closing a submit editor.
     // Runs checks on the message and prompts according to configuration.
@@ -119,19 +118,20 @@ public:
     void setCheckScriptWorkingDirectory(const QString &);
 
     // Core::IEditor
-    virtual bool createNew(const QString &contents);
-    virtual bool open(QString *errorString, const QString &fileName, const QString &realFileName);
-    virtual Core::IFile *file();
-    virtual QString displayName() const;
-    virtual void setDisplayName(const QString &title);
-    virtual bool duplicateSupported() const;
-    virtual Core::IEditor *duplicate(QWidget * parent);
-    virtual Core::Id id() const;
+    bool createNew(const QString &contents);
+    bool open(QString *errorString, const QString &fileName, const QString &realFileName);
+    Core::IFile *file();
+    QString displayName() const;
+    void setDisplayName(const QString &title);
+    bool duplicateSupported() const;
+    Core::IEditor *duplicate(QWidget *parent);
+    Core::Id id() const;
+    bool isTemporary() const { return true; }
 
-    virtual QWidget *toolBar();
+    QWidget *toolBar();
 
-    virtual QByteArray saveState() const;
-    virtual bool restoreState(const QByteArray &state);
+    QByteArray saveState() const;
+    bool restoreState(const QByteArray &state);
 
     QStringList checkedFiles() const;
 
@@ -150,8 +150,6 @@ public:
     // that are actually part of the current project(s).
     static void filterUntrackedFilesOfProject(const QString &repositoryDirectory, QStringList *untrackedFiles);
 
-    virtual bool isTemporary() const { return true; }
-
     // Helper to raise an already open submit editor to prevent opening twice.
     static bool raiseSubmitEditor();
 
@@ -159,13 +157,13 @@ signals:
     void diffSelectedFiles(const QStringList &files);
 
 private slots:
-    void slotDiffSelectedVCSFiles(const QStringList &rawList);
+    void slotDiffSelectedVcsFiles(const QStringList &rawList);
     bool save(QString *errorString, const QString &fileName, bool autoSave);
     void slotDescriptionChanged();
     void slotCheckSubmitMessage();
     void slotInsertNickName();
     void slotSetFieldNickName(int);
-    void slotUpdateEditorSettings(const VCSBase::Internal::CommonVcsSettings &);
+    void slotUpdateEditorSettings(const VcsBase::Internal::CommonVcsSettings &);
 
 protected:
     /* These hooks allow for modifying the contents that goes to
@@ -180,9 +178,9 @@ private:
     bool runSubmitMessageCheckScript(const QString &script, QString *errorMessage) const;
     QString promptForNickName();
 
-    VCSBaseSubmitEditorPrivate *d;
+    VcsBaseSubmitEditorPrivate *d;
 };
 
-} // namespace VCSBase
+} // namespace VcsBase
 
 #endif // VCSBASE_SUBMITEDITOR_H

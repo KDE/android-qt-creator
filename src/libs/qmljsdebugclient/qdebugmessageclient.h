@@ -30,35 +30,36 @@
 **
 **************************************************************************/
 
-#ifndef REMOTELINUXDEPLOYSTEPWIDGET_H
-#define REMOTELINUXDEPLOYSTEPWIDGET_H
+#ifndef QDEBUGMESSAGECLIENT_H
+#define QDEBUGMESSAGECLIENT_H
 
-#include "remotelinux_export.h"
+#include "qdeclarativedebugclient.h"
+#include "qmljsdebugclient_global.h"
 
-#include <projectexplorer/buildstep.h>
+namespace QmlJsDebugClient {
 
-namespace RemoteLinux {
-class AbstractRemoteLinuxDeployStep;
-
-class REMOTELINUX_EXPORT RemoteLinuxDeployStepWidget : public ProjectExplorer::BuildStepConfigWidget
+class QDebugMessageClientPrivate;
+class QMLJSDEBUGCLIENT_EXPORT QDebugMessageClient : public QDeclarativeDebugClient
 {
     Q_OBJECT
 
 public:
-    RemoteLinuxDeployStepWidget(AbstractRemoteLinuxDeployStep *step);
-    ~RemoteLinuxDeployStepWidget();
+    explicit QDebugMessageClient(QDeclarativeDebugConnection *client);
+    ~QDebugMessageClient();
 
-    QString summaryText() const;
-    QString displayName() const { return QString(); }
+protected:
+    virtual void statusChanged(Status status);
+    virtual void messageReceived(const QByteArray &);
 
-    AbstractRemoteLinuxDeployStep *step() const { return m_step; }
+signals:
+    void newStatus(QDeclarativeDebugClient::Status);
+    void message(QtMsgType, const QString &);
 
 private:
-    Q_SLOT void handleStepToBeRemoved(int step);
-
-    AbstractRemoteLinuxDeployStep * const m_step;
+    class QDebugMessageClientPrivate *d;
+    Q_DISABLE_COPY(QDebugMessageClient)
 };
 
-} // namespace RemoteLinux
+} // namespace QmlJsDebugClient
 
-#endif // REMOTELINUXDEPLOYSTEPWIDGET_H
+#endif // QDEBUGMESSAGECLIENT_H

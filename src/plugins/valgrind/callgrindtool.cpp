@@ -497,7 +497,7 @@ static QToolButton *createToolButton(QAction *action)
 }
 
 CallgrindTool::CallgrindTool(QObject *parent)
-    : Analyzer::IAnalyzerTool(parent)
+    : ValgrindTool(parent)
 {
     d = new CallgrindToolPrivate(this);
     setObjectName(QLatin1String("CallgrindTool"));
@@ -516,6 +516,11 @@ CallgrindTool::~CallgrindTool()
 Core::Id CallgrindTool::id() const
 {
     return "Callgrind";
+}
+
+ProjectExplorer::RunMode CallgrindTool::runMode() const
+{
+    return ProjectExplorer::CallgrindRunMode;
 }
 
 QString CallgrindTool::displayName() const

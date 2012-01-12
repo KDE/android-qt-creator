@@ -35,7 +35,7 @@
 
 #include <coreplugin/ifile.h>
 
-namespace VCSBase {
+namespace VcsBase {
 namespace Internal {
 
 class SubmitEditorFile : public Core::IFile
@@ -50,7 +50,7 @@ public:
     QString suggestedFileName() const { return QString(); }
 
     bool isModified() const { return m_modified; }
-    virtual QString mimeType() const;
+    QString mimeType() const;
     bool isReadOnly() const { return false; }
     bool isSaveAsAllowed() const { return false; }
     bool save(QString *errorString, const QString &fileName, bool autoSave);
@@ -58,7 +58,7 @@ public:
     bool reload(QString *errorString, ReloadFlag flag, ChangeType type);
     void rename(const QString &newName);
 
-    void setFileName(const QString name);
+    void setFileName(const QString &name);
     void setModified(bool modified = true);
 
 signals:
@@ -72,6 +72,6 @@ private:
 
 
 } // namespace Internal
-} // namespace VCSBase
+} // namespace VcsBase
 
 #endif // SUBMITEDITORFILE_H

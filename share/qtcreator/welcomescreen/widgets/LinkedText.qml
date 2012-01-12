@@ -35,6 +35,7 @@ import qtcomponents 1.0
 
 Text {
     id: root
+    height: 16
     color: active ? "#f0f0f0" : colors.linkColor
 
     font: fonts.linkFont
@@ -67,6 +68,17 @@ Text {
         anchors.leftMargin: -6
         anchors.bottomMargin: -4
         anchors.topMargin: -4
+        anchors.fill: parent
+    }
+
+    Rectangle {
+        color: "#909090"
+        opacity: root.active
+        z: -1
+        anchors.rightMargin: -6
+        anchors.leftMargin: -6
+        anchors.bottomMargin: -4
+        anchors.topMargin: 10
         anchors.fill: parent
     }
 

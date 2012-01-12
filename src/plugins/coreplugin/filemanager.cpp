@@ -682,11 +682,11 @@ QString FileManager::getSaveFileName(const QString &title, const QString &pathIn
             if (selectedFilter && *selectedFilter != QCoreApplication::translate(
                     "Core", Constants::ALL_FILES_FILTER)) {
                 // Mime database creates filter strings like this: Anything here (*.foo *.bar)
-                QRegExp regExp(".*\\s+\\((.*)\\)$");
+                QRegExp regExp(QLatin1String(".*\\s+\\((.*)\\)$"));
                 const int index = regExp.lastIndexIn(*selectedFilter);
                 bool suffixOk = false;
                 if (index != -1) {
-                    const QStringList &suffixes = regExp.cap(1).remove('*').split(' ');
+                    const QStringList &suffixes = regExp.cap(1).remove(QLatin1Char('*')).split(QLatin1Char(' '));
                     foreach (const QString &suffix, suffixes)
                         if (fileName.endsWith(suffix)) {
                             suffixOk = true;
@@ -800,7 +800,7 @@ FileManager::ReadOnlyAction
     }
 
     // Create message box.
-    QMessageBox msgBox(QMessageBox::Question, tr("File is Read Only"),
+    QMessageBox msgBox(QMessageBox::Question, tr("File Is Read Only"),
                        tr("The file <i>%1</i> is read only.").arg(QDir::toNativeSeparators(fileName)),
                        QMessageBox::Cancel, parent);
 
@@ -808,11 +808,11 @@ FileManager::ReadOnlyAction
     if (promptVCS)
         vcsButton = msgBox.addButton(tr("Open with VCS (%1)").arg(versionControl->displayName()), QMessageBox::AcceptRole);
 
-    QPushButton *makeWritableButton =  msgBox.addButton(tr("Make writable"), QMessageBox::AcceptRole);
+    QPushButton *makeWritableButton =  msgBox.addButton(tr("Make Writable"), QMessageBox::AcceptRole);
 
     QPushButton *saveAsButton = 0;
     if (displaySaveAsButton)
-        saveAsButton = msgBox.addButton(tr("Save as..."), QMessageBox::ActionRole);
+        saveAsButton = msgBox.addButton(tr("Save As..."), QMessageBox::ActionRole);
 
     msgBox.setDefaultButton(vcsButton ? vcsButton : makeWritableButton);
     msgBox.exec();

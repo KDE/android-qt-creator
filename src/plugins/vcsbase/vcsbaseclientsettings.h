@@ -34,7 +34,7 @@
 #define VCSBASECLIENTSETTINGS_H
 
 #include "vcsbase_global.h"
-#include <QtCore/QString>
+
 #include <QtCore/QStringList>
 #include <QtCore/QVariant>
 #include <QtCore/QSharedDataPointer>
@@ -43,13 +43,11 @@ QT_BEGIN_NAMESPACE
 class QSettings;
 QT_END_NAMESPACE
 
-namespace VCSBase {
+namespace VcsBase {
 
-namespace Internal {
-class VCSBaseClientSettingsPrivate;
-} // namespace Internal
+namespace Internal { class VcsBaseClientSettingsPrivate; }
 
-class VCSBASE_EXPORT VCSBaseClientSettings
+class VCSBASE_EXPORT VcsBaseClientSettings
 {
 public:
     static const QLatin1String binaryPathKey;
@@ -59,15 +57,15 @@ public:
     static const QLatin1String promptOnSubmitKey;
     static const QLatin1String timeoutKey; // Seconds
 
-    VCSBaseClientSettings();
-    VCSBaseClientSettings(const VCSBaseClientSettings &other);
-    VCSBaseClientSettings &operator=(const VCSBaseClientSettings &other);
-    virtual ~VCSBaseClientSettings();
+    VcsBaseClientSettings();
+    VcsBaseClientSettings(const VcsBaseClientSettings &other);
+    VcsBaseClientSettings &operator=(const VcsBaseClientSettings &other);
+    virtual ~VcsBaseClientSettings();
 
     void writeSettings(QSettings *settings) const;
     void readSettings(const QSettings *settings);
 
-    bool equals(const VCSBaseClientSettings &rhs) const;
+    bool equals(const VcsBaseClientSettings &rhs) const;
 
     QStringList keys() const;
     bool hasKey(const QString &key) const;
@@ -93,16 +91,16 @@ protected:
     QVariant keyDefaultValue(const QString &key) const;
 
 private:
-    friend bool equals(const VCSBaseClientSettings &rhs);
-    friend class VCSBaseClientSettingsPrivate;
-    QSharedDataPointer<Internal::VCSBaseClientSettingsPrivate> d;
+    friend bool equals(const VcsBaseClientSettings &rhs);
+    friend class VcsBaseClientSettingsPrivate;
+    QSharedDataPointer<Internal::VcsBaseClientSettingsPrivate> d;
 };
 
-inline bool operator==(const VCSBaseClientSettings &s1, const VCSBaseClientSettings &s2)
+inline bool operator==(const VcsBaseClientSettings &s1, const VcsBaseClientSettings &s2)
 { return s1.equals(s2); }
-inline bool operator!=(const VCSBaseClientSettings &s1, const VCSBaseClientSettings &s2)
+inline bool operator!=(const VcsBaseClientSettings &s1, const VcsBaseClientSettings &s2)
 { return !s1.equals(s2); }
 
-} // namespace VCSBase
+} // namespace VcsBase
 
 #endif // VCSBASECLIENTSETTINGS_H

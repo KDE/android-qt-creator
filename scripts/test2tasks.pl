@@ -6,7 +6,15 @@ test2tasks.pl - Convert QTest logs into Qt Creator task files.
 
 =head1 SYNOPSIS
 
-    test2tasks.pl < logfile > taskfile
+    test2tasks.pl [OPTIONS] < logfile > taskfile
+
+Options:
+
+    -a              Use absolute file paths
+
+    -r <some_path>  Prefix all file names by <some_path> (Used for
+                    creating a summarized log of a submodule repository)
+
 
 The script needs to be run in the working directory from which the test log was
 obtained as it attempts to perform a mapping from the source file base names of
@@ -17,17 +25,51 @@ the test log to relative path names by searching the files.
 use strict;
 
 use File::Find;
+use Getopt::Long;
+use File::Spec;
+use Cwd;
+
+my $optAbsolute = 0;
+my $optRelativeTo;
+
+# --------------- Detect OS
+
+my ($OS_LINUX, $OS_WINDOWS, $OS_MAC)  = (0, 1, 2);
+my $os = $OS_LINUX;
+if (index($^O, 'MSWin') >= 0) {
+    $os = $OS_WINDOWS;
+} elsif (index($^O, 'darwin') >= 0) {
+   $os = $OS_MAC;
+}
 
 # -- Build a hash from source file base name to relative paths.
 
 my %fileHash;
+my $workingDirectory = getcwd();
 
 sub handleFile
 {
     my $file = $_;
-    return unless index($file, '.cpp') != -1 && -f $file;
+    return unless -f $file;
+    return unless index($file, '.cpp') != -1 || index($file, '.h') != -1 || index($file, '.qml');
 #   './file' -> 'file'
-    $fileHash{$file} = substr($File::Find::name, 0, 1) eq '.' ? substr($File::Find::name, 2) : $File::Find::name;
+    my $name = substr($File::Find::name, 0, 1) eq '.' ?
+               substr($File::Find::name, 2) : $File::Find::name;
+     my $fullName = $name;
+    if (defined $optRelativeTo) {
+    $fullName = File::Spec->catfile($optRelativeTo, $File::Find::name);
+    } else {
+    $fullName = File::Spec->catfile($workingDirectory, $File::Find::name) if ($optAbsolute);
+    }
+    $fullName =~ s|\\|/|g; # The task pane wants forward slashes on Windows, also.
+    $fileHash{$file} = $fullName;
+}
+
+#   Main
+if (!GetOptions("absolute" => \$optAbsolute,
+                "relative=s" => \$optRelativeTo)) {
+    print "Invalid option\n";
+    exit (0);
 }
 
 find({ wanted => \& handleFile}, '.');
@@ -37,6 +79,13 @@ find({ wanted => \& handleFile}, '.');
 
 my $lastLine = '';
 my ($failCount, $fatalCount) = (0, 0);
+
+sub isAbsolute
+{
+    my ($f) = @_;
+    return $f =~ /^[a-zA-Z]:/ ? 1 : 0 if $os eq $OS_WINDOWS;
+    return index($f, '/') == 0 ? 1 : 0;
+}
 
 while (my $line = <STDIN> ) {
     chomp($line);
@@ -52,10 +101,12 @@ while (my $line = <STDIN> ) {
         || $line =~ /^\s*Loc:\s*\[([^(]+)\((\d+)\).*$/) {
         my $fullFileName = $1;
         my $line = $2;
-        if (index($fullFileName, '/') != 0) { # Unix has absolute file names, Windows may not
+        #  -- Fix '/C:/bla' which is sometimes reported for QML errors.
+        $fullFileName = substr($fullFileName, 1) if ($os eq $OS_WINDOWS && $fullFileName =~ /^\/[a-zA-Z]:\//);
+        if (!isAbsolute($fullFileName)) { # Unix has absolute file names, Windows may not
             my $slashPos = rindex($fullFileName, '/');
             $slashPos = rindex($fullFileName, "\\") if $slashPos < 0;
-            my $fileName = $slashPos > 0 ? substr($1, $slashPos + 1) : $fullFileName;
+            my $fileName = $slashPos > 0 ? substr($fullFileName, $slashPos + 1) : $fullFileName;
             $fullFileName = $fileHash{$fileName};
             $fullFileName = $fileName unless defined $fullFileName;
         }
@@ -71,4 +122,4 @@ while (my $line = <STDIN> ) {
     $lastLine = $line;
 }
 
-print STDERR 'Done, FAIL: ',$failCount, ', FATAL: ',$fatalCount, "\n";
+print STDERR 'Done, ISSUES: ',$failCount, ', FATAL: ',$fatalCount, "\n";

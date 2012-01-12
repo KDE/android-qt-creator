@@ -61,8 +61,15 @@ namespace Internal {
 TermGdbAdapter::TermGdbAdapter(GdbEngine *engine)
     : AbstractGdbAdapter(engine)
 {
+#ifdef Q_OS_WIN
+    // Windows up to xp needs a workaround for attaching to freshly started processes. see proc_stub_win
+    if (QSysInfo::WindowsVersion >= QSysInfo::WV_VISTA) {
+        m_stubProc.setMode(Utils::ConsoleProcess::Suspend);
+    } else {
+        m_stubProc.setMode(Utils::ConsoleProcess::Debug);
+    }
+#else
     m_stubProc.setMode(Utils::ConsoleProcess::Debug);
-#ifdef Q_OS_UNIX
     m_stubProc.setSettings(Core::ICore::instance()->settings());
 #endif
 
@@ -164,6 +171,10 @@ void TermGdbAdapter::handleStubAttached(const GdbResponse &response)
         m_engine->handleInferiorPrepared();
         break;
     case GdbResultError:
+        if (response.data.findChild("msg").data() == "ptrace: Operation not permitted.") {
+            m_engine->notifyInferiorSetupFailed(DumperHelper::msgPtraceError(startParameters().startMode));
+            break;
+        }
         m_engine->notifyInferiorSetupFailed(QString::fromLocal8Bit(response.data.findChild("msg").data()));
         break;
     default:

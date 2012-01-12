@@ -36,7 +36,6 @@
 
 #include "callgrindtool.h"
 #include "memchecktool.h"
-#include "valgrindsettings.h"
 
 #include <analyzerbase/analyzerconstants.h>
 #include <analyzerbase/analyzermanager.h>
@@ -59,113 +58,13 @@
 #include <QtGui/QAction>
 
 using namespace Analyzer;
-using namespace Valgrind::Internal;
 using namespace ProjectExplorer;
 
-/////////////////////////////////////////////////////////////////////////////////
-//
-// ValgrindRunControlFactory
-//
-/////////////////////////////////////////////////////////////////////////////////
 
 namespace Valgrind {
 namespace Internal {
 
-class ValgrindRunControlFactory : public ProjectExplorer::IRunControlFactory
-{
-    Q_OBJECT
-
-public:
-    ValgrindRunControlFactory(QObject *parent = 0);
-
-    // IRunControlFactory
-    bool canRun(RunConfiguration *runConfiguration, const QString &mode) const;
-    RunControl *create(RunConfiguration *runConfiguration, const QString &mode);
-    QString displayName() const;
-
-    IRunConfigurationAspect *createRunConfigurationAspect();
-    RunConfigWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
-};
-
-ValgrindRunControlFactory::ValgrindRunControlFactory(QObject *parent)
-    : IRunControlFactory(parent)
-{
-    setObjectName(QLatin1String("ValgrindRunControlFactory"));
-}
-
-bool ValgrindRunControlFactory::canRun(RunConfiguration *runConfiguration, const QString &mode) const
-{
-    Q_UNUSED(runConfiguration);
-    return mode.startsWith("Callgrind") || mode.startsWith("Memcheck");
-}
-
-RunControl *ValgrindRunControlFactory::create(RunConfiguration *runConfiguration, const QString &mode)
-{
-    QTC_ASSERT(canRun(runConfiguration, mode), return 0);
-
-    AnalyzerStartParameters sp;
-    if (LocalApplicationRunConfiguration *rc1 =
-            qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration)) {
-        sp.startMode = StartLocal;
-        sp.environment = rc1->environment();
-        sp.workingDirectory = rc1->workingDirectory();
-        sp.debuggee = rc1->executable();
-        sp.debuggeeArgs = rc1->commandLineArguments();
-        sp.displayName = rc1->displayName();
-        sp.connParams.host = QLatin1String("localhost");
-        sp.connParams.port = rc1->qmlDebugServerPort();
-    } else if (RemoteLinux::RemoteLinuxRunConfiguration *rc2 =
-               qobject_cast<RemoteLinux::RemoteLinuxRunConfiguration *>(runConfiguration)) {
-        sp.startMode = StartRemote;
-        sp.debuggee = rc2->remoteExecutableFilePath();
-        sp.debuggeeArgs = rc2->arguments();
-        sp.connParams = rc2->deviceConfig()->sshParameters();
-        sp.analyzerCmdPrefix = rc2->commandPrefix();
-        sp.displayName = rc2->displayName();
-    } else {
-        // Might be S60DeviceRunfiguration, or something else ...
-        //sp.startMode = StartRemote;
-        sp.startMode = StartRemote;
-    }
-
-    IAnalyzerTool *tool = AnalyzerManager::toolFromId(Core::Id(mode));
-    AnalyzerRunControl *rc = new AnalyzerRunControl(tool, sp, runConfiguration);
-    QObject::connect(AnalyzerManager::stopAction(), SIGNAL(triggered()), rc, SLOT(stopIt()));
-    return rc;
-}
-
-QString ValgrindRunControlFactory::displayName() const
-{
-    return tr("Analyzer");
-}
-
-IRunConfigurationAspect *ValgrindRunControlFactory::createRunConfigurationAspect()
-{
-    return new AnalyzerProjectSettings;
-}
-
-RunConfigWidget *ValgrindRunControlFactory::createConfigurationWidget(RunConfiguration *runConfiguration)
-{
-    LocalApplicationRunConfiguration *localRc =
-        qobject_cast<LocalApplicationRunConfiguration *>(runConfiguration);
-    if (!localRc)
-        return 0;
-    AnalyzerProjectSettings *settings = runConfiguration->extraAspect<AnalyzerProjectSettings>();
-    if (!settings)
-        return 0;
-
-    AnalyzerRunConfigWidget *ret = new AnalyzerRunConfigWidget;
-    ret->setRunConfiguration(runConfiguration);
-    return ret;
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-//
-// ValgrindPlugin
-//
-/////////////////////////////////////////////////////////////////////////////////
-
-static void startRemoteTool(IAnalyzerTool *tool, StartMode mode)
+static void startRemoteTool(IAnalyzerTool *tool)
 {
     Q_UNUSED(tool);
     StartRemoteDialog dlg;
@@ -174,7 +73,7 @@ static void startRemoteTool(IAnalyzerTool *tool, StartMode mode)
 
     AnalyzerStartParameters sp;
     sp.toolId = tool->id();
-    sp.startMode = mode;
+    sp.startMode = StartRemote;
     sp.connParams = dlg.sshParams();
     sp.debuggee = dlg.executable();
     sp.debuggeeArgs = dlg.arguments();
@@ -185,31 +84,19 @@ static void startRemoteTool(IAnalyzerTool *tool, StartMode mode)
     //m_currentRunControl = rc;
     QObject::connect(AnalyzerManager::stopAction(), SIGNAL(triggered()), rc, SLOT(stopIt()));
 
-    ProjectExplorerPlugin::instance()->startRunControl(rc, tool->id().toString());
+    ProjectExplorerPlugin::instance()->startRunControl(rc, tool->runMode());
 }
 
 void ValgrindPlugin::startValgrindTool(IAnalyzerTool *tool, StartMode mode)
 {
     if (mode == StartLocal)
-        AnalyzerManager::startLocalTool(tool, mode);
+        AnalyzerManager::startLocalTool(tool);
     if (mode == StartRemote)
-        startRemoteTool(tool, mode);
-}
-
-static AbstractAnalyzerSubConfig *globalValgrindFactory()
-{
-    return new ValgrindGlobalSettings();
-}
-
-static AbstractAnalyzerSubConfig *projectValgrindFactory()
-{
-    return new ValgrindProjectSettings();
+        startRemoteTool(tool);
 }
 
 bool ValgrindPlugin::initialize(const QStringList &, QString *)
 {
-    AnalyzerGlobalSettings::instance()->registerSubConfigs(&globalValgrindFactory, &projectValgrindFactory);
-
     StartModes modes;
 #ifndef Q_OS_WIN
     modes.append(StartMode(StartLocal));
@@ -219,9 +106,6 @@ bool ValgrindPlugin::initialize(const QStringList &, QString *)
     AnalyzerManager::addTool(new MemcheckTool(this), modes);
     AnalyzerManager::addTool(new CallgrindTool(this), modes);
 
-    ValgrindRunControlFactory *factory = new ValgrindRunControlFactory();
-    addAutoReleasedObject(factory);
-
     return true;
 }
 
@@ -230,5 +114,3 @@ bool ValgrindPlugin::initialize(const QStringList &, QString *)
 
 
 Q_EXPORT_PLUGIN(Valgrind::Internal::ValgrindPlugin)
-
-#include "valgrindplugin.moc"

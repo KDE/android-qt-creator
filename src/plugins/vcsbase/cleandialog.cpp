@@ -52,7 +52,7 @@
 #include <QtCore/QFuture>
 #include <QtCore/QtConcurrentRun>
 
-namespace VCSBase {
+namespace VcsBase {
 namespace Internal {
 
 enum { nameColumn, columnCount };
@@ -71,21 +71,22 @@ static void removeFileRecursion(const QFileInfo &f, QString *errorMessage)
             removeFileRecursion(fi, errorMessage);
         QDir parent = f.absoluteDir();
         if (!parent.rmdir(f.fileName()))
-            errorMessage->append(VCSBase::CleanDialog::tr("The directory %1 could not be deleted.").
+            errorMessage->append(VcsBase::CleanDialog::tr("The directory %1 could not be deleted.").
                                  arg(QDir::toNativeSeparators(f.absoluteFilePath())));
         return;
     }
     if (!QFile::remove(f.absoluteFilePath())) {
         if (!errorMessage->isEmpty())
             errorMessage->append(QLatin1Char('\n'));
-        errorMessage->append(VCSBase::CleanDialog::tr("The file %1 could not be deleted.").
+        errorMessage->append(VcsBase::CleanDialog::tr("The file %1 could not be deleted.").
                              arg(QDir::toNativeSeparators(f.absoluteFilePath())));
     }
 }
 
 // A QFuture task for cleaning files in the background.
 // Emits error signal if not all files can be deleted.
-class CleanFilesTask : public QObject {
+class CleanFilesTask : public QObject
+{
     Q_OBJECT
 
 public:
@@ -136,14 +137,15 @@ public:
     QString m_workingDirectory;
 };
 
-CleanDialogPrivate::CleanDialogPrivate() : m_filesModel(new QStandardItemModel(0, columnCount))
+CleanDialogPrivate::CleanDialogPrivate() :
+    m_filesModel(new QStandardItemModel(0, columnCount))
 {
 }
 
 } // namespace Internal
 
 /*!
-    \class VCSBase::CleanDialog
+    \class VcsBase::CleanDialog
 
     \brief File selector dialog for files not under version control.
 
@@ -195,7 +197,7 @@ void CleanDialog::setFileList(const QString &workingDirectory, const QStringList
     const QString qmlProUserSuffix = QLatin1String(".qmlproject.user");
     const QChar slash = QLatin1Char('/');
     // Do not initially check patches or 'pro.user' files for deletion.
-    foreach(const QString &fileName, l) {
+    foreach (const QString &fileName, l) {
         const QFileInfo fi(workingDirectory + slash + fileName);
         const bool isDir = fi.isDir();
         QStandardItem *nameItem = new QStandardItem(QDir::toNativeSeparators(fileName));
@@ -256,14 +258,14 @@ bool CleanDialog::promptToDelete()
     // Remove in background
     Internal::CleanFilesTask *cleanTask = new Internal::CleanFilesTask(d->m_workingDirectory, selectedFiles);
     connect(cleanTask, SIGNAL(error(QString)),
-            VCSBase::VCSBaseOutputWindow::instance(), SLOT(appendSilently(QString)),
+            VcsBase::VcsBaseOutputWindow::instance(), SLOT(appendSilently(QString)),
             Qt::QueuedConnection);
 
     QFuture<void> task = QtConcurrent::run(cleanTask, &Internal::CleanFilesTask::run);
     const QString taskName = tr("Cleaning %1").
                              arg(QDir::toNativeSeparators(d->m_workingDirectory));
     Core::ICore::instance()->progressManager()->addTask(task, taskName,
-                                                        QLatin1String("VCSBase.cleanRepository"));
+                                                        QLatin1String("VcsBase.cleanRepository"));
     return true;
 }
 
@@ -289,6 +291,6 @@ void CleanDialog::changeEvent(QEvent *e)
     }
 }
 
-} // namespace VCSBase
+} // namespace VcsBase
 
 #include "cleandialog.moc"

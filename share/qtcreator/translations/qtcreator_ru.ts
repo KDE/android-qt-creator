@@ -1729,14 +1729,14 @@ Specifies how backspace interacts with indentation.
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSEditor</name>
+    <name>Cvs::Internal::CvsEditor</name>
     <message>
         <source>Annotate revision &quot;%1&quot;</source>
         <translation>Аннотация ревизии «%1»</translation>
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSPlugin</name>
+    <name>Cvs::Internal::CvsPlugin</name>
     <message>
         <source>Parsing of the log output failed</source>
         <translation>Не удалось разобрать историю</translation>
@@ -1987,7 +1987,7 @@ Specifies how backspace interacts with indentation.
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSSubmitEditor</name>
+    <name>Cvs::Internal::CvsSubmitEditor</name>
     <message>
         <source>Added</source>
         <translation>Добавлен</translation>
@@ -2002,7 +2002,7 @@ Specifies how backspace interacts with indentation.
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CheckoutWizard</name>
+    <name>Cvs::Internal::CheckoutWizard</name>
     <message>
         <source>Checks out a CVS repository and tries to load the contained project.</source>
         <translation>Извлечение хранилища CVS с последующей попыткой загрузки содержащегося там проекта.</translation>
@@ -2013,7 +2013,7 @@ Specifies how backspace interacts with indentation.
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CheckoutWizardPage</name>
+    <name>Cvs::Internal::CheckoutWizardPage</name>
     <message>
         <source>Location</source>
         <translation>Размещение</translation>
@@ -2028,7 +2028,7 @@ Specifies how backspace interacts with indentation.
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CvsDiffParameterWidget</name>
+    <name>Cvs::Internal::CvsDiffParameterWidget</name>
     <message>
         <source>Ignore whitespace</source>
         <translation>Пропускать пробелы</translation>
@@ -2039,7 +2039,7 @@ Specifies how backspace interacts with indentation.
     </message>
 </context>
 <context>
-    <name>CVS::Internal::SettingsPage</name>
+    <name>Cvs::Internal::SettingsPage</name>
     <message>
         <source>CVS</source>
         <translation>CVS</translation>
@@ -2086,7 +2086,7 @@ Specifies how backspace interacts with indentation.
     </message>
 </context>
 <context>
-    <name>CVS::Internal::SettingsPageWidget</name>
+    <name>Cvs::Internal::SettingsPageWidget</name>
     <message>
         <source>CVS Command</source>
         <translation>Команда CVS</translation>
@@ -27674,7 +27674,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase</name>
+    <name>VcsBase</name>
     <message>
         <source>Version Control</source>
         <translation>Контроль версий</translation>
@@ -27689,7 +27689,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::BaseCheckoutWizard</name>
+    <name>VcsBase::BaseCheckoutWizard</name>
     <message>
         <source>Cannot Open Project</source>
         <translation>Не удалось открыть проект</translation>
@@ -27712,7 +27712,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::BaseCheckoutWizardPage</name>
+    <name>VcsBase::BaseCheckoutWizardPage</name>
     <message>
         <source>WizardPage</source>
         <translation>WizardPage</translation>
@@ -27763,7 +27763,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::CleanDialog</name>
+    <name>VcsBase::CleanDialog</name>
     <message>
         <source>The directory %1 could not be deleted.</source>
         <translation>Невозможно удалить каталог %1.</translation>
@@ -27814,7 +27814,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::Command</name>
+    <name>VcsBase::Command</name>
     <message>
         <source>Error: VCS timed out after %1s.</source>
         <translation>Ошибка: VCS превысила время ожидания (%1 сек).</translation>
@@ -27825,7 +27825,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::CheckoutProgressWizardPage</name>
+    <name>VcsBase::Internal::CheckoutProgressWizardPage</name>
     <message>
         <source>Checkout</source>
         <translation>Извлечение</translation>
@@ -27844,14 +27844,14 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::CommonSettingsWidget</name>
+    <name>VcsBase::Internal::CommonSettingsWidget</name>
     <message>
         <source>Command used for reverting diff chunks</source>
         <translation>Команда, используемаях для отката фрагментов diff</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::NickNameDialog</name>
+    <name>VcsBase::Internal::NickNameDialog</name>
     <message>
         <source>Name</source>
         <translation>Имя</translation>
@@ -27870,7 +27870,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::ProcessCheckoutJob</name>
+    <name>VcsBase::ProcessCheckoutJob</name>
     <message>
         <source>Unable to start %1: %2</source>
         <translation>Не удалось запустить %1: %2</translation>
@@ -27893,7 +27893,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::SubmitFileModel</name>
+    <name>VcsBase::SubmitFileModel</name>
     <message>
         <source>State</source>
         <translation>Состояние</translation>
@@ -27904,7 +27904,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseClient</name>
+    <name>VcsBase::VcsBaseClient</name>
     <message>
         <source>Unable to start process &apos;%1&apos;: %2</source>
         <translation>Не удалось запустить процесс «%1»: %2</translation>
@@ -27919,7 +27919,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseEditorWidget</name>
+    <name>VcsBase::VcsBaseEditorWidget</name>
     <message>
         <source>Annotate &quot;%1&quot;</source>
         <translation>Аннотация «%1»</translation>
@@ -27970,7 +27970,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseOutputWindow</name>
+    <name>VcsBase::VcsBaseOutputWindow</name>
     <message>
         <source>Open &quot;%1&quot;</source>
         <translation>Открыть «%1»</translation>
@@ -27997,7 +27997,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBasePlugin</name>
+    <name>VcsBase::VcsBasePlugin</name>
     <message>
         <source>Version Control</source>
         <translation>Контроль версий</translation>
@@ -28060,7 +28060,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseSubmitEditor</name>
+    <name>VcsBase::VcsBaseSubmitEditor</name>
     <message>
         <source>Prompt to submit</source>
         <translation>Спрашивать при фиксации</translation>
@@ -28103,7 +28103,7 @@ Influences the indentation of continuation lines.
     </message>
 </context>
 <context>
-    <name>VCSBase::VcsConfigurationPage</name>
+    <name>VcsBase::VcsConfigurationPage</name>
     <message>
         <source>Configuration</source>
         <translation>Настройка</translation>

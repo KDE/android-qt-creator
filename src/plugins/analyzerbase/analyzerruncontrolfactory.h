@@ -2,9 +2,9 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Kläralvdalens Datakonsult AB, a KDAB Group company.
 **
-** Contact: Nokia Corporation (info@qt.nokia.com)
+** Contact: Kläralvdalens Datakonsult AB (info@kdab.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -30,17 +30,34 @@
 **
 **************************************************************************/
 
-#import <Cocoa/Cocoa.h>
-#include <QWidget>
+#ifndef ANALYZERRUNCONTROLFACTORY_H
+#define ANALYZERRUNCONTROLFACTORY_H
 
-void enableMacFullScreen(WId winId)
+#include <analyzerbase/analyzerruncontrol.h>
+#include <projectexplorer/runconfiguration.h>
+
+namespace Analyzer {
+namespace Internal {
+
+class AnalyzerRunControlFactory : public ProjectExplorer::IRunControlFactory
 {
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
-    if (QSysInfo::MacintoshVersion >= QSysInfo::MV_10_7) {
-        NSView *nsview = reinterpret_cast<NSView *>(winId);
-        NSWindow *nswindow = [nsview window];
-        [nswindow setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
-    }
-#endif
-}
+    Q_OBJECT
+public:
+    typedef ProjectExplorer::RunConfiguration RunConfiguration;
 
+    explicit AnalyzerRunControlFactory(QObject *parent = 0);
+
+    // IRunControlFactory implementation
+    QString displayName() const;
+    bool canRun(RunConfiguration *runConfiguration, ProjectExplorer::RunMode mode) const;
+    ProjectExplorer::RunControl *create(RunConfiguration *runConfiguration,
+                                        ProjectExplorer::RunMode mode);
+    ProjectExplorer::IRunConfigurationAspect *createRunConfigurationAspect();
+    ProjectExplorer::RunConfigWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
+
+};
+
+} // namespace Internal
+} // namespace Analyzer
+
+#endif // ANALYZERRUNCONTROLFACTORY_H

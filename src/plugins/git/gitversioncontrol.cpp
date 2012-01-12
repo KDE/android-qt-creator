@@ -57,9 +57,9 @@ QString GitVersionControl::displayName() const
     return QLatin1String("git");
 }
 
-QString GitVersionControl::id() const
+Core::Id GitVersionControl::id() const
 {
-    return QLatin1String(VCSBase::Constants::VCS_ID_GIT);
+    return VcsBase::Constants::VCS_ID_GIT;
 }
 
 bool GitVersionControl::isConfigured() const
@@ -230,7 +230,7 @@ bool GitVersionControl::vcsRemoveSnapshot(const QString &topLevel, const QString
 
 bool GitVersionControl::managesDirectory(const QString &directory, QString *topLevel) const
 {
-    const QString topLevelFound = GitClient::findRepositoryForDirectory(directory);
+    const QString topLevelFound = m_client->findRepositoryForDirectory(directory);
     if (topLevel)
         *topLevel = topLevelFound;
     return !topLevelFound.isEmpty();

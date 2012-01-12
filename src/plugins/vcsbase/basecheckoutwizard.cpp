@@ -44,7 +44,7 @@
 #include <QtGui/QMessageBox>
 
 /*!
-    \class VCSBase::BaseCheckoutWizard
+    \class VcsBase::BaseCheckoutWizard
 
     \brief A Core::IWizard implementing a wizard for initially checking out a project using
     a version control system.
@@ -61,10 +61,10 @@
    On success, the wizard tries to locate a project file
    and open it.
 
-   \sa VCSBase::BaseCheckoutWizardPage
+   \sa VcsBase::BaseCheckoutWizardPage
 */
 
-namespace VCSBase {
+namespace VcsBase {
 namespace Internal {
 
 class BaseCheckoutWizardPrivate
@@ -195,9 +195,9 @@ QString BaseCheckoutWizard::openProject(const QString &path, QString *errorMessa
         return QString();
     // Open. Do not use a busy cursor here as additional wizards might pop up
     const QString projectFile = projectFiles.front().absoluteFilePath();
-    if (!pe->openProject(projectFile, errorMessage)) {
+    if (!pe->openProject(projectFile, errorMessage))
         return QString();
-    }
+
     return projectFile;
 }
 
@@ -208,4 +208,4 @@ void BaseCheckoutWizard::slotProgressPageShown()
         d->dialog->start(job);
 }
 
-} // namespace VCSBase
+} // namespace VcsBase

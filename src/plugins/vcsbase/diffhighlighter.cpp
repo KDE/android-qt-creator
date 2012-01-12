@@ -42,7 +42,7 @@
 #include <QtGui/QBrush>
 
 /*!
-    \class VCSBase::DiffHighlighter
+    \class VcsBase::DiffHighlighter
 
     \brief A highlighter for diffs.
 
@@ -67,7 +67,7 @@ static const int BASE_LEVEL = 0;
 static const int FILE_LEVEL = 1;
 static const int LOCATION_LEVEL = 2;
 
-namespace VCSBase {
+namespace VcsBase {
 namespace Internal {
 
 // Formats used by DiffHighlighter
@@ -88,10 +88,12 @@ enum FoldingState {
 };
 
 // --- DiffHighlighterPrivate
-class DiffHighlighterPrivate {
+class DiffHighlighterPrivate
+{
 public:
     DiffHighlighterPrivate(const QRegExp &filePattern);
-    inline DiffFormats analyzeLine(const QString &block) const;
+
+    DiffFormats analyzeLine(const QString &block) const;
 
     const QRegExp m_filePattern;
     const QString m_locationIndicator;
@@ -262,4 +264,4 @@ QRegExp DiffHighlighter::filePattern() const
     return d->m_filePattern;
 }
 
-} // namespace VCSBase
+} // namespace VcsBase

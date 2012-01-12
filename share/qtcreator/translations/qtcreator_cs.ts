@@ -10708,8 +10708,7 @@ se projektu &apos;%2&apos; nepodařilo přidat.</translation>
     </message>
     <message>
         <source>Ctrl+Shift+O</source>
-        <translation>
-Ctrl+Shift+O</translation>
+        <translation>Ctrl+Shift+O</translation>
     </message>
     <message>
         <source>Open File</source>
@@ -14552,7 +14551,7 @@ Zdá se, že následující kódování odpovídají souboru:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase</name>
+    <name>VcsBase</name>
     <message>
         <source>Version Control</source>
         <translation>Správa verzí</translation>
@@ -14567,7 +14566,7 @@ Zdá se, že následující kódování odpovídají souboru:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::NickNameDialog</name>
+    <name>VcsBase::Internal::NickNameDialog</name>
     <message>
         <source>Name</source>
         <translation>Název</translation>
@@ -14590,7 +14589,7 @@ Zdá se, že následující kódování odpovídají souboru:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::SubmitFileModel</name>
+    <name>VcsBase::SubmitFileModel</name>
     <message>
         <source>State</source>
         <translation>Stav</translation>
@@ -14601,7 +14600,7 @@ Zdá se, že následující kódování odpovídají souboru:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseEditor</name>
+    <name>VcsBase::VcsBaseEditor</name>
     <message>
         <source>Annotate &quot;%1&quot;</source>
         <translation type="obsolete">Opatřit vysvětlivkami &quot;%1&quot;</translation>
@@ -14616,7 +14615,7 @@ Zdá se, že následující kódování odpovídají souboru:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseSubmitEditor</name>
+    <name>VcsBase::VcsBaseSubmitEditor</name>
     <message>
         <source>Check message</source>
         <translation type="obsolete">Ověřit popis</translation>
@@ -14683,7 +14682,7 @@ Zdá se, že následující kódování odpovídají souboru:</translation>
     </message>
 </context>
 <context>
-    <name>VCSBaseSettingsPage</name>
+    <name>VcsBaseSettingsPage</name>
     <message>
         <source>Common</source>
         <translation type="obsolete">Společné</translation>
@@ -14720,7 +14719,7 @@ Jméno &lt;E-mail&gt; Přezdívka &lt;E-mail&gt;</translation>
     </message>
 </context>
 <context>
-    <name>VCSManager</name>
+    <name>VcsManager</name>
     <message>
         <source>Version Control</source>
         <translation type="obsolete">Ověření verzí</translation>
@@ -15085,7 +15084,7 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>CVS::Internal::SettingsPage</name>
+    <name>Cvs::Internal::SettingsPage</name>
     <message>
         <source>Prompt to submit</source>
         <translation type="obsolete">Potvrdit předložení</translation>
@@ -16204,7 +16203,7 @@ Abyste to provedl, napište tuto zkraku v zadávacím poli vyhledávače, násle
     </message>
 </context>
 <context>
-    <name>VCSBase::BaseCheckoutWizardPage</name>
+    <name>VcsBase::BaseCheckoutWizardPage</name>
     <message>
         <source>WizardPage</source>
         <translation>WizardPage</translation>
@@ -16921,7 +16920,7 @@ Abyste to provedl, napište tuto zkraku v zadávacím poli vyhledávače, násle
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CheckoutWizard</name>
+    <name>Cvs::Internal::CheckoutWizard</name>
     <message>
         <source>Checks out a project from a CVS repository.</source>
         <translation type="obsolete">Odhlásí projekt ze skladiště CVS.</translation>
@@ -16936,7 +16935,7 @@ Abyste to provedl, napište tuto zkraku v zadávacím poli vyhledávače, násle
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CheckoutWizardPage</name>
+    <name>Cvs::Internal::CheckoutWizardPage</name>
     <message>
         <source>Location</source>
         <translation>Umístění</translation>
@@ -16951,14 +16950,14 @@ Abyste to provedl, napište tuto zkraku v zadávacím poli vyhledávače, násle
     </message>
 </context>
 <context>
-    <name>CVSPlugin</name>
+    <name>CvsPlugin</name>
     <message>
         <source>Cannot find repository for &apos;%1&apos;</source>
         <translation type="obsolete">Nelze najít skladiště pro &apos;%1&apos;</translation>
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSPlugin</name>
+    <name>Cvs::Internal::CvsPlugin</name>
     <message>
         <source>Parsing of the log output failed</source>
         <translation>Nepodařilo se vyhodnotit výstup zapisu</translation>
@@ -17274,7 +17273,7 @@ Abyste to provedl, napište tuto zkraku v zadávacím poli vyhledávače, násle
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSSubmitEditor</name>
+    <name>Cvs::Internal::CvsSubmitEditor</name>
     <message>
         <source>Added</source>
         <translation>Přidáno</translation>
@@ -17293,7 +17292,7 @@ Abyste to provedl, napište tuto zkraku v zadávacím poli vyhledávače, násle
     </message>
 </context>
 <context>
-    <name>CVS::Internal::SettingsPageWidget</name>
+    <name>Cvs::Internal::SettingsPageWidget</name>
     <message>
         <source>CVS Command</source>
         <translation>Příkaz CVS</translation>
@@ -19316,7 +19315,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>VCSBase::BaseCheckoutWizard</name>
+    <name>VcsBase::BaseCheckoutWizard</name>
     <message>
         <source>Cannot Open Project</source>
         <translation>Chyba při otevírání projektu</translation>
@@ -19343,7 +19342,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>VCSBase::ProcessCheckoutJob</name>
+    <name>VcsBase::ProcessCheckoutJob</name>
     <message>
         <source>Unable to start %1: %2</source>
         <translation>Nelze spustit %1: %2</translation>
@@ -19366,7 +19365,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::CheckoutProgressWizardPage</name>
+    <name>VcsBase::Internal::CheckoutProgressWizardPage</name>
     <message>
         <source>Checkout</source>
         <translation>Stáhnout (checkout) kopii</translation>
@@ -19385,7 +19384,7 @@ S60 emulator run configuration default display name, %1 is base pro-File name</e
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseOutputWindow</name>
+    <name>VcsBase::VcsBaseOutputWindow</name>
     <message>
         <source>Open &quot;%1&quot;</source>
         <translation>Otevřít &quot;%1&quot;</translation>
@@ -21226,7 +21225,7 @@ a předpokladem je, že vzdálený spustitelný soubor bude v adresáři zmiňov
     </message>
 </context>
 <context>
-    <name>VCSBase::CleanDialog</name>
+    <name>VcsBase::CleanDialog</name>
     <message>
         <source>Clean Repository</source>
         <translation>Uklidit skladiště</translation>
@@ -22837,7 +22836,7 @@ Desetinná hodnota se znaménkem (velký endian): %4</translation>
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CVSEditor</name>
+    <name>Cvs::Internal::CvsEditor</name>
     <message>
         <source>Annotate revision &quot;%1&quot;</source>
         <translation>Opatřit vysvětlivkami revizi &quot;%1&quot;</translation>
@@ -26191,7 +26190,7 @@ Vybere pro napodobovatele a přenosné cíle vhodné verze Qt, jsou-li dostupné
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBasePlugin</name>
+    <name>VcsBase::VcsBasePlugin</name>
     <message>
         <source>Version Control</source>
         <translation>Správa verzí</translation>
@@ -29160,7 +29159,7 @@ Při plné simulaci vyrovnávací paměti budou zapnuta další počítadla udá
     </message>
 </context>
 <context>
-    <name>VCSBase::VcsConfigurationPage</name>
+    <name>VcsBase::VcsConfigurationPage</name>
     <message>
         <source>Configure</source>
         <translation>Nastavit</translation>
@@ -30982,7 +30981,7 @@ Poznámka: Podle okolností by mohlo dojít ke smazání místního souboru.</tr
     </message>
 </context>
 <context>
-    <name>CVS::Internal::CvsDiffParameterWidget</name>
+    <name>Cvs::Internal::CvsDiffParameterWidget</name>
     <message>
         <source>Ignore whitespace</source>
         <translation>Nevšímat si mezer</translation>
@@ -38098,21 +38097,21 @@ Prověřte, prosím, oprávnění pro přístup k adresáři.</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::Internal::CommonSettingsWidget</name>
+    <name>VcsBase::Internal::CommonSettingsWidget</name>
     <message>
         <source>Command used for reverting diff chunks</source>
         <translation>Příkaz používaný pro vrácení jednotlivých změn v oznámení Diff</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseClient</name>
+    <name>VcsBase::VcsBaseClient</name>
     <message>
         <source>Working...</source>
         <translation>Pracuje...</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSBaseEditorWidget</name>
+    <name>VcsBase::VcsBaseEditorWidget</name>
     <message>
         <source>Annotate &quot;%1&quot;</source>
         <translation>Opatřit vysvětlivkami &quot;%1&quot;</translation>
@@ -38151,7 +38150,7 @@ Prověřte, prosím, oprávnění pro přístup k adresáři.</translation>
     </message>
 </context>
 <context>
-    <name>VCSBase::VCSJobRunner</name>
+    <name>VcsBase::VcsJobRunner</name>
     <message>
         <source>Unable to start process &apos;%1&apos;: %2</source>
         <translation>Proces &apos;%1&apos; nelze spustit: %2</translation>

@@ -2,9 +2,9 @@
 **
 ** This file is part of Qt Creator
 **
-** Copyright (c) 2011 Nokia Corporation and/or its subsidiary(-ies).
+** Copyright (C) 2011 Kläralvdalens Datakonsult AB, a KDAB Group company.
 **
-** Contact: Nokia Corporation (qt-info@nokia.com)
+** Contact: Kläralvdalens Datakonsult AB (info@kdab.com)
 **
 **
 ** GNU Lesser General Public License Usage
@@ -26,40 +26,33 @@
 ** conditions contained in a signed written agreement between you and Nokia.
 **
 ** If you have questions regarding the use of this file, please contact
-** Nokia at qt-info@nokia.com.
+** Nokia at info@qt.nokia.com.
 **
 **************************************************************************/
 
-#ifndef QMLPROFILERRUNCONTROLFACTORY_H
-#define QMLPROFILERRUNCONTROLFACTORY_H
+#ifndef VALGRINDTOOL_H
+#define VALGRINDTOOL_H
 
-#include <analyzerbase/analyzerruncontrol.h>
-#include <projectexplorer/runconfiguration.h>
+#include <analyzerbase/ianalyzertool.h>
 
-namespace QmlProfiler {
+namespace Valgrind {
 namespace Internal {
 
-class QmlProfilerRunControlFactory : public ProjectExplorer::IRunControlFactory
+class ValgrindTool : public Analyzer::IAnalyzerTool
 {
     Q_OBJECT
-
 public:
-    typedef ProjectExplorer::RunConfiguration RunConfiguration;
+    explicit ValgrindTool(QObject *parent);
 
-    QmlProfilerRunControlFactory(QObject *parent = 0);
+    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
+                ProjectExplorer::RunMode mode) const;
 
-    // IRunControlFactory implementation
-    QString displayName() const;
-    bool canRun(RunConfiguration *runConfiguration, const QString &mode) const;
-    ProjectExplorer::RunControl *create(RunConfiguration *runConfiguration, const QString &mode);
-    ProjectExplorer::IRunConfigurationAspect *createRunConfigurationAspect();
-    ProjectExplorer::RunConfigWidget *createConfigurationWidget(RunConfiguration *runConfiguration);
-
-signals:
-    void runControlCreated(Analyzer::AnalyzerRunControl *);
+    Analyzer::AnalyzerStartParameters createStartParameters(
+            ProjectExplorer::RunConfiguration *runConfiguration,
+            ProjectExplorer::RunMode mode) const;
 };
 
 } // namespace Internal
-} // namespace QmlProfiler
+} // namespace Valgrind
 
-#endif // QMLPROFILERRUNCONTROLFACTORY_H
+#endif // VALGRINDTOOL_H

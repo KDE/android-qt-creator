@@ -37,8 +37,10 @@
 
 #include "analyzerbase_global.h"
 #include "analyzerconstants.h"
+#include "analyzerstartparameters.h"
 
 #include <coreplugin/id.h>
+#include <projectexplorer/projectexplorerconstants.h>
 
 #include <QtCore/QObject>
 
@@ -48,9 +50,9 @@ class RunConfiguration;
 
 namespace Analyzer {
 
-class AnalyzerStartParameters;
 class IAnalyzerOutputPaneAdapter;
 class IAnalyzerEngine;
+class AbstractAnalyzerSubConfig;
 
 
 /**
@@ -75,6 +77,8 @@ public:
 
     /// Returns a unique ID for this tool.
     virtual Core::Id id() const = 0;
+    /// Returns the run mode for this tool.
+    virtual ProjectExplorer::RunMode runMode() const = 0;
     /// Returns a short user readable display name for this tool.
     virtual QString displayName() const = 0;
     /// Returns a user readable description name for this tool.
@@ -121,6 +125,15 @@ public:
     virtual IAnalyzerEngine *createEngine(const AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration = 0) = 0;
 
+    /// Returns true if the tool can be run
+    virtual bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
+                        ProjectExplorer::RunMode mode) const = 0;
+
+    /// Create the start parameters for the run control factory
+    virtual AnalyzerStartParameters createStartParameters(
+            ProjectExplorer::RunConfiguration *runConfiguration,
+            ProjectExplorer::RunMode mode) const = 0;
+
     virtual void startTool(StartMode mode) = 0;
 
     /// Called when tools gets selected.
@@ -128,6 +141,12 @@ public:
 
     /// Called when tools gets deselected.
     virtual void toolDeselected() const {}
+
+    /// Factory method to create the global tool setting
+    virtual AbstractAnalyzerSubConfig *createGlobalSettings();
+
+    /// Factory method to create the project tool setting
+    virtual AbstractAnalyzerSubConfig *createProjectSettings();
 };
 
 } // namespace Analyzer

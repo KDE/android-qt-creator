@@ -44,16 +44,17 @@ namespace Internal {
 
 class MercurialClient;
 
-//Implements just the basics of the Version Control Interface
-//MercurialClient handles all the work
+// Implements just the basics of the Version Control Interface
+// MercurialClient handles all the work.
 class MercurialControl: public Core::IVersionControl
 {
     Q_OBJECT
+
 public:
     explicit MercurialControl(MercurialClient *mercurialClient);
 
     QString displayName() const;
-    QString id() const;
+    Core::Id id() const;
     bool managesDirectory(const QString &filename, QString *topLevel = 0) const;
     bool isConfigured() const;
     bool supportsOperation(Operation operation) const;
@@ -82,7 +83,7 @@ private:
     MercurialClient *mercurialClient;
 };
 
-} //namespace Internal
-} //namespace Mercurial
+} // namespace Internal
+} // namespace Mercurial
 
 #endif // MERCURIALCONTROL_H

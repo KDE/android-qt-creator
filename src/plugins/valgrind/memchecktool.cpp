@@ -185,7 +185,7 @@ static void initKindFilterAction(QAction *action, const QList<int> &kinds)
 }
 
 MemcheckTool::MemcheckTool(QObject *parent)
-  : Analyzer::IAnalyzerTool(parent)
+  : ValgrindTool(parent)
 {
     m_settings = 0;
     m_errorModel = 0;
@@ -290,6 +290,11 @@ Core::Id MemcheckTool::id() const
     return "Memcheck";
 }
 
+ProjectExplorer::RunMode MemcheckTool::runMode() const
+{
+    return ProjectExplorer::MemcheckRunMode;
+}
+
 QString MemcheckTool::displayName() const
 {
     return tr("Valgrind Memory Analyzer");
@@ -298,7 +303,17 @@ QString MemcheckTool::displayName() const
 QString MemcheckTool::description() const
 {
     return tr("Valgrind Analyze Memory uses the \"memcheck\" tool to find "
-        "memory leaks");
+              "memory leaks");
+}
+
+AbstractAnalyzerSubConfig *MemcheckTool::createGlobalSettings()
+{
+    return new ValgrindGlobalSettings();
+}
+
+AbstractAnalyzerSubConfig *MemcheckTool::createProjectSettings()
+{
+    return new ValgrindProjectSettings();
 }
 
 IAnalyzerTool::ToolMode MemcheckTool::toolMode() const

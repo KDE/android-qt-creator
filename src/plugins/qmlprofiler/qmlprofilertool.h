@@ -52,6 +52,7 @@ public:
     ~QmlProfilerTool();
 
     Core::Id id() const;
+    ProjectExplorer::RunMode runMode() const;
     QString displayName() const;
     QString description() const;
     ToolMode toolMode() const;
@@ -60,6 +61,13 @@ public:
 
     Analyzer::IAnalyzerEngine *createEngine(const Analyzer::AnalyzerStartParameters &sp,
         ProjectExplorer::RunConfiguration *runConfiguration = 0);
+
+    bool canRun(ProjectExplorer::RunConfiguration *runConfiguration,
+                ProjectExplorer::RunMode mode) const;
+
+    Analyzer::AnalyzerStartParameters createStartParameters(
+            ProjectExplorer::RunConfiguration *runConfiguration,
+            ProjectExplorer::RunMode mode) const;
 
     QWidget *createWidgets();
     void startTool(Analyzer::StartMode mode);

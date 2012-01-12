@@ -32,11 +32,11 @@
 
 #include "submiteditorfile.h"
 
-using namespace VCSBase;
-using namespace VCSBase::Internal;
+using namespace VcsBase;
+using namespace VcsBase::Internal;
 
 /*!
-    \class VCSBase::Internal::SubmitEditorFile
+    \class VcsBase::Internal::SubmitEditorFile
 
     \brief A non-saveable IFile for submit editor files.
 */
@@ -55,7 +55,7 @@ void SubmitEditorFile::rename(const QString &newName)
     return;
 }
 
-void SubmitEditorFile::setFileName(const QString name)
+void SubmitEditorFile::setFileName(const QString &name)
 {
      m_fileName = name;
      emit changed();

@@ -536,7 +536,7 @@ void WatchWindow::keyPressEvent(QKeyEvent *ev)
 void WatchWindow::dragEnterEvent(QDragEnterEvent *ev)
 {
     //QTreeView::dragEnterEvent(ev);
-    if (ev->mimeData()->hasFormat("text/plain")) {
+    if (ev->mimeData()->hasText()) {
         ev->setDropAction(Qt::CopyAction);
         ev->accept();
     }
@@ -545,7 +545,7 @@ void WatchWindow::dragEnterEvent(QDragEnterEvent *ev)
 void WatchWindow::dragMoveEvent(QDragMoveEvent *ev)
 {
     //QTreeView::dragMoveEvent(ev);
-    if (ev->mimeData()->hasFormat("text/plain")) {
+    if (ev->mimeData()->hasText()) {
         ev->setDropAction(Qt::CopyAction);
         ev->accept();
     }
@@ -553,7 +553,7 @@ void WatchWindow::dragMoveEvent(QDragMoveEvent *ev)
 
 void WatchWindow::dropEvent(QDropEvent *ev)
 {
-    if (ev->mimeData()->hasFormat("text/plain")) {
+    if (ev->mimeData()->hasText()) {
         watchExpression(ev->mimeData()->text());
         //ev->acceptProposedAction();
         ev->setDropAction(Qt::CopyAction);
@@ -743,7 +743,8 @@ void WatchWindow::contextMenuEvent(QContextMenuEvent *ev)
            "to stop when the data at the address is modified."));
 
     QAction *actSetWatchpointAtExpression = 0;
-    if (name.isEmpty()) {
+    const bool canSetWatchpointAtExpression = engineCapabilities & WatchpointByExpressionCapability;
+    if (name.isEmpty() || !canSetWatchpointAtExpression) {
         actSetWatchpointAtExpression =
             new QAction(tr("Add Data Breakpoint at Expression"),
                 &breakpointMenu);

@@ -271,7 +271,7 @@ void QmlEngine::retryMessageBoxFinished(int result)
     }
     case QMessageBox::Help: {
         Core::HelpManager *helpManager = Core::HelpManager::instance();
-        helpManager->handleHelpRequest("qthelp://com.nokia.qtcreator/doc/creator-debugging-qml.html");
+        helpManager->handleHelpRequest(QLatin1String("qthelp://com.nokia.qtcreator/doc/creator-debugging-qml.html"));
         // fall through
     }
     default:
@@ -345,38 +345,33 @@ void QmlEngine::showMessage(const QString &msg, int channel, int timeout) const
 void QmlEngine::gotoLocation(const Location &location)
 {
     const QString fileName = location.fileName();
-    if (QUrl(fileName).isLocalFile()) {
+    // TODO: QUrl::isLocalFile() once we depend on Qt 4.8
+    if (QUrl(fileName).scheme().compare(QLatin1String("file"), Qt::CaseInsensitive) == 0) {
         // internal file from source files -> show generated .js
-        QString fileName = location.fileName();
         QTC_ASSERT(d->m_sourceDocuments.contains(fileName), return);
-        const QString jsSource = d->m_sourceDocuments.value(fileName)->toPlainText();
-
         Core::IEditor *editor = 0;
 
         Core::EditorManager *editorManager = Core::EditorManager::instance();
-        QList<Core::IEditor *> editors = editorManager->editorsForFileName(location.fileName());
-        if (editors.isEmpty()) {
-            QString titlePattern = tr("JS Source for %1").arg(fileName);
+        QString titlePattern = tr("JS Source for %1").arg(fileName);
+        //Check if there are open editors with the same title
+        QList<Core::IEditor *> editors = editorManager->openedEditors();
+        foreach (Core::IEditor *ed, editors) {
+            if (ed->displayName() == titlePattern) {
+                editor = ed;
+                break;
+            }
+        }
+        if (!editor) {
             editor = editorManager->openEditorWithContents(QmlJSEditor::Constants::C_QMLJSEDITOR_ID,
                                                            &titlePattern);
             if (editor) {
                 editor->setProperty(Constants::OPENED_BY_DEBUGGER, true);
             }
-        } else {
-            editor = editors.back();
+
+            updateEditor(editor, d->m_sourceDocuments.value(fileName));
         }
-
-        TextEditor::ITextEditor *textEditor = qobject_cast<TextEditor::ITextEditor*>(editor);
-        if (!textEditor)
-            return;
-
-        QPlainTextEdit *plainTextEdit =
-                qobject_cast<QPlainTextEdit *>(editor->widget());
-        if (!plainTextEdit)
-            return;
-        plainTextEdit->setPlainText(jsSource);
-        plainTextEdit->setReadOnly(true);
         editorManager->activateEditor(editor);
+
     } else {
         DebuggerEngine::gotoLocation(location);
     }
@@ -535,8 +530,13 @@ void QmlEngine::executeNextI()
 
 void QmlEngine::executeRunToLine(const ContextData &data)
 {
-    Q_UNUSED(data)
-    SDEBUG("FIXME:  QmlEngine::executeRunToLine()");
+    QTC_ASSERT(state() == InferiorStopOk, qDebug() << state());
+    showStatusMessage(tr("Run to line  %1 (%2) requested...").arg(data.lineNumber).arg(data.fileName), 5000);
+    resetLocation();
+    if (d->m_adapter.activeDebuggerClient())
+        d->m_adapter.activeDebuggerClient()->executeRunToLine(data);
+    notifyInferiorRunRequested();
+    notifyInferiorRunOk();
 }
 
 void QmlEngine::executeRunToFunction(const QString &functionName)
@@ -782,7 +782,9 @@ void QmlEngine::synchronizeWatchers()
 
 unsigned QmlEngine::debuggerCapabilities() const
 {
-    return AddWatcherCapability|AddWatcherWhileRunningCapability;
+    return AddWatcherCapability
+            | AddWatcherWhileRunningCapability
+            | RunToLineCapability;
     /*ReverseSteppingCapability | SnapshotCapability
         | AutoDerefPointersCapability | DisassemblerCapability
         | RegisterCapability | ShowMemoryCapability
@@ -835,17 +837,13 @@ void QmlEngine::executeDebuggerCommand(const QString& command)
 
 QString QmlEngine::qmlImportPath() const
 {
-    return startParameters().environment.value("QML_IMPORT_PATH");
+    return startParameters().environment.value(QLatin1String("QML_IMPORT_PATH"));
 }
 
 void QmlEngine::logMessage(const QString &service, LogDirection direction, const QString &message)
 {
     QString msg = service;
-    if (direction == LogSend) {
-        msg += ": sending ";
-    } else {
-        msg += ": receiving ";
-    }
+    msg += direction == LogSend ? QLatin1String(": sending ") : QLatin1String(": receiving ");
     msg += message;
     showMessage(msg, LogDebug);
 }
@@ -860,6 +858,8 @@ void QmlEngine::setSourceFiles(const QStringList &fileNames)
     }
 
     sourceFilesHandler()->setSourceFiles(files);
+    //update open editors
+
 }
 
 void QmlEngine::updateScriptSource(const QString &fileName, int lineOffset, int columnOffset,
@@ -903,6 +903,31 @@ void QmlEngine::updateScriptSource(const QString &fileName, int lineOffset, int 
         if (!cursor.movePosition(QTextCursor::NextBlock))
             cursor.insertBlock();
     }
+
+    //update open editors
+    QString titlePattern = tr("JS Source for %1").arg(fileName);
+    //Check if there are open editors with the same title
+    QList<Core::IEditor *> editors = Core::EditorManager::instance()->openedEditors();
+    foreach (Core::IEditor *editor, editors) {
+        if (editor->displayName() == titlePattern) {
+            updateEditor(editor, document);
+            break;
+        }
+    }
+}
+
+void QmlEngine::updateEditor(Core::IEditor *editor, const QTextDocument *document)
+{
+    TextEditor::ITextEditor *textEditor = qobject_cast<TextEditor::ITextEditor*>(editor);
+    if (!textEditor)
+        return;
+
+    QPlainTextEdit *plainTextEdit =
+            qobject_cast<QPlainTextEdit *>(editor->widget());
+    if (!plainTextEdit)
+        return;
+    plainTextEdit->setPlainText(document->toPlainText());
+    plainTextEdit->setReadOnly(true);
 }
 
 QmlAdapter *QmlEngine::adapter() const
