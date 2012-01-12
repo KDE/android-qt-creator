@@ -27,7 +27,7 @@ using ProjectExplorer::RunConfiguration;
 using namespace ProjectExplorer;
 
 AndroidRunControl::AndroidRunControl(AndroidRunConfiguration *rc)
-    : RunControl(rc, ProjectExplorer::Constants::RUNMODE)
+    : RunControl(rc, ProjectExplorer::NormalRunMode)
     , m_runner(new AndroidRunner(this, rc, false))
     , m_running(false)
 {

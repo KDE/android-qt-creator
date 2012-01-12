@@ -142,22 +142,23 @@ AndroidRunControlFactory::~AndroidRunControlFactory()
 }
 
 bool AndroidRunControlFactory::canRun(RunConfiguration *runConfiguration,
-    const QString &/*mode*/) const
+                ProjectExplorer::RunMode mode) const
 {
+    if (mode != NormalRunMode && mode != DebugRunMode)
+        return false;
     return qobject_cast<AndroidRunConfiguration *>(runConfiguration);
 }
 
 RunControl* AndroidRunControlFactory::create(RunConfiguration *runConfig,
-    const QString &mode)
+                                        ProjectExplorer::RunMode mode)
 {
-    Q_ASSERT(mode == ProjectExplorer::Constants::RUNMODE
-             || mode == Debugger::Constants::DEBUGMODE);
     Q_ASSERT(canRun(runConfig, mode));
     AndroidRunConfiguration *rc = qobject_cast<AndroidRunConfiguration *>(runConfig);
     Q_ASSERT(rc);
-    if (mode == ProjectExplorer::Constants::RUNMODE)
+    if (mode == NormalRunMode)
         return new AndroidRunControl(rc);
-    return AndroidDebugSupport::createDebugRunControl(rc);
+    else
+        return AndroidDebugSupport::createDebugRunControl(rc);
 }
 
 QString AndroidRunControlFactory::displayName() const
