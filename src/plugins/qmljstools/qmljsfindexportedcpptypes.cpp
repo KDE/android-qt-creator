@@ -264,7 +264,7 @@ protected:
         // and the expression
         const Token begin = translationUnit()->tokenAt(typeId->firstToken());
         const Token last = translationUnit()->tokenAt(typeId->lastToken() - 1);
-        exportedType.typeExpression = _doc->source().mid(begin.begin(), last.end() - begin.begin());
+        exportedType.typeExpression = _doc->utf8Source().mid(begin.begin(), last.end() - begin.begin());
 
         _exportedTypes += exportedType;
 
@@ -392,12 +392,12 @@ private:
     {
         const Token firstToken = translationUnit()->tokenAt(first);
         const Token lastToken = translationUnit()->tokenAt(last);
-        return _doc->source().mid(firstToken.begin(), lastToken.end() - firstToken.begin());
+        return _doc->utf8Source().mid(firstToken.begin(), lastToken.end() - firstToken.begin());
     }
 
     QString stringOf(const Token &token)
     {
-        return _doc->source().mid(token.begin(), token.length());
+        return _doc->utf8Source().mid(token.begin(), token.length());
     }
 
     ExpressionAST *skipStringCall(ExpressionAST *exp)
@@ -506,7 +506,7 @@ static QString toQmlType(const FullySpecifiedType &type)
 
 static Class *lookupClass(const QString &expression, Scope *scope, TypeOfExpression &typeOf)
 {
-    QList<LookupItem> results = typeOf(expression, scope);
+    QList<LookupItem> results = typeOf(expression.toUtf8(), scope);
     Class *klass = 0;
     foreach (const LookupItem &item, results) {
         if (item.declaration()) {
@@ -576,7 +576,7 @@ static LanguageUtils::FakeMetaObject::Ptr buildFakeMetaObject(
         if (QtEnum *qtEnum = member->asQtEnum()) {
             // find the matching enum
             Enum *e = 0;
-            QList<LookupItem> result = typeOf(namePrinter(qtEnum->name()), klass);
+            QList<LookupItem> result = typeOf(namePrinter(qtEnum->name()).toUtf8(), klass);
             foreach (const LookupItem &item, result) {
                 if (item.declaration()) {
                     e = item.declaration()->asEnum();
@@ -648,7 +648,7 @@ static void buildContextProperties(
 
     foreach (const ContextProperty &property, contextPropertyDescriptions) {
         Scope *scope = doc->scopeAt(property.line, property.column);
-        QList<LookupItem> results = typeOf(property.expression, scope);
+        QList<LookupItem> results = typeOf(property.expression.toUtf8(), scope);
         QString typeName;
         if (!results.isEmpty()) {
             LookupItem result = results.first();
@@ -689,7 +689,7 @@ void FindExportedCppTypes::operator()(const CPlusPlus::Document::Ptr &document)
 
     // this check only guards against some input errors, if document's source and AST has not
     // been guarded properly the source and AST may still become empty/null while this function is running
-    if (document->source().isEmpty()
+    if (document->utf8Source().isEmpty()
             || !document->translationUnit()->ast())
         return;
 
@@ -710,7 +710,7 @@ void FindExportedCppTypes::operator()(const CPlusPlus::Document::Ptr &document)
     // context properties need lookup inside function scope, and thus require a full check
     Document::Ptr localDoc = document;
     if (document->checkMode() != Document::FullCheck && !contextPropertyDescriptions.isEmpty()) {
-        localDoc = m_snapshot.documentFromSource(document->source(), document->fileName());
+        localDoc = m_snapshot.documentFromSource(document->utf8Source(), document->fileName());
         localDoc->check();
     }
 

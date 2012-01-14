@@ -505,9 +505,10 @@ bool CheckSymbols::visit(MemberAccessAST *ast)
             if (_potentialMembers.contains(id)) {
                 const Token start = tokenAt(ast->firstToken());
                 const Token end = tokenAt(ast->lastToken() - 1);
-                const QByteArray expression = _doc->source().mid(start.begin(), end.end() - start.begin());
+                const QByteArray expression = _doc->utf8Source().mid(start.begin(), end.end() - start.begin());
 
-                const QList<LookupItem> candidates = typeOfExpression(expression, enclosingScope(), TypeOfExpression::Preprocess);
+                const QList<LookupItem> candidates =
+                    typeOfExpression(expression, enclosingScope(), TypeOfExpression::Preprocess);
                 addClassMember(candidates, ast->member_name);
             }
         }
@@ -531,8 +532,9 @@ bool CheckSymbols::visit(CallAST *ast)
                 if (maybeVirtualMethod(access->member_name->name)) {
                     const QByteArray expression = textOf(access);
 
-                    const QList<LookupItem> candidates = typeOfExpression(expression, enclosingScope(),
-                                                                          TypeOfExpression::Preprocess);
+                    const QList<LookupItem> candidates =
+                        typeOfExpression(expression, enclosingScope(),
+                                         TypeOfExpression::Preprocess);
 
                     NameAST *memberName = access->member_name;
                     if (QualifiedNameAST *q = memberName->asQualifiedName())
@@ -548,9 +550,9 @@ bool CheckSymbols::visit(CallAST *ast)
                     if (QualifiedNameAST *q = exprName->asQualifiedName())
                         exprName = q->unqualified_name;
 
-                    const QList<LookupItem> candidates = typeOfExpression(textOf(idExpr), enclosingScope(),
-                                                                          TypeOfExpression::Preprocess);
-
+                    const QList<LookupItem> candidates =
+                        typeOfExpression(textOf(idExpr), enclosingScope(),
+                                         TypeOfExpression::Preprocess);
                     addVirtualMethod(candidates, exprName, argumentCount);
                 }
             }
@@ -566,7 +568,7 @@ QByteArray CheckSymbols::textOf(AST *ast) const
 {
     const Token start = tokenAt(ast->firstToken());
     const Token end = tokenAt(ast->lastToken() - 1);
-    const QByteArray text = _doc->source().mid(start.begin(), end.end() - start.begin());
+    const QByteArray text = _doc->utf8Source().mid(start.begin(), end.end() - start.begin());
     return text;
 }
 

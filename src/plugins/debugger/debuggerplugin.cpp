@@ -485,10 +485,32 @@ public:
     void runEngine() {}
     void shutdownEngine() {}
     void shutdownInferior() {}
-    unsigned debuggerCapabilities() const { return AddWatcherCapability; }
+    unsigned debuggerCapabilities() const;
     bool acceptsBreakpoint(BreakpointModelId) const { return false; }
     bool acceptsDebuggerCommands() const { return false; }
 };
+
+unsigned DummyEngine::debuggerCapabilities() const
+{
+    // This can only be a first approximation of what to expect when running.
+    Project *project = ProjectExplorerPlugin::instance()->currentProject();
+    if (!project)
+        return 0;
+    Target *target = project->activeTarget();
+    QTC_ASSERT(target, return 0);
+    RunConfiguration *activeRc = target->activeRunConfiguration();
+    QTC_ASSERT(activeRc, return 0);
+
+    // This is a non-started Cdb or Gdb engine:
+    if (activeRc->useCppDebugger())
+        return WatchpointByAddressCapability
+               | BreakConditionCapability
+               | TracePointCapability
+               | OperateByInstructionCapability;
+
+    // This is a Qml or unknown engine.
+    return AddWatcherCapability;
+}
 
 ///////////////////////////////////////////////////////////////////////
 //
@@ -3025,6 +3047,8 @@ void DebuggerPluginPrivate::extensionsInitialized()
     dock = m_mainWindow->createDockWidget(CppLanguage, localsAndWatchers);
     dock->setProperty(DOCKWIDGET_DEFAULT_AREA, Qt::RightDockWidgetArea);
 
+    m_mainWindow->addStagedMenuEntries();
+
     // Do not fail to load the whole plugin if something goes wrong here.
     QString errorMessage;
     if (!parseArguments(m_arguments, &m_cmdLineEnabledEngines, &errorMessage)) {
@@ -3110,7 +3134,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
     ActionContainer *mstart = am->actionContainer(PE::M_DEBUG_STARTDEBUGGING);
 
     cmd = am->registerAction(m_startAction, Constants::DEBUG, globalcontext);
-    cmd->setDefaultText(tr("Start Debugging"));
+    cmd->setDescription(tr("Start Debugging"));
     cmd->setDefaultKeySequence(QKeySequence(QLatin1String(Constants::DEBUG_KEY)));
     cmd->setAttribute(Command::CA_UpdateText);
     mstart->addAction(cmd, CC::G_DEFAULT_ONE);
@@ -3163,12 +3187,12 @@ void DebuggerPluginPrivate::extensionsInitialized()
 
     cmd = am->registerAction(m_startRemoteServerAction,
          "Debugger.StartRemoteServer", globalcontext);
-    cmd->setDefaultText(tr("Start Gdbserver"));
+    cmd->setDescription(tr("Start Gdbserver"));
     mstart->addAction(cmd, Constants::G_MANUAL_REMOTE);
 
     cmd = am->registerAction(m_attachToRemoteProcessAction,
          "Debugger.AttachToRemoteProcess", globalcontext);
-    cmd->setDefaultText(tr("Attach to Remote Process"));
+    cmd->setDescription(tr("Attach to Remote Process"));
     mstart->addAction(cmd, Debugger::Constants::G_AUTOMATIC_REMOTE);
 
 #ifdef WITH_LLDB
@@ -3203,7 +3227,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
 
     cmd = am->registerAction(m_interruptAction,
         Constants::INTERRUPT, globalcontext);
-    cmd->setDefaultText(tr("Interrupt Debugger"));
+    cmd->setDescription(tr("Interrupt Debugger"));
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 
     cmd = am->registerAction(m_continueAction,
@@ -3213,7 +3237,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
 
     cmd = am->registerAction(m_exitAction,
         Constants::STOP, globalcontext);
-    cmd->setDefaultText(tr("Stop Debugger"));
+    cmd->setDescription(tr("Stop Debugger"));
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 
     m_hiddenStopAction = new Utils::ProxyAction(this);
@@ -3228,7 +3252,7 @@ void DebuggerPluginPrivate::extensionsInitialized()
     cmd = am->registerAction(m_abortAction,
         Constants::ABORT, globalcontext);
     //cmd->setDefaultKeySequence(QKeySequence(QLatin1String(Constants::RESET_KEY)));
-    cmd->setDefaultText(tr("Reset Debugger"));
+    cmd->setDescription(tr("Reset Debugger"));
     debugMenu->addAction(cmd, CC::G_DEFAULT_ONE);
 
     sep = new QAction(this);

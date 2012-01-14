@@ -51,6 +51,7 @@
 #include <coreplugin/id.h>
 #include <coreplugin/filemanager.h>
 #include <coreplugin/iversioncontrol.h>
+#include <coreplugin/variablemanager.h>
 
 #include <texteditor/itexteditor.h>
 #include <utils/qtcassert.h>
@@ -237,7 +238,7 @@ public:
 
     void setEditor(VcsBase::VcsBaseEditorWidget *editor)
     {
-        Q_ASSERT(editor);
+        QTC_ASSERT(editor, return);
         m_editor = editor;
     }
 
@@ -337,6 +338,11 @@ static inline QString msgParseFilesFailed()
     return  GitClient::tr("Cannot parse the file output.");
 }
 
+static inline QString currentDocumentPath()
+{
+    return Core::VariableManager::instance()->value("CurrentDocument:Path");
+}
+
 // ---------------- GitClient
 
 const char *GitClient::stashNamePrefix = "stash@{";
@@ -348,7 +354,7 @@ GitClient::GitClient(GitSettings *settings) :
     m_repositoryChangedSignalMapper(0),
     m_settings(settings)
 {
-    Q_ASSERT(settings);
+    QTC_CHECK(settings);
     connect(m_core, SIGNAL(saveSettingsRequested()), this, SLOT(saveSettings()));
 }
 
@@ -405,7 +411,7 @@ VcsBase::VcsBaseEditorWidget *GitClient::createVcsEditor(const Core::Id &id,
                                                          QWidget *configWidget) const
 {
     VcsBase::VcsBaseEditorWidget *rc = 0;
-    Q_ASSERT(!findExistingVCSEditor(registerDynamicProperty, dynamicPropertyValue));
+    QTC_CHECK(!findExistingVCSEditor(registerDynamicProperty, dynamicPropertyValue));
 
     // Create new, set wait message, set up with source and codec
     Core::IEditor *outputEditor = m_core->editorManager()->openEditorWithContents(id, &title, m_msgWait);
@@ -681,6 +687,18 @@ void GitClient::slotBlameRevisionRequested(const QString &source, QString change
         change.truncate(blankPos);
     const QFileInfo fi(source);
     blame(fi.absolutePath(), QStringList(), fi.fileName(), change, lineNumber);
+}
+
+void GitClient::appendOutputData(const QByteArray &data) const
+{
+    const QTextCodec *codec = getSourceCodec(currentDocumentPath());
+    outputWindow()->appendData(codec->toUnicode(data).toLocal8Bit());
+}
+
+void GitClient::appendOutputDataSilently(const QByteArray &data) const
+{
+    const QTextCodec *codec = getSourceCodec(currentDocumentPath());
+    outputWindow()->appendDataSilently(codec->toUnicode(data).toLocal8Bit());
 }
 
 QTextCodec *GitClient::getSourceCodec(const QString &file) const
@@ -1343,9 +1361,9 @@ VcsBase::Command *GitClient::createCommand(const QString &workingDirectory,
         connect(command, SIGNAL(finished(bool,int,QVariant)), editor, SLOT(commandFinishedGotoLine(bool,int,QVariant)));
     if (useOutputToWindow) {
         if (editor) // assume that the commands output is the important thing
-            connect(command, SIGNAL(outputData(QByteArray)), outputWindow(), SLOT(appendDataSilently(QByteArray)));
+            connect(command, SIGNAL(outputData(QByteArray)), this, SLOT(appendOutputDataSilently(QByteArray)));
         else
-            connect(command, SIGNAL(outputData(QByteArray)), outputWindow(), SLOT(appendData(QByteArray)));
+            connect(command, SIGNAL(outputData(QByteArray)), this, SLOT(appendOutputData(QByteArray)));
     } else {
         if (editor)
             connect(command, SIGNAL(outputData(QByteArray)), editor, SLOT(setPlainTextDataFiltered(QByteArray)));
@@ -1535,7 +1553,7 @@ QStringList GitClient::synchronousRepositoryBranches(const QString &repositoryUR
         // split "82bfad2f51d34e98b18982211c82220b8db049b<tab>refs/heads/master"
         foreach(const QString &line, resp.stdOut.split(QLatin1Char('\n'))) {
             if (line.endsWith("\tHEAD")) {
-                Q_ASSERT(headSha.isNull());
+                QTC_CHECK(headSha.isNull());
                 headSha = line.left(line.indexOf(QChar('\t')));
                 continue;
             }

@@ -79,7 +79,7 @@ FindUsages::FindUsages(const QByteArray &originalSource, Document::Ptr doc, cons
       _snapshot(snapshot),
       _context(doc, snapshot),
       _originalSource(originalSource),
-      _source(_doc->source()),
+      _source(_doc->utf8Source()),
       _currentScope(0)
 {
     _snapshot.insert(_doc);
@@ -93,8 +93,8 @@ FindUsages::FindUsages(const LookupContext &context)
       _doc(context.thisDocument()),
       _snapshot(context.snapshot()),
       _context(context),
-      _originalSource(_doc->source()),
-      _source(_doc->source()),
+      _originalSource(_doc->utf8Source()),
+      _source(_doc->utf8Source()),
       _currentScope(0)
 {
     typeofExpression.init(_doc, _snapshot, _context.bindings());
@@ -282,7 +282,7 @@ void FindUsages::checkExpression(unsigned startToken, unsigned endToken, Scope *
     const unsigned begin = tokenAt(startToken).begin();
     const unsigned end = tokenAt(endToken).end();
 
-    const QString expression = _source.mid(begin, end - begin);
+    const QByteArray expression = _source.mid(begin, end - begin);
     // qDebug() << "*** check expression:" << expression;
 
     if (! scope)

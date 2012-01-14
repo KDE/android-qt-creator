@@ -650,6 +650,7 @@ bool ModelManager::matchesMimeType(const Core::MimeType &fileMimeType, const Cor
 
 QStringList ModelManager::importPaths() const
 {
+    QMutexLocker l(&m_mutex);
     return m_allImportPaths;
 }
 
@@ -675,18 +676,24 @@ static QStringList environmentImportPaths()
 
 void ModelManager::updateImportPaths()
 {
-    m_allImportPaths.clear();
+    QStringList allImportPaths;
     QMapIterator<ProjectExplorer::Project *, ProjectInfo> it(m_projects);
     while (it.hasNext()) {
         it.next();
         foreach (const QString &path, it.value().importPaths) {
             const QString canonicalPath = QFileInfo(path).canonicalFilePath();
             if (!canonicalPath.isEmpty())
-                m_allImportPaths += canonicalPath;
+                allImportPaths += canonicalPath;
         }
     }
-    m_allImportPaths += m_defaultImportPaths;
-    m_allImportPaths.removeDuplicates();
+    allImportPaths += m_defaultImportPaths;
+    allImportPaths.removeDuplicates();
+
+    {
+        QMutexLocker l(&m_mutex);
+        m_allImportPaths = allImportPaths;
+    }
+
 
     // check if any file in the snapshot imports something new in the new paths
     Snapshot snapshot = _validSnapshot;
@@ -710,7 +717,7 @@ void ModelManager::maybeQueueCppQmlTypeUpdate(const CPlusPlus::Document::Ptr &do
 {
     // avoid scanning documents without source code available
     doc->keepSourceAndAST();
-    if (doc->source().isEmpty()) {
+    if (doc->utf8Source().isEmpty()) {
         doc->releaseSourceAndAST();
         return;
     }

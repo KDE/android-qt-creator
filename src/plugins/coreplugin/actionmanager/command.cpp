@@ -118,7 +118,7 @@
 */
 
 /*!
-    \fn void Command::setDefaultText(const QString &text)
+    \fn void Command::setDescription(const QString &text)
     Set the \a text that is used to represent the Command in the
     keyboard shortcut settings dialog. If you don't set this,
     the current text from the user visible action is taken (which
@@ -126,9 +126,9 @@
 */
 
 /*!
-    \fn QString Command::defaultText() const
+    \fn QString Command::description() const
     Returns the text that is used to present this Command to the user.
-    \sa setDefaultText()
+    \sa setDescription()
 */
 
 /*!
@@ -239,14 +239,25 @@ void CommandPrivate::setKeySequence(const QKeySequence &key)
     m_isKeyInitialized = true;
 }
 
-void CommandPrivate::setDefaultText(const QString &text)
+void CommandPrivate::setDescription(const QString &text)
 {
     m_defaultText = text;
 }
 
-QString CommandPrivate::defaultText() const
+QString CommandPrivate::description() const
 {
-    return m_defaultText;
+    if (!m_defaultText.isEmpty())
+        return m_defaultText;
+    if (action()) {
+        QString text = action()->text();
+        text.remove(QRegExp(QLatin1String("&(?!&)")));
+        if (!text.isEmpty())
+            return text;
+    } else if (shortcut()) {
+        if (!shortcut()->whatsThis().isEmpty())
+            return shortcut()->whatsThis();
+    }
+    return id().toString();
 }
 
 Id CommandPrivate::id() const
@@ -330,16 +341,6 @@ void Shortcut::setKeySequence(const QKeySequence &key)
 QKeySequence Shortcut::keySequence() const
 {
     return m_shortcut->key();
-}
-
-void Shortcut::setDefaultText(const QString &text)
-{
-    m_defaultText = text;
-}
-
-QString Shortcut::defaultText() const
-{
-    return m_defaultText;
 }
 
 void Shortcut::setCurrentContext(const Core::Context &context)

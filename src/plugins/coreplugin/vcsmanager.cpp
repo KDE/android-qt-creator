@@ -85,9 +85,9 @@ public:
 
     VcsInfo *findInCache(const QString &dir)
     {
-        Q_ASSERT(QDir(dir).isAbsolute());
-        Q_ASSERT(!dir.endsWith(QLatin1Char('/')));
-        Q_ASSERT(QDir::fromNativeSeparators(dir) == dir);
+        QTC_ASSERT(QDir(dir).isAbsolute(), return 0);
+        QTC_ASSERT(!dir.endsWith(QLatin1Char('/')), return 0);
+        QTC_ASSERT(QDir::fromNativeSeparators(dir) == dir, return 0);
 
         const QMap<QString, VcsInfo *>::const_iterator it = m_cachedMatches.constFind(dir);
         if (it != m_cachedMatches.constEnd())
@@ -112,9 +112,9 @@ public:
 
     void resetCache(const QString &dir)
     {
-        Q_ASSERT(QDir(dir).isAbsolute());
-        Q_ASSERT(!dir.endsWith(QLatin1Char('/')));
-        Q_ASSERT(QDir::fromNativeSeparators(dir) == dir);
+        QTC_ASSERT(QDir(dir).isAbsolute(), return);
+        QTC_ASSERT(!dir.endsWith(QLatin1Char('/')), return);
+        QTC_ASSERT(QDir::fromNativeSeparators(dir) == dir, return);
 
         const QString dirSlash = dir + QLatin1Char('/');
         foreach (const QString &key, m_cachedMatches.keys()) {
@@ -123,12 +123,14 @@ public:
         }
     }
 
-    void cache(IVersionControl *vc, const QString topLevel, const QString dir)
+    void cache(IVersionControl *vc, const QString &topLevel, const QString &dir)
     {
-        Q_ASSERT(QDir(dir).isAbsolute());
-        Q_ASSERT(!dir.endsWith(QLatin1Char('/')));
-        Q_ASSERT(QDir::fromNativeSeparators(dir) == dir);
-        Q_ASSERT(dir.startsWith(topLevel));
+        QTC_ASSERT(QDir(dir).isAbsolute(), return);
+        QTC_ASSERT(!dir.endsWith(QLatin1Char('/')), return);
+        QTC_ASSERT(QDir::fromNativeSeparators(dir) == dir, return);
+        QTC_ASSERT(dir.startsWith(topLevel + QLatin1Char('/'))
+                   || topLevel == dir || topLevel.isEmpty(), return);
+        QTC_ASSERT((topLevel.isEmpty() && !vc) || (!topLevel.isEmpty() && vc), return);
 
         VcsInfo *newInfo = new VcsInfo(vc, topLevel);
         bool createdNewInfo(true);

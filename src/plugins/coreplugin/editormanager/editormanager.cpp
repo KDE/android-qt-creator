@@ -307,7 +307,7 @@ EditorManager::EditorManager(ICore *core, QWidget *parent) :
     Command *cmd = am->registerAction(d->m_revertToSavedAction,
                                        Constants::REVERTTOSAVED, editManagerContext);
     cmd->setAttribute(Command::CA_UpdateText);
-    cmd->setDefaultText(tr("Revert File to Saved"));
+    cmd->setDescription(tr("Revert File to Saved"));
     mfile->addAction(cmd, Constants::G_FILE_SAVE);
     connect(d->m_revertToSavedAction, SIGNAL(triggered()), this, SLOT(revertToSaved()));
 
@@ -337,7 +337,7 @@ EditorManager::EditorManager(ICore *core, QWidget *parent) :
     cmd = am->registerAction(d->m_closeCurrentEditorAction, Constants::CLOSE, editManagerContext, true);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+W")));
     cmd->setAttribute(Core::Command::CA_UpdateText);
-    cmd->setDefaultText(d->m_closeCurrentEditorAction->text());
+    cmd->setDescription(d->m_closeCurrentEditorAction->text());
     mfile->addAction(cmd, Constants::G_FILE_CLOSE);
     connect(d->m_closeCurrentEditorAction, SIGNAL(triggered()), this, SLOT(closeEditor()));
 
@@ -346,7 +346,7 @@ EditorManager::EditorManager(ICore *core, QWidget *parent) :
     QShortcut *sc = new QShortcut(parent);
     cmd = am->registerShortcut(sc, Constants::CLOSE_ALTERNATIVE, editManagerContext);
     cmd->setDefaultKeySequence(QKeySequence(tr("Ctrl+F4")));
-    cmd->setDefaultText(EditorManager::tr("Close"));
+    cmd->setDescription(EditorManager::tr("Close"));
     connect(sc, SIGNAL(activated()), this, SLOT(closeEditor()));
 #endif
 
