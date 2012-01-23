@@ -346,44 +346,75 @@ void AndroidTarget::updateProject(const QString &targetSDK, const QString &name)
         androidProc.terminate();
 }
 
-bool AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
+bool AndroidTarget::createAndroidTemplatesIfNecessary()
 {
     const Qt4Project *qt4Project = qobject_cast<Qt4Project*>(project());
     if (!qt4Project || !qt4Project->rootProjectNode())
         return false;
+    QString javaSrcPath=qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_PREFIX"]+QLatin1String("/src/android/java");
     QDir projectDir(project()->projectDirectory());
     QString androidPath=androidDirPath();
 
-    if (!forceJava && QFileInfo(androidPath).exists()
-            && QFileInfo(androidManifestPath()).exists()
-            && QFileInfo(androidPath+QLatin1String("/src")).exists()
-            && QFileInfo(androidPath+QLatin1String("/res")).exists()) {
-        return true;
+    QStringList m_ignoreFiles;
+    bool forceUpdate=false;
+    QDomDocument srcVersionDoc;
+    if (openXmlFile(srcVersionDoc, javaSrcPath+QLatin1String("/version.xml"), false))
+    {
+        QDomDocument dstVersionDoc;
+        if (openXmlFile(dstVersionDoc, androidPath+QLatin1String("/version.xml"), false))
+            forceUpdate = (srcVersionDoc.documentElement().attribute("value").toDouble()
+                           > dstVersionDoc.documentElement().attribute("value").toDouble());
+
+        else
+            forceUpdate=true;
+
+        if (forceUpdate && QFileInfo(androidPath).exists())
+        {
+            QDomElement ignoreFile=srcVersionDoc.documentElement().firstChildElement("ignore").firstChildElement("file");
+            while(!ignoreFile.isNull())
+            {
+                m_ignoreFiles << ignoreFile.text();
+                ignoreFile = ignoreFile.nextSiblingElement();
+            }
+        }
     }
 
-    if (!QFileInfo(androidDirPath()).exists())
-        if (!projectDir.mkdir(AndroidDirName) && !forceJava) {
+    if (!forceUpdate && QFileInfo(androidPath).exists()
+            && QFileInfo(androidManifestPath()).exists()
+            && QFileInfo(androidPath+QLatin1String("/src")).exists()
+            && QFileInfo(androidPath+QLatin1String("/res")).exists())
+        return true;
+
+    if (!QFileInfo(androidDirPath()).exists() && !projectDir.mkdir(AndroidDirName))
+    {
             raiseError(tr("Error creating Android directory '%1'.")
                 .arg(AndroidDirName));
             return false;
-        }
-
-    if (forceJava)
-        AndroidPackageCreationStep::removeDirectory(AndroidDirName+QLatin1String("/src"));
+    }
 
     QStringList androidFiles;
-    QDirIterator it(qt4Project->activeTarget()->activeBuildConfiguration()->qtVersion()->versionInfo()["QT_INSTALL_PREFIX"]+QLatin1String("/src/android/java"),QDirIterator::Subdirectories);
+    QDirIterator it(javaSrcPath,QDirIterator::Subdirectories);
     int pos=it.path().size();
     while (it.hasNext()) {
         it.next();
         if (it.fileInfo().isDir()) {
             projectDir.mkpath(AndroidDirName+it.filePath().mid(pos));
         } else {
-            QFile::copy(it.filePath(), androidPath+it.filePath().mid(pos));
-            androidFiles << androidPath + it.filePath().mid(pos);
+            const QString dstFile(androidPath+it.filePath().mid(pos));
+            if (m_ignoreFiles.contains(it.fileName()))
+                continue;
+            else
+            {
+                if (QFile::exists(dstFile))
+                    QFile::remove(dstFile);
+                else
+                    androidFiles << dstFile;
+            }
+            QFile::copy(it.filePath(), dstFile);
         }
     }
-    qt4Project->rootProjectNode()->addFiles(UnknownFileType, androidFiles);
+    if (androidFiles.size())
+        qt4Project->rootProjectNode()->addFiles(UnknownFileType, androidFiles);
 
     QStringList sdks = AndroidConfigurations::instance().sdkTargets();
     if (sdks.isEmpty()) {
@@ -401,12 +432,16 @@ bool AndroidTarget::createAndroidTemplatesIfNecessary(bool forceJava)
         applicationName[0]=applicationName[0].toUpper();
         setApplicationName(applicationName);
     }
+
+    if (forceUpdate)
+        QMessageBox::warning(0, tr("Warning"), tr("Android files has been updated automatically"));
+
     return true;
 }
 
-bool AndroidTarget::openXmlFile(QDomDocument & doc, const QString & fileName)
+bool AndroidTarget::openXmlFile(QDomDocument & doc, const QString & fileName, bool createAndroidTemplates)
 {
-    if (!createAndroidTemplatesIfNecessary())
+    if (createAndroidTemplates && !createAndroidTemplatesIfNecessary())
         return false;
 
     QFile f(fileName);
