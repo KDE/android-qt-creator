@@ -137,7 +137,7 @@ public:
     QString loadLocalJars(int apiLevel);
 
 public slots:
-    bool createAndroidTemplatesIfNecessary(bool forceJava = false);
+    bool createAndroidTemplatesIfNecessary();
     void updateProject(const QString &targetSDK, const QString &name = QString());
 
 signals:
@@ -156,7 +156,7 @@ private:
 
     QString loadLocal(int apiLevel, ItemType item);
     void raiseError(const QString &reason);
-    bool openXmlFile(QDomDocument &doc, const QString &fileName);
+    bool openXmlFile(QDomDocument &doc, const QString &fileName, bool createAndroidTemplates=true);
     bool saveXmlFile(QDomDocument &doc, const QString &fileName);
     bool openAndroidManifest(QDomDocument &doc);
     bool saveAndroidManifest(QDomDocument &doc);
