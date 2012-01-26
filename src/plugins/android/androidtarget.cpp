@@ -385,6 +385,8 @@ bool AndroidTarget::createAndroidTemplatesIfNecessary()
             && QFileInfo(androidPath+QLatin1String("/res")).exists())
         return true;
 
+    forceUpdate &= QFileInfo(androidPath).exists();
+
     if (!QFileInfo(androidDirPath()).exists() && !projectDir.mkdir(AndroidDirName))
     {
             raiseError(tr("Error creating Android directory '%1'.")
