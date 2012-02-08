@@ -215,7 +215,7 @@ QString AndroidTarget::apkPath(BuildType buildType)
             + AndroidDirName
             + QString("/bin/%1-%2.apk")
             .arg(applicationName())
-            .arg(buildType == DebugBuild ? "debug" : (buildType == ReleaseBuildUnsigned) ? "unsigned" : "signed");
+            .arg(buildType == DebugBuild ? "debug" : (buildType == ReleaseBuildUnsigned) ? "release-unsigned" : "signed");
 }
 
 QString AndroidTarget::localLibsRulesFilePath()
