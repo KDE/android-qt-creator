@@ -321,7 +321,6 @@ bool AndroidPackageCreationStep::createPackage()
             }
 
             QByteArray keyPass = m_certificatePasswd.toUtf8();
-            keyPass+="\n";
             build.clear();
             build<<"-verbose"<<"-keystore"<<m_keystorePath<<"-storepass"<<m_keystorePasswd
                 <<target->apkPath(AndroidTarget::ReleaseBuildUnsigned)
@@ -332,12 +331,12 @@ bool AndroidPackageCreationStep::createPackage()
                 buildProc->deleteLater();
                 return false;
             }
+
+            keyPass+="\n";
             buildProc->write(keyPass);
-            if (!buildProc->waitForBytesWritten() || !buildProc->waitForFinished()) {
-                disconnect(buildProc, 0, this, 0);
-                buildProc->deleteLater();
-                return false;
-            }
+            buildProc->waitForBytesWritten();
+            buildProc->waitForFinished();
+
             if (!buildProc->exitCode())
                 break;
             emit addOutput(tr("Failed, try again"), ErrorMessageOutput);
