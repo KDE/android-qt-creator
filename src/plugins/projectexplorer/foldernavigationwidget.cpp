@@ -66,8 +66,8 @@
 
 enum { debug = 0 };
 
-namespace ProjectExplorer {
-namespace Internal {
+using namespace ProjectExplorer;
+using namespace ProjectExplorer::Internal;
 
 // Hide the '.' entry.
 class DotRemovalFilter : public QSortFilterProxyModel
@@ -426,8 +426,5 @@ Core::NavigationView FolderNavigationWidgetFactory::createWidget()
     n.dockToolBarWidgets << toggleSync;
     return n;
 }
-
-} // namespace Internal
-} // namespace ProjectExplorer
 
 #include "foldernavigationwidget.moc"

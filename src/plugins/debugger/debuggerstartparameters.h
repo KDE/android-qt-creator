@@ -123,6 +123,7 @@ public:
     ProjectExplorer::Abi toolChainAbi;
 
     QString dumperLibrary;
+    QStringList solibSearchPath;
     QStringList dumperLibraryLocations;
     DebuggerStartMode startMode;
 
