@@ -35,13 +35,18 @@
 #include "registerpostmortemaction.h"
 #endif
 
+#include <coreplugin/icore.h>
 #include <utils/savedaction.h>
 #include <utils/qtcassert.h>
 #include <utils/pathchooser.h>
+#include <utils/persistentsettings.h>
 
 #include <QDebug>
 #include <QVariant>
 #include <QSettings>
+#include <QDateTime>
+#include <QtCore/QFileInfo>
+
 
 using namespace Utils;
 
@@ -53,8 +58,21 @@ static const char sourcePathMappingTargetKeyC[] = "Target";
 namespace Debugger {
 namespace Internal {
 
+namespace {
+    const QLatin1String sourcePathMappingFilename("/source_mapping.xml");
+    const char * const changeTimeStamp ="ChangeTimeStamp";
+    static QString settingsFileName()
+    {
+        return Core::ICore::instance()->resourcePath()
+                + QLatin1String("/Nokia") + sourcePathMappingFilename;
+    }
+}
 void GlobalDebuggerOptions::toSettings(QSettings *s) const
 {
+    QFileInfo fileInfo(settingsFileName());
+    if (fileInfo.exists())
+        s->setValue(changeTimeStamp, fileInfo.lastModified().toMSecsSinceEpoch()/1000);
+
     s->beginWriteArray(QLatin1String(sourcePathMappingArrayNameC));
     if (!sourcePathMap.isEmpty()) {
         const QString sourcePathMappingSourceKey = QLatin1String(sourcePathMappingSourceKeyC);
@@ -83,6 +101,13 @@ void GlobalDebuggerOptions::fromSettings(QSettings *s)
         }
     }
     s->endArray();
+    PersistentSettingsReader reader;
+    if (reader.load(settingsFileName()) && s->value(changeTimeStamp).toInt() != QFileInfo(settingsFileName()).lastModified().toMSecsSinceEpoch()/1000)
+    {
+        const QVariantMap map=reader.restoreValues();
+        foreach(QString key, map.keys())
+            sourcePathMap.insert(key, map[key].toString());
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////

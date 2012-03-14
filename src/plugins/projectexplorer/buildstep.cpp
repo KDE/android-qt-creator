@@ -158,7 +158,10 @@ QVariantMap BuildStep::toMap() const
 
 BuildConfiguration *BuildStep::buildConfiguration() const
 {
-    return qobject_cast<BuildConfiguration *>(parent()->parent());
+   BuildConfiguration *bc = qobject_cast<BuildConfiguration *>(parent()->parent());
+   if (!bc)
+       bc = target()->activeBuildConfiguration();
+   return bc;
 }
 
 DeployConfiguration *BuildStep::deployConfiguration() const

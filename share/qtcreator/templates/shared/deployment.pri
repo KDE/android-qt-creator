@@ -21,6 +21,28 @@ MAINPROFILEPWD = $$PWD
 symbian {
     isEmpty(ICON):exists($${TARGET}.svg):ICON = $${TARGET}.svg
     isEmpty(TARGET.EPOCHEAPSIZE):TARGET.EPOCHEAPSIZE = 0x20000 0x2000000
+} else:android {
+    for(deploymentfolder, DEPLOYMENTFOLDERS) {
+        item = item$${deploymentfolder}
+        itemfiles = $${item}.files
+        $$itemfiles = $$eval($${deploymentfolder}.source)
+        itempath = $${item}.path
+        $$itempath = /assets/$$eval($${deploymentfolder}.target)
+        export($$itemfiles)
+        export($$itempath)
+        INSTALLS += $$item
+    }
+
+    x86 {
+        target.path = /libs/x86
+    } else: armeabi-v7a {
+        target.path = /libs/armeabi-v7a
+    } else {
+        target.path = /libs/armeabi
+    }
+
+    export(target.path)
+    INSTALLS += target
 } else:win32 {
     copyCommand =
     for(deploymentfolder, DEPLOYMENTFOLDERS) {
@@ -90,13 +112,12 @@ symbian {
             QMAKE_EXTRA_TARGETS += first copydeploymentfolders
         }
     }
-    installPrefix = /opt/$${TARGET}
     for(deploymentfolder, DEPLOYMENTFOLDERS) {
         item = item$${deploymentfolder}
         itemfiles = $${item}.files
         $$itemfiles = $$eval($${deploymentfolder}.source)
         itempath = $${item}.path
-        $$itempath = $${installPrefix}/$$eval($${deploymentfolder}.target)
+        $$itempath = /opt/$${TARGET}/$$eval($${deploymentfolder}.target)
         export($$itemfiles)
         export($$itempath)
         INSTALLS += $$item
