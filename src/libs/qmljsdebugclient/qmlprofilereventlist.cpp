@@ -644,9 +644,14 @@ void QmlProfilerEventList::setTraceStartTime( qint64 time )
 
 void QmlProfilerEventList::complete()
 {
-    setState(ProcessingData);
-    d->collectV8Statistics();
-    postProcess();
+    if (currentState() == AcquiringData) {
+        setState(ProcessingData);
+        d->collectV8Statistics();
+        postProcess();
+    } else {
+        setState(Empty);
+    }
+
 }
 
 void QmlProfilerEventList::QmlProfilerEventListPrivate::clearQmlRootEvent()
@@ -1680,7 +1685,7 @@ void QmlProfilerEventList::load()
 
     // find v8events' children and parents
     foreach (int parentIndex, childrenIndexes.keys()) {
-        QStringList childrenStrings = childrenIndexes.value(parentIndex).split(",");
+        QStringList childrenStrings = childrenIndexes.value(parentIndex).split(QLatin1Char(','));
         QStringList childrenTimesStrings = childrenTimes.value(parentIndex).split(", ");
         QStringList parentTimesStrings = parentTimes.value(parentIndex).split(", ");
         for (int ndx = 0; ndx < childrenStrings.count(); ndx++) {
