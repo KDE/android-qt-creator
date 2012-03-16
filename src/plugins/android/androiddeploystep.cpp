@@ -202,13 +202,12 @@ void AndroidDeployStep::copyLibs(const QString &srcPath, const QString &destPath
 
 bool AndroidDeployStep::deployPackage()
 {
-    const Qt4BuildConfiguration *const bc
-        = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
     AndroidTarget *androidTarget = qobject_cast<AndroidTarget *>(target());
     if (!androidTarget) {
         raiseError(tr("Cannot deploy: current target is not android."));
         return false;
     }
+    const Qt4BuildConfiguration *const bc = androidTarget->activeQt4BuildConfiguration();
     const QString packageName = androidTarget->packageName();
     const QString targetSDK = androidTarget->targetSDK();
 
@@ -281,10 +280,10 @@ bool AndroidDeployStep::deployPackage()
     writeOutput(tr("Pulling files necessary for debugging"));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList() << "-s" << m_deviceSerialNumber << "pull" << "/system/bin/app_process" << QString("%1/app_process")
-                                        .arg(bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->buildDir()));
+                                        .arg(androidTarget->qt4Project()->rootQt4ProjectNode()->buildDir()));
     runCommand(deployProc, AndroidConfigurations::instance().adbToolPath(),
                QStringList() << "-s" << m_deviceSerialNumber << "pull"<<"/system/lib/libc.so" << QString("%1/libc.so")
-                                        .arg(bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->buildDir()));
+                                        .arg(androidTarget->qt4Project()->rootQt4ProjectNode()->buildDir()));
     disconnect(deployProc, 0, this, 0);
     deployProc->deleteLater();
     return true;

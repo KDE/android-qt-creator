@@ -259,18 +259,22 @@ QVariantMap AndroidPackageCreationStep::toMap() const
 
 bool AndroidPackageCreationStep::createPackage()
 {
-    const Qt4BuildConfiguration * bc = static_cast<Qt4BuildConfiguration *>(buildConfiguration());
     AndroidTarget * target = androidTarget();
+    if (!target) {
+        raiseError(tr("Cannot create android package: current target is not android."));
+        return false;
+    }
+    const Qt4BuildConfiguration * bc = target->activeQt4BuildConfiguration();
     checkRequiredLibraries();
     emit addOutput(tr("Copy Qt app & libs to Android package ..."), MessageOutput);
 
-    m_outputParser.setProjectFileList(bc->qt4Target()->qt4Project()->files(Project::AllFiles));
+    m_outputParser.setProjectFileList(target->qt4Project()->files(Project::AllFiles));
 
     const QString androidDir(target->androidDirPath());
     QString androidLibPath;
-    if (bc->qt4Target()->qt4Project()->rootQt4ProjectNode()->variableValue(Qt4ProjectManager::ConfigVar).contains("x86"))
+    if (target->qt4Project()->rootQt4ProjectNode()->variableValue(Qt4ProjectManager::ConfigVar).contains("x86"))
         androidLibPath = androidDir+QLatin1String("/libs/x86");
-    else if (bc->qt4Target()->qt4Project()->rootQt4ProjectNode()
+    else if (target->qt4Project()->rootQt4ProjectNode()
              ->variableValue(Qt4ProjectManager::ConfigVar).contains("armeabi-v7a"))
         androidLibPath = androidDir+QLatin1String("/libs/armeabi-v7a");
     else
