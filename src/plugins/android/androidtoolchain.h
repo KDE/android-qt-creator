@@ -35,7 +35,12 @@
 #include <projectexplorer/toolchainconfigwidget.h>
 
 namespace Android {
+
 namespace Internal {
+
+// --------------------------------------------------------------------------
+// AndroidToolChain
+// --------------------------------------------------------------------------
 
 class AndroidToolChain : public ProjectExplorer::GccToolChain
 {
@@ -56,13 +61,13 @@ public:
     QVariantMap toMap() const;
     bool fromMap(const QVariantMap &data);
     QList<Utils::FileName> suggestedMkspecList() const;
-    QString makeCommand() const;
+    virtual QString makeCommand() const;
 
     void setQtVersionId(int);
     int qtVersionId() const;
 
 protected:
-    QList<ProjectExplorer::Abi> detectSupportedAbis() const;
+    virtual QList<ProjectExplorer::Abi> detectSupportedAbis() const;
 
 private:
     explicit AndroidToolChain(bool);
@@ -105,6 +110,7 @@ public:
 private slots:
     void handleQtVersionChanges(const QList<int> &added, const QList<int> &removed, const QList<int> &changed);
     QList<ProjectExplorer::ToolChain *> createToolChainList(const QList<int> &);
+    void createDefaultProfiles();
 };
 
 } // namespace Internal

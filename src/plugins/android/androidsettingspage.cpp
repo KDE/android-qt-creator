@@ -46,7 +46,7 @@ AndroidSettingsPage::AndroidSettingsPage(QObject *parent)
     setCategory(QLatin1String(Constants::ANDROID_SETTINGS_CATEGORY));
     setDisplayCategory(QCoreApplication::translate("Android",
         Constants::ANDROID_SETTINGS_TR_CATEGORY));
-    setCategoryIcon(QLatin1String(Constants::ANDROID_SETTINGS_CATEGORY_ICON));
+    setCategoryIcon(QLatin1String(Constants::ANDROID_ICON));
 }
 
 bool AndroidSettingsPage::matches(const QString &searchKeyWord) const
