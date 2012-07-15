@@ -67,7 +67,7 @@ namespace Internal {
 
 static QString settingsFileName()
 {
-    return QString::fromLatin1("%1/qtcreator/updateInfo.xml").arg(
+    return QString::fromLatin1("%1/updateInfo.xml").arg(
         QFileInfo(Core::ICore::settings(QSettings::SystemScope)->fileName()).absolutePath());
 }
 
