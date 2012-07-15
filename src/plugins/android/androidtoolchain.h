@@ -41,7 +41,7 @@ namespace Android {
 namespace Internal {
 
 // --------------------------------------------------------------------------
-// MaemoToolChain
+// AndroidToolChain
 // --------------------------------------------------------------------------
 
 class AndroidToolChain : public ProjectExplorer::GccToolChain
@@ -110,6 +110,7 @@ public:
 private slots:
     void handleQtVersionChanges(const QList<int> &added, const QList<int> &removed, const QList<int> &changed);
     QList<ProjectExplorer::ToolChain *> createToolChainList(const QList<int> &);
+    void createDefaultProfiles();
 };
 
 } // namespace Internal
