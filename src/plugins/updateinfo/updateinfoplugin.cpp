@@ -39,6 +39,8 @@
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/progressmanager/futureprogress.h>
 
+#include <utils/persistentsettings.h>
+
 #include <qtconcurrentrun.h>
 
 #include <QtPlugin>
@@ -54,6 +56,7 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QFutureWatcher>
+#include <QFileInfo>
 
 namespace {
     static const quint32 OneMinute = 60000;
@@ -61,6 +64,12 @@ namespace {
 
 namespace UpdateInfo {
 namespace Internal {
+
+static QString settingsFileName()
+{
+    return QString::fromLatin1("%1/qtcreator/updateInfo.xml").arg(
+        QFileInfo(Core::ICore::settings(QSettings::SystemScope)->fileName()).absolutePath());
+}
 
 class UpdateInfoPluginPrivate
 {
@@ -123,10 +132,13 @@ bool UpdateInfoPlugin::initialize(const QStringList & /* arguments */, QString *
     d->checkUpdateInfoWatcher = new QFutureWatcher<QDomDocument>(this);
     connect(d->checkUpdateInfoWatcher, SIGNAL(finished()), this, SLOT(reactOnUpdaterOutput()));
 
-    QSettings *settings = Core::ICore::settings();
-    d->updaterProgram = settings->value(QLatin1String("Updater/Application")).toString();
-    d->updaterCheckOnlyArgument = settings->value(QLatin1String("Updater/CheckOnlyArgument")).toString();
-    d->updaterRunUiArgument = settings->value(QLatin1String("Updater/RunUiArgument")).toString();
+    Utils::PersistentSettingsReader reader;
+    if (reader.load(settingsFileName()))
+    {
+        d->updaterProgram = reader.restoreValue(QLatin1String("Application")).toString();
+        d->updaterCheckOnlyArgument = reader.restoreValue(QLatin1String("CheckOnlyArgument")).toString();
+        d->updaterRunUiArgument = reader.restoreValue(QLatin1String("RunUiArgument")).toString();
+    }
 
     if (d->updaterProgram.isEmpty()) {
         *errorMessage = tr("Could not determine location of maintenance tool. Please check "
