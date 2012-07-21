@@ -346,7 +346,7 @@ void AndroidToolChainFactory::createDefaultProfiles()
             {
                 ProjectExplorer::Profile *p = new ProjectExplorer::Profile;
                 p->setDisplayName(aqv->displayName());
-                p->setIconPath(Constants::ANDROID_ICON);
+                p->setIconPath(QLatin1String(Constants::ANDROID_ICON));
                 ProjectExplorer::DeviceTypeProfileInformation::setDeviceTypeId(p, Core::Id(Constants::ANDROID_DEVICE_TYPE));
                 ProjectExplorer::DeviceProfileInformation::setDeviceId(p, Core::Id(Constants::ANDROID_DEVICE_ID));
                 QtSupport::QtProfileInformation::setQtVersion(p, aqv);
