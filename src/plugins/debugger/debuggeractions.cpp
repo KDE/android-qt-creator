@@ -389,7 +389,7 @@ DebuggerSettings::DebuggerSettings(QSettings *settings)
     item = new SavedAction(this);
     item->setSettingsKey(debugModeGroup, QLatin1String("WarnOnReleaseBuilds"));
     item->setCheckable(true);
-    item->setDefaultValue(true);
+    item->setDefaultValue(false);
     insertItem(WarnOnReleaseBuilds, item);
 
     item = new SavedAction(this);
