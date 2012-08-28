@@ -85,8 +85,8 @@ namespace {
 
     static QString sdkSettingsFileName()
     {
-        return QString::fromLatin1("%1/android.xml").arg(
-                                           .arg(QFileInfo(Core::ICore::settings(QSettings::SystemScope)->fileName()).absolutePath()));
+        return QString::fromLatin1("%1/android.xml")
+                                           .arg(QFileInfo(Core::ICore::settings(QSettings::SystemScope)->fileName()).absolutePath());
     }
 
     bool androidDevicesLessThan(const AndroidDeviceInfo &dev1, const AndroidDeviceInfo &dev2)
@@ -142,9 +142,8 @@ AndroidConfig::AndroidConfig(const QSettings &settings)
     // user settings
 
     PersistentSettingsReader reader;
-    if (reader.load(sdkSettingsFileName())
+    if (reader.load(FileName::fromString(sdkSettingsFileName()))
             && settings.value(changeTimeStamp).toInt() != QFileInfo(sdkSettingsFileName()).lastModified().toMSecsSinceEpoch() / 1000) {
-            && settings.value(changeTimeStamp).toInt() != fn.toFileInfo().lastModified().toMSecsSinceEpoch() / 1000) {
         // persisten settings
         sdkLocation = FileName::fromString(reader.restoreValue(SDKLocationKey).toString());
         ndkLocation = FileName::fromString(reader.restoreValue(NDKLocationKey).toString());

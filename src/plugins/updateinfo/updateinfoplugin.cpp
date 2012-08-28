@@ -133,7 +133,7 @@ bool UpdateInfoPlugin::initialize(const QStringList & /* arguments */, QString *
     connect(d->checkUpdateInfoWatcher, SIGNAL(finished()), this, SLOT(reactOnUpdaterOutput()));
 
     Utils::PersistentSettingsReader reader;
-    if (reader.load(settingsFileName()))
+    if (reader.load(Utils::FileName::fromString(settingsFileName())))
     {
         d->updaterProgram = reader.restoreValue(QLatin1String("Application")).toString();
         d->updaterCheckOnlyArgument = reader.restoreValue(QLatin1String("CheckOnlyArgument")).toString();
