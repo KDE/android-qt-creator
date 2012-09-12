@@ -33,7 +33,7 @@
 #include "androidqtversion.h"
 
 
-#include <qtsupport/qtprofileinformation.h>
+#include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
 
 #include <projectexplorer/target.h>

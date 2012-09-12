@@ -37,11 +37,11 @@
 #include <qt4projectmanager/qt4project.h>
 #include <qt4projectmanager/qt4projectmanagerconstants.h>
 
-#include <qtsupport/qtprofileinformation.h>
+#include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtsupportconstants.h>
 #include <qtsupport/qtversionmanager.h>
 
-#include <projectexplorer/profile.h>
+#include <projectexplorer/kit.h>
 #include <projectexplorer/projectexplorer.h>
 
 using namespace Android::Internal;
@@ -92,7 +92,7 @@ QList<ProjectExplorer::Abi> AndroidQtVersion::detectQtAbis() const
                                                                  32);
 }
 
-void AndroidQtVersion::addToEnvironment(const ProjectExplorer::Profile *p, Utils::Environment &env) const
+void AndroidQtVersion::addToEnvironment(const ProjectExplorer::Kit *p, Utils::Environment &env) const
 {
     QString ndk_host = QLatin1String(
 #if defined(Q_OS_LINUX)
@@ -110,7 +110,7 @@ void AndroidQtVersion::addToEnvironment(const ProjectExplorer::Profile *p, Utils
 
     Qt4Project *qt4pro = qobject_cast<Qt4ProjectManager::Qt4Project *>(ProjectExplorerPlugin::instance()->currentProject());
     if (!qt4pro || !qt4pro->activeTarget()
-            || QtSupport::QtProfileInformation::qtVersion(p)->type() != QLatin1String(Constants::ANDROIDQT))
+            || QtSupport::QtKitInformation::qtVersion(p)->type() != QLatin1String(Constants::ANDROIDQT))
         return;
     env.set(QLatin1String("ANDROID_NDK_PLATFORM"),
             AndroidConfigurations::instance().bestMatch(AndroidManager::targetSDK(qt4pro->activeTarget())));
