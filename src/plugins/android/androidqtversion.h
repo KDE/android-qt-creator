@@ -53,7 +53,7 @@ public:
 
     QList<ProjectExplorer::Abi> detectQtAbis() const;
 
-    void addToEnvironment(const ProjectExplorer::Profile *p, Utils::Environment &env) const;
+    void addToEnvironment(const ProjectExplorer::Kit *p, Utils::Environment &env) const;
 
     Core::FeatureSet availableFeatures() const;
     QString platformName() const;

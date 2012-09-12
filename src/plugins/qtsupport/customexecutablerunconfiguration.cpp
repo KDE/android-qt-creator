@@ -35,7 +35,6 @@
 #include <projectexplorer/buildconfiguration.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectexplorerconstants.h>
-#include <projectexplorer/profileinformation.h>
 #include <projectexplorer/target.h>
 #include <projectexplorer/abi.h>
 
@@ -411,8 +410,6 @@ CustomExecutableRunConfigurationFactory::clone(ProjectExplorer::Target *parent,
 
 bool CustomExecutableRunConfigurationFactory::canHandle(ProjectExplorer::Target *parent) const
 {
-    if (ProjectExplorer::DeviceTypeProfileInformation::deviceTypeId(parent->profile()) != Core::Id())
-        return false;
     return parent->project()->supportsKit(parent->kit());
 }
 

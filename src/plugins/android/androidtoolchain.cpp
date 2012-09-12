@@ -33,9 +33,9 @@
 #include "androidconfigurations.h"
 #include "androidqtversion.h"
 
-#include <debugger/debuggerprofileinformation.h>
+#include <debugger/debuggerkitinformation.h>
 
-#include <qtsupport/qtprofileinformation.h>
+#include <qtsupport/qtkitinformation.h>
 #include <qtsupport/qtversionmanager.h>
 
 #include <projectexplorer/target.h>
@@ -284,7 +284,7 @@ QList<ToolChain *> AndroidToolChainFactory::createToolChainList(const QList<int>
     return result;
 }
 
-class AndroidProfileMatcher : public ProjectExplorer::ProfileMatcher
+class AndroidProfileMatcher : public ProjectExplorer::KitMatcher
 {
 public:
     AndroidProfileMatcher()
@@ -292,23 +292,23 @@ public:
         m_profile = 0;
     }
 
-    virtual bool matches(const ProjectExplorer::Profile *p) const
+    virtual bool matches(const ProjectExplorer::Kit *p) const
     {
         return m_profile && p
-                && ProjectExplorer::DeviceTypeProfileInformation::deviceTypeId(p) == ProjectExplorer::DeviceTypeProfileInformation::deviceTypeId(m_profile)
-                && ProjectExplorer::DeviceProfileInformation::deviceId(p) == ProjectExplorer::DeviceProfileInformation::deviceId(m_profile)
-                && QtSupport::QtProfileInformation::qtVersion(p) == QtSupport::QtProfileInformation::qtVersion(m_profile)
-                && ProjectExplorer::ToolChainProfileInformation::toolChain(p) == ProjectExplorer::ToolChainProfileInformation::toolChain(m_profile)
-                && Debugger::DebuggerProfileInformation::debuggerCommand(p) == Debugger::DebuggerProfileInformation::debuggerCommand(m_profile);
+                && ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(p) == ProjectExplorer::DeviceTypeKitInformation::deviceTypeId(m_profile)
+                && ProjectExplorer::DeviceKitInformation::deviceId(p) == ProjectExplorer::DeviceKitInformation::deviceId(m_profile)
+                && QtSupport::QtKitInformation::qtVersion(p) == QtSupport::QtKitInformation::qtVersion(m_profile)
+                && ProjectExplorer::ToolChainKitInformation::toolChain(p) == ProjectExplorer::ToolChainKitInformation::toolChain(m_profile)
+                && Debugger::DebuggerKitInformation::debuggerCommand(p) == Debugger::DebuggerKitInformation::debuggerCommand(m_profile);
     }
 
-    void setProfile(ProjectExplorer::Profile *profile)
+    void setProfile(ProjectExplorer::Kit *profile)
     {
         m_profile = profile;
     }
 
 private:
-    ProjectExplorer::Profile *m_profile;
+    ProjectExplorer::Kit *m_profile;
 };
 
 void AndroidToolChainFactory::createDefaultProfiles()
@@ -323,20 +323,20 @@ void AndroidToolChainFactory::createDefaultProfiles()
             ProjectExplorer::ToolChain * atc = aqv->preferredToolChain(aqv->mkspec());
             if (atc && atc->isValid())
             {
-                ProjectExplorer::Profile *p = new ProjectExplorer::Profile;
+                ProjectExplorer::Kit *p = new ProjectExplorer::Kit;
                 p->setDisplayName(aqv->displayName());
                 p->setIconPath(QLatin1String(Constants::ANDROID_ICON));
-                ProjectExplorer::DeviceTypeProfileInformation::setDeviceTypeId(p, Core::Id(Constants::ANDROID_DEVICE_TYPE));
-                ProjectExplorer::DeviceProfileInformation::setDeviceId(p, Core::Id(Constants::ANDROID_DEVICE_ID));
-                QtSupport::QtProfileInformation::setQtVersion(p, aqv);
-                ProjectExplorer::ToolChainProfileInformation::setToolChain(p, atc);
-                Debugger::DebuggerProfileInformation::setDebuggerCommand(p, AndroidConfigurations::instance().gdbPath(ProjectExplorer::Abi::ArmArchitecture));
+                ProjectExplorer::DeviceTypeKitInformation::setDeviceTypeId(p, Core::Id(Constants::ANDROID_DEVICE_TYPE));
+                ProjectExplorer::DeviceKitInformation::setDeviceId(p, Core::Id(Constants::ANDROID_DEVICE_ID));
+                QtSupport::QtKitInformation::setQtVersion(p, aqv);
+                ProjectExplorer::ToolChainKitInformation::setToolChain(p, atc);
+                Debugger::DebuggerKitInformation::setDebuggerCommand(p, AndroidConfigurations::instance().gdbPath(ProjectExplorer::Abi::ArmArchitecture));
                 apm.setProfile(p);
-                ProjectExplorer::ProfileManager * pm = ProjectExplorer::ProfileManager::instance();
+                ProjectExplorer::KitManager * pm = ProjectExplorer::KitManager::instance();
                 if (pm->find(&apm))
                     delete p;
                 else
-                    pm->registerProfile(p);
+                    pm->registerKit(p);
             }
         }
     }
