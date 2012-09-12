@@ -72,7 +72,7 @@ void AndroidRunControl::start()
 
 RunControl::StopResult AndroidRunControl::stop()
 {
-    m_runner->stop();
+    m_runner->stop(true);
     return StoppedSynchronously;
 }
 
