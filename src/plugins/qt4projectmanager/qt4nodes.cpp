@@ -2149,6 +2149,13 @@ QStringList Qt4ProFileNode::includePaths(QtSupport::ProFileReader *reader) const
     }
 
     paths.append(reader->absolutePathValues(QLatin1String("INCLUDEPATH"), m_projectDir));
+    paths << m_readerExact->values(QLatin1String("QMAKE_INCDIR"))
+          << m_readerExact->values(QLatin1String("QMAKE_INCDIR_X11"))
+          << m_readerExact->values(QLatin1String("QMAKE_INCDIR_QT"))
+          << m_readerExact->values(QLatin1String("QMAKE_INCDIR_OPENGL"))
+          << m_readerExact->values(QLatin1String("QMAKE_INCDIR_OPENGL_ES1"))
+          << m_readerExact->values(QLatin1String("QMAKE_INCDIR_EGL"))
+          << m_readerExact->values(QLatin1String("QMAKE_INCDIR_OPENVG"));
     // paths already contains moc dir and ui dir, due to corrrectly parsing uic.prf and moc.prf
     // except if those directories don't exist at the time of parsing
     // thus we add those directories manually (without checking for existence)
