@@ -331,6 +331,7 @@ void AndroidToolChainFactory::createDefaultProfiles()
                 QtSupport::QtKitInformation::setQtVersion(p, aqv);
                 ProjectExplorer::ToolChainKitInformation::setToolChain(p, atc);
                 Debugger::DebuggerKitInformation::setDebuggerCommand(p, AndroidConfigurations::instance().gdbPath(ProjectExplorer::Abi::ArmArchitecture));
+                Debugger::DebuggerKitInformation::setEngineType(p, Debugger::GdbEngineType);
                 apm.setProfile(p);
                 ProjectExplorer::KitManager * pm = ProjectExplorer::KitManager::instance();
                 if (pm->find(&apm))
