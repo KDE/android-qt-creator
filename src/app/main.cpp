@@ -207,13 +207,6 @@ static inline QStringList getPluginPaths()
 #  define SHARE_PATH "/../share/qtcreator"
 #endif
 
-#include <windows.h>
-void winMsgHandler(QtMsgType type, const char *msg)
-{
-    OutputDebugStringA(msg);
-	return;
-}
-
 int main(int argc, char **argv)
 {
 #ifdef Q_OS_MAC
@@ -238,7 +231,6 @@ int main(int argc, char **argv)
 #ifdef ENABLE_QT_BREAKPAD
     QtSystemExceptionHandler systemExceptionHandler;
 #endif
-	qInstallMsgHandler(winMsgHandler);
 
     // Manually determine -settingspath command line option
     // We can't use the regular way of the plugin manager, because that needs to parse pluginspecs
