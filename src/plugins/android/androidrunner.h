@@ -91,6 +91,7 @@ private:
     bool m_useLocalQtLibs;
     QString m_localLibs;
     QString m_localJars;
+    QString m_localJarsInitClasses;
     QMutex m_mutex;
 };
 
